@@ -1,0 +1,199 @@
+{
+  "format": "native-animation-partial-rust-port/v1",
+  "decision": "dec102",
+  "build": "update-v262144",
+  "archive_sha256": "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446",
+  "nso_sha256": "89fa2d715e13a1c311a47ee02b3cc858ccf72a2086ab9704a08a2ddc1b90f7d9",
+  "elf_sha256": "b772390207e0de689ca96adaeb15df8b1499912efa74804c3766214d76d08cf2",
+  "module_id": "aee8f150dda1b5a838806e1a5ea6827ad9f3c51e000000000000000000000000",
+  "rechecked_segments": [
+    {
+      "name": "text",
+      "sha256": "f68daca4836be616b98bbad40c84362eee7624a45f45bb39ae23d667952d190d",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "rodata",
+      "sha256": "3b63c22211843972f3d77aabdc001b90f3ae909bbbb9d20f7beb062271671c3f",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "data",
+      "sha256": "69047d4a9a9e90dc3ddccd684c87849b11e08b8cc15d6944408f6e3ea1e4dfd6",
+      "embedded_hash_and_elf_equal": true
+    }
+  ],
+  "functions": [
+    {
+      "function_id": "027b6c08",
+      "entry_vaddr": "027b6c08",
+      "size_bytes": 1376,
+      "native_body_sha256": "efd5642315c0d1a6eb20ce8e93ccf4bfc031185a0ea6442aeb0b88ce349404c2",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b6c08.asm",
+      "private_trace_sha256": "b9bf934dd479f20855f2c2d8d8d0ef8f7225aea5c9e96151f70d6c0992948deb"
+    },
+    {
+      "function_id": "027b7924",
+      "entry_vaddr": "027b7924",
+      "size_bytes": 1368,
+      "native_body_sha256": "5c23fea84ade73bd382cd2e8f5e83e9553c8bf94124c677356ab1271d21bed1b",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b7924.asm",
+      "private_trace_sha256": "955c80a8e6eb70051f6629eb520270af8d997b79c1b6fe0f11c09405f0a82f45"
+    }
+  ],
+  "rust_item": "pla::assets::tr::TrAnmNativeFramedRotation::evaluate",
+  "relation_id": "update_framed_rotation_stateless_dec102",
+  "implementation_status": "partial",
+  "verification_status": "unknown",
+  "binary_match_status": "unknown",
+  "source_hashes": {
+    "crates/pla/src/assets/tr/native_animation.rs": "75f799d3baa02fbb405bcec0d03b9ca2c9d4ae9fc3e5c902582f6aeb4a8e7e99",
+    "crates/pla/tests/tr_animation_native.rs": "8ee9fddafba0e445b4ee3ec03f0c5206233f3bc05a855451894c31a2c013798e",
+    "crates/pla/src/assets/tr.rs": "7d820a82b96eb2057db6e31d1de397904f3afecf3a9ca6835d91dcb56258125f"
+  },
+  "unchanged_reference_sha256": "6a622137cfb4b476161c69000411870e107349ea2e7ca6c22134b52b539e0636",
+  "numeric_contract": {
+    "controlled_fpcr": 0,
+    "epsilon": "mandatory positive finite caller input, not actual SDK epsilon",
+    "host": "x86_64 Rust1.98.0 with checked MXCSR RNE/no FTZ/DAZ/masked exceptions",
+    "cross_target": "AArch64 read-check branch not built/run; other hosts unsupported",
+    "output_bits_supported": true,
+    "fpsr_parity": false,
+    "invalid_radicand_nan_propagation": false,
+    "caller_clock_loop_defaults_cache": false,
+    "guard_domain": "4..1000000 keys; repeated boundary frames; strictly increasing interior frames; finite in-range position; native u8/u16 width; required controls with positive packed radicand"
+  },
+  "oracle": {
+    "unit": "dec102",
+    "cases": 526,
+    "finite_output_cases": 494,
+    "nonfinite_output_cases": 32,
+    "native_exit": 0,
+    "instructions": 146973,
+    "fpcr": 0,
+    "epsilon": "per-case author substitution; positive finite only",
+    "epsilon_count": 9,
+    "native_fpsr_histogram": {
+      "16": 428,
+      "24": 64,
+      "19": 34
+    },
+    "mapped_payload_bytes": 122016,
+    "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+    "private_script_sha256": "a38432d1301279972f7cf0eb7120025357141e045bff74ed88cb1c86063890f6",
+    "private_oracle_sha256": "764b1913245a657e53c482aac834d98ee31c03f54f4ec9f9367b8bae1e43f456",
+    "private_elf_sha256": "9fb43d1ee8889837ad31e89136cb7435ebd75a7909f4360bacf5765d7d4f7094",
+    "private_trace_sha256": "f55a15f8d269dca3c21a3de158ce3cfa819e7596287f1aba145076184e9220bc"
+  },
+  "final_bounded_batches": {
+    "batches": [
+      {
+        "unit": "dec102",
+        "cases": 263,
+        "finite_output_cases": 263,
+        "nonfinite_output_cases": 0,
+        "native_exit": 0,
+        "instructions": 75334,
+        "fpcr": 0,
+        "epsilon": "per-case author substitution; positive finite only",
+        "epsilon_count": 9,
+        "native_fpsr_histogram": {
+          "16": 219,
+          "24": 44
+        },
+        "mapped_payload_bytes": 107296,
+        "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+        "private_script_sha256": "9f77b972e12acf089985697fb2062b00acb7a7845a0d9d7c6c3a242e5216b533",
+        "private_oracle_sha256": "8676efd9b9525a4b8dce1356047754af2d440ce19ab0f5eaf8a30cfd390ee2c3",
+        "private_elf_sha256": "f6d133372163d34847cf0fdd6ced3c2f1fdb2ffa5dd638272af1d3a1d3cb7b52",
+        "private_trace_sha256": "059c50da3bec9c0bc1a855714293125e9ac5afb96feb66a76951e9d90244c5cb"
+      },
+      {
+        "unit": "dec102",
+        "cases": 263,
+        "finite_output_cases": 231,
+        "nonfinite_output_cases": 32,
+        "native_exit": 0,
+        "instructions": 71651,
+        "fpcr": 0,
+        "epsilon": "per-case author substitution; positive finite only",
+        "epsilon_count": 9,
+        "native_fpsr_histogram": {
+          "16": 209,
+          "24": 20,
+          "19": 34
+        },
+        "mapped_payload_bytes": 107296,
+        "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+        "private_script_sha256": "a933821fb1bab6a63881f6c2c75ada37bffde49fd0626c0a900b71b573e346b7",
+        "private_oracle_sha256": "bb2d3c578ad1ddd28aed78892f7654ad441190050e62f4994bdd09dd7a80119d",
+        "private_elf_sha256": "671ccdc0d903c1b1907b54eb7d74d5289740d95da8d53b420c5914fc07a82068",
+        "private_trace_sha256": "b0de3755386f4e1bfea79b6c018a757673b4f962d58cd3de30464d042991ab5c"
+      }
+    ],
+    "combined_oracle_sha256": "764b1913245a657e53c482aac834d98ee31c03f54f4ec9f9367b8bae1e43f456",
+    "original_oracle_reproduced": true,
+    "initial_step_forecast_deviation": 146973,
+    "final_per_batch_acceptance_cap": 100000
+  },
+  "private_oracle_path": "/home/nico/work/pla/aux/native-animation-dec102/private-native-port-oracle.bin",
+  "primary_isa": {
+    "document": "Arm A64 ISA DDI0596 ID121321, Arm-authored PDF hosted by University of Waterloo",
+    "url": "https://student.cs.uwaterloo.ca/~cs452/docs/rpi4b/ISA_A64_xml_v88A-2021-12_OPT.pdf",
+    "sha256": "756449b122fa43ff55d81be5e889451bc8c7ba8576ad4a877b91c77b8675e349",
+    "pages": "2916 FPRSqrtStepFused; 3207\u20133209 FPRSqrtEstimate/RecipSqrtEstimate",
+    "clean_room": "integer estimate and fused halve derived from ISA; no game/QEMU source copied"
+  },
+  "checks": {
+    "normalization": "cargo fmt --all before final source tests/CI",
+    "focused_tests_exit": 0,
+    "focused_tests": 14,
+    "supported_native_bit_comparisons": 494,
+    "native_nan_rust_rejections_unsupported": 32,
+    "supported_output_mismatches": 0,
+    "ci_exit": 0,
+    "ci_native_proof": "optional oracle skipped in ordinary CI; explicitly executed focused oracle supplies proof",
+    "post_sheet_preflight": {
+      "exit": 0,
+      "sheets": 28,
+      "rows": 267921,
+      "errors": 0,
+      "warnings": 0
+    },
+    "final_treemap": {
+      "state": "current",
+      "generation_exit": 0,
+      "manifest_sha256": "f968834a0aee406d0c0a320ebc8bbf5bd1db37f878cef133a244c083551a19d9",
+      "rust_file_count": 47,
+      "rust_fingerprint_sha256": "1555c717cd3df8e5b1ea90da1d7fe595f33f0fe5fb76517a17b7c5e7c1f436c2",
+      "ledger_sha256": "3d130e597367fdde8f131df8b3eb55843a983d4f7d17db12fc2f38351f6fdded",
+      "outputs": {
+        "analysis.png": "0232225aadbc27018051d3121dd9e54ab911e59800c152b027442393e17cce4e",
+        "function-progress.tsv": "69285c265c1f94ce2d4cd09f621de7ed1df912bc8d37488bee7e4402b77c48ff",
+        "index.html": "5390aa671c407212bbcc48b75b7c96d457b7cb054368c7895278d724b9ef0714",
+        "port.png": "995b6df9654fb24fc8b33a9966cfd8cfdbd782ea38b0d18db8fb0bf5d98960b2"
+      },
+      "denominator": {
+        "definition": "sum of original Ghidra update-main function-body bytes",
+        "function_count": 68330,
+        "not_whole_game": true,
+        "original_function_body_bytes": 19029816
+      },
+      "partial_functions": [
+        "027b6c08",
+        "027b7924"
+      ],
+      "partial_native_bytes": 2744,
+      "verification_and_binary_match_all_unknown": true
+    },
+    "diff_check_exit": 0,
+    "format_check_exit": 0
+  },
+  "remaining": [
+    "Actual game FPCR and SDK epsilon",
+    "Native NaN propagation and FPSR side effects",
+    "Cache construction/stateful path",
+    "Fixed/dense inventory gaps and source ports",
+    "Global clock/loops/default pose/application to runtime"
+  ]
+}

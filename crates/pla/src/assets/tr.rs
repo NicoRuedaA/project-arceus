@@ -3,9 +3,10 @@
 //! The family (census: 3 748 files / 50.5 MB) is Game Freak's chunked model
 //! format. Verified so far (dec043/dec047/dec048):
 //!
-//! * the first `u32` is the header size and is constant per type
-//!   (`.trmdl` 24, `.trskl` 16, `.trmbf`/`.trmtr`/`.tranm` 12); the fields
-//!   after it are type-specific, so each type gets its own parser;
+//! * the first `u32` has observed per-type values (`.trmdl` 24, `.trskl`
+//!   16, `.trmbf`/`.trmtr`/`.tranm` 12). For `.trskl`/`.tranm` it is a FlatBuffer
+//!   root-table offset, NOT a header size (dec095/dec098); other layouts have their
+//!   own bounded parsers;
 //! * a `.trmdl` is a descriptor: a `u32` offset table at 0x1C, transform
 //!   floats, and length-prefixed references to its `.trmtr`/`.trskl` by name;
 //! * a `.trmbf` mesh buffer declares its vertex payload at 0x44: `u32@0x40`
@@ -17,6 +18,19 @@
 //! The parser keeps `.trmbf` usable without its sibling `.trmsh`; in that case
 //! attribute semantics remain inferred/unsupported and only raw record access
 //! is available. A layout-aware parse attaches the validated `.trmsh` fields.
+
+mod animation;
+pub use animation::{
+    reference_unpack_rotation, TrAnmBoneTrack, TrAnmChannel, TrAnmClip, TrAnmEncoding, TrAnmKey,
+    TrAnmReferenceChannel,
+};
+mod matrices;
+pub use matrices::{TrSklBindRecord, TrSklBindResidual, TrSklMatrix, TrSklReferencePose};
+mod native_animation;
+pub use native_animation::{
+    TrAnmNativeContext, TrAnmNativeError, TrAnmNativeEvaluation, TrAnmNativeFramedRotation,
+    TrAnmNativeFramedRotationCache,
+};
 
 /// One attribute declaration from a `.trmsh` vertex-layout section.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,7 +52,7 @@ pub struct TrMshLayout {
     pub stride: usize,
     /// Declared attributes in the `.trmsh` section's order.
     pub attributes: Vec<TrMshAttribute>,
-    /// Offset of the `[6, stride, attribute_count, ...]` section header.
+    /// Declaration-table address (bounded legacy section or FlatBuffer table).
     pub table_offset: usize,
 }
 
@@ -127,7 +141,7 @@ pub struct TrMbf {
     pub vertex_offset: usize,
     /// Vertex payload size in bytes (`u32@0x40` for the declared layout).
     pub vertex_size: usize,
-    /// Vertex count: `max(index) + 1`, every vertex is referenced.
+    /// Vertex count: declared payload/stride, or `max(index) + 1` in legacy parsing.
     pub vertex_count: usize,
     /// Bytes per vertex record: `vertex_size / vertex_count`.
     pub vertex_stride: usize,
@@ -137,6 +151,26 @@ pub struct TrMbf {
     pub indices: Vec<u16>,
     /// Validated `.trmsh` attribute declarations, when parsed with a sibling.
     pub layout: Option<TrMshLayout>,
+}
+
+/// Four rig-index/UNORM16 lanes from the demonstrated ID 7/8 layout (dec096).
+///
+/// Rig indices address bind records, not transform-node ordinals. A zero index
+/// is valid when its weight is positive; only zero weight disables a lane.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrSkinInfluences {
+    pub rig_indices: [u8; 4],
+    pub weights_u16: [u16; 4],
+    /// Transform-node indices resolved through `TrSklNode::rig_index`.
+    pub node_indices: [Option<usize>; 4],
+}
+
+impl TrSkinInfluences {
+    /// Decode individual UNORM components without renormalizing their sum.
+    /// Observed sums differ from one by at most one UNORM16 quantum.
+    pub fn unorm_weights(&self) -> [f32; 4] {
+        self.weights_u16.map(|weight| f32::from(weight) / 65535.0)
+    }
 }
 
 const VERTEX_OFFSET: usize = 0x44;
@@ -531,6 +565,259 @@ impl TrMbf {
         }
         mesh.layout = Some(layout);
         Ok(mesh)
+    }
+
+    /// Decode one explicitly selected FlatBuffer skin shape and its matching
+    /// buffer, without the legacy index-tail/vertex-split heuristics (dec096).
+    pub fn parse_skin_shape(
+        trmbf: &[u8],
+        trmsh: &[u8],
+        shape_index: usize,
+    ) -> Result<TrMbf, String> {
+        if trmbf.len() > 32 * 1024 * 1024 || trmsh.len() > 32 * 1024 * 1024 {
+            return Err("skin shape exceeds input cap".into());
+        }
+        let mesh = SklBuffer(trmsh);
+        let root = mesh.table(mesh.target(0)?, 3)?;
+        let shapes = mesh.vector(&root, 1)?;
+        if shapes.len() > 64 {
+            return Err("skin shape count exceeds supported cap".into());
+        }
+        let shape = mesh.table(
+            *shapes
+                .get(shape_index)
+                .ok_or("skin shape index out of range")?,
+            13,
+        )?;
+        if mesh.u32(mesh.required(&shape, 2, 4)?)? != 1 {
+            return Err("skin shape requires UINT16 triangle indices".into());
+        }
+        let layouts = mesh.vector(&shape, 3)?;
+        if layouts.len() != 1 {
+            return Err("skin shape requires one vertex layout".into());
+        }
+        let table = mesh.table(layouts[0], 2)?;
+        let sizes = mesh.vector(&table, 1)?;
+        if sizes.len() != 1 {
+            return Err("skin shape requires one vertex stream".into());
+        }
+        let size_table = mesh.table(sizes[0], 1)?;
+        let stride = mesh.u32(mesh.required(&size_table, 0, 4)?)? as usize;
+        if !(12..=MAX_STRIDE).contains(&stride) {
+            return Err("unsupported skin shape stride".into());
+        }
+        let mut attributes = Vec::new();
+        for at in mesh.vector(&table, 0)? {
+            let declaration = mesh.table(at, 5)?;
+            let scalar = |id| -> Result<u32, String> {
+                mesh.field(&declaration, id, 4)?
+                    .map(|at| mesh.u32(at))
+                    .transpose()
+                    .map(|v| v.unwrap_or(0))
+            };
+            if scalar(0)? != 0 || scalar(2)? != 0 {
+                return Err("unsupported skin slot/layer".into());
+            }
+            let id = scalar(1)?;
+            if attributes.iter().any(|a: &TrMshAttribute| a.id == id) {
+                return Err("duplicate skin attribute".into());
+            }
+            let format_code = scalar(3)?;
+            attributes.push(TrMshAttribute {
+                id,
+                format_code,
+                offset: scalar(4)? as usize,
+                byte_size: format_size(format_code).ok_or("unsupported skin attribute format")?,
+            });
+        }
+        let mut intervals: Vec<_> = attributes.iter().map(|a| (a.offset, a.byte_size)).collect();
+        intervals.sort_unstable();
+        let mut covered = 0;
+        for (offset, width) in intervals {
+            if offset != covered {
+                return Err("skin attributes overlap or leave gaps".into());
+            }
+            covered += width;
+        }
+        if covered != stride {
+            return Err("skin attributes do not cover stride".into());
+        }
+        if !attributes.iter().any(|a| a.id == 7 && a.format_code == 22)
+            || !attributes.iter().any(|a| a.id == 8 && a.format_code == 39)
+        {
+            return Err("skin shape requires demonstrated ID 7/8 formats".into());
+        }
+        let buffer = SklBuffer(trmbf);
+        let root = buffer.table(buffer.target(0)?, 2)?;
+        let buffers = buffer.vector(&root, 1)?;
+        if buffers.len() != shapes.len() {
+            return Err("skin shape/buffer correspondence unresolved".into());
+        }
+        let selected = buffer.table(buffers[shape_index], 2)?;
+        let vertices = buffer.vector(&selected, 1)?;
+        let indices = buffer.vector(&selected, 0)?;
+        if vertices.len() != 1 || indices.len() != 1 {
+            return Err("skin shape requires one vertex/index buffer".into());
+        }
+        let (vertex_offset, vertex_size) = buffer.byte_range(vertices[0])?;
+        if vertex_size == 0 || !vertex_size.is_multiple_of(stride) {
+            return Err("invalid skin vertex payload size".into());
+        }
+        let vertex_count = vertex_size / stride;
+        if vertex_count > 1_000_000 {
+            return Err("skin vertex count exceeds supported cap".into());
+        }
+        let (index_offset, index_size) = buffer.byte_range(indices[0])?;
+        if index_size == 0 || !index_size.is_multiple_of(6) {
+            return Err("skin indices are not a triangle list".into());
+        }
+        let indices: Vec<u16> = buffer
+            .range(index_offset, index_size)?
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| u16::from_le_bytes(*b))
+            .collect();
+        if indices.iter().any(|&i| usize::from(i) >= vertex_count) {
+            return Err("skin triangle index outside vertex buffer".into());
+        }
+        Ok(TrMbf {
+            vertex_offset,
+            vertex_size,
+            vertex_count,
+            vertex_stride: stride,
+            arrays: stride / ATTRIBUTE_BYTES,
+            indices,
+            layout: Some(TrMshLayout {
+                stride,
+                attributes,
+                table_offset: table.at,
+            }),
+        })
+    }
+
+    /// Read the demonstrated RGBA8_UINT/RGBA16_UNORM skin lane from a declared
+    /// vertex buffer with a validated sibling layout and skeleton.
+    ///
+    /// Quantized sums 65534..=65536 are supported (dec096). Other sums, formats,
+    /// heuristic origins and unresolved active rig indices fail;
+    /// this does not apply matrices or establish runtime skinning parity.
+    pub fn skin_influences(
+        &self,
+        bytes: &[u8],
+        vertex: usize,
+        skeleton: &TrSkl,
+    ) -> Result<TrSkinInfluences, String> {
+        if vertex >= self.vertex_count {
+            return Err("skin vertex outside mesh".into());
+        }
+        if self.vertex_count.checked_mul(self.vertex_stride) != Some(self.vertex_size) {
+            return Err("skin vertex size/stride mismatch".into());
+        }
+        if self
+            .vertex_offset
+            .checked_add(self.vertex_size)
+            .is_none_or(|end| end > bytes.len())
+        {
+            return Err("truncated skin vertex payload".into());
+        }
+        let fixed_origin = self.vertex_offset == VERTEX_OFFSET
+            && read_u32(bytes, 0x40).map(|v| v as usize) == Some(self.vertex_size)
+            && read_u32(bytes, 0x28).map(|v| v as usize) == self.vertex_size.checked_add(28);
+        if !fixed_origin {
+            let buffer = SklBuffer(bytes);
+            let root = buffer.table(buffer.target(0)?, 2)?;
+            let buffers = buffer.vector(&root, 1)?;
+            if buffers.len() > 64 {
+                return Err("skin buffer count exceeds supported cap".into());
+            }
+            let mut matched = false;
+            for at in buffers {
+                let table = buffer.table(at, 2)?;
+                let vertices = buffer.vector(&table, 1)?;
+                if vertices.len() == 1
+                    && buffer.byte_range(vertices[0])? == (self.vertex_offset, self.vertex_size)
+                {
+                    matched = true;
+                }
+            }
+            if !matched {
+                return Err("skin channels require a declared vertex origin".into());
+            }
+        }
+        let layout = self
+            .layout
+            .as_ref()
+            .ok_or("skin channels require sibling layout")?;
+        if layout.stride != self.vertex_stride {
+            return Err("skin stride mismatch".into());
+        }
+        let find = |id| {
+            let matches: Vec<_> = layout.attributes.iter().filter(|a| a.id == id).collect();
+            match matches.as_slice() {
+                [attribute] => Ok(*attribute),
+                _ => Err("missing or duplicate skin channel"),
+            }
+        };
+        let joints = find(7)?;
+        let weights = find(8)?;
+        if joints.format_code != 22
+            || joints.byte_size != 4
+            || weights.format_code != 39
+            || weights.byte_size != 8
+        {
+            return Err("unsupported skin channel format".into());
+        }
+        let start = vertex
+            .checked_mul(self.vertex_stride)
+            .and_then(|at| at.checked_add(self.vertex_offset))
+            .ok_or("skin vertex offset overflow")?;
+        let channel = |offset: usize, width: usize| -> Result<&[u8], String> {
+            if offset
+                .checked_add(width)
+                .is_none_or(|end| end > self.vertex_stride)
+            {
+                return Err("skin channel outside vertex stride".into());
+            }
+            let at = start
+                .checked_add(offset)
+                .ok_or("skin channel offset overflow")?;
+            bytes
+                .get(at..at.checked_add(width).ok_or("skin channel range overflow")?)
+                .ok_or_else(|| "truncated skin channel".into())
+        };
+        let rig_indices: [u8; 4] = channel(joints.offset, 4)?.try_into().unwrap();
+        let raw = channel(weights.offset, 8)?;
+        let weights_u16 = std::array::from_fn(|i| u16::from_le_bytes([raw[2 * i], raw[2 * i + 1]]));
+        let sum: u32 = weights_u16.iter().map(|&w| u32::from(w)).sum();
+        if !(65534..=65536).contains(&sum) {
+            return Err(format!("unsupported skin weight sum {sum}"));
+        }
+        let mut node_indices = [None; 4];
+        for i in 0..4 {
+            if weights_u16[i] == 0 {
+                continue;
+            }
+            let rig = usize::from(rig_indices[i]);
+            if rig >= skeleton.bind_count {
+                return Err("active rig outside bind vector".into());
+            }
+            let mut matches = skeleton
+                .nodes
+                .iter()
+                .enumerate()
+                .filter(|(_, node)| node.rig_index == Some(rig));
+            let node = matches.next().ok_or("active rig has no transform node")?.0;
+            if matches.next().is_some() {
+                return Err("active rig has duplicate transform nodes".into());
+            }
+            node_indices[i] = Some(node);
+        }
+        Ok(TrSkinInfluences {
+            rig_indices,
+            weights_u16,
+            node_indices,
+        })
     }
 
     /// The byte offset for an attribute ID, when a validated layout is attached.
@@ -1030,82 +1317,313 @@ impl TrMtr {
     }
 }
 
-/// A `.trskl` skeleton: the bone list and where each bone's data lives.
+/// A serialized local transform, not a composed matrix.
 ///
-/// The file opens with a Nintendo field-offset table (a run of descending
-/// `u32` offsets terminated by a negative value) and carries the bone names as
-/// strings — item_228's chain names them `parts_01` through `parts_11`.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// Scale/rotate/translate field order is corroborated by pkNX's Arceus schema
+/// and the update corpus (dec095). Euler order and pivot composition are not
+/// established as native behavior. dec097 adds a zero-pivot reference evaluator,
+/// explicitly separate from native runtime or Bevy deformation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TrSklTransform {
+    pub scale: [f32; 3],
+    pub rotation: [f32; 3],
+    pub translation: [f32; 3],
+}
+
+/// One transform node. Node indices and bind indices are separate namespaces.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TrSklNode {
+    pub name: String,
+    pub local: TrSklTransform,
+    pub scale_pivot: [f32; 3],
+    pub rotate_pivot: [f32; 3],
+    pub parent: Option<usize>,
+    pub rig_index: Option<usize>,
+}
+
+/// A bounded `.trskl` transform hierarchy (dec095).
+///
+/// This is a FlatBuffer: vector entries are relative to each entry, and signed
+/// vtable offsets may point forward. The separate bind-matrix and IK records
+/// are not local transforms. Only the demonstrated zero-rig-offset, no-IK
+/// skeletons are supported. `read_bind_records` separately decodes demonstrated
+/// bind matrices without assuming all authored matrices equal inverse rest pose.
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct TrSkl {
-    /// Bone names in file order.
+    /// Legacy name view, now exactly aligned with `nodes`, not a string scan.
     pub bones: Vec<String>,
-    /// Offset of each bone's data inside the file.
+    /// Absolute transform-node table addresses, aligned with `nodes`.
     pub offsets: Vec<usize>,
+    pub nodes: Vec<TrSklNode>,
+    pub bind_count: usize,
+    /// Root field 0: values 0/1 observed; semantics are not established.
+    pub root_flag: u32,
+}
+
+/// Checked read-only FlatBuffer primitives for the demonstrated TR asset lanes.
+struct SklBuffer<'a>(&'a [u8]);
+struct SklTable {
+    at: usize,
+    end: usize,
+    fields: Vec<u16>,
+}
+
+impl SklBuffer<'_> {
+    fn range(&self, at: usize, size: usize) -> Result<&[u8], String> {
+        let end = at.checked_add(size).ok_or("trskl range overflow")?;
+        self.0
+            .get(at..end)
+            .ok_or_else(|| "trskl range outside file".into())
+    }
+
+    fn u32(&self, at: usize) -> Result<u32, String> {
+        Ok(u32::from_le_bytes(self.range(at, 4)?.try_into().unwrap()))
+    }
+
+    fn target(&self, at: usize) -> Result<usize, String> {
+        let delta = self.u32(at)? as usize;
+        if delta < 4 {
+            return Err("invalid trskl relative offset".into());
+        }
+        let target = at.checked_add(delta).ok_or("trskl offset overflow")?;
+        self.range(target, 4)?;
+        Ok(target)
+    }
+
+    fn table(&self, at: usize, max_fields: usize) -> Result<SklTable, String> {
+        if !at.is_multiple_of(4) {
+            return Err("unaligned trskl table".into());
+        }
+        let delta = self.u32(at)? as i32;
+        let vtable = usize::try_from(at as i64 - i64::from(delta))
+            .map_err(|_| "invalid trskl vtable offset")?;
+        if delta == 0 || !vtable.is_multiple_of(2) {
+            return Err("invalid trskl vtable".into());
+        }
+        let header = self.range(vtable, 4)?;
+        let size = u16::from_le_bytes(header[..2].try_into().unwrap()) as usize;
+        let object_size = u16::from_le_bytes(header[2..].try_into().unwrap()) as usize;
+        if size < 4 || !size.is_multiple_of(2) || size > 4 + max_fields * 2 || object_size < 4 {
+            return Err("unsupported trskl table shape".into());
+        }
+        self.range(at, object_size)?;
+        let fields = self
+            .range(vtable + 4, size - 4)?
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| u16::from_le_bytes(*b))
+            .collect();
+        Ok(SklTable {
+            at,
+            end: at + object_size,
+            fields,
+        })
+    }
+
+    fn field(&self, table: &SklTable, id: usize, size: usize) -> Result<Option<usize>, String> {
+        let offset = table.fields.get(id).copied().unwrap_or(0) as usize;
+        if offset == 0 {
+            return Ok(None);
+        }
+        let at = table.at.checked_add(offset).ok_or("trskl field overflow")?;
+        if offset < 4 || at.checked_add(size).ok_or("trskl field overflow")? > table.end {
+            return Err("trskl field outside table".into());
+        }
+        if size >= 4 && !at.is_multiple_of(4) {
+            return Err("unaligned trskl field".into());
+        }
+        self.range(at, size)?;
+        Ok(Some(at))
+    }
+
+    fn required(&self, table: &SklTable, id: usize, size: usize) -> Result<usize, String> {
+        self.field(table, id, size)?
+            .ok_or_else(|| format!("missing trskl field {id}"))
+    }
+
+    fn vector(&self, table: &SklTable, id: usize) -> Result<Vec<usize>, String> {
+        let at = self.target(self.required(table, id, 4)?)?;
+        let count = self.u32(at)? as usize;
+        if count > 8192 {
+            return Err("trskl vector exceeds supported count limit".into());
+        }
+        let size = count.checked_mul(4).ok_or("trskl vector overflow")?;
+        self.range(at + 4, size)?;
+        (0..count).map(|i| self.target(at + 4 + i * 4)).collect()
+    }
+
+    fn byte_range(&self, at: usize) -> Result<(usize, usize), String> {
+        let table = self.table(at, 1)?;
+        let vector = self.target(self.required(&table, 0, 4)?)?;
+        let size = self.u32(vector)? as usize;
+        self.range(vector + 4, size)?;
+        Ok((vector + 4, size))
+    }
+
+    fn vec3(&self, table: &SklTable, id: usize) -> Result<[f32; 3], String> {
+        let at = self.required(table, id, 12)?;
+        let mut out = [0.0; 3];
+        for (i, value) in out.iter_mut().enumerate() {
+            *value = f32::from_bits(self.u32(at + 4 * i)?);
+        }
+        if out.iter().any(|v| !v.is_finite()) {
+            return Err("non-finite trskl transform".into());
+        }
+        Ok(out)
+    }
+
+    fn index(&self, table: &SklTable, id: usize) -> Result<Option<usize>, String> {
+        // In all 199 references omission means no parent/rig. The community
+        // schema comments say -1 but omit an explicit FlatBuffers default;
+        // this evidence-backed convention is not a generic schema default.
+        match self
+            .field(table, id, 4)?
+            .map(|at| self.u32(at))
+            .transpose()?
+            .map(|v| v as i32)
+        {
+            None | Some(-1) => Ok(None),
+            Some(value) if value >= 0 => Ok(Some(value as usize)),
+            _ => Err("invalid negative trskl index".into()),
+        }
+    }
+
+    fn string(&self, table: &SklTable, id: usize) -> Result<String, String> {
+        let at = self.target(self.required(table, id, 4)?)?;
+        let size = self.u32(at)? as usize;
+        if size > 1024 {
+            return Err("trskl name exceeds supported size limit".into());
+        }
+        let text = self.range(at + 4, size.checked_add(1).ok_or("trskl string overflow")?)?;
+        if text[size] != 0 || size == 0 || text[..size].contains(&0) {
+            return Err("invalid trskl name termination".into());
+        }
+        std::str::from_utf8(&text[..size])
+            .map(str::to_owned)
+            .map_err(|_| "invalid UTF-8 trskl name".into())
+    }
 }
 
 impl TrSkl {
     pub fn parse(bytes: &[u8]) -> Result<TrSkl, String> {
-        if bytes.len() < 0x40 {
-            return Err("trskl too short".into());
+        if bytes.len() > 32 * 1024 * 1024 {
+            return Err("trskl exceeds size limit".into());
         }
-        // The offset table starts at 0x28 and runs until a negative entry.
-        let mut offsets = Vec::new();
-        let mut at = 0x28;
-        while at + 4 <= bytes.len() {
-            let value = u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
-            if value as i32 <= 0 || value as usize >= bytes.len() {
-                break;
+        let buffer = SklBuffer(bytes);
+        let root = buffer.table(buffer.target(0)?, 5)?;
+        let root_flag = buffer
+            .field(&root, 0, 4)?
+            .map(|at| buffer.u32(at))
+            .transpose()?
+            .unwrap_or(0);
+        if root_flag > 1 {
+            return Err("unsupported trskl root flag".into());
+        }
+        if let Some(at) = buffer.field(&root, 4, 4)? {
+            if buffer.u32(at)? != 0 {
+                return Err("unsupported trskl rig offset".into());
             }
-            offsets.push(value as usize);
-            at += 4;
         }
+        if !buffer.vector(&root, 3)?.is_empty() {
+            return Err("trskl IK records unsupported".into());
+        }
+        let offsets = buffer.vector(&root, 1)?;
+        let binds = buffer.vector(&root, 2)?;
         if offsets.is_empty() {
-            return Err("no bone offsets in the trskl".into());
+            return Err("no transform nodes in trskl".into());
         }
-        // Bone names: the printable strings that are not the mesh name.
-        let mut bones = Vec::new();
-        let mut start = None;
-        for (i, b) in bytes.iter().enumerate() {
-            match (*b, start) {
-                (0, Some(s)) => {
-                    let text = String::from_utf8_lossy(&bytes[s..i]).to_string();
-                    if text.len() >= 3 && !text.contains('.') {
-                        bones.push(text);
-                    }
-                    start = None;
+        // Validate table addresses even though bind matrix contents are not decoded.
+        for at in &binds {
+            buffer.table(*at, 3)?;
+        }
+        let mut nodes = Vec::with_capacity(offsets.len());
+        for at in &offsets {
+            let table = buffer.table(*at, 8)?;
+            if let Some(at) = buffer.field(&table, 7, 4)? {
+                if buffer.u32(at)? != 0 {
+                    return Err("unsupported trskl node type".into());
                 }
-                (0, None) => {}
-                (b, None) if b.is_ascii_graphic() || b == b' ' => start = Some(i),
-                (_, Some(_)) => {}
-                _ => start = None,
+            }
+            // Locator strings exist but are empty in the demonstrated references;
+            // attached/external skeleton semantics are deliberately unsupported.
+            let locator = buffer.target(buffer.required(&table, 6, 4)?)?;
+            if buffer.u32(locator)? != 0 || buffer.range(locator + 4, 1)?[0] != 0 {
+                return Err("unsupported trskl locator attachment".into());
+            }
+            let transform = buffer.table(buffer.target(buffer.required(&table, 1, 4)?)?, 3)?;
+            nodes.push(TrSklNode {
+                name: buffer.string(&table, 0)?,
+                local: TrSklTransform {
+                    scale: buffer.vec3(&transform, 0)?,
+                    rotation: buffer.vec3(&transform, 1)?,
+                    translation: buffer.vec3(&transform, 2)?,
+                },
+                scale_pivot: buffer.vec3(&table, 2)?,
+                rotate_pivot: buffer.vec3(&table, 3)?,
+                parent: buffer.index(&table, 4)?,
+                rig_index: buffer.index(&table, 5)?,
+            });
+        }
+        let mut rig_nodes = vec![false; binds.len()];
+        let mut roots = 0;
+        for (i, node) in nodes.iter().enumerate() {
+            match node.parent {
+                None => roots += 1,
+                // All demonstrated parents precede children; rejecting forward
+                // references also rejects cycles without recursive traversal.
+                Some(parent) if parent < i => {}
+                _ => return Err("unsupported trskl parent order or cycle".into()),
+            }
+            if let Some(rig) = node.rig_index {
+                let slot = rig_nodes
+                    .get_mut(rig)
+                    .ok_or("trskl rig index outside bind vector")?;
+                if *slot {
+                    return Err("duplicate trskl rig index".into());
+                }
+                *slot = true;
             }
         }
-        if bones.is_empty() {
-            return Err("no bone names in the trskl".into());
+        if roots != 1 || rig_nodes.iter().any(|present| !present) {
+            return Err("unsupported trskl root/rig mapping".into());
         }
-        Ok(TrSkl { bones, offsets })
+        Ok(TrSkl {
+            bones: nodes.iter().map(|node| node.name.clone()).collect(),
+            offsets,
+            nodes,
+            bind_count: binds.len(),
+            root_flag,
+        })
     }
 }
 
-/// A `.tranm` animation: the keyframe tracks it carries.
+/// Legacy diagnostic float-run scanner, NOT validated animation tracks.
 ///
-/// The file is a header with Nintendo field-offset tables followed by the
-/// keyframe data as consecutive float triples — d020_item_224_c002 steps
-/// (-0.561, -0.030, 0.826), (-0.556, -0.032, 0.827), (-0.552, -0.034, 0.828),
-/// so the values move smoothly frame to frame.
+/// Use `parse_tracks` (dec098) for checked named skeletal channels. The legacy
+/// result has no verified timing, channel identity or rotation interpretation.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TrAnm {
-    /// Keyframes in file order.
+    /// Heuristic float triples in file order; not validated keyframe records.
     pub keyframes: Vec<[f32; 3]>,
 }
 
 impl TrAnm {
+    /// Compatibility alias for `parse_heuristic`; never playback/coverage proof.
     pub fn parse(bytes: &[u8]) -> Result<TrAnm, String> {
+        Self::parse_heuristic(bytes)
+    }
+
+    /// Legacy diagnostic only. Does not decode channel tables or packed rotations.
+    pub fn parse_heuristic(bytes: &[u8]) -> Result<TrAnm, String> {
+        if bytes.len() > 32 * 1024 * 1024 {
+            return Err("heuristic animation exceeds input cap".into());
+        }
         if bytes.len() < 0x40 {
             return Err("tranm too short".into());
         }
-        // Keep the longest run of finite triples that are not all zero: that is
-        // the keyframe block, and it is what a player needs.
+        // A diagnostic run of plausible floats has no established frame/channel
+        // identity. Zero and packed records can be skipped or misinterpreted.
         let mut best: Vec<[f32; 3]> = Vec::new();
         let mut current: Vec<[f32; 3]> = Vec::new();
         let mut at = 0x40;

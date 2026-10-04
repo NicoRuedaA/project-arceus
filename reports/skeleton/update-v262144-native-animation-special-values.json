@@ -1,0 +1,245 @@
+{
+  "format": "native-animation-special-values/v1",
+  "decision": "dec103",
+  "build": "update-v262144",
+  "archive_sha256": "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446",
+  "nso_sha256": "89fa2d715e13a1c311a47ee02b3cc858ccf72a2086ab9704a08a2ddc1b90f7d9",
+  "elf_sha256": "b772390207e0de689ca96adaeb15df8b1499912efa74804c3766214d76d08cf2",
+  "module_id": "aee8f150dda1b5a838806e1a5ea6827ad9f3c51e000000000000000000000000",
+  "rechecked_segments": [
+    {
+      "name": "text",
+      "sha256": "f68daca4836be616b98bbad40c84362eee7624a45f45bb39ae23d667952d190d",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "rodata",
+      "sha256": "3b63c22211843972f3d77aabdc001b90f3ae909bbbb9d20f7beb062271671c3f",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "data",
+      "sha256": "69047d4a9a9e90dc3ddccd684c87849b11e08b8cc15d6944408f6e3ea1e4dfd6",
+      "embedded_hash_and_elf_equal": true
+    }
+  ],
+  "functions": [
+    {
+      "function_id": "027b6c08",
+      "entry_vaddr": "027b6c08",
+      "size_bytes": 1376,
+      "native_body_sha256": "efd5642315c0d1a6eb20ce8e93ccf4bfc031185a0ea6442aeb0b88ce349404c2",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b6c08.asm",
+      "private_trace_sha256": "b9bf934dd479f20855f2c2d8d8d0ef8f7225aea5c9e96151f70d6c0992948deb"
+    },
+    {
+      "function_id": "027b7924",
+      "entry_vaddr": "027b7924",
+      "size_bytes": 1368,
+      "native_body_sha256": "5c23fea84ade73bd382cd2e8f5e83e9553c8bf94124c677356ab1271d21bed1b",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b7924.asm",
+      "private_trace_sha256": "955c80a8e6eb70051f6629eb520270af8d997b79c1b6fe0f11c09405f0a82f45"
+    }
+  ],
+  "rust_item": "pla::assets::tr::TrAnmNativeFramedRotation::evaluate",
+  "relation_id": "update_framed_rotation_stateless_dec102",
+  "implementation_status": "partial",
+  "verification_status": "unknown",
+  "binary_match_status": "unknown",
+  "direct_fixed_leaf": {
+    "entry": "027b6628",
+    "end_exclusive": "027b6744",
+    "bytes": 284,
+    "body_sha256": "ca75f00c3079dc61e185b99b16c524a7171003c4d89327979508ff2c22a962ee",
+    "purpose": "required packed decode only; no fixed dispatch/cache/player port; remains inventory gap",
+    "cases": 24
+  },
+  "source_hashes": {
+    "crates/pla/src/assets/tr/native_animation.rs": "6a047a5a564e1fc69de0a12437d173f4a47f246af8a9d07b0a47362040ee1687",
+    "crates/pla/tests/tr_animation_native.rs": "82717edf34283ca1f91f47110a41db37e2cdfe9316346902539a03ae3d55465d"
+  },
+  "unchanged_importer_reference_sha256": "6a622137cfb4b476161c69000411870e107349ea2e7ca6c22134b52b539e0636",
+  "private_pre_dec103_source_sha256": "75f799d3baa02fbb405bcec0d03b9ca2c9d4ae9fc3e5c902582f6aeb4a8e7e99",
+  "private_pre_dec103_test_sha256": "8ee9fddafba0e445b4ee3ec03f0c5206233f3bc05a855451894c31a2c013798e",
+  "primary_isa": {
+    "document": "Arm DDI0596 ID121321, cached primary Arm-authored PDF",
+    "url": "https://student.cs.uwaterloo.ca/~cs452/docs/rpi4b/ISA_A64_xml_v88A-2021-12_OPT.pdf",
+    "sha256": "756449b122fa43ff55d81be5e889451bc8c7ba8576ad4a877b91c77b8675e349",
+    "sections": [
+      "FPDefaultNaN",
+      "FPProcessNaN/FPProcessNaNs",
+      "FPNeg",
+      "FPAdd/FPSub/FPMul",
+      "FPRSqrtEstimate",
+      "FPRSqrtStepFused"
+    ],
+    "network_read": "connection failed this unit; exact cached primary document re-read and hash verified"
+  },
+  "controlled_contract": {
+    "fpcr": 0,
+    "epsilon": "mandatory caller input, positive finite author values; actual SDK epsilon not established",
+    "host": "checked x86_64 MXCSR RNE/no FTZ/DAZ/masked exceptions; no host mode mutation",
+    "frame_domain": "unchanged dec102 guards/finite in-range position",
+    "packed_domain": "No typed 48-bit word is rejected solely for nonpositive radicand; static mapped output semantics and bounded executed case coverage, not exhaustive word-space testing",
+    "fpsr_parity": false,
+    "arbitrary_nan_payload_domain": "helper ISA unit tests only; packed controls create default NaN payload, sign may flip",
+    "aarch64_rust_branch": "not cross-built/run",
+    "other_hosts": "explicit unsupported"
+  },
+  "oracle": {
+    "decision": "dec103",
+    "new_native_cases": 512,
+    "preserved_dec102_cases": 526,
+    "total_cases": 1038,
+    "combined_sha256": "bf9ec3942442086a6f7f60055a2548d2eb24e84ed78ec1cc41ad695475d324d1",
+    "batches": [
+      {
+        "unit": "dec103",
+        "cases": 180,
+        "finite_output_cases": 52,
+        "nonfinite_output_cases": 128,
+        "native_exit": 0,
+        "instructions": 44820,
+        "fpcr": 0,
+        "epsilon": "per-case author substitution; positive finite only",
+        "epsilon_count": 7,
+        "native_fpsr_histogram": {
+          "19": 134,
+          "16": 46
+        },
+        "mapped_payload_bytes": 198896,
+        "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+        "private_script_sha256": "f3713be79138e32dc6cd22c4ab4a07d2be483fbf814f5f09b59753be6b4bec28",
+        "private_oracle_sha256": "a16a69144ea62e16bcc43ffc89edc8df9b284bce3d24a156fa968359ff446983",
+        "private_elf_sha256": "b1208aea1e375df3ee1459729253e5ebd06006f33c1ea8c952aaeb1c84b24570",
+        "private_trace_sha256": "3845bc4b13e74a236a5f144c7ecd7b71aeb471898013a5f3e8c8cd4f422748c9",
+        "guest_pcs_qualified": true
+      },
+      {
+        "unit": "dec103",
+        "cases": 180,
+        "finite_output_cases": 40,
+        "nonfinite_output_cases": 140,
+        "native_exit": 0,
+        "instructions": 43732,
+        "fpcr": 0,
+        "epsilon": "per-case author substitution; positive finite only",
+        "epsilon_count": 8,
+        "native_fpsr_histogram": {
+          "19": 143,
+          "16": 37
+        },
+        "mapped_payload_bytes": 198896,
+        "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+        "private_script_sha256": "f3713be79138e32dc6cd22c4ab4a07d2be483fbf814f5f09b59753be6b4bec28",
+        "private_oracle_sha256": "a2210e68551553214c03ef2d595eefcd56a20b0099f90c34525e2c0ac091716e",
+        "private_elf_sha256": "606352d59fb7364976b66379ee39100fffb5a381f4ab339f7bae37347e6ffd1c",
+        "private_trace_sha256": "536c034c11a4871131630bd8124e9c09d7bea3d6b8dae098417beee273569917",
+        "guest_pcs_qualified": true
+      },
+      {
+        "unit": "dec103",
+        "cases": 152,
+        "finite_output_cases": 52,
+        "nonfinite_output_cases": 100,
+        "native_exit": 0,
+        "instructions": 34962,
+        "fpcr": 0,
+        "epsilon": "per-case author substitution; positive finite only",
+        "epsilon_count": 8,
+        "native_fpsr_histogram": {
+          "19": 103,
+          "16": 49
+        },
+        "mapped_payload_bytes": 197328,
+        "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+        "private_script_sha256": "f3713be79138e32dc6cd22c4ab4a07d2be483fbf814f5f09b59753be6b4bec28",
+        "private_oracle_sha256": "60a74c34947c28df1df01d82c8e3e0900321835ebfcb9687119096699de33b46",
+        "private_elf_sha256": "ff25280158c8f7c0af43dfdc480f49b2266c8bf17c49ac12434a13a50af53c9c",
+        "private_trace_sha256": "321f4a4071b61a9b066351caf34f0da711bf717ec076dbc171b1a2e3b46cc708",
+        "guest_pcs_qualified": true
+      }
+    ],
+    "new_finite_outputs": 144,
+    "new_nonfinite_outputs": 368
+  },
+  "new_native_fpsr_histogram": {
+    "19": 380,
+    "16": 132
+  },
+  "new_finite_outputs_with_native_invalid_flags": 12,
+  "proof": {
+    "vectors": 1038,
+    "finite_vectors": 638,
+    "nonfinite_vectors": 400,
+    "f32_word_comparisons": 4152,
+    "bit_mismatches": 0,
+    "unsupported_nan_rejections": 0,
+    "previous_494_finite_cases_preserved": true,
+    "previous_32_nan_cases_now_compared_all_words": true,
+    "first_red_exit": 101,
+    "red_reason": "expected old UnsupportedPackedRadicand rejection",
+    "first_dec102_oracle_exit": 0,
+    "first_extended_oracle_exit": 0,
+    "targeted_proof_corrections": 0,
+    "runtime_step_cap_deviation": false
+  },
+  "checks": {
+    "normalization": "cargo fmt --all before final focused/CI",
+    "focused_exit": 0,
+    "focused_passed": 46,
+    "ci_exit": 0,
+    "ci_passed": 101,
+    "ci_ignored": 2,
+    "skips": "actual animation corpus/reference unset; optional original-byte oracle skipped in ordinary CI but explicitly executed focused",
+    "post_sheet_preflight": {
+      "exit": 0,
+      "sheets": 28,
+      "rows": 267925,
+      "errors": 0,
+      "warnings": 0
+    },
+    "final_treemap": {
+      "generation_exit": 0,
+      "state": "current",
+      "manifest_sha256": "1e7a9b485341b32c43215c515621b2a2761abd1f2a4bf141d5430dabe08ba75d",
+      "rust_file_count": 47,
+      "rust_fingerprint_sha256": "2e2aebd22342b352e44cc1d049b7079f301f91253e9ac3a0f67aaecc00f86776",
+      "ledger_sha256": "deb7d8f3757068d738ce8bdcc4f8b4ae9514fbaa5d1fa5c55ec8c8c02c4ba022",
+      "outputs": {
+        "analysis.png": "0232225aadbc27018051d3121dd9e54ab911e59800c152b027442393e17cce4e",
+        "function-progress.tsv": "1ecb87c57faa63e104f584b9a6009cd91dacd737150cb8ad0ab3cd34583ac1f0",
+        "index.html": "d68d263329d950fbb727ef990e10054eb74accb6f4be69bb44e093846a1ca54b",
+        "port.png": "995b6df9654fb24fc8b33a9966cfd8cfdbd782ea38b0d18db8fb0bf5d98960b2"
+      },
+      "denominator": {
+        "definition": "sum of original Ghidra update-main function-body bytes",
+        "function_count": 68330,
+        "not_whole_game": true,
+        "original_function_body_bytes": 19029816
+      },
+      "analysis_functions": 21,
+      "partial_functions": [
+        "027b6c08",
+        "027b7924"
+      ],
+      "partial_native_bytes": 2744,
+      "behavior_and_binary_states": "all unknown"
+    },
+    "diff_check_exit": 0,
+    "format_check_exit": 0,
+    "source_changed_paths": [
+      "crates/pla/src/assets/tr/native_animation.rs",
+      "crates/pla/tests/tr_animation_native.rs"
+    ],
+    "ci_final_book_exit": 0,
+    "ci_final_book_log_sha256": "4e5a556d5f265e8d48068f4415352f6b0046fa43ad0a507f28eb1a0f0ed7381d"
+  },
+  "limitations": [
+    "FPSR/traps not ported",
+    "Actual game SDK epsilon/FPCR unknown",
+    "Arbitrary malformed/nonfinite positions remain API errors",
+    "Cache/timeline/loops/defaults/runtime not ported",
+    "Fixed/dense canonical inventory boundaries unresolved"
+  ]
+}

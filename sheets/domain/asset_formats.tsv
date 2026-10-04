@@ -17,8 +17,8 @@ trmdl	.trmdl	u32-prefixed	253	53952	romfs	custom	3	identified	model descriptors
 trmsh	.trmsh	u32-prefixed	281	206988	romfs	custom	3	identified	mesh data
 trmbf	.trmbf	u32-prefixed	281	25706868	romfs	custom	3	identified	mesh buffers
 trmtr	.trmtr	u32-prefixed	253	410412	romfs	custom	3	identified	materials
-trskl	.trskl	u32-prefixed	199	189444	romfs	custom	3	identified	skeletons
-tranm	.tranm	u32-prefixed	1522	19544648	romfs	custom	3	identified	animations
+trskl	.trskl	FlatBuffer root uoffset	199	189444	romfs	custom	3	partial	dec095-097; reports/skeleton/update-v262144-matrix-layout.md; bounded hierarchy/rig/bind read and zero-pivot reference math; item230 scaled bind mismatch, native matrices and animation unresolved
+tranm	.tranm	FlatBuffer root uoffset	1522	19544648	romfs	custom	3	partial	dec098-099; bounded named records and reference-only packed quaternion/integer presence;1522standalone inputs actually compared; continuous/native interpolation, loops and playback unresolved
 hkx	.hkx	Havok	80	2370020	romfs	skip	4	identified	Havok collision; bake to colliders instead
 bnsh	.bnsh	u32-prefixed	42	21839368	romfs	replace	4	identified	shaders; replace with Bevy shaders
 wazabin	.wazabin	u32-prefixed	851	122588	romfs	custom	2	identified	move data tables

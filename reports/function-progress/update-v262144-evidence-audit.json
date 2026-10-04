@@ -1,0 +1,1060 @@
+{
+  "format": "function-progress-evidence-audit/v1",
+  "date": "2026-10-04",
+  "scope": "Existing update-v262144 main evidence audit only; broad decompilation goal remains paused.",
+  "baseline": {
+    "manifest": {
+      "archive": {
+        "name": "pk2.nsz",
+        "sha256": "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446",
+        "size_bytes": 52657467
+      },
+      "build": "update-v262144",
+      "c_exports": {
+        "function_count": 12303,
+        "function_count_percent": 18.005269,
+        "original_bytes_percent": 64.151855,
+        "original_function_body_bytes": 12207980
+      },
+      "coverage_limitations": [
+        "The denominator is update main NSO only, not the whole game or all executable modules; base v0 is excluded.",
+        "re/base_update_diff.tsv names rtld, sdk, subsdk0, and subsdk1 but does not provide their function inventories; other executable-module coverage is not fully enumerated.",
+        "A Ghidra inventory status of identified proves identification only. A C export proves pseudocode exists, not analysis or behavior.",
+        "gameDB parsing is an index/parser signal, not semantic analysis or behavioral verification.",
+        "Subsystem groups reproduce a string-path reference heuristic and do not establish semantic ownership.",
+        "Implementation, behavior verification, and binary matching stay unknown unless the manual per-function evidence ledger supplies the required direct evidence.",
+        "A missing C artifact is reported as no_matching_export_in_snapshot; it does not mean the function was never decompiled.",
+        "Binary matching is an independent evidence field and does not make a function behavior-verified.",
+        "Treemap areas use original Ghidra function-body bytes; shared Rust relation ids never duplicate native function rows or their byte weights."
+      ],
+      "denominator": {
+        "definition": "sum of original Ghidra update-main function-body bytes",
+        "function_count": 68330,
+        "not_whole_game": true,
+        "original_function_body_bytes": 19029816
+      },
+      "evidence_ledger": {
+        "analyzed_documented_function_count": 22,
+        "path": "sheets/re/function_progress_evidence.tsv",
+        "sha256": "ce51c7cb7bcf1d5c57f6a659a31e4f83b6d3900fb648676665aa64adf02b231a"
+      },
+      "format": "function-progress-manifest/v1",
+      "gamedb": {
+        "distinct_parsed_function_addresses": 9767,
+        "index_sha256": "7aac1d998917564b08c4e42f59301d75696982c6e497c300f108dea1054da682",
+        "indexed_file_count": 10019,
+        "indexed_files_without_parsed_functions": 252,
+        "module_id": "ns.update.main",
+        "parsed_function_row_count": 9767,
+        "snapshot_fingerprint_sha256": "ed2f4364f4e3f9b64b41d0446287347075f3029cddbbafcd0bc6a343528c1eb6",
+        "wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "inventory": {
+        "generic_inventory_path": "sheets/re/functions.tsv",
+        "generic_inventory_sha256": "b1c93d898964d1b619b6f278855a3c1080c82d41b5f22b21d702e10c6312e163",
+        "original_function_body_bytes": 19029816,
+        "row_count": 68330,
+        "versioned_inventory_path": "re/exports/update-main/functions.tsv",
+        "versioned_inventory_sha256": "8cefd2b2b7ce412653271ceec66be1325c0fcb0bc15b1d34bf8b3cdbfd5b7f8c"
+      },
+      "outputs": {
+        "analysis.png": "0232225aadbc27018051d3121dd9e54ab911e59800c152b027442393e17cce4e",
+        "function-progress.tsv": "4a7386a01ce6f5825e55adc3ac91b6e55b3c31fa4362356b45f1705171fe7afe",
+        "index.html": "99a5a07b97142f863b68fe016807e39e1f588f30fb4fd3d409b439b5bfc4bdbf",
+        "port.png": "1dc99704e2c03d9d7904b4a9e92a894a02ebd8ba8393376280d9a090ff1307e9"
+      },
+      "rust_source_fingerprint": {
+        "file_count": 49,
+        "file_hashes": [
+          {
+            "path": "crates/pla/build.rs",
+            "sha256": "47f73dbab8a66607c74f3d1807d8441f5ec24cfe2f355ee463cbf1f6072ca68f"
+          },
+          {
+            "path": "crates/pla/examples/dump_bntx.rs",
+            "sha256": "037c7edbc6b5a0817e55ec7f89a67297842038cb02ed385c3da76bffbc33bfdf"
+          },
+          {
+            "path": "crates/pla/examples/mesh_spike.rs",
+            "sha256": "2e519636cbc28d013849a2b1aee0de680789527b850292c019f32213630d7e9f"
+          },
+          {
+            "path": "crates/pla/examples/run_script.rs",
+            "sha256": "896f067d44771124f69f988a5b0d7c70449eb649549871e35eccb8512b0fda93"
+          },
+          {
+            "path": "crates/pla/examples/window_spike.rs",
+            "sha256": "8add3327fd8a9a6c67932537f5f0273687f1df041a645b92e2fe93d8709726f9"
+          },
+          {
+            "path": "crates/pla/src/app.rs",
+            "sha256": "c19671d8ef6d45d76f3e7a6906a33f0206761c0dfea9dc0fec0a5eb377c51791"
+          },
+          {
+            "path": "crates/pla/src/assets/ahtb.rs",
+            "sha256": "74f72b0010ed394a2ac615489af4e556eb540128c2481a8d286ea36dfed5fd2a"
+          },
+          {
+            "path": "crates/pla/src/assets/bntx.rs",
+            "sha256": "63eeb972748e4d7ab9353cd33118da2fd7da6a447dc9dc3c9bafabd5bc74b4d4"
+          },
+          {
+            "path": "crates/pla/src/assets/event_list.rs",
+            "sha256": "f51b7b62ef89c765f40a79bd50d6385544f4344b249e655e79a4c4b7776b66a4"
+          },
+          {
+            "path": "crates/pla/src/assets/gfpak.rs",
+            "sha256": "176feeb26d257271227cfe64c33b6a39278d6ced133dbd8c591f7b3ddf8e9aff"
+          },
+          {
+            "path": "crates/pla/src/assets/message.rs",
+            "sha256": "fff54052070996cc9e3a970431a3f5b46633490f5d8e86cee30fc1f3e0951e49"
+          },
+          {
+            "path": "crates/pla/src/assets/mod.rs",
+            "sha256": "e2380c99e9229755ba9bf852e65d1048a2c125941ee35f17117796cebc53bc71"
+          },
+          {
+            "path": "crates/pla/src/assets/sarc.rs",
+            "sha256": "006aa88a4c7933996bcafb32f07a6d9414de6547c7351e8a53058d6a94d792eb"
+          },
+          {
+            "path": "crates/pla/src/assets/tr/animation.rs",
+            "sha256": "6a622137cfb4b476161c69000411870e107349ea2e7ca6c22134b52b539e0636"
+          },
+          {
+            "path": "crates/pla/src/assets/tr/matrices.rs",
+            "sha256": "fe7e6600b53f54a68c578462a68375facb05007a994b239ad15ed669781e39a0"
+          },
+          {
+            "path": "crates/pla/src/assets/tr/native_animation/cache.rs",
+            "sha256": "c764ec71d9fe6ae9f4487005578b9faccc46d91304fb298741d2dc65b4f66c8c"
+          },
+          {
+            "path": "crates/pla/src/assets/tr/native_animation/flags.rs",
+            "sha256": "b2ef6deaaf66e90b8c6bcc3edd34187cf2e0dff8bfcc8dde8a5195a5fd9f3da3"
+          },
+          {
+            "path": "crates/pla/src/assets/tr/native_animation.rs",
+            "sha256": "719f3b54ff67b7c31c73d2dec9b4c943f990d578f3cfa2be6090af51f3d5502f"
+          },
+          {
+            "path": "crates/pla/src/assets/tr.rs",
+            "sha256": "13fa46ead6d08308c93d12486110cc7418fcc611254c214befffac02aae997e4"
+          },
+          {
+            "path": "crates/pla/src/assets/vfxb.rs",
+            "sha256": "4a9d6d0379b38e35596dc5a77adad73fc4aced18cfef34241c89ff1cbd98b4a6"
+          },
+          {
+            "path": "crates/pla/src/dispatch.rs",
+            "sha256": "086b219e06525ac7b798b1787804d4daf00225666d43ff6086f7390f7a08c41f"
+          },
+          {
+            "path": "crates/pla/src/event.rs",
+            "sha256": "9d6781953e8e2570565fd9db6de3415c35a6bb88a4fe83a06215061d696b1452"
+          },
+          {
+            "path": "crates/pla/src/host/mod.rs",
+            "sha256": "dc0e99047731f8accaaf023b2b0c1d37d2e0a4fdcad734a773dde829638d372e"
+          },
+          {
+            "path": "crates/pla/src/host/subsystems/event_script.rs",
+            "sha256": "890de316c052142731fcf7c5a8b0d9992838279bb42f3891ff993f0b8a70f2c0"
+          },
+          {
+            "path": "crates/pla/src/host/subsystems/field.rs",
+            "sha256": "cab712fe550532a54ae56c2c3adfcaea91e7379cea8a1182304e43acf501b8b8"
+          },
+          {
+            "path": "crates/pla/src/host/subsystems/message.rs",
+            "sha256": "0e503870fff381949c985f2c1b1a1c39690442eb37da6f24ac291b0d8203608a"
+          },
+          {
+            "path": "crates/pla/src/host/subsystems/mod.rs",
+            "sha256": "d27d65fe4277626a3bbba4bd71e30b3bcecfc7e62f5e5f759f7fcccffb01d173"
+          },
+          {
+            "path": "crates/pla/src/host/subsystems/save.rs",
+            "sha256": "cb515a1e3cc893493b3f230e7ea59f633ae922cc03ff7dded31504d196003dec"
+          },
+          {
+            "path": "crates/pla/src/lib.rs",
+            "sha256": "1784dd071bd5bc7fa25e7d91b46ec7853aec17addd30115295fbcec4d29a4804"
+          },
+          {
+            "path": "crates/pla/src/render.rs",
+            "sha256": "631e32d9a3820b7e44e3149f140f43287d7d5a41023eb9c6ecf80ac422e56de6"
+          },
+          {
+            "path": "crates/pla/src/save.rs",
+            "sha256": "41cf21184b68fc14f62c3d8c25e68f5c03c1a8f528016ff1a5c75ec1f78aa096"
+          },
+          {
+            "path": "crates/pla/src/script.rs",
+            "sha256": "44eff2ca91f47730f9619409a0043ccebccd579119532b7479f35906bb76f1de"
+          },
+          {
+            "path": "crates/pla/tests/assets.rs",
+            "sha256": "619ab3b6f649b6f2045cf8602c594fd77d81e799eabb817040e3d55fda406fbd"
+          },
+          {
+            "path": "crates/pla/tests/common/mod.rs",
+            "sha256": "c7d3cd6196047e7d0552c5d44591391770786b94ad7c88080d6cfcb73183c658"
+          },
+          {
+            "path": "crates/pla/tests/event.rs",
+            "sha256": "01eef379e8e69c3ae9c483c999c4495a7c56f3cc1e8c5b7035f6c9346aa65ea7"
+          },
+          {
+            "path": "crates/pla/tests/script.rs",
+            "sha256": "5832ff60958403ad2371aa143ca4236f8334ee04aaf89355d8ef1437808afcb1"
+          },
+          {
+            "path": "crates/pla/tests/tr_animation.rs",
+            "sha256": "807465e5800339d04d35bdbd369cbbdf9d073ee683970ed28f097cf3c914f778"
+          },
+          {
+            "path": "crates/pla/tests/tr_animation_native.rs",
+            "sha256": "474931986a853f4d4fe553eb2e511e4691aec89c286996a6b62dd6a1b855ee74"
+          },
+          {
+            "path": "crates/pla/tests/tr_animation_reference.rs",
+            "sha256": "c96c0668b3298f7c6baa02f98269b6f73009a345d34616c838444949e1e78328"
+          },
+          {
+            "path": "crates/pla/tests/tr_matrices.rs",
+            "sha256": "f15736d7d4dcef5b2e783341297669b582b53861c3b02d8e11f38c0851de282e"
+          },
+          {
+            "path": "crates/pla/tests/tr_skin.rs",
+            "sha256": "a3b927dcf8d4ea2a39323457fd72af5e230b8f680afa450a577fb5580b4cba75"
+          },
+          {
+            "path": "crates/pla/tests/trskl.rs",
+            "sha256": "cd6aaec7ccf20fe927ec893dfae4ba1a3be4188c61d5aa9d6141348fbb2b91a2"
+          },
+          {
+            "path": "crates/pla/tests/visual.rs",
+            "sha256": "3fbc0b1c1a61e3b6e43d8ce23223cdd55cb55f3e27a1456fa769c4b6c338da8b"
+          },
+          {
+            "path": "crates/sheetty/src/check.rs",
+            "sha256": "01463297b39e7b0dbeb91eef077e0a5da2a7f9bfb74519c140aca6f9349047d2"
+          },
+          {
+            "path": "crates/sheetty/src/emit.rs",
+            "sha256": "fb6b997cba167cf8fd96f6eaccfccf307a27294b8b867c84634df085d81564f0"
+          },
+          {
+            "path": "crates/sheetty/src/lib.rs",
+            "sha256": "20cb6d290066ecfe7c10611b871adcd53e0b40caef43fac1c384916994853b25"
+          },
+          {
+            "path": "crates/sheetty/src/parse.rs",
+            "sha256": "f7af7f71d1375900a30c95c63b5df696ec5fdfcda71fef83cd33965742c679c9"
+          },
+          {
+            "path": "crates/sheetty/tests/preflight.rs",
+            "sha256": "6dda32ad341051262f080f6a0b0240a0a00b109136c1869a1f389b6fad84051b"
+          },
+          {
+            "path": "crates/sheetty-cli/src/main.rs",
+            "sha256": "4c50a8ff01e2b1c919b569e144933f4233ae2f0aff935e08ff740a0c73fa7145"
+          }
+        ],
+        "scope": "crates/**/*.rs",
+        "sha256": "09b751195b35c80bb786a7b669ee66b2bb260f5401e67863b199dd7411dc9847"
+      },
+      "state_partitions": {
+        "analysis_documentation_status": {
+          "analyzed_documented": {
+            "functions": 22,
+            "original_bytes": 28764
+          },
+          "unknown": {
+            "functions": 68308,
+            "original_bytes": 19001052
+          }
+        },
+        "behavior_verification_status": {
+          "unknown": {
+            "functions": 68330,
+            "original_bytes": 19029816
+          }
+        },
+        "binary_match_status": {
+          "unknown": {
+            "functions": 68330,
+            "original_bytes": 19029816
+          }
+        },
+        "decompilation_status": {
+          "no_matching_export_in_snapshot": {
+            "functions": 56027,
+            "original_bytes": 6821836
+          },
+          "pseudocode_exported": {
+            "functions": 12303,
+            "original_bytes": 12207980
+          }
+        },
+        "game_db_file_status": {
+          "indexed_with_function_rows": {
+            "functions": 9767,
+            "original_bytes": 10998588
+          },
+          "indexed_without_function_rows": {
+            "functions": 252,
+            "original_bytes": 250552
+          },
+          "not_indexed": {
+            "functions": 58311,
+            "original_bytes": 7780676
+          }
+        },
+        "game_db_parsing_status": {
+          "function_parsed": {
+            "functions": 9767,
+            "original_bytes": 10998588
+          },
+          "indexed_without_parsed_function": {
+            "functions": 252,
+            "original_bytes": 250552
+          },
+          "not_parsed": {
+            "functions": 58311,
+            "original_bytes": 7780676
+          }
+        },
+        "identification_status": {
+          "identified": {
+            "functions": 68330,
+            "original_bytes": 19029816
+          }
+        },
+        "implementation_status": {
+          "partial": {
+            "functions": 8,
+            "original_bytes": 6768
+          },
+          "unknown": {
+            "functions": 68322,
+            "original_bytes": 19023048
+          }
+        },
+        "port_state": {
+          "partial": {
+            "functions": 8,
+            "original_bytes": 6768
+          },
+          "unknown": {
+            "functions": 68322,
+            "original_bytes": 19023048
+          }
+        }
+      },
+      "subsystems": {
+        "functions_without_path_references": 65642,
+        "group_function_counts": {
+          "absl": 61,
+          "appli": 38,
+          "archive": 2,
+          "chara": 5,
+          "effect": 19,
+          "event": 5,
+          "font": 1,
+          "grpc": 1236,
+          "grpc_core": 158,
+          "havok": 430,
+          "message": 2,
+          "openssl": 536,
+          "pml": 1,
+          "pokemon": 2,
+          "protobuf": 96,
+          "re2": 73,
+          "webrtc": 16
+        },
+        "method": "string-path reference heuristic; not semantic ownership",
+        "strrefs_path": "re/exports/update-main/strrefs.tsv",
+        "strrefs_sha256": "491c3e236823dcc57394409aceaa846134093d4f77d07f5787e8ee47defdc581",
+        "subsystem_sheet_path": "sheets/domain/subsystems.tsv",
+        "subsystem_sheet_sha256": "5677a306b35d491fc2f740707b74fdec6c2c218de8952549d5150c225bf7484f",
+        "tied_dominant_functions": 7,
+        "unique_dominant_functions": 2681
+      },
+      "target": "Pokémon Legends: Arceus update v262144, main NSO only"
+    },
+    "status": {
+      "build": "update-v262144",
+      "format": "function-progress-generation-status/v1",
+      "manifest_sha256": "a237d9b6f3607baf65ba5f40d9a42ee12706081c2e639ed345332cc887e69a8c",
+      "message": "All report artifacts were generated from the recorded source fingerprints.",
+      "state": "current"
+    },
+    "manifest_sha256": "a237d9b6f3607baf65ba5f40d9a42ee12706081c2e639ed345332cc887e69a8c",
+    "generation_status_sha256": "0a60be3209507e9648223e0ab7467fbc4137e57a4d42bfaef877cebaedcf0f87"
+  },
+  "input_delta": {
+    "rust_files_added": [],
+    "rust_files_removed": [],
+    "rust_files_changed": [],
+    "ledger_changed": false,
+    "inventory_changed": false,
+    "reference_hash_change_detection": "The previous manifest did not hash cited decisions/reports. Their historical byte changes cannot be reconstructed from that baseline; current citations, substantive claims and latest source/body hashes were revalidated and hashed now."
+  },
+  "promotions": [],
+  "downgrades": [],
+  "rows": [
+    {
+      "function_id": "00fc4f0c",
+      "original_body_bytes": 76,
+      "native_body_sha256_current": "afbce5e60f475e98bdd62b3cbba769745bc80816dfe3a920a03888f8d53223fc",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "c8da3f3a997fb7c6c217b851059b768995046859d14df99352e97c2a82960754",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec036/042 document the indirect callback; targeted export confirms thunk dispatch, not the unresolved decoder."
+    },
+    {
+      "function_id": "032a2370",
+      "original_body_bytes": 20,
+      "native_body_sha256_current": "60787e167603cdba69c9118440a666c775171434c536a83855cad130ed860f1e",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "3683af6fefaac0ca2f332c62b664feeda11d873c5b6baf0734a38bed9f7fb878",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec036/042/091 document indirect thunk/export truncation. Current exact-entry export dispatches through DAT_04270888; the separate 032a2e00 thunk dispatches through PTR_FUN_04270dc8. Historical shorthand is not proof of pointer identity or whole decoder."
+    },
+    {
+      "function_id": "00778570",
+      "original_body_bytes": 14672,
+      "native_body_sha256_current": "763b80a0f9a04819ddb7ce2eb5f1bf77329d440dbd34edb4b03cc3c9fc032637",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "62247ca57a3010f602aa160fd917a0fa3081ed532a00d96466eec9910e024f38",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec088 and targeted resolver reads substantively identify API pointer writes, including vertex format/stride slots. No universal absence-of-calls conclusion is renewed."
+    },
+    {
+      "function_id": "0077c39c",
+      "original_body_bytes": 612,
+      "native_body_sha256_current": "75d253515e18c358c1a6dfe69a418e17fef870c9f13dcf4b686af7e0cdfe3ee2",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "cf52ced7244c8071003a744cd65be962b64a9a2ad5a1b6de1ab4ea98809731af",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec088 and targeted body read identify indirect texture-state wrapper reads (including 04278a38), not a mesh parser."
+    },
+    {
+      "function_id": "0077ccc4",
+      "original_body_bytes": 728,
+      "native_body_sha256_current": "0a4eb4ebcbc798c6b5e02b93dff4e9d2a2d62ce4817032ebc3da6de81636dc5d",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "b0cea30fd4d93ba8eb3a44bc853ae7b82eebaa4fc8723e41eaf37e2b3a5e00c5",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec088 and targeted body read identify program pointer reads 042788f0/04278908; no implementation claim."
+    },
+    {
+      "function_id": "00140a7c",
+      "original_body_bytes": 160,
+      "native_body_sha256_current": "d7fafcb88d3e6584d0f034863ee868df2375df1d9f0d99e4c9cb4b1fcfbcf784",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "cb8b52baa433728c157282345330ddbd5e3259e46cc6e1432f5f920d28ef44d5",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec090 and targeted body read substantively identify custom semantic-name and relative-name handling. Noreturn annotation prevents a full caller conclusion."
+    },
+    {
+      "function_id": "001492ec",
+      "original_body_bytes": 236,
+      "native_body_sha256_current": "6a7e7b6f723b4ea67e17cf597e505994b6c3fb24e05a4deb727919ee7ed95fee",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "4ac3c7249fc66be554c1a972b9fbf6cb17f485635c871f4b79f785a53b1ca91e",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec090 and targeted body read identify dictionary entries6/0x12 and uniform lookup; not mesh evaluation."
+    },
+    {
+      "function_id": "0012d200",
+      "original_body_bytes": 472,
+      "native_body_sha256_current": "d4007cfc78d1a8fe9c554f4c9061ea31fd70e0180111322970fa38ca67f36746",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "007015de944950a9bd89e13bf530d010b6a962e67a3407892d8138b2562fdbcb",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec086 and targeted body read identify float/data writes at the stated offsets; broad loader-absence inference is not a state claim."
+    },
+    {
+      "function_id": "009ad91c",
+      "original_body_bytes": 376,
+      "native_body_sha256_current": "d65a640a2442ae0df213b97bcd506e193bc174e0c805b85d54c9498cc262a9fd",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "128146283153ae8bc976da91d0546b9634b9c1fa19b8425ebb0bb63e221136d9",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec089 and targeted body read identify path choice/resource dispatch; parsed format remains unresolved."
+    },
+    {
+      "function_id": "01b0f6e4",
+      "original_body_bytes": 1668,
+      "native_body_sha256_current": "7120bd0cd964eba8930d4900f65fbba7fe082c9ee508edc22cf69390bf1a9183",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "a6a8a22fa154d6db6d04d88b51232a6063c857f1764fa9f3f4e86bbc32363e23",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec089 and targeted call/path/control reads support resource selection/dispatch only; parser ownership remains unresolved."
+    },
+    {
+      "function_id": "0125213c",
+      "original_body_bytes": 1832,
+      "native_body_sha256_current": "aae9417cf543618fa7a4a4101f06c0aef542b9b7b36545494d6d585ce4b2f41e",
+      "direct_body_hash_matches_recorded_evidence": null,
+      "targeted_export_sha256_current": "5e057ed0019fa84e24503014d6500756f90eeb51ad1deacadad81ae3a3b92320",
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "dec089 and targeted call/path/control reads support resource selection/dispatch only; parser ownership remains unresolved."
+    },
+    {
+      "function_id": "027b69a0",
+      "original_body_bytes": 36,
+      "native_body_sha256_current": "95d1611ffa12661c5f1edd6e2b8aefcafdf686fdbcb84ce41eef054cbf2fdb6b",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": null,
+      "analysis": "analyzed_documented",
+      "implementation": "partial",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": "pla::assets::tr::TrAnmNativeFramedRotationCache::evaluate_with_fpsr",
+      "relation_id": "update_framed_rotation_cache_dec106",
+      "outcome": "unchanged",
+      "rationale": "Complete-body native evidence and current dec106 source hashes revalidated; checked cache non-null branch/refill relation, u16 proof336 only; u8 and three third-probe paths unqualified."
+    },
+    {
+      "function_id": "027b69c4",
+      "original_body_bytes": 36,
+      "native_body_sha256_current": "571403e1d6bffd736ce77c3cb47fa4d02b7bcefd62b357deb34f75261a592cc0",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": null,
+      "analysis": "analyzed_documented",
+      "implementation": "partial",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": "pla::assets::tr::TrAnmNativeFramedRotationCache::evaluate_with_fpsr",
+      "relation_id": "update_framed_rotation_cache_dec106",
+      "outcome": "unchanged",
+      "rationale": "Complete-body native evidence and current dec106 source hashes revalidated; checked cache non-null branch/refill relation, u16 proof336 only; u8 and three third-probe paths unqualified."
+    },
+    {
+      "function_id": "027b69e8",
+      "original_body_bytes": 544,
+      "native_body_sha256_current": "5638917ea85da457ee826c126e42aca57d397b606c61863316863a22578d7783",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": null,
+      "analysis": "analyzed_documented",
+      "implementation": "partial",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": "pla::assets::tr::TrAnmNativeFramedRotationCache::evaluate_with_fpsr",
+      "relation_id": "update_framed_rotation_cache_dec106",
+      "outcome": "unchanged",
+      "rationale": "Complete-body native evidence and current dec106 source hashes revalidated; checked cache non-null branch/refill relation, u16 proof336 only; u8 and three third-probe paths unqualified."
+    },
+    {
+      "function_id": "027b6c08",
+      "original_body_bytes": 1376,
+      "native_body_sha256_current": "efd5642315c0d1a6eb20ce8e93ccf4bfc031185a0ea6442aeb0b88ce349404c2",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": "e7f8ae7c771899d8f5839826c994e0561ae4c99c2690bafe14f857c278282d96",
+      "analysis": "analyzed_documented",
+      "implementation": "partial",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": "pla::assets::tr::TrAnmNativeFramedRotation::evaluate",
+      "relation_id": "update_framed_rotation_stateless_dec102",
+      "outcome": "unchanged",
+      "rationale": "Complete-body native evidence and current dec106 source hashes revalidated; checked stateless output/FPSR relation;1358 conditional original-function fixtures plus824 independent ISA samples, not full game behavior."
+    },
+    {
+      "function_id": "027b7168",
+      "original_body_bytes": 1436,
+      "native_body_sha256_current": "487634631b31ed5cbb6382109efafa13120d0faec423312f4c243cd3d9a67d87",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": "045e064191571600437382e664e628e7383d0ca06c826260d397cf5cbda86674",
+      "analysis": "analyzed_documented",
+      "implementation": "partial",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": "pla::assets::tr::TrAnmNativeFramedRotationCache::evaluate_with_fpsr",
+      "relation_id": "update_framed_rotation_cache_dec106",
+      "outcome": "unchanged",
+      "rationale": "Complete-body native evidence and current dec106 source hashes revalidated; checked cache non-null branch/refill relation, u16 proof336 only; u8 and three third-probe paths unqualified."
+    },
+    {
+      "function_id": "027b7704",
+      "original_body_bytes": 544,
+      "native_body_sha256_current": "751bac519945fd3d36fc9a5c25c36d23028d6688c45ed223af612b2d0d6e12b5",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": null,
+      "analysis": "analyzed_documented",
+      "implementation": "partial",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": "pla::assets::tr::TrAnmNativeFramedRotationCache::evaluate_with_fpsr",
+      "relation_id": "update_framed_rotation_cache_dec106",
+      "outcome": "unchanged",
+      "rationale": "Complete-body native evidence and current dec106 source hashes revalidated; checked cache non-null branch/refill relation, u16 proof336 only; u8 and three third-probe paths unqualified."
+    },
+    {
+      "function_id": "027b7924",
+      "original_body_bytes": 1368,
+      "native_body_sha256_current": "5c23fea84ade73bd382cd2e8f5e83e9553c8bf94124c677356ab1271d21bed1b",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": "d6417df61639c2d552714590c9158188b4b43637f22dc24bd845ac6f63aee968",
+      "analysis": "analyzed_documented",
+      "implementation": "partial",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": "pla::assets::tr::TrAnmNativeFramedRotation::evaluate",
+      "relation_id": "update_framed_rotation_stateless_dec102",
+      "outcome": "unchanged",
+      "rationale": "Complete-body native evidence and current dec106 source hashes revalidated; checked stateless output/FPSR relation;1358 conditional original-function fixtures plus824 independent ISA samples, not full game behavior."
+    },
+    {
+      "function_id": "027b7e7c",
+      "original_body_bytes": 1428,
+      "native_body_sha256_current": "95aeaf8da90d0c3b7542f3c030dd4b65545861903cd824ffcb3d49ad36a866c9",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": "5dda7f190b234c84f0970b96537d8fd8f28b8332640f32ae2103f3213c4f20db",
+      "analysis": "analyzed_documented",
+      "implementation": "partial",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": "pla::assets::tr::TrAnmNativeFramedRotationCache::evaluate_with_fpsr",
+      "relation_id": "update_framed_rotation_cache_dec106",
+      "outcome": "unchanged",
+      "rationale": "Complete-body native evidence and current dec106 source hashes revalidated; checked cache non-null branch/refill relation, u16 proof336 only; u8 and three third-probe paths unqualified."
+    },
+    {
+      "function_id": "027b572c",
+      "original_body_bytes": 580,
+      "native_body_sha256_current": "804393b843e7a2dfd9e18d5e423249edd296bd80f5682d7521cab2496581adbf",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": null,
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "Complete native body, hash and direct report flow revalidated; typed caller or FZ selector is not ported; reached animation FPCR remains unknown."
+    },
+    {
+      "function_id": "027cf4b4",
+      "original_body_bytes": 532,
+      "native_body_sha256_current": "ceba5630e14704125d7888f872561ed918ef93a966e347a0680abd47eceeb4ac",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": null,
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "Complete native body, hash and direct report flow revalidated; typed caller or FZ selector is not ported; reached animation FPCR remains unknown."
+    },
+    {
+      "function_id": "031c8e50",
+      "original_body_bytes": 32,
+      "native_body_sha256_current": "0f25ba90acbbbb8bddffa5d5e9fd8d9cb31c1e270edca3a462fefd794560a857",
+      "direct_body_hash_matches_recorded_evidence": true,
+      "targeted_export_sha256_current": null,
+      "analysis": "analyzed_documented",
+      "implementation": "unknown",
+      "behavior": "unknown",
+      "binary_match": "unknown",
+      "rust_item": null,
+      "relation_id": null,
+      "outcome": "unchanged",
+      "rationale": "Complete native body, hash and direct report flow revalidated; typed caller or FZ selector is not ported; reached animation FPCR remains unknown."
+    }
+  ],
+  "before": {
+    "analysis_documentation_status": {
+      "analyzed_documented": {
+        "functions": 22,
+        "original_bytes": 28764,
+        "functions_percent": 0.03219669252158642,
+        "original_bytes_percent": 0.15115227598627334
+      },
+      "unknown": {
+        "functions": 68308,
+        "original_bytes": 19001052,
+        "functions_percent": 99.96780330747842,
+        "original_bytes_percent": 99.84884772401372
+      }
+    },
+    "behavior_verification_status": {
+      "unknown": {
+        "functions": 68330,
+        "original_bytes": 19029816,
+        "functions_percent": 100.0,
+        "original_bytes_percent": 100.0
+      }
+    },
+    "binary_match_status": {
+      "unknown": {
+        "functions": 68330,
+        "original_bytes": 19029816,
+        "functions_percent": 100.0,
+        "original_bytes_percent": 100.0
+      }
+    },
+    "decompilation_status": {
+      "no_matching_export_in_snapshot": {
+        "functions": 56027,
+        "original_bytes": 6821836,
+        "functions_percent": 81.99473145031465,
+        "original_bytes_percent": 35.848144827044045
+      },
+      "pseudocode_exported": {
+        "functions": 12303,
+        "original_bytes": 12207980,
+        "functions_percent": 18.00526854968535,
+        "original_bytes_percent": 64.15185517295596
+      }
+    },
+    "game_db_file_status": {
+      "indexed_with_function_rows": {
+        "functions": 9767,
+        "original_bytes": 10998588,
+        "functions_percent": 14.293867993560662,
+        "original_bytes_percent": 57.79660717686393
+      },
+      "indexed_without_function_rows": {
+        "functions": 252,
+        "original_bytes": 250552,
+        "functions_percent": 0.36879847797453535,
+        "original_bytes_percent": 1.3166286000873577
+      },
+      "not_indexed": {
+        "functions": 58311,
+        "original_bytes": 7780676,
+        "functions_percent": 85.3373335284648,
+        "original_bytes_percent": 40.886764223048715
+      }
+    },
+    "game_db_parsing_status": {
+      "function_parsed": {
+        "functions": 9767,
+        "original_bytes": 10998588,
+        "functions_percent": 14.293867993560662,
+        "original_bytes_percent": 57.79660717686393
+      },
+      "indexed_without_parsed_function": {
+        "functions": 252,
+        "original_bytes": 250552,
+        "functions_percent": 0.36879847797453535,
+        "original_bytes_percent": 1.3166286000873577
+      },
+      "not_parsed": {
+        "functions": 58311,
+        "original_bytes": 7780676,
+        "functions_percent": 85.3373335284648,
+        "original_bytes_percent": 40.886764223048715
+      }
+    },
+    "identification_status": {
+      "identified": {
+        "functions": 68330,
+        "original_bytes": 19029816,
+        "functions_percent": 100.0,
+        "original_bytes_percent": 100.0
+      }
+    },
+    "implementation_status": {
+      "partial": {
+        "functions": 8,
+        "original_bytes": 6768,
+        "functions_percent": 0.011707888189667788,
+        "original_bytes_percent": 0.0355652414085349
+      },
+      "unknown": {
+        "functions": 68322,
+        "original_bytes": 19023048,
+        "functions_percent": 99.98829211181034,
+        "original_bytes_percent": 99.96443475859147
+      }
+    },
+    "port_state": {
+      "partial": {
+        "functions": 8,
+        "original_bytes": 6768,
+        "functions_percent": 0.011707888189667788,
+        "original_bytes_percent": 0.0355652414085349
+      },
+      "unknown": {
+        "functions": 68322,
+        "original_bytes": 19023048,
+        "functions_percent": 99.98829211181034,
+        "original_bytes_percent": 99.96443475859147
+      }
+    }
+  },
+  "after": {
+    "analysis_documentation_status": {
+      "analyzed_documented": {
+        "functions": 22,
+        "original_bytes": 28764,
+        "functions_percent": 0.03219669252158642,
+        "original_bytes_percent": 0.15115227598627334
+      },
+      "unknown": {
+        "functions": 68308,
+        "original_bytes": 19001052,
+        "functions_percent": 99.96780330747842,
+        "original_bytes_percent": 99.84884772401372
+      }
+    },
+    "behavior_verification_status": {
+      "unknown": {
+        "functions": 68330,
+        "original_bytes": 19029816,
+        "functions_percent": 100.0,
+        "original_bytes_percent": 100.0
+      }
+    },
+    "binary_match_status": {
+      "unknown": {
+        "functions": 68330,
+        "original_bytes": 19029816,
+        "functions_percent": 100.0,
+        "original_bytes_percent": 100.0
+      }
+    },
+    "decompilation_status": {
+      "no_matching_export_in_snapshot": {
+        "functions": 56027,
+        "original_bytes": 6821836,
+        "functions_percent": 81.99473145031465,
+        "original_bytes_percent": 35.848144827044045
+      },
+      "pseudocode_exported": {
+        "functions": 12303,
+        "original_bytes": 12207980,
+        "functions_percent": 18.00526854968535,
+        "original_bytes_percent": 64.15185517295596
+      }
+    },
+    "game_db_file_status": {
+      "indexed_with_function_rows": {
+        "functions": 9767,
+        "original_bytes": 10998588,
+        "functions_percent": 14.293867993560662,
+        "original_bytes_percent": 57.79660717686393
+      },
+      "indexed_without_function_rows": {
+        "functions": 252,
+        "original_bytes": 250552,
+        "functions_percent": 0.36879847797453535,
+        "original_bytes_percent": 1.3166286000873577
+      },
+      "not_indexed": {
+        "functions": 58311,
+        "original_bytes": 7780676,
+        "functions_percent": 85.3373335284648,
+        "original_bytes_percent": 40.886764223048715
+      }
+    },
+    "game_db_parsing_status": {
+      "function_parsed": {
+        "functions": 9767,
+        "original_bytes": 10998588,
+        "functions_percent": 14.293867993560662,
+        "original_bytes_percent": 57.79660717686393
+      },
+      "indexed_without_parsed_function": {
+        "functions": 252,
+        "original_bytes": 250552,
+        "functions_percent": 0.36879847797453535,
+        "original_bytes_percent": 1.3166286000873577
+      },
+      "not_parsed": {
+        "functions": 58311,
+        "original_bytes": 7780676,
+        "functions_percent": 85.3373335284648,
+        "original_bytes_percent": 40.886764223048715
+      }
+    },
+    "identification_status": {
+      "identified": {
+        "functions": 68330,
+        "original_bytes": 19029816,
+        "functions_percent": 100.0,
+        "original_bytes_percent": 100.0
+      }
+    },
+    "implementation_status": {
+      "partial": {
+        "functions": 8,
+        "original_bytes": 6768,
+        "functions_percent": 0.011707888189667788,
+        "original_bytes_percent": 0.0355652414085349
+      },
+      "unknown": {
+        "functions": 68322,
+        "original_bytes": 19023048,
+        "functions_percent": 99.98829211181034,
+        "original_bytes_percent": 99.96443475859147
+      }
+    },
+    "port_state": {
+      "partial": {
+        "functions": 8,
+        "original_bytes": 6768,
+        "functions_percent": 0.011707888189667788,
+        "original_bytes_percent": 0.0355652414085349
+      },
+      "unknown": {
+        "functions": 68322,
+        "original_bytes": 19023048,
+        "functions_percent": 99.98829211181034,
+        "original_bytes_percent": 99.96443475859147
+      }
+    }
+  },
+  "delta_functions": 0,
+  "delta_original_bytes": 0,
+  "current_reference_sha256": {
+    "sheets/decisions.tsv": "e6fa96d39bcf2928dc3da4b37ecf703b4c29e0efde47637af0444d7bb1c6ddbe",
+    "reports/skeleton/update-v262144-native-animation.md": "d51b347976a41a1307a833ecfbf800d0917489c384838b36a0ab2f6859e31c31",
+    "reports/skeleton/update-v262144-native-animation.json": "47eeba35370b394d2f0e48f012b05074fa987ff6bb7f54d12c82b00f281d102c",
+    "reports/skeleton/update-v262144-native-animation-runtime.md": "207d8f3c141e1836338e8fffbe46f8d964e69fa62c2b669b42fa7d52b89d773a",
+    "reports/skeleton/update-v262144-native-animation-runtime.json": "a93e94589e0d62139f731137ff1bfc76a5c4f05abce21ae14fe797b6bd78347a",
+    "reports/skeleton/update-v262144-native-animation-cache.md": "f6023dbdd105cf696137989a12d353eaa5c98543a676b9bb044f843d443e85fc",
+    "reports/skeleton/update-v262144-native-animation-cache.json": "0833eb9b11efe676d4ad65ab12637c7fc8118d3418822e471be90ee2be617f5f",
+    "crates/pla/src/assets/tr/native_animation/cache.rs": "c764ec71d9fe6ae9f4487005578b9faccc46d91304fb298741d2dc65b4f66c8c",
+    "crates/pla/tests/tr_animation_native.rs": "474931986a853f4d4fe553eb2e511e4691aec89c286996a6b62dd6a1b855ee74",
+    "reports/skeleton/update-v262144-native-animation-port.md": "5700aab22233364bf5a7db0e222421dd23821cd60b4bcdf6fcbec08150bc6fad",
+    "reports/skeleton/update-v262144-native-animation-port.json": "cf652100e93ea905be76fc0e0e0cb1014f63fada059393091682f2eaf3c40896",
+    "reports/skeleton/update-v262144-native-animation-special-values.md": "08eb93f1c15210d043b2544f448ddc6d6bbc199c703946dbfb52ec40fa9b24a7",
+    "reports/skeleton/update-v262144-native-animation-special-values.json": "c790e97f4e5595bfbc2c0aee9f5b1a50214209f66c9554e73dd6cabb989f25e9",
+    "reports/skeleton/update-v262144-native-animation-fpsr.md": "c6e02fff48691805568aaa9607d2f70161d384b2a79d24c89d1bd225ea128a27",
+    "reports/skeleton/update-v262144-native-animation-fpsr.json": "182fe6d3ee9047a6ff883e88a3ad42232e2712ca9e983c7569855a87bf59b6b1",
+    "reports/skeleton/update-v262144-native-animation-isa.md": "e60cee32c647c279b852b8c29aff889370ea9169fe589c1284acb23ee1bb3d94",
+    "reports/skeleton/update-v262144-native-animation-isa.json": "86c8fc877581c4b69ca1303edaa18c39aec02fa03cb9d28aff0b7d631c52acc0",
+    "crates/pla/src/assets/tr/native_animation.rs": "719f3b54ff67b7c31c73d2dec9b4c943f990d578f3cfa2be6090af51f3d5502f",
+    "crates/pla/src/assets/tr/native_animation/flags.rs": "b2ef6deaaf66e90b8c6bcc3edd34187cf2e0dff8bfcc8dde8a5195a5fd9f3da3"
+  },
+  "private_evidence_hashes_rechecked": {
+    "/home/nico/work/pla/aux/native-animation-dec104/private-combined-oracle.bin": "43f945d58830a408f50fa46cdffb53f1ee680f1d0db53320d8e6d4493efe8362",
+    "/home/nico/work/pla/aux/native-animation-dec105/private-instruction-oracle.bin": "0e268c5ac2c59e23c0b35c67f692e9ee8bd0b45d42b991ac6c295ac29b7127b5",
+    "/home/nico/work/pla/aux/native-animation-dec106-cache/port/private-accepted-u16-oracle.bin": "ee60c69b4e6aa089a964c6a1379804ea9d01c87c71a89771111ab00b11b6909b",
+    "/home/nico/work/pla/aux/native-animation-dec106-context/module-qualification.json": "f3de68f84c92a9f6c38ceb2acf92b23c77e63b8f7a234462f85a74c9b10c2df4",
+    "/home/nico/work/pla/aux/native-animation-dec106-context/context-findings.json": "ab595019bcb4f017b368665b4742c1e2d59771eb4bb8cd368f84876284c7d7f0",
+    "/home/nico/work/pla/aux/native-animation-dec106-context/static-context.json": "511e6172d0d24f7b8cf80a1d9eadc9bb582c9a17f89745fa557ce4f54c765cde"
+  },
+  "current_module_sha256": "89fa2d715e13a1c311a47ee02b3cc858ccf72a2086ab9704a08a2ddc1b90f7d9",
+  "current_elf_sha256": "b772390207e0de689ca96adaeb15df8b1499912efa74804c3766214d76d08cf2",
+  "supersession": "dec102 NaN rejection and dec104 ISA-unavailable records remain historical; dec103/105/106 qualify later current sources. Earlier source hashes are not claims about current Rust bytes.",
+  "missing_evidence": [
+    "Cached u8 run was rejected by PC guard; no runtime proof.",
+    "u16 branches027b6aa8/027b6ac0/027b6ac8 were not executed.",
+    "Actual loaded SDK binding and reached animation FPCR/FZ remain unknown; FPCR0 is supplied, not a game default.",
+    "AArch64 Rust host branch and unsampled general helper/caller domains remain unverified.",
+    "Fixed/dense/S/T/timeline/default/bind/skin integration remain incomplete; constructor/rebind/fixed gaps are not invented inventory entries.",
+    "Older decision-only rows have no historical native-body or export-hash snapshot; current body hashes are audit identities, not retroactive binary proof."
+  ],
+  "verification": {
+    "citation_schema_inventory": "passed",
+    "current_source_body_fixture_hashes": "passed",
+    "new_runtime_executions": 0,
+    "new_functional_ci_runs": 0,
+    "generation": "current; EXIT0; exactly one invocation",
+    "manifest_sha256": "a237d9b6f3607baf65ba5f40d9a42ee12706081c2e639ed345332cc887e69a8c",
+    "generation_status_sha256": "0a60be3209507e9648223e0ab7467fbc4137e57a4d42bfaef877cebaedcf0f87",
+    "outputs_sha256": {
+      "analysis.png": "0232225aadbc27018051d3121dd9e54ab911e59800c152b027442393e17cce4e",
+      "function-progress.tsv": "4a7386a01ce6f5825e55adc3ac91b6e55b3c31fa4362356b45f1705171fe7afe",
+      "index.html": "99a5a07b97142f863b68fe016807e39e1f588f30fb4fd3d409b439b5bfc4bdbf",
+      "port.png": "1dc99704e2c03d9d7904b4a9e92a894a02ebd8ba8393376280d9a090ff1307e9"
+    },
+    "manifest_input_and_output_delta": "none; identical to actual last-generation baseline",
+    "png_geometry": {
+      "analysis.png": [
+        1440,
+        960
+      ],
+      "port.png": [
+        1440,
+        960
+      ]
+    },
+    "partition_totals": "68330 functions /19029816 bytes per independent field; HTML registry identical partitions and unique IDs",
+    "README_and_audit_local_links": "passed; EXIT0",
+    "HTML_structure": "self-contained embedded registry/canvas, no external file links; passed EXIT0",
+    "first_readback_failure": "Python EXIT1: verifier wrongly expected TSV/PNG links inside self-contained canvas HTML; no generation/data failure. Corrected structural expectation only, no regeneration or generator/source/ledger mutation.",
+    "final_hash_readback": "passed; EXIT0",
+    "PNG_visual_readback": "port map1440x960; main-only original-byte denominator and partial/unknown/separate binary legends visible; dominant grey unknown",
+    "live_handles": "none"
+  },
+  "skill_resolution": "paths-injected"
+}

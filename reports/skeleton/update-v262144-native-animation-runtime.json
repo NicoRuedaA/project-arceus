@@ -1,0 +1,164 @@
+{
+  "format": "native-animation-controlled-oracle/v1",
+  "decision": "dec101",
+  "build": "update-v262144",
+  "module": "update main only; no base SDK substituted",
+  "archive_sha256": "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446",
+  "nso_sha256": "89fa2d715e13a1c311a47ee02b3cc858ccf72a2086ab9704a08a2ddc1b90f7d9",
+  "elf_sha256": "b772390207e0de689ca96adaeb15df8b1499912efa74804c3766214d76d08cf2",
+  "module_id": "aee8f150dda1b5a838806e1a5ea6827ad9f3c51e000000000000000000000000",
+  "rechecked_segments": [
+    {
+      "name": "text",
+      "sha256": "f68daca4836be616b98bbad40c84362eee7624a45f45bb39ae23d667952d190d",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "rodata",
+      "sha256": "3b63c22211843972f3d77aabdc001b90f3ae909bbbb9d20f7beb062271671c3f",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "data",
+      "sha256": "69047d4a9a9e90dc3ddccd684c87849b11e08b8cc15d6944408f6e3ea1e4dfd6",
+      "embedded_hash_and_elf_equal": true
+    }
+  ],
+  "threshold_binding": {
+    "pointer_storage_vaddr": "0427a118",
+    "relocation_vaddr": "0375e118",
+    "relocation_type": "R_AARCH64_GLOB_DAT",
+    "relocation_type_value": 1025,
+    "dynamic_symbol_index": 54,
+    "dynamic_symbol_name": "_ZN2nn4util6detail22FloatQuaternionEpsilonE",
+    "symbol_undefined_in_main": true,
+    "runtime_value_proved": false,
+    "harness_epsilon_is_author_substitution": true
+  },
+  "rotation_dispatch": {
+    "table_vaddr": "04172e30",
+    "got_pointer_vaddr": "04287f88",
+    "got_relative_relocation_vaddr": "03748440",
+    "entries": [
+      {
+        "tag": 0,
+        "slot_vaddr": "04172e30",
+        "target_vaddr": "027b6624",
+        "relocation_vaddr": "0351e328"
+      },
+      {
+        "tag": 1,
+        "slot_vaddr": "04172e38",
+        "target_vaddr": "027b6628",
+        "relocation_vaddr": "0351e340"
+      },
+      {
+        "tag": 2,
+        "slot_vaddr": "04172e40",
+        "target_vaddr": "027b6744",
+        "relocation_vaddr": "0351e358"
+      },
+      {
+        "tag": 3,
+        "slot_vaddr": "04172e48",
+        "target_vaddr": "027b69a0",
+        "relocation_vaddr": "0351e370"
+      },
+      {
+        "tag": 4,
+        "slot_vaddr": "04172e50",
+        "target_vaddr": "027b69c4",
+        "relocation_vaddr": "0351e388"
+      }
+    ]
+  },
+  "new_inventory_analysis": [
+    {
+      "function_id": "027b572c",
+      "size_bytes": 580,
+      "role": "alternate typed track rotation/vector dispatch without cache",
+      "native_body_sha256": "804393b843e7a2dfd9e18d5e423249edd296bd80f5682d7521cab2496581adbf",
+      "private_trace_path": "/home/nico/work/pla/aux/native-animation-dec101/027b572c.asm",
+      "private_trace_sha256": "798352d009751a50525c9903fe8cb53c4a740508e7c2e5365237dd37ab8663b7"
+    },
+    {
+      "function_id": "027cf4b4",
+      "size_bytes": 532,
+      "role": "bone track SRT dispatch, output-presence flags, fixed reuse and framed cache",
+      "native_body_sha256": "ceba5630e14704125d7888f872561ed918ef93a966e347a0680abd47eceeb4ac",
+      "private_trace_path": "/home/nico/work/pla/aux/native-animation-dec101/027cf4b4.asm",
+      "private_trace_sha256": "3437ac0f37936038fcbe29239f82d05906d108462ba42afd924ceeac9a609d7e"
+    }
+  ],
+  "unowned_spans": [
+    {
+      "entry_vaddr": "027b6624",
+      "end_exclusive_vaddr": "027b6628",
+      "role": "tag0 leaves current SIMD return untouched; no default quaternion supplied",
+      "inventoried_function": false
+    },
+    {
+      "entry_vaddr": "027b6628",
+      "end_exclusive_vaddr": "027b6744",
+      "role": "tag1 fixed quaternion, optional fixed cache flag",
+      "inventoried_function": false
+    },
+    {
+      "entry_vaddr": "027b6744",
+      "end_exclusive_vaddr": "027b69a0",
+      "role": "tag2 dense packed quaternion, linear component interpolation without normalization",
+      "inventoried_function": false
+    }
+  ],
+  "controlled_native": {
+    "case_count": 40,
+    "native_exit_code": 0,
+    "instruction_steps": 8453,
+    "fpcr": 0,
+    "cpu": "cortex-a57",
+    "epsilon_substitution_f32_bits": "ccbc8c2b",
+    "mapped_payload_bytes": 81524,
+    "qemu_path": "/usr/bin/qemu-aarch64-static",
+    "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+    "private_elf_sha256": "8ab4fed2ecb4961fad6d27630342cba3d266933d7526639488dcfc3639f2bb09",
+    "private_script_sha256": "91df83eb9a139161c89e8a1e5dbafa0cbe96dab442a64628f0fde0359ce28092",
+    "private_results_sha256": "5b49896097efa97543885b7263d695c5a0011c44e307f539c52abfb1c2f2675b",
+    "private_execution_trace_sha256": "c72e9e86148c87a3fa79b71f92c5508285b68b804e114b47835190ff853391c2",
+    "cache_vs_stateless_bitwise_comparisons": 6,
+    "u16_vs_u8_bitwise_comparisons": 8,
+    "caller_missing_components_preserved": 6,
+    "reference_case_count": 12,
+    "bitwise_reference_disagreements": 3,
+    "nonfinite_output_cases": 1,
+    "max_finite_reference_abs_error": 5.960464477539063e-08,
+    "sign_transition_midpoint_zero_quaternion_under_injected_threshold": true,
+    "sign_transition_midpoint_fpsr": 19,
+    "controlled_negative_radicand_fpsr": 19,
+    "all_executed_pcs_inside_native_leaf_or_authored_wrapper_pages": true,
+    "epsilon_substitution_encoding": "serialized little-endian f32 byte hex, not numeric u32 hex"
+  },
+  "executed_pinned_reference": {
+    "pin": "b0c98d9fcaab85a04ad35e2d111bae4cad6c1e04",
+    "importer_sha256": "b836fe617f3123a7ff5158a4f5ebab7e44186905ea3b698e19de136a3a1899fd",
+    "blender_version": "5.2.1 LTS",
+    "blender_build_hash": "9e2066aef7ef",
+    "selected_function_count": 2,
+    "executed_reference_case_count": 12,
+    "bitwise_native_disagreements": 3,
+    "private_trace_sha256": "d223410e77d6de7ded3b3f178a534b2eb159ea75db05c8ee2ff129de4926b9d9",
+    "private_script_sha256": "f59e8c0bf5466bcb28d1a7228d821ea15e8dc46966a1a199321ef2cd9a357cb6"
+  },
+  "private_harness_path": "/home/nico/work/pla/aux/native-animation-dec101/controlled_leaf.py",
+  "private_reference_path": "/home/nico/work/pla/aux/native-animation-dec101/executed_reference.py",
+  "private_fixture_sha256": "3ba8bd0d6f9b513e59bbf1c9f19073f4c4b46dc887212c4d87d7f291a0835291",
+  "private_results_path": "/home/nico/work/pla/aux/native-animation-dec101/private-results.json",
+  "private_execution_trace_path": "/home/nico/work/pla/aux/native-animation-dec101/execution.log",
+  "private_caller_output_memory_sha256": "f02c2f11abdac85d3f6c7331470a17474543867d65dbd6a36a2a87df285852a9",
+  "limitations": [
+    "Author-generated synthetic values only, not actual game corpus or game startup.",
+    "QEMU Cortex-A57 and FPCR zero are controlled settings, not proved actual game FPCR.",
+    "Imported SDK threshold is replaced by author-supplied 1e-12; exact update SDK definition remains unavailable.",
+    "No native-vs-Rust implementation differential; ledger verification and binary match remain unknown.",
+    "Global clock/loop/rest-pose initialization, arbitrary malformed/out-of-range inputs and canonical inventory gaps remain unresolved."
+  ]
+}

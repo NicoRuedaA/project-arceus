@@ -1,0 +1,256 @@
+{
+  "format": "native-animation-fpsr/v1",
+  "decision": "dec104",
+  "status": "partial",
+  "skill_resolution": "paths-injected",
+  "build": "update-v262144",
+  "archive_sha256": "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446",
+  "nso_sha256": "89fa2d715e13a1c311a47ee02b3cc858ccf72a2086ab9704a08a2ddc1b90f7d9",
+  "elf_sha256": "b772390207e0de689ca96adaeb15df8b1499912efa74804c3766214d76d08cf2",
+  "module_id": "aee8f150dda1b5a838806e1a5ea6827ad9f3c51e000000000000000000000000",
+  "segments": [
+    {
+      "name": "text",
+      "sha256": "f68daca4836be616b98bbad40c84362eee7624a45f45bb39ae23d667952d190d",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "rodata",
+      "sha256": "3b63c22211843972f3d77aabdc001b90f3ae909bbbb9d20f7beb062271671c3f",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "data",
+      "sha256": "69047d4a9a9e90dc3ddccd684c87849b11e08b8cc15d6944408f6e3ea1e4dfd6",
+      "embedded_hash_and_elf_equal": true
+    }
+  ],
+  "functions": [
+    {
+      "function_id": "027b6c08",
+      "size_bytes": 1376,
+      "sha256": "efd5642315c0d1a6eb20ce8e93ccf4bfc031185a0ea6442aeb0b88ce349404c2"
+    },
+    {
+      "function_id": "027b7924",
+      "size_bytes": 1368,
+      "sha256": "5c23fea84ade73bd382cd2e8f5e83e9553c8bf94124c677356ab1271d21bed1b"
+    }
+  ],
+  "source_sha256": {
+    "crates/pla/src/assets/tr/native_animation.rs": "5e3b14ceb09cd5b2ce069f0bf8ef50348f61122f9e5e103f4d007887b5712ea4",
+    "crates/pla/src/assets/tr/native_animation/flags.rs": "10132f0a8e285cb4786607b8cfba58f36ed7c2b6ff559b86fe37e257ded9eb2e",
+    "crates/pla/src/assets/tr.rs": "e2c725a8f6e53688dae1f51d00f5536fcff8c3912762f73cd7dc87a8496a01f1",
+    "crates/pla/tests/tr_animation_native.rs": "9f11de7db846a15450ecc61dc9c7fee42b52504e5c03e9d9c9019e095206c97e",
+    "crates/pla/src/assets/tr/animation.rs": "6a622137cfb4b476161c69000411870e107349ea2e7ca6c22134b52b539e0636"
+  },
+  "rust_source_fingerprint_sha256": "a61300e564b444cd94b6224f13c1e35e73033744ab059a2ebb85a8a595fb4fe9",
+  "primary_isa": {
+    "document": "Arm DDI0596 ID121321",
+    "sha256": "756449b122fa43ff55d81be5e889451bc8c7ba8576ad4a877b91c77b8675e349",
+    "sections": [
+      "FPRoundBase pp3199\u20133201",
+      "FPUnpack pp3216\u20133217",
+      "FPCompareGT p3170",
+      "FPRSqrtEstimate pp3207\u20133209",
+      "FPRSqrtStepFused p2916"
+    ],
+    "web_access": "unavailable; verified previously cached Arm-authored PDF"
+  },
+  "contract": {
+    "fpcr": 0,
+    "epsilon": "caller-supplied positive finite; actual SDK value unknown",
+    "initial_fpsr_allowed_mask": "0800009f",
+    "aggregation": "all executed arithmetic lanes/decodes; initial sticky OR; no host flags as native evidence",
+    "unsupported": [
+      "FPCR nonzero/traps",
+      "actual game FPCR/SDK/caller contract",
+      "stateful cache/timeline/defaults",
+      "AArch64 host branch cross-build/execution",
+      "general helper boundary execution; ISA-only auxiliary unavailable"
+    ]
+  },
+  "original_function_differential": {
+    "prior_cases": 1038,
+    "new_cases": 320,
+    "total_cases": 1358,
+    "output_word_comparisons": 5432,
+    "fpsr_comparisons": 1358,
+    "output_word_mismatches": 0,
+    "fpsr_mismatches": 0,
+    "finite_outputs": 798,
+    "nonfinite_outputs": 560,
+    "native_fpsr_histogram": {
+      "00000010": 572,
+      "00000018": 88,
+      "00000013": 434,
+      "08000094": 12,
+      "0800009c": 24,
+      "0000009f": 80,
+      "08000010": 12,
+      "08000018": 24,
+      "08000097": 20,
+      "08000013": 20,
+      "0000001b": 24,
+      "0800009f": 24,
+      "0800001b": 24
+    },
+    "oracle_sha256": "43f945d58830a408f50fa46cdffb53f1ee680f1d0db53320d8e6d4493efe8362",
+    "batches": [
+      {
+        "unit": "dec104",
+        "cases": 160,
+        "finite_output_cases": 100,
+        "nonfinite_output_cases": 60,
+        "native_exit": 0,
+        "instructions": 37264,
+        "fpcr": 0,
+        "epsilon": "per-case author substitution; positive finite only",
+        "epsilon_count": 4,
+        "native_fpsr_histogram": {
+          "16": 8,
+          "24": 15,
+          "134217876": 8,
+          "134217884": 15,
+          "159": 40,
+          "134217744": 8,
+          "134217752": 15,
+          "19": 8,
+          "134217879": 8,
+          "134217747": 8,
+          "27": 9,
+          "134217887": 9,
+          "134217755": 9
+        },
+        "mapped_payload_bytes": 371104,
+        "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+        "private_script_sha256": "fe160dc24717687e8d82e6aa16f06d5b1b2749d7689d309f970d22332ff831fb",
+        "private_oracle_sha256": "b27a67a1e936e70e31f61a448abe79039df35c9d367f824c5f3f52221df51a20",
+        "private_elf_sha256": "1cebb71dbc1f62ec7361f0007817baa044cb32c33a720adfed2ec40df9a1a2b3",
+        "private_trace_sha256": "3d372553392f875a60a7a1fb7fd18a0174ae157d0303feb04d0fefb50d322142",
+        "guest_pcs_qualified": true
+      },
+      {
+        "unit": "dec104",
+        "cases": 160,
+        "finite_output_cases": 60,
+        "nonfinite_output_cases": 100,
+        "native_exit": 0,
+        "instructions": 37008,
+        "fpcr": 0,
+        "epsilon": "per-case author substitution; positive finite only",
+        "epsilon_count": 4,
+        "native_fpsr_histogram": {
+          "19": 12,
+          "27": 15,
+          "134217879": 12,
+          "134217887": 15,
+          "159": 40,
+          "134217747": 12,
+          "134217755": 15,
+          "16": 4,
+          "24": 9,
+          "134217876": 4,
+          "134217884": 9,
+          "134217744": 4,
+          "134217752": 9
+        },
+        "mapped_payload_bytes": 371104,
+        "qemu_sha256": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c",
+        "private_script_sha256": "fe160dc24717687e8d82e6aa16f06d5b1b2749d7689d309f970d22332ff831fb",
+        "private_oracle_sha256": "62b5f3f3af8a394c58b58d6bebf00a89ec3050857e350f832712f54a339f1895",
+        "private_elf_sha256": "13a02346315fabc2842d436bf6c7335962f14975da69b3352b8c8e5dbdfd3d2d",
+        "private_trace_sha256": "2fa65989e0b176f836e2bf704f82623dcbca2c7391a3336898aa915476208e4a",
+        "guest_pcs_qualified": true
+      }
+    ]
+  },
+  "auxiliary_instruction_proof": {
+    "status": "unavailable",
+    "first_script_exit": 1,
+    "first_rust_exit": 101,
+    "first_issue": "author output store lies in RX segment; no complete result captured; guest exit not retained",
+    "scoped_correction": "--omagic RWE ELF, preserved in separate corrected directory",
+    "corrected_script_exit": 1,
+    "corrected_guest_exit": 255,
+    "corrected_rust_exit": 101,
+    "corrected_issue": "LOAD offset 0xb0 not page-congruent with VA0x5000000; QEMU Error mapping file Invalid argument; no guest instructions",
+    "numeric_verdict": null,
+    "additional_retry": false
+  },
+  "first_build_failures": [
+    {
+      "log": "first-native-proof.log",
+      "exit": 101,
+      "issue": "test reader edit touched two pre-existing domain tests; corrected before first numerical execution"
+    },
+    {
+      "log": "ci-source.log",
+      "exit": 101,
+      "issue": "clippy manual_is_multiple_of/chunks_exact_to_as_chunks"
+    },
+    {
+      "log": "focused-normalized.log",
+      "exit": 101,
+      "issue": "mechanical as_chunks array reference conversion; corrected without arithmetic changes"
+    },
+    {
+      "log": "ci-normalized.log",
+      "exit": 101,
+      "issue": "same array reference compile error"
+    }
+  ],
+  "checks": {
+    "source_normalization": "cargo fmt --all before final focused tests",
+    "focused_exit": 0,
+    "focused_passed": 51,
+    "ci_normalized_exit": 0,
+    "ci_passed": 106,
+    "ci_ignored": 2,
+    "ordinary_ci_private_proof": "not run; explicit original-function oracle ran in focused tests; optional ISA test skipped/unavailable",
+    "post_book_ci": {
+      "exit": 0,
+      "passed": 106,
+      "ignored": 2,
+      "log": "ci-final-book.log"
+    },
+    "post_book_preflight": {
+      "exit": 0,
+      "sheets": 28,
+      "rows": 267929,
+      "errors": 0,
+      "warnings": 0
+    },
+    "diff_non_tsv_exit": 0,
+    "diff_tsv_scoped_exit": 0,
+    "fmt_check_exit": 0,
+    "final_maps": {
+      "exit": 0,
+      "single_regeneration": true,
+      "state": "current",
+      "manifest_sha256": "17cd801bb1abc226213147afde7025499fe5afa6c6f4a1bac9d1f570aa9234cf",
+      "rust_file_count": 48,
+      "rust_source_fingerprint_sha256": "a61300e564b444cd94b6224f13c1e35e73033744ab059a2ebb85a8a595fb4fe9",
+      "ledger_sha256": "39d1e176336a6daefb7c0f0d9b2e23e79e5a6532cb5700ad18f20e05d7ad9638",
+      "output_sha256": {
+        "analysis.png": "0232225aadbc27018051d3121dd9e54ab911e59800c152b027442393e17cce4e",
+        "function-progress.tsv": "51c2504b91335c73e8564fb64f91a7b8dce15b710eeca265463d87b89d6cfc32",
+        "index.html": "146dc9da659b89e820f725f9fcaf90e386eebfba6da970a2fca6e31d759ea41c",
+        "port.png": "995b6df9654fb24fc8b33a9966cfd8cfdbd782ea38b0d18db8fb0bf5d98960b2"
+      },
+      "readback_exit": 0
+    }
+  },
+  "ledger": {
+    "analyzed": 21,
+    "implementation_partial": [
+      "027b6c08",
+      "027b7924"
+    ],
+    "behavior": "unknown",
+    "binary": "unknown",
+    "inventory_functions": 68330,
+    "inventory_bytes": 19029816
+  },
+  "remaining_next_action": "In a separate unit, repair authored ISA-only ELF with a page-congruent writable output mapping, then independently validate helper tininess/FMA/NaN boundaries; actual game context/cache/timeline still separate."
+}

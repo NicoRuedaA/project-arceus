@@ -1,0 +1,223 @@
+{
+  "format": "native-animation-isa-proof/v1",
+  "decision": "dec105",
+  "status": "partial",
+  "skill_resolution": "paths-injected",
+  "build": "update-v262144",
+  "archive_sha256": "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446",
+  "nso_sha256": "89fa2d715e13a1c311a47ee02b3cc858ccf72a2086ab9704a08a2ddc1b90f7d9",
+  "elf_sha256": "b772390207e0de689ca96adaeb15df8b1499912efa74804c3766214d76d08cf2",
+  "module_id": "aee8f150dda1b5a838806e1a5ea6827ad9f3c51e000000000000000000000000",
+  "segments": [
+    {
+      "name": "text",
+      "sha256": "f68daca4836be616b98bbad40c84362eee7624a45f45bb39ae23d667952d190d",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "rodata",
+      "sha256": "3b63c22211843972f3d77aabdc001b90f3ae909bbbb9d20f7beb062271671c3f",
+      "embedded_hash_and_elf_equal": true
+    },
+    {
+      "name": "data",
+      "sha256": "69047d4a9a9e90dc3ddccd684c87849b11e08b8cc15d6944408f6e3ea1e4dfd6",
+      "embedded_hash_and_elf_equal": true
+    }
+  ],
+  "functions": [
+    {
+      "function_id": "027b6c08",
+      "size_bytes": 1376,
+      "sha256": "efd5642315c0d1a6eb20ce8e93ccf4bfc031185a0ea6442aeb0b88ce349404c2"
+    },
+    {
+      "function_id": "027b7924",
+      "size_bytes": 1368,
+      "sha256": "5c23fea84ade73bd382cd2e8f5e83e9553c8bf94124c677356ab1271d21bed1b"
+    }
+  ],
+  "source_sha256": {
+    "crates/pla/src/assets/tr/native_animation.rs": "8de35e8f9084f51fe5e36ac283df0f6f8d237626ec156d00541abac82efc21ef",
+    "crates/pla/src/assets/tr/native_animation/flags.rs": "c1b4f60779cddfce7b699a65c8b415db061766701a06a2887e73b8d70568a892",
+    "crates/pla/tests/tr_animation_native.rs": "9f11de7db846a15450ecc61dc9c7fee42b52504e5c03e9d9c9019e095206c97e",
+    "crates/pla/src/assets/tr/animation.rs": "6a622137cfb4b476161c69000411870e107349ea2e7ca6c22134b52b539e0636"
+  },
+  "rust_source_fingerprint_sha256": "c4c1cb26d51d5679727da9bd0e0ae17215677a44bc223044c70fea2a668f2916",
+  "authored_isa_build": {
+    "cases": 824,
+    "headers": [
+      [
+        1,
+        5,
+        4096,
+        83886080,
+        83886080,
+        39608,
+        39608,
+        4096
+      ],
+      [
+        1,
+        4,
+        45056,
+        83951616,
+        83951616,
+        13184,
+        13184,
+        4096
+      ],
+      [
+        1,
+        6,
+        61440,
+        84017152,
+        84017152,
+        13184,
+        13184,
+        4096
+      ]
+    ],
+    "elf_sha256": "2db2cb1306239ccefb1a7fa2eb93a795b370a5e1a4d28a999c8e4d6b251e6414",
+    "text_sha256": "dff4f96101eec0dc480b5db3e7ba55d80544a3997ee49f9e80166b9aa927a116",
+    "wrapper_source_sha256": "5d9c7339915477701d540b6cf921cfe9fbdf7ce5e3a9d371fc5d00193176b0e6",
+    "script_sha256": "2ea93791b740fc147b3f95e11f9fd288ba1cdf906c2ed0fb469e1875110e5b99",
+    "identities": {
+      "clang": "67ad17f2e61ed725abd3cefdd3fa1c24dc5c09ec3ed064dc03c0798e66fe8955",
+      "ld.lld": "36dc8a33f318845a94651516dc158ff588367c0cb477fd6a571fbd03e0c6a2ba",
+      "llvm-readelf": "a91f794619200fe146cb23cd3287e493613315e458a6ece75c6c30fceef1f089",
+      "qemu-aarch64-static": "0f09bec93adb4e80c69ec63f2f74a9e144a299e874a230fa33ab547028ddfc8c"
+    },
+    "loader_validation": "all LOAD offsets/virtual addresses page-congruent; RX/R/RW distinct; no interpreter/SDK/game bytes"
+  },
+  "authored_isa_run": {
+    "unit": "dec105",
+    "instruction_only": true,
+    "cases": 824,
+    "instructions": 9902,
+    "exit": 0,
+    "fpcr_readback": 0,
+    "qualified_pcs": true,
+    "oracle_sha256": "0e268c5ac2c59e23c0b35c67f692e9ee8bd0b45d42b991ac6c295ac29b7127b5",
+    "trace_sha256": "5e805e31d5a6760cfe816a1012f6ed03bae046d0cd25d8b0724e70aa97d65fbd",
+    "script_sha256": "2ea93791b740fc147b3f95e11f9fd288ba1cdf906c2ed0fb469e1875110e5b99",
+    "opcode_counts": {
+      "0": 92,
+      "1": 92,
+      "2": 92,
+      "3": 80,
+      "4": 160,
+      "5": 32,
+      "6": 130,
+      "7": 70,
+      "8": 76
+    }
+  },
+  "comparison": {
+    "isa_output_words": 824,
+    "isa_fpsr_states": 824,
+    "output_mismatches_after_correction": 0,
+    "fpsr_mismatches_after_correction": 0,
+    "first_divergence": {
+      "proof_exit": 101,
+      "case": 750,
+      "instruction": "FMAXNM",
+      "authored_inputs": [
+        "00000000",
+        "80000000"
+      ],
+      "rust_word": "80000000",
+      "isa_word": "00000000",
+      "preceding_output_and_fpsr_matches": 750
+    },
+    "scoped_corrections": 1,
+    "loader_failures_this_unit": 0,
+    "forecast_deviation": "~600 estimated cases became824; reader cap1024/instruction acceptance cap100000 respected"
+  },
+  "original_function_replay": {
+    "fixture_unit": "dec104",
+    "fixture_sha256": "43f945d58830a408f50fa46cdffb53f1ee680f1d0db53320d8e6d4493efe8362",
+    "cases": 1358,
+    "output_words": 5432,
+    "fpsr_states": 1358,
+    "output_mismatches": 0,
+    "fpsr_mismatches": 0,
+    "finite_outputs": 798,
+    "nonfinite_outputs": 560,
+    "new_original_byte_runtime": false
+  },
+  "historical_dec104_auxiliary": "unchanged unavailable; RX store failure and corrected LOAD incongruence/EXIT255 remain preserved",
+  "isa_domains": {
+    "add_sub_mul": "finite boundary and NaN/signaling/Inf pairs;92cases each",
+    "div": "finite numerator,positive integral denominator;80cases",
+    "fma": "finite operands only;160cases with exact residual/wide capacity/tie/underflow/overflow",
+    "estimate": "zero/NaN/Inf/negative/positive/subnormal;32cases;finite estimate adds noIXC",
+    "step": "special NaN/Inf-zero plus finite operands with exactly representable halving of first operand;130cases",
+    "greater": "quiet/signaling NaNs and finite comparisons;70cases",
+    "max_number": "zero sign,finite and NaN priority;76cases"
+  },
+  "limitations": [
+    "sampled ISA semantics are not universal proof or native caller-domain proof",
+    "finite FRSQRTS first-operand half must be exact; arbitrary tiny/subnormal first estimate remains outside generic helper output claim",
+    "FMA NaN/Inf inputs unsupported by private helper",
+    "division nonfinite/zero denominator outside checked helper domain",
+    "FPCR nonzero/traps unsupported",
+    "actual game SDKepsilon/FPCR/cache/timeline/defaults unresolved",
+    "AArch64 host branch not cross-built/executed"
+  ],
+  "checks": {
+    "normalize_before_final_tests": true,
+    "focused_exit": 0,
+    "focused_passed": 52,
+    "source_ci_exit": 0,
+    "source_ci_passed": 107,
+    "source_ci_ignored": 2,
+    "optional_isa_fixture_supplied_in_focused": true,
+    "ordinary_ci_private_fixtures": "unset; skipped,not proof",
+    "post_book_ci": {
+      "exit": 0,
+      "passed": 107,
+      "ignored": 2,
+      "log": "ci-final-book.log"
+    },
+    "final_maps": {
+      "exit": 0,
+      "single_regeneration": true,
+      "state": "current",
+      "manifest_sha256": "b68e9ab18e19aea62f8a9d9840ab655eea2756e55b3af1c25413fc4882226657",
+      "rust_file_count": 48,
+      "rust_source_fingerprint_sha256": "c4c1cb26d51d5679727da9bd0e0ae17215677a44bc223044c70fea2a668f2916",
+      "ledger_sha256": "7e82cf6bb7026f279a8ee1f7c08075cb87e6381c1e1032e539c1b83374c727ee",
+      "output_sha256": {
+        "analysis.png": "0232225aadbc27018051d3121dd9e54ab911e59800c152b027442393e17cce4e",
+        "function-progress.tsv": "58203c3a27b989946dc61ab405bbdd2e77c600c8b55f1fabd7daf56197da7a4d",
+        "index.html": "d68bd0ada3aec719313e7abb53774c4e74abf2569281bbbd3e45697aab1f10a0",
+        "port.png": "995b6df9654fb24fc8b33a9966cfd8cfdbd782ea38b0d18db8fb0bf5d98960b2"
+      },
+      "readback_exit": 0
+    },
+    "post_book_preflight": {
+      "exit": 0,
+      "sheets": 28,
+      "rows": 267932,
+      "errors": 0,
+      "warnings": 0
+    },
+    "diff_non_tsv_exit": 0,
+    "diff_tsv_scoped_exit": 0,
+    "fmt_check_exit": 0,
+    "structural_source_ledger_readback_exit": 0
+  },
+  "ledger": {
+    "analyzed_functions": 21,
+    "partial_functions": [
+      "027b6c08",
+      "027b7924"
+    ],
+    "behavior": "unknown",
+    "binary": "unknown",
+    "inventory_functions": 68330,
+    "inventory_bytes": 19029816
+  },
+  "next_prerequisite": "Actual imported SDK quaternion epsilon/game FP context and cache/timeline/caller contract; no full-function promotion from helper proof."
+}

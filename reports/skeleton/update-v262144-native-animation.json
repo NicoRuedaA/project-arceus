@@ -1,0 +1,170 @@
+{
+  "format": "native-animation-analysis/v1",
+  "decision": "dec100",
+  "build": "update-v262144",
+  "archive_sha256": "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446",
+  "archive_identity_source": "reports/function-progress/update-v262144/manifest.json",
+  "module": "main.nso",
+  "module_id": "aee8f150dda1b5a838806e1a5ea6827ad9f3c51e000000000000000000000000",
+  "nso_sha256": "89fa2d715e13a1c311a47ee02b3cc858ccf72a2086ab9704a08a2ddc1b90f7d9",
+  "elf_sha256": "b772390207e0de689ca96adaeb15df8b1499912efa74804c3766214d76d08cf2",
+  "segments": [
+    {
+      "name": "text",
+      "vaddr": "00000000",
+      "size_bytes": 53106320,
+      "sha256": "f68daca4836be616b98bbad40c84362eee7624a45f45bb39ae23d667952d190d",
+      "nso_embedded_hash_verified": true,
+      "elf_bytes_equal": true
+    },
+    {
+      "name": "rodata",
+      "vaddr": "032a6000",
+      "size_bytes": 14104576,
+      "sha256": "3b63c22211843972f3d77aabdc001b90f3ae909bbbb9d20f7beb062271671c3f",
+      "nso_embedded_hash_verified": true,
+      "elf_bytes_equal": true
+    },
+    {
+      "name": "data",
+      "vaddr": "0401a000",
+      "size_bytes": 2568224,
+      "sha256": "69047d4a9a9e90dc3ddccd684c87849b11e08b8cc15d6944408f6e3ea1e4dfd6",
+      "nso_embedded_hash_verified": true,
+      "elf_bytes_equal": true
+    }
+  ],
+  "functions": [
+    {
+      "function_id": "027b69a0",
+      "entry_vaddr": "027b69a0",
+      "size_bytes": 36,
+      "role": "framed16 cache-or-stateless dispatch",
+      "native_body_sha256": "95d1611ffa12661c5f1edd6e2b8aefcafdf686fdbcb84ce41eef054cbf2fdb6b",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b69a0.asm",
+      "private_trace_sha256": "93ec4cb0f005449a9b98b2111e1e4f5218efc66be5ccb3ee8e9253febd9d40a1",
+      "analysis_status": "analyzed_documented",
+      "implementation_status": "unknown",
+      "verification_status": "unknown",
+      "binary_match_status": "unknown"
+    },
+    {
+      "function_id": "027b69c4",
+      "entry_vaddr": "027b69c4",
+      "size_bytes": 36,
+      "role": "framed8 cache-or-stateless dispatch",
+      "native_body_sha256": "571403e1d6bffd736ce77c3cb47fa4d02b7bcefd62b357deb34f75261a592cc0",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b69c4.asm",
+      "private_trace_sha256": "b81050d2a5c3af3bd756e61d98e8c30f360ebe53ebe55d40a0c6a66a7c39cc2c",
+      "analysis_status": "analyzed_documented",
+      "implementation_status": "unknown",
+      "verification_status": "unknown",
+      "binary_match_status": "unknown"
+    },
+    {
+      "function_id": "027b69e8",
+      "entry_vaddr": "027b69e8",
+      "size_bytes": 544,
+      "role": "framed16 cached quaternion interpolation",
+      "native_body_sha256": "5638917ea85da457ee826c126e42aca57d397b606c61863316863a22578d7783",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b69e8.asm",
+      "private_trace_sha256": "c93c49dcf34ce152d92b4eefda5f330a7825b88b47da118133e9a4db76055beb",
+      "analysis_status": "analyzed_documented",
+      "implementation_status": "unknown",
+      "verification_status": "unknown",
+      "binary_match_status": "unknown"
+    },
+    {
+      "function_id": "027b6c08",
+      "entry_vaddr": "027b6c08",
+      "size_bytes": 1376,
+      "role": "framed16 stateless packed quaternion interpolation",
+      "native_body_sha256": "efd5642315c0d1a6eb20ce8e93ccf4bfc031185a0ea6442aeb0b88ce349404c2",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b6c08.asm",
+      "private_trace_sha256": "b9bf934dd479f20855f2c2d8d8d0ef8f7225aea5c9e96151f70d6c0992948deb",
+      "analysis_status": "analyzed_documented",
+      "implementation_status": "unknown",
+      "verification_status": "unknown",
+      "binary_match_status": "unknown"
+    },
+    {
+      "function_id": "027b7168",
+      "entry_vaddr": "027b7168",
+      "size_bytes": 1436,
+      "role": "framed16 packed quaternion ring-cache refill",
+      "native_body_sha256": "487634631b31ed5cbb6382109efafa13120d0faec423312f4c243cd3d9a67d87",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b7168.asm",
+      "private_trace_sha256": "f1408fb90557b5392fe9a216b5d267451a7b1213ca2779f09bf86209a598f220",
+      "analysis_status": "analyzed_documented",
+      "implementation_status": "unknown",
+      "verification_status": "unknown",
+      "binary_match_status": "unknown"
+    },
+    {
+      "function_id": "027b7704",
+      "entry_vaddr": "027b7704",
+      "size_bytes": 544,
+      "role": "framed8 cached quaternion interpolation",
+      "native_body_sha256": "751bac519945fd3d36fc9a5c25c36d23028d6688c45ed223af612b2d0d6e12b5",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b7704.asm",
+      "private_trace_sha256": "3b22c8df79b4401f5c838748fbbc9d53a17f316bb82bcbba05676c9f53098f2a",
+      "analysis_status": "analyzed_documented",
+      "implementation_status": "unknown",
+      "verification_status": "unknown",
+      "binary_match_status": "unknown"
+    },
+    {
+      "function_id": "027b7924",
+      "entry_vaddr": "027b7924",
+      "size_bytes": 1368,
+      "role": "framed8 stateless packed quaternion interpolation",
+      "native_body_sha256": "5c23fea84ade73bd382cd2e8f5e83e9553c8bf94124c677356ab1271d21bed1b",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b7924.asm",
+      "private_trace_sha256": "955c80a8e6eb70051f6629eb520270af8d997b79c1b6fe0f11c09405f0a82f45",
+      "analysis_status": "analyzed_documented",
+      "implementation_status": "unknown",
+      "verification_status": "unknown",
+      "binary_match_status": "unknown"
+    },
+    {
+      "function_id": "027b7e7c",
+      "entry_vaddr": "027b7e7c",
+      "size_bytes": 1428,
+      "role": "framed8 packed quaternion ring-cache refill",
+      "native_body_sha256": "95aeaf8da90d0c3b7542f3c030dd4b65545861903cd824ffcb3d49ad36a866c9",
+      "private_assembly_trace": "/home/nico/work/pla/aux/native-animation-dec100/027b7e7c.asm",
+      "private_trace_sha256": "f1f11b1894162a50048caf7be33dc3c4ba26cda92f4ea10edf54e8326be977d6",
+      "analysis_status": "analyzed_documented",
+      "implementation_status": "unknown",
+      "verification_status": "unknown",
+      "binary_match_status": "unknown"
+    }
+  ],
+  "bounded_scan": {
+    "text_bytes": 53106320,
+    "aligned_word_count": 13276580,
+    "predicate": "UBFM extraction fields (3,17), (18,32), (33,47), (0,14)",
+    "nearest_entry_groups": 5,
+    "proved_inventory_decode_groups": 4,
+    "rejected_nearest_entry": "027b5970: scan hits beyond its 576-byte inventory body",
+    "private_scan_metadata": "/home/nico/work/pla/aux/native-animation-dec100/bitfield-scan.json",
+    "private_scan_sha256": "6ac8f2e7e36c45799846c2f403001992d487b7dedab5e27a079d6891bc96af9d"
+  },
+  "ghidra": {
+    "mode": "existing project readOnly/noanalysis; selective ExportTop",
+    "requested": 5,
+    "completed": 5,
+    "failed": 0,
+    "missing": 0,
+    "exit_code": 0,
+    "log_path": "/home/nico/work/pla/aux/native-animation-dec100/ghidra.log",
+    "log_sha256": "97b19248c71472b491e05d377b505aee78080709cf5aaef012ea65450cea1bd1"
+  },
+  "limitations": [
+    "Manual instruction/control/data-flow analysis only; no binary execution or emulator differential.",
+    "No global native callsite/loop/default/FPS timing behavior established.",
+    "Runtime normalization threshold pointer at 0427a118 remains unresolved.",
+    "Unindexed adjacent fixed/dense spans are not promoted as inventoried functions.",
+    "No Rust implementation mapping, behavioral verification or binary match promotion."
+  ]
+}

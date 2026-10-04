@@ -62,6 +62,19 @@ fixture-based ones print `[skip]` and return).
 | Visual subsystem | asset-level (sheet-driven image + sprite); full render needs a window |
 | Pending | `tr*` models/animations, ASTC + unknown BNTX formats, Havok→avian3d |
 
+## Function-level progress
+
+![Update v262144 main implementation progress; partial is not completed and behavior/binary matching remain unknown](reports/function-progress/update-v262144/port.png)
+
+[Interactive maps and per-function evidence](reports/function-progress/update-v262144/index.html) ·
+[Analysis map](reports/function-progress/update-v262144/analysis.png) ·
+[Latest evidence audit](reports/function-progress/update-v262144-evidence-audit.md)
+
+Map area and percentages are weighted by **original native function-body bytes**
+for update v262144 **main NSO only**, not whole-game completion, pseudocode
+readability or Rust line count. Partial implementations are conditional ports;
+whole-function behavioral verification and binary matching remain unknown.
+
 ## Legal
 
 This is interoperability research on a game the collaborators own. Do **not**

@@ -1,0 +1,1803 @@
+{
+  "format": "trskl-structural-census/v1",
+  "input_scope": "authorized local RomFS; identity requires matching input hashes",
+  "verification": "structural serialization only; no runtime/binary-match proof",
+  "files": 199,
+  "nodes": 1264,
+  "binds": 289,
+  "empty_binds": 75,
+  "root_flag_one": 13,
+  "references": [
+    {
+      "path": "bin/chara/data/item/item_001/item_001.trskl",
+      "sha256": "9154ec7ed197079e893aaf5e1e9c6b4f58ffae20263bab3afea5b12bf3984072",
+      "bytes": 420,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_002/item_002.trskl",
+      "sha256": "8233d0085d7bbca3ffdebbb65a5cf5a75c5174e7985a273d4b35ab11257849a4",
+      "bytes": 420,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_011/item_011.trskl",
+      "sha256": "a12e43384041f91d5b739985a83d663c7ddfc04eb905780a36fa1d40c6e2dfc8",
+      "bytes": 424,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_013/item_013.trskl",
+      "sha256": "0f243a9ded3f5d4ce5debed2f842fc357115d4a0923f9c3e0052a8a972fe59e9",
+      "bytes": 544,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_014/item_014.trskl",
+      "sha256": "65b20645d5d4ecea849a6943203cd8e1c01c0cc24971b7967d5e04dcd6f32c8e",
+      "bytes": 424,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_017/item_017.trskl",
+      "sha256": "b270a4aae17b27710a4fd89ed860202bfd0e52fa968b607a7d4b7101a5738434",
+      "bytes": 424,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_018/item_018.trskl",
+      "sha256": "6d0493c52463237df6bc15b66da7be8a569f861a7991b148e146586b1c3b1a8c",
+      "bytes": 424,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_019/item_019.trskl",
+      "sha256": "e3a39aa8646bfabe7eba21e9bada56b98d9ab106ac5010280d97a5a9749ecdc0",
+      "bytes": 416,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_023/item_023.trskl",
+      "sha256": "51a7b5acdc27c2ea6da453099163109ebc9de0cf364bc1e5788da623be0b1a38",
+      "bytes": 652,
+      "nodes": 5,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_025/item_025.trskl",
+      "sha256": "17eb184099d5362479f2677b4368a077ba1bf87a7f96594bdc449e10577ca597",
+      "bytes": 544,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_032/item_032.trskl",
+      "sha256": "ac31747945e6999068cbb280655769dc9eadb1461b44e843873088999cebab22",
+      "bytes": 416,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_100/item_100.trskl",
+      "sha256": "0ccaddc780652be71acf2bdf372405b0cdedff3ce6812d5cf63929e036ac464e",
+      "bytes": 1436,
+      "nodes": 9,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_101/item_101.trskl",
+      "sha256": "0ccaddc780652be71acf2bdf372405b0cdedff3ce6812d5cf63929e036ac464e",
+      "bytes": 1436,
+      "nodes": 9,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_102/item_102.trskl",
+      "sha256": "0ccaddc780652be71acf2bdf372405b0cdedff3ce6812d5cf63929e036ac464e",
+      "bytes": 1436,
+      "nodes": 9,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_103/item_103.trskl",
+      "sha256": "0ccaddc780652be71acf2bdf372405b0cdedff3ce6812d5cf63929e036ac464e",
+      "bytes": 1436,
+      "nodes": 9,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_104/item_104.trskl",
+      "sha256": "0ccaddc780652be71acf2bdf372405b0cdedff3ce6812d5cf63929e036ac464e",
+      "bytes": 1436,
+      "nodes": 9,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_105/item_105.trskl",
+      "sha256": "0ccaddc780652be71acf2bdf372405b0cdedff3ce6812d5cf63929e036ac464e",
+      "bytes": 1436,
+      "nodes": 9,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_106/item_106.trskl",
+      "sha256": "4ceaa1ce515b930e646b8826d492e363a8ff50a7e1fd4c74d0f4bc4a296ca493",
+      "bytes": 1548,
+      "nodes": 10,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_107/item_107.trskl",
+      "sha256": "4ceaa1ce515b930e646b8826d492e363a8ff50a7e1fd4c74d0f4bc4a296ca493",
+      "bytes": 1548,
+      "nodes": 10,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_108/item_108.trskl",
+      "sha256": "4ceaa1ce515b930e646b8826d492e363a8ff50a7e1fd4c74d0f4bc4a296ca493",
+      "bytes": 1548,
+      "nodes": 10,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_109/item_109.trskl",
+      "sha256": "0d97664101f7fbbb204b988ab0b064f455dd2645fc0772f2823010597ce687c0",
+      "bytes": 1248,
+      "nodes": 8,
+      "binds": 3,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_201/item_201.trskl",
+      "sha256": "0ee6e5d6f736c8e3a52d11d915ab406a7d3f83fca8edcb9aeca9693a51f208f8",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_202/item_202.trskl",
+      "sha256": "7f2235c5ed66738218707b5137c3ad1a40ae04a9a342584b73d1929fb28c2383",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_203/item_203.trskl",
+      "sha256": "80b9f84165413d4f36a826e3718c8ea0d1a1df8f5e5591d79a6270832cfb964b",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_204/item_204.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_205/item_205.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_206/item_206.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_207/item_207.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_208/item_208.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_209/item_209.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_210/item_210.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_211/item_211.trskl",
+      "sha256": "4ce49eefc6984e0a5b231ac91345d39f7a37c5375c1a7a071d47631bb8ccb5da",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_212/item_212.trskl",
+      "sha256": "0073b39e9f8b180cca9e8b2d81bdbf950d1b6ae88cdd51138a02603137caef26",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_216/item_216.trskl",
+      "sha256": "374bec62e20355c92343c91729a4a615b81258500f7f69e7b3af6f91d34083b3",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_217/item_217.trskl",
+      "sha256": "374bec62e20355c92343c91729a4a615b81258500f7f69e7b3af6f91d34083b3",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_218/item_218.trskl",
+      "sha256": "374bec62e20355c92343c91729a4a615b81258500f7f69e7b3af6f91d34083b3",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_219/item_219.trskl",
+      "sha256": "374bec62e20355c92343c91729a4a615b81258500f7f69e7b3af6f91d34083b3",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_220/item_220.trskl",
+      "sha256": "374bec62e20355c92343c91729a4a615b81258500f7f69e7b3af6f91d34083b3",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_221/item_221.trskl",
+      "sha256": "374bec62e20355c92343c91729a4a615b81258500f7f69e7b3af6f91d34083b3",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_222/item_222.trskl",
+      "sha256": "374bec62e20355c92343c91729a4a615b81258500f7f69e7b3af6f91d34083b3",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_223/item_223.trskl",
+      "sha256": "881c3729f0c21b68a9bd7a68165f33c2db0cd63453fc6c85b42ef5fc93433d0c",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_224/item_224.trskl",
+      "sha256": "c03fea03409fcf1f257caa0c80c10959fdf70ed57f538231ec96eeea25e366dc",
+      "bytes": 1208,
+      "nodes": 9,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_225/item_225.trskl",
+      "sha256": "4e697702a974be173ff4faaf06cb4ec83730a9e321e1ccab2d6e77a095a65df1",
+      "bytes": 1208,
+      "nodes": 9,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_226/item_226.trskl",
+      "sha256": "d2474bee9b556dd69434e42d1c888c4918bded4bfb2c565d1701addb9b1980f7",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_227/item_227.trskl",
+      "sha256": "b11a6f366635d6f917f9486843ab200e2a3d362a55571e0f9072df0f332cf709",
+      "bytes": 880,
+      "nodes": 6,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_228/item_228.trskl",
+      "sha256": "daa83b96cef7b0f1dee3b2c1e94a254dee851dff5754ad370a48f87b6868236e",
+      "bytes": 2780,
+      "nodes": 16,
+      "binds": 12,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_229/item_229.trskl",
+      "sha256": "b1d939734aacc55f19218cf26c052ef50d10276b11b2858e0ec6cc6c6db2cfe3",
+      "bytes": 1684,
+      "nodes": 11,
+      "binds": 4,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_230/item_230.trskl",
+      "sha256": "3596a17b907d888d82c4104adfe177d9536eb34a6d10ed4b40f945e4ee3641e6",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_231/item_231.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_232/item_232.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_233/item_233.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_234/item_234.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_235/item_235.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_236/item_236.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_237/item_237.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_238/item_238.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_239/item_239.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_240/item_240.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_241/item_241.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_242/item_242.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_243/item_243.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_244/item_244.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_245/item_245.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_246/item_246.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_247/item_247.trskl",
+      "sha256": "06a52e052a9e357e2f491f98a43186215f1608d7a1e651393e849badde8cf339",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_248/item_248.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_249/item_249.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_250/item_250.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_251/item_251.trskl",
+      "sha256": "5bbc13ad5c3a06e2cff78c3083876042d9aa34f59e33dad806f8ced86b473fd1",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_252/item_252.trskl",
+      "sha256": "a7031ae12c6d6b1c87fe78991b39c90d08be8851940b403c11b61b0d77874a06",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_253/item_253.trskl",
+      "sha256": "c86654cbed50e2509d9deced632432070e3338215cb27dcc3c147f39723fdec0",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_254/item_254.trskl",
+      "sha256": "34bc44e7383a1983f10d9e92fa90ac94a65df8292b25be2f28395cc78ea0fa35",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_255/item_255.trskl",
+      "sha256": "fba33b772cb16871b3eb3ff22e66b3168fd05f724abab58846614ff96fbcce07",
+      "bytes": 3548,
+      "nodes": 20,
+      "binds": 16,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_256/item_256.trskl",
+      "sha256": "fba33b772cb16871b3eb3ff22e66b3168fd05f724abab58846614ff96fbcce07",
+      "bytes": 3548,
+      "nodes": 20,
+      "binds": 16,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_257/item_257.trskl",
+      "sha256": "fba33b772cb16871b3eb3ff22e66b3168fd05f724abab58846614ff96fbcce07",
+      "bytes": 3548,
+      "nodes": 20,
+      "binds": 16,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_258/item_258.trskl",
+      "sha256": "fba33b772cb16871b3eb3ff22e66b3168fd05f724abab58846614ff96fbcce07",
+      "bytes": 3548,
+      "nodes": 20,
+      "binds": 16,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_259/item_259.trskl",
+      "sha256": "fba33b772cb16871b3eb3ff22e66b3168fd05f724abab58846614ff96fbcce07",
+      "bytes": 3548,
+      "nodes": 20,
+      "binds": 16,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_260/item_260.trskl",
+      "sha256": "521511a4aba2759d0b79e50d1eb1f58a74d4abdd45488cf5c96d7a6a4509afde",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_261/item_261.trskl",
+      "sha256": "521511a4aba2759d0b79e50d1eb1f58a74d4abdd45488cf5c96d7a6a4509afde",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_262/item_262.trskl",
+      "sha256": "521511a4aba2759d0b79e50d1eb1f58a74d4abdd45488cf5c96d7a6a4509afde",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_263/item_263.trskl",
+      "sha256": "521511a4aba2759d0b79e50d1eb1f58a74d4abdd45488cf5c96d7a6a4509afde",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_264/item_264.trskl",
+      "sha256": "521511a4aba2759d0b79e50d1eb1f58a74d4abdd45488cf5c96d7a6a4509afde",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_265/item_265.trskl",
+      "sha256": "521511a4aba2759d0b79e50d1eb1f58a74d4abdd45488cf5c96d7a6a4509afde",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_266/item_266.trskl",
+      "sha256": "521511a4aba2759d0b79e50d1eb1f58a74d4abdd45488cf5c96d7a6a4509afde",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_267/item_267.trskl",
+      "sha256": "a7f339701470bf33d6041b0dbc908839f3037e12e8785a4601e0460b1cfb115d",
+      "bytes": 7012,
+      "nodes": 39,
+      "binds": 35,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_268/item_268.trskl",
+      "sha256": "03058ddf7dc09c3618d6896095b0c912873026c5ee87beba10216ffc4a15bdcd",
+      "bytes": 764,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_269/item_269.trskl",
+      "sha256": "41e78696b45611441ac5ab561f7b77d0900b4acd67cfefc3a58adb719effd2fe",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_270/item_270.trskl",
+      "sha256": "41e78696b45611441ac5ab561f7b77d0900b4acd67cfefc3a58adb719effd2fe",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_271/item_271.trskl",
+      "sha256": "41e78696b45611441ac5ab561f7b77d0900b4acd67cfefc3a58adb719effd2fe",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_272/item_272.trskl",
+      "sha256": "41e78696b45611441ac5ab561f7b77d0900b4acd67cfefc3a58adb719effd2fe",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_301/item_301.trskl",
+      "sha256": "8644d0b556861e0fa3e3abaa9c5a4cf13f6310f11da9959cfac4763dad939ed3",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_302/item_302.trskl",
+      "sha256": "73774ad30ed1b3165ebe29f81b49fa7540dec6711cbf9b1be6a00d6d6b441dfa",
+      "bytes": 764,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_303/item_303.trskl",
+      "sha256": "ab11856f06cdd6756539f44e1e0afe4d8ab59d9f5aad717c8378af49fa9fe03a",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_304/item_304.trskl",
+      "sha256": "363dfc9b45c96cbc970eb4278f4319339a7ed64a49c7c1a75227ccf784fc579e",
+      "bytes": 764,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_305/item_305.trskl",
+      "sha256": "c69a1675ec843b8b189682b285fc50826adc205b3a77ccc9cbe04e56aeea6ffe",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_306/item_306.trskl",
+      "sha256": "37ec317c9b1608f477ec66a8d106b7a500e4a5a4d582dbe6e7a3e3c1f976944c",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_307/item_307.trskl",
+      "sha256": "08c1e9f4dca26dbd3d453d3552b389e6c41010934f04900a86d52c08304d000a",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_308/item_308.trskl",
+      "sha256": "d667e795cfa6507c57481075c57f1defee540573f58497f5eecc54118477c0de",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_309/item_309.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_310/item_310.trskl",
+      "sha256": "bf04c639271b1ce653370c0644a3d164cb709d781bb07f9c97e811827d94e888",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_311/item_311.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_312/item_312.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_313/item_313.trskl",
+      "sha256": "a1e528aa646da3d51abb207fec128c4d4048505d75bdc94929fcae2302564383",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_314/item_314.trskl",
+      "sha256": "28de7b2f823c6cefa80a2fbf6e6d03ce4457293abd44d1a249a5c9dd2a572852",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_315/item_315.trskl",
+      "sha256": "71f4c7e6d0f06ad637ae610416c148ba5d14f6203efd47a6b9291e0175cce7dc",
+      "bytes": 764,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_316/item_316.trskl",
+      "sha256": "94c82eecf1c47aafcb8d6a75a21656ece6058e734964ea2c0b5e57478f7e3672",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_317/item_317.trskl",
+      "sha256": "afac330071244e9157b00226551476697fe9eee7a1aa0a81f046b316a676c511",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_318/item_318.trskl",
+      "sha256": "9ff24061ecfb1148672169f216f70661f8b0692118ab8ecc9b6c4f0da1c5be13",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_319/item_319.trskl",
+      "sha256": "b762e502346ca7f52b254d0dbbfe736ea2a21b1b0c9373955e966ad5da22c2ee",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_320/item_320.trskl",
+      "sha256": "a188ab0e1325f7602f4f5206aa0062926d8cf78fd376c39b77d87ef5ea948112",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_321/item_321.trskl",
+      "sha256": "5be4cee23d34b492640bb14fe344eb06420ab5a7f9160b5d9dd7ec563a1e8ee9",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_322/item_322.trskl",
+      "sha256": "81448ff8cfb21249cef0090ab4990e4aaa06fd084c4b19deb6a97a4dea2afc55",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_323/item_323.trskl",
+      "sha256": "716a505408d56725fc024c4c6b5034a3d7e81e2922383ae648282778cc582fbd",
+      "bytes": 1124,
+      "nodes": 8,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_324/item_324.trskl",
+      "sha256": "4191725956560fbc42d997c1d2693656470a0511ab52ffe91cfa2826cf795432",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_325/item_325.trskl",
+      "sha256": "dc24fcf7fb9004329e99b5f3869dbcaeaef2a5480822a2cfe172526df765d10f",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_326/item_326.trskl",
+      "sha256": "85057950a727394c1b1da9a05ad29f3ad686d1d6b87a15de80f5ce1de21310c0",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_327/item_327.trskl",
+      "sha256": "beb1da5f4f686b65215bc1ca911335d0dc73b3e2aeb5fa52f405a9c718f14009",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_329/item_329.trskl",
+      "sha256": "541c6edefc3048128761d82e7555d096f974042ae1d6a0cad4ebdf8f88c9781c",
+      "bytes": 764,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_401/item_401.trskl",
+      "sha256": "160be027cbd6b60df3adfa61d2ff0041198bc1f996447666e9cffa60aa14f319",
+      "bytes": 1320,
+      "nodes": 10,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_402/item_402.trskl",
+      "sha256": "49fe8ce5699a731eea8f763a0ceed8a3a809fac99f184584c416223aed8446c9",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_403/item_403.trskl",
+      "sha256": "62f3b1bb7b0249074284032efbb211d947aefb9573211a45a89c262415870f2c",
+      "bytes": 872,
+      "nodes": 6,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_404/item_404.trskl",
+      "sha256": "3bee988b3c7cdf3d341f9b20f9a79279361a650465a029e89e4d4f595664fd53",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_405/item_405.trskl",
+      "sha256": "2e03573c097bcc69f1498da704e327eec36b568f28e0d910d9ab86dae7dbfa4a",
+      "bytes": 872,
+      "nodes": 6,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_406/item_406.trskl",
+      "sha256": "1e192637eadfa475b1f03cea57296adf5c42ef2f888d39e377bb57691be71c2b",
+      "bytes": 984,
+      "nodes": 7,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_407/item_407.trskl",
+      "sha256": "9c28dd77b60d80095be497ad86bf7a6bf2eb1e99336da4632c95a716e907d218",
+      "bytes": 872,
+      "nodes": 6,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_408/item_408.trskl",
+      "sha256": "f139599b97c87a55943ecdc3c8174fa34825d26b3f76225a5b097b9e52eddbbe",
+      "bytes": 1096,
+      "nodes": 8,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_409/item_409.trskl",
+      "sha256": "f52a14d0c3c6bdf3fc22ab7bdf9ad92a837c4310cc659e597546bf590a682306",
+      "bytes": 872,
+      "nodes": 6,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_410/item_410.trskl",
+      "sha256": "fc0bf46cefb7fa55fee304b5cdd13e2f4a708b7e3ca2bc014aae23850cf65c33",
+      "bytes": 872,
+      "nodes": 6,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_411/item_411.trskl",
+      "sha256": "c28f47ab6ceb8f1bd2aa3cf02d29c19c53ec9eaba7c8fd716682d978c70dc92c",
+      "bytes": 984,
+      "nodes": 7,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_412/item_412.trskl",
+      "sha256": "bb655ab320d14dd37a185439256c81008b10ce055ecce491e90afba3773ba280",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_413/item_413.trskl",
+      "sha256": "0fd627bdc5230c32a5383061dfcfb64d12ab58c1f7e99dda57b158570bbe4f5f",
+      "bytes": 760,
+      "nodes": 5,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_414/item_414.trskl",
+      "sha256": "e32cc7276368885316c16887e884539c845430b2e1e0076b2d2b4fd0a0ab9109",
+      "bytes": 988,
+      "nodes": 7,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_415/item_415.trskl",
+      "sha256": "00fad4c8bba0f5e3f92c2cb18e54fef9c9ab25f5f39039c719ff2d97a8af7c5c",
+      "bytes": 872,
+      "nodes": 6,
+      "binds": 1,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/chara/data/item/item_kinoko01/item_kinoko01.trskl",
+      "sha256": "1928b15e2cb529bb94df76e047cd8c70e1c11c5bb105a3b9f4561abbec05cc72",
+      "bytes": 340,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/chara/data/item/item_kinoko02/item_kinoko02.trskl",
+      "sha256": "2dd4b2ed46d9918b016d82abf1d0c0e1d17ce0d15df5a450c58a29bd1453f707",
+      "bytes": 340,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/chara/data/item/item_kinoko03/item_kinoko03.trskl",
+      "sha256": "cfbbf0db312a1a23b99da06d6cf12fb7032fe50e22193013f7d64b3e70062354",
+      "bytes": 340,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_area01_dam01/mdl/d110_area01_dam01.trskl",
+      "sha256": "b29a3a73241fe6267b21680acaab4cc8c3e1445cf55d58678424e389931a5ea1",
+      "bytes": 772,
+      "nodes": 6,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_area01_kingtree01/mdl/d110_area01_kingtree01.trskl",
+      "sha256": "716164c5927fb6202443a14148b9513973a86a1dae7725470e3edd523375fc6b",
+      "bytes": 1420,
+      "nodes": 11,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_area01_water01/mdl/d110_area01_water01.trskl",
+      "sha256": "9aad03ce33575e3bbe0b2d7fc2c7a926ae0537710143deec4eaaeef129e84a44",
+      "bytes": 552,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_area01_water03/mdl/d110_area01_water03.trskl",
+      "sha256": "7e8496daaf0ce7d12e6524d04f02b7761908afa5aa4c9e18f05673842d81b0e8",
+      "bytes": 896,
+      "nodes": 7,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_gimmick_rock02/mdl/d110_gimmick_rock02.trskl",
+      "sha256": "876b8107c3432bb710297f31f91f194f719c6cfa725a32b80bc5fb07d792c46f",
+      "bytes": 1032,
+      "nodes": 8,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_rock04_gray/mdl/d110_rock04_gray.trskl",
+      "sha256": "fb9bc63a137c9492b21df7a0103d026d91ddad343877dfda07a4206041bc6029",
+      "bytes": 564,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_rock06_gray/mdl/d110_rock06_gray.trskl",
+      "sha256": "7db9fddec576481def2211f7cde295a336d70a3568fbddd7d901b41be4d4dd89",
+      "bytes": 564,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_rock07_gray/mdl/d110_rock07_gray.trskl",
+      "sha256": "96f8b77b685f2a50d18f09a3cb1e70068fd089b565dfdcaa5cb4ef7f89264b7e",
+      "bytes": 564,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_rock08_gray/mdl/d110_rock08_gray.trskl",
+      "sha256": "231e6d494b553823ee160e9a0e0ec6eeb3014e810dd300388efc3bac6a988751",
+      "bytes": 564,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_rock09_gray/mdl/d110_rock09_gray.trskl",
+      "sha256": "d89ea4e18b4054a5024fcbd8112f5c748ac9046b19919f44edea7e268cab0556",
+      "bytes": 564,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_rock12_gray/mdl/d110_rock12_gray.trskl",
+      "sha256": "e89e37f1ef094f97689dd6b218fa08bd849ce0402d1b84cb5fe6d25063691168",
+      "bytes": 564,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d110_rock13_gray/mdl/d110_rock13_gray.trskl",
+      "sha256": "06028a31ccc26272da7597ae742f70098fa858ee58b0c5c56b783b1b5ddac7cf",
+      "bytes": 564,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d120/d120_loc01_Lightanim/mdl/d120_loc01_lightanim.trskl",
+      "sha256": "0d04563454e920049e76a3878fcb6dcaf609be739f1dde755bde5b3e76e69dee",
+      "bytes": 424,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d120/objects_area01_tree01/mdl/objects_area01_tree01.trskl",
+      "sha256": "610262f8a91318df5bd8a4d2046dbdde0b793b9976b0587b0d80fbd7d8eff0bd",
+      "bytes": 472,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d120/objects_area01_tree02/mdl/objects_area01_tree02.trskl",
+      "sha256": "702f4cd941f5becc24169db7adba1a99d728248bb471362ade3b0a8ccb88f3e7",
+      "bytes": 472,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d130/plants_area02_grass04/mdl/plants_area02_grass04.trskl",
+      "sha256": "4f054da9a815787591d2e623f2889b54f3819924398852ebd35d443cc087eb7f",
+      "bytes": 11880,
+      "nodes": 90,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d150/d150_kingtree/mdl/d150_kingtree.trskl",
+      "sha256": "f4ade97aa9dab7b598d106bd293fab0e993ecdad525b69ef38331c6b2c0fbe82",
+      "bytes": 2100,
+      "nodes": 13,
+      "binds": 5,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d160/d160_backsnow/mdl/d160_backsnow.trskl",
+      "sha256": "a0ace977ab5f8fc3ac2e8ecb241a3fd51ae6d93baeaa416803dce45ace200891",
+      "bytes": 2128,
+      "nodes": 18,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d210/d210_chain_broken/mdl/d210_chain_broken.trskl",
+      "sha256": "dad9c7b685b014233e0f916c8c6dd98145bc2aeed7d1f18cf48ec243eac2cee7",
+      "bytes": 448,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d220/d220_area04_building01/mdl/d220_area04_building01.trskl",
+      "sha256": "2b180400b3d083bf6871ef33a02e2dda65f81009b5d6bd6d074eedddd6cb890b",
+      "bytes": 2256,
+      "nodes": 17,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d220/d220_area04_building01_a/mdl/d220_area04_building01_a.trskl",
+      "sha256": "5c6d147d1f34360d46bad835599960806eb8043122b03cc6ca454f2a1d1b5892",
+      "bytes": 756,
+      "nodes": 5,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d220/d220_area04_building01_broken/mdl/d220_area04_building01_broken.trskl",
+      "sha256": "19b982b6fbea89c0c6e23967151f9995ec43c645f8d04f0191c7c9ec100944cb",
+      "bytes": 4300,
+      "nodes": 35,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/ev/d220/d220_area04_vista01/mdl/d220_area04_vista01.trskl",
+      "sha256": "531ee33d9ff6a751347314c7ca834d66259b9e5377a704cc825adf3d68ac243e",
+      "bytes": 448,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_clear01/mdl/sd9010_bg_clear01.trskl",
+      "sha256": "f8e22984c150d8d28f63b2ec35a83f99bb3e33cacd12268a30f81512b05eae40",
+      "bytes": 436,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_clear02/mdl/sd9010_bg_clear02.trskl",
+      "sha256": "22f55f3afac9451b237cb8dfce50dc4e5fcddceb801a816988e2395258ecb5c6",
+      "bytes": 436,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_clear03/mdl/sd9010_bg_clear03.trskl",
+      "sha256": "8f83af954613225e980125c04d2445a4e7448dd4b93a8ef0eab0cdb6dce36ecc",
+      "bytes": 436,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_clear04/mdl/sd9010_bg_clear04.trskl",
+      "sha256": "279083c4feee0318c1a05627b434d526be60e8bb0bd672c25cc6fadc6444f244",
+      "bytes": 436,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main01/mdl/sd9010_bg_main01.trskl",
+      "sha256": "0bcf4279a0c4a5a40e4f3caa18a6e1ea59bf4c876667b7565f3b2aa1485ecfbe",
+      "bytes": 548,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main01_a/mdl/sd9010_bg_main01_a.trskl",
+      "sha256": "a3568ac482739e6705777265501a0b40c7c23ae993f4a8efe6951ea4c260a4ba",
+      "bytes": 552,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main02/mdl/sd9010_bg_main02.trskl",
+      "sha256": "0bcf4279a0c4a5a40e4f3caa18a6e1ea59bf4c876667b7565f3b2aa1485ecfbe",
+      "bytes": 548,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main03/mdl/sd9010_bg_main03.trskl",
+      "sha256": "0bcf4279a0c4a5a40e4f3caa18a6e1ea59bf4c876667b7565f3b2aa1485ecfbe",
+      "bytes": 548,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main04/mdl/sd9010_bg_main04.trskl",
+      "sha256": "0bcf4279a0c4a5a40e4f3caa18a6e1ea59bf4c876667b7565f3b2aa1485ecfbe",
+      "bytes": 548,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main05/mdl/sd9010_bg_main05.trskl",
+      "sha256": "0bcf4279a0c4a5a40e4f3caa18a6e1ea59bf4c876667b7565f3b2aa1485ecfbe",
+      "bytes": 548,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main05_a/mdl/sd9010_bg_main05_a.trskl",
+      "sha256": "29d6b4f42bcecd48a0a3408056e21aaa63bc3ccbd474b6c73434afafc3904bcf",
+      "bytes": 552,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main06/mdl/sd9010_bg_main06.trskl",
+      "sha256": "0bcf4279a0c4a5a40e4f3caa18a6e1ea59bf4c876667b7565f3b2aa1485ecfbe",
+      "bytes": 548,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9010/bg_main07/mdl/sd9010_bg_main07.trskl",
+      "sha256": "b29d927e700edf999cd40c328b259358998bf1bc6d2c7b6a6282606023f3e2e9",
+      "bytes": 548,
+      "nodes": 4,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/sd/sd9150/sd9150_mysterygift/mdl/sd9150_mysterygift.trskl",
+      "sha256": "327dd5a826a82356a6f77fa08859780d4d3afbb068ab8c4c3524cd502061bc54",
+      "bytes": 2780,
+      "nodes": 14,
+      "binds": 10,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/share/shr_locator01/mdl/shr_locator01.trskl",
+      "sha256": "c974437d43e7a5221899b77085c85acfd4d53269cce7198e5c422a23e295b145",
+      "bytes": 424,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/share/shr_locator02/mdl/shr_locator02.trskl",
+      "sha256": "b8be4177c15f021adedbf706d2ec5ec80fd6f986c3972585cf90fd69b43b107a",
+      "bytes": 1964,
+      "nodes": 17,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/share/shr_locator03/mdl/shr_locator03.trskl",
+      "sha256": "3ab16215d727e78368e815d38b38176f839101fcf78311b0d4188cc1c3d4a065",
+      "bytes": 1132,
+      "nodes": 9,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/demo/graphic/share/shr_white01/mdl/shr_white01.trskl",
+      "sha256": "8e3da466ecf818c7bc28f7e698255ef2722316655d34aa1cf16f7814e6d8775b",
+      "bytes": 432,
+      "nodes": 3,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/gimmick_atrtest_01.trskl",
+      "sha256": "568f4dd1cfc8e9664fa023e05e965cf31c3db6b093e74bd5801bc28ea7f456ed",
+      "bytes": 324,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/gimmick_rock04_02.trskl",
+      "sha256": "6d3cb04a45d275c32879d57caff96dfbb78ba378c7ef12d67bb83cc9bbcd6140",
+      "bytes": 196,
+      "nodes": 1,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/gimmick_rock05_02.trskl",
+      "sha256": "0a18b8586994edbf992a31c5182645a8e0f3a7bb2e782e11741f0355d554ce74",
+      "bytes": 196,
+      "nodes": 1,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/gimmick_rock05_03.trskl",
+      "sha256": "37a22291ae7560785941edc47879b356be998014eb20be4120d990e436eec0b5",
+      "bytes": 196,
+      "nodes": 1,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/ground_area02_cliff01.trskl",
+      "sha256": "cb6123c4e3e32b30398b0ce8f48e1103cc0e09caf60fd4f33a927c6607d1e573",
+      "bytes": 348,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/ground_area03_cliff01.trskl",
+      "sha256": "a39cfa664a295d8675f1a7f9befb418b732b50099c0cd3fd40bc780a663e65ff",
+      "bytes": 352,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_area03_cliff02.trskl",
+      "sha256": "ea937e9229de4b0af62d3c9da1f88833005c3d1a28339a9770cbb4751de59531",
+      "bytes": 352,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_area03_cliff03.trskl",
+      "sha256": "7d0d356274928f53aa6815b889e04d06dd995b45cf5384ddf66fad51b1a1383f",
+      "bytes": 352,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_area03_rock01.trskl",
+      "sha256": "6f7e313b84c095497c086800369e741eb1fa3c6f0947fe0c72952f256c81f27c",
+      "bytes": 348,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_area03_shells01.trskl",
+      "sha256": "7fe974a296916628e43d2342817a5721fe090f327818e6b4e174d3c64b1f4c15",
+      "bytes": 356,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/ground_area03_shells02.trskl",
+      "sha256": "968499e2c3ea02a4054a57a490e2785a28b4f0f261b119e3b941657f5891fc3e",
+      "bytes": 356,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/ground_area05_cliff01.trskl",
+      "sha256": "a1bfc58b35ce90d90098d6cfa1d2017f939c646babe0c43e14c0cc283c554e07",
+      "bytes": 352,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_area05_icicle01.trskl",
+      "sha256": "5e26a08c82f3350f852ce33e501346bb649917e4d6af25f521c4430eb831d187",
+      "bytes": 356,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_area05_icicle02.trskl",
+      "sha256": "2a9c4e9749e079d54a66bb9674ab18d167d2963ef23b688fbc00460f7becceae",
+      "bytes": 356,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_area05_snow01.trskl",
+      "sha256": "e5fc0a8d6f791d40d4fb192652a19f4e800d762a348a2081eb2b95b0033ca8ee",
+      "bytes": 344,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_area05_snow02.trskl",
+      "sha256": "ca809ec10c7b894af0fa2c38371d67a12b1613dcc43a6d3195d7481d9fa255ad",
+      "bytes": 344,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/ground_cliff05_yellow.trskl",
+      "sha256": "c63f0c0c0ddc1863734e418b4e4c2605c1952b8844085f1b31fe72e77898f10d",
+      "bytes": 924,
+      "nodes": 7,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/ground_cliff06_yellow.trskl",
+      "sha256": "d81295b338fda1b025ede9c14e2fac597a366959f6270ddbacff5cf07d2af6a3",
+      "bytes": 924,
+      "nodes": 7,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/ground_cliff11.trskl",
+      "sha256": "05ed20d25e251148795bc9e6692f53eae56c11cde224042002c46bea849da6da",
+      "bytes": 904,
+      "nodes": 7,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/ground_cliff12.trskl",
+      "sha256": "285ce0e4c5da3825d71b512f034a57ec91fc30c1b93d51ffd7b9fc6ee27dd494",
+      "bytes": 904,
+      "nodes": 7,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    },
+    {
+      "path": "bin/field/model/pack/ground_water02_puddle.trskl",
+      "sha256": "408c574eafc7c39f62c5f2e3fd305c6bcf128aba43e4fe7ea4c98b46b2b439c8",
+      "bytes": 332,
+      "nodes": 2,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 1
+    },
+    {
+      "path": "bin/field/model/pack/wall_area01_king02.trskl",
+      "sha256": "faf7bff102383cd0565be9652a43ab048b638e8fdca5012318f99935759603bd",
+      "bytes": 200,
+      "nodes": 1,
+      "binds": 0,
+      "roots": 1,
+      "root_flag": 0
+    }
+  ]
+}
