@@ -1,0 +1,3 @@
+[submodule "gamedb"]
+	path = gamedb
+	url = https://github.com/smileybaal/gamedb

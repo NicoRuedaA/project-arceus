@@ -1,0 +1,44 @@
+# sheet: 02-plan
+# version: 1
+# generator: manual
+# target: -
+# doctrine: D2
+# index: by_id
+id:string*	kind:enum	sheet:string	target:string	priority:u16	status:enum	notes:string?
+ncz_extraction	task	re/extraction	tools::ncz_extract	1	done	NSZ/NCZ decrypted extraction without keys; parity proven
+nso_to_elf	task	re/exefs	tools::nso_to_elf	1	done	NSO->ELF64 with segment hash verification (both builds)
+ghidra_analysis	task	re/functions	re::update-main+base-main	1	done	capped 1500s analysis; 68330/68412 fn; evidence TSVs both targets
+gamedb_index	task	re/index	tools::gamedb	2	done	7993 files / 7832 fn / 22155 strings / 23029 edges; parity 100%
+sheet_book	task	00-doctrine	docs::sheets	2	done	20 sheets, 266k rows; Rust preflight 0 errors
+romfs_wrapper	task	re/romfs	tools::romfs_extract	2	done	IVFC chain cracked; 18370 files / 6.4GB extracted
+subsystem_map	task	domain/subsystems	re::clustering	2	done	17 named subsystems from string-path clustering
+port_strategy	task	domain/port_strategy	crate::domain::strategy	2	done	19 rows: 10 port, 9 stub/replace/skip
+asset_formats	task	domain/asset_formats	crate::domain::assets	2	done	17 formats from the romfs inventory
+base_analysis	task	re/base_update_diff	re::base-main	3	done	1997 top functions decompiled
+base_update_diff	task	re/base_update_diff	re::diff	3	done	25 metrics compared
+coverage_extension	task	re/decompiled	re::tranche4	3	done	ranks 2001-8000 exported; 7996 update .c files indexed
+script_bindings	task	domain/script_bindings	crate::script::bindings	1	done	322 methods / 156 types from sol2 ctti metadata
+haxe_lua_runtime	task	domain/port_strategy	pla::script	1	done	mlua lua53 vendored; real event scripts load AND execute
+script_host_api	task	domain/script_api	crate::script::host	1	partial	300 Lua identifiers + 322 C++ methods catalogued; bindings NOT implemented
+event_end_to_end	task	domain/script_bindings	pla::host	1	done	real event runs through the host; 42-call trace captured
+container_parsers	task	domain/asset_formats	crate::assets	2	done	SARC parser with python-parity tests; GFLXPACK header+entry table
+asset_parsers	task	domain/asset_formats	crate::assets	3	partial	AHTB + BNTX decode + message .dat addressing; VFXB/tr* pending
+visual_subsystem	task	domain/subsystems	pla::render	2	done	windowed spike renders a real BNTX sprite (dec056); bevy_sprite_render was the missing feature
+havok_replacement	task	domain/port_strategy	pla::physics	3	todo	deferred until a system needs colliders; then bake .hkx to avian3d (dec044)
+update_romfs	task	re/romfs	re::update	5	blocked	update romfs is an AesCtrEx patch; header unrecoverable without keys
+port_target	task	domain/subsystems	crate::pla	2	partial	workspace + first sheet-driven subsystem; no gameplay or render yet
+bevy_port	task	domain/subsystems	pla::app	2	partial	registry + dense index + dispatch + script layer; no render plugins
+lua_decompilation	task	re/lua_scripts	tools::decompile_lua	2	done	799/800 event scripts decompiled with unluac (253MB of Lua)
+event_protocol	task	domain/script_bindings	pla::script::host	1	done	protocol + coroutine runner + engine target + real event-data chain (FindEventData/GetFlag)
+event_flags_data	task	domain/event_flags	crate::domain::event_flags	2	done	450 flags from event_flags.tbl (update build), python-parity tested
+tr_formats	task	domain/asset_formats	crate::assets::tr	4	partial	census + .trmdl tables + .trmbf vertex/index split + the .trmdl->.trmsh->.trmbf chain verified (dec043/047/048/049); vertex layout SOLVED (array 0 = position, renders); extra arrays = shape keys per the .trmsh (dec061); .trmtr/.tranm pending
+keys_integration	task	re/extraction	tools::bktr_extract	1	done	prod.keys v22.5.0 (user-provided); NCA header XTS + aux NCAs + ticket
+aux_ncas	task	re/extraction	tools::nca_aux	2	done	control (NACP + 9 icons), manual (18 files), meta; 6/6 decrypted
+save_system	task	domain/event_flags	pla::save	1	done	real flag store seeded with 450 flags; event writes through it
+flagwork_sheets	task	domain/event_works	crate::domain	2	done	7 AHTB sheets from the update build (1407 rows); .tools/ahtb_sheet.py
+bntx_decode	task	domain/asset_formats	pla::assets::bntx	2	done	all 10 shipped formats (incl. the two HDR float cubemaps); ASTC unused by the game
+message_bindings	task	domain/script_bindings	pla::host::subsystems::message	2	done	FieldMessageWindowManager real (WordSetPlayerName/IsClosedMessageWindow); .dat addressing verified 322/322
+event_data_bindings	task	domain/event_works	pla::host::subsystems::event_script	2	done	FindEventData returns real fields + the event's own flag; event_list.bin layout still undecoded
+field_subsystem	task	domain/subsystems	pla::host::subsystems::field	2	done	FieldProc/Fade/Ride/FieldObject real; the reference event completes in 1 resume
+event_list_registry	task	domain/event_works	pla::assets::event_list	2	done	header + 1821-name pool verified; hash->name registry wired into FindEventData
+function_progress_treemap	task	re/function_progress_evidence	.tools/function_progress_treemap.py	1	partial	Update-v262144 registry/report and CI verified; 26 tests pass, preflight 0 errors/warnings. Browser Playwright unavailable (ModuleNotFoundError); HTML interactions unverified.

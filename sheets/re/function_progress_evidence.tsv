@@ -1,0 +1,21 @@
+# sheet: re/function_progress_evidence
+# version: 1
+# generator: manual
+# target: update-v262144
+# index: by_id
+# requires: re/functions
+# doctrine: D2,D5
+# emit: false
+# notes: id is a safe build_function_id key; build and function_id remain separate fields. Only evidence-backed states may advance.
+id:string*	build:string	function_id:string	analysis_status:enum	analysis_evidence:string?	analysis_notes:string?	implementation_status:enum	implementation_evidence:string?	rust_item:string?	relation_id:string?	verification_status:enum	verification_evidence:string?	binary_match_status:enum	binary_match_evidence:string?
+update_v262144_00fc4f0c	update-v262144	00fc4f0c	analyzed_documented	sheets/decisions.tsv#dec036;sheets/decisions.tsv#dec042	Indirect message-loader callback; decoder remains unresolved.	unknown				unknown		unknown	
+update_v262144_032a2370	update-v262144	032a2370	analyzed_documented	sheets/decisions.tsv#dec036;sheets/decisions.tsv#dec042;sheets/decisions.tsv#dec091	Indirect dispatch/thunk is marked noreturn and truncates callers.	unknown				unknown		unknown	
+update_v262144_00778570	update-v262144	00778570	analyzed_documented	sheets/decisions.tsv#dec088	Resolver pointer table and wrapper reads.	unknown				unknown		unknown	
+update_v262144_0077c39c	update-v262144	0077c39c	analyzed_documented	sheets/decisions.tsv#dec088	Resolver pointer table and wrapper reads.	unknown				unknown		unknown	
+update_v262144_0077ccc4	update-v262144	0077ccc4	analyzed_documented	sheets/decisions.tsv#dec088	Resolver pointer table and wrapper reads.	unknown				unknown		unknown	
+update_v262144_00140a7c	update-v262144	00140a7c	analyzed_documented	sheets/decisions.tsv#dec090	Custom semantic-name handling and uniform lookup.	unknown				unknown		unknown	
+update_v262144_001492ec	update-v262144	001492ec	analyzed_documented	sheets/decisions.tsv#dec090	Custom semantic-name handling and uniform lookup.	unknown				unknown		unknown	
+update_v262144_0012d200	update-v262144	0012d200	analyzed_documented	sheets/decisions.tsv#dec086	Bounds-float writes occur at coincidental offsets.	unknown				unknown		unknown	
+update_v262144_009ad91c	update-v262144	009ad91c	analyzed_documented	sheets/decisions.tsv#dec089	Model-loader neighbors are limited to dispatch; parser was not found.	unknown				unknown		unknown	
+update_v262144_01b0f6e4	update-v262144	01b0f6e4	analyzed_documented	sheets/decisions.tsv#dec089	Model-loader neighbors are limited to dispatch; parser was not found.	unknown				unknown		unknown	
+update_v262144_0125213c	update-v262144	0125213c	analyzed_documented	sheets/decisions.tsv#dec089	Model-loader neighbors are limited to dispatch; parser was not found.	unknown				unknown		unknown	

@@ -1,0 +1,11 @@
+# sheet: work
+# version: 1
+# generator: manual
+# target: -
+# doctrine: D2
+id:string*	sheet:string	row_range:string	role:string	agent:string	state:enum	ts:string	evidence:string?
+t0001	re/functions	all	triage	gentle-pi	done	2026-10-03T08:00Z	capped analysis + ExportTsv both targets
+t0002	re/index	all	index	gentle-pi	done	2026-10-03T08:00Z	gamedb 7993 files / 7832 fn
+t0003	re/romfs	all	reverse	gentle-pi	done	2026-10-03T08:00Z	IVFC chain cracked; 18370 files extracted
+t0004	domain/subsystems	all	cluster	gentle-pi	done	2026-10-03T08:00Z	17 subsystems from strrefs clustering
+t0005	03-impl	all	port	gentle-pi	open	2026-10-03T08:00Z	first Bevy subsystem; next: visual/render unit

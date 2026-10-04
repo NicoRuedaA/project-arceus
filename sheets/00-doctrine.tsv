@@ -1,0 +1,20 @@
+# sheet: 00-doctrine
+# version: 1
+# generator: manual
+# target: -
+# doctrine: D1,D2,D5
+# index: by_id
+id:string*	key:string	value:string	notes:string?
+d1	project	pokemon-legends-arceus-port	base v0 + update v262144
+d2	mode	B	binary without source
+d3	doctrine_version	1.0	THE-SPREADSHEET-METHOD.json
+d4	emitter_version	0	emitter not built yet; sheets first
+d5	rust	absent	port target toolchain not installed
+d6	bevy	absent	port target not installed
+d7	ghidra	12.1.2	/opt/ghidra system package
+d8	ghidra_cli	absent	analyzeHeadless + custom scripts used instead
+d9	jdk	26	OpenJDK 26.0.2.1
+d10	nsz	5.0.0	.tools/venv; NSZ/NCZ extraction
+d11	keys	absent	no prod.keys on machine; NCZ path requires none
+d12	gamedb	1.0.0	gamedb/target/release/gamedb
+d13	legal	see decisions.tsv	do not distribute reverse-engineered artifacts

@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["crates/sheetty", "crates/sheetty-cli", "crates/pla"]
+exclude = ["gamedb"]
+
+[profile.dev]
+opt-level = 1
+debug = 1
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

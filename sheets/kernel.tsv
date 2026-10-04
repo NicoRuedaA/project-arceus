@@ -1,0 +1,6 @@
+# sheet: kernel
+# version: 1
+# generator: manual
+# target: -
+# doctrine: D2
+id:string*	kind:string	rust_module:string	status:enum	tests:string?	notes:string?

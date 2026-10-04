@@ -1,0 +1,6 @@
+{
+  "build": "update-v262144",
+  "format": "function-progress-manifest/v1",
+  "reason_code": "generation_failed",
+  "state": "stale"
+}

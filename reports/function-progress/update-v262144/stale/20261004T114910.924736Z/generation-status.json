@@ -1,0 +1,7 @@
+{
+  "build": "update-v262144",
+  "format": "function-progress-generation-status/v1",
+  "message": "Generation failed; report artifacts at this path are stale and must not be used as current.",
+  "reason_code": "generation_failed",
+  "state": "stale"
+}

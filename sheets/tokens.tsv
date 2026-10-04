@@ -1,0 +1,6 @@
+# sheet: tokens
+# version: 1
+# generator: manual
+# target: -
+# doctrine: D2
+task:string	role:string	agent:string	input_tokens:u32	output_tokens:u32	cached_tokens:u32	rows_verified:u32	prefix_hash:string	tok_per_strut:u32	ts:string

@@ -1,0 +1,25 @@
+# sheet: domain/subsystems
+# version: 2
+# generator: subsystem_cluster.py (string-path clustering)
+# target: crate::domain::subsystems
+# index: by_id
+# requires: re/strrefs
+# doctrine: D2,D3
+id:string*	name:string	kind:enum	functions:u32	refs:u32	representative:string	status:enum	evidence:string?
+grpc	grpc	middleware	1246	3401	004fa418	identified	re/exports/update-main/strrefs.tsv
+openssl	openssl	middleware	536	1839	003edc10	identified	re/exports/update-main/strrefs.tsv
+havok	havok	middleware	430	967	03281e74	identified	re/exports/update-main/strrefs.tsv
+grpc_core	grpc_core	middleware	158	229	005d18d0	identified	re/exports/update-main/strrefs.tsv
+absl	absl	middleware	106	181	004eeb94	identified	re/exports/update-main/strrefs.tsv
+re2	re2	middleware	73	155	0045d66c	identified	re/exports/update-main/strrefs.tsv
+protobuf	protobuf	middleware	96	137	0069b470	identified	re/exports/update-main/strrefs.tsv
+appli	appli	game_data	38	60	01062f44	identified	re/exports/update-main/strrefs.tsv
+effect	effect	game_data	19	35	0175b348	identified	re/exports/update-main/strrefs.tsv
+webrtc	webrtc	middleware	17	33	00509050	identified	re/exports/update-main/strrefs.tsv
+chara	chara	game_data	5	24	009ad91c	identified	re/exports/update-main/strrefs.tsv
+message	message	game_data	2	18	00fc4b50	identified	re/exports/update-main/strrefs.tsv
+event	event	game_data	5	6	01511e58	identified	re/exports/update-main/strrefs.tsv
+pml	pml	game_data	1	6	00c13224	identified	re/exports/update-main/strrefs.tsv
+archive	archive	game_data	2	2	01459958	identified	re/exports/update-main/strrefs.tsv
+pokemon	pokemon	game_data	2	2	01de8018	identified	re/exports/update-main/strrefs.tsv
+font	font	game_data	1	1	027696d0	identified	re/exports/update-main/strrefs.tsv

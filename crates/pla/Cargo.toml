@@ -1,0 +1,18 @@
+[package]
+name = "pla"
+version = "0.1.0"
+edition = "2021"
+description = "Pokemon Legends: Arceus port crate (sheet-driven)"
+license = "MIT"
+
+[dependencies]
+sheetty = { path = "../sheetty" }
+phf = { version = "0.13", default-features = false }
+mlua = { version = "0.12", features = ["lua53", "vendored"] }
+bevy = { version = "0.19.1", default-features = false, features = ["std", "bevy_asset", "bevy_render", "bevy_core_pipeline", "bevy_sprite", "bevy_sprite_render", "bevy_pbr", "bevy_light", "bevy_image", "tonemapping_luts", "zstd_rust", "bevy_log", "bevy_window", "bevy_winit", "x11", "wayland", "bevy_state", "png", "debug"] }
+tegra_swizzle = "0.4"
+bcdec_rs = "0.2.0"
+
+[build-dependencies]
+sheetty = { path = "../sheetty" }
+phf_codegen = "0.13"

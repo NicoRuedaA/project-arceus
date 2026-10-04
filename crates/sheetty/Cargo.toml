@@ -1,0 +1,9 @@
+[package]
+name = "sheetty"
+version = "0.1.0"
+edition = "2021"
+description = "The Spreadsheet Method: canonical TSV parser, preflight checks, and emitter"
+license = "MIT"
+
+[dependencies]
+phf_codegen = "0.13"

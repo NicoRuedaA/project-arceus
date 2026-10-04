@@ -1,0 +1,15 @@
+# sheet: domain/phase_works
+# version: 1
+# generator: AHTB parser (phase_works.tbl)
+# target: crate::domain::phase_works
+# index: by_id
+# doctrine: D2,D3
+id:string*	name:string	work_id:string	status:enum	evidence:string?
+wpha_story	WPHA_STORY	0e56748a23aa6ae3	identified	romfs bin/flagwork/phase_works.tbl
+wpha_main_01	WPHA_MAIN_01	792ecc304aa3f543	identified	romfs bin/flagwork/phase_works.tbl
+wpha_main_02	WPHA_MAIN_02	792ecd304aa3f6f6	identified	romfs bin/flagwork/phase_works.tbl
+wpha_sub_008	WPHA_SUB_008	dc18581b27986623	identified	romfs bin/flagwork/phase_works.tbl
+wpha_sub_020	WPHA_SUB_020	dc11d41b27931a29	identified	romfs bin/flagwork/phase_works.tbl
+wpha_sub_060	WPHA_SUB_060	dc1f6c1b279ea6cd	identified	romfs bin/flagwork/phase_works.tbl
+wpha_sub_100	WPHA_SUB_100	d302251b22540ff0	identified	romfs bin/flagwork/phase_works.tbl
+wpha_sub_257	WPHA_SUB_257	ec9c271b30b884f9	identified	romfs bin/flagwork/phase_works.tbl

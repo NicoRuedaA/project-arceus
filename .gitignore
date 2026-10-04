@@ -1,0 +1,31 @@
+# Local Pi runtime state
+.atl/
+pk1.nsz
+pk2.nsz
+juego.torrent
+.tools/venv/
+decompiled/
+/re/
+.gamedb/
+target/
+__pycache__/
+*.pyc
+ProdKeys*/
+*.keys
+
+# ---- Collaboration hygiene -------------------------------------------------
+# Game content (copyrighted): each collaborator regenerates fixtures from their
+# own copy of the game. The whole directory is ignored — the only tracked file
+# is its README (force-added), so a `.dat` or `.bin` can never slip in again.
+crates/pla/tests/fixtures/*
+!crates/pla/tests/fixtures/README.md
+# Game text extracted from the binary
+sheets/re/strings.tsv
+# Recovered message keystream (derived from game text; regenerate with the tool)
+*.keystream.json
+
+# Third-party tool binaries (download in setup)
+.tools/lua/*.jar
+# Third-party checkout (clone it next to this repo; see README)
+# Symlinked build dir
+target

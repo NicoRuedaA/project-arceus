@@ -1,0 +1,313 @@
+//! Emitter: one generated Rust module per sheet plus an index, gated on
+//! content hashes so no-op writes never dirty the build (section 5.9).
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use crate::check::{check, Severity};
+use crate::parse::{load_dir, Column, Sheet};
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub sheets_dir: PathBuf,
+    pub out_dir: PathBuf,
+    pub fail_on_preflight_error: bool,
+    pub emit_docs: bool,
+}
+
+/// Run preflight and, if it passes (or is not enforced), emit every sheet.
+pub fn run(config: Config) -> Result<(), String> {
+    let sheets = load_dir(&config.sheets_dir)?;
+    let findings = check(&sheets);
+    let errors: Vec<_> = findings
+        .iter()
+        .filter(|f| f.severity == Severity::Error)
+        .collect();
+    for f in &findings {
+        let level = match f.severity {
+            Severity::Error => "E",
+            Severity::Warning => "W",
+        };
+        eprintln!("{level} {:<22} {:<28} {}", f.code, f.location, f.message);
+    }
+    if !errors.is_empty() && config.fail_on_preflight_error {
+        return Err(format!(
+            "preflight failed with {} error(s); emission refused",
+            errors.len()
+        ));
+    }
+
+    let out_sheets = config.out_dir.join("sheets");
+    fs::create_dir_all(&out_sheets).map_err(|e| e.to_string())?;
+
+    let mut modules = Vec::new();
+    for sheet in sheets.iter().filter(|s| s.emits()) {
+        let module = module_name(sheet);
+        let code = generate_module(sheet);
+        write_if_changed(&out_sheets.join(format!("{module}.rs")), &code)?;
+        modules.push((module, sheet.rows.len()));
+    }
+
+    let index = generate_index(&modules);
+    write_if_changed(&out_sheets.join("index.rs"), &index)?;
+    Ok(())
+}
+
+/// `re/base_update_diff` -> `re_base_update_diff`; `02-plan` -> `plan`.
+pub fn module_name(sheet: &Sheet) -> String {
+    let raw = sheet.name();
+    let mut s: String = raw
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    s = s.trim_matches('_').to_string();
+    // strip a leading numeric group ("02_plan" -> "plan")
+    while s
+        .chars()
+        .next()
+        .map(|c| c.is_ascii_digit())
+        .unwrap_or(false)
+    {
+        s = s
+            .trim_start_matches(|c: char| c.is_ascii_digit() || c == '_')
+            .to_string();
+    }
+    let s = if s.is_empty() { "sheet".to_string() } else { s };
+    if is_rust_keyword(&s) {
+        format!("{s}_")
+    } else {
+        s
+    }
+}
+
+fn is_rust_keyword(s: &str) -> bool {
+    matches!(
+        s,
+        "as" | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "type"
+            | "unsafe"
+            | "use"
+            | "where"
+            | "while"
+            | "async"
+            | "await"
+            | "dyn"
+    )
+}
+
+fn field_name(col: &Column) -> String {
+    if is_rust_keyword(&col.name) {
+        format!("{}_", col.name)
+    } else {
+        col.name.clone()
+    }
+}
+
+fn rust_type(col: &Column) -> String {
+    let base = match col.ty.as_str() {
+        "string" => "&'static str",
+        "u8" => "u8",
+        "u16" => "u16",
+        "u32" => "u32",
+        "u64" => "u64",
+        "i32" => "i32",
+        "i64" => "i64",
+        "f32" => "f32",
+        "f64" => "f64",
+        "bool" => "bool",
+        "enum" => "&'static str",
+        _ => "&'static str",
+    };
+    if col.optional {
+        format!("Option<{base}>")
+    } else {
+        base.to_string()
+    }
+}
+
+fn rust_value(col: &Column, value: &str) -> String {
+    let base = match col.ty.as_str() {
+        "u8" | "u16" | "u32" | "u64" | "i32" | "i64" | "f32" | "f64" => {
+            if value.is_empty() {
+                "0".to_string()
+            } else {
+                value.to_string()
+            }
+        }
+        "bool" => {
+            if value == "1" {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+        _ => format!("\"{}\"", escape(value)),
+    };
+    if col.optional {
+        if value.is_empty() {
+            "None".to_string()
+        } else {
+            format!("Some({base})")
+        }
+    } else {
+        base
+    }
+}
+
+fn escape(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn generate_module(sheet: &Sheet) -> String {
+    let module = module_name(sheet);
+    let mut out = String::new();
+    out.push_str("// @generated by sheetty; do not edit.\n");
+    out.push_str(&format!("// sheet: {}\n", sheet.name()));
+    out.push_str("#[derive(Debug, Clone, Copy, PartialEq)]\n");
+    out.push_str("pub struct Row {\n");
+    for col in &sheet.columns {
+        out.push_str(&format!(
+            "    pub {}: {},\n",
+            field_name(col),
+            rust_type(col)
+        ));
+    }
+    out.push_str("}\n\n");
+    out.push_str("pub const ROWS: &[Row] = &[\n");
+    for row in &sheet.rows {
+        out.push_str("    Row {\n");
+        for (i, col) in sheet.columns.iter().enumerate() {
+            out.push_str(&format!(
+                "        {}: {},\n",
+                field_name(col),
+                rust_value(col, row.get(i))
+            ));
+        }
+        out.push_str("    },\n");
+    }
+    out.push_str("];\n\n");
+    out.push_str(&format!("pub const COUNT: usize = {};\n", sheet.rows.len()));
+    if sheet.column_index("id").is_some() {
+        out.push_str(
+            "pub fn get(id: &str) -> Option<&'static Row> {\n    ROWS.iter().find(|r| r.id == id)\n}\n",
+        );
+    }
+    out.push_str(&format!("pub const MODULE: &str = \"{module}\";\n"));
+
+    // Section 5.7: PHF registry + dense index for sheets that opt in.
+    if sheet
+        .manifest
+        .get("index")
+        .map(|v| v.contains("by_id"))
+        .unwrap_or(false)
+        && sheet.column_index("id").is_some()
+    {
+        let idcol = sheet.column_index("id").unwrap();
+        let ids: Vec<&str> = sheet.rows.iter().map(|r| r.get(idcol)).collect();
+        let values: Vec<String> = (0..sheet.rows.len())
+            .map(|i| format!("&ROWS[{i}]"))
+            .collect();
+        let mut map = phf_codegen::Map::new();
+        for (id, value) in ids.iter().zip(values.iter()) {
+            map.entry(*id, value);
+        }
+        out.push_str(&format!(
+            "pub static REGISTRY: phf::Map<&'static str, &'static Row> = {};\n\n",
+            map.build()
+        ));
+
+        out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\npub enum Index {\n");
+        let mut variants = Vec::new();
+        for (i, row) in sheet.rows.iter().enumerate() {
+            let id = row.get(sheet.column_index("id").unwrap());
+            let mut v = camel(id);
+            if v == "Self" {
+                v = "Self_".to_string();
+            }
+            if variants.contains(&v) {
+                v = format!("{v}{i}");
+            }
+            variants.push(v.clone());
+            out.push_str(&format!("    {v},\n"));
+        }
+        out.push_str("}\n\n");
+        out.push_str("pub const ALL: &[Index] = &[\n");
+        for v in &variants {
+            out.push_str(&format!("    Index::{v},\n"));
+        }
+        out.push_str("];\n\n");
+        out.push_str(
+            "impl Index {\n    pub const fn to_index(self) -> u16 { self as u16 }\n    pub const fn row(self) -> &'static Row { &ROWS[self as usize] }\n}\n",
+        );
+    }
+    out
+}
+
+/// `scc_000` -> `Scc000`; `ncz_extraction` -> `NczExtraction`.
+fn camel(id: &str) -> String {
+    let mut out = String::new();
+    for part in id.split('_').filter(|p| !p.is_empty()) {
+        let mut chars = part.chars();
+        if let Some(c) = chars.next() {
+            out.extend(c.to_uppercase());
+            out.push_str(chars.as_str());
+        }
+    }
+    if out.is_empty() {
+        out.push('R');
+    }
+    out
+}
+
+fn generate_index(modules: &[(String, usize)]) -> String {
+    let mut out = String::new();
+    out.push_str("// @generated by sheetty; do not edit.\n");
+    for (module, _) in modules {
+        out.push_str(&format!(
+            "pub mod {module} {{ include!(concat!(env!(\"OUT_DIR\"), \"/sheets/{module}.rs\")); }}\n"
+        ));
+    }
+    out.push_str("\npub const SHEET_COUNTS: &[(&str, usize)] = &[\n");
+    for (module, rows) in modules {
+        out.push_str(&format!("    (\"{module}\", {rows}),\n"));
+    }
+    out.push_str("];\n");
+    out
+}
+
+/// Write only when the bytes differ (section 5.9: no-op writes dirty cargo).
+fn write_if_changed(path: &Path, contents: &str) -> Result<(), String> {
+    if let Ok(existing) = fs::read_to_string(path) {
+        if existing == contents {
+            return Ok(());
+        }
+    }
+    fs::write(path, contents).map_err(|e| format!("{}: {e}", path.display()))
+}

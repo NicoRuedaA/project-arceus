@@ -1,0 +1,25 @@
+# sheet: domain/asset_formats
+# version: 1
+# generator: romfs inventory + magic census
+# target: crate::domain::assets
+# index: by_id
+# requires: re/romfs_files
+# doctrine: D2,D3
+id:string*	extension:string	magic:string	count:u32	bytes:u32	container:string	loader:enum	priority:u16	status:enum	evidence:string?
+bntx	.bntx	BNTX	2965	790542192	romfs+sarc	custom	1	identified	textures; biggest single format
+ptcl	.ptcl	VFXB	1748	2651902688	romfs	custom	2	identified	particle effects, embed BNTX textures
+tbl	.tbl	AHTB	3067	11989291	romfs	custom	1	identified	named hash tables (event flags, ...)
+dat	.dat	u32-prefixed	3179	27883744	romfs	custom	1	identified	game data tables
+blua	.blua	1bLua 5.3	800	91005929	romfs	mlua	1	identified	Haxe->Lua 5.3 bytecode (797 event scripts)
+gfpak	.gfpak	GFLXPACK	678	1699891888	romfs	custom	1	identified	Game Freak packs: pokemon 357, chara 173, field 121
+arc	.arc	SARC	257	250552496	romfs	custom	1	identified	standard SARC archives (bflyt/bflan/bntx inside)
+trmdl	.trmdl	u32-prefixed	253	53952	romfs	custom	3	identified	model descriptors
+trmsh	.trmsh	u32-prefixed	281	206988	romfs	custom	3	identified	mesh data
+trmbf	.trmbf	u32-prefixed	281	25706868	romfs	custom	3	identified	mesh buffers
+trmtr	.trmtr	u32-prefixed	253	410412	romfs	custom	3	identified	materials
+trskl	.trskl	u32-prefixed	199	189444	romfs	custom	3	identified	skeletons
+tranm	.tranm	u32-prefixed	1522	19544648	romfs	custom	3	identified	animations
+hkx	.hkx	Havok	80	2370020	romfs	skip	4	identified	Havok collision; bake to colliders instead
+bnsh	.bnsh	u32-prefixed	42	21839368	romfs	replace	4	identified	shaders; replace with Bevy shaders
+wazabin	.wazabin	u32-prefixed	851	122588	romfs	custom	2	identified	move data tables
+wbin	.wbin	u32-prefixed	304	1001932	romfs	custom	2	identified	binary tables

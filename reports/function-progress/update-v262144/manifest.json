@@ -1,0 +1,330 @@
+{
+  "archive": {
+    "name": "pk2.nsz",
+    "sha256": "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446",
+    "size_bytes": 52657467
+  },
+  "build": "update-v262144",
+  "c_exports": {
+    "function_count": 12303,
+    "function_count_percent": 18.005269,
+    "original_bytes_percent": 64.151855,
+    "original_function_body_bytes": 12207980
+  },
+  "coverage_limitations": [
+    "The denominator is update main NSO only, not the whole game or all executable modules; base v0 is excluded.",
+    "re/base_update_diff.tsv names rtld, sdk, subsdk0, and subsdk1 but does not provide their function inventories; other executable-module coverage is not fully enumerated.",
+    "A Ghidra inventory status of identified proves identification only. A C export proves pseudocode exists, not analysis or behavior.",
+    "gameDB parsing is an index/parser signal, not semantic analysis or behavioral verification.",
+    "Subsystem groups reproduce a string-path reference heuristic and do not establish semantic ownership.",
+    "Implementation, behavior verification, and binary matching stay unknown unless the manual per-function evidence ledger supplies the required direct evidence.",
+    "A missing C artifact is reported as no_matching_export_in_snapshot; it does not mean the function was never decompiled.",
+    "Binary matching is an independent evidence field and does not make a function behavior-verified.",
+    "Treemap areas use original Ghidra function-body bytes; shared Rust relation ids never duplicate native function rows or their byte weights."
+  ],
+  "denominator": {
+    "definition": "sum of original Ghidra update-main function-body bytes",
+    "function_count": 68330,
+    "not_whole_game": true,
+    "original_function_body_bytes": 19029816
+  },
+  "evidence_ledger": {
+    "analyzed_documented_function_count": 11,
+    "path": "sheets/re/function_progress_evidence.tsv",
+    "sha256": "816fa82f7136f3fe87cf86ef4604593291ac0bc1530f6e3a32caa8a076bb7833"
+  },
+  "format": "function-progress-manifest/v1",
+  "gamedb": {
+    "distinct_parsed_function_addresses": 9767,
+    "index_sha256": "7aac1d998917564b08c4e42f59301d75696982c6e497c300f108dea1054da682",
+    "indexed_file_count": 10019,
+    "indexed_files_without_parsed_functions": 252,
+    "module_id": "ns.update.main",
+    "parsed_function_row_count": 9767,
+    "snapshot_fingerprint_sha256": "ed2f4364f4e3f9b64b41d0446287347075f3029cddbbafcd0bc6a343528c1eb6",
+    "wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inventory": {
+    "generic_inventory_path": "sheets/re/functions.tsv",
+    "generic_inventory_sha256": "b1c93d898964d1b619b6f278855a3c1080c82d41b5f22b21d702e10c6312e163",
+    "original_function_body_bytes": 19029816,
+    "row_count": 68330,
+    "versioned_inventory_path": "re/exports/update-main/functions.tsv",
+    "versioned_inventory_sha256": "8cefd2b2b7ce412653271ceec66be1325c0fcb0bc15b1d34bf8b3cdbfd5b7f8c"
+  },
+  "outputs": {
+    "analysis.png": "75afea90c88939747bdf92fc1f7c9a0928fb85238a48f99f0f54e705dca7883f",
+    "function-progress.tsv": "83b473d3035cabc7362c1d383084331ea6bbe028e7236cf680c89b75db67e784",
+    "index.html": "96a6c226b369b173e46f7d54b2065df3e8081de90ae994495da6927aae6cca19",
+    "port.png": "deff9b394eeb49b9d1414a0693d9fee5880b5607045ee2288e05d8968950b62d"
+  },
+  "rust_source_fingerprint": {
+    "file_count": 38,
+    "file_hashes": [
+      {
+        "path": "crates/pla/build.rs",
+        "sha256": "47f73dbab8a66607c74f3d1807d8441f5ec24cfe2f355ee463cbf1f6072ca68f"
+      },
+      {
+        "path": "crates/pla/examples/dump_bntx.rs",
+        "sha256": "037c7edbc6b5a0817e55ec7f89a67297842038cb02ed385c3da76bffbc33bfdf"
+      },
+      {
+        "path": "crates/pla/examples/mesh_spike.rs",
+        "sha256": "2e519636cbc28d013849a2b1aee0de680789527b850292c019f32213630d7e9f"
+      },
+      {
+        "path": "crates/pla/examples/run_script.rs",
+        "sha256": "896f067d44771124f69f988a5b0d7c70449eb649549871e35eccb8512b0fda93"
+      },
+      {
+        "path": "crates/pla/examples/window_spike.rs",
+        "sha256": "8add3327fd8a9a6c67932537f5f0273687f1df041a645b92e2fe93d8709726f9"
+      },
+      {
+        "path": "crates/pla/src/app.rs",
+        "sha256": "c19671d8ef6d45d76f3e7a6906a33f0206761c0dfea9dc0fec0a5eb377c51791"
+      },
+      {
+        "path": "crates/pla/src/assets/ahtb.rs",
+        "sha256": "74f72b0010ed394a2ac615489af4e556eb540128c2481a8d286ea36dfed5fd2a"
+      },
+      {
+        "path": "crates/pla/src/assets/bntx.rs",
+        "sha256": "63eeb972748e4d7ab9353cd33118da2fd7da6a447dc9dc3c9bafabd5bc74b4d4"
+      },
+      {
+        "path": "crates/pla/src/assets/event_list.rs",
+        "sha256": "f51b7b62ef89c765f40a79bd50d6385544f4344b249e655e79a4c4b7776b66a4"
+      },
+      {
+        "path": "crates/pla/src/assets/gfpak.rs",
+        "sha256": "176feeb26d257271227cfe64c33b6a39278d6ced133dbd8c591f7b3ddf8e9aff"
+      },
+      {
+        "path": "crates/pla/src/assets/message.rs",
+        "sha256": "fff54052070996cc9e3a970431a3f5b46633490f5d8e86cee30fc1f3e0951e49"
+      },
+      {
+        "path": "crates/pla/src/assets/mod.rs",
+        "sha256": "e2380c99e9229755ba9bf852e65d1048a2c125941ee35f17117796cebc53bc71"
+      },
+      {
+        "path": "crates/pla/src/assets/sarc.rs",
+        "sha256": "006aa88a4c7933996bcafb32f07a6d9414de6547c7351e8a53058d6a94d792eb"
+      },
+      {
+        "path": "crates/pla/src/assets/tr.rs",
+        "sha256": "b8e5547af544195a65ac95471c9ab898c197fb333b54c5869db8045fc9456cb7"
+      },
+      {
+        "path": "crates/pla/src/assets/vfxb.rs",
+        "sha256": "4a9d6d0379b38e35596dc5a77adad73fc4aced18cfef34241c89ff1cbd98b4a6"
+      },
+      {
+        "path": "crates/pla/src/dispatch.rs",
+        "sha256": "086b219e06525ac7b798b1787804d4daf00225666d43ff6086f7390f7a08c41f"
+      },
+      {
+        "path": "crates/pla/src/event.rs",
+        "sha256": "9d6781953e8e2570565fd9db6de3415c35a6bb88a4fe83a06215061d696b1452"
+      },
+      {
+        "path": "crates/pla/src/host/mod.rs",
+        "sha256": "dc0e99047731f8accaaf023b2b0c1d37d2e0a4fdcad734a773dde829638d372e"
+      },
+      {
+        "path": "crates/pla/src/host/subsystems/event_script.rs",
+        "sha256": "890de316c052142731fcf7c5a8b0d9992838279bb42f3891ff993f0b8a70f2c0"
+      },
+      {
+        "path": "crates/pla/src/host/subsystems/field.rs",
+        "sha256": "cab712fe550532a54ae56c2c3adfcaea91e7379cea8a1182304e43acf501b8b8"
+      },
+      {
+        "path": "crates/pla/src/host/subsystems/message.rs",
+        "sha256": "0e503870fff381949c985f2c1b1a1c39690442eb37da6f24ac291b0d8203608a"
+      },
+      {
+        "path": "crates/pla/src/host/subsystems/mod.rs",
+        "sha256": "d27d65fe4277626a3bbba4bd71e30b3bcecfc7e62f5e5f759f7fcccffb01d173"
+      },
+      {
+        "path": "crates/pla/src/host/subsystems/save.rs",
+        "sha256": "cb515a1e3cc893493b3f230e7ea59f633ae922cc03ff7dded31504d196003dec"
+      },
+      {
+        "path": "crates/pla/src/lib.rs",
+        "sha256": "1784dd071bd5bc7fa25e7d91b46ec7853aec17addd30115295fbcec4d29a4804"
+      },
+      {
+        "path": "crates/pla/src/render.rs",
+        "sha256": "631e32d9a3820b7e44e3149f140f43287d7d5a41023eb9c6ecf80ac422e56de6"
+      },
+      {
+        "path": "crates/pla/src/save.rs",
+        "sha256": "41cf21184b68fc14f62c3d8c25e68f5c03c1a8f528016ff1a5c75ec1f78aa096"
+      },
+      {
+        "path": "crates/pla/src/script.rs",
+        "sha256": "44eff2ca91f47730f9619409a0043ccebccd579119532b7479f35906bb76f1de"
+      },
+      {
+        "path": "crates/pla/tests/assets.rs",
+        "sha256": "619ab3b6f649b6f2045cf8602c594fd77d81e799eabb817040e3d55fda406fbd"
+      },
+      {
+        "path": "crates/pla/tests/common/mod.rs",
+        "sha256": "c7d3cd6196047e7d0552c5d44591391770786b94ad7c88080d6cfcb73183c658"
+      },
+      {
+        "path": "crates/pla/tests/event.rs",
+        "sha256": "01eef379e8e69c3ae9c483c999c4495a7c56f3cc1e8c5b7035f6c9346aa65ea7"
+      },
+      {
+        "path": "crates/pla/tests/script.rs",
+        "sha256": "5832ff60958403ad2371aa143ca4236f8334ee04aaf89355d8ef1437808afcb1"
+      },
+      {
+        "path": "crates/pla/tests/visual.rs",
+        "sha256": "3fbc0b1c1a61e3b6e43d8ce23223cdd55cb55f3e27a1456fa769c4b6c338da8b"
+      },
+      {
+        "path": "crates/sheetty/src/check.rs",
+        "sha256": "01463297b39e7b0dbeb91eef077e0a5da2a7f9bfb74519c140aca6f9349047d2"
+      },
+      {
+        "path": "crates/sheetty/src/emit.rs",
+        "sha256": "fb6b997cba167cf8fd96f6eaccfccf307a27294b8b867c84634df085d81564f0"
+      },
+      {
+        "path": "crates/sheetty/src/lib.rs",
+        "sha256": "20cb6d290066ecfe7c10611b871adcd53e0b40caef43fac1c384916994853b25"
+      },
+      {
+        "path": "crates/sheetty/src/parse.rs",
+        "sha256": "f7af7f71d1375900a30c95c63b5df696ec5fdfcda71fef83cd33965742c679c9"
+      },
+      {
+        "path": "crates/sheetty/tests/preflight.rs",
+        "sha256": "6dda32ad341051262f080f6a0b0240a0a00b109136c1869a1f389b6fad84051b"
+      },
+      {
+        "path": "crates/sheetty-cli/src/main.rs",
+        "sha256": "4c50a8ff01e2b1c919b569e144933f4233ae2f0aff935e08ff740a0c73fa7145"
+      }
+    ],
+    "scope": "crates/**/*.rs",
+    "sha256": "ce114bed5758c7f69f90d30e9706468740fab53752c0d184c9e5a9e16772800e"
+  },
+  "state_partitions": {
+    "analysis_documentation_status": {
+      "analyzed_documented": {
+        "functions": 11,
+        "original_bytes": 20852
+      },
+      "unknown": {
+        "functions": 68319,
+        "original_bytes": 19008964
+      }
+    },
+    "behavior_verification_status": {
+      "unknown": {
+        "functions": 68330,
+        "original_bytes": 19029816
+      }
+    },
+    "binary_match_status": {
+      "unknown": {
+        "functions": 68330,
+        "original_bytes": 19029816
+      }
+    },
+    "decompilation_status": {
+      "no_matching_export_in_snapshot": {
+        "functions": 56027,
+        "original_bytes": 6821836
+      },
+      "pseudocode_exported": {
+        "functions": 12303,
+        "original_bytes": 12207980
+      }
+    },
+    "game_db_file_status": {
+      "indexed_with_function_rows": {
+        "functions": 9767,
+        "original_bytes": 10998588
+      },
+      "indexed_without_function_rows": {
+        "functions": 252,
+        "original_bytes": 250552
+      },
+      "not_indexed": {
+        "functions": 58311,
+        "original_bytes": 7780676
+      }
+    },
+    "game_db_parsing_status": {
+      "function_parsed": {
+        "functions": 9767,
+        "original_bytes": 10998588
+      },
+      "indexed_without_parsed_function": {
+        "functions": 252,
+        "original_bytes": 250552
+      },
+      "not_parsed": {
+        "functions": 58311,
+        "original_bytes": 7780676
+      }
+    },
+    "identification_status": {
+      "identified": {
+        "functions": 68330,
+        "original_bytes": 19029816
+      }
+    },
+    "implementation_status": {
+      "unknown": {
+        "functions": 68330,
+        "original_bytes": 19029816
+      }
+    },
+    "port_state": {
+      "unknown": {
+        "functions": 68330,
+        "original_bytes": 19029816
+      }
+    }
+  },
+  "subsystems": {
+    "functions_without_path_references": 65642,
+    "group_function_counts": {
+      "absl": 61,
+      "appli": 38,
+      "archive": 2,
+      "chara": 5,
+      "effect": 19,
+      "event": 5,
+      "font": 1,
+      "grpc": 1236,
+      "grpc_core": 158,
+      "havok": 430,
+      "message": 2,
+      "openssl": 536,
+      "pml": 1,
+      "pokemon": 2,
+      "protobuf": 96,
+      "re2": 73,
+      "webrtc": 16
+    },
+    "method": "string-path reference heuristic; not semantic ownership",
+    "strrefs_path": "re/exports/update-main/strrefs.tsv",
+    "strrefs_sha256": "491c3e236823dcc57394409aceaa846134093d4f77d07f5787e8ee47defdc581",
+    "subsystem_sheet_path": "sheets/domain/subsystems.tsv",
+    "subsystem_sheet_sha256": "5677a306b35d491fc2f740707b74fdec6c2c218de8952549d5150c225bf7484f",
+    "tied_dominant_functions": 7,
+    "unique_dominant_functions": 2681
+  },
+  "target": "Pokémon Legends: Arceus update v262144, main NSO only"
+}

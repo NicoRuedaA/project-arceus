@@ -1,0 +1,27 @@
+# sheet: domain/port_strategy
+# version: 1
+# generator: middleware triage (strrefs + romfs)
+# target: crate::domain::strategy
+# index: by_id
+# requires: domain/subsystems
+# doctrine: D2,D3
+id:string*	subsystem:string	decision:enum	replacement:string	rationale:string	priority:u16	status:enum	evidence:string?
+grpc	grpc	stub	tonic (if online is in scope)	1246 fn of networking; offline port does not need it	4	identified	domain/subsystems
+openssl	openssl	replace	rustls / ring	536 fn of TLS/crypto; needed only where gRPC survives	4	identified	domain/subsystems
+havok	havok	replace	avian3d / rapier + baked colliders	430 fn physics; hkx assets bake to static colliders	2	identified	domain/subsystems, domain/asset_formats
+grpc_core	grpc_core	stub	-	dependency of grpc	5	identified	domain/subsystems
+absl	absl	stub	std	utility library behind grpc/protobuf	5	identified	domain/subsystems
+protobuf	protobuf	replace	prost	wire format if networking is revived	5	identified	domain/subsystems
+re2	re2	replace	regex	96 fn of regex behind grpc	5	identified	domain/subsystems
+webrtc	webrtc	skip	-	17 fn; online voice/transport	5	identified	domain/subsystems
+npln	npln	skip	-	Nintendo online platform protobuf	5	identified	domain/subsystems
+haxe_lua	haxe_lua	port	mlua (lua53 feature)	797 event scripts + field/battle logic shipped as Lua 5.3 bytecode; runs as-is on mlua	1	identified	romfs bin/haxe/release
+appli	appli	port	-	38 fn application/UI flow	2	identified	domain/subsystems
+effect	effect	port	-	19 fn particle/effect systems over ptcl	2	identified	domain/subsystems
+chara	chara	port	-	5 fn character logic over gfpak/chara	3	identified	domain/subsystems
+event	event	port	-	5 fn event driver feeding the Lua scripts	2	identified	domain/subsystems
+message	message	port	-	2 fn text/messages	3	identified	domain/subsystems
+archive	archive	port	-	2 fn container loading (SARC, gfpak)	1	identified	domain/subsystems
+pokemon	pokemon	port	-	2 fn species data over gfpak/pokemon	3	identified	domain/subsystems
+pml	pml	port	-	1 fn Pokemon data tables	3	identified	domain/subsystems
+font	font	port	-	1 fn font handling	4	identified	domain/subsystems

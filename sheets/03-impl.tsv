@@ -1,0 +1,44 @@
+# sheet: 03-impl
+# version: 1
+# generator: manual
+# target: -
+# doctrine: D2
+# index: by_id
+id:string*	sheet:string	rust_item:string?	status:enum	ref_src:string?	ref_addr:string?	ref_conf:enum?	evidence:string?
+ncz_extraction	re/extraction	-	done	-	-	-	.tools/ncz_extract.py; nsz reconstruction hash parity
+nso_to_elf	re/exefs	-	done	-	-	-	.tools/nso_to_elf.py; segment SHA-256 verified
+ghidra_analysis	re/functions	-	done	-	-	-	re/exports/{update,base}-main/*.tsv
+gamedb_index	re/index	-	done	-	-	-	decompiled/.gamedb/index.sqlite
+sheet_book	00-doctrine	-	done	-	-	-	crates/sheetty + crates/sheetty-cli; preflight green
+romfs_wrapper	re/romfs	-	done	-	-	-	.tools/romfs_extract.py; 18370 files
+subsystem_map	domain/subsystems	-	done	-	-	-	.tools/subsystem_cluster.py
+port_strategy	domain/port_strategy	-	done	-	-	-	sheets/domain/port_strategy.tsv
+asset_formats	domain/asset_formats	-	done	-	-	-	sheets/domain/asset_formats.tsv
+base_analysis	re/base_update_diff	-	done	-	-	-	decompiled/base-main/*.c (1997 files)
+base_update_diff	re/base_update_diff	-	done	-	-	-	sheets/re/base_update_diff.tsv
+coverage_extension	re/decompiled	-	done	-	-	-	decompiled/update-main 7996 .c; gamedb 11993 files / 11675 fn
+script_bindings	domain/script_bindings	-	done	-	-	-	sheets/domain/script_bindings.tsv (322 rows)
+haxe_lua_runtime	domain/port_strategy	pla::script	done	-	-	-	crates/pla/src/script.rs; tests/script.rs 3 green
+port_target	domain/subsystems	pla::app	partial	-	-	-	Bevy 0.19.1 minimal; registry + dense index + dispatch
+bevy_port	domain/subsystems	pla::app::build_app	partial	-	-	-	6 port tests green; no render plugins yet
+script_host_api	domain/script_api	pla::host	partial	-	-	-	real FnvHash64 + save system + Global fallback; handle methods pending
+event_end_to_end	domain/script_bindings	pla::host	done	-	-	-	crates/pla/src/host.rs + tests/event.rs (2 tests); re/exports/update-main/event_trace_boutiquemain.txt
+container_parsers	domain/asset_formats	pla::assets::sarc	done	-	-	-	crates/pla/src/assets/{sarc,gfpak}.rs; 4 tests, SHA-256 parity vs python
+asset_parsers	domain/asset_formats	pla::assets::bntx	partial	-	-	-	SARC/GFLXPACK/AHTB parsers; BNTX parse+decode; 12 asset tests
+visual_subsystem	domain/subsystems	pla::render	partial	-	-	-	crates/pla/src/render.rs; sheet-driven image + sprite; render test #[ignore]
+havok_replacement	domain/port_strategy	-	todo	-	-	-	-
+update_romfs	re/romfs	tools::bktr_extract	done	-	-	-	BKTR virtual romfs: 19095 files / 6.42GB; parity 400/400 unpatched files identical
+lua_decompilation	re/lua_scripts	-	done	-	-	-	.tools/decompile_lua.py; re/exports/base-main/lua_scripts_index.tsv
+event_protocol	domain/script_bindings	pla::event	done	-	-	-	ScriptCall protocol, coroutine driver, engine target; event runs to its field-system wait
+event_flags_data	domain/event_flags	-	done	-	-	-	sheets/domain/event_flags.tsv (450 rows); parity vs python
+tr_formats	domain/asset_formats	pla::assets::tr	partial	-	-	-	TrMbf parses vertices (stride 36, count from u32@0x40) + triangle indices; fixture test asserts 33 verts / 24 tris on a real mesh
+keys_integration	re/extraction	-	done	-	-	-	.tools/bktr_extract.py; keys gitignored
+aux_ncas	re/extraction	-	done	-	-	-	5 NCAs direct + 1 rights-managed via ticket
+save_system	domain/event_flags	pla::save::SaveSystem	done	-	-	-	crates/pla/src/save.rs; event test writes a flag (451 known)
+flagwork_sheets	domain/event_works	-	done	-	-	-	.tools/ahtb_sheet.py; event/map/phase/system flags+works, python parity
+bntx_decode	domain/asset_formats	pla::assets::bntx	done	-	-	-	tegra_swizzle + bcdec_rs + float paths; 100% of the shipped format codes
+message_bindings	domain/script_bindings	pla::host::subsystems::message	done	-	-	-	crates/pla/src/assets/message.rs + subsystems/message.rs; raw units (text encoding unknown)
+event_data_bindings	domain/event_works	pla::host::subsystems::event_script	done	-	-	-	event flag = the event's own id; test asserts it in the save store
+field_subsystem	domain/subsystems	pla::host::subsystems::field	done	-	-	-	IsLoading/IsGrounded/IsEnd/IsRiding answers; event test asserts completion
+event_list_registry	domain/event_works	pla::assets::event_list	done	-	-	-	__port_load_event_list feeds FindEventData.name; record graph undecoded (dec040)
+function_progress_treemap	re/function_progress_evidence	-	partial	-	-	-	26 tests pass; generator current for update-v262144; report TSV/PNGs/HTML/manifest/status generated; CI pass, preflight 0/0. Browser Playwright unavailable (ModuleNotFoundError); HTML interactions unverified

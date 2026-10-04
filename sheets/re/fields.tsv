@@ -1,0 +1,41 @@
+# sheet: re/fields
+# version: 1
+# generator: ExportTsv.java (ghidra)
+# target: re
+# requires: structs
+# doctrine: mode-b
+struct:string -> re/structs.id	name:string	offset:u32	type:string	note:string?
+elf64_ehdr	e_ident_magic_num	0	byte	
+elf64_ehdr	e_ident_magic_str	1	string	
+elf64_ehdr	e_ident_class	4	byte	
+elf64_ehdr	e_ident_data	5	byte	
+elf64_ehdr	e_ident_version	6	byte	
+elf64_ehdr	e_ident_osabi	7	byte	
+elf64_ehdr	e_ident_abiversion	8	byte	
+elf64_ehdr	e_ident_pad	9	byte[7]	
+elf64_ehdr	e_type	16	word	
+elf64_ehdr	e_machine	18	word	
+elf64_ehdr	e_version	20	dword	
+elf64_ehdr	e_entry	24	qword	
+elf64_ehdr	e_phoff	32	qword	
+elf64_ehdr	e_shoff	40	qword	
+elf64_ehdr	e_flags	48	dword	
+elf64_ehdr	e_ehsize	52	word	
+elf64_ehdr	e_phentsize	54	word	
+elf64_ehdr	e_phnum	56	word	
+elf64_ehdr	e_shentsize	58	word	
+elf64_ehdr	e_shnum	60	word	
+elf64_ehdr	e_shstrndx	62	word	
+elf64_phdr	p_type	0	Elf_ProgramHeaderType_AARCH64	
+elf64_phdr	p_flags	4	dword	
+elf64_phdr	p_offset	8	qword	
+elf64_phdr	p_vaddr	16	qword	
+elf64_phdr	p_paddr	24	qword	
+elf64_phdr	p_filesz	32	qword	
+elf64_phdr	p_memsz	40	qword	
+elf64_phdr	p_align	48	qword	
+elfnote_4_32	namesz	0	dword	
+elfnote_4_32	descsz	4	dword	
+elfnote_4_32	type	8	dword	
+elfnote_4_32	name	12	string	
+elfnote_4_32	description	16	byte[32]	

@@ -1,0 +1,32 @@
+# sheet: re/base_update_diff
+# version: 1
+# generator: manual
+# target: re
+# requires: -
+# doctrine: mode-b
+id:string*	kind:enum	base:string	update:string	note:string?
+module_id	string	7fcad279539de183b25c11834fd4a030591cfe25000000000000000000000000	aee8f150dda1b5a838806e1a5ea6827ad9f3c51e000000000000000000000000	NSO build id (module id)
+exefs_main_size	u32	31755066	31882976	main NSO size, bytes
+text_size	u32	52855264	53106320	NSO text segment (decompressed)
+rodata_size	u32	14078944	14104576	NSO rodata segment
+data_size	u32	2564096	2568224	NSO data segment
+bss_size	u32	798720	802784	NSO bss
+exefs_rtld	u32	7187	7187	rtld size
+exefs_sdk	u32	5754872	5754872	sdk size
+exefs_subsdk0	u32	3409290	3409290	subsdk0 size
+exefs_subsdk1	u32	4920073	4920073	subsdk1 size
+functions	u32	68412	68330	Ghidra capped analysis, 1500 s timeout
+strings	u32	13363	13424	Ghidra capped analysis
+call_edges	u32	181368	181652	Ghidra capped analysis
+decompiled_top	u32	3997	5996	top-6000 triage export, ok count
+indexed_functions	u32	3917	5915	gamedb functions table
+sarc_archives	u32	257	0	SARC archives extracted (update romfs is BKTR patch)
+sarc_files	u32	3416	0	SARC files extracted
+romfs_files	u32	18370	0	base RomFS file entries (update romfs is a patch)
+romfs_bytes	u32	6399560182	0	extracted base RomFS payload
+subsystem_grpc_functions	u32	1246	1246	functions clustered to grpc
+subsystem_openssl_functions	u32	536	536	functions clustered to openssl
+subsystem_havok_functions	u32	430	430	functions clustered to havok
+subsystem_appli_functions	u32	38	38	functions clustered to appli
+subsystem_effect_functions	u32	18	19	functions clustered to effect
+subsystems_total	u32	17	17	distinct clustered subsystems

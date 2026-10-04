@@ -1,0 +1,9 @@
+[package]
+name = "sheetty-cli"
+version = "0.1.0"
+edition = "2021"
+description = "The Spreadsheet Method: preflight CLI"
+license = "MIT"
+
+[dependencies]
+sheetty = { path = "../sheetty" }

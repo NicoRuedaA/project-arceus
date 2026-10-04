@@ -1,0 +1,141 @@
+# sheet: 01-schema
+# version: 1
+# generator: manual
+# target: -
+# doctrine: D2,D5
+sheet:string	column:string	type:string	unit:string	optional:string	ref:string	default:string	view:string	notes:string?
+re/functions	id	string	-	no	-	-	v_full	address
+re/functions	name	string	-	no	-	-	v_full	
+re/functions	size	u32	bytes	no	-	-	v_full	function body size
+re/functions	calls	u32	-	no	-	-	v_full	
+re/functions	called_by	u32	-	no	-	-	v_full	
+re/functions	tags	string	-	yes	-	-	v_full	space separated
+re/functions	status	enum	-	no	-	identified	v_full	
+re/strings	id	string	-	no	-	-	v_full	address
+re/strings	addr	string	-	no	-	-	v_full	
+re/strings	text	string	-	no	-	-	v_full	
+re/strings	x_refs	u32	-	no	-	-	v_full	
+re/strings	use	enum	-	yes	-	unknown	v_full	
+re/callgraph	from	string	-	no	re/functions.id	-	v_full	
+re/callgraph	to	string	-	no	re/functions.id	-	v_full	
+re/callgraph	kind	enum	-	no	-	call	v_full	
+re/triage	id	string	-	no	re/functions.id	-	v_full	
+re/triage	reason	string	-	no	-	-	v_full	
+re/triage	score	f32	-	no	-	-	v_full	
+02-plan	id	string	-	no	-	-	v_full	
+02-plan	kind	enum	-	no	-	-	v_full	
+02-plan	sheet	string	-	no	-	-	v_full	
+02-plan	target	string	-	no	-	-	v_full	
+02-plan	priority	u16	-	no	-	-	v_full	
+02-plan	status	enum	-	no	-	todo	v_full	
+03-impl	id	string	-	no	02-plan.id	-	v_full	
+03-impl	sheet	string	-	no	-	-	v_full	
+03-impl	rust_item	string	-	yes	-	-	v_full	
+03-impl	status	enum	-	no	-	todo	v_full	
+03-impl	ref_src	string	-	yes	-	-	v_full	
+03-impl	ref_addr	string	-	yes	-	-	v_full	
+03-impl	ref_conf	enum	-	yes	-	-	v_full	certain|probable|speculative
+03-impl	evidence	string	-	yes	-	-	v_full	
+re/structs	id	string	-	no	-	-	v_full	slugged type id
+re/structs	name	string	-	no	-	-	v_full	raw Ghidra type name
+re/structs	kind	string	-	no	-	-	v_full	
+re/structs	size	u32	bytes	no	-	-	v_full	
+re/structs	fields	u32	-	no	-	-	v_full	
+re/structs	status	enum	-	no	-	identified	v_full	
+re/fields	struct	string	-	no	re/structs.id	-	v_full	
+re/fields	name	string	-	no	-	-	v_full	
+re/fields	offset	u32	bytes	no	-	-	v_full	
+re/fields	type	string	-	no	-	-	v_full	
+re/fields	note	string	-	yes	-	-	v_full	
+re/base_update_diff	id	string	-	no	-	-	v_full	
+re/base_update_diff	kind	enum	-	no	-	-	v_full	u32|string
+re/base_update_diff	base	string	-	no	-	-	v_full	base v0 value
+re/base_update_diff	update	string	-	no	-	-	v_full	update v262144 value
+re/base_update_diff	note	string	-	yes	-	-	v_full	
+domain/subsystems	id	string	-	no	-	-	v_full	
+domain/subsystems	name	string	-	no	-	-	v_full	path prefix or friendly name
+domain/subsystems	kind	enum	-	no	-	-	v_full	middleware|network|game_data
+domain/subsystems	functions	u32	-	no	-	-	v_full	functions referencing this prefix
+domain/subsystems	refs	u32	-	no	-	-	v_full	string references
+domain/subsystems	representative	string	-	no	-	-	v_full	most-referencing function address
+domain/subsystems	status	enum	-	no	-	identified	v_full	
+domain/subsystems	evidence	string	-	yes	-	-	v_full	
+domain/asset_formats	id	string	-	no	-	-	v_full	
+domain/asset_formats	extension	string	-	no	-	-	v_full	
+domain/asset_formats	magic	string	-	no	-	-	v_full	
+domain/asset_formats	count	u32	-	no	-	-	v_full	
+domain/asset_formats	bytes	u32	-	no	-	-	v_full	
+domain/asset_formats	container	string	-	no	-	-	v_full	
+domain/asset_formats	loader	enum	-	no	-	-	v_full	custom|mlua|skip|replace
+domain/asset_formats	priority	u16	-	no	-	-	v_full	
+domain/asset_formats	status	enum	-	no	-	-	v_full	
+domain/asset_formats	evidence	string	-	yes	-	-	v_full	
+domain/port_strategy	id	string	-	no	-	-	v_full	
+domain/port_strategy	subsystem	string	-	no	-	-	v_full	
+domain/port_strategy	decision	enum	-	no	-	-	v_full	port|stub|replace|skip
+domain/port_strategy	replacement	string	-	no	-	-	v_full	
+domain/port_strategy	rationale	string	-	no	-	-	v_full	
+domain/port_strategy	priority	u16	-	no	-	-	v_full	
+domain/port_strategy	status	enum	-	no	-	-	v_full	
+domain/port_strategy	evidence	string	-	yes	-	-	v_full	
+domain/script_api	id	string	-	no	-	-	v_full	
+domain/script_api	name	string	-	no	-	-	v_full	host identifier referenced by scripts
+domain/script_api	kind	enum	-	no	-	-	v_full	function|constant|type
+domain/script_api	scripts	u32	-	no	-	-	v_full	number of event scripts referencing it
+domain/script_api	status	enum	-	no	-	-	v_full	
+domain/script_api	evidence	string	-	yes	-	-	v_full	
+domain/script_bindings	id	string	-	no	-	-	v_full	
+domain/script_bindings	type	string	-	no	-	-	v_full	C++ type bound into Lua
+domain/script_bindings	method	string	-	no	-	-	v_full	C++ signature from sol2 ctti metadata
+domain/script_bindings	source	string	-	yes	-	-	v_full	glue source path
+domain/script_bindings	status	enum	-	no	-	-	v_full	
+domain/script_bindings	evidence	string	-	yes	-	-	v_full	
+domain/event_flags	id	string	-	no	-	-	v_full	
+domain/event_flags	name	string	-	no	-	-	v_full	flag name from event_flags.tbl
+domain/event_flags	flag_id	string	-	no	-	-	v_full	opaque u64 id (hex)
+domain/event_flags	status	enum	-	no	-	identified	v_full	
+domain/event_flags	evidence	string	-	yes	-	-	v_full	
+domain/event_works	id	string	-	no	-	-	v_full	
+domain/event_works	name	string	-	no	-	-	v_full	work name from event_works.tbl
+domain/event_works	work_id	string	-	no	-	-	v_full	opaque u64 id (hex)
+domain/event_works	status	enum	-	no	-	identified	v_full	
+domain/event_works	evidence	string	-	yes	-	-	v_full	
+domain/map_flags	id	string	-	no	-	-	v_full	
+domain/map_flags	name	string	-	no	-	-	v_full	map flag name from map_flags.tbl
+domain/map_flags	flag_id	string	-	no	-	-	v_full	opaque u64 id (hex)
+domain/map_flags	status	enum	-	no	-	identified	v_full	
+domain/map_flags	evidence	string	-	yes	-	-	v_full	
+domain/map_works	id	string	-	no	-	-	v_full	
+domain/map_works	name	string	-	no	-	-	v_full	work name from map_works.tbl
+domain/map_works	work_id	string	-	no	-	-	v_full	opaque u64 id (hex)
+domain/map_works	status	enum	-	no	-	identified	v_full	
+domain/map_works	evidence	string	-	yes	-	-	v_full	
+domain/phase_works	id	string	-	no	-	-	v_full	
+domain/phase_works	name	string	-	no	-	-	v_full	work name from phase_works.tbl
+domain/phase_works	work_id	string	-	no	-	-	v_full	opaque u64 id (hex)
+domain/phase_works	status	enum	-	no	-	identified	v_full	
+domain/phase_works	evidence	string	-	yes	-	-	v_full	
+domain/system_flags	id	string	-	no	-	-	v_full	
+domain/system_flags	name	string	-	no	-	-	v_full	system flag name from system_flags.tbl
+domain/system_flags	flag_id	string	-	no	-	-	v_full	opaque u64 id (hex)
+domain/system_flags	status	enum	-	no	-	identified	v_full	
+domain/system_flags	evidence	string	-	yes	-	-	v_full	
+domain/system_works	id	string	-	no	-	-	v_full	
+domain/system_works	name	string	-	no	-	-	v_full	work name from system_works.tbl
+domain/system_works	work_id	string	-	no	-	-	v_full	opaque u64 id (hex)
+domain/system_works	status	enum	-	no	-	identified	v_full	
+domain/system_works	evidence	string	-	yes	-	-	v_full	
+re/function_progress_evidence	id	string	-	no	-	-	v_full	composite key: build:function_id
+re/function_progress_evidence	build	string	-	no	-	update-v262144	v_full	game build identity
+re/function_progress_evidence	function_id	string	-	no	re/functions.id	-	v_full	function address within the selected build
+re/function_progress_evidence	analysis_status	enum	-	no	-	unknown	v_full	unknown|analyzed_documented; analyzed requires evidence and notes
+re/function_progress_evidence	analysis_evidence	string	-	yes	-	-	v_full	decision, source, or direct analysis evidence references
+re/function_progress_evidence	analysis_notes	string	-	yes	-	-	v_full	bounded finding and remaining uncertainty
+re/function_progress_evidence	implementation_status	enum	-	no	-	unknown	v_full	unknown|partial|implemented; non-unknown requires evidence
+re/function_progress_evidence	implementation_evidence	string	-	yes	-	-	v_full	direct native-to-Rust implementation evidence
+re/function_progress_evidence	rust_item	string	-	yes	-	-	v_full	optional Rust item; requires implementation evidence
+re/function_progress_evidence	relation_id	string	-	yes	-	-	v_full	shared relation key for one Rust item linked to multiple native functions
+re/function_progress_evidence	verification_status	enum	-	no	-	unknown	v_full	unknown|verified; verified requires implementation and behavioral/reference evidence
+re/function_progress_evidence	verification_evidence	string	-	yes	-	-	v_full	behavioral or reference evidence for the linked function
+re/function_progress_evidence	binary_match_status	enum	-	no	-	unknown	v_full	unknown|matched|not_matched; non-unknown requires evidence
+re/function_progress_evidence	binary_match_evidence	string	-	yes	-	-	v_full	binary comparison evidence independent of behavior verification
