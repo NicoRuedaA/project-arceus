@@ -1,3 +1,11 @@
+> **SUPERSEDED by p0-base-main-pin-reconciliation.md (2026-10-06).**
+> The base `main` SHA-256 identity pin is reconciled: the canonical artifact
+> `work/pla/pk1/exefs/main` matches the only documented pin (SHA-256 `6f0e5f4a…`). The
+> `Program`→NCZ→ExeFS `s02` chain and the six base ExeFS members are later qualified
+> with 15/15 NSO segment hashes verified (`p0-base-v0-module-provenance.md`). The
+> `KeyError` NCA/ExeFS-open limitation below is retained as historical. Historical
+> content is preserved below.
+
 # Metadatos de ContentMeta del paquete base
 
 ## Resultado

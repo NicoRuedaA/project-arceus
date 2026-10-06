@@ -18,7 +18,7 @@ Rust/Bevy desde un libro de hojas versionado.
 |---|---|
 | ✅ **Hecho** | Ambos volcados (base + update) obtenidos; todo el código ejecutable y los datos del RomFS extraídos; el pseudocódigo del `main` del update exportado (**96,55 %** de sus bytes) y consultable en gameDB; datos del RomFS mayormente interpretados (Lua 799/800, tablas, textos); un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
 | 🟡 **En curso** | El pseudocódigo no es comprensión: el análisis, el port y la verificación del código del juego están ~**0,03 %** hechos. El export del `main` de la base es parcial (**5,8 %**). |
-| ❌ **Falta** | Los imports/relocations y la decodificación de cabecera NCA de los módulos base; el `main.npdm` del update; la propiedad a nivel de archivo de los datos cambiados/añadidos; el último **3,45 %** del `main` del update (requiere trazado en emulador); la verificación de comportamiento y el *binary matching* están al **0 %**. |
+| ❌ **Falta** | La decodificación de cabecera NCA; la propiedad a nivel de archivo de los datos cambiados/añadidos; la resolución runtime de dependencias; el último **3,45 %** del `main` del update (requiere trazado en emulador); la verificación de comportamiento y el *binary matching* están al **0 %**. |
 
 El desglose detallado por fases es la [Tabla de cierre](#tabla-de-cierre) — la
 única fuente de estado. La ruta canónica de ejecución y sus puertas de evidencia

@@ -1,3 +1,11 @@
+> **SUPERSEDED by p0-base-main-pin-reconciliation.md (2026-10-06).**
+> The canonical artifact `work/pla/pk1/exefs/main` (size 31,755,066; module ID
+> `7fcad279…`; SHA-256 `6f0e5f4a…`) matches the only documented base `main` pin on
+> all three fields. The recorded SHA-256 mismatch below is **not reproducible** and is
+> reclassified as a record/attribution issue, not an identity failure; the row is
+> restated in `sheets/re/p0_scope_census.tsv#base_main_candidate_pin_check`. Historical
+> content is preserved below.
+
 # Comprobación del pin del candidato local base-main
 
 ## Resultado
