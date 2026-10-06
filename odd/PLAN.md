@@ -2,12 +2,22 @@
 
 **Estado:** abierto. Este documento ordena el trabajo pendiente por dependencias y fija qué evidencia permite cerrar cada tramo. El avance de un parser, una compilación o una prueba aislada no equivale a comprensión, paridad ni cobertura completa.
 
-## Estado actual — 2026-10-05
+### El juego es base + update (modelo vigente, no negociable)
+
+- El proyecto trabaja sobre **un único juego**, compuesto por **base** (`pk1.nsz`, v0) **+ update** (`pk2.nsz`, v262144).
+- El **update es un parche** (AesCtrEx/BKTR): **no es un programa y no se ejecuta por sí solo**. Sin el base no hay nada que actualizar ni que ejecutar.
+- El juego que **se ejecuta y se porta** es el **overlay base + update**. El código que corre es el `main` del update, que **reemplaza** al del base; el base es **obligatorio** porque aporta todo lo que el update no incluye (los demás módulos y la mayor parte de los datos).
+- El `main` del base (v0) **no se porta**: es una compilación anterior del mismo programa y se conserva únicamente por procedencia.
+- En consecuencia, **no se debe describir el update como programa independiente ni como objetivo del port**; el objetivo es el juego con el update aplicado.
+- Correspondencia con las fases: la **preparación** (extracción, inventario de módulos, export, índice, datos y overlay base+update) pertenece a **P0**; el análisis y el port por dependencias pertenecen a **P2–P9**. El paralelismo solo existe **dentro** de cada fase: `P0 → P3 → P4 → P5 → P6 → P7` es una cadena.
+
+## Estado actual — 2026-10-06
 
 - El censo de alcance tiene 17 registros versionados y declara explícitamente desconocidos; no es todavía prueba de alcance completo. El nuevo sondeo PFS0/CNMT confirma metadatos de nivel superior del paquete base, pero no enlaza el registro `Program` con los bytes exactos del NSO ni reconcilia el pin registrado ([informe de metadatos](../reports/function-progress/p0-base-contentmeta-metadata.md#resultado)). El gate SHA avanzó hasta descomprimir el NCZ de `Program` a un NCA temporal, pero la apertura NCA/ExeFS se detuvo con `KeyError` al solicitar material de clave; no se leyó `main` ni se calculó el SHA, y el temporal se eliminó. La configuración/API actual no resolvió la solicitud y no está demostrado que falte material de clave. Un candidato local para `base-main` coincide en tamaño e ID de módulo con la identidad censada, pero no supera su pin SHA-256; por ello no está listo para parseo y su identidad exacta queda sin confirmar ([informe de comprobación](../reports/function-progress/p0-base-main-candidate-pin-check.md#resultado), [censo](../sheets/re/p0_scope_census.tsv#base_main_candidate_pin_check)). Esto no invalida el inventario de funciones ya registrado ni cualifica la procedencia del paquete base. Para el `main` de update-v262144 ya hay una medición estructural directa y una comparación acotada de candidatos nominales con cuatro auxiliares, enlazadas en el [informe P0 de módulos auxiliares y candidatos](../reports/function-progress/p0-update-aux-ghidra-inventory.md#five-module-candidate-probe). Ninguna demuestra relaciones runtime, resolución del loader, uso, ownership semántico ni cierre de inventario. La procedencia base-v0, los módulos no explorados, las dependencias reales y el contenido efectivo aún requieren reconciliación.
 - P1 cerró **solo** una muestra acotada y reproducible de 408 llamadas de caché. No acredita la función entera, su contexto de ejecución ni matching binario.
 - P2 cuenta con auditoría estática offline de rutas de control FP, no con observación del binding, hilo ni estado FP real en runtime. Por tanto P2 sigue pendiente.
 - Los parsers, referencias y operaciones numéricas del kernel marcados como `partial` siguen parciales. En la estrategia de port, `identified` describe una decisión registrada, no su implementación. En formatos, `identified` tampoco implica soporte de carga o render.
+- Preparación del `main` de update-v262144: el inventario fix2 localiza 153.476 funciones (96,55 % de los bytes del segmento ejecutable) y se exportaron todas (153.471 en C + 5 en ensamblador); el índice gameDB contiene 153.471 archivos y 153.470 funciones, con verificación de solo lectura en ocho tandas sin discrepancias. Esto es **pseudocódigo e índice disponibles**, no análisis, implementación ni cobertura; no promueve ningún estado ([informe](../reports/function-progress/update-main-full-pseudocode-export.md)). El bloqueo de P0 (apertura/clave y pin del base) permanece.
 - Las cifras y estados de este resumen se contrastan con las hojas canónicas indicadas abajo; no se promueve ningún estado por inferencia.
 
 ### Fuentes canónicas y cómo leerlas
