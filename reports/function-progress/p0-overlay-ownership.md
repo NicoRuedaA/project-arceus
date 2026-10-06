@@ -217,3 +217,44 @@ unknown ownership until a direct static edge or runtime access record exists.
 - `REPRODUCE.md` §§0, 4–5
 
 *End of report. Metadata and evidence references only.*
+
+## Superseding structural-parser addendum — 2026-10-06
+
+This addendum supersedes the earlier **0/466 internal comparison** statement
+above. It updates structural parser coverage only; **semantic ownership remains
+unknown for all 1,191/1,191 delta entries** (466 modified + 725 added), and no
+function-progress ledger state is promoted.
+
+- **Modified containers:** all 10/10 SARC files parsed on both sides; member
+  sets are unchanged and 51 member payload digests differ in aggregate. For
+  GFLXPACK, 4/10 files parsed on both sides with no record/member digest
+  differences; six remain rejected by bounded parser checks. Do not relax that
+  parser without format evidence. Overall, 14/466 modified entries have a
+  successful internal comparison; **452/466 still do not**.
+- **Message `.dat`/`.tbl`:** 376 changed plus 320 added files; 189 complete
+  base/update normalized pairs. Of 378 `.dat` parses, 378 succeeded; of 378
+  `.tbl` parses, 368 succeeded and 10 failed. Thus 179 pairs were fully
+  accepted and 10 were partial because `.tbl` was rejected. Structural
+  offsets/lengths/flags are not semantic interpretation.
+- **AHTB reinspection:** all ten `.tbl` rejections share `bad name length 276
+  at entry 26`, with a 103-byte extent overrun after 26 records. The parser
+  remains unchanged pending direct format evidence.
+- **Lua `.blua`:** 108 compile probes; 96 accepted and 12 rejected. All 108
+  headers were classified Lua 5.3. Chunks were compiled only, never called;
+  this is not semantic or runtime evidence.
+- **Event-progress `.bin`:** 39 changed plus 12 added files (90 attempts); 68
+  parser accepts and 22 unsupported. The parser has no magic signature, so
+  acceptance is structural only.
+- **Added-file hash matching:** 33/725 additions exactly match some base
+  payload; 692/725 have no exact match; 0/725 are unknown due to unreadable or
+  inconsistent inputs. A non-match does not prove newness, and a match does
+  not establish ownership or history.
+
+Evidence: [`p0-overlay-local-internal-audit.md`](p0-overlay-local-internal-audit.md),
+[`p0-message-table-overlay-audit.md`](p0-message-table-overlay-audit.md),
+[`p0-ahtb-overlay-reinspection.md`](p0-ahtb-overlay-reinspection.md),
+[`p0-gfpak-variant-followup.md`](p0-gfpak-variant-followup.md),
+[`p0-blua-overlay-compile-audit.md`](p0-blua-overlay-compile-audit.md), and
+[`p0-event-table-overlay-audit.md`](p0-event-table-overlay-audit.md). All
+results are bounded to these parser slices; they do not change the ownership
+unknown for the full delta.

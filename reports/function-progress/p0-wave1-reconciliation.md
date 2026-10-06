@@ -257,3 +257,63 @@ for the 725 additions, static file-to-code binding, and finally a
 build-qualified loader/runtime trace. None of those runtime requirements may
 be replaced by extraction, candidate name matches, export counts, or build
 success.
+
+## Superseding Wave 1/2 integration addendum — 2026-10-06
+
+This addendum corrects the old “0/466 internal” snapshot above with the
+structural parser results now available. It does **not** resolve semantic
+ownership: it remains unknown for **1,191/1,191** delta entries.
+
+- Internal structural comparisons succeeded for **14/466** modified entries:
+  10/10 SARC (no member-set change; 51 changed member payload digests in
+  aggregate) and 4/10 GFLXPACK (no record/member digest differences). Six
+  GFLXPACK files remain rejected; **452/466** modified entries still have no
+  successful internal comparison.
+- Message tables: 376 changed + 320 added `.dat`/`.tbl` files; 189 complete
+  base/update pairs, 179 fully parser-accepted and 10 partial. All 378 `.dat`
+  parses succeeded; 368/378 `.tbl` parses succeeded. Record offsets, lengths,
+  and flags are structural comparisons, not message semantics. The ten AHTB
+  failures share an out-of-bounds name length; parser rules remain unchanged.
+- Lua: 108 `.blua` compile probes, 96 accepted / 12 rejected, with all 108
+  headers classified Lua 5.3; chunks were not called. Event-progress: 39
+  changed + 12 added `.bin`, 68/90 accepted / 22 unsupported; the parser has
+  no magic signature. Both are bounded parser results, not semantics.
+- Hash provenance for additions: **33/725** exact base matches, **692/725** no
+  exact match, **0/725** unknown from unreadable/inconsistent input. No-match
+  is not proof of newness; neither result establishes ownership.
+- Main body complement remains exactly **1,830,644 bytes / 23,597 ranges**
+  (51,275,676/53,106,320 bytes in existing bodies). The successful retry is
+  authoritative for generic Ghidra listing/API aggregates: 1,789,328 defined
+  data units (all classified “other” by the generic classifier), 10,191
+  instructions (1,224 call / 1,397 jump / 7,570 other flow), and 20,627
+  operands in the “other or unspecified” API-flag category. These are listing
+  metadata, not semantic typing, instruction understanding, or reachability.
+  For 13,897 outside-body seeds, containing-unit lookup reports 77 in
+  instructions (308 bytes), 13,820 in defined data, and zero undefined or
+  unmapped. Reference totals remain 91 targets / 179 edges: CALL 8/11, JUMP
+  64/66 (conditionality combined), other flow 0/0, non-flow 19/102. The
+  failed initial triage remains historical; see the correction note in
+  [`p0-update-main-gap-semantic-triage.md`](p0-update-main-gap-semantic-triage.md)
+  and authoritative [`detail`](p0-update-main-gap-semantic-detail.md) /
+  [`successful retry`](p0-update-main-gap-semantic-retry.md).
+- The four auxiliary modules' exact existing-body unions and gaps are now
+  measured per module in [`p0-auxiliary-range-reconciliation.md`](p0-auxiliary-range-reconciliation.md).
+  Existing Ghidra entry IDs match the stored inventories, but completeness is
+  unknown; listing classes remain metadata only. C-export matches vary by
+  module, and denominators and gameDB index status remain unknown.
+- **NCA/ContentMeta:** no NCA header/signature verification was run; base
+  ContentMeta XML was parsed, expected update XML is absent, and the update
+  ContentMeta NCA remains opaque. Update CNMT semantics and counts are unknown.
+- **Runtime:** no launchable runtime, loader-ready NSP pair, or instrumentation
+  was available in the authorized checked locations, so no launch occurred.
+  The three `DT_NEEDED` entries and nine candidate name-overlap edges are
+  static only; loaded/reached status remains unknown, not a measured runtime
+  failure.
+
+P0 remains **open / En curso / In progress**. Next actions: semantic triage of
+the main listing gaps/candidates; complete the scope census; resolve NCA and
+ContentMeta prerequisites; obtain a qualified runtime and trace; extend
+format-specific overlay parsing/provenance; establish file-to-code ownership;
+and prepare/reconcile the complete export corpus before exactly one coordinated
+global gameDB index. No gameDB indexing was performed, and no function-progress
+ledger states were advanced.

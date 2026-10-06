@@ -32,7 +32,7 @@
 | [Kernel](../sheets/kernel.tsv) | 8 filas, todas `partial` | Parsers, referencias y semántica numérica no están cerrados. |
 | [Estrategia de port](../sheets/domain/port_strategy.tsv) | 19 decisiones `identified` | La decisión de port/reemplazo/stub/skip no demuestra implementación ni aceptación. |
 | [Formatos de assets](../sheets/domain/asset_formats.tsv) | 17 filas: 15 `identified`, 2 `partial` | Inventario y elección de loader; no cobertura de todos los contenidos. |
-| [Censo P0](../sheets/re/p0_scope_census.tsv) | 18 registros; cada registro conserva conocidos, desconocidos, evidencia y siguiente acción | Censo parcial de alcance/procedencia, no inventario total cerrado. |
+| [Censo P0](../sheets/re/p0_scope_census.tsv) | 19 registros; incluye un registro de integración Wave 1/2 que supersede métricas de gaps, parsers de overlay, prerrequisitos NCA/ContentMeta y viabilidad runtime | Censo parcial de alcance/procedencia, no inventario total cerrado ni prueba de completitud. |
 
 La diferencia entre `02-plan` y `03-impl` está localizada en `update_romfs` y
 `visual_subsystem`; no se deben igualar sus estados sin verificar primero que
@@ -115,6 +115,66 @@ Cada fila indica el estado real, la unidad siguiente, el artefacto de evidencia 
 **Siguiente acción P0 vigente (2026-10-06):** la reconciliación exacta de cuerpos y el triage read-only de referencias/listing para las 13.897 semillas ya están completados. La siguiente tarea es clasificar semánticamente los gaps listados como instrucciones/datos y evaluar los candidatos con evidencia independiente, manteniendo separados metadatos de listing, referencias, reachability y límites de función. No crear funciones ni promover cobertura por dirección de seed o xrefs solamente. Mantener abiertos los demás bloqueos enumerados arriba; P0 sigue **En curso**.
 
 **Corrección de evidencia y alcance de la siguiente acción (2026-10-06):** 13.820 de las 13.897 semillas están dentro de unidades de datos definidas, no indefinidas. La consulta errónea usó `getCodeUnitAt`; la correcta usó `Listing.getCodeUnitContaining(address)`. La siguiente acción vigente es triage semántico de los gaps de datos/instrucciones definidos y evaluación de validez de candidatos, no búsqueda de bytes indefinidos. La fila P0 de la tabla de fases debe leerse con esta corrección. La clase JUMP agregada es 64 objetivos/66 aristas con condicionalidad combinada; el desglose anterior de subtipos queda supersedido/no confirmado. Véase [evidencia correctiva](../reports/function-progress/p0-update-main-gap-flow-triage-correction.md). P0 sigue **En curso**; no se promueven estados del ledger y los demás bloqueos permanecen abiertos.
+
+### Superseding P0 integration update — 2026-10-06
+
+**P0 remains En curso / In progress.** This update supersedes earlier active
+next-action text above where it calls the corrected seed triage or all
+466 modified files' internal comparison still pending at 0/466. Do not promote
+any function-progress ledger states.
+
+- Update `main` has an exact existing-body union of **51,275,676/53,106,320
+  bytes**; the **1,830,644-byte / 23,597-range** complement remains outside all
+  existing bodies. Ghidra's repaired successful query reports listing/API
+  aggregates only: 1,789,328 defined data units / 1,789,880 bytes (all generic
+  classifier “other”); 10,191 instructions (1,224 call, 1,397 jump with
+  conditionality combined, 7,570 other flow); and 20,627 operands flagged
+  “other or unspecified”. For 13,897 outside-body seeds, 77 are contained in
+  instructions (308 bytes), 13,820 in defined data, and zero are undefined or
+  unmapped. Incoming references are 91 targets / 179 edges (CALL 8/11, JUMP
+  64/66, other flow 0/0, non-flow 19/102). None of these listing/API
+  categories proves semantic understanding, function validity, or reachability.
+  See the [successful retry](../reports/function-progress/p0-update-main-gap-semantic-retry.md)
+  and the [supersession note](../reports/function-progress/p0-update-main-gap-semantic-triage.md).
+- Auxiliary body unions and gaps are exact for the existing Ghidra detections;
+  stored inventory entry IDs match, but inventory completeness remains unknown.
+  Per module: `rtld` 5,220/6,240 bytes, gap 1,020/13 ranges; `sdk`
+  1,167,456/5,822,640, gap 4,655,184/11,529; `subsdk0` 1,746,372/3,445,104,
+  gap 1,698,732/2,268; `subsdk1` 5,016,388/6,298,960, gap 1,282,572/3,210.
+  Listing classes are metadata only. See the [range reconciliation](../reports/function-progress/p0-auxiliary-range-reconciliation.md).
+  Export denominators and gameDB index status are unknown; indexing remains
+  unrun pending complete export preparation and one coordinated global run.
+- Overlay arithmetic alone is **100%**: 19,095 effective entries =
+  17,904 unchanged / 466 modified / 725 added / 0 removed. Structural
+  comparisons succeeded for **14/466** modified entries (SARC 10/10,
+  GFLXPACK 4/10); **452/466** still lack a successful internal comparison.
+  Message-table results: 376 changed + 320 added files, 189 complete pairs,
+  179 fully accepted / 10 partial; all 378 `.dat` and 368/378 `.tbl` parses
+  succeeded. `.blua`: 96/108 compile-accepted, 12 rejected (all 108 headers
+  classified Lua 5.3; no chunks called). Event-progress `.bin`: 68/90 accepted,
+  22 unsupported; its parser has no magic signature. Ten AHTB rejects share an
+  out-of-bounds name length; six GFLXPACK rejects remain bounded parser failures.
+  Added hash matches are 33/725 exact base matches and 692/725 with no exact
+  match; non-matches do not prove newness. **Semantic ownership remains unknown
+  for 1,191/1,191 delta entries.** See the dated addenda in the
+  [overlay audit](../reports/function-progress/p0-overlay-ownership.md) and
+  [Wave 1 reconciliation](../reports/function-progress/p0-wave1-reconciliation.md).
+- **NCA/ContentMeta:** no NCA header/signature verification was run; base
+  ContentMeta XML parsed, expected update XML is absent, update ContentMeta NCA
+  remains opaque, and update CNMT semantics/count are unknown. **Runtime:** no
+  launchable runtime, loader-ready NSP pair, or instrumentation was available
+  in authorized checked locations; no launch occurred. Loaded/reached remains
+  unknown, not runtime failure. Three `DT_NEEDED` entries and nine candidate
+  name-overlap edges are static only.
+
+Current P0 work is semantic triage of listing gaps/candidates, complete scope
+census, NCA/ContentMeta prerequisites, qualified runtime preparation, further
+format-specific overlay parsing/provenance and direct file-to-code ownership,
+plus complete export preparation before global gameDB indexing. Use `—` for
+unqualified denominators. See [local NCA prerequisites](../reports/function-progress/p0-local-nca-prerequisite-audit.md),
+[runtime feasibility](../reports/function-progress/p0-local-runtime-feasibility.md),
+[auxiliary range reconciliation](../reports/function-progress/p0-auxiliary-range-reconciliation.md),
+and the current [census](../sheets/re/p0_scope_census.tsv).
 
 ## P1 — muestra de caché cerrada y acotada
 
