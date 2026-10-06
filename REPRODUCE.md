@@ -6,7 +6,10 @@ that proves each step.
 
 ## 0. Prerequisites
 
-- Your own copy of the game: `pk1.nsz` (base) and `pk2.nsz` (update).
+- Your own copy of the game: `pk1.nsz` (base) and `pk2.nsz` (update). The update
+  is a **patch**: it does not run on its own. The playable and portable game is
+  the **base + update overlay**; the update only ships a new `main` and the data
+  files it changes.
 - Your own `prod.keys` (from your console; **never** commit it).
 - Rust (1.98+), Python 3.13, `uv`, a JDK (for `unluac`), Ghidra 12.x.
 

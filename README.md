@@ -77,6 +77,27 @@ for update v262144 **main NSO only**, not whole-game completion, pseudocode
 readability or Rust line count. Partial implementations are conditional ports;
 whole-function behavioral verification and binary matching remain unknown.
 
+## The game: base + update
+
+The game ships in two parts:
+
+- **Base** (`pk1.nsz`, v0) — the complete title: every executable module
+  (`main`, `rtld`, `sdk`, `subsdk0`, `subsdk1`) and almost all data (the RomFS,
+  ~2.3 GB).
+- **Update** (`pk2.nsz`, v1.1.1 / v262144) — a **patch**, not a standalone
+  program. It carries a complete new `main` plus only the data files it changes
+  (an AesCtrEx/BKTR delta).
+
+**The update does not run on its own.** Playing v1.1.1 needs the base **and** the
+update; the running game is the **overlay of the two**, and the program code that
+executes is the update's `main`, which replaces the base's. The base is therefore
+**mandatory** — it supplies everything the update does not ship.
+
+**Port target:** the game as it runs with the update applied (the base + update
+overlay) — never "the update", which is not a program. The base's own `main` (v0)
+is an older build of the same program and is not ported; it is recorded for
+provenance only.
+
 ## Completion plan
 
 Phase-by-phase status from the raw game dumps to a playable port. Percentages are

@@ -22,3 +22,4 @@ Keep the **Completion plan** table in [`README.md`](README.md) updated as part o
 - Keep the two export metrics distinct: the share of a module's inventory exported versus the share of its executable bytes covered.
 - Base v0 `main` is out of scope for the port; record its state but never treat it as pending port work.
 - This table is not the evidence registry: exported or indexed counts are not analysis, behaviour or binary-match evidence (see above).
+- Never describe the update as a standalone program or as the port target. The game is **base + update**; the update is a **patch** that does not run on its own, and the base is mandatory. The port target is the base + update overlay.
