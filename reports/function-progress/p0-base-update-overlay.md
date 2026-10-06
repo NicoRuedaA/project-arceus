@@ -6,6 +6,15 @@ This is a metadata-only manifest. It contains paths, counts, sizes and hashes;
 it contains **no** game bytes, pseudocode, strings, keys, or asset payloads.
 It is deliberately read-only: the only repository artifact produced is this file.
 
+**Superseding status pointer (2026-10-06):** historical statements below that
+base-v0 provenance or update `main.npdm` disposition remain unresolved are
+superseded for those bounded facts by
+[`p0-base-v0-module-provenance.md`](p0-base-v0-module-provenance.md),
+[`p0-update-main-npdm-extraction.md`](p0-update-main-npdm-extraction.md), and
+[`p0-nca-npdm-analysis.md`](p0-nca-npdm-analysis.md). The overlay counts and
+historical limitations remain; NCA authenticity, ContentMeta semantics,
+runtime load/reachability and semantic ownership are not closed.
+
 The game is **base + update**. The update (`pk2.nsz`, v262144) is a **patch**: it
 does not run on its own. The effective, playable/portable content is the base
 container with the update's replacements and additions applied.

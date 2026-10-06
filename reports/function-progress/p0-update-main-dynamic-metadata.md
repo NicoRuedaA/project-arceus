@@ -2,6 +2,16 @@
 
 This bounded read-only probe records structural dynamic metadata from the original update-v262144 `main` NSO. It narrows one inventory gap; it does not close P0 or establish runtime dependencies.
 
+**Superseding status pointer (2026-10-06):** the historical statements below
+that base provenance or the effective overlay remain unresolved are superseded
+by [`p0-base-v0-module-provenance.md`](p0-base-v0-module-provenance.md) and
+[`p0-base-update-overlay.md`](p0-base-update-overlay.md). The separate current
+fix2 inventory/export denominator and its 3.44713% unlocated executable-byte
+residual are documented in
+[`p0-update-main-residual-export.md`](p0-update-main-residual-export.md).
+Structural counts still do not establish provider binding, runtime load/reach,
+semantics, or complete executable function boundaries.
+
 <a id="identity-and-structural-counts"></a>
 ## Identity and structural counts
 

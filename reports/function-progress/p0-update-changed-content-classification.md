@@ -4,6 +4,12 @@ Generated: 2026-10-06T10:46:06Z (UTC). Scope: Pokémon Legends: Arceus update
 v262144 (`pk2.nsz`, SHA-256 `f68eecf0…9e6446`), effective base+update RomFS overlay.
 Status: **classification heuristic; ownership and runtime use remain unknown.**
 
+**Superseding note (2026-10-06):** §3.1's old “360 added” prose is stale. The
+reconciled result is **336 mapped / 389 unmapped additions**, based only on
+heuristic string-path/SCC label matching. This does not establish semantic
+ownership or code-to-file references; see `p0-overlay-ownership.md` §4.3 and
+`p0-wave1-reconciliation.md` §“Count and path checks”.
+
 This is a **metadata-only** artifact. It records paths, counts, sizes, extensions,
 directory patterns and heuristic group labels. It contains **no** game bytes,
 pseudocode, strings, keys, or asset payloads. It was produced read-only from the
@@ -187,7 +193,7 @@ no RomFS top-level directory.
 | misc | 5 | 2 | **no** |
 | field | 0 | 4 | **no** |
 
-Mapped-by-name: 437 changed / 360 added. Unmapped: 29 changed / 389 added.
+Mapped-by-name: 437 changed / 336 added. Unmapped: 29 changed / 389 added.
 `sheets/re/p0_scope_census.tsv#subsystem_clusters` itself records grouping as
 "string-path/SCC heuristic evidence, not semantic ownership."
 

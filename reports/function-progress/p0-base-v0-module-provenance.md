@@ -5,6 +5,16 @@ base overlay). Method: read-only metadata, sizes and SHA-256 digests. This repor
 contains **no** game bytes, pseudocode, strings, keys or asset payloads, and it
 changes no function analysis, implementation, behaviour or binary-match state.
 
+**Superseding status pointer (2026-10-06):** this report's historical claims
+that base provenance and the base five-module structural inventory were open
+are superseded by this report's qualified identity evidence and
+[`p0-base-import-relocation-inventory.md`](p0-base-import-relocation-inventory.md).
+Current remaining gates include NCA signature/ContentMeta verification,
+provider binding, runtime load/reachability, semantics, and the explicit
+unlocated update-main executable-byte residual in
+[`p0-update-main-residual-export.md`](p0-update-main-residual-export.md).
+These citations do not establish runtime or semantic coverage.
+
 This closes the "base-v0 identity/provenance unknown" clause of the
 `rtld_modules` / `sdk_modules` / `subsdk0_modules` / `subsdk1_modules` census rows
 and of `base_main_identity`: each base module now has a version-qualified size,

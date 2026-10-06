@@ -16,9 +16,9 @@ from a versioned sheet book.
 
 | | |
 |---|---|
-| ✅ **Done** | Both dumps (base + update) acquired; every executable module and all RomFS data extracted, NSO-verified and version-qualified; the effective base+update overlay measured (17,904 / 466 / 725 / 0); the update `main` pseudocode exported (**96.55 %** of its bytes) and searchable in gameDB; the update auxiliary-module metadata and imports/relocations measured; RomFS data largely parsed (Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
+| ✅ **Done** | Both dumps (base + update) acquired; every executable module and all RomFS data extracted, NSO-verified and version-qualified; the effective base+update overlay measured (17,904 / 466 / 725 / 0); all 153,476 functions located by the fix2 `main` inventory have C or assembly exports; fix2 gameDB files and function rows are counted; auxiliary Ghidra detections and C exports are measured; the update auxiliary modules are byte-identical to base; RomFS data largely parsed (Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
 | 🟡 **In progress** | **P0 is not complete**: base structural import/relocation metadata is inventoried for the five named NSOs, while loader binding, provider identity, full module exploration, NCA header/signature verification, update ContentMeta semantics, file-level ownership and runtime dependency resolution remain open or blocked. The effective overlay has **466 modified + 725 added** entries; internal analysis is **0/466**, and semantic ownership is **unknown for 1,191/1,191**. Pseudocode is *not* understanding: analysis, port and verification of the game code are ~**0.03 %** done. |
-| ❌ **Missing** | P0's remaining semantic/function inventory work; the last **3.45 %** of the update `main` (needs emulator tracing); the remaining **0.1 %** of Lua/data coverage; behaviour verification and binary matching are **0 %**. |
+| ❌ **Missing** | **3.44713 %** (1,830,644 bytes) is outside existing update-`main` function bodies. Ghidra listing classifies 40,764 bytes as instructions and 1,789,880 as defined data; semantics, valid function boundaries and reachability remain unverified. Corrected read-only triage of 13,897 outside-body seeds found 77 addresses in defined instructions (308 bytes), 13,820 in defined data units (13,820 bytes), 0 undefined and 0 unmapped. Incoming references total 91 targets / 179 edges (CALL 8/11; JUMP class 64/66, conditionality combined; other flow 0/0; non-flow 19/102). Next: semantic triage of defined data/instruction gaps and candidate validity. Lua/data coverage has **0.1 %** remaining; behaviour verification and binary matching are **0 %**. Listing/reference metadata is not function-validity, reachability or semantic evidence. See [range reconciliation](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [gap classification](reports/function-progress/p0-update-main-gap-classification.md), [flow triage](reports/function-progress/p0-update-main-gap-flow-triage.md) and [correction evidence](reports/function-progress/p0-update-main-gap-flow-triage-correction.md). |
 
 The detailed, phase-by-phase breakdown is the [Completion plan](#completion-plan)
 below — the single status source. The canonical execution route and its evidence
@@ -57,17 +57,17 @@ estimates.
 | 1. Extract (P0) | Base: ExeFS + RomFS | 100 % | 0 % | | `.tools/` extraction pipeline; NSO parsing; SHA-256 and segment-hash checks |
 | | Update: `main` + data | 100 % | 0 % | | `.tools/` extraction pipeline; NCZ/ExeFS/RomFS manifests; hash checks |
 | | Update modules (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extracted + NSO-verified; byte-identical to the base's | NSO extraction plus byte/hash comparison against base modules |
-| 2. Inventory (P0) | `main` update | 100 % | 0 % | 153,476 functions | Ghidra export metadata, direct ELF/NSO metadata and gameDB inventory |
+| 2. Inventory (P0) | `main` update | — | — | 153,476 inventoried functions match the untouched Ghidra FunctionManager exactly; actual bodies have zero overlap and their union is 51,275,676 / 53,106,320 bytes (96.55287%). The complete valid-function denominator remains unknown; 1,830,644 bytes (3.44713%) are outside every existing body ([range reconciliation](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [gap classification](reports/function-progress/p0-update-main-gap-classification.md)) | Direct fix2 project body-range reconciliation and listing-state classification |
 | | `main` base | 100 % | 0 % | 68,412 functions; provenance qualified (15/15 NSO segment hashes) | Direct NSO metadata parser; module IDs, SHA-256 and segment-hash verification |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | detection counts + imports/relocations measured; full inventory/ownership unknown | Direct NSO ELF parser; import/relocation inventory; semantic inventory pending |
-| 3. Pseudocode export (prep) | `main` update | 96.55 % | 3.45 % | 100 % of its inventory; 96.55 % of its executable bytes | Ghidra export scripts; C/assembly fallback export; export parity checks |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | Ghidra detections: 27,750 candidates; complete function denominator unknown | Ghidra metadata detections; direct NSO import/relocation inventory; no completeness claim |
+| 3. Pseudocode export (prep) | `main` update | 96.55 % | 3.45 % | All 153,476 inventoried functions have outputs (153,471 C + 5 ASM); separately, the exact body union is 96.55287% of executable bytes, with 3.44713% outside existing bodies. Corrected `getCodeUnitContaining` query classifies the 13,897 outside-body seeds as 77 in defined instructions (308 bytes), 13,820 in defined data (13,820 bytes), 0 undefined and 0 unmapped; 91 targets / 179 incoming edges (CALL 8/11; JUMP class 64/66, conditionality combined; other flow 0/0; non-flow 19/102). Listing/reference metadata does not establish semantics, reachability, function boundaries or function existence. The prior `getCodeUnitAt` result misclassified inside-unit addresses as undefined; the earlier jump subtype split is superseded/unconfirmed. Next: independently triage the semantic purpose of defined data/instruction gaps and candidate validity ([residual audit](reports/function-progress/p0-update-main-residual-export.md), [ranges](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [gap classification](reports/function-progress/p0-update-main-gap-classification.md), [flow triage](reports/function-progress/p0-update-main-gap-flow-triage.md), [correction evidence](reports/function-progress/p0-update-main-gap-flow-triage-correction.md)) | Fix2 Ghidra inventory/export; C/ASM fallback; direct body-range reconciliation and listing-state/reference-metadata triage |
 | | `main` base | 5.8 % | 94.2 % | 3,997 of 68,412 | Ghidra export pipeline; bounded by the current base inventory |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | | Not completed; no pseudocode export evidence yet |
-| 4. Index (gameDB) (prep) | `main` update | ~100 % | ~0 % | 153,471 files; the 5 asm fallbacks are outside the index | gameDB SQLite index; read-only indexed-vs-export parity checks |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | 20,327 C exports / 7,902,740 summed body bytes; 50.75% of 15,572,944 `.text` bytes is a measured body-size ratio, not coverage; complete function denominator unknown ([report](reports/function-progress/p0-auxiliary-module-export-inventory.md)) | Ghidra 12.1.2 C pseudocode export; body-size aggregation; not a coverage percentage |
+| 4. Index (gameDB) (prep) | `main` update | ~100 % | ~0 % | 153,471 C files indexed / 153,471 C exports; 153,470 function rows (one C file has no parsed function row); 5 asm fallbacks outside index | gameDB SQLite index; read-only indexed-vs-export parity checks |
 | | `main` base | 5.8 % | 94.2 % | 3,997 (bounded by export) | gameDB index bounded by the base pseudocode export |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | | Not indexed; no gameDB coverage evidence yet |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | Index completion/coverage denominator unknown | No auxiliary index completion measurement in current evidence |
 | 5. Data (RomFS) (P0) | Lua scripts | 99.9 % | 0.1 % | 799 of 800 | RomFS extraction; Lua parsing and per-file validation |
-| | Effective base + update overlay | 100 % | 0 % | 19,095 virtual entries: 17,904 unchanged / 466 modified / 725 added / 0 removed | Base+update manifest; path/content comparison; overlay census |
+| | Effective base + update overlay | 100 % | 0 % | Overlay arithmetic only: 19,095 virtual entries (17,904 unchanged / 466 modified / 725 added / 0 removed); internal analysis 0/466 modified; semantic ownership unknown for 1,191/1,191 delta entries; added-path labels 336 mapped / 389 unmapped are heuristic, not ownership | Hash-verified base+update manifest; path/size/hash comparison; heuristic path/SCC labels; no internal-container diff yet ([overlay audit](reports/function-progress/p0-overlay-ownership.md)) |
 | | SARC packages | — | — | 264 indexed, no total | SARC parser/indexer; total denominator not established |
 | | Strings / references | — | — | 13,370 + 29,162, no total | Extraction/reference scanners; total denominator not established |
 | | Domain tables | — | — | 12 sheets, no total | TSV/sheet ingestion and `sheetty` preflight |
@@ -93,13 +93,35 @@ with the update applied (the base + update overlay), never the update alone.
 
 Phases 1–5 describe *having* the code and data; phases 6–9 describe
 *understanding and porting* it and hold ~99.97 % of the remaining work. The
-68,330 denominator in phases 6–7 is the earlier capped inventory; the fix2
-export is a larger, more complete inventory of the same update `main`.
+68,330 denominator in phases 6–7 is the earlier capped inventory. The untouched
+fix2 project directly confirms all 153,476 inventory entries, with zero body
+overlap and an exact 51,275,676-byte union (96.55287%). The remaining
+1,830,644/53,106,320 bytes (3.44713%) are outside all existing function bodies;
+listing state classifies 40,764 bytes as instructions and 1,789,880 as defined
+data, without establishing semantics, valid new functions or reachability. Every inventoried
+function has an output (153,471 C + 5 ASM); C-body sum is 96.47728% and
+assembly-body sum is 0.07559% of executable bytes. A seed-format attempt yielded
+zero additional exports. Its +1,425 manager-count discrepancy is specific to
+the exploratory clone and remains unexplained by identity; it does not affect
+the untouched source reconciliation. **Triage update (2026-10-06):** read-only reference/listing triage of
+13,897 outside-body seeds was corrected after identifying a query bug: the prior
+`getCodeUnitAt` exact-start lookup missed addresses inside defined units. Using
+`Listing.getCodeUnitContaining(address)`, 77 seeds fall in defined instructions
+(308 bytes), 13,820 in defined data units (13,820 bytes), and 0 are undefined or
+unmapped. Incoming references are 91 targets / 179 edges: CALL 8/11, JUMP class
+64/66 (conditionality combined), other flow 0/0, non-flow 19/102. The prior
+fine jump subtype split is superseded/unconfirmed. These listing/reference records
+do not establish semantics, reachability, function boundaries or function
+validity. The next task is semantic triage of defined data/instruction gaps and
+candidate validity. See the [correction evidence](reports/function-progress/p0-update-main-gap-flow-triage-correction.md).
 
 The update's auxiliary modules (`rtld`, `sdk`, `subsdk0/1`) are extracted,
 NSO-verified and byte-identical to the base's, with original-NSO structural
-metadata and imports/relocations measured; what remains for them is complete
-function inventory, semantic analysis and runtime binding, not extraction. **P0
+metadata and imports/relocations measured. Ghidra detected 27,750 candidates
+and exported 20,327 C bodies totaling 7,902,740 bytes; the 50.75% ratio against
+`.text` is summed body size, not coverage. Complete function denominators and
+function-boundary reconciliation are unknown. Auxiliary index completion is
+also unknown. **P0
 remains in progress**: the base structural inventory is evidenced, but loader
 binding/provider identity, complete semantic coverage, NCA header/signature
 verification, update ContentMeta semantics, file-level ownership and runtime
@@ -109,7 +131,7 @@ entries have internal analysis, and semantic ownership is unknown for
 **1,191/1,191** entries. Static dependency evidence records **3 `DT_NEEDED`**
 entries for update `main`; loaded and reached status remain unknown.
 
-Current P0 evidence is reconciled in [`p0-wave1-reconciliation.md`](reports/function-progress/p0-wave1-reconciliation.md), with the direct base inventory, NCA/NPDM analysis, overlay ownership audit and static-only runtime dependency report linked there. The current subsystem-label split for added files is **336 mapped / 389 unmapped**; the older 360 figure is historical stale wording, not current state.
+Current P0 evidence is reconciled in [`p0-wave1-reconciliation.md`](reports/function-progress/p0-wave1-reconciliation.md), with direct base inventory, NCA/NPDM analysis, overlay ownership audit, static-only runtime dependency report and current export evidence linked there. The current subsystem-label split for added files is **336 mapped / 389 unmapped**; these are heuristic/path matches, not semantic ownership. The older 360 figure is stale historical wording.
 
 ## What is here
 

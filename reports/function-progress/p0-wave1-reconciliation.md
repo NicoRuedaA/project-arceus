@@ -8,7 +8,7 @@ plan edit was performed.
 
 ## Status at a glance
 
-- **Closed bounded evidence claims:** 6.
+- **Closed bounded evidence claims:** 5 (C1–C5 below).
 - **Still-open P0 residual categories:** 10.
 - **P0 closure:** **not achieved**. The closed claims are static and scoped; they
   do not establish loader binding, runtime reachability, semantic ownership,
@@ -17,6 +17,14 @@ plan edit was performed.
   coverage percentages and not a replacement for the evidence ledger.
 
 ## Input artifacts
+
+**Superseding evidence note (2026-10-06):** current update-`main` export and
+auxiliary-module detection/export measurements are recorded in
+[`p0-update-main-residual-export.md`](p0-update-main-residual-export.md) and
+[`p0-auxiliary-module-export-inventory.md`](p0-auxiliary-module-export-inventory.md).
+They do not add a closed claim here or close O2/O3: the 3.44713% update-main
+executable-byte residual is outside the fix2 Ghidra function inventory, while
+auxiliary function denominators remain unknown. P0 stays open.
 
 ### Required Wave 1 reports
 

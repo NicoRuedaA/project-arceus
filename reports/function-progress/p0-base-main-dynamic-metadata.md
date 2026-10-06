@@ -2,6 +2,13 @@
 
 This bounded, read-only probe records the dynamic metadata of the **base v0 `main`** NSO of Pokémon Legends: Arceus and compares it against the update-v262144 `main`. It closes the remaining base-`main` dynamic-metadata gap for the module inventory. It does not close P0, does not establish runtime dependencies, and does not resolve the base-v0 provenance or the effective base+update overlay. No game bytes, pseudocode, symbol names, strings, symbol values, addresses, or keys are retained.
 
+**Superseding status pointer (2026-10-06):** the clause above saying base-v0
+provenance and the effective overlay are unresolved is historical and superseded
+by [`p0-base-v0-module-provenance.md`](p0-base-v0-module-provenance.md) and
+[`p0-base-update-overlay.md`](p0-base-update-overlay.md). This structural probe
+still does not establish NCA authenticity, provider binding, runtime loading or
+reachability, semantic ownership, or complete function coverage.
+
 <a id="identity-and-method"></a>
 ## Identity and method
 
