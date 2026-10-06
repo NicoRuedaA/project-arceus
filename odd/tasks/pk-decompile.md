@@ -12,6 +12,10 @@ portable, provenance-tracked knowledge (sheets) and a Rust/Bevy port reference.
   unknown-format BNTX files, the field system, `tr*` models/animations.
 - Last update: 2026-10-03
 - Owner: nico (user-invoked decompilation)
+- Location (2026-10-06): the workspace moved to `/home/nico/work/decompilacion`
+  and all local extraction/analysis data was centralized under the git-ignored
+  `work/` directory (`work/pla/…`, `work/suyu-…`). Absolute paths below that say
+  `/mnt/dev/decompilacion` or `/home/nico/work/pla` predate this move.
 - Memory mirror: `odd/pk-decompile/tasks` — **BLOCKED**: local Engram binary is
   older than v2.0.0-rc.11 (`instance-id` unsupported). This file is the source
   of truth until Engram is upgraded.

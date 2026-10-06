@@ -101,3 +101,62 @@ analysis. Their bodies cover 19,017,816 of the 53,106,320 executable bytes of
 outside them. See
 [`reports/suyu/update-v262144-feasibility.md`](../suyu/update-v262144-feasibility.md#static-aot-source-export-and-coverage-comparison-2026-10-05-dec117).
 The percentages above are of the inventory, not of all code in `main`.
+
+## Update 2026-10-06 — fix2 inventory export and gameDB index (localized)
+
+The repository moved to `/home/nico/work/decompilacion` and every heavy artifact
+was centralized under the git-ignored `<repo>/work/` directory. The capped
+inventory above was superseded by the fix2 Ghidra project (`PLA-update-fix2`),
+whose inventory is 153,476 located functions.
+
+### Coverage — update-main NSO, denominator 53,106,320 executable bytes
+
+| Dimension | Functions | Bytes | Bytes % |
+|---|---:|---:|---:|
+| Located (inventory TSV) | 153,476 | 51,275,676 | 96.55287 % |
+| Exported to C | 153,471 | 51,235,532 | 96.47728 % |
+| Assembly fallback (decompiler rejects) | 5 | 40,144 | 0.07559 % |
+| Not located | — | 1,830,644 | 3.44713 % |
+
+The 5 assembly fallbacks are `0008baa8`, `000a713c`, `000a9b84`, `02ee6a54`,
+`02eea158`. The earlier 42 parallel-export failures were recovered: 37 on a
+600 s retry, the remaining 5 as disassembly.
+
+### gameDB index
+
+`gamedb index -r work/pla/decompiled-fix2 --force` (gamedb 1.0.0):
+
+| Dimension | Value |
+|---|---:|
+| Files indexed | 153,471 |
+| Function rows | 153,470 |
+| Symbols | 153,470 |
+| Strings | 61,082 |
+| Edges | 49,098,547 |
+| failed / skipped | 0 / 0 |
+| Files without a function row | 1 |
+| Wall time | 1,753 s |
+
+`.s` is not in gamedb's `SRC_EXT`, so the 5 assembly fallbacks are outside the
+index. The single unparsed file is `FUN_02e197b4`: its one-line
+pointer-to-array return type (`undefined1 (*) [12] FUN_x(...)`) is not fixed.
+
+### Verification
+
+Eight independent read-only batches (one per address octile) re-derived file and
+function counts from disk and from the database. Every range matched (0 missing,
+0 extra, 0 duplicate paths, 0 files with more than one function) and 25/25
+sampled bodies per batch read back non-empty — 200 samples in total. The only
+irregularity is the single unparsed file above.
+
+### Local paths
+
+- Inventory: `re/exports/update-main-fix2/functions.tsv`
+- Pseudocode: `work/pla/decompiled-fix2/update-main/`
+- Assembly fallbacks: `work/pla/decompiled-fix2-asm/`
+- Index: `work/pla/decompiled-fix2/.gamedb/index.sqlite`
+
+These figures describe **export and indexing only**. They are not analysis,
+implementation, behavior or binary-match evidence: the states in
+[`update-v262144-evidence-audit.md`](update-v262144-evidence-audit.md) are
+unchanged by this work, by `AGENTS.md`.

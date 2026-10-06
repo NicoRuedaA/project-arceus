@@ -119,6 +119,12 @@ cargo build --manifest-path gamedb/Cargo.toml --release   # gamedb submodule
 ./gamedb/target/release/gamedb stats  -r decompiled
 ```
 
+Local working data is centralized in the git-ignored `work/` directory at the
+repository root (game content is never tracked). For the update-main fix2
+inventory (153,476 located functions), export and index there instead:
+`./gamedb/target/release/gamedb index -r work/pla/decompiled-fix2 --force`.
+See [`reports/function-progress/update-main-full-pseudocode-export.md`](reports/function-progress/update-main-full-pseudocode-export.md).
+
 The evidence sheets (`sheets/re/functions.tsv`, `callgraph.tsv`, `triage.tsv`,
 `structs.tsv`, `fields.tsv`) are committed; `sheets/re/strings.tsv` is **not**
 (it contains game text).
