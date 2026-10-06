@@ -1,5 +1,7 @@
 # Pokémon Legends: Arceus — reverse-engineering workspace & Rust/Bevy port
 
+**English** · [Español](README.es.md)
+
 A **The Spreadsheet Method** workspace for reverse-engineering a legally owned
 copy of *Pokémon Legends: Arceus* (Nintendo Switch) and driving a Rust/Bevy port
 from a versioned sheet book.
