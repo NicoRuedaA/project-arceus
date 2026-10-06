@@ -18,7 +18,7 @@ from a versioned sheet book.
 |---|---|
 | ✅ **Done** | Both dumps (base + update) acquired; all executable code and RomFS data extracted; the update `main` pseudocode exported (**96.55 %** of its bytes) and searchable in gameDB; RomFS data largely parsed (Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
 | 🟡 **In progress** | Pseudocode is *not* understanding: analysis, port and verification of the game code are ~**0.03 %** done. The base `main` export is partial (**5.8 %**). |
-| ❌ **Missing** | Base-package→module provenance and the update's `main.npdm`; the contents inside the 466 changed containers; the last **3.45 %** of the update `main` (needs emulator tracing); behaviour verification and binary matching are **0 %**. |
+| ❌ **Missing** | Base module imports/relocations and NCA-header decode; the update's `main.npdm`; file-level ownership of the changed/added data; the last **3.45 %** of the update `main` (needs emulator tracing); behaviour verification and binary matching are **0 %**. |
 
 The detailed, phase-by-phase breakdown is the [Completion plan](#completion-plan)
 below — the single status source. The canonical execution route and its evidence
