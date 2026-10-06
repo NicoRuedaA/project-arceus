@@ -127,3 +127,49 @@ The empty database was **not removed**, and the index was **not retried**. The
 single-invocation limit remains in force unless the user or coordinator
 explicitly reauthorizes another invocation. No additional gameDB command,
 Ghidra process, commit, or push was performed for this addendum.
+
+## Addendum — 2026-10-06 explicitly reauthorized retry
+
+The user explicitly reauthorized one retry. Immediately before launch, the
+staged corpus was re-counted at **177,795 `.c` files** and **541,955,820 bytes**;
+all six module file/byte totals matched the paired source/stage verification.
+The existing `.gamedb/index.sqlite` was present and `gamedb stats` confirmed
+**files=0**. The trusted paired fingerprint remained
+`fadb16a7b38a2def0bb352d855272c0076c578720b3900a2401f5564a84d2b59`; the
+earlier staged-only `b280...` value was not used as a gate.
+
+Exactly one global index process was launched, with no module-parallel indexing:
+
+```sh
+gamedb index -r /home/nico/work/decompilacion/work/p0-global-gamedb-corpus-20261006 --rules derive
+```
+
+The invocation **completed with exit code 0**. Its full output was redirected to
+the new ignored log
+`work/p0-global-gamedb-corpus-20261006/.gamedb-index-retry.log`; the prior log
+was left untouched. Total attempted `gamedb index` commands across the canceled
+prior attempt and this retry: **2**. This task's exact index invocation/process
+count: **1**; no index process remained during postchecks.
+
+Read-only postchecks reported:
+
+| Derived module | Files | Parsed function rows | C files without parsed function rows |
+|---|---:|---:|---:|
+| `ns.base.v0.main` | 3,997 | 3,917 | 80 |
+| `ns.update.v262144.main` | 153,471 | 152,634 | 837 |
+| `ns.aux.rtld` | 31 | 31 | 0 |
+| `ns.aux.sdk` | 9,063 | 9,002 | 61 |
+| `ns.aux.subsdk0` | 2,959 | 2,901 | 58 |
+| `ns.aux.subsdk1` | 8,274 | 8,182 | 92 |
+| **Total** | **177,795** | **176,667** | **1,128** |
+
+`gamedb stats` table counts: **files=177,795; functions=176,667;
+strings=83,373; symbols=176,667; edges=48,991,899**. `gamedb modules --rules
+derive` returned the six module buckets above, and `gamedb selftest` passed
+**87/87**. No corpus count, byte-total, module-count, or selftest discrepancy
+was found. The **1,128** files without parsed function rows are parser/index
+results, not proof that source files are semantically empty. These counts cover
+only the available exports in the six staged roots; they are not whole-game,
+semantic-analysis, behavior-verification, or port-completion coverage. No
+canonical README/plan/census, evidence ledger, Ghidra output, or Git history was
+changed.

@@ -18,7 +18,7 @@ For Pokémon Legends: Arceus update v262144 (`pk2.nsz`, SHA-256 `f68eecf0e5a207f
 Keep the **Completion plan** table in [`README.md`](README.md) updated as part of every task. It is the single human-readable status source from the raw game dumps to a playable port, broken down per part (`main` update, `main` base, `sdk`, `subsdk0`, `subsdk1`, `rtld`, RomFS data, Rust port).
 
 - Update the affected rows when a phase advances: extract, inventory, export, index, data, analysis, implementation, behaviour verification, binary matching, playable port.
-- Count percentages from real files and functions. Use `—` when a denominator is unknown; never invent one. Mark qualitative estimates with `~`.
+- Count percentages from real files and functions. Use `Unknown` in English and `Desconocido` in Spanish when a denominator is unknown; never invent one. Reserve `N/A` / `No aplica` for table parts that do not apply. Mark qualitative estimates with `~`.
 - Keep the two export metrics distinct: the share of a module's inventory exported versus the share of its executable bytes covered.
 - Base v0 `main` is out of scope for the port; record its state but never treat it as pending port work.
 - This table is not the evidence registry: exported or indexed counts are not analysis, behaviour or binary-match evidence (see above).
