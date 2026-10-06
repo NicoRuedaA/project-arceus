@@ -16,9 +16,9 @@ Rust/Bevy desde un libro de hojas versionado.
 
 | | |
 |---|---|
-| ✅ **Hecho** | Ambos volcados (base + update) obtenidos; todos los módulos ejecutables y los datos del RomFS extraídos, verificados (NSO) y cualificados por versión; el overlay efectivo base + update medido (17.904 / 466 / 725 / 0); el pseudocódigo del `main` del update exportado (**96,55 %** de sus bytes) y consultable en gameDB; datos del RomFS mayormente interpretados (Lua 799/800, tablas, textos); imports/relocations de los módulos inventariados; un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
-| 🟡 **En curso** | El pseudocódigo no es comprensión: el análisis, el port y la verificación del código del juego están ~**0,03 %** hechos. El export del `main` de la base es parcial (**5,8 %**). |
-| ❌ **Falta** | La decodificación de cabecera NCA; la propiedad a nivel de archivo de los datos cambiados/añadidos; la resolución runtime de dependencias; el último **3,45 %** del `main` del update (requiere trazado en emulador); la verificación de comportamiento y el *binary matching* están al **0 %**. |
+| ✅ **Hecho** | Ambos volcados (base + update) obtenidos; todos los módulos ejecutables y los datos del RomFS extraídos, verificados (NSO) y cualificados por versión; el overlay efectivo base + update medido (17.904 / 466 / 725 / 0); el pseudocódigo del `main` del update exportado (**96,55 %** de sus bytes) y consultable en gameDB; los metadatos e imports/relocations de los módulos auxiliares del update medidos; datos del RomFS mayormente interpretados (Lua 799/800, tablas, textos); un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
+| 🟡 **En curso** | **P0 no está completo**: los metadatos estructurales de imports/relocations de los cinco NSO base están inventariados, mientras siguen abiertos o bloqueados el binding del loader, la identidad de proveedores, la exploración completa de módulos, la verificación de cabecera/firma NCA, la semántica del ContentMeta del update, la propiedad por archivo y la resolución runtime de dependencias. El overlay efectivo tiene **466 modificados + 725 añadidos**; el análisis interno es **0/466** y la propiedad semántica es **desconocida para 1.191/1.191**. El pseudocódigo no es comprensión: el análisis, el port y la verificación del código del juego están ~**0,03 %** hechos. |
+| ❌ **Falta** | El trabajo restante de inventario semántico/funcional de P0; el último **3,45 %** del `main` del update (requiere trazado en emulador); el **0,1 %** restante de cobertura Lua/datos; la verificación de comportamiento y el *binary matching* están al **0 %**. |
 
 El desglose detallado por fases es la [Tabla de cierre](#tabla-de-cierre) — la
 única fuente de estado. La ruta canónica de ejecución y sus puertas de evidencia
@@ -52,36 +52,36 @@ Los porcentajes se cuentan de archivos y funciones reales; `—` significa que n
 hay denominador conocido (no se ha medido, así que no se inventa un porcentaje) y
 `~` marca estimaciones cualitativas.
 
-| Fase (PLAN.md) | Parte | % hecho | % restante | Nota |
-|---|---|:--:|:--:|---|
-| 1. Extraer (P0) | Base: ExeFS + RomFS | 100 % | 0 % | |
-| | Update: `main` + datos | 100 % | 0 % | |
-| | Módulos del update (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extraídos + verificados (NSO); idénticos byte a byte a los de la base |
-| 2. Inventario (P0) | `main` update | 100 % | 0 % | 153.476 funciones |
-| | `main` base | 100 % | 0 % | 68.412 funciones; procedencia cualificada (15/15 hashes de segmento NSO) |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | recuentos de detección + imports/relocations medidos; inventario completo/propiedad desconocidos |
-| 3. Export de pseudocódigo (prep) | `main` update | 96,55 % | 3,45 % | 100 % de su inventario; 96,55 % de sus bytes ejecutables |
-| | `main` base | 5,8 % | 94,2 % | 3.997 de 68.412 |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
-| 4. Índice (gameDB) (prep) | `main` update | ~100 % | ~0 % | 153.471 archivos; los 5 en ensamblador quedan fuera del índice |
-| | `main` base | 5,8 % | 94,2 % | 3.997 (limitado por el export) |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
-| 5. Datos (RomFS) (P0) | Scripts Lua | 99,9 % | 0,1 % | 799 de 800 |
-| | Archivos del update | 100 % | 0 % | 19.095 extraídos (solo del update) |
-| | Paquetes SARC | — | — | 264 indexados, sin total |
-| | Textos / referencias | — | — | 13.370 + 29.162, sin total |
-| | Tablas de dominio | — | — | 12 hojas, sin total |
-| | Datos de la base | — | — | extraídos, sin índice claro |
-| 6. Análisis (P2–P7) | Código del juego | 0,03 % | 99,97 % | 22 de 68.330 |
-| 7. Implementación (P3–P7) | Port en Rust | 0,01 % | 99,99 % | 8 parciales |
-| 8. Verificación de comportamiento (P3–P7, P9) | — | 0 % | 100 % | 0 funciones |
-| 9. Binary matching (P8–P9) | — | 0 % | 100 % | 0 funciones |
-| 10. Port jugable (P6–P7 → P9) | Parsers de contenedores (SARC, GFLXPACK, AHTB, BNTX, VFXB) | ~90 % | ~10 % | pendientes ASTC y formatos BNTX desconocidos |
-| | Capa Lua 5.3 | 100 % | 0 % | ejecuta scripts de evento reales |
-| | Enlaces al sistema (*host bindings*) | ~10 % | ~90 % | 2 reales, el resto stubs |
-| | Sistema de guardado | ~30 % | ~70 % | sembrado con 450 flags de evento |
-| | Subsistema visual | ~40 % | ~60 % | solo a nivel de assets; sin render completo |
-| | Modelos/animaciones `tr*`, ASTC, Havok→avian3d | 0 % | 100 % | pendiente |
+| Fase (PLAN.md) | Parte | % hecho | % restante | Nota | Métodos / herramientas |
+|---|---|:--:|:--:|---|---|
+| 1. Extraer (P0) | Base: ExeFS + RomFS | 100 % | 0 % | | Pipeline de extracción `.tools`; parseo NSO; comprobaciones SHA-256 y hashes de segmentos |
+| | Update: `main` + datos | 100 % | 0 % | | Pipeline `.tools`; manifiestos NCZ/ExeFS/RomFS; comprobaciones de hashes |
+| | Módulos del update (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extraídos + verificados (NSO); idénticos byte a byte a los de la base | Extracción NSO y comparación byte/hash con los módulos base |
+| 2. Inventario (P0) | `main` update | 100 % | 0 % | 153.476 funciones | Metadatos exportados por Ghidra, metadatos ELF/NSO directos e inventario gameDB |
+| | `main` base | 100 % | 0 % | 68.412 funciones; procedencia cualificada (15/15 hashes de segmento NSO) | Parser directo de metadatos NSO; module ID, SHA-256 y hashes de segmentos |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | recuentos de detección + imports/relocations medidos; inventario completo/propiedad desconocidos | Parser ELF directo de NSO; inventario de imports/relocations; inventario semántico pendiente |
+| 3. Export de pseudocódigo (prep) | `main` update | 96,55 % | 3,45 % | 100 % de su inventario; 96,55 % de sus bytes ejecutables | Scripts de export de Ghidra; fallback C/ensamblador; comprobaciones de paridad |
+| | `main` base | 5,8 % | 94,2 % | 3.997 de 68.412 | Pipeline de export de Ghidra; limitado por el inventario base actual |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | | No completado; no hay evidencia de export de pseudocódigo |
+| 4. Índice (gameDB) (prep) | `main` update | ~100 % | ~0 % | 153.471 archivos; los 5 en ensamblador quedan fuera del índice | Índice SQLite de gameDB; comprobaciones de paridad solo lectura |
+| | `main` base | 5,8 % | 94,2 % | 3.997 (limitado por el export) | Índice gameDB limitado por el export de pseudocódigo base |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | | No indexado; no hay evidencia de cobertura gameDB |
+| 5. Datos (RomFS) (P0) | Scripts Lua | 99,9 % | 0,1 % | 799 de 800 | Extracción RomFS; parseo Lua y validación por archivo |
+| | Overlay efectivo base + update | 100 % | 0 % | 19.095 entradas virtuales: 17.904 sin cambios / 466 modificadas / 725 añadidas / 0 eliminadas | Manifiesto base+update; comparación de rutas/contenido; censo del overlay |
+| | Paquetes SARC | — | — | 264 indexados, sin total | Parser/indexador SARC; denominador total no establecido |
+| | Textos / referencias | — | — | 13.370 + 29.162, sin total | Scanners de extracción/referencias; denominador total no establecido |
+| | Tablas de dominio | — | — | 12 hojas, sin total | Ingesta TSV/hojas y preflight `sheetty` |
+| | Datos de la base | — | — | extraídos, sin índice claro | Extracción RomFS; índice completo de datos base pendiente |
+| 6. Análisis (P2–P7) | Código del juego | 0,03 % | 99,97 % | 22 de 68.330 (vista histórica limitada) | Evidencia directa de decompilación y ledger de progreso; análisis amplio pendiente |
+| 7. Implementación (P3–P7) | Port en Rust | 0,01 % | 99,99 % | 8 parciales | Implementación Rust/Bevy, fixtures acotados y comprobaciones CI |
+| 8. Verificación de comportamiento (P3–P7, P9) | — | 0 % | 100 % | 0 funciones | No hay verificación conductual independiente completada |
+| 9. Binary matching (P8–P9) | — | 0 % | 100 % | 0 funciones | No hay ejecución reproducible de binary matching completada |
+| 10. Port jugable (P6–P7 → P9) | Parsers de contenedores (SARC, GFLXPACK, AHTB, BNTX, VFXB) | ~90 % | ~10 % | pendientes ASTC y formatos BNTX desconocidos | Parsers Rust, fixtures y tests focalizados de parsing |
+| | Capa Lua 5.3 | 100 % | 0 % | ejecuta scripts de evento reales | Host Lua 5.3 en Rust y fixtures de scripts de evento |
+| | Enlaces al sistema (*host bindings*) | ~10 % | ~90 % | 2 reales, el resto stubs | Bindings Rust/Bevy, trazas de eventos y stubs |
+| | Sistema de guardado | ~30 % | ~70 % | sembrado con 450 flags de evento | Modelo de estado Rust y fixtures de flags de evento |
+| | Subsistema visual | ~40 % | ~60 % | solo a nivel de assets; sin render completo | Decodificador BNTX, ruta Bevy imagen/sprite y tests headless |
+| | Modelos/animaciones `tr*`, ASTC, Havok→avian3d | 0 % | 100 % | pendiente | No completado; no hay evidencia de implementación |
 
 Esta tabla inventaría *lo que existe* en cada tramo de
 [`odd/PLAN.md`](odd/PLAN.md); ese plan es la ruta canónica de ejecución y fija el
@@ -98,12 +98,25 @@ denominador 68.330 de las fases 6–7 es el inventario limitado anterior; el exp
 fix2 es un inventario mayor y más completo del mismo `main` del update.
 
 Los módulos auxiliares del update (`rtld`, `sdk`, `subsdk0/1`) están extraídos,
-verificados (NSO) e idénticos byte a byte a los de la base, con sus
-imports/relocations inventariados; lo que queda para ellos es el export/índice de
-pseudocódigo (y el análisis), no la extracción. **P0** (alcance, procedencia y
-overlay efectivo base + update) está **cerrado**; los pendientes documentados son
-la decodificación de cabecera NCA, la propiedad del dato por archivo y la
-resolución runtime de dependencias.
+verificados (NSO) e idénticos byte a byte a los de la base, con metadatos
+estructurales e imports/relocations de los NSO originales medidos; lo que queda
+para ellos es el inventario funcional completo, el análisis semántico y el
+binding runtime, no la extracción. **P0 sigue en curso**: el inventario
+estructural base está evidenciado, pero continúan abiertos o bloqueados el
+binding/identidad de proveedores, la cobertura semántica completa, la
+verificación de cabecera/firma NCA, la semántica del ContentMeta del update, la
+propiedad por archivo y la resolución runtime. La auditoría de ownership del
+overlay es solo clasificación externa: **466 modificados + 725 añadidos**, **0/466**
+con análisis interno y ownership semántico desconocido para **1.191/1.191**.
+La evidencia estática registra **3 `DT_NEEDED`** para `main` del update; los
+estados cargado y alcanzado siguen desconocidos.
+
+La evidencia P0 vigente está reconciliada en
+[`p0-wave1-reconciliation.md`](reports/function-progress/p0-wave1-reconciliation.md),
+que enlaza el inventario base, el análisis NCA/NPDM, la auditoría de ownership
+del overlay y el informe runtime estático. La división actual de etiquetas de
+subsistema para los añadidos es **336 mapeados / 389 sin mapear**; la cifra
+histórica 360 es texto obsoleto, no estado actual.
 
 ## Qué hay aquí
 

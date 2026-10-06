@@ -16,9 +16,9 @@ from a versioned sheet book.
 
 | | |
 |---|---|
-| ✅ **Done** | Both dumps (base + update) acquired; every executable module and all RomFS data extracted, NSO-verified and version-qualified; the effective base+update overlay measured (17,904 / 466 / 725 / 0); the update `main` pseudocode exported (**96.55 %** of its bytes) and searchable in gameDB; RomFS data largely parsed (Lua 799/800, tables, texts); module imports/relocations inventoried; a Rust port scaffold that loads and runs real event scripts. |
-| 🟡 **In progress** | Pseudocode is *not* understanding: analysis, port and verification of the game code are ~**0.03 %** done. The base `main` export is partial (**5.8 %**). |
-| ❌ **Missing** | NCA-header decode; file-level ownership of the changed/added data; runtime dependency resolution; the last **3.45 %** of the update `main` (needs emulator tracing); behaviour verification and binary matching are **0 %**. |
+| ✅ **Done** | Both dumps (base + update) acquired; every executable module and all RomFS data extracted, NSO-verified and version-qualified; the effective base+update overlay measured (17,904 / 466 / 725 / 0); the update `main` pseudocode exported (**96.55 %** of its bytes) and searchable in gameDB; the update auxiliary-module metadata and imports/relocations measured; RomFS data largely parsed (Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
+| 🟡 **In progress** | **P0 is not complete**: base structural import/relocation metadata is inventoried for the five named NSOs, while loader binding, provider identity, full module exploration, NCA header/signature verification, update ContentMeta semantics, file-level ownership and runtime dependency resolution remain open or blocked. The effective overlay has **466 modified + 725 added** entries; internal analysis is **0/466**, and semantic ownership is **unknown for 1,191/1,191**. Pseudocode is *not* understanding: analysis, port and verification of the game code are ~**0.03 %** done. |
+| ❌ **Missing** | P0's remaining semantic/function inventory work; the last **3.45 %** of the update `main` (needs emulator tracing); the remaining **0.1 %** of Lua/data coverage; behaviour verification and binary matching are **0 %**. |
 
 The detailed, phase-by-phase breakdown is the [Completion plan](#completion-plan)
 below — the single status source. The canonical execution route and its evidence
@@ -52,36 +52,36 @@ counted from real files and functions; `—` means there is no known denominator
 (not measured, so no percentage is invented) and `~` marks qualitative
 estimates.
 
-| Phase (PLAN.md) | Part | % done | % left | Note |
-|---|---|:--:|:--:|---|
-| 1. Extract (P0) | Base: ExeFS + RomFS | 100 % | 0 % | |
-| | Update: `main` + data | 100 % | 0 % | |
-| | Update modules (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extracted + NSO-verified; byte-identical to the base's |
-| 2. Inventory (P0) | `main` update | 100 % | 0 % | 153,476 functions |
-| | `main` base | 100 % | 0 % | 68,412 functions; provenance qualified (15/15 NSO segment hashes) |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | detection counts + imports/relocations measured; full inventory/ownership unknown |
-| 3. Pseudocode export (prep) | `main` update | 96.55 % | 3.45 % | 100 % of its inventory; 96.55 % of its executable bytes |
-| | `main` base | 5.8 % | 94.2 % | 3,997 of 68,412 |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
-| 4. Index (gameDB) (prep) | `main` update | ~100 % | ~0 % | 153,471 files; the 5 asm fallbacks are outside the index |
-| | `main` base | 5.8 % | 94.2 % | 3,997 (bounded by export) |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
-| 5. Data (RomFS) (P0) | Lua scripts | 99.9 % | 0.1 % | 799 of 800 |
-| | Update files | 100 % | 0 % | 19,095 extracted (update only) |
-| | SARC packages | — | — | 264 indexed, no total |
-| | Strings / references | — | — | 13,370 + 29,162, no total |
-| | Domain tables | — | — | 12 sheets, no total |
-| | Base data | — | — | extracted, no clear index |
-| 6. Analysis (P2–P7) | Game code | 0.03 % | 99.97 % | 22 of 68,330 |
-| 7. Implementation (P3–P7) | Rust port | 0.01 % | 99.99 % | 8 partial |
-| 8. Behaviour verification (P3–P7, P9) | — | 0 % | 100 % | 0 functions |
-| 9. Binary matching (P8–P9) | — | 0 % | 100 % | 0 functions |
-| 10. Playable port (P6–P7 → P9) | Container parsers (SARC, GFLXPACK, AHTB, BNTX, VFXB) | ~90 % | ~10 % | ASTC and unknown BNTX formats pending |
-| | Lua 5.3 layer | 100 % | 0 % | runs real event scripts |
-| | Host bindings | ~10 % | ~90 % | 2 real, rest stubs |
-| | Save system | ~30 % | ~70 % | seeded from 450 event flags |
-| | Visual subsystem | ~40 % | ~60 % | asset-level only; no full render |
-| | `tr*` models/animations, ASTC, Havok→avian3d | 0 % | 100 % | pending |
+| Phase (PLAN.md) | Part | % done | % left | Note | Methods / tools |
+|---|---|:--:|:--:|---|---|
+| 1. Extract (P0) | Base: ExeFS + RomFS | 100 % | 0 % | | `.tools/` extraction pipeline; NSO parsing; SHA-256 and segment-hash checks |
+| | Update: `main` + data | 100 % | 0 % | | `.tools/` extraction pipeline; NCZ/ExeFS/RomFS manifests; hash checks |
+| | Update modules (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extracted + NSO-verified; byte-identical to the base's | NSO extraction plus byte/hash comparison against base modules |
+| 2. Inventory (P0) | `main` update | 100 % | 0 % | 153,476 functions | Ghidra export metadata, direct ELF/NSO metadata and gameDB inventory |
+| | `main` base | 100 % | 0 % | 68,412 functions; provenance qualified (15/15 NSO segment hashes) | Direct NSO metadata parser; module IDs, SHA-256 and segment-hash verification |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | detection counts + imports/relocations measured; full inventory/ownership unknown | Direct NSO ELF parser; import/relocation inventory; semantic inventory pending |
+| 3. Pseudocode export (prep) | `main` update | 96.55 % | 3.45 % | 100 % of its inventory; 96.55 % of its executable bytes | Ghidra export scripts; C/assembly fallback export; export parity checks |
+| | `main` base | 5.8 % | 94.2 % | 3,997 of 68,412 | Ghidra export pipeline; bounded by the current base inventory |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | | Not completed; no pseudocode export evidence yet |
+| 4. Index (gameDB) (prep) | `main` update | ~100 % | ~0 % | 153,471 files; the 5 asm fallbacks are outside the index | gameDB SQLite index; read-only indexed-vs-export parity checks |
+| | `main` base | 5.8 % | 94.2 % | 3,997 (bounded by export) | gameDB index bounded by the base pseudocode export |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | | Not indexed; no gameDB coverage evidence yet |
+| 5. Data (RomFS) (P0) | Lua scripts | 99.9 % | 0.1 % | 799 of 800 | RomFS extraction; Lua parsing and per-file validation |
+| | Effective base + update overlay | 100 % | 0 % | 19,095 virtual entries: 17,904 unchanged / 466 modified / 725 added / 0 removed | Base+update manifest; path/content comparison; overlay census |
+| | SARC packages | — | — | 264 indexed, no total | SARC parser/indexer; total denominator not established |
+| | Strings / references | — | — | 13,370 + 29,162, no total | Extraction/reference scanners; total denominator not established |
+| | Domain tables | — | — | 12 sheets, no total | TSV/sheet ingestion and `sheetty` preflight |
+| | Base data | — | — | extracted, no clear index | RomFS extraction; complete base-data index pending |
+| 6. Analysis (P2–P7) | Game code | 0.03 % | 99.97 % | 22 of 68,330 (legacy capped view) | Direct decompilation evidence and function-progress ledger; broad analysis pending |
+| 7. Implementation (P3–P7) | Rust port | 0.01 % | 99.99 % | 8 partial | Rust/Bevy implementation, focused fixtures and CI checks |
+| 8. Behaviour verification (P3–P7, P9) | — | 0 % | 100 % | 0 functions | No independent behavioural verification completed yet |
+| 9. Binary matching (P8–P9) | — | 0 % | 100 % | 0 functions | No reproducible binary-matching run completed yet |
+| 10. Playable port (P6–P7 → P9) | Container parsers (SARC, GFLXPACK, AHTB, BNTX, VFXB) | ~90 % | ~10 % | ASTC and unknown BNTX formats pending | Rust parsers, fixtures and focused parser tests |
+| | Lua 5.3 layer | 100 % | 0 % | runs real event scripts | Rust Lua 5.3 host and event-script fixtures |
+| | Host bindings | ~10 % | ~90 % | 2 real, rest stubs | Rust/Bevy bindings, event traces and stubs |
+| | Save system | ~30 % | ~70 % | seeded from 450 event flags | Rust state model and seeded event-flag fixtures |
+| | Visual subsystem | ~40 % | ~60 % | asset-level only; no full render | BNTX decoder, Bevy image/sprite path and headless tests |
+| | `tr*` models/animations, ASTC, Havok→avian3d | 0 % | 100 % | pending | Not completed; no implementation evidence yet |
 
 This table inventories *what exists* in each stretch of
 [`odd/PLAN.md`](odd/PLAN.md); that plan is the canonical execution route and
@@ -97,11 +97,19 @@ Phases 1–5 describe *having* the code and data; phases 6–9 describe
 export is a larger, more complete inventory of the same update `main`.
 
 The update's auxiliary modules (`rtld`, `sdk`, `subsdk0/1`) are extracted,
-NSO-verified and byte-identical to the base's, with their imports/relocations
-inventoried; what remains for them is pseudocode export/index (and analysis), not
-extraction. **P0** (scope, provenance and the effective base+update overlay) is
-**closed**; the documented open items are the NCA-header decode, file-level data
-ownership and runtime dependency resolution.
+NSO-verified and byte-identical to the base's, with original-NSO structural
+metadata and imports/relocations measured; what remains for them is complete
+function inventory, semantic analysis and runtime binding, not extraction. **P0
+remains in progress**: the base structural inventory is evidenced, but loader
+binding/provider identity, complete semantic coverage, NCA header/signature
+verification, update ContentMeta semantics, file-level ownership and runtime
+dependency resolution remain open or blocked. The overlay ownership audit is
+external classification only: **466 modified + 725 added**, **0/466** modified
+entries have internal analysis, and semantic ownership is unknown for
+**1,191/1,191** entries. Static dependency evidence records **3 `DT_NEEDED`**
+entries for update `main`; loaded and reached status remain unknown.
+
+Current P0 evidence is reconciled in [`p0-wave1-reconciliation.md`](reports/function-progress/p0-wave1-reconciliation.md), with the direct base inventory, NCA/NPDM analysis, overlay ownership audit and static-only runtime dependency report linked there. The current subsystem-label split for added files is **336 mapped / 389 unmapped**; the older 360 figure is historical stale wording, not current state.
 
 ## What is here
 
