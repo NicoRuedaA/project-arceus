@@ -24,3 +24,11 @@ Keep the **Completion plan** table in [`README.md`](README.md) updated as part o
 - This table is not the evidence registry: exported or indexed counts are not analysis, behaviour or binary-match evidence (see above).
 - Never describe the update as a standalone program or as the port target. The game is **base + update**; the update is a **patch** that does not run on its own, and the base is mandatory. The port target is the base + update overlay.
 - Keep [`README.md`](README.md) and [`README.es.md`](README.es.md) in sync and cross-linked: every status/figure change is updated in both (English is the default artifact language; Spanish uses a neutral register).
+
+## Parallel work and progress reporting
+
+- For large tasks, split the independent workstreams and run them **in parallel** whenever possible. Prefer several bounded workers over one long serial run.
+- Respect resource limits: at most **2** concurrent Ghidra processes; exactly **one** `gamedb index` (and it covers all modules at once); exactly **one writer per worktree** — parallel writers get isolated outputs or a separate git worktree. Never let two workers edit the same file.
+- Every worker reports **regularly**: append short, timestamped progress lines to `work/progress/<task>.log` (git-ignored) as it advances, and return a concise final report. Do not run for a long time without a visible update.
+- The orchestrator relays progress to the user at reasonable intervals and surfaces any blocker immediately, so a stuck task is never discovered hours later.
+- Report failures and `[skip]`/unknown outcomes explicitly; never let a blocked worker look like a finished one.
