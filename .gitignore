@@ -32,3 +32,6 @@ target
 
 # Centralized local working data (game content; never tracked)
 work/
+
+# Generated progress snapshots (regenerable, ~60 MB each)
+reports/function-progress/**/stale/
