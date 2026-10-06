@@ -29,3 +29,6 @@ sheets/re/strings.tsv
 # Third-party checkout (clone it next to this repo; see README)
 # Symlinked build dir
 target
+
+# Centralized local working data (game content; never tracked)
+work/

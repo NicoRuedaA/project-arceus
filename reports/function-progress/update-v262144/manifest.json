@@ -6,10 +6,10 @@
   },
   "build": "update-v262144",
   "c_exports": {
-    "function_count": 12303,
-    "function_count_percent": 18.005269,
-    "original_bytes_percent": 64.151855,
-    "original_function_body_bytes": 12207980
+    "function_count": 68327,
+    "function_count_percent": 99.99561,
+    "original_bytes_percent": 99.871423,
+    "original_function_body_bytes": 19005348
   },
   "coverage_limitations": [
     "The denominator is update main NSO only, not the whole game or all executable modules; base v0 is excluded.",
@@ -31,17 +31,17 @@
   "evidence_ledger": {
     "analyzed_documented_function_count": 22,
     "path": "sheets/re/function_progress_evidence.tsv",
-    "sha256": "ce51c7cb7bcf1d5c57f6a659a31e4f83b6d3900fb648676665aa64adf02b231a"
+    "sha256": "5e83e85ac050dac7b23dd38a17ea42d8cab73abc5b3ccb06a88a8bec4f6f8cb8"
   },
   "format": "function-progress-manifest/v1",
   "gamedb": {
-    "distinct_parsed_function_addresses": 9767,
-    "index_sha256": "7aac1d998917564b08c4e42f59301d75696982c6e497c300f108dea1054da682",
-    "indexed_file_count": 10019,
-    "indexed_files_without_parsed_functions": 252,
+    "distinct_parsed_function_addresses": 68326,
+    "index_sha256": "af56c02a3c6d92d377ef4682c926ad7cde8a0a09142fcccd12ef333b8fb88139",
+    "indexed_file_count": 68327,
+    "indexed_files_without_parsed_functions": 1,
     "module_id": "ns.update.main",
-    "parsed_function_row_count": 9767,
-    "snapshot_fingerprint_sha256": "ed2f4364f4e3f9b64b41d0446287347075f3029cddbbafcd0bc6a343528c1eb6",
+    "parsed_function_row_count": 68326,
+    "snapshot_fingerprint_sha256": "d2640cffaa376e81fb83194e1d56c2c9ded00b3dadeb9a7a9bbbd52303963779",
     "wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "inventory": {
@@ -53,9 +53,9 @@
     "versioned_inventory_sha256": "8cefd2b2b7ce412653271ceec66be1325c0fcb0bc15b1d34bf8b3cdbfd5b7f8c"
   },
   "outputs": {
-    "analysis.png": "0232225aadbc27018051d3121dd9e54ab911e59800c152b027442393e17cce4e",
-    "function-progress.tsv": "4a7386a01ce6f5825e55adc3ac91b6e55b3c31fa4362356b45f1705171fe7afe",
-    "index.html": "99a5a07b97142f863b68fe016807e39e1f588f30fb4fd3d409b439b5bfc4bdbf",
+    "analysis.png": "a42939c17e07032c85efdbadd98f8ba8438c7f1a888f8da95f298fd61ac196a5",
+    "function-progress.tsv": "411fbddeabf08df7b71b0d00097936eba73afcfca912f00257bff4a7d2db081b",
+    "index.html": "d77894271cc65e506061d0c1384ea23f8c451d5ac55babced51fe6984ce062ef",
     "port.png": "1dc99704e2c03d9d7904b4a9e92a894a02ebd8ba8393376280d9a090ff1307e9"
   },
   "rust_source_fingerprint": {
@@ -79,7 +79,7 @@
       },
       {
         "path": "crates/pla/examples/window_spike.rs",
-        "sha256": "8add3327fd8a9a6c67932537f5f0273687f1df041a645b92e2fe93d8709726f9"
+        "sha256": "4f6557d0bd712e9de2e4ae146b4d45fd1398e4c54d25ce31aa1255cbb922ee05"
       },
       {
         "path": "crates/pla/src/app.rs",
@@ -179,7 +179,7 @@
       },
       {
         "path": "crates/pla/src/render.rs",
-        "sha256": "631e32d9a3820b7e44e3149f140f43287d7d5a41023eb9c6ecf80ac422e56de6"
+        "sha256": "bedaff02af9a7bd99cd3012c9935b5becac9751547b2437e4fe307960c1bbccd"
       },
       {
         "path": "crates/pla/src/save.rs",
@@ -231,7 +231,7 @@
       },
       {
         "path": "crates/pla/tests/visual.rs",
-        "sha256": "3fbc0b1c1a61e3b6e43d8ce23223cdd55cb55f3e27a1456fa769c4b6c338da8b"
+        "sha256": "99a100870be3fde65cd8e649332b217fc3032e0b39d49feeb3d9997224a8b8fd"
       },
       {
         "path": "crates/sheetty/src/check.rs",
@@ -259,7 +259,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "09b751195b35c80bb786a7b669ee66b2bb260f5401e67863b199dd7411dc9847"
+    "sha256": "e388b355e086b370295b2b41f3f59b10b43806f21404469a72bb156137f34bfb"
   },
   "state_partitions": {
     "analysis_documentation_status": {
@@ -286,40 +286,40 @@
     },
     "decompilation_status": {
       "no_matching_export_in_snapshot": {
-        "functions": 56027,
-        "original_bytes": 6821836
+        "functions": 3,
+        "original_bytes": 24468
       },
       "pseudocode_exported": {
-        "functions": 12303,
-        "original_bytes": 12207980
+        "functions": 68327,
+        "original_bytes": 19005348
       }
     },
     "game_db_file_status": {
       "indexed_with_function_rows": {
-        "functions": 9767,
-        "original_bytes": 10998588
+        "functions": 68326,
+        "original_bytes": 19005184
       },
       "indexed_without_function_rows": {
-        "functions": 252,
-        "original_bytes": 250552
+        "functions": 1,
+        "original_bytes": 164
       },
       "not_indexed": {
-        "functions": 58311,
-        "original_bytes": 7780676
+        "functions": 3,
+        "original_bytes": 24468
       }
     },
     "game_db_parsing_status": {
       "function_parsed": {
-        "functions": 9767,
-        "original_bytes": 10998588
+        "functions": 68326,
+        "original_bytes": 19005184
       },
       "indexed_without_parsed_function": {
-        "functions": 252,
-        "original_bytes": 250552
+        "functions": 1,
+        "original_bytes": 164
       },
       "not_parsed": {
-        "functions": 58311,
-        "original_bytes": 7780676
+        "functions": 3,
+        "original_bytes": 24468
       }
     },
     "identification_status": {

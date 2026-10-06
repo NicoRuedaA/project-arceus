@@ -52,8 +52,21 @@ a full auto-analysis):
 .tools/venv/bin/python .tools/sheetty.py triage <exports>/functions.tsv <exports>/triage.tsv --top 6000
 # take the addresses you want, then:
 analyzeHeadless ... -process main.elf -noanalysis -readOnly \
-  -postScript ExportTop.java <decompiled-dir> <addresses.txt>
+  -postScript ExportTop.java <decompiled-dir> <addresses.txt> [timeout-seconds]
 ```
+
+`ExportTop.java` takes an optional per-function timeout (default 120 s) and logs
+each failure as `EXPORT-TOP-FAIL <address> <decompiler error>`. The update-main
+export covers every inventory address: 68,327 of 68,330 functions decompile.
+For the functions the decompiler rejects, export the disassembly instead, into a
+directory outside the gameDB root:
+
+```bash
+analyzeHeadless ... -process main.elf -noanalysis -readOnly \
+  -postScript ExportAsm.java <asm-dir> <failed-addresses.txt>
+```
+
+See [`reports/function-progress/update-main-full-pseudocode-export.md`](reports/function-progress/update-main-full-pseudocode-export.md).
 
 ## 4. Base RomFS (`romfs_extract.py`)
 

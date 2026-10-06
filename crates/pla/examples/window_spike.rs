@@ -9,14 +9,12 @@
 
 use std::process::ExitCode;
 
-use bevy::asset::RenderAssetUsages;
 use bevy::image::Image;
 use bevy::prelude::*;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy::window::WindowResolution;
 
-use pla::assets::bntx::Bntx;
+use pla::render::{bntx_image_from_bytes, spawn_image_sprite};
 
 #[derive(Resource)]
 struct Shot(Option<String>);
@@ -36,39 +34,20 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             return;
         }
     };
-    let bntx = match Bntx::parse(&bytes) {
-        Ok(b) => b,
-        Err(e) => {
-            eprintln!("parse: {e}");
-            return;
-        }
-    };
-    let data = match bntx.decode(&bytes, 0) {
-        Ok(d) => d,
-        Err(e) => {
-            eprintln!("decode: {e}");
+    let image = match bntx_image_from_bytes(&bytes, 0) {
+        Ok(image) => image,
+        Err(error) => {
+            eprintln!("decode: {error}");
             return;
         }
     };
     println!(
         "texture {}x{} ({} bytes of RGBA)",
-        data.width,
-        data.height,
-        data.rgba.len()
+        image.width(),
+        image.height(),
+        image.data.as_ref().map_or(0, Vec::len)
     );
-    let image = Image::new(
-        Extent3d {
-            width: data.width,
-            height: data.height,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        data.rgba,
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::default(),
-    );
-    let handle = images.add(image);
-    commands.spawn(Sprite::from_image(handle));
+    spawn_image_sprite(&mut commands, &mut images, image, "bntx");
 }
 
 /// Waits a few frames so the sprite is in the render world, then captures.

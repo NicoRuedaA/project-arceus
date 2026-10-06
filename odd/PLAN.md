@@ -1,64 +1,185 @@
-# Plan de continuación
+# Plan de continuación y cierre del proyecto
 
-## Estado actual — 2026-10-04
+**Estado:** abierto. Este documento ordena el trabajo pendiente por dependencias y fija qué evidencia permite cerrar cada tramo. El avance de un parser, una compilación o una prueba aislada no equivale a comprensión, paridad ni cobertura completa.
 
-**Trabajo PAUSADO por solicitud del usuario.** Los cambios de estas unidades
-permanecen locales y sin commit. El plan completo y el objetivo de decompilación
-al 100 % siguen incompletos; no se inicia trabajo adicional con esta actualización.
+## Estado actual — 2026-10-05
 
-### Unidades acotadas completadas y comprobadas
+- El censo de alcance tiene 17 registros versionados y declara explícitamente desconocidos; no es todavía prueba de alcance completo. El nuevo sondeo PFS0/CNMT confirma metadatos de nivel superior del paquete base, pero no enlaza el registro `Program` con los bytes exactos del NSO ni reconcilia el pin registrado ([informe de metadatos](../reports/function-progress/p0-base-contentmeta-metadata.md#resultado)). El gate SHA avanzó hasta descomprimir el NCZ de `Program` a un NCA temporal, pero la apertura NCA/ExeFS se detuvo con `KeyError` al solicitar material de clave; no se leyó `main` ni se calculó el SHA, y el temporal se eliminó. La configuración/API actual no resolvió la solicitud y no está demostrado que falte material de clave. Un candidato local para `base-main` coincide en tamaño e ID de módulo con la identidad censada, pero no supera su pin SHA-256; por ello no está listo para parseo y su identidad exacta queda sin confirmar ([informe de comprobación](../reports/function-progress/p0-base-main-candidate-pin-check.md#resultado), [censo](../sheets/re/p0_scope_census.tsv#base_main_candidate_pin_check)). Esto no invalida el inventario de funciones ya registrado ni cualifica la procedencia del paquete base. Para el `main` de update-v262144 ya hay una medición estructural directa y una comparación acotada de candidatos nominales con cuatro auxiliares, enlazadas en el [informe P0 de módulos auxiliares y candidatos](../reports/function-progress/p0-update-aux-ghidra-inventory.md#five-module-candidate-probe). Ninguna demuestra relaciones runtime, resolución del loader, uso, ownership semántico ni cierre de inventario. La procedencia base-v0, los módulos no explorados, las dependencias reales y el contenido efectivo aún requieren reconciliación.
+- P1 cerró **solo** una muestra acotada y reproducible de 408 llamadas de caché. No acredita la función entera, su contexto de ejecución ni matching binario.
+- P2 cuenta con auditoría estática offline de rutas de control FP, no con observación del binding, hilo ni estado FP real en runtime. Por tanto P2 sigue pendiente.
+- Los parsers, referencias y operaciones numéricas del kernel marcados como `partial` siguen parciales. En la estrategia de port, `identified` describe una decisión registrada, no su implementación. En formatos, `identified` tampoco implica soporte de carga o render.
+- Las cifras y estados de este resumen se contrastan con las hojas canónicas indicadas abajo; no se promueve ningún estado por inferencia.
 
-- [x] Lectura del lane de atributos observado (dec092–093), sin generalizar formatos:
-  [detalle de Prioridad 1](#prioridad-1--offsets-de-atributos-uv0-color-de-vértice-y-máscara-de-capas).
-- [x] Estructura de **199 esqueletos / 1264 nodos / 289 binds**:
-  [layout](../reports/skeleton/update-v262144-layout.md).
-- [x] Índices/pesos del lane observado en **177 shapes / 128303 vértices**:
-  [skin](../reports/skeleton/update-v262144-skin-layout.md); formatos/enlaces restantes pendientes.
-- [x] Referencia de matrices con pivotes cero: **288/289 binds** coinciden;
-  discrepancia de `item_230` pendiente, sin corregir su bind por inferencia:
-  [matrices](../reports/skeleton/update-v262144-matrix-layout.md).
-- [x] Lectura estructural de animación: **1522 archivos / 25394 tracks**:
-  [layout](../reports/skeleton/update-v262144-animation-layout.md); no equivale a reproducción nativa.
-- [x] Port stateless condicionado: **1358 salidas/FPSR** y prueba independiente
-  de **824 casos ISA**: [FPSR](../reports/skeleton/update-v262144-native-animation-fpsr.md),
-  [ISA](../reports/skeleton/update-v262144-native-animation-isa.md). FPCR0 explícito, no supuesto del juego.
-- [x] Cache u16 parcial: **336 salidas/FPSR y snapshots completos de 176 bytes**;
-  u8 no cualificado, rechazo del guard conservado:
-  [cache](../reports/skeleton/update-v262144-native-animation-cache.md).
-- [x] SDK empaquetado del update cualificado: epsilon próximo a **1e-5**;
-  binding cargado y FPCR/FZ del hilo de animación todavía desconocidos:
-  [contexto y límites](../reports/skeleton/update-v262144-native-animation-cache.md#qualified-update-context-not-a-runtime-default).
+### Fuentes canónicas y cómo leerlas
 
-Última CI ejecutada: **112 tests pasados / 2 ignorados, EXIT0** (dec106);
-no se ejecuta CI nueva para esta edición documental. El port ya lee texto,
-corre eventos y renderiza mallas de tres familias con materiales e IBL; no
-están completados animación, skinning ni el player.
+| Fuente | Situación observada | Alcance de la afirmación |
+|---|---|---|
+| [Plan de trabajo](../sheets/02-plan.tsv) | 49 filas: 29 `done`, 18 `partial`, 1 `todo`, 1 `blocked` | Estado de tareas, no cobertura semántica. |
+| [Estado de implementación](../sheets/03-impl.tsv) | 49 filas: 29 `done`, 19 `partial`, 1 `todo` | La diferencia frente a 02-plan obliga a reconciliar estado; no asumir equivalencia. |
+| [Kernel](../sheets/kernel.tsv) | 8 filas, todas `partial` | Parsers, referencias y semántica numérica no están cerrados. |
+| [Estrategia de port](../sheets/domain/port_strategy.tsv) | 19 decisiones `identified` | La decisión de port/reemplazo/stub/skip no demuestra implementación ni aceptación. |
+| [Formatos de assets](../sheets/domain/asset_formats.tsv) | 17 filas: 15 `identified`, 2 `partial` | Inventario y elección de loader; no cobertura de todos los contenidos. |
+| [Censo P0](../sheets/re/p0_scope_census.tsv) | 17 registros; cada registro conserva conocidos, desconocidos, evidencia y siguiente acción | Censo parcial de alcance/procedencia, no inventario total cerrado. |
 
-Registro: **22 funciones analizadas / 8 implementaciones parciales**;
-verificación de comportamiento y matching binario desconocidos. El denominador
-es **68.330 funciones / 19.029.816 bytes originales de update `main`**, no todo el
-juego ni un porcentaje global de finalización:
-[registro y mapas](../reports/function-progress/update-v262144/index.html).
+La diferencia entre `02-plan` y `03-impl` está localizada en `update_romfs` y
+`visual_subsystem`; no se deben igualar sus estados sin verificar primero que
+ambas filas cubren el mismo alcance. `update_romfs` figura bloqueado en el plan
+por el contenido parcheado cuya cabecera requiere claves, mientras que la
+implementación marcada `done` acredita solo lectura/paridad de archivos no
+parcheados. En `visual_subsystem`, el `done` del plan describe un spike de
+ventana: el ejemplo `crates/pla/examples/window_spike.rs` está presente y
+conecta lectura/decodificación BNTX, creación de `Image`/`Sprite` y una ventana
+Bevy; `dec056` registra la ejecución histórica, no reproducida en esta
+comprobación. Además, `bntx_image_from_bytes` y `build_visual_app_with_bntx`
+construyen una imagen y un sprite de Bevy a partir de bytes BNTX. La prueba
+headless sintética pasó y comprueba las dimensiones, los píxeles RGBA exactos y
+que `Sprite.image == PortImage.0`; `window_spike.rs` usa el adaptador compartido.
+El `build_render_app()` predeterminado aún crea el placeholder de tablero, la
+prueba con ventana sigue ignorada y no se volvió a ejecutar en esta tarea. Por
+tanto, la implementación del subsistema sigue `partial`: se verificó la ruta
+headless de imagen/sprite, no el renderizado en ventana. No hay evidencia de una
+correspondencia directa entre este adaptador genérico y una función nativa, así
+que los estados de funciones nativas permanecen sin cambios.
 
-### Próximos pasos — solo al reanudar
+## Siguiente paso ejecutable y orden pendiente
 
-1. [ ] Derivar límites PC del inventario canónico y cualificar cache u8 y las tres
-   ramas u16 no ejecutadas: `027b6aa8`, `027b6ac0`, `027b6ac8`. Conservar rechazo
-   dec106 y fallos previos; el lote rechazado no cuenta como prueba.
-2. [ ] Establecer FPCR/FZ alcanzado por el hilo de animación y binding SDK cargado;
-   soportar/verificar el modo requerido, sin asumir FPCR0 por defecto.
-3. [ ] Resolver timing/loops/defaults nativos y evaluación fixed/dense/S/T;
-   establecer enlaces reales animación–modelo–esqueleto.
-4. [ ] Resolver matrices/bind/pivote/escala nativos, incluido `item_230`, formatos
-   de skin y enlaces restantes; después integrar `SkinnedMesh`/atributos validados
-   en Bevy con prueba real de runtime.
-5. [ ] Continuar las prioridades originales de escena, jugador/cámara, Lua,
-   texto y grafo de eventos. Suyu sigue diferido hasta disponer de exportador,
-   tooling e input del update exacto listo para el loader; no se marca completado.
+1. **P0 — alcance y procedencia:** el gate rederivó el NCZ `Program` desde PFS0/CNMT y lo descomprimió a NCA en scratch externo, pero abrir NCA/ExeFS falló con `KeyError` al solicitar material de clave. La API/configuración actual no resolvió la solicitud; no se concluye que falte material y el requisito exacto sigue desconocido. No se leyeron ni hashearon bytes main/NSO; no hubo parsing semántico ni descompilación. Resolver la configuración local de API/acceso al NCA sin registrar claves y repetir únicamente la comparación SHA de identidad; analizar solo tras coincidencia exacta con el pin registrado. Después, cualificar procedencia base-v0, completar inventario de módulos, producir el overlay efectivo base+update y reconciliar alcance. La estructura de update-main y las aristas candidatas entre sus cinco módulos ya están medidas, sin probar binding ni uso.
+2. **P1 — no ampliar por defecto:** conservar la muestra cerrada como evidencia local acotada. Reabrirla solo si una nueva pregunta requiere ampliar una rama concreta; esa extensión no sustituye P2.
+3. **P2 — runtime FP:** tras cualificar un runtime de update inspeccionable, observar el binding y el hilo efectivo; documentar el estado FP alcanzado y verificar los modos que la ejecución realmente requiere. Sin runtime cualificado, mantenerlo pendiente y no simular cierre con auditoría estática.
+4. **P3–P7 — port funcional en orden:** contratos de animación → jerarquía/matrices/skin/enlaces → assets, materiales y escena → player/skinning en Bevy → gameplay/continuidad. Cada fase consume contratos y referencias de la anterior.
+5. **P8–P9 — cobertura y entrega:** reconciliar todas las unidades del alcance contra P0 y evidencias por función/sistema; después ejecutar aceptación reproducible, revisión de límites y condiciones de release.
 
-El detalle siguiente conserva prioridades, decisiones y estados históricos de
-cada unidad; este resumen es el estado vigente. Evidencia: `sheets/decisions.tsv`
-(dec001–dec106). Este archivo permite reanudar sin reconstruir el contexto.
+## Entregables y reglas de evidencia
+
+| Estado de evidencia | Permite afirmar | No permite afirmar |
+|---|---|---|
+| Inventario e identidad | Unidad y procedencia enumeradas para el build indicado | Semántica comprendida o portada |
+| Parser / indexado / pseudocódigo disponible | Estructura consultable bajo el alcance probado | Firma, análisis de flujo, comportamiento o paridad |
+| Análisis directo documentado | Contrato limitado por fuentes y escenarios citados | Implementación o fidelidad del sistema completo |
+| Implementación | Relación explícita entre unidad nativa, implementación y dominio cubierto | Comportamiento completo por compilar o tener tests |
+| Verificación conductual | Comparación independiente para entradas, estado y salida declarados | Matching binario ni cobertura de estados no probados |
+| Matching binario | Comparación nativa reproducible en arquitectura/configuración declaradas | Fidelidad funcional por sí sola |
+
+Mantener independientes análisis, implementación, verificación conductual y matching. Usar `unknown` cuando falte evidencia directa; no convertir ausencia de evidencia en cero, soporte, exclusión o PASS. Los artefactos derivados son proyecciones de las hojas y del ledger, nunca su reemplazo.
+
+## Ruta de fases vigentes
+
+Cada fila indica el estado real, la unidad siguiente, el artefacto de evidencia directa, la puerta de salida y el bloqueo/dependencia. La columna “unidad siguiente” es una acción, no una estimación.
+
+| Fase | Estado real | Unidad siguiente concreta | Entregable / evidencia directa | Criterio de salida | Dependencias / bloqueos |
+|---|---|---|---|---|---|
+| P0 — alcance, procedencia y contenido efectivo | En curso; censo parcial con desconocidos visibles; identidad/pin del candidato base-main sin reconciliar y candidato no autorizado para análisis | Resolver la configuración local de API/acceso al NCA sin registrar claves y repetir solo la comparación SHA de identidad; analizar únicamente después de una coincidencia exacta con el pin registrado; luego cualificar procedencia base-v0, completar el inventario de módulos y sus formas de import/relocation, producir el overlay efectivo base+update y reconciliar el alcance | Informe de pin [candidato base-main](../reports/function-progress/p0-base-main-candidate-pin-check.md#resultado), sondeo de [metadatos del paquete base](../reports/function-progress/p0-base-contentmeta-metadata.md#resultado), informe estructural [P0 update-main](../reports/function-progress/p0-update-main-dynamic-metadata.md), comparación de cinco módulos [P0 candidatos](../reports/function-progress/p0-update-aux-ghidra-inventory.md#five-module-candidate-probe) y censo actualizado; después, matriz de dependencias con evidencia de carga/uso | Cada unidad incluida o excluida tiene motivo y evidencia; el manifiesto puede regenerarse y explica el contenido efectivo; los desconocidos restantes están acotados y bloquean explícitamente cualquier afirmación de completitud | El gate derivó y descomprimió a NCA el contenido `Program` con espacio suficiente, pero la apertura NCA/ExeFS produjo `KeyError` al solicitar material de clave. La API/configuración actual no resolvió la solicitud; no se afirma que falte material y el requisito exacto es desconocido. No se leyeron ni hashearon bytes main/NSO ni se realizó parsing semántico/descompilación. Temporal eliminado y repositorio sin cambios. El pin sigue sin reconciliarse; los metadatos PFS0/CNMT no prueban el hash NSO. La procedencia base-v0 sigue desconocida. La estructura/coincidencias nominales de update son candidatas, no prueba de binding, carga, uso ni ownership. Mantener dependencias no resueltas como desconocidas. |
+| P1 — muestra de caché | Cerrada como experimento acotado, no como función completa | Ninguna acción de expansión en la ruta crítica; solo reabrir con pregunta y rama de entrada definidas | Informe de validación de la muestra [P1](../reports/skeleton/update-v262144-native-animation-cache-validation.md) y sus fixtures/trazas citados allí | Reproducir exactamente los 408 casos cubiertos y sus salidas/estado declarados; dejar explícito que no cubre binding/runtime, función total ni matching | La evidencia no sustituye P2 ni abre dependencias downstream. |
+| P2 — contexto FP runtime | Pendiente; existe evidencia estática, no observación de runtime | Conseguir una ejecución cualificada del build exacto; registrar binding efectivo, caller/hilo, transición de estado FP y observaciones antes/después en rutas representativas | Informe de ownership estático [P2](../reports/skeleton/update-v262144-native-animation-p2-static-ownership.md) como hipótesis de búsqueda; nueva traza pasiva identificada por build, escenario, hilo y ruta | Cadena runtime corroborada desde carga hasta ejecución; estado FP observado y modos requeridos verificados con oráculo independiente; límites de arquitectura/host descritos | Bloqueado por runtime/instrumentación cualificados. No inferir owner, estado heredado, epsilon ni soporte host de símbolos, llamadas o compilación. |
+| P3 — evaluación y reproducción de animación | Pendiente; parsers/reference parciales | Cerrar límites y contratos de los canales/trackers necesarios para un clip representativo y definir entradas temporales, casos límite y ownership | Contrato de evaluación por canal; fixtures de referencia de tiempo/valores; trazas de primera divergencia y tests diferenciales independientes | Reproducción nativa determinista dentro del dominio probado; defaults, ausencia, duplicados, extremos, loop y unidades observables documentados | P1/P2 y callers con procedencia; no ampliar formato sin evidencia. |
+| P4 — jerarquía, matrices, skin y enlaces | Pendiente; estructura parcial | Resolver la composición de transformaciones y los enlaces de un conjunto representativo modelo–mesh–material–rig–animación; tratar la discrepancia de referencia de bind como abierta | Especificación con evidencia de layout/uso; grafo de enlaces con referencias de origen; comparación externa de matrices, poses y vértices | Contrato de espacio, orden, unidades, pivotes, joints y pesos reproducido en casos independientes; discrepancias explicadas sin ajustar datos para encajar | P3, layouts observados y referencia independiente; datos no decodificados permanecen desconocidos. |
+| P5 — assets, materiales, render y ciclo de escena | Parcial; catálogo y loaders identificados, spike no equivale a compatibilidad completa | Construir índice de enlaces de modelos/meshes/materiales/texturas desde el contenido efectivo; cerrar un caso multiactor y su carga/descarga | Manifiesto de referencias; pruebas de formatos soportados/no soportados; capturas o métricas deterministas de recursos/render bajo configuración declarada | Múltiples instancias cargan y liberan recursos sin referencias huérfanas; propiedades, mapas, UV, atributos, alpha y flags probados para el subconjunto declarado; errores explícitos para lo demás | P0 y P4; formatos/variantes sin muestras verificadas siguen fuera de soporte. |
+| P6 — player y skinning en Bevy | Pendiente; parsers no son integración runtime | Conectar evaluación P3, matrices P4 y recursos P5 a un player Bevy reproducible, incluyendo reposo/reset/cambio de clip | Escenario mínimo que registra inputs, reloj, pose, matrices y vértices; referencia CPU/GPU adecuada a lo que se afirme | Pose y deformación comparadas en entradas idénticas; lifecycle del player y errores reproducibles; sin atribuir matching a una comparación visual | P3–P5; integración espera contratos y enlaces, no defaults provisionales. |
+| P7 — gameplay y continuidad de estado | Pendiente; hay bindings/eventos parciales y stubs identificados | Sustituir respuestas constantes/stubs en un único flujo real observado: escena → input/jugador → evento → mutación de estado → save/load | Trazas de llamadas y estados; fixtures para input/evento/flags/works/persistencia; bindings justificados por scripts/callers observados | Flujo completo reproducible con transiciones, errores y persistencia; priorizar después sistemas restantes a partir del censo, sin inventar lista cerrada | P0/P5/P6 y contratos de scripts/estado; combate, IA, audio, UI, progresión u otros sistemas no inventariados siguen desconocidos hasta censarlos. |
+| P8 — cobertura total del alcance | Pendiente | Reconciliar cada módulo, función, import, script, sistema y formato del manifiesto P0 con evidencia/estado por unidad; resolver spans o exclusiones | Inventario versionado y matriz de cobertura; diferencias 02-plan/03-impl resueltas; mapa por función y sistema generado desde fuentes curadas | No queda unidad dentro del alcance sin estado y evidencia; exclusiones justificadas; “completo” solo para build, módulos y dimensiones declarados | Depende de P0 y evidencia P1–P7; ninguna suma de filas `done` demuestra cobertura semántica. |
+| P9 — aceptación y release | Pendiente; se aplica a cada candidato y al conjunto final | Preparar checkout limpio y ejecutar la matriz de aceptación acordada para los escenarios funcionales ya cerrados | Registro reproducible de build/toolchain/configuración, pruebas, comparación de comportamiento, recursos, licencias/procedencia y resultado de release | Aceptación independiente de escenarios; tests y builds aplicables; límites, dependencias y no soportado publicados; paquete sin binaries, payloads, pseudocódigo, strings ni claves privadas | P8 y candidatos P3–P7 cerrados; licencias, toolchain y recursos de ejecución deben estar disponibles. |
+| S — investigación Suyu opcional | No iniciada / desconocida; no bloquea la ruta | Revalidar prerrequisitos antes de ejecutar un único experimento acotado; si no hay beneficio reproducible, registrar no-go | Nota de prerequisitos, presupuesto/alcance del experimento y comparación de utilidad | Decisión go/no-go reproducible y licenciada; no usarla como sustituto de evidencia directa | Fuera de ruta crítica; cualquier dependencia o artefacto derivado queda sometido a autorización y reglas de privacidad. |
+
+## P0 — cerrar alcance, procedencia y dependencias reales
+
+**Siguiente unidad activa:** resolver la configuración local de API/acceso al NCA y repetir únicamente la comparación SHA de identidad; analizar el candidato solo si el `main` recuperado coincide exactamente con el pin registrado. Luego cualificar la procedencia base-v0, completar el inventario de módulos y producir un manifiesto explícito del overlay efectivo base+update. La comprobación de pin ([informe](../reports/function-progress/p0-base-main-candidate-pin-check.md#resultado)) confirmó coincidencia de tamaño e ID, pero discrepancia de SHA-256; no llegó al parser ni valida segmentos. La inspección de metadatos de nivel superior y el intento acotado de hash ([informe](../reports/function-progress/p0-base-contentmeta-metadata.md#resultado)) identificaron un ContentMeta de tipo Application y un registro Program y descomprimieron su NCZ a NCA temporal, pero la apertura NCA/ExeFS se detuvo con `KeyError`; no se leyó `main`, no se calculó el SHA, no hubo análisis semántico y el temporal se eliminó. No se demostró que falte material de clave: la API/configuración actual no resolvió la solicitud. El [probe estructural de update-main](../reports/function-progress/p0-update-main-dynamic-metadata.md) y la [comparación acotada de cinco módulos](../reports/function-progress/p0-update-aux-ghidra-inventory.md#five-module-candidate-probe) ya miden estructura y aristas candidatas nominales, no resolución runtime ni ownership. Los módulos no explorados, la procedencia ejecutable del paquete base, el overlay efectivo y la prueba runtime permanecen desconocidos. El censo no se cierra mediante la lista de archivos ya extraídos.
+
+| Orden | Trabajo | Evidencia a producir | Salida / límite |
+|---|---|---|---|
+| 1 | Reconciliar identidad exacta y procedencia del build/paquetes ya censados, dejando separados los datos declarados de lo efectivamente verificado | Fuentes de identidad y hashes/relaciones de procedencia citadas en el registro | Sin discrepancias sin explicar; un dato declarado no se presenta como contenido ejecutable. |
+| 2 | Materializar la unión base+update con reglas de overlay, ownership, rutas y conflictos | Manifiesto del contenido efectivo reproducible y trazas de resolución | Todo elemento efectivo tiene origen; colisiones y contenido ausente no se resuelven por intuición. |
+| 3 | Cualificar procedencia base-v0, completar inventario de módulos y formas de import/relocation, y reconciliar módulos no explorados | [Metadato dinámico de update-main](../reports/function-progress/p0-update-main-dynamic-metadata.md), [comparación nominal de cinco módulos](../reports/function-progress/p0-update-aux-ghidra-inventory.md#five-module-candidate-probe), evidencia directa de pins y censo | La comparación solo mide candidatos dentro de cinco módulos update-v262144; los pares sin coincidencia no demuestran ausencia global. Mantener desconocido lo no explorado. |
+| 4 | Producir el overlay efectivo base+update y distinguir dependencias disponibles, importadas, cargadas y realmente alcanzadas | Manifiesto reproducible de contenido efectivo y evidencia estática más observación de runtime cuando corresponda | Nunca equiparar dependencia declarada con llamada ejecutada; runtime pendiente no se cierra estáticamente. |
+| 5 | Clasificar propiedad lógica (código propio, biblioteca, SDK/driver, datos, script) y ampliar descubrimiento fuera de las áreas ya censadas | Tabla de alcance/subsistema con fuente, build, estado y siguiente acción | Toda exclusión es explícita; desconocidos no se convierten en “no aplica”. |
+| 6 | Reconciliar sheets, notas y planes antiguos contra las decisiones y fuentes actuales | Registro de contradicciones resueltas con referencia | Las hojas canónicas prevalecen; el historial se conserva como historial, no como instrucción activa. |
+
+**Salida P0:** identidad y manifiesto versionados, dependencias clasificadas por evidencia y matriz de alcance con estados conocidos/desconocidos. La comparación de cinco módulos no cierra P0: la procedencia base-v0, el inventario completo, el overlay efectivo, la reconciliación del alcance y la prueba runtime siguen pendientes o desconocidos. Si una entrada no se puede inspeccionar por límites de autorización, procedencia o disponibilidad, mantenerla como bloqueo y acotar lo que puede afirmarse.
+
+## P1 — muestra de caché cerrada y acotada
+
+La validación P1 queda cerrada exclusivamente para la muestra de 408 llamadas registrada en el informe enlazado. Preservar sus resultados y límites; no reabrir el carril para completar una función ni extrapolar el resultado a runtime, binding, arquitectura distinta o matching. Cualquier ampliación futura requiere una rama concreta, casos fijados de antemano y actualización separada de evidencia.
+
+## P2 — configuración FP efectiva en runtime
+
+La auditoría estática localiza rutas candidatas, pero no identifica por sí sola el propietario runtime ni demuestra que el hilo de animación llegue a un estado FP concreto. La próxima unidad es una observación pasiva de una ejecución cualificada: identidad exacta del build, escenario, caller/hilo, binding y estado FP observado. Después, contrastar los modos alcanzados/requeridos y solo entonces probar/implementar el subconjunto necesario. Si no hay runtime cualificado, registrar bloqueo y continuar únicamente trabajo offline que no dependa de P2.
+
+## P3–P7 — port funcional por dependencias
+
+- **P3:** resolver el evaluador desde contratos observables de tiempo, canales, defaults, extremos y loops; separar valores leídos de reglas de ejecución.
+- **P4:** contrastar jerarquía, matrices, pivotes, índices, skin y enlaces con referencias independientes; no corregir bind data para hacer coincidir resultados.
+- **P5:** cerrar enlaces y formatos por muestras concretas; probar propiedades/render y ciclo de vida de recursos con más de una instancia. Catálogo o parser no acredita soporte visual.
+- **P6:** integrar pose y skinning en Bevy solo sobre los contratos P3/P4 y recursos P5 ya delimitados; verificar avance, reset, reposo, cambio de escena/clip y ownership.
+- **P7:** seguir una cadena real de gameplay y estado persistente; añadir bindings solo si scripts/callers observados los requieren. Descubrir sistemas nuevos desde P0 y priorizarlos tras evidencia, no por analogía.
+
+**Puerta común P3–P7:** mantener caso de referencia, identidad de entradas/build, primera divergencia, pruebas independientes y límites de cobertura. Un test de parser valida parsing; un test unitario numérico valida ese caso; ninguno acredita por sí solo el sistema integrado.
+
+## P8 — mapa de evidencia y cobertura completa
+
+Mantener el mapa de progreso por función de `sheets/re/function_progress_evidence.tsv`, además de una vista por sistema/subsistema que enlace las funciones responsables. Para cada tarea, actualizar todas las funciones nativas afectadas. Registrar por separado análisis, implementación, verificación conductual y matching binario; los valores desconocidos son el estado inicial. La relación compartida puede vincular una implementación con varias funciones, pero no duplica filas nativas ni su peso.
+
+Después de cada cambio que afecte evidencia, generar los reportes de progreso del build declarado y comprobar que manifiesto/fingerprint corresponden exactamente a la fuente Rust actual. No citar snapshots obsoletos como actuales. Si una evidencia fue invalidada por cambio de código, referencia o comportamiento, degradar el estado correspondiente antes de regenerar.
+
+La cobertura semántica solo se cierra al reconciliar el inventario del alcance P0 con funciones, callers, scripts, formatos y escenarios de cada sistema; resolver cada gap o documentar exclusión sustentada. Parser, extracción, gameDB, build y tests solo cuentan para las afirmaciones concretas que realmente prueban.
+
+## P9 — verificación, límites documentados y aceptación/release
+
+1. Normalizar las fuentes antes de congelar un candidato; luego ejecutar, una sola vez por conjunto de cambios, los chequeos aplicables sobre los bytes fijados.
+2. Reproducir desde checkout limpio con versiones de toolchain, configuración y fixtures declarados. Separar pruebas de parsing, comportamiento, integración, rendimiento y matching.
+3. Correr escenarios funcionales cerrados P3–P7 y registrar entradas, estado inicial, salidas, primera divergencia y recursos/ciclo de vida. No inferir fidelidad global de smoke tests.
+4. Auditar dependencias, licencias y procedencia de referencias/reemplazos; confirmar que las instrucciones de reproducción no exponen contenido restringido.
+5. Publicar matriz de soporte/no soporte, build y arquitectura cubiertos, límites, desconocidos que permanecen y criterios de aceptación alcanzados.
+
+**Criterio de release:** alcance y build declarados; cobertura P8 conciliada sin desconocidos ocultos; escenarios de aceptación reproducibles; comportamiento y límites publicados; artefactos revisados para excluir contenido propietario, pseudocódigo, cadenas del juego y secretos. No se fija fecha ni estimación sin base medible.
+
+## Trabajo transversal — evidencia, verificación y límites
+
+| Actividad | Cuándo | Evidencia / control |
+|---|---|---|
+| Actualizar relación función nativa ↔ implementación ↔ caller/sistema | En cada tarea que afecte esas unidades | `sheets/re/function_progress_evidence.tsv`; referencias directas a fuente/build; estados separados y degradación si cambia evidencia. |
+| Mantener identidad de build y manifiesto efectivo | P0 y ante cambio de contenido/build | `sheets/re/p0_scope_census.tsv`, inventarios citados y manifiesto reproducible; nunca combinar versiones sin declarar overlay. |
+| Verificar artefactos generados de progreso | Tras cambios que afecten Rust o el ledger | `python3 .tools/function_progress_treemap.py --build update-v262144`; manifest/fingerprint actual y estado de generación. Ante fallo, marcar stale y sustituir visualizaciones caducadas por placeholders según instrucción del registro. |
+| Revisar pruebas por alcance | Cada unidad P1–P9 | Prueba independiente apropiada a la afirmación; listar qué no cubre; no convertir build/parser en PASS de sistema. |
+| Documentar límites y procedencia | Cada cierre de fase | Build, módulos/dominio, arquitectura/configuración, fuentes usadas, inferencias, desconocidos, errores y contenido expresamente fuera de soporte. |
+| Proteger contenido y reproducibilidad | Todo el trabajo y antes de release | Mantener payloads, binarios, pseudocódigo, cadenas del juego y claves privadas fuera del plan/reportes; artefactos solo metadata, evidencia y rutas permitidas. |
+
+## Riesgos y bloqueos abiertos
+
+| Bloqueo / desconocido | Evidencia que lo resuelve | Fase |
+|---|---|---|
+| Manifiesto efectivo y procedencia todavía no cerrados | Identidad de build + overlay reproducible + ownership por unidad | P0 |
+| Candidato local base-main no supera el pin SHA-256 | Reconciliar identidad/origen o reacquirir la entrada exacta antes de cualquier parseo | P0 |
+| Import declarado no prueba carga ni uso efectivo | Caller/cadena de carga y observación runtime cuando corresponda | P0/P2 |
+| Muestra P1 acotada | Solo una ampliación predefinida cerraría la nueva rama; no extrapolar | P1/P2 |
+| Binding, hilo y estado FP efectivos | Traza pasiva de ejecución cualificada y comparación independiente | P2 |
+| Contrato temporal, jerarquía, bind/skin y enlaces incompletos | Casos representativos comparables y fuentes primarias | P3/P4/P6 |
+| Catálogo/loader parcial y ciclo de recursos no demostrado | Carga multiactor, recursos observados y errores explícitos | P5/P6 |
+| Stubs, respuestas constantes y continuidad de estado | Flujo real reproducible incluyendo persistencia | P7 |
+| Diferencias entre hojas y unidades no censadas | Reconciliación P0/P8 con exclusiones motivadas | P0/P8 |
+| Prerrequisitos de Suyu no cualificados | Evaluación acotada de utilidad y licencias | S, no bloqueante |
+
+## Reglas del plan
+
+- Las hojas TSV y las fuentes directas son canónicas; este plan sintetiza estado y orden, no reemplaza evidencia.
+- No marcar como terminado por contar con parser, pseudocódigo, índice, build o test aislado.
+- Preservar evidencia histórica con fecha y alcance. Si una afirmación previa deja de aplicar, corregirla con referencia actual; no borrar el historial útil.
+- Sin fechas o estimaciones inventadas. Reordenar solo si aparece evidencia de una dependencia real.
+- No incluir payloads, pseudocódigo, strings/nombres del juego, binarios ni claves privadas en documentación o artefactos publicables.
+
+## Anexo histórico — comprobaciones, decisiones y spikes anteriores
+
+> Archivo de evidencia: las casillas y prioridades siguientes reflejan el estado del momento citado; no son la cola vigente. La ruta activa y sus criterios están únicamente en las secciones P0–P9 anteriores.
+
+Lo siguiente conserva decisiones, comprobaciones y fallos **del momento de cada
+unidad**. «Sin commit», «falta FPSR/NaN/cache» o conteos antiguos dentro de esas
+entradas no describen por sí solos el estado actual: prevalecen el resumen del
+2026-10-05 y las fases anteriores. No se borran fallos ni se reescriben como PASS.
+Las checklists históricas abiertas conservan su evidencia; la ruta ejecutable y
+criterios de cierre vigentes son P0–P9/S.
+Las secciones heredadas «Prioridad 1–5» y la evaluación Suyu que siguen son
+registros históricos y checklists de evidencia, no una segunda ruta de ejecución.
+Se conservan sin borrar sus fallos ni resultados; cuando sus estados o su orden
+parezcan diferir, prevalecen el resumen vigente y la ruta canónica P0–P9/S de
+este plan. Suyu permanece opcional y no bloqueante.
 
 ## Prioridad 1 — offsets de atributos (UV0, color de vértice y máscara de capas)
 
@@ -340,13 +461,13 @@ El spike es por archivo (`examples/mesh_spike.rs`).
 - **Havok (80 `.hkx`): diferido** mientras no haya una necesidad de colisiones; si
   aparece, evaluar primero el bake offline de colliders.
 
-## Reglas del repo (no negociables)
+## Reglas actuales del repo (no negociables)
 
-- Trabajar **solo en `master`**.
+- Trabajar en **`main`**, conforme al cambio de rama confirmado por el usuario el 2026-10-05.
 - **Verificar `CI EXIT: $?`** antes de cada commit (`./.tools/ci.sh`). Encadenar con
   `|` o `;` ya enmascaró el exit code varias veces.
 - Nunca commitear contenido del juego: `crates/pla/tests/fixtures/` está gitignoreado
   (excepto `README.md`), `*.keystream.json` también.
-- Inglés para artefactos, español para hablar con el usuario.
+- Inglés para artefactos nuevos; al extender este plan existente, español profesional.
 - Cada hallazgo va a `sheets/decisions.tsv` con su evidencia; si un hallazgo viejo
   queda inválido, **se marca CORRECTED/SUPERSEDED, no se borra**.

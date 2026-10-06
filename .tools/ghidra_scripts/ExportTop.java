@@ -1,6 +1,7 @@
 // @category Export
 // Exports decompiled C for a bounded list of functions (Mode B triage workflow).
-// Usage: ExportTop.java <output-dir> <addresses-file>
+// Usage: ExportTop.java <output-dir> <addresses-file> [timeout-seconds]
+// timeout-seconds defaults to 120 per function.
 // The addresses file has one function entry-point address per line (0x... hex).
 
 import java.io.BufferedReader;
@@ -23,6 +24,7 @@ public class ExportTop extends GhidraScript {
         String[] args = getScriptArgs();
         File outDir = new File(args[0]);
         File listFile = new File(args[1]);
+        int timeout = args.length > 2 ? Integer.parseInt(args[2]) : 120;
         outDir.mkdirs();
 
         Set<String> wanted = new HashSet<>();
@@ -51,7 +53,7 @@ public class ExportTop extends GhidraScript {
                 missing++;
                 continue;
             }
-            DecompileResults res = dec.decompileFunction(f, 120, monitor);
+            DecompileResults res = dec.decompileFunction(f, timeout, monitor);
             if (res != null && res.decompileCompleted() && res.getDecompiledFunction() != null) {
                 File out = new File(outDir, f.getName() + "_" + addrStr.replace("0x", "") + ".c");
                 try (PrintWriter pw = new PrintWriter(out, "UTF-8")) {
@@ -63,6 +65,8 @@ public class ExportTop extends GhidraScript {
                 ok++;
             } else {
                 fail++;
+                String why = res == null ? "no result" : res.getErrorMessage();
+                println("EXPORT-TOP-FAIL " + addrStr + " " + (why == null ? "" : why.trim()));
             }
         }
         println("EXPORT-TOP wanted=" + wanted.size() + " ok=" + ok + " fail=" + fail + " missing=" + missing

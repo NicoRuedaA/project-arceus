@@ -80,3 +80,77 @@ relative PCs, counts, tool revision, elapsed time and explicit fallback results.
 Compare offsets against update `main` Ghidra evidence after confirming identity;
 record export/compile/runtime independently. This assessment changes no native
 function analysis, implementation, behavioral verification or binary-match state.
+
+## Exporter build (2026-10-05, dec115)
+
+Pinned commit `fbf385a6137ca98672a1ddc5dd478ef00d790c12` (re-verified with
+`git ls-remote` and `git rev-parse HEAD`) built outside the repository in
+`/home/nico/work/suyu-build` (1.9 GiB with sources, caches and build tree).
+Targets `suyu` and `suyu-cmd` built; `suyu-cmd --help` runs. No game, key,
+firmware or export was used.
+
+| Step | Result |
+|---|---|
+| CMake | 4.4.4, user-local pip install (`cmake>=3.31`, as `CPMUtil.cmake:4` requires) |
+| System packages added | `qt6-charts` 6.11.2-1, `nasm` 3.02-1, `boost` 1.92.0-1 |
+| Configure flags | README flags plus `-DVulkanHeaders_FORCE_BUNDLED=ON` (system lacks VulkanUtilityLibraries; option named by `CPMUtil.cmake:521`) |
+| Build failure fixed | `qpa/qplatformnativeinterface.h` not found: `src/suyu/CMakeLists.txt:449` uses `Qt6Gui_PRIVATE_INCLUDE_DIRS`, which Qt 6.11.2 does not define. Worked around with `CMAKE_CXX_FLAGS` include paths for the QtGui/QtCore 6.11.2 private headers; Suyu sources unmodified |
+| Time | Attempt with dependencies installed: 22:46:15–23:04:18 (about 18 min) within the 60-min cap |
+
+Next step 2 is still blocked by its input: `suyu-cmd` takes `--content-base`
+(XCI/NSP) plus `--content-update` (NSP), and only an NSZ update and no
+loader-ready update ExeFS exist locally.
+
+## Loader-ready input and pair probe (2026-10-05, dec116)
+
+`pk1.nsz` and `pk2.nsz` were decompressed with NSZ 5.0.0 (`.tools/venv`) to
+`/home/nico/work/suyu-input/pk1.nsp` (6,460,873,778 bytes) and `pk2.nsp`
+(93,226,944 bytes), outside the repository. Every NCA in both PFS0 containers
+(5 + 5) was re-hashed: each SHA-256 prefix matches its content-addressed name.
+Keys were copied with mode 600 to `$XDG_DATA_HOME/suyu/keys` (path from
+`src/common/fs/path_util.cpp:136` and `fs_paths.h:20`); key contents were not
+read or logged.
+
+`suyu-cmd --content-base pk1.nsp --content-update pk2.nsp --content-probe`
+(no guest executed) reported: title `01001F5010DFA000`, update
+`01001F5010DFA800` version 262144 (display 1.1.1) applied to ExeFS and RomFS,
+5 paired modules (rtld, main, subsdk0, subsdk1, sdk), and module `main`
+build ID `aee8f150dda1b5a838806e1a5ea6827ad9f3c51e`, equal to the update-main
+identity above.
+
+Export itself is only reachable from the Qt frontend (**File > Export
+Game...**, `docs/user/GameExport.md`); there is no command-line export.
+Steps 2–4 remain open: no export has run.
+
+## Static AOT Source export and coverage comparison (2026-10-05, dec117)
+
+Export from the Qt frontend: target Linux artifact bundle, backend suyu static
+AOT (Experimental), format Source, update 1.1.1 (NAND program NCA `b38cd4…`,
+the verified `pk2.nsp` program NCA), output
+`/home/nico/work/suyu-export/` (4.8 GiB, outside the repository; game-derived
+C, never to be copied into the repository). Per-module `recomp_coverage.json`:
+
+| Module | Blocks | Text words | Emitted | Unhandled |
+|---|---|---|---|---|
+| main | 3,277,124 | 13,276,580 | 13,247,249 | 2,754 (0.0208 %) |
+| sdk | 328,864 | 1,455,660 | 1,438,203 | 2,017 (0.1402 %) |
+
+`main` unhandled words by group: reserved/sme 1,510 (all `0x00000000`),
+unallocated 1,238 (signature `0xE7C00000`), sve 4, other 2.
+
+`main.elf` executable LOAD segment is `0x32a5690` = 53,106,320 bytes =
+13,276,580 words, equal to Suyu `text_words`. Block names
+(`blk_main_<pc>`) use the same module-relative addresses as Ghidra.
+
+| Comparison (update `main`) | Value |
+|---|---|
+| Ghidra inventory entries that are Suyu block starts | 68,330 / 68,330 |
+| Union of Ghidra function bodies | 19,017,816 bytes = 35.8108 % of the executable segment |
+| Suyu blocks outside every Ghidra function body | 2,160,892 / 3,277,123 (65.94 %) |
+
+Finding: the `PLA-update-capped` inventory covers 35.81 % of the executable
+segment. Suyu's linear translation decodes 99.78 % of its words as
+instructions; whether every such region is reachable code (rather than data
+in the segment) is not established. Function-level coverage figures based on
+the Ghidra inventory are therefore relative to that inventory, not to all
+code in `main`. No function state changes.

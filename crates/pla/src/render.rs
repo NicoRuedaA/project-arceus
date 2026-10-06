@@ -14,6 +14,7 @@ use bevy::image::Image;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
+use crate::assets::bntx::Bntx;
 use crate::generated;
 
 /// The sprite's image handle (wrapped: `Handle<Image>` is not a Bundle member
@@ -33,15 +34,36 @@ pub struct PortSprite {
 /// Sheet-driven sprite size for the first visual unit.
 pub const SPRITE_SIZE: u32 = 32;
 
+#[derive(Resource)]
+struct VisualImage {
+    image: Option<Image>,
+    format: &'static str,
+}
+
 /// Headless-safe visual app: asset + image stack only.
 pub fn build_visual_app() -> App {
+    build_visual_app_with_image(sprite_image(), "bntx")
+}
+
+/// Build a headless visual app that displays mip 0 from a BNTX byte buffer.
+pub fn build_visual_app_with_bntx(bytes: &[u8], texture_index: usize) -> Result<App, String> {
+    let image = bntx_image_from_bytes(bytes, texture_index)?;
+    Ok(build_visual_app_with_image(image, "bntx"))
+}
+
+/// Build an app that owns the supplied image and exposes it through the sprite path.
+pub fn build_visual_app_with_image(image: Image, format: &'static str) -> App {
     let mut app = App::new();
     app.add_plugins((
         bevy::app::TaskPoolPlugin::default(),
         bevy::asset::AssetPlugin::default(),
         bevy::image::ImagePlugin::default(),
     ));
-    app.add_systems(Startup, setup_scene);
+    app.insert_resource(VisualImage {
+        image: Some(image),
+        format,
+    });
+    app.add_systems(Startup, setup_supplied_image);
     app
 }
 
@@ -58,8 +80,7 @@ pub fn build_render_app() -> App {
     app
 }
 
-/// Build the sprite image from container metadata (checkerboard placeholder
-/// until the BNTX pixel decoder lands).
+/// Build the no-input checkerboard placeholder used by the visual app.
 pub fn sprite_image() -> Image {
     let size = Extent3d {
         width: SPRITE_SIZE,
@@ -84,6 +105,39 @@ pub fn sprite_image() -> Image {
     )
 }
 
+/// Parse and decode one BNTX texture as an RGBA8 Bevy image.
+pub fn bntx_image_from_bytes(bytes: &[u8], texture_index: usize) -> Result<Image, String> {
+    let bntx = Bntx::parse(bytes)?;
+    let decoded = bntx.decode(bytes, texture_index)?;
+    Ok(Image::new(
+        Extent3d {
+            width: decoded.width,
+            height: decoded.height,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        decoded.rgba,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::all(),
+    ))
+}
+
+/// Add one image-backed sprite and the port's sheet metadata to the world.
+pub fn spawn_image_sprite(
+    commands: &mut Commands,
+    images: &mut Assets<Image>,
+    image: Image,
+    format: &'static str,
+) {
+    let width = image.width();
+    let handle = images.add(image);
+    commands.spawn((
+        Sprite::from_image(handle.clone()),
+        PortImage(handle),
+        PortSprite { format, width },
+    ));
+}
+
 fn setup_scene(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     // The sheet book is the source of truth: which texture container do we know?
     let format = if generated::domain_asset_formats::REGISTRY
@@ -94,12 +148,21 @@ fn setup_scene(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     } else {
         "unknown"
     };
-    let handle = images.add(sprite_image());
-    commands.spawn((
-        PortImage(handle),
-        PortSprite {
-            format,
-            width: SPRITE_SIZE,
-        },
-    ));
+    spawn_image_sprite(&mut commands, &mut images, sprite_image(), format);
+}
+
+fn setup_supplied_image(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    mut supplied: ResMut<VisualImage>,
+) {
+    spawn_image_sprite(
+        &mut commands,
+        &mut images,
+        supplied
+            .image
+            .take()
+            .expect("supplied image is consumed once"),
+        supplied.format,
+    );
 }

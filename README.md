@@ -66,6 +66,8 @@ fixture-based ones print `[skip]` and return).
 
 ![Update v262144 main implementation progress; partial is not completed and behavior/binary matching remain unknown](reports/function-progress/update-v262144/port.png)
 
+![Update v262144 main analysis progress map](reports/function-progress/update-v262144/analysis.png)
+
 [Interactive maps and per-function evidence](reports/function-progress/update-v262144/index.html) ·
 [Analysis map](reports/function-progress/update-v262144/analysis.png) ·
 [Latest evidence audit](reports/function-progress/update-v262144-evidence-audit.md)
