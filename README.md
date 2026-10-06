@@ -105,36 +105,44 @@ counted from real files and functions; `—` means there is no known denominator
 (not measured, so no percentage is invented) and `~` marks qualitative
 estimates.
 
-| Phase | Part | % done | % left | Note |
+| Phase (PLAN.md) | Part | % done | % left | Note |
 |---|---|:--:|:--:|---|
-| 1. Extract | Base: ExeFS + RomFS | 100 % | 0 % | |
+| 1. Extract (P0) | Base: ExeFS + RomFS | 100 % | 0 % | |
 | | Update: `main` + data | 100 % | 0 % | |
-| | Update: remaining modules | 0 % | 100 % | `rtld`, `sdk`, `subsdk0/1` |
-| 2. Inventory | `main` update | 100 % | 0 % | 153,476 functions |
-| | `main` base | 100 % | 0 % | 68,412 functions |
+| | Update: its remaining modules | 0 % | 100 % | `rtld`, `sdk`, `subsdk0/1` |
+| 2. Inventory (P0) | `main` update | 100 % | 0 % | 153,476 functions |
+| | `main` base | 100 % | 0 % | 68,412 functions; provenance/pin unresolved (P0) |
 | | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
-| 3. Pseudocode export | `main` update | 96.55 % | 3.45 % | 100 % of its inventory; 96.55 % of its executable bytes |
+| 3. Pseudocode export (prep) | `main` update | 96.55 % | 3.45 % | 100 % of its inventory; 96.55 % of its executable bytes |
 | | `main` base | 5.8 % | 94.2 % | 3,997 of 68,412 |
 | | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
-| 4. Index (gameDB) | `main` update | ~100 % | ~0 % | 153,471 files; the 5 asm fallbacks are outside the index |
+| 4. Index (gameDB) (prep) | `main` update | ~100 % | ~0 % | 153,471 files; the 5 asm fallbacks are outside the index |
 | | `main` base | 5.8 % | 94.2 % | 3,997 (bounded by export) |
 | | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
-| 5. Data (RomFS) | Lua scripts | 99.9 % | 0.1 % | 799 of 800 |
+| 5. Data (RomFS) (P0) | Lua scripts | 99.9 % | 0.1 % | 799 of 800 |
 | | Update files | 100 % | 0 % | 19,095 extracted (update only) |
 | | SARC packages | — | — | 264 indexed, no total |
 | | Strings / references | — | — | 13,370 + 29,162, no total |
 | | Domain tables | — | — | 12 sheets, no total |
 | | Base data | — | — | extracted, no clear index |
-| 6. Analysis | Game code | 0.03 % | 99.97 % | 22 of 68,330 |
-| 7. Implementation | Rust port | 0.01 % | 99.99 % | 8 partial |
-| 8. Behaviour verification | — | 0 % | 100 % | 0 functions |
-| 9. Binary matching | — | 0 % | 100 % | 0 functions |
-| 10. Playable port | Container parsers (SARC, GFLXPACK, AHTB, BNTX, VFXB) | ~90 % | ~10 % | ASTC and unknown BNTX formats pending |
+| 6. Analysis (P2–P7) | Game code | 0.03 % | 99.97 % | 22 of 68,330 |
+| 7. Implementation (P3–P7) | Rust port | 0.01 % | 99.99 % | 8 partial |
+| 8. Behaviour verification (P3–P7, P9) | — | 0 % | 100 % | 0 functions |
+| 9. Binary matching (P8–P9) | — | 0 % | 100 % | 0 functions |
+| 10. Playable port (P6–P7 → P9) | Container parsers (SARC, GFLXPACK, AHTB, BNTX, VFXB) | ~90 % | ~10 % | ASTC and unknown BNTX formats pending |
 | | Lua 5.3 layer | 100 % | 0 % | runs real event scripts |
 | | Host bindings | ~10 % | ~90 % | 2 real, rest stubs |
 | | Save system | ~30 % | ~70 % | seeded from 450 event flags |
 | | Visual subsystem | ~40 % | ~60 % | asset-level only; no full render |
 | | `tr*` models/animations, ASTC, Havok→avian3d | 0 % | 100 % | pending |
+
+This table inventories *what exists* in each stretch of
+[`odd/PLAN.md`](odd/PLAN.md); that plan is the canonical execution route and
+fixes the order and evidence gates. The parenthesised labels carry the matching
+PLAN.md phase: the preparation phases (1–5) belong to **P0**, and phases 6–10
+belong to **P2–P9**, a dependency chain (`P3 → P4 → P5 → P6 → P7`) in which
+parallelism exists only *inside* a phase. The port target is the game as it runs
+with the update applied (the base + update overlay), never the update alone.
 
 Phases 1–5 describe *having* the code and data; phases 6–9 describe
 *understanding and porting* it and hold ~99.97 % of the remaining work. The
