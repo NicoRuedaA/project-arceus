@@ -16,7 +16,7 @@ Rust/Bevy desde un libro de hojas versionado.
 
 | | |
 |---|---|
-| ✅ **Hecho** | Ambos volcados (base + update) obtenidos; todo el código ejecutable y los datos del RomFS extraídos; el pseudocódigo del `main` del update exportado (**96,55 %** de sus bytes) y consultable en gameDB; datos del RomFS mayormente interpretados (Lua 799/800, tablas, textos); un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
+| ✅ **Hecho** | Ambos volcados (base + update) obtenidos; todos los módulos ejecutables y los datos del RomFS extraídos, verificados (NSO) y cualificados por versión; el overlay efectivo base + update medido (17.904 / 466 / 725 / 0); el pseudocódigo del `main` del update exportado (**96,55 %** de sus bytes) y consultable en gameDB; datos del RomFS mayormente interpretados (Lua 799/800, tablas, textos); imports/relocations de los módulos inventariados; un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
 | 🟡 **En curso** | El pseudocódigo no es comprensión: el análisis, el port y la verificación del código del juego están ~**0,03 %** hechos. El export del `main` de la base es parcial (**5,8 %**). |
 | ❌ **Falta** | La decodificación de cabecera NCA; la propiedad a nivel de archivo de los datos cambiados/añadidos; la resolución runtime de dependencias; el último **3,45 %** del `main` del update (requiere trazado en emulador); la verificación de comportamiento y el *binary matching* están al **0 %**. |
 
@@ -58,8 +58,8 @@ hay denominador conocido (no se ha medido, así que no se inventa un porcentaje)
 | | Update: `main` + datos | 100 % | 0 % | |
 | | Módulos del update (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extraídos + verificados (NSO); idénticos byte a byte a los de la base |
 | 2. Inventario (P0) | `main` update | 100 % | 0 % | 153.476 funciones |
-| | `main` base | 100 % | 0 % | 68.412 funciones; procedencia/pin sin resolver (P0) |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
+| | `main` base | 100 % | 0 % | 68.412 funciones; procedencia cualificada (15/15 hashes de segmento NSO) |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | recuentos de detección + imports/relocations medidos; inventario completo/propiedad desconocidos |
 | 3. Export de pseudocódigo (prep) | `main` update | 96,55 % | 3,45 % | 100 % de su inventario; 96,55 % de sus bytes ejecutables |
 | | `main` base | 5,8 % | 94,2 % | 3.997 de 68.412 |
 | | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
@@ -97,10 +97,13 @@ Las fases 1–5 describen *tener* el código y los datos; las fases 6–9 descri
 denominador 68.330 de las fases 6–7 es el inventario limitado anterior; el export
 fix2 es un inventario mayor y más completo del mismo `main` del update.
 
-Los módulos auxiliares del update (`rtld`, `sdk`, `subsdk0/1`) están extraídos y
-verificados (NSO), y son idénticos byte a byte a los de la base; lo que queda
-para ellos es un inventario completo de imports/relocations y el export/índice de
-pseudocódigo, no la extracción.
+Los módulos auxiliares del update (`rtld`, `sdk`, `subsdk0/1`) están extraídos,
+verificados (NSO) e idénticos byte a byte a los de la base, con sus
+imports/relocations inventariados; lo que queda para ellos es el export/índice de
+pseudocódigo (y el análisis), no la extracción. **P0** (alcance, procedencia y
+overlay efectivo base + update) está **cerrado**; los pendientes documentados son
+la decodificación de cabecera NCA, la propiedad del dato por archivo y la
+resolución runtime de dependencias.
 
 ## Qué hay aquí
 

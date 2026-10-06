@@ -16,7 +16,7 @@ from a versioned sheet book.
 
 | | |
 |---|---|
-| ✅ **Done** | Both dumps (base + update) acquired; all executable code and RomFS data extracted; the update `main` pseudocode exported (**96.55 %** of its bytes) and searchable in gameDB; RomFS data largely parsed (Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
+| ✅ **Done** | Both dumps (base + update) acquired; every executable module and all RomFS data extracted, NSO-verified and version-qualified; the effective base+update overlay measured (17,904 / 466 / 725 / 0); the update `main` pseudocode exported (**96.55 %** of its bytes) and searchable in gameDB; RomFS data largely parsed (Lua 799/800, tables, texts); module imports/relocations inventoried; a Rust port scaffold that loads and runs real event scripts. |
 | 🟡 **In progress** | Pseudocode is *not* understanding: analysis, port and verification of the game code are ~**0.03 %** done. The base `main` export is partial (**5.8 %**). |
 | ❌ **Missing** | NCA-header decode; file-level ownership of the changed/added data; runtime dependency resolution; the last **3.45 %** of the update `main` (needs emulator tracing); behaviour verification and binary matching are **0 %**. |
 
@@ -58,8 +58,8 @@ estimates.
 | | Update: `main` + data | 100 % | 0 % | |
 | | Update modules (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extracted + NSO-verified; byte-identical to the base's |
 | 2. Inventory (P0) | `main` update | 100 % | 0 % | 153,476 functions |
-| | `main` base | 100 % | 0 % | 68,412 functions; provenance/pin unresolved (P0) |
-| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
+| | `main` base | 100 % | 0 % | 68,412 functions; provenance qualified (15/15 NSO segment hashes) |
+| | `sdk` / `subsdk0` / `subsdk1` / `rtld` | — | — | detection counts + imports/relocations measured; full inventory/ownership unknown |
 | 3. Pseudocode export (prep) | `main` update | 96.55 % | 3.45 % | 100 % of its inventory; 96.55 % of its executable bytes |
 | | `main` base | 5.8 % | 94.2 % | 3,997 of 68,412 |
 | | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
@@ -96,9 +96,12 @@ Phases 1–5 describe *having* the code and data; phases 6–9 describe
 68,330 denominator in phases 6–7 is the earlier capped inventory; the fix2
 export is a larger, more complete inventory of the same update `main`.
 
-The update's auxiliary modules (`rtld`, `sdk`, `subsdk0/1`) are extracted and
-NSO-verified, and are byte-identical to the base's; what remains for them is a
-complete import/relocation inventory and pseudocode export/index, not extraction.
+The update's auxiliary modules (`rtld`, `sdk`, `subsdk0/1`) are extracted,
+NSO-verified and byte-identical to the base's, with their imports/relocations
+inventoried; what remains for them is pseudocode export/index (and analysis), not
+extraction. **P0** (scope, provenance and the effective base+update overlay) is
+**closed**; the documented open items are the NCA-header decode, file-level data
+ownership and runtime dependency resolution.
 
 ## What is here
 
