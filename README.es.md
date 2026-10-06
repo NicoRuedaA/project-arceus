@@ -18,7 +18,7 @@ Rust/Bevy desde un libro de hojas versionado.
 |---|---|
 | ✅ **Hecho** | Ambos volcados (base + update) obtenidos; todo el código ejecutable y los datos del RomFS extraídos; el pseudocódigo del `main` del update exportado (**96,55 %** de sus bytes) y consultable en gameDB; datos del RomFS mayormente interpretados (Lua 799/800, tablas, textos); un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
 | 🟡 **En curso** | El pseudocódigo no es comprensión: el análisis, el port y la verificación del código del juego están ~**0,03 %** hechos. El export del `main` de la base es parcial (**5,8 %**). |
-| ❌ **Falta** | Los demás módulos del update (`rtld`, `sdk`, `subsdk0/1`) no están extraídos; la procedencia/pin de la base sigue sin resolver (**bloqueo P0**); el último **3,45 %** del `main` del update requiere trazado en emulador; la verificación de comportamiento y el *binary matching* están al **0 %**. |
+| ❌ **Falta** | La procedencia paquete→módulo de la base y el `main.npdm` del update; el contenido interno de los 466 contenedores modificados; el último **3,45 %** del `main` del update (requiere trazado en emulador); la verificación de comportamiento y el *binary matching* están al **0 %**. |
 
 El desglose detallado por fases es la [Tabla de cierre](#tabla-de-cierre) — la
 única fuente de estado. La ruta canónica de ejecución y sus puertas de evidencia
@@ -56,7 +56,7 @@ hay denominador conocido (no se ha medido, así que no se inventa un porcentaje)
 |---|---|:--:|:--:|---|
 | 1. Extraer (P0) | Base: ExeFS + RomFS | 100 % | 0 % | |
 | | Update: `main` + datos | 100 % | 0 % | |
-| | Update: sus módulos restantes | 0 % | 100 % | `rtld`, `sdk`, `subsdk0/1` |
+| | Módulos del update (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extraídos + verificados (NSO); idénticos byte a byte a los de la base |
 | 2. Inventario (P0) | `main` update | 100 % | 0 % | 153.476 funciones |
 | | `main` base | 100 % | 0 % | 68.412 funciones; procedencia/pin sin resolver (P0) |
 | | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
@@ -96,6 +96,11 @@ Las fases 1–5 describen *tener* el código y los datos; las fases 6–9 descri
 *comprenderlo y portarlo* y concentran ~99,97 % del trabajo restante. El
 denominador 68.330 de las fases 6–7 es el inventario limitado anterior; el export
 fix2 es un inventario mayor y más completo del mismo `main` del update.
+
+Los módulos auxiliares del update (`rtld`, `sdk`, `subsdk0/1`) están extraídos y
+verificados (NSO), y son idénticos byte a byte a los de la base; lo que queda
+para ellos es un inventario completo de imports/relocations y el export/índice de
+pseudocódigo, no la extracción.
 
 ## Qué hay aquí
 

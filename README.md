@@ -18,7 +18,7 @@ from a versioned sheet book.
 |---|---|
 | ✅ **Done** | Both dumps (base + update) acquired; all executable code and RomFS data extracted; the update `main` pseudocode exported (**96.55 %** of its bytes) and searchable in gameDB; RomFS data largely parsed (Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
 | 🟡 **In progress** | Pseudocode is *not* understanding: analysis, port and verification of the game code are ~**0.03 %** done. The base `main` export is partial (**5.8 %**). |
-| ❌ **Missing** | The update's other modules (`rtld`, `sdk`, `subsdk0/1`) are not extracted; the base's provenance/pin is unresolved (**P0 blocker**); the last **3.45 %** of the update `main` needs emulator tracing; behaviour verification and binary matching are **0 %**. |
+| ❌ **Missing** | Base-package→module provenance and the update's `main.npdm`; the contents inside the 466 changed containers; the last **3.45 %** of the update `main` (needs emulator tracing); behaviour verification and binary matching are **0 %**. |
 
 The detailed, phase-by-phase breakdown is the [Completion plan](#completion-plan)
 below — the single status source. The canonical execution route and its evidence
@@ -56,7 +56,7 @@ estimates.
 |---|---|:--:|:--:|---|
 | 1. Extract (P0) | Base: ExeFS + RomFS | 100 % | 0 % | |
 | | Update: `main` + data | 100 % | 0 % | |
-| | Update: its remaining modules | 0 % | 100 % | `rtld`, `sdk`, `subsdk0/1` |
+| | Update modules (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extracted + NSO-verified; byte-identical to the base's |
 | 2. Inventory (P0) | `main` update | 100 % | 0 % | 153,476 functions |
 | | `main` base | 100 % | 0 % | 68,412 functions; provenance/pin unresolved (P0) |
 | | `sdk` / `subsdk0` / `subsdk1` / `rtld` | 0 % | 100 % | |
@@ -95,6 +95,10 @@ Phases 1–5 describe *having* the code and data; phases 6–9 describe
 *understanding and porting* it and hold ~99.97 % of the remaining work. The
 68,330 denominator in phases 6–7 is the earlier capped inventory; the fix2
 export is a larger, more complete inventory of the same update `main`.
+
+The update's auxiliary modules (`rtld`, `sdk`, `subsdk0/1`) are extracted and
+NSO-verified, and are byte-identical to the base's; what remains for them is a
+complete import/relocation inventory and pseudocode export/index, not extraction.
 
 ## What is here
 
