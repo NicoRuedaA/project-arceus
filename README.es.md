@@ -17,8 +17,43 @@ Rust/Bevy desde un libro de hojas versionado.
 | | |
 |---|---|
 | ✅ **Hecho** | Ambos volcados (base + update) obtenidos; todos los módulos ejecutables y los datos del RomFS extraídos, verificados (NSO) y cualificados por versión; el overlay efectivo base + update medido (17.904 / 466 / 725 / 0); las 153.476 funciones localizadas por el inventario fix2 de `main` tienen export C o ensamblador; se contaron los archivos y filas de función gameDB de fix2; se midieron las detecciones Ghidra y exports C auxiliares; los módulos auxiliares del update son idénticos byte a byte a los de la base; datos del RomFS mayormente interpretados (Lua 799/800, tablas, textos); un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
-| 🟡 **En curso** | **P0 sigue abierto**: los metadatos estructurales de imports/relocations de los cinco NSO base están inventariados. Siguen abiertos o bloqueados el binding del loader, la identidad de proveedores, el alcance completo, la verificación de cabecera/firma NCA, la semántica del ContentMeta/CNMT del update, la propiedad archivo→código y la resolución runtime de dependencias. La aritmética del overlay está completa, pero la cobertura de parsers estructurales es parcial: **14/466** modificados tienen comparación interna satisfactoria (SARC 10/10; GFLXPACK 4/10), mientras que **452/466** no; la propiedad semántica sigue **desconocida para 1.191/1.191** entradas delta. El pseudocódigo no es comprensión: en el inventario fix2 localizado de `main` del update, **22/153.476 funciones (~0,0143 %)** están documentadas/analizadas, **8/153.476 (~0,0052 %)** tienen implementación parcial y **0/153.476** tienen verificación de comportamiento o binaria. Estos porcentajes usan solo el inventario fix2 localizado; el universo de funciones válidas más allá de la cobertura de cuerpos sigue siendo desconocido. |
-| ❌ **Falta** | El **3,44713 %** (1.830.644 bytes) está fuera de los cuerpos existentes de `main` del update. El metadato de listing/API de Ghidra clasifica 40.764 bytes como instrucciones y 1.789.880 como datos definidos; el clasificador genérico agrupa las 1.789.328 unidades de datos como «otras», y los 20.627 operandos quedan «otros o sin especificar» según las flags API consultadas. Son categorías de listing/API, no semántica. De 13.897 semillas fuera de cuerpos, 77 están en instrucciones definidas (308 bytes), 13.820 en datos definidos y 0 indefinidas/sin mapear; referencias entrantes: 91 objetivos / 179 aristas (CALL 8/11; clase JUMP 64/66, condicionalidad combinada; otro flujo 0/0; no flujo 19/102). Siguiente: triage semántico de unidades definidas y validez de candidatos. Véanse la [reconciliación de rangos](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), el [retry exitoso de la consulta semántica](reports/function-progress/p0-update-main-gap-semantic-retry.md), la [corrección del triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md) y el [intento fallido supersedido](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
+| 🟡 **En curso** | **P0 sigue abierto** hasta completar sus gates locales acotados: reconciliar el límite de descubrimiento e inclusión/exclusión del censo; reconciliar inventarios estáticos de módulos/imports/exports/índice manteniendo Desconocidos los denominadores funcionales; reconciliar aritmética del overlay y estados por formato; asignar estado, evidencia, motivo, límite y fase siguiente a cada unidad incluida; y pasar `sheetty` y CI. El censo actual tiene **26 registros**, no un denominador de completitud. La autenticidad de cabecera/firma NCA, semántica del ContentMeta/CNMT del update, confianza criptográfica/necesidad runtime del NPDM, estado runtime cargado/alcanzado y ownership semántico archivo→código no están verificados y quedan **Diferidos fuera de P0**; no son bloqueos activos de P0. El overlay tiene **19.095** archivos externos efectivos (17.904 sin cambios / 466 modificados / 725 añadidos / 0 eliminados); las comparaciones internas satisfactorias son **14/466** (SARC 10/10; GFLXPACK 4/10), mientras que **452/466** carecen de comparación satisfactoria. Resultados de parser/compilación se solapan y no se suman a ese numerador. Los hashes de añadidos son **33 coincidencias exactas con la base / 692 no coincidencias / 0 desconocidos** en 725 adiciones; la no coincidencia no prueba novedad y el cruce por grupo/extensión sigue **Desconocido**. Las referencias estáticas de rutas O9 son **Desconocidas/inconclusas**, no cero; el ownership semántico es **Desconocido para 1.191/1.191** entradas delta. El pseudocódigo no es comprensión: en el inventario fix2 localizado de `main` del update, **22/153.476 funciones (~0,0143 %)** están documentadas/analizadas, **8/153.476 (~0,0052 %)** tienen implementación parcial y **0/153.476** tienen verificación de comportamiento o binaria. Estos porcentajes usan solo el inventario fix2 localizado; el universo de funciones válidas más allá de la cobertura de cuerpos sigue siendo Desconocido. |
+| ❌ **Falta** | El **3,44713 %** (1.830.644 bytes) permanece como residual **Desconocido** fuera de los cuerpos existentes de `main` del update. Su clasificación semántica y la validez de candidatos se difieren; no detienen P0 una vez que el residual queda acotado y registrado. El metadato de listing/API de Ghidra clasifica 40.764 bytes como instrucciones y 1.789.880 como datos definidos; el clasificador genérico agrupa las 1.789.328 unidades de datos como «otras», y los 20.627 operandos quedan «otros o sin especificar» según las flags API consultadas. Son categorías de listing/API, no semántica. De 13.897 semillas fuera de cuerpos, 77 están en instrucciones definidas (308 bytes), 13.820 en datos definidos y 0 indefinidas/sin mapear; referencias entrantes: 91 objetivos / 179 aristas (CALL 8/11; clase JUMP 64/66, condicionalidad combinada; otro flujo 0/0; no flujo 19/102). El denominador completo de funciones válidas sigue Desconocido. Véanse la [reconciliación de rangos](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), el [retry exitoso de la consulta semántica](reports/function-progress/p0-update-main-gap-semantic-retry.md), la [corrección del triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md) y el [intento fallido supersedido](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
+
+**Aclaración del alcance P0 (2026-10-06):** P0 sigue **en curso**, pero la
+autenticidad de la cabecera/firma NCA y la semántica del ContentMeta/CNMT del
+update están **sin verificar y diferidas fuera de P0**; no son bloqueos activos
+de P0. No se afirma haber parseado el ContentMeta del update ni se copian
+valores CNMT de la base. `main.npdm` ya está extraído y comparado en sus campos;
+su confianza criptográfica y necesidad runtime, además del estado cargado/
+alcanzado en runtime, se difieren a P2. No existe una traza runtime. P0 solo
+busca un baseline acotado de metadata/inventario para la base v0 + update
+v262144 declarados: identidad del paquete/Program ExeFS, inventario estático de
+módulos ejecutables/imports, contabilidad del overlay externo efectivo y
+estados delimitados por grupo de archivo/parser. No afirma autenticidad,
+semántica completa, denominador completo de funciones válidas, ownership
+archivo→código, comportamiento runtime, completitud de todo el juego ni paridad
+del port.
+
+Los últimos gates locales de P0 son: (1) completar el límite de descubrimiento
+del censo, su justificación de inclusiones/exclusiones y condición de parada
+para raíces de paquete, Program ExeFS, RomFS externo efectivo, roles de módulos,
+scripts/assets/otros datos y miembros anidados; (2) reconciliar evidencia
+estática de módulos/dependencias/exports/índice, manteniendo `Desconocido` para
+denominadores funcionales y separados el residual de 1.830.644 bytes de
+update-main y los gaps auxiliares; (3) reconciliar aritmética del overlay y
+estados por formato: 14/466 comparaciones internas satisfactorias, 452/466 sin
+éxito, 33 coincidencias exactas de hash de añadidos frente a 692 no coincidencias
+(no prueban novedad), y filas no soportadas/desconocidas explícitas; (4) asignar
+a cada elemento incluido Known/Unknown/Blocked/Deferred con evidencia, motivo,
+índice global C frente a sus inventarios/fuentes; y (6) pasar
+`cargo run -p sheetty-cli -- check sheets` y CI. Se requieren cero incógnitas
+ocultas, no cero incógnitas. El resultado
+auxiliar de `Data.isDefined()` sigue siendo una variación metodológica sin
+resolver, no un stop de P0 mientras los rangos de cuerpos/metadatos de imports
+permanezcan estables. El índice C global y el treemap fix2 están vigentes: no se
+planea reindexar y no hace falta cambiar el treemap salvo que cambien el ledger
+o las fuentes Rust.
 
 El desglose detallado por fases es la [Tabla de cierre](#tabla-de-cierre) — la
 única fuente de estado. La ruta canónica de ejecución y sus puertas de evidencia
@@ -103,7 +138,9 @@ siguen siendo históricos. El
 proyecto fix2 intacto confirma directamente las 153.476 entradas inventariadas,
 sin solapamiento de cuerpos y con una unión exacta de 51.275.676 bytes
 (96,55287 %). Los 1.830.644/53.106.320 bytes restantes (3,44713 %) están fuera
-de todos los cuerpos existentes; el estado de listing clasifica 40.764 bytes
+de todos los cuerpos existentes; son un residual explícitamente Desconocido.
+Su clasificación semántica y la validez de candidatos se difieren fuera de P0
+una vez registrado el residual acotado. El estado de listing clasifica 40.764 bytes
 como instrucciones y 1.789.880 como datos definidos, sin establecer semántica, funciones
 nuevas válidas ni reachability. Este residual de bytes ejecutables es una métrica
 separada: no es una fila de función adicional ni el denominador de los recuentos
@@ -121,8 +158,8 @@ son indefinidas o no mapeadas. Las referencias entrantes son 91 objetivos / 179
 aristas: CALL 8/11, clase JUMP 64/66 (condicionalidad combinada), otro flujo
 0/0 y no flujo 19/102. La división previa de subtipos JUMP queda reemplazada/no
 confirmada. Estos registros no demuestran semántica, reachability, límites ni
-validez funcional. La siguiente tarea es el triage semántico de gaps de datos e
-instrucciones definidos y la validez de candidatos. Véase la
+validez funcional. El triage semántico de gaps y la validez de candidatos quedan
+Desconocidos/Diferidos; no son bloqueos activos del cierre P0. Véase la
 [corrección](reports/function-progress/p0-update-main-gap-flow-triage-correction.md).
 
 Los módulos auxiliares del update (`rtld`, `sdk`, `subsdk0/1`) están extraídos,
@@ -132,11 +169,12 @@ ejecución de export de Ghidra se detectaron 27.750 candidatos y se exportaron
 20.327 cuerpos C que suman 7.902.740 bytes; la razón del 50,75 % frente a `.text`
 es una suma de tamaños de cuerpos, no cobertura. Una reconciliación separada de
 rangos midió uniones y gaps exactos para las detecciones existentes; la
-completitud del inventario, los denominadores de export y el índice gameDB
-auxiliar siguen desconocidos. **P0 sigue en curso**: continúan abiertos o
-bloqueados el binding/identidad de proveedores, la cobertura semántica completa,
-la verificación de cabecera/firma NCA, la semántica del ContentMeta/CNMT del
-update, la propiedad por archivo y la resolución runtime. El overlay tiene
+completitud del inventario y los denominadores de export siguen desconocidos.
+**P0 sigue en curso** hasta completar los gates locales acotados del censo,
+identidad de proveedores, la verificación de cabecera/firma NCA, la semántica
+del ContentMeta/CNMT del update, el ownership semántico archivo→código y la
+resolución runtime siguen sin verificar o desconocidos; la prueba criptográfica,
+activo de P0. El overlay tiene
 **466 modificados + 725 añadidos**. Las comparaciones internas satisfactorias
 son **14/466**; **452/466** siguen sin comparación interna satisfactoria y el
 ownership semántico es desconocido para **1.191/1.191**. La evidencia estática

@@ -17,8 +17,40 @@ from a versioned sheet book.
 | | |
 |---|---|
 | ✅ **Done** | Both dumps (base + update) acquired; every executable module and all RomFS data extracted, NSO-verified and version-qualified; the effective base+update overlay measured (17,904 / 466 / 725 / 0); all 153,476 functions located by the fix2 `main` inventory have C or assembly exports; fix2 gameDB files and function rows are counted; auxiliary Ghidra detections and C exports are measured; the update auxiliary modules are byte-identical to base; RomFS data largely parsed (Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
-| 🟡 **In progress** | **P0 remains open**: base structural import/relocation metadata is inventoried for the five named NSOs. Loader binding, provider identity, complete scope, NCA header/signature verification, update ContentMeta/CNMT semantics, file-to-code ownership and runtime dependency resolution remain open or blocked. Overlay arithmetic is complete, but structural parser coverage is partial: **14/466** modified entries have successful internal comparisons (SARC 10/10; GFLXPACK 4/10), while **452/466** do not; semantic ownership remains **unknown for 1,191/1,191** delta entries. Pseudocode is *not* understanding: in the fix2-located update-`main` inventory, **22/153,476 functions (~0.0143%)** are documented/analyzed, **8/153,476 (~0.0052%)** have partial implementations, and **0/153,476** have behavior or binary verification. These percentages use the located fix2 inventory only; the valid-function universe beyond its body coverage remains unknown. |
-| ❌ **Missing** | **3.44713 %** (1,830,644 bytes) is outside existing update-`main` function bodies. Ghidra listing/API metadata classifies 40,764 bytes as instructions and 1,789,880 as defined data; the generic datatype classifier groups all 1,789,328 data units as “other”, and all 20,627 operands are “other or unspecified” by the queried API flags. These are listing/API categories, not semantics. For 13,897 outside-body seeds, 77 are in defined instructions (308 bytes), 13,820 in defined data, and 0 undefined/unmapped; incoming refs: 91 targets / 179 edges (CALL 8/11; JUMP 64/66, conditionality combined; other flow 0/0; non-flow 19/102). Next: semantic triage of defined units and candidate validity. See [range reconciliation](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [successful semantic-query retry](reports/function-progress/p0-update-main-gap-semantic-retry.md), [corrected flow triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md), and [superseded failed attempt](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
+| 🟡 **In progress** | **P0 remains open** pending its bounded local gates: reconcile the census discovery boundary and inclusion/exclusion rationale; reconcile static module/import/export/index inventories with bounded function-denominator Unknowns; reconcile overlay arithmetic and per-format states; classify every in-scope unit with evidence, reason, limit, and next phase; then pass `sheetty` and CI. The current census has **26 records**, not a completeness denominator. NCA header/signature authenticity, update ContentMeta/CNMT semantics, NPDM cryptographic trust/runtime necessity, runtime loaded/reached state, and semantic file-to-code ownership are unverified and **Deferred outside P0**, not active P0 blockers. The overlay is **19,095** effective outer files (17,904 unchanged / 466 modified / 725 added / 0 removed); internal comparisons succeeded for **14/466** (SARC 10/10; GFLXPACK 4/10), while **452/466** lack successful comparisons. Parser/compile results overlap and do not add to that numerator. Added-file hashes are **33 exact base matches / 692 non-matches / 0 unknown** across 725 additions; non-match does not prove newness, and group/extension cross-tabs remain **Unknown**. O9 exact/normalized path references are **Unknown/inconclusive**, not zero; semantic ownership remains **Unknown for 1,191/1,191** delta entries. Pseudocode is *not* understanding: in the fix2-located update-`main` inventory, **22/153,476 functions (~0.0143%)** are documented/analyzed, **8/153,476 (~0.0052%)** have partial implementations, and **0/153,476** have behavior or binary verification. These percentages use the located fix2 inventory only; the valid-function universe beyond its body coverage remains Unknown. |
+| ❌ **Missing** | **3.44713 %** (1,830,644 bytes) remains an explicit **Unknown residual** outside existing update-`main` function bodies. Its semantic classification and candidate validity are deferred, not a P0 stop once the residual is bounded and recorded. Ghidra listing/API metadata classifies 40,764 bytes as instructions and 1,789,880 as defined data; the generic datatype classifier groups all 1,789,328 data units as “other”, and all 20,627 operands are “other or unspecified” by the queried API flags. These are listing/API categories, not semantics. For 13,897 outside-body seeds, 77 are in defined instructions (308 bytes), 13,820 in defined data, and 0 undefined/unmapped; incoming refs: 91 targets / 179 edges (CALL 8/11; JUMP 64/66, conditionality combined; other flow 0/0; non-flow 19/102). The complete valid-function denominator remains Unknown. See [range reconciliation](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [successful semantic-query retry](reports/function-progress/p0-update-main-gap-semantic-retry.md), [corrected flow triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md), and [superseded failed attempt](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
+
+**P0 scope clarification (2026-10-06):** P0 remains **in progress**, but NCA
+header/signature authenticity and update ContentMeta/CNMT semantics are
+**unverified and deferred outside P0**, not active P0 blockers. No update
+ContentMeta parse is claimed and no base CNMT values are copied. `main.npdm` is
+already extracted and field-compared; its cryptographic trust and runtime
+necessity, plus loaded/reached runtime state, are deferred to P2. No runtime
+trace exists. P0 targets only a bounded metadata/inventory baseline for declared
+base v0 + update v262144: package/Program ExeFS identity, static executable
+module/import inventory, effective outer overlay accounting and bounded
+file-group/parser states. It does not claim authenticity, full semantics, a
+complete valid-function denominator, file-to-code ownership, runtime behavior,
+whole-game completeness or port parity.
+
+The remaining local P0 gates are: (1) finish the census discovery boundary,
+inclusion/exclusion rationale and stopping rule across package roots, Program
+ExeFS, effective outer RomFS, module roles, scripts/assets/other data and nested
+members; (2) reconcile static module/dependency/export/index evidence while
+keeping function denominators `Unknown` and the 1,830,644-byte update-main
+residual and auxiliary gaps separate; (3) reconcile overlay arithmetic and
+per-format states, including 14/466 successful internal comparisons, 452/466
+without success, 33 exact added-file hash matches versus 692 non-matches (not
+proof of newness), and explicit unsupported/unknown rows; (4) give every
+in-scope item a Known/Unknown/Blocked/Deferred label with evidence, reason,
+limit and next phase; (5) verify current fix2 profile and global C-index
+artifacts against their inventory/source fingerprints; and (6) pass
+`cargo run -p sheetty-cli -- check sheets` plus CI. Require zero hidden
+unknowns, not zero unknowns. The auxiliary `Data.isDefined()` result remains
+an unresolved method variance, not a P0 stop while body ranges/import metadata
+remain stable. The global C index and fix2 treemap are current: no reindex is
+planned, and no treemap change is needed unless the ledger or Rust sources
+change.
 
 The detailed, phase-by-phase breakdown is the [Completion plan](#completion-plan)
 below — the single status source. The canonical execution route and its evidence
@@ -101,7 +133,9 @@ fix2 project directly confirms all 153,476 inventory entries, with zero body
 overlap and an exact 51,275,676-byte union (96.55287%). The remaining
 1,830,644/53,106,320 bytes (3.44713%) are outside all existing function bodies;
 this is a separate executable-byte gap metric, not an additional function row or
-a denominator for the treemap's function counts. Listing state classifies
+a denominator for the treemap's function counts. It remains an explicit Unknown
+residual; semantic classification and candidate validity are deferred outside
+P0 once the bounded residual is recorded. Listing state classifies
 40,764 bytes as instructions and 1,789,880 as defined data, without establishing
 semantics, valid new functions or reachability. Every inventoried function has an output (153,471 C + 5 ASM); C-body sum is 96.47728% and
 assembly-body sum is 0.07559% of executable bytes. A seed-format attempt yielded
@@ -116,8 +150,8 @@ unmapped. Incoming references are 91 targets / 179 edges: CALL 8/11, JUMP class
 64/66 (conditionality combined), other flow 0/0, non-flow 19/102. The prior
 fine jump subtype split is superseded/unconfirmed. These listing/reference records
 do not establish semantics, reachability, function boundaries or function
-validity. The next task is semantic triage of defined data/instruction gaps and
-candidate validity. See the [correction evidence](reports/function-progress/p0-update-main-gap-flow-triage-correction.md).
+validity. Semantic gap triage and candidate validity remain Unknown/Deferred,
+not active P0 closure blockers. See the [correction evidence](reports/function-progress/p0-update-main-gap-flow-triage-correction.md).
 
 The update's auxiliary modules (`rtld`, `sdk`, `subsdk0/1`) are extracted,
 NSO-verified and byte-identical to the base's, with original-NSO structural
@@ -125,11 +159,6 @@ metadata and imports/relocations measured. Ghidra's export run detected 27,750
 candidates and exported 20,327 C bodies totaling 7,902,740 bytes; its 50.75%
 ratio against `.text` is summed body size, not coverage. A separate read-only
 range reconciliation measured exact unions and gaps for existing detections;
-inventory completeness, export denominators and auxiliary gameDB index status
-remain unknown. **P0 remains in progress**: loader binding/provider identity,
-complete semantic coverage, NCA header/signature verification, update
-ContentMeta/CNMT semantics, file-level ownership and runtime dependency
-resolution remain open or blocked. The overlay has **466 modified + 725 added**
 entries. Internal comparisons succeeded for **14/466** modified entries, while
 **452/466** remain without successful internal comparison; semantic ownership
 is unknown for **1,191/1,191** entries. Static dependency evidence records three

@@ -167,3 +167,172 @@ All other audit findings, historical counts, and P0 closure gates remain as
 previously recorded: semantic/function-scope completeness, runtime/binding,
 NCA/ContentMeta, overlay comparisons/provenance, ownership, and the other
 identified work remain open or blocked. This addendum does not claim P0 closure.
+
+## Superseding addendum — Wave A execution and next local queue (2026-10-06)
+
+This addendum supersedes the older next-task wording above that proposed
+regenerating the fix2 profile; that profile is current and its manifest matches
+the pinned archive, fix2 inventory, ledger, and Rust-source fingerprint. It also
+records that the successful global gameDB index covers the currently available
+six-root C corpus; do not run another index command for this queue.
+
+- Update-main reference triage used executable PT_LOAD `[0,0x32a5690)` minus
+  exact existing function bodies, yielding 23,597 ranges / 1,830,644 bytes.
+  The scan visited 2,830,748 reference records; complement-connected edges
+  totaled 44,832 inbound and 2,667 outbound. Stored references do not prove
+  reachability, valid functions, semantics, behavior, or ownership. See
+  [PT_LOAD strata](p0-update-main-gap-reference-strata.md).
+- Auxiliary read-only scans found a listing-method discrepancy: many Data
+  CodeUnits had `Data.isDefined() == false`, unlike the prior range report's
+  classification of all gap Data as defined. This is unresolved API-method
+  reconciliation, not evidence that body unions changed. Direct CALL/JUMP
+  references identify candidates only. Fifteen sequential Ghidra invocations
+  (peak concurrency 1, including failed script compiles) left source hashes
+  stable. See [auxiliary triage](p0-auxiliary-gap-reference-triage.md).
+- AHTB's ten rejects all overrun at entry 26 (276 declared, 173 remaining,
+  103-byte overrun); no alternate format rule is evidenced, so strict parsing
+  remains. GFLXPACK had no fresh direct validation because exact virtual inputs
+  were unreadable; prior 6/10 rejects remain. See the [AHTB](p0-ahtb-variant-reassessment.md)
+  and [GFLXPACK](p0-gfpak-variant-reassessment.md) reports.
+- The census has 21 records. O3 (bounded fix2 artifact generation) is resolved;
+  O1, O2, and O4–O10 remain open. Five ready local lanes are O2 scope/inventory
+  reconciliation, O7 modified-overlay reconciliation, O8 added-path provenance,
+  O9 static ownership candidates, and O10 scope/census audit. O4 NCA, O5 CNMT,
+  and O1/O6 runtime/NPDM-necessity proof remain blocked on prerequisites. The
+  [Wave 7 audit](p0-wave7-scope-and-ownership-plan.md) is the queue source.
+
+No function-level evidence rows or states were changed. Reference/Ghidra
+metadata, parser acceptance, and static candidates are not semantic function,
+ownership, or behavior evidence; P0 remains open.
+
+## Superseding addendum — Wave 7 findings integrated into the active queue (2026-10-06)
+
+This addendum records newer reference-strata and scope/ownership follow-up
+evidence. It does not change the 21-record census, the function evidence ledger,
+or any P0 closure gate.
+
+- The corrected update-main complement reference scan explicitly used executable
+  PT_LOAD `[0,0x32a5690)` minus exact current bodies and reproduced 23,597 ranges /
+  1,830,644 bytes. It counted 44,832 inbound and 2,667 outbound edges connected
+  to the complement. These are stored reference edges, not reachability or
+  semantic evidence; use [the reference-strata report](p0-update-main-gap-reference-strata.md)
+  alongside, not instead of, the semantic-query/listing retry.
+- The auxiliary listing pass separately checked `Data.isDefined()` and found
+  most gap Data CodeUnits reported as undefined-type, in conflict with the
+  earlier all-defined Data/Instructions classification in
+  [range reconciliation](p0-auxiliary-range-reconciliation.md). Preserve both
+  results as an unresolved method/classification discrepancy. The pass confirms
+  existing body unions, not semantic meaning; see [auxiliary reference triage](p0-auxiliary-gap-reference-triage.md).
+- AHTB remains 10/10 rejected at entry 26 with a 103-byte overrun and no safe
+  alternate rule. GFLXPACK had no readable fresh virtual inputs; prior 6/10
+  rejections remain. Neither parser changed ([AHTB](p0-ahtb-variant-reassessment.md),
+  [GFLXPACK](p0-gfpak-variant-reassessment.md)).
+- The active local queue is O2/O7/O8/O9/O10. O8's group/extension cross-tab is
+  not reproducible (0/11 groups, 0/5 extensions); O9's Ghidra query returned no
+  counters, so its result is Unknown, not zero. O10 found 21 census records but
+  no complete scope/method/exclusion accounting. O4/O5 and O1/O6 remain
+  prerequisite-gated. See [overlay matrix](p0-wave8-overlay-coverage-matrix.md),
+  [added provenance cross-tab](p0-wave8-added-provenance-cross-tab.md),
+  [static candidates](p0-wave8-static-file-code-candidates.md),
+  [census audit](p0-wave8-census-audit.md), and
+  [full-scope audit](p0-wave8-full-scope-audit.md).
+
+P0 remains open. No function-level evidence state is advanced; current fix2
+generation and global available-C indexing do not establish semantic or scope
+closure.
+
+## Superseding addendum — Wave 9 local-lane integration (2026-10-06)
+
+This addendum updates the earlier O9 no-counter outcome and records the current
+local-lane references. The canonical census remains at **26 records**; no
+function evidence rows or states, Rust sources, parsers, fix2 artifacts, or
+global index were changed.
+
+- **O9:** one read-only, `-noanalysis` Ghidra run matched **118 string data
+  units** against the effective inventory. It produced **0 exact-path xrefs**
+  and **97 normalized-only direct xrefs across 52 distinct existing functions**.
+  These are static candidates only: no file-open call, delta membership,
+  semantic ownership, runtime access, or reachability was established. This
+  successful report supersedes the older Wave 8 attempt's unavailable counters
+  for the current query; retain that report as history. See
+  [Wave 9 triage](p0-wave9-static-file-code-triage.md) and
+  [Wave 8 attempt](p0-wave8-static-file-code-candidates.md).
+- **Active local lanes:** O2 cites the [function-scope matrix](p0-function-scope-matrix.md)
+  and both gap-reference reports; O7 cites the [overlay coverage matrix](p0-wave8-overlay-coverage-matrix.md)
+  and strict AHTB/GFLXPACK reassessments; O8 cites the [added-provenance
+  cross-tab](p0-wave8-added-provenance-cross-tab.md), whose group/extension
+  cross-tab remains unavailable; O9 uses the Wave 9 report above; O10 uses the
+  [Wave 9 inclusion matrix](p0-wave9-scope-inclusion-matrix.md) alongside the
+  prior census audits. O2/O7/O8/O9/O10 remain local/next lanes, not closed P0
+  gates.
+- The auxiliary `Data.isDefined()` classification discrepancy remains
+  unresolved. No safe AHTB/GFLXPACK variant decision exists; parser bounds stay
+  unchanged. B1/B2 and O1/O6 remain blocked on their stated prerequisites.
+- The fix2 treemap remains `current` for its pinned update-main located-function
+  inventory only, and the global gameDB index remains current only for available
+  exports; neither is semantic or whole-game coverage.
+
+P0 remains open. No function-level evidence state is advanced by this
+integration.
+
+## Superseding addendum — user-directed bounded P0 scope (2026-10-06)
+
+This addendum supersedes prior active-gate wording in this audit that made NCA
+signature/authenticity, update ContentMeta/CNMT semantics, runtime binding or
+NPDM necessity prerequisites for P0. It records a scope decision, not new
+cryptographic or runtime evidence. **P0 remains in progress** until the local
+baseline gates below pass.
+
+### P0 closure claim boundary
+
+P0 may close only as a bounded metadata/inventory baseline for declared base v0
++ update v262144: package and Program ExeFS identities; executable-module roles
+with structural import inventory; effective outer overlay accounting; and
+bounded file-group/parser states. The closure will not claim NCA authenticity,
+complete update CNMT semantics, full semantic understanding, a complete valid-
+function denominator, file-to-code ownership, runtime behavior, whole-game
+completeness, or port parity. The update remains a patch; the required target is
+base plus update, not the update alone.
+
+### Verified state versus deferral
+
+- Update `main.npdm` is already extracted, hash-verified, and field-compared in
+  bounded static scope. Do not re-extract it. Its cryptographic trust and runtime
+  necessity remain Unknown/Deferred; no authenticity claim follows from the
+  field comparison.
+- NCA header/signature authenticity is **not verified** and is Deferred outside
+  P0. Update ContentMeta/CNMT semantics remain **not verified**; no update
+  ContentMeta parse is claimed and no base CNMT values are substituted.
+- Loaded/reached dependency state and runtime behavior are Deferred to P2. No
+  runtime trace is claimed. User-reported emulator use, if mentioned elsewhere,
+  is not independent trace evidence and is not part of the closure case.
+- Overlay remains 19,095 effective outer entries (17,904 unchanged, 466
+  modified, 725 added, 0 removed). Internal structural comparisons are 14/466
+  successful and 452/466 without successful comparison; added-file hashes are
+  33 exact base matches and 692 non-matches, which do not prove newness.
+  Semantic ownership is Unknown/Deferred for 1,191/1,191 delta entries.
+- The 1,830,644-byte update-main residual and auxiliary gaps remain separate
+  scoped unknowns, not invented function rows. Valid-function denominators remain
+  Unknown. The current fix2 profile and global available-C index need no update
+  here; no gameDB reindex is planned and no treemap change is required unless the
+  ledger or Rust sources change.
+- The auxiliary `Data.isDefined()` discrepancy is unresolved listing-method
+  variance, not a P0 stop while body ranges/import metadata remain stable.
+
+### Final local P0 gates
+
+1. Complete the census discovery boundary, inclusion/exclusion rationale and
+   stopping rule across package roots, Program ExeFS members, effective outer
+   RomFS files, module roles, scripts/assets/other data, and nested-member limits.
+2. Reconcile static module/dependency/export/index evidence; preserve Unknown
+   function denominators and keep byte residuals/gaps separate from function
+   counts.
+3. Reconcile effective overlay and per-format/parser states without treating
+   parser success as semantics or summing overlapping parser cohorts.
+4. Assign every in-scope row Known, Unknown, or Deferred with evidence, reason,
+   limit, and later phase; keep deferred validation explicitly outside P0.
+5. Pass `cargo run -p sheetty-cli -- check sheets` and `git diff --check`.
+
+Only after all five gates pass may P0 close as this bounded baseline. Until then
+P0 remains in progress. No function-ledger states, Rust sources, gameDB index,
+or treemap artifacts are changed by this scope integration.
