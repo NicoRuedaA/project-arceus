@@ -24,9 +24,25 @@ from typing import Iterable, Mapping, Sequence
 
 
 BUILD = "update-v262144"
+FIX2_BUILD = "update-v262144-fix2"
+BUILDS = (BUILD, FIX2_BUILD)
 MODULE_ID = "ns.update.main"
+FIX2_MODULE_ID = "ns.update.v262144.main"
 EXPECTED_ARCHIVE_SIZE = 52_657_467
 EXPECTED_ARCHIVE_SHA256 = "f68eecf0e5a207f87d4668f9e7654fa3e3eb2ceb6a2060424124d723a09e6446"
+FIX2_INVENTORY_PATH = "re/exports/update-main-fix2/functions.tsv"
+FIX2_INVENTORY_SHA256 = "829d810c52a7662ec4d3d958866a091a7b926d9fccd0eea1427181669abd2535"
+FIX2_FUNCTIONS = 153_476
+FIX2_BODY_BYTES = 51_275_676
+FIX2_TEXT_BYTES = 53_106_320
+FIX2_RESIDUAL_TEXT_BYTES = 1_830_644
+FIX2_C_EXPORTS = 153_471
+FIX2_C_EXPORT_BYTES = 51_235_532
+FIX2_ASM_ADDRESSES = {"0008baa8", "000a713c", "000a9b84", "02ee6a54", "02eea158"}
+FIX2_ASM_EXPORT_ROOT = "work/pla/decompiled-fix2/asm"
+FIX2_GAMEDB_FILES = 153_471
+FIX2_GAMEDB_FUNCTION_ROWS = 152_634
+FIX2_GAMEDB_UNPARSED_FILES = 837
 PINNED_INPUT_SHA256 = {
     "sheets/re/functions.tsv": "b1c93d898964d1b619b6f278855a3c1080c82d41b5f22b21d702e10c6312e163",
     "re/exports/update-main/functions.tsv": "8cefd2b2b7ce412653271ceec66be1325c0fcb0bc15b1d34bf8b3cdbfd5b7f8c",
@@ -73,6 +89,7 @@ SAFE_KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 ANALYSIS_COLORS = {
     "identified_only": (156, 163, 175),
     "pseudocode_exported": (235, 177, 73),
+    "assembly_fallback_exported": (164, 125, 195),
     "analyzed_documented": (63, 156, 197),
 }
 PORT_COLORS = {
@@ -289,7 +306,40 @@ def compare_inventories(generic_path: Path, versioned_path: Path) -> tuple[list[
     }
 
 
-def verify_archive(path: Path) -> dict[str, object]:
+def load_fix2_inventory(path: Path) -> tuple[list[dict[str, str]], dict[str, object]]:
+    header, rows = load_tsv(path)
+    if not {"id", "name", "size", "status"}.issubset(header):
+        raise GenerationError("The fix2 inventory is missing required columns")
+    inventory = []
+    seen: set[str] = set()
+    for row in rows:
+        address = normalized_address(row.get("id", ""), "fix2 update inventory")
+        if address in seen:
+            raise GenerationError(f"Duplicate function address in fix2 inventory: {address}")
+        seen.add(address)
+        try:
+            size = int(row["size"])
+        except (KeyError, ValueError) as error:
+            raise GenerationError(f"Invalid function size at {address}") from error
+        if size <= 0:
+            raise GenerationError(f"Function size must be positive at {address}")
+        normalized = dict(row)
+        normalized.update({"id": address, "size": str(size)})
+        inventory.append(normalized)
+    total_bytes = sum(int(row["size"]) for row in inventory)
+    if len(inventory) != FIX2_FUNCTIONS or total_bytes != FIX2_BODY_BYTES:
+        raise GenerationError("Fix2 inventory row count or body-byte total changed")
+    return inventory, {
+        "row_count": len(inventory),
+        "original_function_body_bytes": total_bytes,
+        "inventory_path": FIX2_INVENTORY_PATH,
+        "inventory_sha256": sha256_file(path),
+        "executable_text_bytes": FIX2_TEXT_BYTES,
+        "bytes_outside_inventoried_function_bodies": FIX2_RESIDUAL_TEXT_BYTES,
+    }
+
+
+def verify_archive(path: Path, build: str = BUILD) -> dict[str, object]:
     if not path.is_file():
         raise GenerationError("The selected update archive is missing")
     size = path.stat().st_size
@@ -303,10 +353,11 @@ def verify_archive(path: Path) -> dict[str, object]:
     }
 
 
-def collect_c_exports(root: Path, inventory: Sequence[dict[str, str]]) -> tuple[set[str], dict[str, object]]:
+def collect_c_exports(root: Path, inventory: Sequence[dict[str, str]], build: str = BUILD) -> tuple[set[str], dict[str, object]]:
     inventory_by_id = {row["id"]: row for row in inventory}
+    c_root = root / ("work/pla/decompiled-fix2/update-main" if build == FIX2_BUILD else "decompiled/update-main")
     exports: dict[str, Path] = {}
-    for path in sorted((root / "decompiled" / "update-main").rglob("*.c")):
+    for path in sorted(c_root.rglob("*.c")):
         address = address_from_c_filename(path.name)
         if address is None:
             raise GenerationError("An update-main C export has no trailing 8-hex address")
@@ -316,17 +367,36 @@ def collect_c_exports(root: Path, inventory: Sequence[dict[str, str]]) -> tuple[
             raise GenerationError(f"Duplicate update-main C export address: {address}")
         exports[address] = path
     total_bytes = sum(int(inventory_by_id[address]["size"]) for address in exports)
-    if len(exports) != EXPECTED_C_EXPORTS or total_bytes != EXPECTED_C_EXPORT_BYTES:
+    expected_count = FIX2_C_EXPORTS if build == FIX2_BUILD else EXPECTED_C_EXPORTS
+    expected_bytes = FIX2_C_EXPORT_BYTES if build == FIX2_BUILD else EXPECTED_C_EXPORT_BYTES
+    if len(exports) != expected_count or total_bytes != expected_bytes:
         raise GenerationError("Update-main C export count or original-byte total changed")
-    return set(exports), {
+    info = {
         "function_count": len(exports),
         "original_function_body_bytes": total_bytes,
         "function_count_percent": round(len(exports) * 100 / len(inventory), 6),
         "original_bytes_percent": round(total_bytes * 100 / sum(int(row["size"]) for row in inventory), 6),
     }
+    if build == FIX2_BUILD:
+        asm_root = root / FIX2_ASM_EXPORT_ROOT
+        asm_addresses = set()
+        for path in asm_root.rglob("*.s"):
+            match = re.search(r"([0-9a-fA-F]{8})(?:\.s)?$", path.stem, re.IGNORECASE)
+            if match:
+                asm_addresses.add(match.group(1).lower())
+        if asm_addresses != FIX2_ASM_ADDRESSES or asm_addresses & set(exports):
+            raise GenerationError("Fix2 assembly fallback address set does not match its audited five functions")
+        if set(exports) | asm_addresses != set(inventory_by_id):
+            raise GenerationError("Fix2 C and assembly export addresses do not exactly cover the inventory")
+        info["assembly_fallback_function_count"] = len(asm_addresses)
+        info["assembly_fallback_function_ids"] = sorted(asm_addresses)
+        info["assembly_fallback_original_function_body_bytes"] = sum(
+            int(inventory_by_id[address]["size"]) for address in asm_addresses
+        )
+    return set(exports), info
 
 
-def load_gamedb(path: Path, inventory: Sequence[dict[str, str]]) -> tuple[dict[str, str], set[str], dict[str, object]]:
+def load_gamedb(path: Path, inventory: Sequence[dict[str, str]], build: str = BUILD) -> tuple[dict[str, str], set[str], dict[str, object]]:
     if not path.is_file():
         raise GenerationError("The local gameDB index is missing")
     inventory_addresses = {row["id"] for row in inventory}
@@ -336,34 +406,34 @@ def load_gamedb(path: Path, inventory: Sequence[dict[str, str]]) -> tuple[dict[s
     except sqlite3.Error as error:
         raise GenerationError("The gameDB index cannot be opened read-only") from error
     try:
-        module_files = connection.execute(
-            "SELECT COUNT(*) FROM files WHERE module = ?", (MODULE_ID,)
-        ).fetchone()[0]
-        function_rows = connection.execute(
-            "SELECT COUNT(*) FROM functions AS f "
-            "JOIN files AS p ON p.id = f.file_id WHERE p.module = ?", (MODULE_ID,)
-        ).fetchone()[0]
-        unparsed_files = connection.execute(
-            "SELECT COUNT(*) FROM files AS p WHERE p.module = ? "
-            "AND NOT EXISTS (SELECT 1 FROM functions AS f WHERE f.file_id = p.id)",
-            (MODULE_ID,),
-        ).fetchone()[0]
+        module_id = FIX2_MODULE_ID if build == FIX2_BUILD else MODULE_ID
+        # Derive all counts from one grouped scan. A correlated NOT EXISTS over this
+        # unindexed 1.5 GB corpus becomes quadratic; the LEFT JOIN uses SQLite's
+        # automatic covering index and also supplies the per-file states below.
         file_rows = connection.execute(
             "SELECT p.path, COUNT(f.id) FROM files AS p "
             "LEFT JOIN functions AS f ON f.file_id = p.id "
-            "WHERE p.module = ? GROUP BY p.id, p.path ORDER BY p.path", (MODULE_ID,)
+            "WHERE p.module = ? GROUP BY p.id, p.path ORDER BY p.path", (module_id,)
         ).fetchall()
     except sqlite3.Error as error:
         raise GenerationError("The update-only gameDB query failed") from error
     finally:
         connection.close()
 
-    if module_files != EXPECTED_GAMEDB_FILES:
-        raise GenerationError(f"Expected {EXPECTED_GAMEDB_FILES} indexed update files, found {module_files}")
-    if function_rows != EXPECTED_GAMEDB_FUNCTION_ROWS:
-        raise GenerationError(f"Expected {EXPECTED_GAMEDB_FUNCTION_ROWS} parsed update functions, found {function_rows}")
-    if unparsed_files != EXPECTED_GAMEDB_UNPARSED_FILES:
-        raise GenerationError(f"Expected {EXPECTED_GAMEDB_UNPARSED_FILES} indexed update files without parsed functions")
+    module_files = len(file_rows)
+    function_rows = sum(row_count for _file_path, row_count in file_rows)
+    unparsed_files = sum(1 for _file_path, row_count in file_rows if row_count == 0)
+    expected_files, expected_rows, expected_unparsed = (
+        (FIX2_GAMEDB_FILES, FIX2_GAMEDB_FUNCTION_ROWS, FIX2_GAMEDB_UNPARSED_FILES)
+        if build == FIX2_BUILD
+        else (EXPECTED_GAMEDB_FILES, EXPECTED_GAMEDB_FUNCTION_ROWS, EXPECTED_GAMEDB_UNPARSED_FILES)
+    )
+    if module_files != expected_files:
+        raise GenerationError(f"Expected {expected_files} indexed update files, found {module_files}")
+    if function_rows != expected_rows:
+        raise GenerationError(f"Expected {expected_rows} parsed update functions, found {function_rows}")
+    if unparsed_files != expected_unparsed:
+        raise GenerationError(f"Expected {expected_unparsed} indexed update files without parsed functions")
 
     indexed_file_status: dict[str, str] = {}
     parsed_addresses: set[str] = set()
@@ -397,13 +467,13 @@ def load_gamedb(path: Path, inventory: Sequence[dict[str, str]]) -> tuple[dict[s
         raise GenerationError(
             f"Expected one parsed gameDB file path per function row ({function_rows}), found {parsed_file_count}"
         )
-    if len(parsed_addresses) != EXPECTED_GAMEDB_FUNCTION_ROWS:
+    if len(parsed_addresses) != expected_rows:
         raise GenerationError(
-            f"Expected {EXPECTED_GAMEDB_FUNCTION_ROWS} distinct parsed update file addresses, found {len(parsed_addresses)}"
+            f"Expected {expected_rows} distinct parsed update file addresses, found {len(parsed_addresses)}"
         )
 
     info = {
-        "module_id": MODULE_ID,
+        "module_id": FIX2_MODULE_ID if build == FIX2_BUILD else MODULE_ID,
         "indexed_file_count": module_files,
         "parsed_function_row_count": function_rows,
         "indexed_files_without_parsed_functions": unparsed_files,
@@ -446,8 +516,18 @@ def subsystem_id_for_prefix(prefix: str) -> str:
     return slug(name)
 
 
-def load_subsystem_groups(root: Path, inventory: Sequence[dict[str, str]]) -> tuple[dict[str, str], dict[str, object]]:
+def load_subsystem_groups(root: Path, inventory: Sequence[dict[str, str]], build: str = BUILD) -> tuple[dict[str, str], dict[str, object]]:
     inventory_addresses = {row["id"] for row in inventory}
+    if build == FIX2_BUILD:
+        return ({address: "unknown" for address in inventory_addresses}, {
+            "method": "unknown; no complete fix2 string-reference export is available",
+            "unique_dominant_functions": 0,
+            "tied_dominant_functions": 0,
+            "functions_without_path_references": len(inventory_addresses),
+            "unmapped_functions": len(inventory_addresses),
+            "strrefs_path": None,
+            "strrefs_sha256": None,
+        })
     ref_path = root / "re" / "exports" / "update-main" / "strrefs.tsv"
     strrefs_rows = load_strrefs(ref_path)
     counters: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
@@ -565,8 +645,10 @@ def validate_evidence_references(
 
 
 def validate_evidence(
-    rows: Sequence[dict[str, str]], inventory: Sequence[dict[str, str]], build: str, root: Path
+    rows: Sequence[dict[str, str]], inventory: Sequence[dict[str, str]], build: str, root: Path,
+    ledger_build: str | None = None,
 ) -> dict[str, dict[str, str]]:
+    expected_ledger_build = ledger_build or build
     inventory_addresses = {row["id"] for row in inventory}
     by_address: dict[str, dict[str, str]] = {}
     relation_items: dict[str, str] = {}
@@ -574,14 +656,14 @@ def validate_evidence(
     decision_ids: set[str] | None = None
     for row in rows:
         row_build = evidence_value(row, "build")
-        if row_build != build:
+        if row_build != expected_ledger_build:
             raise GenerationError("The evidence ledger contains a row for a different build")
         address = normalized_address(evidence_value(row, "function_id"), "function progress evidence")
         if address not in inventory_addresses:
             raise GenerationError(f"Evidence row does not join to the selected build: {address}")
         if address in by_address:
             raise GenerationError(f"Duplicate function evidence row: {address}")
-        expected_id = evidence_primary_id(build, address)
+        expected_id = evidence_primary_id(expected_ledger_build, address)
         if not SAFE_KEY_RE.fullmatch(expected_id) or evidence_value(row, "id") != expected_id:
             raise GenerationError(f"Evidence row key is not a safe build/function key: {address}")
 
@@ -674,8 +756,11 @@ def build_registry_rows(
     build: str = BUILD,
     *,
     repository_root: Path,
+    assembly_fallback_addresses: set[str] | None = None,
+    ledger_build: str | None = None,
 ) -> list[dict[str, object]]:
-    evidence_by_address = validate_evidence(evidence_rows, inventory, build, repository_root)
+    evidence_by_address = validate_evidence(evidence_rows, inventory, build, repository_root, ledger_build)
+    assembly_fallback_addresses = assembly_fallback_addresses or set()
     addresses = [row["id"] for row in inventory]
     if len(addresses) != len(set(addresses)):
         raise GenerationError("Function output would contain duplicate native addresses")
@@ -686,13 +771,20 @@ def build_registry_rows(
         address = function["id"]
         evidence = evidence_by_address.get(address, {})
         identification = function.get("status", "identified") or "identified"
-        decompilation = "pseudocode_exported" if address in c_export_addresses else "no_matching_export_in_snapshot"
+        if address in assembly_fallback_addresses:
+            decompilation = "assembly_fallback_exported"
+        elif address in c_export_addresses:
+            decompilation = "pseudocode_exported"
+        else:
+            decompilation = "no_matching_export_in_snapshot"
         analysis = evidence.get("analysis_status", "unknown")
         analysis_state = "analyzed_documented" if analysis == "analyzed_documented" else "unknown"
         if analysis_state == "analyzed_documented":
             analysis_map_state = "analyzed_documented"
         elif address in c_export_addresses:
             analysis_map_state = "pseudocode_exported"
+        elif address in assembly_fallback_addresses:
+            analysis_map_state = "assembly_fallback_exported"
         else:
             analysis_map_state = "identified_only"
         implementation = evidence.get("implementation_status", "unknown")
@@ -754,10 +846,10 @@ def spreadsheet_safe_cell(value: object) -> str:
     return "'" + cell if cell.startswith(("=", "+", "-", "@")) else cell
 
 
-def write_registry_tsv(path: Path, rows: Sequence[Mapping[str, object]]) -> None:
+def write_registry_tsv(path: Path, rows: Sequence[Mapping[str, object]], build: str = BUILD) -> None:
     output = io.StringIO(newline="")
     output.write("# Function progress registry; metadata and evidence references only.\n")
-    output.write(f"# build: {BUILD}\n")
+    output.write(f"# build: {build}\n")
     writer = csv.DictWriter(output, fieldnames=TSV_COLUMNS, delimiter="\t", lineterminator="\n")
     writer.writeheader()
     for row in rows:
@@ -933,7 +1025,7 @@ def draw_outline(pixels: bytearray, width: int, height: int,
 
 
 def render_map_png(rows: Sequence[Mapping[str, object]], mode: str,
-                   width: int = 1440, height: int = 960) -> bytes:
+                   width: int = 1440, height: int = 960, build: str = BUILD) -> bytes:
     if mode not in {"analysis", "port"}:
         raise GenerationError("Unknown treemap mode")
     denominator = total_original_bytes(rows)
@@ -949,6 +1041,7 @@ def render_map_png(rows: Sequence[Mapping[str, object]], mode: str,
         legend = [
             ("identified_only", "IDENTIFIED ONLY"),
             ("pseudocode_exported", "PSEUDOCODE EXPORTED"),
+            *(([("assembly_fallback_exported", "ASSEMBLY FALLBACK EXPORTED")] if build == FIX2_BUILD else [])),
             ("analyzed_documented", "ANALYZED / DOCUMENTED"),
         ]
     else:
@@ -1187,7 +1280,7 @@ def safe_json_for_script(value: object) -> str:
             .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
 
 
-def build_html(rows: Sequence[Mapping[str, object]], layout: Mapping[str, tuple[float, float, float, float]]) -> str:
+def build_html(rows: Sequence[Mapping[str, object]], layout: Mapping[str, tuple[float, float, float, float]], build: str = BUILD) -> str:
     browser_rows = []
     for row in rows:
         x, y, width, height = layout[str(row["function_id"])]
@@ -1195,13 +1288,24 @@ def build_html(rows: Sequence[Mapping[str, object]], layout: Mapping[str, tuple[
         browser_row.update({"x": x, "y": y, "w": width, "h": height})
         browser_rows.append(browser_row)
     payload = safe_json_for_script(browser_rows)
-    return HTML_TEMPLATE.replace("__REGISTRY_DATA__", payload)
+    html = HTML_TEMPLATE.replace("__REGISTRY_DATA__", payload)
+    if build == FIX2_BUILD:
+        html = html.replace(
+            'pseudocode_exported: "#ebb149",',
+            'pseudocode_exported: "#ebb149", assembly_fallback_exported: "#a47dc3",',
+        )
+        html = html.replace(
+            '["pseudocode_exported", "Pseudocode exported"],',
+            '["pseudocode_exported", "Pseudocode exported"], ["assembly_fallback_exported", "Assembly fallback exported"],',
+        )
+        html = html.replace("update-v262144", FIX2_BUILD)
+    return html
 
 
 def build_manifest(root: Path, inventory_info: Mapping[str, object], archive_info: Mapping[str, object],
                    c_export_info: Mapping[str, object], gamedb_info: Mapping[str, object],
                    subsystem_info: Mapping[str, object], evidence_path: Path,
-                   rows: Sequence[Mapping[str, object]]) -> dict[str, object]:
+                   rows: Sequence[Mapping[str, object]], build: str = BUILD) -> dict[str, object]:
     rust_files = sorted((root / "crates").glob("**/*.rs"))
     if not rust_files:
         raise GenerationError("No Rust source files were found for the source fingerprint")
@@ -1244,10 +1348,11 @@ def build_manifest(root: Path, inventory_info: Mapping[str, object], archive_inf
         "Binary matching is an independent evidence field and does not make a function behavior-verified.",
         "Treemap areas use original Ghidra function-body bytes; shared Rust relation ids never duplicate native function rows or their byte weights.",
     ]
-    return {
+    manifest = {
         "format": "function-progress-manifest/v1",
-        "build": BUILD,
-        "target": "Pokémon Legends: Arceus update v262144, main NSO only",
+        "build": build,
+        "target": ("Pokémon Legends: Arceus update v262144, main NSO only (patch; base game required)"
+                   if build == FIX2_BUILD else "Pokémon Legends: Arceus update v262144, main NSO only"),
         "denominator": {
             "definition": "sum of original Ghidra update-main function-body bytes",
             "function_count": len(rows),
@@ -1273,6 +1378,13 @@ def build_manifest(root: Path, inventory_info: Mapping[str, object], archive_inf
         "state_partitions": partitions,
         "coverage_limitations": limitations,
     }
+    if build == FIX2_BUILD:
+        manifest["executable_text_scope"] = {
+            "bytes": FIX2_TEXT_BYTES,
+            "bytes_outside_existing_function_bodies": FIX2_RESIDUAL_TEXT_BYTES,
+            "scope": "main NSO .text only; outside-body bytes are a separate scope metric, not function rows or treemap weights",
+        }
+    return manifest
 
 
 def _atomic_write_bytes(path: Path, contents: bytes) -> None:
@@ -1383,7 +1495,7 @@ def archive_existing_outputs(output_dir: Path) -> Path:
 def mark_generation_stale(output_dir: Path, reason_code: str) -> None:
     _write_json(output_dir / STATUS_FILE, {
         "format": "function-progress-generation-status/v1",
-        "build": BUILD,
+        "build": output_dir.name,
         "state": "stale",
         "reason_code": reason_code,
         "message": "Generation has not completed successfully; do not treat report artifacts as current.",
@@ -1401,7 +1513,7 @@ def stale_placeholder_png() -> bytes:
 def write_failure_placeholders(output_dir: Path, reason_code: str) -> None:
     _write_json(output_dir / "manifest.json", {
         "format": "function-progress-manifest/v1",
-        "build": BUILD,
+        "build": output_dir.name,
         "state": "stale",
         "reason_code": reason_code,
     })
@@ -1411,7 +1523,7 @@ def write_failure_placeholders(output_dir: Path, reason_code: str) -> None:
     )
     stale_html = (
         "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><title>Stale report</title>"
-        "<body><h1>Report stale</h1><p>Generation failed. Regenerate update-v262144 before use.</p></body></html>\n"
+        f"<body><h1>Report stale</h1><p>Generation failed. Regenerate {output_dir.name} before use.</p></body></html>\n"
     )
     _atomic_write_text(output_dir / "index.html", stale_html)
     placeholder = stale_placeholder_png()
@@ -1427,41 +1539,56 @@ def write_failure_placeholders(output_dir: Path, reason_code: str) -> None:
 
 
 def run_generation(root: Path, build: str = BUILD, output_dir: Path | None = None) -> dict[str, object]:
-    if build != BUILD:
+    if build not in BUILDS:
         raise GenerationError(f"Unsupported build: {build}")
     repository, destination = resolve_output_directory(root, output_dir, build)
     try:
         _ensure_directory_tree(repository, destination)
         archive_existing_outputs(destination)
-        verify_pinned_inputs(repository)
-        archive_info = verify_archive(repository / "pk2.nsz")
-        inventory, inventory_info = compare_inventories(
-            repository / "sheets" / "re" / "functions.tsv",
-            repository / "re" / "exports" / "update-main" / "functions.tsv",
-        )
-        c_export_addresses, c_export_info = collect_c_exports(repository, inventory)
+        if build == BUILD:
+            verify_pinned_inputs(repository)
+            inventory, inventory_info = compare_inventories(
+                repository / "sheets" / "re" / "functions.tsv",
+                repository / "re" / "exports" / "update-main" / "functions.tsv",
+            )
+            index_path = repository / "decompiled" / ".gamedb" / "index.sqlite"
+        else:
+            inventory_path = repository / FIX2_INVENTORY_PATH
+            if sha256_file(inventory_path) != FIX2_INVENTORY_SHA256:
+                raise GenerationError("The fix2 inventory hash changed")
+            inventory, inventory_info = load_fix2_inventory(inventory_path)
+            index_path = repository / "work/p0-global-gamedb-corpus-20261006/.gamedb/index.sqlite"
+        archive_info = verify_archive(repository / "pk2.nsz", build)
+        c_export_addresses, c_export_info = collect_c_exports(repository, inventory, build)
+        asm_addresses = set(FIX2_ASM_ADDRESSES) if build == FIX2_BUILD else set()
         gamedb_file_status, gamedb_function_addresses, gamedb_info = load_gamedb(
-            repository / "decompiled" / ".gamedb" / "index.sqlite", inventory
+            index_path, inventory, build
         )
-        subsystem_groups, subsystem_info = load_subsystem_groups(repository, inventory)
+        subsystem_groups, subsystem_info = load_subsystem_groups(repository, inventory, build)
         evidence_path = repository / "sheets" / "re" / "function_progress_evidence.tsv"
         _evidence_header, evidence_rows = load_tsv(evidence_path)
         rows = build_registry_rows(
             inventory, c_export_addresses, subsystem_groups, gamedb_file_status,
             gamedb_function_addresses, evidence_rows, build, repository_root=repository,
+            assembly_fallback_addresses=asm_addresses,
+            ledger_build=BUILD if build == FIX2_BUILD else None,
         )
-        if len(rows) != EXPECTED_FUNCTIONS or total_original_bytes(rows) != EXPECTED_ORIGINAL_BYTES:
+        expected_functions, expected_bytes = (
+            (FIX2_FUNCTIONS, FIX2_BODY_BYTES) if build == FIX2_BUILD
+            else (EXPECTED_FUNCTIONS, EXPECTED_ORIGINAL_BYTES)
+        )
+        if len(rows) != expected_functions or total_original_bytes(rows) != expected_bytes:
             raise GenerationError("Registry rows or byte weights do not match the update inventory")
         layout = browser_layout(rows)
         manifest = build_manifest(
             repository, inventory_info, archive_info, c_export_info, gamedb_info,
-            subsystem_info, evidence_path, rows,
+            subsystem_info, evidence_path, rows, build,
         )
         registry_path = destination / "function-progress.tsv"
-        write_registry_tsv(registry_path, rows)
-        _atomic_write_bytes(destination / "analysis.png", render_map_png(rows, "analysis"))
-        _atomic_write_bytes(destination / "port.png", render_map_png(rows, "port"))
-        _atomic_write_text(destination / "index.html", build_html(rows, layout))
+        write_registry_tsv(registry_path, rows, build)
+        _atomic_write_bytes(destination / "analysis.png", render_map_png(rows, "analysis", build=build))
+        _atomic_write_bytes(destination / "port.png", render_map_png(rows, "port", build=build))
+        _atomic_write_text(destination / "index.html", build_html(rows, layout, build))
         manifest["outputs"] = {
             "function-progress.tsv": sha256_file(registry_path),
             "analysis.png": sha256_file(destination / "analysis.png"),
@@ -1493,7 +1620,7 @@ def run_generation(root: Path, build: str = BUILD, output_dir: Path | None = Non
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--build", choices=(BUILD,), required=True)
+    parser.add_argument("--build", choices=BUILDS, required=True)
     return parser.parse_args(argv)
 
 

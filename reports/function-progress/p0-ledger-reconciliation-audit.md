@@ -148,3 +148,22 @@ This task wrote only this audit report among report outputs and appended only
 final status check; it is outside this task and was not read, edited, or removed.
 Canonical census, function ledger, plan, READMEs, and other reports were not
 edited. No Ghidra process, `gamedb index`, commit, or push was performed.
+
+## Superseding addendum — current fix2 progress-map regeneration (2026-10-06)
+
+This addendum supersedes only the current-map regeneration status recorded in
+O3 and the associated blocker/next-task wording in this audit. The separate
+`update-v262144-fix2` profile has now been regenerated successfully. Its
+`generation-status.json` is current, and its manifest matches the exact pinned
+update archive and fix2 inventory as well as the current Rust-source
+fingerprint; see [the profile report](p0-fix2-treemap-profile.md) and
+[manifest](update-v262144-fix2/manifest.json). The profile covers the 153,476
+functions located in the fix2 update-`main` inventory only, not whole-game
+coverage or a complete valid-function denominator. It records 22 documented/
+analyzed, 8 partial implementations, 0 behavior-verified, and 0 binary-matched
+functions. No function state was promoted by generation.
+
+All other audit findings, historical counts, and P0 closure gates remain as
+previously recorded: semantic/function-scope completeness, runtime/binding,
+NCA/ContentMeta, overlay comparisons/provenance, ownership, and the other
+identified work remain open or blocked. This addendum does not claim P0 closure.

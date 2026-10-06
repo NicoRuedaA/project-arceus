@@ -17,7 +17,7 @@ Rust/Bevy desde un libro de hojas versionado.
 | | |
 |---|---|
 | ✅ **Hecho** | Ambos volcados (base + update) obtenidos; todos los módulos ejecutables y los datos del RomFS extraídos, verificados (NSO) y cualificados por versión; el overlay efectivo base + update medido (17.904 / 466 / 725 / 0); las 153.476 funciones localizadas por el inventario fix2 de `main` tienen export C o ensamblador; se contaron los archivos y filas de función gameDB de fix2; se midieron las detecciones Ghidra y exports C auxiliares; los módulos auxiliares del update son idénticos byte a byte a los de la base; datos del RomFS mayormente interpretados (Lua 799/800, tablas, textos); un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
-| 🟡 **En curso** | **P0 sigue abierto**: los metadatos estructurales de imports/relocations de los cinco NSO base están inventariados. Siguen abiertos o bloqueados el binding del loader, la identidad de proveedores, el alcance completo, la verificación de cabecera/firma NCA, la semántica del ContentMeta/CNMT del update, la propiedad archivo→código y la resolución runtime de dependencias. La aritmética del overlay está completa, pero la cobertura de parsers estructurales es parcial: **14/466** modificados tienen comparación interna satisfactoria (SARC 10/10; GFLXPACK 4/10), mientras que **452/466** no; la propiedad semántica sigue **desconocida para 1.191/1.191** entradas delta. El pseudocódigo no es comprensión: el análisis, el port y la verificación del código del juego están ~**0,03 %** hechos. |
+| 🟡 **En curso** | **P0 sigue abierto**: los metadatos estructurales de imports/relocations de los cinco NSO base están inventariados. Siguen abiertos o bloqueados el binding del loader, la identidad de proveedores, el alcance completo, la verificación de cabecera/firma NCA, la semántica del ContentMeta/CNMT del update, la propiedad archivo→código y la resolución runtime de dependencias. La aritmética del overlay está completa, pero la cobertura de parsers estructurales es parcial: **14/466** modificados tienen comparación interna satisfactoria (SARC 10/10; GFLXPACK 4/10), mientras que **452/466** no; la propiedad semántica sigue **desconocida para 1.191/1.191** entradas delta. El pseudocódigo no es comprensión: en el inventario fix2 localizado de `main` del update, **22/153.476 funciones (~0,0143 %)** están documentadas/analizadas, **8/153.476 (~0,0052 %)** tienen implementación parcial y **0/153.476** tienen verificación de comportamiento o binaria. Estos porcentajes usan solo el inventario fix2 localizado; el universo de funciones válidas más allá de la cobertura de cuerpos sigue siendo desconocido. |
 | ❌ **Falta** | El **3,44713 %** (1.830.644 bytes) está fuera de los cuerpos existentes de `main` del update. El metadato de listing/API de Ghidra clasifica 40.764 bytes como instrucciones y 1.789.880 como datos definidos; el clasificador genérico agrupa las 1.789.328 unidades de datos como «otras», y los 20.627 operandos quedan «otros o sin especificar» según las flags API consultadas. Son categorías de listing/API, no semántica. De 13.897 semillas fuera de cuerpos, 77 están en instrucciones definidas (308 bytes), 13.820 en datos definidos y 0 indefinidas/sin mapear; referencias entrantes: 91 objetivos / 179 aristas (CALL 8/11; clase JUMP 64/66, condicionalidad combinada; otro flujo 0/0; no flujo 19/102). Siguiente: triage semántico de unidades definidas y validez de candidatos. Véanse la [reconciliación de rangos](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), el [retry exitoso de la consulta semántica](reports/function-progress/p0-update-main-gap-semantic-retry.md), la [corrección del triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md) y el [intento fallido supersedido](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
 
 El desglose detallado por fases es la [Tabla de cierre](#tabla-de-cierre) — la
@@ -74,10 +74,10 @@ completa del módulo. `~` marca estimaciones cualitativas.
 | | Textos / referencias | Desconocido | Desconocido | 13.370 + 29.162, sin total | Scanners de extracción/referencias; denominador total no establecido |
 | | Tablas de dominio | Desconocido | Desconocido | 12 hojas, sin total | Ingesta TSV/hojas y preflight `sheetty` |
 | | Datos de la base | Desconocido | Desconocido | extraídos, sin índice claro | Extracción RomFS; índice completo de datos base pendiente |
-| 6. Análisis (P2–P7) | Código del juego | 0,03 % | 99,97 % | 22 de 68.330 (vista histórica limitada) | Evidencia directa de decompilación y ledger de progreso; análisis amplio pendiente |
-| 7. Implementación (P3–P7) | Port en Rust | 0,01 % | 99,99 % | 8 parciales | Implementación Rust/Bevy, fixtures acotados y comprobaciones CI |
-| 8. Verificación de comportamiento (P3–P7, P9) | No aplica | 0 % | 100 % | 0 funciones | No hay verificación conductual independiente completada |
-| 9. Binary matching (P8–P9) | No aplica | 0 % | 100 % | 0 funciones | No hay ejecución reproducible de binary matching completada |
+| 6. Análisis (P2–P7) | Código del juego | ~0,0143 % | ~99,9857 % | 22/153.476 funciones fix2 localizadas documentadas/analizadas; el denominador es el inventario localizado, no el universo completo de funciones válidas. Las 68.330 corresponden a la vista histórica limitada. | Evidencia directa de decompilación y ledger de progreso; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md); análisis amplio pendiente |
+| 7. Implementación (P3–P7) | Port en Rust | ~0,0052 % de parciales | Desconocido | 8/153.476 funciones fix2 localizadas tienen implementación parcial; parcial no significa completa. El denominador es el inventario localizado, no el universo completo de funciones válidas. | Implementación Rust/Bevy y ledger de progreso; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md) |
+| 8. Verificación de comportamiento (P3–P7, P9) | No aplica | 0 % | 100 % | 0/153.476 funciones fix2 localizadas verificadas; el universo completo más allá de la cobertura de cuerpos es desconocido. | No hay verificación conductual independiente completada; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md) |
+| 9. Binary matching (P8–P9) | No aplica | 0 % | 100 % | 0/153.476 funciones fix2 localizadas cotejadas; el universo completo más allá de la cobertura de cuerpos es desconocido. | No hay ejecución reproducible de binary matching completada; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 10. Port jugable (P6–P7 → P9) | Parsers de contenedores (SARC, GFLXPACK, AHTB, BNTX, VFXB) | ~90 % | ~10 % | pendientes ASTC y formatos BNTX desconocidos | Parsers Rust, fixtures y tests focalizados de parsing |
 | | Capa Lua 5.3 | 100 % | 0 % | ejecuta scripts de evento reales | Host Lua 5.3 en Rust y fixtures de scripts de evento |
 | | Enlaces al sistema (*host bindings*) | ~10 % | ~90 % | 2 reales, el resto stubs | Bindings Rust/Bevy, trazas de eventos y stubs |
@@ -95,14 +95,19 @@ el juego tal como se ejecuta con el update aplicado (el overlay base + update),
 nunca el update por sí solo.
 
 Las fases 1–5 describen *tener* el código y los datos; las fases 6–9 describen
-*comprenderlo y portarlo* y concentran ~99,97 % del trabajo restante. El
-denominador 68.330 de las fases 6–7 es el inventario limitado anterior. El
+*comprenderlo y portarlo*. El perfil actual de progreso por función es
+`update-v262144-fix2`; los recuentos funcionales de las fases 6–9 se limitan a
+su inventario localizado de 153.476 funciones de `main` del update. El
+denominador 68.330 corresponde a la vista histórica limitada y sus artefactos
+siguen siendo históricos. El
 proyecto fix2 intacto confirma directamente las 153.476 entradas inventariadas,
 sin solapamiento de cuerpos y con una unión exacta de 51.275.676 bytes
 (96,55287 %). Los 1.830.644/53.106.320 bytes restantes (3,44713 %) están fuera
 de todos los cuerpos existentes; el estado de listing clasifica 40.764 bytes
 como instrucciones y 1.789.880 como datos definidos, sin establecer semántica, funciones
-nuevas válidas ni reachability. Todas las funciones inventariadas tienen salida
+nuevas válidas ni reachability. Este residual de bytes ejecutables es una métrica
+separada: no es una fila de función adicional ni el denominador de los recuentos
+funcionales del treemap. Todas las funciones inventariadas tienen salida
 (153.471 C + 5 ASM); la suma de cuerpos C es 96,47728 % y la de ensamblador
 0,07559 % de los bytes ejecutables. Un intento con el formato de seeds produjo
 cero exports adicionales. La discrepancia de +1.425 funciones pertenece al clon
@@ -189,20 +194,23 @@ fixtures imprimen `[skip]` y terminan).
 
 ## Progreso por función
 
-![Progreso de implementación del main de update v262144; lo parcial no está completo y la verificación de comportamiento/binary sigue sin conocerse](reports/function-progress/update-v262144/port.png)
+![Progreso de implementación del main fix2 localizado del update v262144; lo parcial no está completo y la verificación de comportamiento/binary sigue sin conocerse](reports/function-progress/update-v262144-fix2/port.png)
 
-![Mapa de progreso de análisis del main de update v262144](reports/function-progress/update-v262144/analysis.png)
+![Mapa de progreso de análisis del main fix2 localizado del update v262144](reports/function-progress/update-v262144-fix2/analysis.png)
 
-[Mapas interactivos y evidencia por función](reports/function-progress/update-v262144/index.html) ·
-[Mapa de análisis](reports/function-progress/update-v262144/analysis.png) ·
+[Mapa fix2 actual y evidencia por función](reports/function-progress/update-v262144-fix2/index.html) ·
+[Mapa de análisis fix2 actual](reports/function-progress/update-v262144-fix2/analysis.png) ·
+[Informe del perfil fix2 actual](reports/function-progress/p0-fix2-treemap-profile.md) ·
 [Última auditoría de evidencia](reports/function-progress/update-v262144-evidence-audit.md)
 
 El área y los porcentajes de los mapas están ponderados por **bytes originales
-del cuerpo de las funciones nativas** y solo cubren el **NSO `main` del update
-v262144**, no la completitud de todo el juego, la legibilidad del pseudocódigo ni
-las líneas de Rust. Las implementaciones parciales son ports condicionales; la
-verificación de comportamiento de función completa y el *binary matching* siguen
-sin conocerse.
+del cuerpo de las funciones nativas** y solo cubren el **inventario localizado
+fix2 del NSO `main` del update v262144**, no la completitud de todo el juego, la
+legibilidad del pseudocódigo ni las líneas de Rust. El universo de funciones
+válidas más allá de la cobertura de cuerpos existentes sigue siendo desconocido.
+El perfil `update-v262144` es una vista histórica limitada a 68.330 funciones.
+Las implementaciones parciales son ports condicionales; la verificación de
+comportamiento de función completa y el *binary matching* siguen sin conocerse.
 
 ## Legal
 

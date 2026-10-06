@@ -603,6 +603,154 @@ class FunctionProgressTreemapTests(unittest.TestCase):
         self.assertIn("Report stale", (output / "index.html").read_text(encoding="utf-8"))
         self.assertEqual(len(list((output / "stale").iterdir())), 1)
 
+    def test_legacy_profile_remains_default_and_build_choice_is_additive(self) -> None:
+        self.assertEqual(report.BUILD, "update-v262144")
+        self.assertEqual(report.parse_args(["--build", report.BUILD]).build, report.BUILD)
+        self.assertEqual(report.parse_args(["--build", report.FIX2_BUILD]).build, report.FIX2_BUILD)
+        with self.assertRaises(SystemExit):
+            report.parse_args(["--build", "unknown"])
+
+    def test_fix2_inventory_loader_selects_153k_profile_and_checks_exact_totals(self) -> None:
+        path = self.root / "fix2.tsv"
+        path.write_text(
+            "id:string*\tname:string\tsize:u32\tstatus:enum\n00000001\tFUN_00000001\t10\tidentified\n"
+            "00000002\tFUN_00000002\t20\tidentified\n", encoding="utf-8"
+        )
+        with unittest.mock.patch.multiple(report, FIX2_FUNCTIONS=2, FIX2_BODY_BYTES=30):
+            inventory, info = report.load_fix2_inventory(path)
+        self.assertEqual([row["id"] for row in inventory], ["00000001", "00000002"])
+        self.assertEqual(info["original_function_body_bytes"], 30)
+        self.assertEqual(info["inventory_sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+
+    def test_fix2_evidence_join_is_exact_normalized_and_rejects_unmatched_rows(self) -> None:
+        inventory = [{"id": "00000001", "name": "FUN_00000001", "size": "10"}]
+        evidence = evidence_row("00000001")
+        evidence["build"] = report.BUILD
+        joined = report.validate_evidence([evidence], inventory, report.FIX2_BUILD, self.root, report.BUILD)
+        self.assertEqual(set(joined), {"00000001"})
+        evidence["function_id"] = "00000002"
+        evidence["id"] = "update_v262144_00000002"
+        with self.assertRaisesRegex(report.GenerationError, "does not join"):
+            report.validate_evidence([evidence], inventory, report.FIX2_BUILD, self.root, report.BUILD)
+
+    def test_asm_fallback_is_distinct_from_c_pseudocode_and_keeps_unknown_progress(self) -> None:
+        inventory = [
+            {"id": "00000001", "name": "FUN_00000001", "size": "10", "status": "identified"},
+            {"id": "00000002", "name": "FUN_00000002", "size": "20", "status": "identified"},
+        ]
+        rows = report.build_registry_rows(
+            inventory, {"00000001"}, {"00000001": "unknown", "00000002": "unknown"},
+            {}, set(), [], report.FIX2_BUILD, repository_root=self.root,
+            assembly_fallback_addresses={"00000002"},
+        )
+        self.assertEqual(rows[0]["decompilation_status"], "pseudocode_exported")
+        self.assertEqual(rows[1]["decompilation_status"], "assembly_fallback_exported")
+        self.assertEqual(rows[1]["analysis_documentation_status"], "unknown")
+        self.assertEqual(rows[1]["implementation_status"], "unknown")
+        self.assertEqual(rows[1]["behavior_verification_status"], "unknown")
+        self.assertEqual(rows[1]["binary_match_status"], "unknown")
+
+    def test_fix2_export_scan_uses_audited_sibling_asm_root(self) -> None:
+        c_root = self.root / "work/pla/decompiled-fix2/update-main"
+        asm_root = self.root / report.FIX2_ASM_EXPORT_ROOT
+        stale_asm_root = self.root / "work/pla/decompiled-fix2-asm"
+        c_root.mkdir(parents=True)
+        asm_root.mkdir(parents=True)
+        stale_asm_root.mkdir(parents=True)
+        (c_root / "FUN_00000001_00000001.c").write_text("void f(void) {}\n", encoding="utf-8")
+        (asm_root / "FUN_00000002_00000002.s").write_text("nop\n", encoding="utf-8")
+        (stale_asm_root / "FUN_00000003_00000003.s").write_text("nop\n", encoding="utf-8")
+        inventory = [
+            {"id": "00000001", "name": "FUN_00000001", "size": "10"},
+            {"id": "00000002", "name": "FUN_00000002", "size": "20"},
+        ]
+
+        with unittest.mock.patch.multiple(
+            report,
+            FIX2_C_EXPORTS=1,
+            FIX2_C_EXPORT_BYTES=10,
+            FIX2_ASM_ADDRESSES={"00000002"},
+        ):
+            c_addresses, info = report.collect_c_exports(self.root, inventory, report.FIX2_BUILD)
+
+        self.assertEqual(c_addresses, {"00000001"})
+        self.assertEqual(info["assembly_fallback_function_ids"], ["00000002"])
+
+    def test_fix2_gamedb_keeps_837_no_parsed_file_count_separate(self) -> None:
+        path = self.root / "fix2-index.sqlite"
+        connection = sqlite3.connect(path)
+        connection.executescript(
+            "CREATE TABLE files (id INTEGER PRIMARY KEY, module TEXT, path TEXT);"
+            "CREATE TABLE functions (id INTEGER PRIMARY KEY, file_id INTEGER, name TEXT);"
+        )
+        connection.executemany("INSERT INTO files VALUES (?, ?, ?)", [
+            (1, report.FIX2_MODULE_ID, "FUN_00000001_00000001.c"),
+            (2, report.FIX2_MODULE_ID, "FUN_00000002_00000002.c"),
+            (3, report.FIX2_MODULE_ID, "FUN_00000003_00000003.c"),
+        ])
+        connection.executemany("INSERT INTO functions (file_id, name) VALUES (?, ?)", [
+            (1, "FUN_00000001"), (2, "FUN_00000002"),
+        ])
+        connection.commit()
+        connection.close()
+        inventory = [
+            {"id": f"0000000{index}", "name": f"FUN_0000000{index}", "size": "10"}
+            for index in range(1, 4)
+        ]
+        with unittest.mock.patch.multiple(
+            report, FIX2_GAMEDB_FILES=3, FIX2_GAMEDB_FUNCTION_ROWS=2,
+            FIX2_GAMEDB_UNPARSED_FILES=1,
+        ):
+            files, addresses, info = report.load_gamedb(path, inventory, report.FIX2_BUILD)
+        self.assertEqual(info["indexed_files_without_parsed_functions"], 1)
+        self.assertEqual(len(addresses), 2)
+        self.assertEqual(files["00000003"], "indexed_without_function_rows")
+
+    def test_fix2_unknown_subsystems_and_text_residual_are_not_function_weights(self) -> None:
+        inventory = [{"id": f"{index:08x}", "name": "FUN", "size": "10"} for index in range(1, 4)]
+        groups, info = report.load_subsystem_groups(self.root, inventory, report.FIX2_BUILD)
+        self.assertEqual(set(groups.values()), {"unknown"})
+        self.assertEqual(info["unmapped_functions"], 3)
+        rows = [{"function_id": row["id"], "original_bytes": int(row["size"])} for row in inventory]
+        self.assertEqual(report.total_original_bytes(rows), 30)
+        self.assertNotEqual(report.total_original_bytes(rows), report.FIX2_TEXT_BYTES)
+
+    def test_fix2_manifest_records_build_archive_inventory_ledger_and_rust_fingerprints(self) -> None:
+        source = self.root / "crates" / "example" / "src" / "lib.rs"
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("pub fn example() {}\n", encoding="utf-8")
+        ledger = self.root / "ledger.tsv"
+        ledger.write_text("id\n", encoding="utf-8")
+        rows = [{
+            "function_id": "00000001", "original_bytes": 10,
+            "identification_status": "identified", "decompilation_status": "assembly_fallback_exported",
+            "analysis_documentation_status": "unknown", "game_db_file_status": "not_indexed",
+            "game_db_parsing_status": "not_parsed", "implementation_status": "unknown",
+            "behavior_verification_status": "unknown", "port_state": "unknown", "binary_match_status": "unknown",
+        }]
+        manifest = report.build_manifest(
+            self.root, {"inventory_sha256": "inventory-hash"},
+            {"sha256": report.EXPECTED_ARCHIVE_SHA256},
+            {"assembly_fallback_function_count": 5},
+            {"indexed_file_count": 153471, "parsed_function_row_count": 152634,
+             "indexed_files_without_parsed_functions": 837},
+            {"method": "unknown"}, ledger, rows, report.FIX2_BUILD,
+        )
+        self.assertEqual(manifest["build"], report.FIX2_BUILD)
+        self.assertTrue(manifest["denominator"]["not_whole_game"])
+        self.assertEqual(manifest["archive"]["sha256"], report.EXPECTED_ARCHIVE_SHA256)
+        self.assertEqual(manifest["inventory"]["inventory_sha256"], "inventory-hash")
+        self.assertEqual(manifest["evidence_ledger"]["sha256"], hashlib.sha256(ledger.read_bytes()).hexdigest())
+        self.assertEqual(manifest["rust_source_fingerprint"]["file_count"], 1)
+        self.assertEqual(manifest["executable_text_scope"]["bytes_outside_existing_function_bodies"], 1_830_644)
+        self.assertEqual(manifest["state_partitions"]["decompilation_status"]["assembly_fallback_exported"]["functions"], 1)
+
+    def test_treemap_byte_totals_reject_duplicate_functions_and_exclude_text_gaps(self) -> None:
+        rows = [{"function_id": "00000001", "original_bytes": 10}, {"function_id": "00000002", "original_bytes": 20}]
+        self.assertEqual(report.total_original_bytes(rows), 30)
+        with self.assertRaisesRegex(report.GenerationError, "double-count"):
+            report.total_original_bytes(rows + [rows[0]])
+
 
 if __name__ == "__main__":
     unittest.main()

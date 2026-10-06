@@ -17,7 +17,7 @@ from a versioned sheet book.
 | | |
 |---|---|
 | ✅ **Done** | Both dumps (base + update) acquired; every executable module and all RomFS data extracted, NSO-verified and version-qualified; the effective base+update overlay measured (17,904 / 466 / 725 / 0); all 153,476 functions located by the fix2 `main` inventory have C or assembly exports; fix2 gameDB files and function rows are counted; auxiliary Ghidra detections and C exports are measured; the update auxiliary modules are byte-identical to base; RomFS data largely parsed (Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
-| 🟡 **In progress** | **P0 remains open**: base structural import/relocation metadata is inventoried for the five named NSOs. Loader binding, provider identity, complete scope, NCA header/signature verification, update ContentMeta/CNMT semantics, file-to-code ownership and runtime dependency resolution remain open or blocked. Overlay arithmetic is complete, but structural parser coverage is partial: **14/466** modified entries have successful internal comparisons (SARC 10/10; GFLXPACK 4/10), while **452/466** do not; semantic ownership remains **unknown for 1,191/1,191** delta entries. Pseudocode is *not* understanding: analysis, port and verification of the game code are ~**0.03 %** done. |
+| 🟡 **In progress** | **P0 remains open**: base structural import/relocation metadata is inventoried for the five named NSOs. Loader binding, provider identity, complete scope, NCA header/signature verification, update ContentMeta/CNMT semantics, file-to-code ownership and runtime dependency resolution remain open or blocked. Overlay arithmetic is complete, but structural parser coverage is partial: **14/466** modified entries have successful internal comparisons (SARC 10/10; GFLXPACK 4/10), while **452/466** do not; semantic ownership remains **unknown for 1,191/1,191** delta entries. Pseudocode is *not* understanding: in the fix2-located update-`main` inventory, **22/153,476 functions (~0.0143%)** are documented/analyzed, **8/153,476 (~0.0052%)** have partial implementations, and **0/153,476** have behavior or binary verification. These percentages use the located fix2 inventory only; the valid-function universe beyond its body coverage remains unknown. |
 | ❌ **Missing** | **3.44713 %** (1,830,644 bytes) is outside existing update-`main` function bodies. Ghidra listing/API metadata classifies 40,764 bytes as instructions and 1,789,880 as defined data; the generic datatype classifier groups all 1,789,328 data units as “other”, and all 20,627 operands are “other or unspecified” by the queried API flags. These are listing/API categories, not semantics. For 13,897 outside-body seeds, 77 are in defined instructions (308 bytes), 13,820 in defined data, and 0 undefined/unmapped; incoming refs: 91 targets / 179 edges (CALL 8/11; JUMP 64/66, conditionality combined; other flow 0/0; non-flow 19/102). Next: semantic triage of defined units and candidate validity. See [range reconciliation](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [successful semantic-query retry](reports/function-progress/p0-update-main-gap-semantic-retry.md), [corrected flow triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md), and [superseded failed attempt](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
 
 The detailed, phase-by-phase breakdown is the [Completion plan](#completion-plan)
@@ -73,10 +73,10 @@ establish complete-module coverage. `~` marks qualitative estimates.
 | | Strings / references | Unknown | Unknown | 13,370 + 29,162, no total | Extraction/reference scanners; total denominator not established |
 | | Domain tables | Unknown | Unknown | 12 sheets, no total | TSV/sheet ingestion and `sheetty` preflight |
 | | Base data | Unknown | Unknown | extracted, no clear index | RomFS extraction; complete base-data index pending |
-| 6. Analysis (P2–P7) | Game code | 0.03 % | 99.97 % | 22 of 68,330 (legacy capped view) | Direct decompilation evidence and function-progress ledger; broad analysis pending |
-| 7. Implementation (P3–P7) | Rust port | 0.01 % | 99.99 % | 8 partial | Rust/Bevy implementation, focused fixtures and CI checks |
-| 8. Behaviour verification (P3–P7, P9) | N/A | 0 % | 100 % | 0 functions | No independent behavioural verification completed yet |
-| 9. Binary matching (P8–P9) | N/A | 0 % | 100 % | 0 functions | No reproducible binary-matching run completed yet |
+| 6. Analysis (P2–P7) | Game code | ~0.0143 % | ~99.9857 % | 22/153,476 fix2-located functions documented/analyzed; denominator is the located inventory, not a complete valid-function universe. The 68,330 count is the legacy capped view. | Direct decompilation evidence and function-progress ledger; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md); broad analysis pending |
+| 7. Implementation (P3–P7) | Rust port | ~0.0052 % partial ratio | Unknown | 8/153,476 fix2-located functions have partial implementation; partial is not complete. Denominator is the located inventory, not a complete valid-function universe. | Rust/Bevy implementation and function-progress ledger; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
+| 8. Behaviour verification (P3–P7, P9) | N/A | 0 % | 100 % | 0/153,476 fix2-located functions behavior-verified; the whole function universe beyond body coverage is unknown. | No independent behavioral verification completed yet; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
+| 9. Binary matching (P8–P9) | N/A | 0 % | 100 % | 0/153,476 fix2-located functions binary-matched; the whole function universe beyond body coverage is unknown. | No reproducible binary-matching run completed yet; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 10. Playable port (P6–P7 → P9) | Container parsers (SARC, GFLXPACK, AHTB, BNTX, VFXB) | ~90 % | ~10 % | ASTC and unknown BNTX formats pending | Rust parsers, fixtures and focused parser tests |
 | | Lua 5.3 layer | 100 % | 0 % | runs real event scripts | Rust Lua 5.3 host and event-script fixtures |
 | | Host bindings | ~10 % | ~90 % | 2 real, rest stubs | Rust/Bevy bindings, event traces and stubs |
@@ -93,14 +93,17 @@ parallelism exists only *inside* a phase. The port target is the game as it runs
 with the update applied (the base + update overlay), never the update alone.
 
 Phases 1–5 describe *having* the code and data; phases 6–9 describe
-*understanding and porting* it and hold ~99.97 % of the remaining work. The
-68,330 denominator in phases 6–7 is the earlier capped inventory. The untouched
+*understanding and porting* it. The current function-progress profile is
+`update-v262144-fix2`; phase 6–9 function counts above are scoped to its
+153,476-function located update-`main` inventory. The 68,330 denominator is the
+earlier capped legacy view, and its artifacts remain historical. The untouched
 fix2 project directly confirms all 153,476 inventory entries, with zero body
 overlap and an exact 51,275,676-byte union (96.55287%). The remaining
 1,830,644/53,106,320 bytes (3.44713%) are outside all existing function bodies;
-listing state classifies 40,764 bytes as instructions and 1,789,880 as defined
-data, without establishing semantics, valid new functions or reachability. Every inventoried
-function has an output (153,471 C + 5 ASM); C-body sum is 96.47728% and
+this is a separate executable-byte gap metric, not an additional function row or
+a denominator for the treemap's function counts. Listing state classifies
+40,764 bytes as instructions and 1,789,880 as defined data, without establishing
+semantics, valid new functions or reachability. Every inventoried function has an output (153,471 C + 5 ASM); C-body sum is 96.47728% and
 assembly-body sum is 0.07559% of executable bytes. A seed-format attempt yielded
 zero additional exports. Its +1,425 manager-count discrepancy is specific to
 the exploratory clone and remains unexplained by identity; it does not affect
@@ -178,18 +181,22 @@ fixture-based ones print `[skip]` and return).
 
 ## Function-level progress
 
-![Update v262144 main implementation progress; partial is not completed and behavior/binary matching remain unknown](reports/function-progress/update-v262144/port.png)
+![Fix2-located update v262144 main implementation progress; partial is not completed and behavior/binary matching remain unknown](reports/function-progress/update-v262144-fix2/port.png)
 
-![Update v262144 main analysis progress map](reports/function-progress/update-v262144/analysis.png)
+![Fix2-located update v262144 main analysis progress map](reports/function-progress/update-v262144-fix2/analysis.png)
 
-[Interactive maps and per-function evidence](reports/function-progress/update-v262144/index.html) ·
-[Analysis map](reports/function-progress/update-v262144/analysis.png) ·
+[Current fix2 interactive map and per-function evidence](reports/function-progress/update-v262144-fix2/index.html) ·
+[Current fix2 analysis map](reports/function-progress/update-v262144-fix2/analysis.png) ·
+[Current fix2 profile report](reports/function-progress/p0-fix2-treemap-profile.md) ·
 [Latest evidence audit](reports/function-progress/update-v262144-evidence-audit.md)
 
 Map area and percentages are weighted by **original native function-body bytes**
-for update v262144 **main NSO only**, not whole-game completion, pseudocode
-readability or Rust line count. Partial implementations are conditional ports;
-whole-function behavioral verification and binary matching remain unknown.
+for the fix2-located update v262144 **main NSO inventory only**, not whole-game
+completion, pseudocode readability or Rust line count. The valid-function
+universe beyond existing body coverage remains unknown. The `update-v262144`
+profile is a historical, capped 68,330-function view. Partial implementations
+are conditional ports; whole-function behavioral verification and binary
+matching remain unknown.
 
 ## Legal
 
