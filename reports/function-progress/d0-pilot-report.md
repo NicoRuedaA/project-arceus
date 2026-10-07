@@ -32,3 +32,7 @@ Scope: one Lua usertype of update `main` (build `update-v262144`, fix2 inventory
 ## Verification
 
 `sheetty check sheets`: 29 sheets, 267,991 rows, 0 errors, 0 warnings. `update-v262144-fix2` profile regenerated: state `current`.
+
+## Current N2 reconciliation (2026-10-07)
+
+The original counts above describe the D0 run, not current typed completion. The [N2 pilot](n2-lua-pilot.md) reconciles 34 actual registered entries: 18 now have static documentation (16 D0 templates plus two mechanical wrappers), while 16 lack prior ledger evidence. The D0 name log substituted two targets for the registered wrapper addresses; the new register keeps these native identities separate. Three support functions remain without complete N2 evidence. **No N2 promotion is established by either the D0 names or its static template notes.**
