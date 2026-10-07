@@ -64,3 +64,7 @@ The general ledger receives 22 provenance annotations and 22 explicitly unknown 
 Recover one erased scalar callback adapter through targeted live disassembly and its registration data, with explicit original-type uncertainty; avoid repeatedly requesting the unavailable constructor decompilation. In parallel only if useful, inspect the remaining 25 helper caller sites against the audited W0/W1/X8 storage map. Full N2 still requires the object/layout and callback-contract evidence; completing the caller list alone will not suffice. Do not begin another broad representative-summary round.
 
 This work unit stops at an independently checked evidence boundary, not at decompilation completion. No Ghidra write occurred, so no project backup/restore was needed. Runtime harness: N/A, static evidence metadata only. Rollback boundary: the new typed register, this report, `dec135`, the 44 ledger annotations/unknown entries, accompanying README/plan qualifications and regenerated fix2 projections. No push, Rust changes, reference-project changes, reindex, or RDD activation/review.
+
+## Subsequent bounded continuation
+
+The [adapter trace](n2-lua-adapter-trace.md) extends the separate register to 57 functions without changing this work unit's historical counts or promoting N2. It identifies the concrete next callback candidate while leaving runtime invocation and ABI conversion unproven.
