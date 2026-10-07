@@ -1,5 +1,7 @@
 # Plan de cierre de la descompilación
 
+**Prioridad vigente (2026-10-07):** documentar primero las operaciones directamente demostrables de todas las funciones nativas localizadas; recuperar después el propósito dentro del juego, los tipos y la organización por sistemas. El menor rendimiento de copias no justifica detener D4. La [cola repetible de documentación](../reports/function-progress/d4-documentation-queue.md) conserva 106.346 funciones sin marcador; R13 está bloqueado por el servidor de evidencia en vivo, sin avances ficticios. N2 queda aplazado y su registro histórico no se modifica.
+
 **Estado:** abierto (2026-10-07). Este plan cubre **solo la descompilación** del juego base + update v262144: localizar todas las funciones, separar el código del juego del código de bibliotecas y entender, nombrar, tipar y documentar cada función con evidencia. Complementa a [`PLAN.md`](PLAN.md), que ordena el trabajo hacia el port.
 
 ## Qué significa «descompilación terminada»

@@ -1,5 +1,7 @@
 # D4 batch 12 — audit consolidation and second-run close
 
+Current direction: the user subsequently prioritized [documentation of every located function](d4-documentation-queue.md). The low-yield stop recommendation below is historical and superseded; its evidence counts remain valid.
+
 **47,130 of 153,476 located update `main` functions have static analysis evidence (30.71%). Full N2 typed-structure completion remains unknown.** The game target is the base + update overlay; the update is a patch, not a standalone program.
 
 Scope: second D4 run, round 4 of a maximum 8; evidence `dec134`. The run stops here on diminishing value/cost rather than launching more broad-summary rounds. No private pseudocode, binary content, game names or strings are published.
