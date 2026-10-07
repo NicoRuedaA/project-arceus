@@ -18,12 +18,12 @@ Audit of batch 7: 59 correct, 1 wrong detail (an inverted flag meaning), correct
 | | Value |
 |---|---:|
 | Rounds / analyst agents launched | 5 / 60 (+1 short re-run) |
-| Functions analysed by agents (new) | 682 proposed, 632 promoted |
+| Functions analysed by agents (new) | 761 proposed, 732 promoted |
 | Earlier entries re-reviewed | 64 (9 contradicted, all corrected) |
 | Import stubs documented from link data | 801 |
 | Ledger, analyzed | 133 → **1,666** of 153,476 (1.0855 %) |
 | of which import stubs / read by analysts or re-reviewed | **801 / 865** |
-| Audited summaries (random samples, 4 audits) | 180: 168 correct, 12 wrong detail, 0 wrong main claim |
+| Audited summaries (random samples, 3 audits of 60) | 180: 168 correct, 12 wrong detail, 0 wrong main claim |
 
 Infrastructure fixed in the working copy only: the import calls (816/816 PLT slots) and the 205,023 data relocations; 64 libc prototypes and 14 no-return flags. Behaviour verification and binary matching stay unknown for every function.
 
