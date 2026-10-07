@@ -38,9 +38,9 @@
     "original_function_body_bytes": 51275676
   },
   "evidence_ledger": {
-    "analyzed_documented_function_count": 48783,
+    "analyzed_documented_function_count": 48873,
     "path": "sheets/re/function_progress_evidence.tsv",
-    "sha256": "4e4299cf8fd71a0b1b1d0015a4d81a2cfa8dc20e464e8a507a0100550078637d"
+    "sha256": "874a369f2d986551102a4e5456cc903196e3cf73788c9617dbed60518ee1a036"
   },
   "executable_text_scope": {
     "bytes": 53106320,
@@ -67,9 +67,9 @@
     "row_count": 153476
   },
   "outputs": {
-    "analysis.png": "09670e33ac07d70c74a69d97144958a529c5844e1a7c58d42a267368dc8c87ac",
-    "function-progress.tsv": "9bf6c26810a15d164a863df5ba014e9f9d715c367f12389c45924b1f95ff5024",
-    "index.html": "db14ed54e3792c767c30afdaa3137664d7d8c4eb2cb7d49fe71137a5f5e379a0",
+    "analysis.png": "0ae9bd8b10e0a3117cc6215deae022920383052b618ea13405b9183f609b37de",
+    "function-progress.tsv": "ee709c07ddfd88a0d54fc9bc59b652d8954fd50f9b5597039e321610eb947c5b",
+    "index.html": "34545f04c382db42ee0a10deb7307f25fa9e2dd1869811e0d0aefc592c266ac2",
     "port.png": "ce2ee67b5cef89051213a395735c8979a4d11df2c99c2117882f9eeed6bae0a4"
   },
   "rust_source_fingerprint": {
@@ -278,12 +278,12 @@
   "state_partitions": {
     "analysis_documentation_status": {
       "analyzed_documented": {
-        "functions": 48783,
-        "original_bytes": 4496112
+        "functions": 48873,
+        "original_bytes": 4516232
       },
       "unknown": {
-        "functions": 104693,
-        "original_bytes": 46779564
+        "functions": 104603,
+        "original_bytes": 46759444
       }
     },
     "behavior_verification_status": {
