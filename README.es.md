@@ -20,20 +20,23 @@ Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El de
 
 <!-- progress-bars:start -->
 ```text
- 1 Extracción               ████████████████████    100 %   archivos y miembros enumerados
- 2 Inventario de main       ███████████████████░   98,4 %   bytes ejecutables dentro de funciones
- 3 Export de pseudocódigo   ████████████████████    100 %   de las 153.476 funciones localizadas
- 4 Índice gameDB            ████████████████████    100 %   de los archivos C exportados
- 5 Datos (RomFS)            ████████████████████    100 %   extraídos y superpuestos
-     · interpretación       ░░░░░░░░░░░░░░░░░░░░    3,0 %   14/466 modificados comparados por dentro
- 6 Análisis de funciones    ████░░░░░░░░░░░░░░░░   20,2 %   30.944 de 153.476 documentadas (801 son centralitas de importación)
- 7 Implementación (port)    ░░░░░░░░░░░░░░░░░░░░   <0,1 %   8 de 153.476 con implementación parcial
- 8 Verificación de conducta ░░░░░░░░░░░░░░░░░░░░      0 %   0 de 153.476
- 9 Binary matching          ░░░░░░░░░░░░░░░░░░░░      0 %   0 de 153.476
-10 Port jugable             █████████░░░░░░░░░░░    ~45 %   media de estimaciones cualitativas
+ 1 Extracción                       ████████████████████    100 %   archivos y miembros enumerados
+ 2 Inventario de main               ███████████████████░   98,4 %   bytes ejecutables dentro de funciones
+ 3 Export de pseudocódigo           ████████████████████    100 %   de las 153.476 funciones localizadas
+ 4 Índice gameDB                    ████████████████████    100 %   de los archivos C exportados
+ 5 Datos (RomFS)                    ████████████████████    100 %   extraídos y superpuestos
+     · interpretación               ░░░░░░░░░░░░░░░░░░░░    3,0 %   14/466 modificados comparados por dentro
+ 6 Análisis: leídas por analistas   ░░░░░░░░░░░░░░░░░░░░    0,7 %   1.043 de 153.476 funciones
+     · clasificadas por el programa ███░░░░░░░░░░░░░░░░░   18,4 %   28.308: funciones diminutas; dice qué hacen, no para qué sirven
+     · copiadas de idénticas        ░░░░░░░░░░░░░░░░░░░░    0,5 %   792: copias exactas de una función auditada
+     · centralitas de importación   ░░░░░░░░░░░░░░░░░░░░    0,5 %   801: identificadas con los datos de enlace
+ 7 Implementación (port)            ░░░░░░░░░░░░░░░░░░░░   <0,1 %   8 de 153.476 con implementación parcial
+ 8 Verificación de conducta         ░░░░░░░░░░░░░░░░░░░░      0 %   0 de 153.476
+ 9 Binary matching                  ░░░░░░░░░░░░░░░░░░░░      0 %   0 de 153.476
+10 Port jugable                     █████████░░░░░░░░░░░    ~45 %   media de estimaciones cualitativas
 ```
 
-*Las barras miden lo que está cuantificado en cada fase; el denominador completo de varias fases es desconocido (véase la Tabla de cierre). La fase 2 mide bytes de código cubiertos por funciones, no número de funciones; la fase 6 incluye centralitas de importación que no se han «leído».*
+*Las barras miden lo que está cuantificado en cada fase; el denominador completo de varias fases es desconocido (véase la Tabla de cierre). La fase 2 mide bytes de código cubiertos por funciones, no número de funciones; en la fase 6 solo la primera línea son funciones leídas y entendidas; las otras tres se cuentan aparte.*
 <!-- progress-bars:end -->
 
 ### ✅ Hecho

@@ -2,7 +2,7 @@
 """Regenerate the per-phase progress bars in README.md and README.es.md.
 
 The bars sit between `<!-- progress-bars:start -->` and `<!-- progress-bars:end -->`.
-Only the analysis phase is read from the evidence ledger; the other values are measured
+The analysis phase is read from the evidence ledger, split by category; the other values are measured
 facts kept in PHASES below and must be edited together with the Completion plan table.
 
 Usage: python3 .tools/readme_progress_bars.py [--check]
@@ -19,15 +19,24 @@ START, END = "<!-- progress-bars:start -->", "<!-- progress-bars:end -->"
 
 
 def ledger_counts():
-    done = stubs = 0
+    """Return counts per category of analyzed_documented rows (by the note text)."""
+    c = {"read": 0, "stubs": 0, "mechanical": 0, "propagated": 0}
     for ln in LEDGER.read_text().splitlines():
         if not ln.startswith("update_v262144_"):
             continue
-        c = ln.split("\t")
-        if len(c) > 5 and c[3] == "analyzed_documented":
-            done += 1
-            stubs += "PLT stub" in c[5]
-    return done, stubs
+        col = ln.split("\t")
+        if len(col) <= 5 or col[3] != "analyzed_documented":
+            continue
+        note = col[5]
+        if "PLT stub" in note:
+            c["stubs"] += 1
+        elif note.startswith("Mechanically classified"):
+            c["mechanical"] += 1
+        elif note.startswith("Propagated"):
+            c["propagated"] += 1
+        else:
+            c["read"] += 1
+    return c
 
 
 def bar(pct):
@@ -48,13 +57,13 @@ def fmt(pct, lang, est=False):
 
 
 def lines(lang):
-    done, stubs = ledger_counts()
+    c = ledger_counts()
+    done = sum(c.values())
     es = lang == "es"
 
     def num(n):
         return f"{n:,}".replace(",", ".") if es else f"{n:,}"
 
-    ap = 100 * done / TOTAL
     rows = [
         ("1", "Extracción" if es else "Extraction", 100, False,
          "archivos y miembros enumerados" if es else "enumerated files and members"),
@@ -68,9 +77,17 @@ def lines(lang):
          "extraídos y superpuestos" if es else "extracted and overlaid"),
         ("", "  · interpretación" if es else "  · interpretation", 100 * 14 / 466, False,
          "14/466 modificados comparados por dentro" if es else "14/466 modified files compared inside"),
-        ("6", "Análisis de funciones" if es else "Function analysis", ap, False,
-         (f"{num(done)} de {num(TOTAL)} documentadas ({num(stubs)} son centralitas de importación)" if es
-          else f"{num(done)} of {num(TOTAL)} documented ({num(stubs)} are import stubs)")),
+        ("6", "Análisis: leídas por analistas" if es else "Analysis: read by analysts", 100 * c["read"] / TOTAL, False,
+         (f"{num(c['read'])} de {num(TOTAL)} funciones" if es else f"{num(c['read'])} of {num(TOTAL)} functions")),
+        ("", "  · clasificadas por el programa" if es else "  · classified by program", 100 * c["mechanical"] / TOTAL, False,
+         (f"{num(c['mechanical'])}: funciones diminutas; dice qué hacen, no para qué sirven" if es
+          else f"{num(c['mechanical'])}: tiny functions; says what they do, not what they are for")),
+        ("", "  · copiadas de idénticas" if es else "  · copied from identical", 100 * c["propagated"] / TOTAL, False,
+         (f"{num(c['propagated'])}: copias exactas de una función auditada" if es
+          else f"{num(c['propagated'])}: exact copies of an audited function")),
+        ("", "  · centralitas de importación" if es else "  · import stubs", 100 * c["stubs"] / TOTAL, False,
+         (f"{num(c['stubs'])}: identificadas con los datos de enlace" if es
+          else f"{num(c['stubs'])}: identified from link data")),
         ("7", "Implementación (port)" if es else "Implementation (port)", 100 * 8 / TOTAL, False,
          "8 de 153.476 con implementación parcial" if es else "8 of 153,476 with a partial implementation"),
         ("8", "Verificación de conducta" if es else "Behaviour verification", 0, False, "0 de 153.476" if es else "0 of 153,476"),
@@ -81,17 +98,17 @@ def lines(lang):
     out = []
     for num, name, pct, est, note in rows:
         label = (f"{num:>2} " if num else "   ") + name
-        out.append(f"{label:<28}{bar(pct)} {fmt(pct, lang, est):>8}   {note}")
+        out.append(f"{label:<36}{bar(pct)} {fmt(pct, lang, est):>8}   {note}")
     return out
 
 
 def render(lang):
     es = lang == "es"
     cap = ("Las barras miden lo que está cuantificado en cada fase; el denominador completo de varias fases es desconocido (véase la Tabla de cierre). "
-           "La fase 2 mide bytes de código cubiertos por funciones, no número de funciones; la fase 6 incluye centralitas de importación que no se han «leído»."
+           "La fase 2 mide bytes de código cubiertos por funciones, no número de funciones; en la fase 6 solo la primera línea son funciones leídas y entendidas; las otras tres se cuentan aparte."
            if es else
            "Bars show what is actually quantified in each phase; several phases have an unknown full denominator (see the Completion plan). "
-           "Phase 2 measures executable bytes covered by functions, not a function count; phase 6 includes import stubs that were not \"read\".")
+           "Phase 2 measures executable bytes covered by functions, not a function count; in phase 6 only the first line is functions read and understood; the other three are counted separately.")
     return "\n".join([START, "```text", *lines(lang), "```", "", f"*{cap}*", END])
 
 

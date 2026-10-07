@@ -20,20 +20,23 @@ Figures refer to the update v262144 `main` (153,476 located functions). The phas
 
 <!-- progress-bars:start -->
 ```text
- 1 Extraction               ████████████████████    100 %   enumerated files and members
- 2 Inventory of main        ███████████████████░   98.4 %   executable bytes inside functions
- 3 Pseudocode export        ████████████████████    100 %   of the 153,476 located functions
- 4 gameDB index             ████████████████████    100 %   of the exported C files
- 5 Data (RomFS)             ████████████████████    100 %   extracted and overlaid
-     · interpretation       ░░░░░░░░░░░░░░░░░░░░    3.0 %   14/466 modified files compared inside
- 6 Function analysis        ████░░░░░░░░░░░░░░░░   20.2 %   30,944 of 153,476 documented (801 are import stubs)
- 7 Implementation (port)    ░░░░░░░░░░░░░░░░░░░░   <0.1 %   8 of 153,476 with a partial implementation
- 8 Behaviour verification   ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476
- 9 Binary matching          ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476
-10 Playable port            █████████░░░░░░░░░░░    ~45 %   average of qualitative estimates
+ 1 Extraction                       ████████████████████    100 %   enumerated files and members
+ 2 Inventory of main                ███████████████████░   98.4 %   executable bytes inside functions
+ 3 Pseudocode export                ████████████████████    100 %   of the 153,476 located functions
+ 4 gameDB index                     ████████████████████    100 %   of the exported C files
+ 5 Data (RomFS)                     ████████████████████    100 %   extracted and overlaid
+     · interpretation               ░░░░░░░░░░░░░░░░░░░░    3.0 %   14/466 modified files compared inside
+ 6 Analysis: read by analysts       ░░░░░░░░░░░░░░░░░░░░    0.7 %   1,043 of 153,476 functions
+     · classified by program        ███░░░░░░░░░░░░░░░░░   18.4 %   28,308: tiny functions; says what they do, not what they are for
+     · copied from identical        ░░░░░░░░░░░░░░░░░░░░    0.5 %   792: exact copies of an audited function
+     · import stubs                 ░░░░░░░░░░░░░░░░░░░░    0.5 %   801: identified from link data
+ 7 Implementation (port)            ░░░░░░░░░░░░░░░░░░░░   <0.1 %   8 of 153,476 with a partial implementation
+ 8 Behaviour verification           ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476
+ 9 Binary matching                  ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476
+10 Playable port                    █████████░░░░░░░░░░░    ~45 %   average of qualitative estimates
 ```
 
-*Bars show what is actually quantified in each phase; several phases have an unknown full denominator (see the Completion plan). Phase 2 measures executable bytes covered by functions, not a function count; phase 6 includes import stubs that were not "read".*
+*Bars show what is actually quantified in each phase; several phases have an unknown full denominator (see the Completion plan). Phase 2 measures executable bytes covered by functions, not a function count; in phase 6 only the first line is functions read and understood; the other three are counted separately.*
 <!-- progress-bars:end -->
 
 ### ✅ Done
