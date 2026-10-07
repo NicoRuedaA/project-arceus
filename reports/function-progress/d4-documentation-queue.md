@@ -2,7 +2,7 @@
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
-**Current status:** MCP restored with explicit authorization; [batch 23](d4-batch23-documentation-first.md) records 48,675 markers and 104,801 remaining. The outage and initial queue below are historical, not the current service status.
+**Current status:** MCP restored with explicit authorization; [batch 24](d4-batch24-documentation-first.md) records 48,783 markers and 104,693 remaining. The outage and initial queue below are historical, not the current service status.
 
 ## Baseline and repeatable work unit
 
