@@ -2,6 +2,8 @@
 
 **The selected callback is now traced through descriptor construction and registration; runtime invocation and ABI conversion are still unproven.** No N2 promotion, source signature, structure, Ghidra mutation or static-documentation promotion occurred. This is the single bounded follow-up to the [initial Lua N2 pilot](n2-lua-pilot.md), not a new broad-summary run.
 
+Follow-up: the [final callback unit](n2-lua-callback-invocation.md) closes the selected invocation gap at machine level. Counts and uninspected-body statements below remain this unit's historical snapshot.
+
 ## Independently checked path
 
 | Step | Direct evidence / limit |
