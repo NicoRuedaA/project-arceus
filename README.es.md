@@ -38,88 +38,6 @@ El metadato de listing/API de Ghidra clasifica 40.764 bytes como instrucciones y
 De 13.897 semillas fuera de cuerpos, 77 están en instrucciones definidas (308 bytes), 13.820 en datos definidos y 0 indefinidas/sin mapear; referencias entrantes: 91 objetivos / 179 aristas (CALL 8/11; clase JUMP 64/66, condicionalidad combinada; otro flujo 0/0; no flujo 19/102). 
 El denominador completo de funciones válidas sigue Desconocido. Véanse la [reconciliación de rangos](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), el [retry exitoso de la consulta semántica](reports/function-progress/p0-update-main-gap-semantic-retry.md), la [corrección del triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md) y el [intento fallido supersedido](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
 
-**Límite de alcance P0 (2026-10-07):** P0 está **cerrado únicamente como
-baseline acotado de inventario y procedencia**; los cinco gates locales pasaron
-con el límite de verificación de fingerprint indicado abajo. El baseline finito incluye
-las identidades fijadas de los paquetes base v0 y update v262144 y sus conjuntos
-de miembros registrados; seis miembros Program ExeFS por versión (cinco NSO y
-NPDM); cinco roles ejecutables nominales por versión con identidades NSO
-cualificadas por versión e imports/relocations estructurales del NSO original;
-el conjunto RomFS externo efectivo (base 18.370; efectivo 19.095 = 17.904 sin
-cambios / 466 modificados / 725 añadidos / 0 eliminados); las métricas
-disponibles de detección/export/índice de funciones y de cuerpos/gaps (los
-denominadores completos de funciones válidas siguen `Desconocido` cuando no se
-han establecido); y las clases externas por formato y resultados de parser
-registrados en el censo y los informes sanitizados de paquete, ExeFS, módulos y
-overlay. El censo de 26 filas registra estado/evidencia/límites/fase siguiente;
-no es un denominador de todo el juego. El límite cubre solo esos conjuntos
-enumerados y sus metadatos citados; los archivos externos y los miembros
-anidados son niveles distintos. El update es un parche y el objetivo del port
-sigue siendo base + update.
-
-**Diferido fuera de P0; el estado sigue `Desconocido`/`Diferido`, no verificado:**
-autenticidad de la firma de cabecera NCA; parseo semántico completo del CNMT del
-update; confianza criptográfica y necesidad runtime del NPDM; observaciones
-runtime de módulos cargados/alcanzados; comprensión semántica, comportamiento y
-matching de funciones; denominador completo de funciones válidas; ownership
-semántico archivo→código; y semántica de miembros/archivos anidados. No se afirma
-haber parseado el ContentMeta del update ni se copian valores CNMT de la base.
-El uso del juego en un emulador reportado por el usuario es solo contexto, no
-una traza instrumentada. Estas dimensiones no son gates de cierre P0, y P0 no
-afirma cubrir toda la semántica del juego ni la paridad del port.
-
-Los cinco gates locales de P0 son: (1) reconciliar los conjuntos
-finitos de paquete/miembros, ExeFS, roles de módulos, RomFS externo y formatos
-descritos arriba con los manifiestos/informes sanitizados citados y las 26 filas
-del censo; esa reconciliación define la condición de parada; (2) reconciliar
-métricas versionadas de identidad/procedencia e imports/inventario/export/índice
-estructurales para el alcance declarado, dejando `Desconocido` los denominadores
-de funciones válidas y gaps de cuerpos no establecidos; (3) reconciliar
-aritmética del overlay y estados por formato, incluidas 14/466 comparaciones
-satisfactorias, 452/466 sin éxito y 33/692 resultados hash de añadidos, sin
-tratar parseos o no coincidencias como semántica o novedad; (4) clasificar cada
-dimensión del censo como Known/Unknown/Deferred con evidencia directa, motivo,
-límite y fase siguiente; (5) validar fingerprints actuales de
-perfil fix2/archivo/inventario/ledger/Rust y pasar
-`cargo run -p sheetty-cli -- check sheets`, `git diff --check` y CI configurado.
-Se requieren cero incógnitas ocultas, no cero incógnitas. Ninguna verificación
-criptográfica NCA/CNMT, traza runtime, ownership semántico archivo→código ni
-denominador completo de funciones válidas es un gate de cierre P0. El índice C global está completado y el treemap fix2 consta como vigente en
-el informe sanitizado. Wave C confirmó que no cambiaron las huellas del
-inventario, ledger y fuentes Rust; no se reindexó ni regeneró el treemap.
-
-**Verificación local de Wave C:** `cargo run -p sheetty-cli -- check sheets`
-terminó con 29 hojas, 267.974 filas, 0 errores y 0 advertencias;
-`git diff --check` y `./.tools/ci.sh` terminaron con código 0. La huella
-SHA-256 actual del inventario (`829d810c…abd2535`), del ledger
-(`5e83e85a…6f8cb8`) y de 49 archivos Rust (`e388b355…7f34bfb`)
-coincide con el [informe sanitizado fix2](reports/function-progress/p0-fix2-treemap-profile.md).
-El tamaño del archivo update coincide con los 52.657.467 bytes informados.
-**Límite:** por política no se leyó el manifest JSON ni se recalculó el hash
-del contenido del archivo update. Por tanto, esta es una comprobación acotada
-de ausencia de cambios en las entradas y de consistencia con el informe, **no**
-una atestación directa nueva del manifest ni de autenticidad criptográfica.
-Ninguno de esos diferidos bloquea este baseline. No se ejecutó otro `gamedb index`, no se regeneró el treemap y no se promovieron estados del ledger
-(registro local ignorado por Git `work/progress/p0-wave-c.log`).
-
-**Lectura del inventario acotado:** la base tiene seis entradas PFS0 y el
-update siete entradas raíz registradas; el conjunto Program/ExeFS revisado
-tiene seis miembros por versión y cinco roles NSO. El índice gameDB global ya
-procesó los **177.795 archivos C disponibles** de seis raíces: **176.667 filas
-parseadas, 1.128 archivos sin fila y selftest 87/87**. `main` fix2 del update
-contiene 153.476 funciones localizadas y 51.275.676 bytes de cuerpos; los
-1.830.644 bytes restantes no son funciones añadidas. El índice SARC de la base
-incluye 257 archivos y 3.416 hijos anidados, separados de las 19.095 rutas
-externas efectivas. La clasificación auxiliar por rangos (2.477.224 bytes de
-instrucciones y 5.160.284 de datos definidos) discrepa del resultado posterior
-`Data.isDefined()` sobre CodeUnits, que clasifica mayoritariamente datos de tipo
-Undefined; son métodos y unidades diferentes, no pruebas de funciones o
-semántica ([inventario estático](reports/function-progress/p0-wave-a-static.md),
-[censo](reports/function-progress/p0-wave-a-census.md)).
-
-El desglose detallado por fases es la [Tabla de cierre](#tabla-de-cierre) — la
-única fuente de estado. La ruta canónica de ejecución y sus puertas de evidencia
-están en [`odd/PLAN.md`](odd/PLAN.md).
 
 ## El juego: base + update
 
@@ -186,74 +104,10 @@ completa del módulo. `~` marca estimaciones cualitativas.
 | | Modelos/animaciones `tr*`, ASTC, Havok→avian3d | 0 % | 100 % | pendiente | No completado; no hay evidencia de implementación |
 
 Esta tabla inventaría *lo que existe* en cada tramo de
-[`odd/PLAN.md`](odd/PLAN.md); ese plan es la ruta canónica de ejecución y fija el
-orden y las puertas de evidencia. Las etiquetas entre paréntesis indican la fase
-correspondiente del PLAN.md: las fases de preparación (1–5) pertenecen a **P0**, y
-las fases 6–10 a **P2–P9**, una cadena de dependencias (`P3 → P4 → P5 → P6 → P7`)
-en la que el paralelismo existe solo *dentro* de una fase. El objetivo del port es
-el juego tal como se ejecuta con el update aplicado (el overlay base + update),
-nunca el update por sí solo.
+[`odd/PLAN.md`](odd/PLAN.md).
 
-Las fases 1–5 describen *tener* el código y los datos; las fases 6–9 describen
-*comprenderlo y portarlo*. El perfil actual de progreso por función es
-`update-v262144-fix2`; los recuentos funcionales de las fases 6–9 se limitan a
-su inventario localizado de 153.476 funciones de `main` del update. El
-denominador 68.330 corresponde a la vista histórica limitada y sus artefactos
-siguen siendo históricos. El
-proyecto fix2 intacto confirma directamente las 153.476 entradas inventariadas,
-sin solapamiento de cuerpos y con una unión exacta de 51.275.676 bytes
-(96,55287 %). Los 1.830.644/53.106.320 bytes restantes (3,44713 %) están fuera
-de todos los cuerpos existentes; son un residual explícitamente Desconocido.
-Su clasificación semántica y la validez de candidatos se difieren fuera de P0
-una vez registrado el residual acotado. El estado de listing clasifica 40.764 bytes
-como instrucciones y 1.789.880 como datos definidos, sin establecer semántica, funciones
-nuevas válidas ni reachability. Este residual de bytes ejecutables es una métrica
-separada: no es una fila de función adicional ni el denominador de los recuentos
-funcionales del treemap. Todas las funciones inventariadas tienen salida
-(153.471 C + 5 ASM); la suma de cuerpos C es 96,47728 % y la de ensamblador
-0,07559 % de los bytes ejecutables. Un intento con el formato de seeds produjo
-cero exports adicionales. La discrepancia de +1.425 funciones pertenece al clon
-exploratorio y sigue sin explicación por identidad; no afecta la reconciliación
-del proyecto intacto. El triage de referencias/listing de las 13.897 semillas
-fuera de cuerpos se corrigió al detectar un error de consulta: `getCodeUnitAt`
-solo encuentra unidades por su dirección inicial y omitió direcciones internas.
-Con `Listing.getCodeUnitContaining(address)`, 77 semillas están en instrucciones
-definidas (308 bytes), 13.820 en unidades de datos definidas (13.820 bytes), y 0
-son indefinidas o no mapeadas. Las referencias entrantes son 91 objetivos / 179
-aristas: CALL 8/11, clase JUMP 64/66 (condicionalidad combinada), otro flujo
-0/0 y no flujo 19/102. La división previa de subtipos JUMP queda reemplazada/no
-confirmada. Estos registros no demuestran semántica, reachability, límites ni
-validez funcional. El triage semántico de gaps y la validez de candidatos quedan
-Desconocidos/Diferidos; no son bloqueos activos del cierre P0. Véase la
-[corrección](reports/function-progress/p0-update-main-gap-flow-triage-correction.md).
-
-Los módulos auxiliares del update (`rtld`, `sdk`, `subsdk0/1`) están extraídos,
-verificados (NSO) e idénticos byte a byte a los de la base, con metadatos
-estructurales e imports/relocations de los NSO originales medidos. En la
-ejecución de export de Ghidra se detectaron 27.750 candidatos y se exportaron
-20.327 cuerpos C que suman 7.902.740 bytes; la razón del 50,75 % frente a `.text`
-es una suma de tamaños de cuerpos, no cobertura. Una reconciliación separada de
-rangos midió uniones y gaps exactos para las detecciones existentes; la
-completitud del inventario y los denominadores de export siguen desconocidos.
-**P0 está cerrado solo como baseline acotado de inventario y procedencia**:
-los gates documentales 1–4 y las verificaciones locales Wave C pasaron dentro
-del límite indicado arriba. La verificación de cabecera/firma NCA, la semántica ContentMeta/CNMT
-del update, el ownership semántico archivo→código y la resolución runtime siguen
-sin verificar o desconocidos y están diferidos fuera de P0, no son bloqueos
-activos. El overlay tiene
-**466 modificados + 725 añadidos**. Las comparaciones internas satisfactorias
-son **14/466**; **452/466** siguen sin comparación interna satisfactoria y el
-ownership semántico es desconocido para **1.191/1.191**. La evidencia estática
-registra tres entradas `DT_NEEDED` y nueve aristas candidatas por coincidencia
-nominal; los estados cargado y alcanzado siguen desconocidos.
-
-La evidencia P0 vigente está reconciliada en
-[`p0-wave1-reconciliation.md`](reports/function-progress/p0-wave1-reconciliation.md),
-que enlaza el inventario base, el análisis NCA/NPDM, la auditoría de ownership
-del overlay, el informe runtime estático y la evidencia actual de export. La
-división actual de etiquetas de subsistema para los añadidos es **336 mapeados /
-389 sin mapear**; son coincidencias heurísticas de rutas/nombres, no propiedad
-semántica. La cifra histórica 360 es texto obsoleto.
+Las fases 1–5 describen *tener* el código y los datos.
+Las fases 6–9 describen *comprenderlo y portarlo*. 
 
 ## Qué hay aquí
 
