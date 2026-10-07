@@ -16,17 +16,21 @@ Scope: the 117,455 game-side functions of update-v262144 `main` (everything D2 d
 | Clusters | 393 |
 | Clusters with ≥ 1,000 / 100–999 / 20–99 / < 20 functions | 26 / 131 / 76 / 160 |
 | Functions in clusters under 20 functions | 1,258 |
-| Clusters with label evidence | 12 (ui ×7, save ×2, effect, event_script, havok_integration) |
+| Clusters with label evidence | 12 (ui ×7, file_io ×2, effect, event_script, havok_integration) |
 | Functions in labelled clusters | 18,584 (15.8 %) |
 | Functions in clusters with no label evidence | 98,871 (84.2 %) |
 
 ## Validation
 
 - **Cohesion of known groups:** the 34 handlers of the D0 pilot class land in a single cluster (34/34); 9 of the 10 documented animation functions share one cluster.
-- **Purity against resource-path anchors:** 65 of 88 anchored functions (74 %) sit in a cluster dominated by their own top-level system.
+- **Purity against resource-path anchors:** 63 of 87 anchored functions (72 %) sit in a cluster dominated by their own top-level system.
 - **Sensitivity:** six other parameter sets gave 393–487 clusters; the pilot class stayed together in 25–34 of 34 and the animation functions in 8–9 of 10.
 - **Adjacency is essential:** without the address-adjacency edge the call graph alone splits into 39,240 communities (35,590 singletons), because most calls to game code are indirect.
 - **Address locality:** the median large cluster (≥ 100 functions) has 75 % of its members inside its densest 1 MB address window.
+
+## Correction (2026-10-07)
+
+The first label pass counted the `data:/` mount path as save-system evidence. That path is the general game-data mount, so those two clusters are labelled `file_io`; only the `save%d:/` path is treated as save evidence (2 functions).
 
 ## Limits
 
