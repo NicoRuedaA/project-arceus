@@ -16,22 +16,26 @@ Game-binding glue (the template layer between the game and Lua) is treated as ga
 
 | Family | Functions | Body bytes | T1 / T2 / T3 |
 |---|---:|---:|---|
-| Networking stack (gRPC, protobuf, OpenSSL, absl, re2, nghttp2, upb, zlib) | 18,039 | 5,082,868 | 2,219 / 15,237 / 583 |
+| Networking stack (gRPC, protobuf, OpenSSL, absl, re2, nghttp2, upb, zlib, webrtc) | 16,409 | 4,790,264 | 2,235 / 13,660 / 514 |
 | Havok physics | 13,612 | 4,758,556 | 535 / 13,023 / 54 |
 | Wwise audio | 3,310 | 870,896 | 4 / 3,211 / 95 |
-| Nintendo SDK client code (`nn::`) | 1,384 | 317,136 | 52 / 1,115 / 217 |
+| Nintendo SDK client code (`nn::`, Nintendo network protocol) | 2,093 | 483,136 | 230 / 1,601 / 262 |
 | Lua interpreter core | 505 | 153,188 | 14 / 428 / 63 |
 | Oodle compression | 92 | 163,556 | 18 / 67 / 7 |
-| **Third-party libraries** | **36,942 (24.07 %)** | **11,346,200 (21.71 %)** | |
+| **Third-party libraries** | **36,021 (23.47 %)** | **11,219,596 (21.47 %)** | |
 | Game-engine evidence (T1 only) | 458 | 83,796 | |
-| Conflicting anchors | 10 | 8,276 | |
-| No library evidence (owner unknown) | 116,066 | 40,817,196 | |
+| Conflicting anchors | 11 | 8,640 | |
+| No library evidence (owner unknown) | 116,986 | 40,943,436 | |
 
-**Denominator for D3–D4.** Game code is at most 116,534 functions (everything not identified as a library, including the 458 with game-engine evidence and 10 conflicting). This is an upper bound: libc++ instantiations, other statically linked code and library functions without anchors remain inside it.
+**Denominator for D3–D4.** Game code is at most 117,455 functions (everything not identified as a library, including the 458 with game-engine evidence and 11 conflicting). This is an upper bound: libc++ instantiations, other statically linked code and library functions without anchors remain inside it.
+
+## Correction (2026-10-07)
+
+The first pass missed the webrtc paths and the Nintendo network-protocol paths; adding them moved 921 functions between NET, NN_SDK and unlabelled and improved the hold-out (see below). Figures in this report are the corrected ones.
 
 ## Validation and limits
 
-- Hold-out: hiding 25 % of the T1 anchors and re-predicting them gave 687 correct, 13 wrong and 125 unpredicted (98.1 % of predicted). The wrong ones are Nintendo SDK functions inside the networking region (that SDK client uses the networking stack). The hold-out is optimistic: hidden anchors sit next to visible ones, unlike unanchored functions.
+- Hold-out: hiding 25 % of the T1 anchors and re-predicting them gave 748 correct, 4 wrong and 121 unpredicted (99.5 % of predicted). The wrong ones are Nintendo SDK functions inside the networking region (that SDK client uses the networking stack). The hold-out is optimistic: hidden anchors sit next to visible ones, unlike unanchored functions.
 - Wwise rests on only 4 T1 anchors (3,211 T2 functions): low confidence. Lua core and Oodle are small families with few anchors.
 - Unlabelled means "no library evidence", not "game code".
 - libc++ and compiler support code carry no path anchors and are not separated here.
