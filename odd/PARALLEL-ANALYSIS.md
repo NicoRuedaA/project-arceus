@@ -9,3 +9,5 @@ Read-only analyst agents work in parallel; one writer validates and applies.
 5. **Close**: regenerate the fix2 progress profile (`python3 .tools/function_progress_treemap.py --build update-v262144-fix2`), run `cargo run -p sheetty-cli -- check sheets`, update both READMEs and the plan, commit.
 
 Limits: at most 2 Ghidra processes (the MCP server is one); exactly one writer for the working project and the ledger; analysts never write outside their own proposal file.
+
+Since batch 4: the analyst brief lives in `work/d4/ANALYST-BRIEF.md` (git-ignored), the validator in `work/d4/validate.py` and the apply step in `work/d4/apply_round.py`. Import calls and data pointers are resolved in the working copy, so analysts must use the live body. Each analyst keeps temporary files in its own `work/d4/scratch/<task>/` folder (a shared scratch folder let one analyst overwrite another's output).

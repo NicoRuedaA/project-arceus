@@ -5,6 +5,10 @@ Proposals: [{"function_id": "00d92524", "evidence": ["sheets/decisions.tsv#dec11
 
 Only `analysis_status` is promoted (to analyzed_documented); every other state stays `unknown`.
 Refuses duplicates, unknown evidence references, empty notes and malformed ids. Dry run by default.
+
+--update: instead of appending, replace the analysis evidence and notes of rows that already exist
+(for corrections after a re-review). With "downgrade": true in a proposal, the row's analysis_status
+is set back to `unknown` (evidence invalidated); the notes then say why.
 """
 import argparse
 import json
@@ -26,7 +30,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("proposals")
     ap.add_argument("--apply", action="store_true", help="write rows (default: dry run)")
+    ap.add_argument("--update", action="store_true", help="correct existing rows instead of appending")
     args = ap.parse_args()
+    if args.update:
+        return update(args)
 
     props = json.loads(Path(args.proposals).read_text())
     lines = LEDGER.read_text().splitlines()
@@ -56,6 +63,37 @@ def main() -> int:
     if errors or not args.apply:
         return 1 if errors else 0
     LEDGER.write_text("\n".join(lines + rows) + "\n")
+    return 0
+
+
+def update(args) -> int:
+    props = {p.get("function_id", ""): p for p in json.loads(Path(args.proposals).read_text())}
+    lines = LEDGER.read_text().splitlines()
+    known = decision_ids()
+    errors, done = [], set()
+    for i, ln in enumerate(lines):
+        if not ln or ln.startswith("#") or ln.startswith("id:"):
+            continue
+        cols = ln.split("\t")
+        p = props.get(cols[2])
+        if p is None:
+            continue
+        notes, ev = p.get("notes", "").strip(), p.get("evidence", [])
+        bad = [e for e in ev if not (e.startswith("sheets/decisions.tsv#") and e.split("#")[1] in known)]
+        if not notes or not ev or bad:
+            errors.append(f"{cols[2]}: evidence and notes are required ({bad})")
+            continue
+        cols[3] = "unknown" if p.get("downgrade") else "analyzed_documented"
+        cols[4], cols[5] = ";".join(ev), notes
+        lines[i] = "\t".join(cols)
+        done.add(cols[2])
+    errors += [f"{f}: not in ledger" for f in props if f not in done]
+    for e in errors:
+        print("REJECT", e, file=sys.stderr)
+    print(f"{len(done)} row(s) updated, {len(errors)} rejected" + ("" if args.apply else " (dry run)"))
+    if errors or not args.apply:
+        return 1 if errors else 0
+    LEDGER.write_text("\n".join(lines) + "\n")
     return 0
 
 
