@@ -16,6 +16,26 @@ from a versioned sheet book.
 
 Figures refer to the update v262144 `main` (153,476 located functions). The phase-by-phase detail is in the [Completion plan](#completion-plan). Last updated: 2026-10-07.
 
+### 📊 Progress by phase
+
+<!-- progress-bars:start -->
+```text
+ 1 Extraction               ████████████████████    100 %   enumerated files and members
+ 2 Inventory of main        ███████████████████░   98.4 %   executable bytes inside functions
+ 3 Pseudocode export        ████████████████████    100 %   of the 153,476 located functions
+ 4 gameDB index             ████████████████████    100 %   of the exported C files
+ 5 Data (RomFS)             ████████████████████    100 %   extracted and overlaid
+     · interpretation       ░░░░░░░░░░░░░░░░░░░░    3.0 %   14/466 modified files compared inside
+ 6 Function analysis        ░░░░░░░░░░░░░░░░░░░░    1.1 %   1,666 of 153,476 documented (801 are import stubs)
+ 7 Implementation (port)    ░░░░░░░░░░░░░░░░░░░░   <0.1 %   8 of 153,476 with a partial implementation
+ 8 Behaviour verification   ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476
+ 9 Binary matching          ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476
+10 Playable port            █████████░░░░░░░░░░░    ~45 %   average of qualitative estimates
+```
+
+*Bars show what is actually quantified in each phase; several phases have an unknown full denominator (see the Completion plan). Phase 2 measures executable bytes covered by functions, not a function count; phase 6 includes import stubs that were not "read".*
+<!-- progress-bars:end -->
+
 ### ✅ Done
 
 - **Extracted material:** base (v0) and update (v262144) available; the five executables (`main`, `rtld`, `sdk`, `subsdk0`, `subsdk1`) extracted and hash-verified; RomFS extracted and overlaid. The update's auxiliary modules are byte-identical to the base's.

@@ -16,6 +16,26 @@ Rust/Bevy desde un libro de hojas versionado haciendo uso de **The Spreadsheet M
 
 Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El detalle fase a fase está en la [Tabla de cierre](#tabla-de-cierre). Última actualización: 2026-10-07.
 
+### 📊 Avance por fase
+
+<!-- progress-bars:start -->
+```text
+ 1 Extracción               ████████████████████    100 %   archivos y miembros enumerados
+ 2 Inventario de main       ███████████████████░   98,4 %   bytes ejecutables dentro de funciones
+ 3 Export de pseudocódigo   ████████████████████    100 %   de las 153.476 funciones localizadas
+ 4 Índice gameDB            ████████████████████    100 %   de los archivos C exportados
+ 5 Datos (RomFS)            ████████████████████    100 %   extraídos y superpuestos
+     · interpretación       ░░░░░░░░░░░░░░░░░░░░    3,0 %   14/466 modificados comparados por dentro
+ 6 Análisis de funciones    ░░░░░░░░░░░░░░░░░░░░    1,1 %   1.666 de 153.476 documentadas (801 son centralitas de importación)
+ 7 Implementación (port)    ░░░░░░░░░░░░░░░░░░░░   <0,1 %   8 de 153.476 con implementación parcial
+ 8 Verificación de conducta ░░░░░░░░░░░░░░░░░░░░      0 %   0 de 153.476
+ 9 Binary matching          ░░░░░░░░░░░░░░░░░░░░      0 %   0 de 153.476
+10 Port jugable             █████████░░░░░░░░░░░    ~45 %   media de estimaciones cualitativas
+```
+
+*Las barras miden lo que está cuantificado en cada fase; el denominador completo de varias fases es desconocido (véase la Tabla de cierre). La fase 2 mide bytes de código cubiertos por funciones, no número de funciones; la fase 6 incluye centralitas de importación que no se han «leído».*
+<!-- progress-bars:end -->
+
 ### ✅ Hecho
 
 - **Material extraído:** base (v0) y update (v262144) disponibles; los cinco ejecutables (`main`, `rtld`, `sdk`, `subsdk0`, `subsdk1`) extraídos y verificados por hash; RomFS extraído y superpuesto. Los módulos auxiliares del update son idénticos byte a byte a los de la base.
