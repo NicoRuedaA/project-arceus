@@ -2,7 +2,7 @@
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
-**Current status:** MCP restored with explicit authorization; [batch 15](d4-batch15-documentation-first.md) records 47,795 markers and 105,681 remaining. The outage and initial queue below are historical, not the current service status.
+**Current status:** MCP restored with explicit authorization; [batch 16](d4-batch16-documentation-first.md) records 47,930 markers and 105,546 remaining. The outage and initial queue below are historical, not the current service status.
 
 ## Baseline and repeatable work unit
 
@@ -11,8 +11,8 @@ At `3f21d1b`, **47,130/153,476** located update-main functions have static marke
 1. **Select undocumented states, not missing rows.** The ledger contains 47,168 rows, including 38 explicitly unknown rows. The old selector excluded every row, incorrectly treating those 38 as documented. Private `work/d4/select_documentation_round.py` and `validate_documentation.py` use `analysis_status == analyzed_documented` instead. Row presence alone never proves documentation.
 2. **Use a bounded deterministic queue.** Group by existing EXACT identity; order by descending group size, descending caller count and address. For this restart, choose bodies of 12–1,500 bytes, at most 16 entries and 9,000 bytes per author. Skip recorded boundary/thunk/open-end anomalies. Existing reservations prevent duplicate assignment but are not completion evidence: resume blocked manifests and maintain withheld tasks as a separate recovery queue.
 3. **Read the whole live body.** Luna read-only authors describe observable operations, input/output register effects, branches and side effects, with unresolved callees explicit. Proposed names and signatures remain null. Export availability or guessed game purpose does not qualify. Missing, truncated or anomalous evidence stays withheld.
-4. **Validate and independently audit the exact summary.** Writer re-fetches live evidence and validates completeness, constants/imports and callee claims. Another Luna audits the exact accepted text, not a stale index entry. Corrections require a new independent check before copy propagation. The 17 outstanding batch-12 corrections stay in their separate audit queue.
-5. **Apply and close one unit.** One writer, working-copy backup before Ghidra mutation, comments only, exact readback. Preserve reference project, function boundaries and all non-analysis states. EXACT propagation requires the existing byte/target identity gate; SHAPE similarity is insufficient. Update ledger, regenerate fix2, verify manifest/inventory/current source fingerprints, check sheets, synchronize both READMEs/plan and commit locally. Never push or activate RDD.
+4. **Validate and independently audit the exact summary.** Writer re-fetches live evidence and validates completeness, constants/imports and callee claims. Another Luna audits the exact accepted text, not a stale index entry. Corrections require a new independent check before copy propagation. The 17 historical batch-12 corrections were resolved in batch 13: 16 qualified corrections retained, one unsupported marker withdrawn; its copies remain withheld.
+5. **Apply and close one unit.** One writer, working-copy backup before Ghidra mutation, comments only, exact readback. Before save/close/copy/reopen, every MCP consumer must explicitly confirm quiescence; the writer must also verify that all of its own live-validation processes have exited. Interrupted evidence is discarded and revalidated, never promoted. Preserve reference project, function boundaries and all non-analysis states. EXACT propagation requires the existing byte/target identity gate; SHAPE similarity is insufficient. Update ledger, regenerate fix2, verify manifest/inventory/current source fingerprints, check sheets, synchronize both READMEs/plan and commit locally. Never push or activate RDD.
 
 Private selection command used:
 
@@ -21,6 +21,8 @@ python3 work/d4/select_documentation_round.py 13 1 --min-bytes 12 --max-bytes 15
 ```
 
 The latest user instruction supersedes the initial four-round assignment cap: continue bounded rolling documentation, keeping new readers productive while independent audits and writer checks proceed. Stop early only for a real blocker, unavailable/invalid evidence, resource cap or repeated infrastructure failure—not low copy yield.
+
+Rolling read-ahead uses two Luna slots: one reads fresh disjoint functions while the other independently audits a prior author, swapping roles between bounded batches. Both read new functions when no audit is ready. During a backup barrier, workers may analyze complete immutable live snapshots already captured; safety takes precedence over eliminating every idle gap. Scratch/proposal paths are task-owned and asserted before writes.
 
 Workflow recovery: `work/d4/documentation-workflow-map.json`, SHA-256 `823c58d2011c774b55e639420b038d6163f77b5c85316b0bd06aedcc1cbfa28e`, records commands and the 17 outstanding correction IDs/text hashes. Those hashes were checked against their private proposal files. Do not reuse `apply_run2.audit` unmodified for this queue: its accepted-summary index can select stale text; bind propagation to the exact independently audited corrected summary.
 
