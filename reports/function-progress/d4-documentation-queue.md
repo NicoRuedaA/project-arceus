@@ -2,6 +2,8 @@
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
+**Current status:** MCP restored with explicit authorization; [batch 13](d4-batch13-documentation-first.md) records 47,483 markers and 105,993 remaining. The outage and initial queue below are historical, not the current service status.
+
 ## Baseline and repeatable work unit
 
 At `3f21d1b`, **47,130/153,476** located update-main functions have static markers; **106,346** do not. Categories remain separate: 1,331 individually read, 16,690 audited exact copies, 28,308 deterministic mechanical classifications and 801 import stubs. The inventory is not the whole-game or complete valid-function denominator.
@@ -18,7 +20,7 @@ Private selection command used:
 python3 work/d4/select_documentation_round.py 13 1 --min-bytes 12 --max-bytes 1500 --max-per 16 --budget 9000 --exclude work/d4/mech/mech-classified.tsv
 ```
 
-Four documentation rounds remain authorized in this assignment. **None has completed on this restart.** Stop early only for a real blocker, unavailable/invalid evidence, resource cap or repeated infrastructure failure—not low copy yield.
+This assignment authorizes four documentation rounds after the restart; batch 13 is round 1 of four. Stop early only for a real blocker, unavailable/invalid evidence, resource cap or repeated infrastructure failure—not low copy yield.
 
 Workflow recovery: `work/d4/documentation-workflow-map.json`, SHA-256 `823c58d2011c774b55e639420b038d6163f77b5c85316b0bd06aedcc1cbfa28e`, records commands and the 17 outstanding correction IDs/text hashes. Those hashes were checked against their private proposal files. Do not reuse `apply_run2.audit` unmodified for this queue: its accepted-summary index can select stale text; bind propagation to the exact independently audited corrected summary.
 
