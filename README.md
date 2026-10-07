@@ -26,7 +26,7 @@ Figures refer to the update v262144 `main` (153,476 located functions). The phas
  4 gameDB index             ████████████████████    100 %   of the exported C files
  5 Data (RomFS)             ████████████████████    100 %   extracted and overlaid
      · interpretation       ░░░░░░░░░░░░░░░░░░░░    3.0 %   14/466 modified files compared inside
- 6 Function analysis        ░░░░░░░░░░░░░░░░░░░░    1.1 %   1,666 of 153,476 documented (801 are import stubs)
+ 6 Function analysis        ████░░░░░░░░░░░░░░░░   20.2 %   30,944 of 153,476 documented (801 are import stubs)
  7 Implementation (port)    ░░░░░░░░░░░░░░░░░░░░   <0.1 %   8 of 153,476 with a partial implementation
  8 Behaviour verification   ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476
  9 Binary matching          ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476
@@ -43,17 +43,17 @@ Figures refer to the update v262144 `main` (153,476 located functions). The phas
 - **`main` functions:** 153,476 located functions, all with exported pseudocode (153,471 in C and 5 in assembly) and indexed in gameDB. After fixing six wrong "never returns" flags, their bodies cover **98.40 %** of the executable code (52,255,468 of 53,106,320 bytes). The remaining 850,852 bytes are classified (padding, tables, data and possible code) but not interpreted ([report](reports/function-progress/d1-main-gap-closure.md)).
 - **Third-party code separated:** 36,021 functions (23.47 %) are libraries linked into the program (networking, Havok, Wwise, Nintendo SDK, Lua, Oodle). Game code is at most 117,455 functions ([report](reports/function-progress/d2-library-ownership.md)).
 - **Technical findings:** the engine's name hash is 64-bit FNV-1a with its own offset basis (it reproduces 450 of 450 event-flag ids); all 816 library calls resolved; 205,023 missing data pointers applied.
-- **Documented functions: 1,666 of 153,476 (1.09 %).** Of these, 801 are 16-byte import stubs identified from link data and 865 were read by analysts and passed validation. An audit of 180 random descriptions found 168 correct, 12 with a wrong detail (corrected) and none with the main idea wrong ([report](reports/function-progress/d4-batch8-leaves-and-run-summary.md)).
+- **Documented functions: 30,944 of 153,476 (20.16 %), in four separate categories:** 801 16-byte import stubs identified from link data (0.52 %); 1,043 read by analysts and validated (0.68 %); 792 propagated from an audited function with identical bytes and call targets (0.52 %); 28,308 tiny straight-line functions mechanically classified from their instructions (18.44 %; a script derives the exact behaviour, re-checked on 400 random samples with no error). Only the 1,043 were understood by reading. Audits of 251 accepted descriptions: 229 correct, 22 with a wrong detail (corrected), none with the main idea wrong ([report](reports/function-progress/d4-batch9-dedup-and-mechanical.md)).
+- **Identical functions grouped:** 109,550 distinct functions out of 153,476; 53,912 sit in groups of identical copies.
 - **Port:** a Rust skeleton that loads and runs real event scripts.
 
 ### 🔄 In progress
 
-- Grouping identical functions so each is read only once.
 - Reading the remaining game functions, in order of importance.
 
 ### ❌ Missing
 
-- **Understanding the game code:** only 1.09 % is documented, and most of it is stubs or small helper functions.
+- **Understanding the game code:** only 0.68 % has been read by analysts; the rest of what is documented is stubs, copies or tiny functions.
 - **Fixing wrongly delimited function boundaries.** This would change the 153,476 total and awaits a decision.
 - **Regenerating the exported pseudocode,** which is out of date after the fixes.
 - **Data:** 452 of the 466 modified files still lack a successful internal comparison, and it is not known which code each data file belongs to.
@@ -111,7 +111,7 @@ establish complete-module coverage. `~` marks qualitative estimates.
 | | Strings / references | Unknown | Unknown | 13,370 + 29,162, no total | Extraction/reference scanners; total denominator not established |
 | | Domain tables | Unknown | Unknown | 12 sheets, no total | TSV/sheet ingestion and `sheetty` preflight |
 | | Base data | 100% of enumerated outer paths | 0% of enumerated outer paths | 18,370 base outer paths; not a complete semantic inventory and excludes nested archive children. | RomFS extraction; complete base-data index pending |
-| 6. Analysis (P2–P7) | Game code | ~1.09 % | ~98.91 % | 1,666/153,476 functions documented: 801 import stubs (identified from link data) and 865 read by analysts. The denominator is the located inventory, not a complete valid-function universe. | Direct decompilation evidence and function-progress ledger; [D4 summary](reports/function-progress/d4-batch8-leaves-and-run-summary.md); [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
+| 6. Analysis (P2–P7) | Game code | ~20.16 % (0.68 % read) | ~79.84 % | 30,944/153,476 functions documented: 801 import stubs (link data), 1,043 read by analysts, 792 propagated from audited identical functions, 28,308 mechanically classified from instructions. The denominator is the located inventory, not a complete valid-function universe. | Direct decompilation evidence and function-progress ledger; [D4 batch 9](reports/function-progress/d4-batch9-dedup-and-mechanical.md); [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 7. Implementation (P3–P7) | Rust port | ~0.0052 % partial ratio | Unknown | 8/153,476 fix2-located functions have partial implementation; partial is not complete. Denominator is the located inventory, not a complete valid-function universe. | Rust/Bevy implementation and function-progress ledger; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 8. Behaviour verification (P3–P7, P9) | Fix2-located functions | 0% within fix2 | Unknown | 0/153,476 fix2-located functions behavior-verified; the whole function universe beyond body coverage is unknown. | No independent behavioral verification completed yet; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 9. Binary matching (P8–P9) | Fix2-located functions | 0% within fix2 | Unknown | 0/153,476 fix2-located functions binary-matched; the whole function universe beyond body coverage is unknown. | No reproducible binary-matching run completed yet; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
