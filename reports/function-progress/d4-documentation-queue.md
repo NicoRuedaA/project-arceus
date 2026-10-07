@@ -2,7 +2,7 @@
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
-**Current status:** MCP restored with explicit authorization; [batch 36](d4-batch36-documentation-first.md) records 49,632 markers and 103,844 remaining. The outage and initial queue below are historical, not the current service status.
+**Current status:** execution stopped after [batch 37](d4-batch37-documentation-first.md) at the user's explicit instruction: 49,669 markers and 103,807 remaining. Both readers are stopped. Existing private read-ahead for batches 38–65 is preserved but not independently admitted or applied; it adds no ledger markers. Further work requires an explicit resume. The outage and initial queue below are historical.
 
 ## Baseline and repeatable work unit
 
@@ -20,7 +20,7 @@ Private selection command used:
 python3 work/d4/select_documentation_round.py 13 1 --min-bytes 12 --max-bytes 1500 --max-per 16 --budget 9000 --exclude work/d4/mech/mech-classified.tsv
 ```
 
-The latest user instruction supersedes the initial four-round assignment cap: continue bounded rolling documentation, keeping new readers productive while independent audits and writer checks proceed. Stop early only for a real blocker, unavailable/invalid evidence, resource cap or repeated infrastructure failure—not low copy yield.
+The earlier continuous assignment superseded the initial four-round cap, but the latest explicit instruction stops execution after batch 37. The rolling protocol below remains a future workflow reference, not authorization to start another queue. Low copy yield alone did not cause this stop.
 
 Rolling read-ahead uses two Luna slots: one reads fresh disjoint functions while the other independently audits a prior author, swapping roles between bounded batches. Both read new functions when no audit is ready. During a backup barrier, workers may analyze complete immutable live snapshots already captured; safety takes precedence over eliminating every idle gap. Scratch/proposal paths are task-owned and asserted before writes. New capture attempts use unique append-only directories: never overwrite a snapshot, retain the full command result and poll its session ID to an explicit exit before retrying. An ambiguous attempt is preserved and withheld; re-entry requires a new GET plus independent audit.
 
