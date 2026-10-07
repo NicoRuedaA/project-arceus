@@ -1,13 +1,13 @@
 # P0 Global gameDB Index
 
-Status: **attempted but incomplete; empty DB (2026-10-06)**. The progress log
-records that the single authorized index invocation was launched, and
-`<staging-root>/.gamedb/index.sqlite` exists. Post-cancellation read-only checks
-show zero indexed corpus rows. The prior blocked attempts remain preserved as
-history below; see the latest dated addendum for the outcome. No retry or
-database deletion was performed.
+Status: **global index completed successfully (2026-10-06)** for the paired-
+verified corpus of currently available C exports. It contains 177,795 files and
+176,667 parsed function rows; the scoped per-module results and limitations are
+in the final dated addendum. Earlier blocked and canceled attempts remain below
+as history; their empty-DB state is superseded by the successful retry. This is
+not whole-game, semantic, behavior, or port coverage.
 
-## Pre-index gate and command
+## Historical pre-index gate and command attempts (superseded)
 
 - Staged root: `/home/nico/work/decompilacion/work/p0-global-gamedb-corpus-20261006`.
 - Confirmed all six expected module roots are present, contain only `.c` files,
@@ -51,7 +51,7 @@ Staging count and module grouping parity: **matched**. Indexed-file/parser parit
 `gamedb selftest`: **not run**. No index command was issued, so the post-index
 checks are inapplicable.
 
-## Scope, discrepancy, and next action
+## Historical scope, discrepancy, and next action (superseded by the paired gate and successful index)
 
 The sole discrepancy is the mismatch between the recorded and recomputed corpus
 fingerprints despite matching counts, module grouping, and aggregate bytes. The

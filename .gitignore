@@ -35,3 +35,5 @@ work/
 
 # Generated progress snapshots (regenerable, ~60 MB each)
 reports/function-progress/**/stale/
+# Interactive fix2 treemap is generated locally and is too large to track.
+/reports/function-progress/update-v262144-fix2/index.html

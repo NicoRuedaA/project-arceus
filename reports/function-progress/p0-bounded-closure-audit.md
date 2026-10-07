@@ -113,3 +113,40 @@ this proposed bounded definition.
 
 *Metadata/evidence references only. No canonical source, census, plan, README,
 function ledger, or game data was changed.*
+
+## Final boundary decision — 2026-10-06
+
+This dated addendum records the user's final bounded-scope decision and
+supersedes this audit's broader proposed discovery/reconciliation work where it
+would expand P0 into crypto, runtime, semantic, or nested-member investigation.
+It does not declare P0 closed. Keep P0 **In progress** until a reviewer verifies
+that all five local closure gates in `odd/PLAN.md` pass.
+
+**P0 in-scope baseline:** pinned base v0 and update v262144 package identities
+and recorded member-set metadata; the six Program ExeFS members per version
+(five NSOs plus NPDM); five named executable roles per version, version-qualified
+NSO identities, and original-NSO structural imports/relocations; the effective
+outer RomFS set (base 18,370; effective 19,095 = 17,904 unchanged / 466 modified
+/ 725 added / 0 removed); available module function detections, exports, index
+results, and body/gap metrics, with denominators `Unknown` unless complete; and
+outer-file format classes/parser outcomes plus each census row's status,
+evidence, limits, and next phase. The finite sources are the pinned/package and
+ExeFS provenance reports, original-NSO inventory reports, versioned RomFS
+manifest/overlay reports, parser reports, available-index/fix2 reports, and the
+existing **26** census records. Census count is not a universe denominator; the
+boundary is not a claim of whole-game semantics. Outer files and nested archive
+members remain separate units. The update is a patch; the port target remains
+base + update.
+
+**Explicitly deferred outside P0; retain `Unknown`/`Deferred`, not verified:**
+(1) NCA header signature authenticity; (2) full update CNMT semantic parsing;
+(3) NPDM cryptographic trust and runtime necessity; (4) loaded/reached runtime
+observations; (5) semantic function understanding, behavior, and matching;
+(6) a complete valid-function denominator; (7) semantic file-to-code ownership;
+and (8) nested archive/member semantics. Reasons and limits remain in the linked
+sanitized reports and census. No update ContentMeta parse is claimed, no base
+CNMT values are copied, and the user's reported emulator use is not an
+instrumented trace. None of these deferred dimensions is a P0 closure gate.
+
+*Metadata/evidence references only; no raw package metadata, payload, keys, or
+credentials were read or added by this boundary decision.*
