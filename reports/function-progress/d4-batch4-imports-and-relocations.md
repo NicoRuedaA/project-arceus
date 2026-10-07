@@ -33,7 +33,7 @@ The validator checks every claim against the live function: complete read, live 
 
 ## Ledger
 
-133 → **1,034** analyzed of 153,476 (0.6737 %): 801 PLT stubs (documented by the relocation evidence, not by reading) and 100 functions read by analysts. 33 high-confidence names applied in the working copy. Behaviour verification and binary matching stay unknown.
+133 → **1,034** analyzed of 153,476 (0.6737 %), of which **801 are 16-byte import stubs identified from the link data** (relocation evidence, not reading) and **233 were read by analysts or re-reviewed** (133 earlier + 100 in this batch). 33 high-confidence names applied in the working copy. Behaviour verification and binary matching stay unknown.
 
 ## Boundary findings
 
