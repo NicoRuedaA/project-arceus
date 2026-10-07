@@ -2,7 +2,7 @@
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
-**Current status:** MCP restored with explicit authorization; [batch 18](d4-batch18-documentation-first.md) records 48,207 markers and 105,269 remaining. The outage and initial queue below are historical, not the current service status.
+**Current status:** MCP restored with explicit authorization; [batch 19](d4-batch19-documentation-first.md) records 48,311 markers and 105,165 remaining. The outage and initial queue below are historical, not the current service status.
 
 ## Baseline and repeatable work unit
 
@@ -24,7 +24,7 @@ The latest user instruction supersedes the initial four-round assignment cap: co
 
 Rolling read-ahead uses two Luna slots: one reads fresh disjoint functions while the other independently audits a prior author, swapping roles between bounded batches. Both read new functions when no audit is ready. During a backup barrier, workers may analyze complete immutable live snapshots already captured; safety takes precedence over eliminating every idle gap. Scratch/proposal paths are task-owned and asserted before writes. New capture attempts use unique append-only directories: never overwrite a snapshot, retain the full command result and poll its session ID to an explicit exit before retrying. An ambiguous attempt is preserved and withheld; re-entry requires a new GET plus independent audit.
 
-Workflow recovery: `work/d4/documentation-workflow-map.json`, SHA-256 `823c58d2011c774b55e639420b038d6163f77b5c85316b0bd06aedcc1cbfa28e`, records commands and the 17 outstanding correction IDs/text hashes. Those hashes were checked against their private proposal files. Do not reuse `apply_run2.audit` unmodified for this queue: its accepted-summary index can select stale text; bind propagation to the exact independently audited corrected summary.
+Workflow recovery: `work/d4/documentation-workflow-map.json`, SHA-256 `823c58d2011c774b55e639420b038d6163f77b5c85316b0bd06aedcc1cbfa28e`, records commands and the original 17 correction IDs/text hashes. Those hashes were checked against their private proposal files. Do not reuse `apply_run2.audit` unmodified for this queue: its accepted-summary index can select stale text; bind propagation to the exact independently audited corrected summary.
 
 ## R13 blocker and exact resume boundary
 
