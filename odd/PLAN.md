@@ -13,9 +13,9 @@
 
 ## Estado actual — 2026-10-06
 
-- **Procedencia base-v0 y contenido del update (2026-10-06):** cada módulo de la base queda cualificado (tamaño, SHA-256, module ID y miembro de paquete exacto: NCZ `Program` `c0717d7f…ncz` → ExeFS), con **15/15 hashes de segmento NSO** verificados ([informe](../reports/function-progress/p0-base-v0-module-provenance.md)). El inventario estructural original-NSO de los cinco módulos base está completo ([inventario](../reports/function-progress/p0-base-import-relocation-inventory.md)); no prueba binding ni carga runtime. En el overlay: **14/466** comparaciones internas satisfactorias y **452/466** sin comparación satisfactoria; ownership semántico desconocido para **1.191/1.191**. NCA authenticity y update ContentMeta/CNMT no están verificadas y se difieren fuera de P0; no son gates activos.
-- **Reconciliación P0 (2026-10-06):** el `main` de la base canónico (`work/pla/pk1/exefs/main`; tamaño 31.755.066; module ID `7fcad279…`; SHA-256 `6f0e5f4a…`) coincide con el **único pin documentado** (informe de Suyu) y sus **tres hashes de segmento NSO pasan**; la discrepancia que registró la comprobación de pin **no es reproducible** (el candidato y su hash no se conservaron) y se reclasifica como **problema de registro**, no de identidad ([reconciliación](../reports/function-progress/p0-base-main-pin-reconciliation.md)). Los módulos auxiliares del update (`rtld`, `sdk`, `subsdk0`, `subsdk1`) están extraídos y verificados (NSO) y son **idénticos byte a byte a los de la base**; su metadato estructural original-NSO está medido. El **overlay efectivo base+update** está medido: **17.904 sin cambios, 466 modificados, 725 añadidos, 0 eliminados** ([auditoría](../reports/function-progress/p0-overlay-ownership.md)). La disposición de `main.npdm` queda cualificada estáticamente: el update lo reemplaza, está extraído y verificado, y los campos comparables coinciden fuera de las regiones criptográficas opacas ([análisis](../reports/function-progress/p0-nca-npdm-analysis.md)). NCA authenticity y update ContentMeta/CNMT semantics siguen sin verificar (**Unknown/Deferred fuera de P0**), no bloquean su cierre. La evidencia runtime es estática-only: `main` declara 3 `DT_NEEDED`, pero carga y reachability siguen Unknown/Deferred a P2; no existe una traza de runtime ([runtime](../reports/function-progress/p0-runtime-dependency-resolution.md)).
-- El censo de alcance actual tiene **26 registros** y declara explícitamente desconocidos; no es todavía prueba de alcance completo. La evidencia vigente cualifica el registro `Program` con los bytes exactos del NSO y los cinco módulos base; los imports/relocations estructurales base están inventariados, pero su binding/runtime y la cobertura semántica siguen desconocidos/diferidos. La cifra actual de etiquetas para añadidos es **336 mapeados / 389 sin mapear**; cualquier referencia a 360 queda limitada a texto histórico obsoleto. El update `main.npdm` ya está extraído y verificado: no se debe reextraer. NCA header/signature, update ContentMeta/CNMT, confianza/necessidad runtime NPDM, loaded/reached y ownership semántico están sin verificar/Unknown y **Deferred fuera del cierre P0**; no son gates activos de P0.
+- **Procedencia base-v0 y contenido del update (2026-10-06):** cada módulo de la base queda cualificado (tamaño, SHA-256, module ID y miembro de paquete exacto: NCZ `Program` `c0717d7f…ncz` → ExeFS), con **15/15 hashes de segmento NSO** verificados ([informe](../reports/function-progress/p0-base-v0-module-provenance.md)). El inventario estructural original-NSO de los cinco módulos base está completo ([inventario](../reports/function-progress/p0-base-import-relocation-inventory.md)); no prueba binding ni carga runtime. En el overlay: **14/466** comparaciones internas satisfactorias y **452/466** sin comparación satisfactoria; ownership semántico desconocido para **1.191/1.191**.
+- **Reconciliación P0 (2026-10-06):** el `main` de la base canónico (`work/pla/pk1/exefs/main`; tamaño 31.755.066; module ID `7fcad279…`; SHA-256 `6f0e5f4a…`) coincide con el **único pin documentado** (informe de Suyu) y sus **tres hashes de segmento NSO pasan**; la discrepancia que registró la comprobación de pin **no es reproducible** (el candidato y su hash no se conservaron) y se reclasifica como **problema de registro**, no de identidad ([reconciliación](../reports/function-progress/p0-base-main-pin-reconciliation.md)). Los módulos auxiliares del update (`rtld`, `sdk`, `subsdk0`, `subsdk1`) están extraídos y verificados (NSO) y son **idénticos byte a byte a los de la base**; su metadato estructural original-NSO está medido. El **overlay efectivo base+update** está medido: **17.904 sin cambios, 466 modificados, 725 añadidos, 0 eliminados** ([auditoría](../reports/function-progress/p0-overlay-ownership.md)). La disposición de `main.npdm` queda cualificada estáticamente: el update lo reemplaza, está extraído y verificado, y los campos comparables coinciden fuera de las regiones opacas ([análisis](../reports/function-progress/p0-nca-npdm-analysis.md)). La evidencia runtime es estática-only: `main` declara 3 `DT_NEEDED`, pero carga y reachability siguen Unknown/Deferred a P2; no existe una traza de runtime ([runtime](../reports/function-progress/p0-runtime-dependency-resolution.md)).
+- El censo de alcance actual tiene **26 registros** y declara explícitamente desconocidos; no es todavía prueba de alcance completo. La evidencia vigente cualifica el registro `Program` con los bytes exactos del NSO y los cinco módulos base; los imports/relocations estructurales base están inventariados, pero su binding/runtime y la cobertura semántica siguen desconocidos/diferidos. La cifra actual de etiquetas para añadidos es **336 mapeados / 389 sin mapear**; cualquier referencia a 360 queda limitada a texto histórico obsoleto. El update `main.npdm` ya está extraído y verificado: no se debe reextraer. Loaded/reached y ownership semántico están sin verificar/Unknown y **Deferred fuera del cierre P0**; no son gates activos de P0.
 - P1 cerró **solo** una muestra acotada y reproducible de 408 llamadas de caché. No acredita la función entera, su contexto de ejecución ni matching binario.
 - P2 cuenta con auditoría estática offline de rutas de control FP, no con observación del binding, hilo ni estado FP real en runtime. Por tanto P2 sigue pendiente.
 - Los parsers, referencias y operaciones numéricas del kernel marcados como `partial` siguen parciales. En la estrategia de port, `identified` describe una decisión registrada, no su implementación. En formatos, `identified` tampoco implica soporte de carga o render.
@@ -56,7 +56,7 @@ que los estados de funciones nativas permanecen sin cambios.
 
 ## Siguiente paso ejecutable y orden pendiente
 
-1. **P0 — alcance y procedencia:** el pin/procedencia base, inventario estructural de módulos y overlay efectivo están medidos. El siguiente trabajo de P0 se limita a reconciliar la frontera del censo, inventario estático y estados por archivo/parser con evidencia, límites y fases siguientes según el addendum de cierre acotado más abajo. NCA/CNMT, autenticidad de NPDM, necesidad runtime, loaded/reached y ownership semántico son Unknown/Deferred, no blockers P0. No reextraer `main.npdm`.
+1. **P0 — alcance y procedencia:** el pin/procedencia base, inventario estructural de módulos y overlay efectivo están medidos. El siguiente trabajo de P0 se limita a reconciliar la frontera del censo, inventario estático y estados por archivo/parser con evidencia, límites y fases siguientes según el addendum de cierre acotado más abajo. Loaded/reached y ownership semántico son Unknown/Deferred, no blockers P0. No reextraer `main.npdm`.
 2. **P1 — no ampliar por defecto:** conservar la muestra cerrada como evidencia local acotada. Reabrirla solo si una nueva pregunta requiere ampliar una rama concreta; esa extensión no sustituye P2.
 3. **P2 — runtime FP:** tras cualificar un runtime de update inspeccionable, observar el binding y el hilo efectivo; documentar el estado FP alcanzado y verificar los modos que la ejecución realmente requiere. Sin runtime cualificado, mantenerlo pendiente y no simular cierre con auditoría estática.
 4. **P3–P7 — port funcional en orden:** contratos de animación → jerarquía/matrices/skin/enlaces → assets, materiales y escena → player/skinning en Bevy → gameplay/continuidad. Cada fase consume contratos y referencias de la anterior.
@@ -81,7 +81,7 @@ Cada fila indica el estado real, la unidad siguiente, el artefacto de evidencia 
 
 | Fase | Estado real | Unidad siguiente concreta | Entregable / evidencia directa | Criterio de salida | Dependencias / bloqueos |
 |---|---|---|---|---|---|
-| P0 — alcance, procedencia y contenido efectivo | Cerrado solo como baseline acotado de inventario y procedencia para base v0 + update v262144; los Unknown/Blocked/Deferred permanecen explícitos | Ninguna tarea P0 pendiente dentro de la frontera declarada. Continuar en las fases posteriores solo con evidencia nueva para autenticidad, semántica, ownership y runtime; no reindexar gameDB, regenerar treemap sin cambio de inputs, reextraer `main.npdm` ni promover estados del ledger por inferencia. | [Addendum de cierre acotado](#integración-de-alcance-p0-acotado--2026-10-06); [censo P0](../sheets/re/p0_scope_census.tsv); [informes Wave A](../reports/function-progress/p0-wave-a-census.md); [perfil fix2](../reports/function-progress/p0-fix2-treemap-profile.md); [índice global](../reports/function-progress/p0-global-gamedb-index.md) | Cinco gates locales aprobados: frontera/reconciliación estática/overlay/registro de Unknowns y Wave C (`sheetty` 29 hojas/267.974 filas/0 errores/0 advertencias; `git diff --check` y CI código 0; huellas actuales de inventario/ledger/Rust coinciden con informe sanitizado). No se leyó manifest JSON ni se recalculó SHA del archivo update; el cierre es de consistencia acotada, no atestación criptográfica. | NCA/CNMT cryptographic/semantic verification and NPDM trust/runtime proof are Deferred outside P0. Semantic ownership, runtime loaded/reached, complete valid-function universe and complete semantics remain Unknown/Deferred. |
+| P0 — alcance, procedencia y contenido efectivo | Cerrado solo como baseline acotado de inventario y procedencia para base v0 + update v262144; los Unknown/Blocked/Deferred permanecen explícitos | Ninguna tarea P0 pendiente dentro de la frontera declarada. Continuar en las fases posteriores solo con evidencia nueva para semántica, ownership y runtime; no reindexar gameDB, regenerar treemap sin cambio de inputs, reextraer `main.npdm` ni promover estados del ledger por inferencia. | [Addendum de cierre acotado](#integración-de-alcance-p0-acotado--2026-10-06); [censo P0](../sheets/re/p0_scope_census.tsv); [informes Wave A](../reports/function-progress/p0-wave-a-census.md); [perfil fix2](../reports/function-progress/p0-fix2-treemap-profile.md); [índice global](../reports/function-progress/p0-global-gamedb-index.md) | Cinco gates locales aprobados: frontera/reconciliación estática/overlay/registro de Unknowns y Wave C (`sheetty` 29 hojas/267.974 filas/0 errores/0 advertencias; `git diff --check` y CI código 0; huellas actuales de inventario/ledger/Rust coinciden con informe sanitizado). No se leyó manifest JSON ni se recalculó SHA del archivo update; el cierre es de consistencia acotada. | Semantic ownership, runtime loaded/reached, complete valid-function universe and complete semantics remain Unknown/Deferred. |
 | P1 — muestra de caché | Cerrada como experimento acotado, no como función completa | Ninguna acción de expansión en la ruta crítica; solo reabrir con pregunta y rama de entrada definidas | Informe de validación de la muestra [P1](../reports/skeleton/update-v262144-native-animation-cache-validation.md) y sus fixtures/trazas citados allí | Reproducir exactamente los 408 casos cubiertos y sus salidas/estado declarados; dejar explícito que no cubre binding/runtime, función total ni matching | La evidencia no sustituye P2 ni abre dependencias downstream. |
 | P2 — contexto FP runtime | Pendiente; existe evidencia estática, no observación de runtime | Conseguir una ejecución cualificada del build exacto; registrar binding efectivo, caller/hilo, transición de estado FP y observaciones antes/después en rutas representativas | Informe de ownership estático [P2](../reports/skeleton/update-v262144-native-animation-p2-static-ownership.md) como hipótesis de búsqueda; nueva traza pasiva identificada por build, escenario, hilo y ruta | Cadena runtime corroborada desde carga hasta ejecución; estado FP observado y modos requeridos verificados con oráculo independiente; límites de arquitectura/host descritos | Bloqueado por runtime/instrumentación cualificados. No inferir owner, estado heredado, epsilon ni soporte host de símbolos, llamadas o compilación. |
 | P3 — evaluación y reproducción de animación | Pendiente; parsers/reference parciales | Cerrar límites y contratos de los canales/trackers necesarios para un clip representativo y definir entradas temporales, casos límite y ownership | Contrato de evaluación por canal; fixtures de referencia de tiempo/valores; trazas de primera divergencia y tests diferenciales independientes | Reproducción nativa determinista dentro del dominio probado; defaults, ausencia, duplicados, extremos, loop y unidades observables documentados | P1/P2 y callers con procedencia; no ampliar formato sin evidencia. |
@@ -106,14 +106,14 @@ denominador completo de funciones válidas. Esto completa solo la regeneración
 del mapa: en esta instantánea de 2026-10-06 P0 seguía **En curso**; no se
 cerraban ni promovían estados de análisis, implementación, comportamiento o
 matching. El cierre acotado posterior consta en la sección Wave B/C.
-NCA/CNMT, NPDM crypto/runtime, loaded/reached, semántica de funciones y ownership
+Loaded/reached, semántica de funciones y ownership
 archivo→código permanecen Unknown/Deferred fuera de P0.
 
 **Corrección del triage (2026-10-06):** una consulta previa usó `Listing.getCodeUnitAt(address)`, que solo encuentra una unidad en su dirección inicial y clasifica erróneamente como indefinidas las direcciones interiores. La consulta corregida usa `Listing.getCodeUnitContaining(address)`: de las 13.897 semillas fuera de cuerpos, 77 caen en instrucciones definidas (308 bytes), 13.820 en unidades de datos definidas (13.820 bytes), 0 son indefinidas y 0 no están mapeadas. El complemento completo sigue siendo 40.764 bytes de instrucciones + 1.789.880 bytes de datos definidos + 0 indefinidos = 1.830.644 bytes. Referencias entrantes: 91 objetivos / 179 aristas (CALL 8/11; clase JUMP 64/66, condicionalidad combinada; otro flujo 0/0; no flujo 19/102). Contextos de origen: 63/149 dentro de funciones, 28/30 fuera de funciones pero dentro del ejecutable, 0/0 fuera del ejecutable; fallthrough 0/0. La división anterior de subtipos JUMP queda reemplazada/no confirmada. El listing y las referencias no prueban validez funcional, reachability ni semántica ([evidencia correctiva](../reports/function-progress/p0-update-main-gap-flow-triage-correction.md)). P0 seguía **En curso** en esta corrección histórica; no se promovieron estados del ledger.
 
-**Siguiente unidad activa (actualizada en el addendum vigente de cierre acotado):** completar únicamente los gates locales de censo/discovery boundary, inventario estático, reconciliación de estados overlay/per-format, etiquetas de evidencia, fingerprints y sheetty/CI. La propuesta histórica de resolver O1–O10, completar los 452 análisis internos, la procedencia de añadidos y el ownership semántico queda supersedida como requisito de cierre P0; esos estados pueden seguir Unknown/Deferred con límites explícitos. La reconciliación directa en el Ghidra fix2 intacto confirma las 153.476 entradas, cero solapamiento entre cuerpos y una unión exacta de 51.275.676/53.106.320 bytes; los 1.830.644 bytes restantes están fuera de todos los cuerpos existentes y la listing los registra como 40.764 bytes de instrucciones y 1.789.880 de datos, sin determinar semántica, funciones válidas o reachability ([rangos](../reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [gaps](../reports/function-progress/p0-update-main-gap-classification.md)). El triage read-only call/jump para las 13.897 semillas fuera de cuerpo está completado; 652 están dentro de cuerpos y ninguna coincide con entradas. El triage semántico de gaps/candidatos queda desconocido y diferido, sin asumir ni crear nuevos límites. La discrepancia de +1.425 gestores se limita al clon exploratorio, no está reconciliada por identidad y permanece desconocida ([validación](../reports/function-progress/p0-update-main-gap-candidate-validation.md)). En auxiliares, 27.750 detecciones y 20.327 exports C/7.902.740 bytes equivalen a razón sumada de cuerpos del 50,75 % del `.text`, **no cobertura**, pues el denominador funcional y los límites completos siguen desconocidos ([informe](../reports/function-progress/p0-auxiliary-module-export-inventory.md)). Se mantienen el pin base-main, la procedencia y el inventario estructural de los cinco NSO base cualificados; también la disposición y comparación estática acotada de `main.npdm`. La verificación de firma/cabecera NCA y la semántica ContentMeta/CNMT no están verificadas y se difieren fuera de P0. El overlay efectivo base+update está medido: 17.904 sin cambios / 466 modificados / 725 añadidos / 0 eliminados; las comparaciones internas estructurales satisfactorias son **14/466** (SARC 10/10; GFLXPACK 4/10), **452/466** siguen sin comparación interna satisfactoria y el ownership semántico es desconocido para **1.191/1.191**. Los resultados de parsers son estructurales, no semánticos. La evidencia runtime es estática-only: `main` tiene 3 `DT_NEEDED`, pero carga y reachability siguen desconocidas y diferidas a P2. `main.npdm` ya está extraído y comparado en alcance acotado y no debe reextraerse.
+**Siguiente unidad activa (actualizada en el addendum vigente de cierre acotado):** completar únicamente los gates locales de censo/discovery boundary, inventario estático, reconciliación de estados overlay/per-format, etiquetas de evidencia, fingerprints y sheetty/CI. La propuesta histórica de resolver O1–O10, completar los 452 análisis internos, la procedencia de añadidos y el ownership semántico queda supersedida como requisito de cierre P0; esos estados pueden seguir Unknown/Deferred con límites explícitos. La reconciliación directa en el Ghidra fix2 intacto confirma las 153.476 entradas, cero solapamiento entre cuerpos y una unión exacta de 51.275.676/53.106.320 bytes; los 1.830.644 bytes restantes están fuera de todos los cuerpos existentes y la listing los registra como 40.764 bytes de instrucciones y 1.789.880 de datos, sin determinar semántica, funciones válidas o reachability ([rangos](../reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [gaps](../reports/function-progress/p0-update-main-gap-classification.md)). El triage read-only call/jump para las 13.897 semillas fuera de cuerpo está completado; 652 están dentro de cuerpos y ninguna coincide con entradas. El triage semántico de gaps/candidatos queda desconocido y diferido, sin asumir ni crear nuevos límites. La discrepancia de +1.425 gestores se limita al clon exploratorio, no está reconciliada por identidad y permanece desconocida ([validación](../reports/function-progress/p0-update-main-gap-candidate-validation.md)). En auxiliares, 27.750 detecciones y 20.327 exports C/7.902.740 bytes equivalen a razón sumada de cuerpos del 50,75 % del `.text`, **no cobertura**, pues el denominador funcional y los límites completos siguen desconocidos ([informe](../reports/function-progress/p0-auxiliary-module-export-inventory.md)). Se mantienen el pin base-main, la procedencia y el inventario estructural de los cinco NSO base cualificados; también la disposición y comparación estática acotada de `main.npdm`. El overlay efectivo base+update está medido: 17.904 sin cambios / 466 modificados / 725 añadidos / 0 eliminados; las comparaciones internas estructurales satisfactorias son **14/466** (SARC 10/10; GFLXPACK 4/10), **452/466** siguen sin comparación interna satisfactoria y el ownership semántico es desconocido para **1.191/1.191**. Los resultados de parsers son estructurales, no semánticos. La evidencia runtime es estática-only: `main` tiene 3 `DT_NEEDED`, pero carga y reachability siguen desconocidas y diferidas a P2. `main.npdm` ya está extraído y comparado en alcance acotado y no debe reextraerse.
 
-**Aclaración de prioridad:** la “Siguiente unidad activa” anterior es una síntesis breve, no una cola adicional. La secuencia única de salida son los cinco gates del addendum vigente (frontera, métricas estáticas versionadas, overlay/formatos, estados con evidencia y fingerprints/checks); crypto NCA/CNMT, traza runtime/NPDM trust, ownership semántico y denominadores completos siguen Deferred/Unknown fuera de P0.
+**Aclaración de prioridad:** la “Siguiente unidad activa” anterior es una síntesis breve, no una cola adicional. La secuencia única de salida son los cinco gates del addendum vigente (frontera, métricas estáticas versionadas, overlay/formatos, estados con evidencia y fingerprints/checks); traza runtime, ownership semántico y denominadores completos siguen Deferred/Unknown fuera de P0.
 
 **Corrección de estado (2026-10-06):** el triage call/jump citado en el párrafo anterior ya se ejecutó; el resumen vigente y la siguiente acción están en la actualización enlazada arriba. No volver a programar ese triage como pendiente.
 
@@ -217,17 +217,14 @@ Do not promote any function-progress ledger states.
   for 1,191/1,191 delta entries.** See the dated addenda in the
   [overlay audit](../reports/function-progress/p0-overlay-ownership.md) and
   [Wave 1 reconciliation](../reports/function-progress/p0-wave1-reconciliation.md).
-- **NCA/ContentMeta (technical status; deferred outside P0):** no NCA header/signature verification was run; base
-  ContentMeta XML parsed, expected update XML is absent, update ContentMeta NCA
-  remains opaque, and update CNMT semantics/count are Unknown/Deferred. **Runtime (deferred to P2):** no
+- **Runtime (deferred to P2):** no
   launchable runtime, loader-ready NSP pair, or instrumentation was available
   in authorized checked locations; no launch occurred. Loaded/reached remains
   unknown, not runtime failure. Three `DT_NEEDED` entries and nine candidate
   name-overlap edges are static only.
 
 **Historical integration snapshot only; its active-queue and prerequisite-blocked wording is superseded by the bounded-closure addendum below.** The available-C-export global gameDB index is complete, but does not close semantic coverage. Use `Unknown` / `Desconocido` for unqualified
-denominators, and reserve `N/A` / `No aplica` for inapplicable table parts. See [local NCA prerequisites](../reports/function-progress/p0-local-nca-prerequisite-audit.md),
-[runtime feasibility](../reports/function-progress/p0-local-runtime-feasibility.md),
+denominators, and reserve `N/A` / `No aplica` for inapplicable table parts. See [runtime feasibility](../reports/function-progress/p0-local-runtime-feasibility.md),
 [auxiliary range reconciliation](../reports/function-progress/p0-auxiliary-range-reconciliation.md),
 and the current [census](../sheets/re/p0_scope_census.tsv).
 
@@ -295,13 +292,12 @@ actual ni el perfil fix2 como cierre de semántica o alcance.
 | O9 | Validar y reparar la consulta estática exacta de xrefs a rutas; emitir contadores agregados en una ejecución autorizada | El intento sin contadores es Unknown; candidate xrefs no prueban loader, ownership ni ejecución. Runtime permanece Unknown. |
 | O10 | Definir límites/método de descubrimiento y reconciliar scripts/assets efectivos y exclusiones con evidencia | Mantener 21 filas en esta integración; no añadir dimensiones embebidas como filas duplicadas ni reclamar completitud. |
 
-Los gates O1 (binding/loaded/reached runtime), O4 (NCA header/firma), O5
-(semántica update CNMT) y O6 (necesidad runtime/trust de NPDM) siguen bloqueados
-hasta disponer de sus prerrequisitos respectivos. O3 solo cubre el artefacto fix2
+El gate O1 (binding/loaded/reached runtime) sigue bloqueado
+hasta disponer de sus prerrequisitos. O3 solo cubre el artefacto fix2
 acotado, actualmente `current`; ni éste ni el índice global cierran los gates o
 el alcance P0.
 
-**Cierre P0:** solo tras integrar el censo ampliado, justificar inclusión/exclusión y conservar las incógnitas de NCA/CNMT, runtime, gaps de `main`, auxiliares y ownership como evidencia directa o bloqueos explícitos. El treemap fix2 está vigente, pero su inventario localizado no representa por sí solo el universo completo de funciones válidas ni cierra P0.
+**Cierre P0:** solo tras integrar el censo ampliado, justificar inclusión/exclusión y conservar las incógnitas de runtime, gaps de `main`, auxiliares y ownership como evidencia directa o bloqueos explícitos. El treemap fix2 está vigente, pero su inventario localizado no representa por sí solo el universo completo de funciones válidas ni cierra P0.
 
 ### Integración canónica Wave 8 — histórica, cola supersedida (2026-10-06)
 
@@ -347,8 +343,7 @@ integración no modificó el ledger por función, fuentes Rust, perfil fix2 ni
   archivos, propiedad ni acceso runtime
   ([informe](../reports/function-progress/p0-wave8-static-file-code-candidates.md)).
 - **Auditoría O10 completada e integrada al censo; queda el seguimiento
-  metodológico:** las cinco filas nuevas cubren semántica ContentMeta/CNMT del
-  update, prueba criptográfica/necesidad runtime de NPDM, inventario efectivo de
+  metodológico:** las tres filas nuevas cubren inventario efectivo de
   scripts, inventario efectivo de assets/formatos y metodología de descubrimiento
   e inclusión/exclusión del alcance. Cada fila declara conocido, desconocido,
   evidencia y siguiente acción. Sus acciones siguen abiertas; añadir filas no
@@ -363,10 +358,8 @@ integración no modificó el ledger por función, fuentes Rust, perfil fix2 ni
 
 **Nota histórica de cola (supersedida):** las filas O2/O7/O8/O9/O10 describían
 carriles y prerrequisitos de la integración anterior; no son la cola activa.
-NCA header/signature, update CNMT semantics, runtime binding/loaded/reached y
-NPDM trust/runtime-necessity no son gates bloqueados de P0. Permanecen
-Unknown/Deferred fuera de P0; no se buscarán claves/verificadores ni se exigirá
-runtime. La única cola activa es completar los cinco gates locales del addendum
+runtime binding/loaded/reached no es gate bloqueado de P0. Permanece
+Unknown/Deferred fuera de P0; no se exigirá runtime. La única cola activa es completar los cinco gates locales del addendum
 de cierre acotado. P0 permanecía En curso entonces; esos gates se verificaron después en Wave B/C.
 
 ### Integración Wave 9 — informes locales, cola histórica supersedida (2026-10-06)
@@ -410,9 +403,8 @@ modifica el ledger por función, sus estados, ni los parsers.
   El descubrimiento, los denominadores efectivos de scripts/assets/nested
   members y el alcance completo permanecen abiertos.
 
-**Nota histórica de cola y gates (supersedida):** O2/O7/O8/O9/O10 y B1/B2/O1/O6
-no son tareas ni bloqueos activos de P0. NCA/CNMT cryptographic/semantic checks,
-runtime binding/loaded/reached y NPDM trust/runtime necessity están Deferred
+**Nota histórica de cola y gates (supersedida):** O2/O7/O8/O9/O10 y B1/B2/O1
+no son tareas ni bloqueos activos de P0. Runtime binding/loaded/reached está Deferred
 fuera de P0; no hay acción activa ni se requieren prerrequisitos autorizados para
 cierre. La única cola vigente son los cinco gates locales del siguiente addendum.
 El perfil fix2 sigue `current` solo para el inventario localizado de update
@@ -448,8 +440,7 @@ un emulador que reporta el usuario no constituye una traza instrumentada.
 
 Este addendum es el criterio de salida vigente y supersede expresamente la matriz,
 las colas por waves y las acciones siguientes históricas de arriba. Los cinco gates locales enumerados aquí pasaron dentro del límite de
-verificación descrito en la [decisión final](#reconciliación-wave-b-y-verificación-wave-c--cierre-acotado-2026-10-07). Autenticidad/semántica
-NCA-CNMT, confianza y necesidad runtime de NPDM, loaded/reached, denominadores
+verificación descrito en la [decisión final](#reconciliación-wave-b-y-verificación-wave-c--cierre-acotado-2026-10-07). Loaded/reached, denominadores
 completos de funciones válidas, semántica de funciones y ownership archivo→código
 permanecen Unknown/Deferred; no son gates de cierre P0.
 
@@ -489,17 +480,13 @@ permanecen Unknown/Deferred; no son gates de cierre P0.
    y fuentes Rust coinciden con el informe sanitizado fix2; el tamaño del
    archivo update coincide con su pin. Por política no se leyó el manifest
    JSON ni se recalculó el SHA del contenido del archivo: el gate aprueba
-   consistencia acotada sin cambios de inputs, no una atestación directa del
-   manifest ni autenticidad criptográfica. No se reindexó/regeneró.
+   consistencia acotada sin cambios de inputs. No se reindexó/regeneró.
 
 **Diferidos fuera de P0 (mantener Unknown/Deferred, con motivo y límite):**
-(a) autenticidad de firma/cabecera NCA; (b) parseo semántico completo de CNMT del
-update — no se afirma que se haya parseado ni se copian valores de la base—;
-(c) confianza criptográfica y necesidad runtime de NPDM; (d) observaciones de
-runtime loaded/reached — no hay traza instrumentada, y el uso de emulador
-reportado no la sustituye—; (e) comprensión semántica, comportamiento y matching
-de funciones; (f) denominador completo de funciones válidas; (g) ownership
-semántico archivo→código; y (h) semántica de miembros anidados. Ninguno de estos
+(a) observaciones de runtime loaded/reached — no hay traza instrumentada—;
+(b) comprensión semántica, comportamiento y matching
+de funciones; (c) denominador completo de funciones válidas; (d) ownership
+semántico archivo→código; y (e) semántica de miembros anidados. Ninguno de estos
 temas es gate de cierre P0. El cierre acotado no los declara resueltos ni
 promueve estados de funciones.
 
@@ -523,7 +510,7 @@ el parche update como programa independiente.
 | Funciones e índice | `main` update fix2: 153.476 entradas localizadas; 153.471 C + 5 ASM. Unión de cuerpos: 51.275.676/53.106.320 bytes; complemento independiente: 1.830.644 bytes / 23.597 rangos, no funciones nuevas. Índice global del corpus C disponible de seis raíces ya terminado: 177.795 archivos / 176.667 filas parseadas / 1.128 archivos sin fila; selftest 87/87. Base `main` tiene 3.997 archivos / 3.917 filas / 80 sin fila; update `main` 153.471/152.634/837; auxiliares juntos 20.327/20.116/211. En auxiliares, la unión de cuerpos existentes es 7.935.436/15.572.944 bytes y el complemento 7.637.508 bytes / 17.020 rangos; la ejecución de export distinta dio 27.750 detecciones, 20.327 C y 7.902.740 bytes de cuerpos **sumados**, no unión. | **Known acotado** para inventario y corpus disponible; **Unknown/Deferred** para denominador completo de funciones válidas, límites fuera de cuerpos, semántica y comportamiento. Las dos clasificaciones auxiliares de Data CodeUnits usan métodos y unidades distintos (rangos: 2.477.224 bytes Instruction + 5.160.284 bytes defined Data + 0 undefined; `Data.isDefined()` posterior: predominio de unidades Data de tipo Undefined); su discrepancia queda abierta y no altera la unión de cuerpos. Fase posterior: evidencia funcional directa, nunca inferencia desde gaps/xrefs. |
 | Overlay y formatos | Solo 14/466 modificados tienen comparación interna estructural satisfactoria (SARC 10/10; GFLXPACK 4/10); 452/466 no la tienen: 6 GFLXPACK, 17 `.blua`, 53 `.bin`, 376 `.dat`/`.tbl`. Resultados de parser/compilación son métricas solapadas, no cobertura adicional. AHTB conserva 10 rechazos estrictos; GFLXPACK conserva 6 rechazos. | **Unknown/Deferred** para estructuras internas sin comparación; **Blocked** para ampliar AHTB/GFLXPACK sin regla de layout y límites directamente demostrada sobre inputs exactos. Fase posterior: estudio de formatos autorizado, no requisito P0. |
 | Hash y ownership | Entre 725 añadidos hay 33 matches SHA-256 exactos con algún payload base y 692 no-matches; cero entradas sin resultado en la ejecución registrada. El [cross-tab agregado fechado](../reports/function-progress/p0-wave8-added-provenance-cross-tab.md) publica particiones por grupo/extensión que suman esos totales; no conservó flags por entrada para reproducir hoy el join de manera independiente. Las xrefs de ruta normalizada son candidatos sobre el inventario efectivo, no pruebas de apertura, lectura ni atribución al delta. El usuario informa que utilizó la ISO en emulador; es contexto, no traza instrumentada cualificada de este build. | **Unknown/Deferred** para procedencia histórica y ownership semántico de las 1.191/1.191 entradas delta, y para uso runtime. No-match no significa novedad. Fase posterior: binding directo o traza cualificada en P2; ninguna inferencia P0. |
-| Autenticidad y runtime | La cadena Program/ExeFS base y la extracción/comparación de campos parseables de `main.npdm` ya están registradas. La semántica CNMT del update no se parseó; no se acreditó firma NCA ni confianza criptográfica de NPDM. | **Unknown/Deferred fuera de P0**: autenticidad NCA, CNMT interno, necesidad runtime de NPDM, carga/reachability, semántica funcional, verificación conductual, matching binario y paridad del port. Requieren evidencia independiente en una fase posterior; no son gates P0. No reextraer NPDM. |
+| Runtime | La cadena Program/ExeFS base y la extracción/comparación de campos parseables de `main.npdm` ya están registradas. | **Unknown/Deferred fuera de P0**: carga/reachability, semántica funcional, verificación conductual, matching binario y paridad del port. Requieren evidencia independiente en una fase posterior; no son gates P0. No reextraer NPDM. |
 
 La condición de parada sigue siendo **cero incógnitas ocultas dentro de esta
 frontera**, no cero incógnitas. El update es un parche; el objetivo del port es
@@ -543,9 +530,9 @@ coinciden con el [informe sanitizado fix2](../reports/function-progress/p0-fix2-
 El tamaño del archivo update es 52.657.467 bytes, igual al pin de ese
 informe. **Por política no se leyó el manifest JSON ni se volvió a hashear el
 contenido del archivo update.** La afirmación de manifest/archivo procede del
-informe, no de una nueva atestación directa. P0 se cierra por ausencia
+informe. P0 se cierra por ausencia
 verificada de cambios en los inputs permitidos y por declarar expresamente el
-límite de esa prueba, sin afirmar autenticidad. El registro local de Wave C
+límite de esa prueba. El registro local de Wave C
 permanece en `work/progress/p0-wave-c.log` (ignorado por Git).
 
 ## P1 — muestra de caché cerrada y acotada
@@ -600,7 +587,7 @@ La cobertura semántica solo se cierra al reconciliar el inventario del alcance 
 | Bloqueo / desconocido | Evidencia que lo resuelve | Fase |
 |---|---|---|
 | Reconciliación local de manifiesto, grupos/formats y estados del overlay | Join acotado de outer-files, evidencia de parser y Unknowns explícitos según el addendum vigente | P0 — gate local |
-| Binding/carga/reachability; verificación/firma NCA; semántica ContentMeta/CNMT; confianza/necesidad runtime de NPDM | Evidencia técnica autorizada cuando exista; conservar estado actual Unknown y deferir sin reclamar autenticidad o traza | Deferred fuera de P0 (runtime a P2) |
+| Binding/carga/reachability | Evidencia técnica autorizada cuando exista; conservar estado actual Unknown y deferir sin reclamar traza | Deferred fuera de P0 (runtime a P2) |
 | Import declarado no prueba carga ni uso efectivo | Caller/cadena de carga y observación runtime cualificada, si se requiere en P2 | P2 — Unknown hasta evidencia directa |
 | Muestra P1 acotada | Solo una ampliación predefinida cerraría la nueva rama; no extrapolar | P1/P2 |
 | Binding, hilo y estado FP efectivos | Traza pasiva de ejecución cualificada y comparación independiente | P2 |

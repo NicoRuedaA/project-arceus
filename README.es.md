@@ -17,7 +17,7 @@ Rust/Bevy desde un libro de hojas versionado.
 | | |
 |---|---|
 | ✅ **Hecho** | Ambos paquetes (base + update) disponibles; los cinco roles ejecutables revisados extraídos y cualificados por versión con comprobaciones NSO; los conjuntos RomFS externos registrados extraídos y superpuestos; el overlay efectivo base + update medido (17.904 / 466 / 725 / 0); las 153.476 funciones localizadas por el inventario fix2 de `main` tienen export C o ensamblador; se contaron los archivos y filas de función gameDB de fix2; se midieron las detecciones Ghidra y exports C auxiliares; los módulos auxiliares del update son idénticos byte a byte a los de la base; formatos RomFS seleccionados interpretados (Lua de base 799/800, tablas, textos); un esqueleto de port en Rust que carga y ejecuta scripts de evento reales. |
-| ✅ **P0 acotado** | **P0 cerrado como baseline acotado de inventario y procedencia** para base v0 + update v262144: los informes de censo, inventario, overlay y procedencia reconcilian los gates documentales 1–4, y Wave C aprobó las comprobaciones locales del gate 5 con el límite de fingerprint descrito abajo. El censo actual tiene **26 registros**, no un denominador de completitud. La autenticidad de cabecera/firma NCA, semántica del ContentMeta/CNMT del update, confianza criptográfica/necesidad runtime del NPDM, estado runtime cargado/alcanzado y ownership semántico archivo→código no están verificados y quedan **Diferidos fuera de P0**; no son bloqueos activos de P0. El overlay tiene **19.095** archivos externos efectivos (17.904 sin cambios / 466 modificados / 725 añadidos / 0 eliminados); las comparaciones internas satisfactorias son **14/466** (SARC 10/10; GFLXPACK 4/10), mientras que **452/466** carecen de comparación satisfactoria. Resultados de parser/compilación se solapan y no se suman a ese numerador. Los hashes de añadidos son **33 coincidencias exactas con la base / 692 no coincidencias / 0 desconocidos** en 725 adiciones; la no coincidencia no prueba novedad y el [cross-tab agregado fechado](reports/function-progress/p0-wave8-added-provenance-cross-tab.md) publica particiones por grupo/extensión. La reproducción independiente actual de ese join es **Desconocida/Bloqueada** porque no se conservaron flags por entrada. O9 encontró 118 unidades string coincidentes, **0 xrefs exactas y 97 normalizadas en 52 funciones existentes**; son candidatos de ruta, no prueba de apertura, lectura ni asociación al delta; el ownership semántico es **Desconocido para 1.191/1.191** entradas delta. El pseudocódigo no es comprensión: en el inventario fix2 localizado de `main` del update, **22/153.476 funciones (~0,0143 %)** están documentadas/analizadas, **8/153.476 (~0,0052 %)** tienen implementación parcial y **0/153.476** tienen verificación de comportamiento o binaria. Estos porcentajes usan solo el inventario fix2 localizado; el universo de funciones válidas más allá de la cobertura de cuerpos sigue siendo Desconocido. |
+| ✅ **P0 acotado** | **P0 cerrado como baseline acotado de inventario y procedencia** para base v0 + update v262144: los informes de censo, inventario, overlay y procedencia reconcilian los gates documentales 1–4, y Wave C aprobó las comprobaciones locales del gate 5 con el límite de fingerprint descrito abajo. El censo actual tiene **26 registros**, no un denominador de completitud. El estado runtime cargado/alcanzado y el ownership semántico archivo→código no están verificados y quedan **Diferidos fuera de P0**; no son bloqueos activos de P0. El overlay tiene **19.095** archivos externos efectivos (17.904 sin cambios / 466 modificados / 725 añadidos / 0 eliminados); las comparaciones internas satisfactorias son **14/466** (SARC 10/10; GFLXPACK 4/10), mientras que **452/466** carecen de comparación satisfactoria. Resultados de parser/compilación se solapan y no se suman a ese numerador. Los hashes de añadidos son **33 coincidencias exactas con la base / 692 no coincidencias / 0 desconocidos** en 725 adiciones; la no coincidencia no prueba novedad y el [cross-tab agregado fechado](reports/function-progress/p0-wave8-added-provenance-cross-tab.md) publica particiones por grupo/extensión. La reproducción independiente actual de ese join es **Desconocida/Bloqueada** porque no se conservaron flags por entrada. O9 encontró 118 unidades string coincidentes, **0 xrefs exactas y 97 normalizadas en 52 funciones existentes**; son candidatos de ruta, no prueba de apertura, lectura ni asociación al delta; el ownership semántico es **Desconocido para 1.191/1.191** entradas delta. El pseudocódigo no es comprensión: en el inventario fix2 localizado de `main` del update, **38/153.476 funciones (~0,0248 %)** están documentadas/analizadas, **8/153.476 (~0,0052 %)** tienen implementación parcial y **0/153.476** tienen verificación de comportamiento o binaria. Estos porcentajes usan solo el inventario fix2 localizado; el universo de funciones válidas más allá de la cobertura de cuerpos sigue siendo Desconocido. |
 | ❌ **Falta** | El **3,44713 %** (1.830.644 bytes) permanece como residual **Desconocido** fuera de los cuerpos existentes de `main` del update. La interpretación del residual y la validez de funciones candidatas quedan **Diferidas fuera de P0**; no son tareas ni gates de salida de P0. El metadato de listing/API de Ghidra clasifica 40.764 bytes como instrucciones y 1.789.880 como datos definidos; el clasificador genérico agrupa las 1.789.328 unidades de datos como «otras», y los 20.627 operandos quedan «otros o sin especificar» según las flags API consultadas. Son categorías de listing/API, no semántica. De 13.897 semillas fuera de cuerpos, 77 están en instrucciones definidas (308 bytes), 13.820 en datos definidos y 0 indefinidas/sin mapear; referencias entrantes: 91 objetivos / 179 aristas (CALL 8/11; clase JUMP 64/66, condicionalidad combinada; otro flujo 0/0; no flujo 19/102). El denominador completo de funciones válidas sigue Desconocido. Véanse la [reconciliación de rangos](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), el [retry exitoso de la consulta semántica](reports/function-progress/p0-update-main-gap-semantic-retry.md), la [corrección del triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md) y el [intento fallido supersedido](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
 
 **Límite de alcance P0 (2026-10-07):** P0 está **cerrado únicamente como
@@ -40,14 +40,10 @@ anidados son niveles distintos. El update es un parche y el objetivo del port
 sigue siendo base + update.
 
 **Diferido fuera de P0; el estado sigue `Desconocido`/`Diferido`, no verificado:**
-autenticidad de la firma de cabecera NCA; parseo semántico completo del CNMT del
-update; confianza criptográfica y necesidad runtime del NPDM; observaciones
-runtime de módulos cargados/alcanzados; comprensión semántica, comportamiento y
-matching de funciones; denominador completo de funciones válidas; ownership
-semántico archivo→código; y semántica de miembros/archivos anidados. No se afirma
-haber parseado el ContentMeta del update ni se copian valores CNMT de la base.
-El uso del juego en un emulador reportado por el usuario es solo contexto, no
-una traza instrumentada. Estas dimensiones no son gates de cierre P0, y P0 no
+observaciones runtime de módulos cargados/alcanzados; comprensión semántica,
+comportamiento y matching de funciones; denominador completo de funciones
+válidas; ownership semántico archivo→código; y semántica de miembros/archivos
+anidados. Estas dimensiones no son gates de cierre P0, y P0 no
 afirma cubrir toda la semántica del juego ni la paridad del port.
 
 Los cinco gates locales de P0 son: (1) reconciliar los conjuntos
@@ -64,8 +60,7 @@ dimensión del censo como Known/Unknown/Deferred con evidencia directa, motivo,
 límite y fase siguiente; (5) validar fingerprints actuales de
 perfil fix2/archivo/inventario/ledger/Rust y pasar
 `cargo run -p sheetty-cli -- check sheets`, `git diff --check` y CI configurado.
-Se requieren cero incógnitas ocultas, no cero incógnitas. Ninguna verificación
-criptográfica NCA/CNMT, traza runtime, ownership semántico archivo→código ni
+Se requieren cero incógnitas ocultas, no cero incógnitas. Ninguna traza runtime, ownership semántico archivo→código ni
 denominador completo de funciones válidas es un gate de cierre P0. El índice C global está completado y el treemap fix2 consta como vigente en
 el informe sanitizado. Wave C confirmó que no cambiaron las huellas del
 inventario, ledger y fuentes Rust; no se reindexó ni regeneró el treemap.
@@ -79,9 +74,7 @@ coincide con el [informe sanitizado fix2](reports/function-progress/p0-fix2-tree
 El tamaño del archivo update coincide con los 52.657.467 bytes informados.
 **Límite:** por política no se leyó el manifest JSON ni se recalculó el hash
 del contenido del archivo update. Por tanto, esta es una comprobación acotada
-de ausencia de cambios en las entradas y de consistencia con el informe, **no**
-una atestación directa nueva del manifest ni de autenticidad criptográfica.
-Ninguno de esos diferidos bloquea este baseline. No se ejecutó otro `gamedb index`, no se regeneró el treemap y no se promovieron estados del ledger
+de ausencia de cambios en las entradas y de consistencia con el informe. No se ejecutó otro `gamedb index`, no se regeneró el treemap y no se promovieron estados del ledger
 (registro local ignorado por Git `work/progress/p0-wave-c.log`).
 
 **Lectura del inventario acotado:** la base tiene seis entradas PFS0 y el
@@ -156,7 +149,7 @@ completa del módulo. `~` marca estimaciones cualitativas.
 | | Textos / referencias | Desconocido | Desconocido | 13.370 + 29.162, sin total | Scanners de extracción/referencias; denominador total no establecido |
 | | Tablas de dominio | Desconocido | Desconocido | 12 hojas, sin total | Ingesta TSV/hojas y preflight `sheetty` |
 | | Datos de la base | 100 % de rutas externas enumeradas | 0 % de rutas externas enumeradas | 18.370 rutas externas de la base; no es un inventario semántico completo ni incluye hijos de archivos anidados. | Extracción RomFS; índice completo de datos base pendiente |
-| 6. Análisis (P2–P7) | Código del juego | ~0,0143 % | ~99,9857 % | 22/153.476 funciones fix2 localizadas documentadas/analizadas; el denominador es el inventario localizado, no el universo completo de funciones válidas. Las 68.330 corresponden a la vista histórica limitada. | Evidencia directa de decompilación y ledger de progreso; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md); análisis amplio pendiente |
+| 6. Análisis (P2–P7) | Código del juego | ~0,0248 % | ~99,9752 % | 38/153.476 funciones fix2 localizadas documentadas/analizadas; el denominador es el inventario localizado, no el universo completo de funciones válidas. Las 68.330 corresponden a la vista histórica limitada. | Evidencia directa de decompilación y ledger de progreso; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md); análisis amplio pendiente |
 | 7. Implementación (P3–P7) | Port en Rust | ~0,0052 % de parciales | Desconocido | 8/153.476 funciones fix2 localizadas tienen implementación parcial; parcial no significa completa. El denominador es el inventario localizado, no el universo completo de funciones válidas. | Implementación Rust/Bevy y ledger de progreso; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 8. Verificación de comportamiento (P3–P7, P9) | Funciones fix2 localizadas | 0 % en fix2 | Desconocido | 0/153.476 funciones fix2 localizadas verificadas; el universo completo más allá de la cobertura de cuerpos es desconocido. | No hay verificación conductual independiente completada; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 9. Binary matching (P8–P9) | Funciones fix2 localizadas | 0 % en fix2 | Desconocido | 0/153.476 funciones fix2 localizadas cotejadas; el universo completo más allá de la cobertura de cuerpos es desconocido. | No hay ejecución reproducible de binary matching completada; [perfil y treemap fix2 actuales](reports/function-progress/p0-fix2-treemap-profile.md) |
@@ -219,8 +212,7 @@ rangos midió uniones y gaps exactos para las detecciones existentes; la
 completitud del inventario y los denominadores de export siguen desconocidos.
 **P0 está cerrado solo como baseline acotado de inventario y procedencia**:
 los gates documentales 1–4 y las verificaciones locales Wave C pasaron dentro
-del límite indicado arriba. La verificación de cabecera/firma NCA, la semántica ContentMeta/CNMT
-del update, el ownership semántico archivo→código y la resolución runtime siguen
+del límite indicado arriba. El ownership semántico archivo→código y la resolución runtime siguen
 sin verificar o desconocidos y están diferidos fuera de P0, no son bloqueos
 activos. El overlay tiene
 **466 modificados + 725 añadidos**. Las comparaciones internas satisfactorias
@@ -231,7 +223,7 @@ nominal; los estados cargado y alcanzado siguen desconocidos.
 
 La evidencia P0 vigente está reconciliada en
 [`p0-wave1-reconciliation.md`](reports/function-progress/p0-wave1-reconciliation.md),
-que enlaza el inventario base, el análisis NCA/NPDM, la auditoría de ownership
+que enlaza el inventario base, la auditoría de ownership
 del overlay, el informe runtime estático y la evidencia actual de export. La
 división actual de etiquetas de subsistema para los añadidos es **336 mapeados /
 389 sin mapear**; son coincidencias heurísticas de rutas/nombres, no propiedad

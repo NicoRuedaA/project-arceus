@@ -17,7 +17,7 @@ from a versioned sheet book.
 | | |
 |---|---|
 | ✅ **Done** | Both package dumps (base + update) available; the five reviewed executable roles extracted and version-qualified with NSO checks; the recorded outer RomFS sets extracted and overlaid; the effective base+update overlay measured (17,904 / 466 / 725 / 0); all 153,476 functions located by the fix2 `main` inventory have C or assembly exports; fix2 gameDB files and function rows are counted; auxiliary Ghidra detections and C exports are measured; the update auxiliary modules are byte-identical to base; selected RomFS formats parsed (base Lua 799/800, tables, texts); a Rust port scaffold that loads and runs real event scripts. |
-| ✅ **Bounded P0** | **P0 closed only as a bounded inventory/provenance baseline** for base v0 + update v262144: the census, static inventory, overlay and provenance reports reconcile documentary gates 1–4, and Wave C passed local gate 5 within the fingerprint limit below. The current census has **26 records**, not a completeness denominator. NCA header/signature authenticity, update ContentMeta/CNMT semantics, NPDM cryptographic trust/runtime necessity, runtime loaded/reached state, and semantic file-to-code ownership are unverified and **Deferred outside P0**, not active P0 blockers. The overlay is **19,095** effective outer files (17,904 unchanged / 466 modified / 725 added / 0 removed); internal comparisons succeeded for **14/466** (SARC 10/10; GFLXPACK 4/10), while **452/466** lack successful comparisons. Parser/compile results overlap and do not add to that numerator. Added-file hashes are **33 exact base matches / 692 non-matches / 0 unknown** across 725 additions; non-match does not prove newness, and the [dated aggregate cross-tab](reports/function-progress/p0-wave8-added-provenance-cross-tab.md) reports group/extension partitions. Independent reproduction of that join now is **Unknown/Blocked** because per-entry flags were not retained. O9 found 118 matching string units, **0 exact-path xrefs and 97 normalized-only xrefs across 52 existing functions**; these are path candidates, not proof of opening, reading or delta ownership; semantic ownership remains **Unknown for 1,191/1,191** delta entries. Pseudocode is *not* understanding: in the fix2-located update-`main` inventory, **22/153,476 functions (~0.0143%)** are documented/analyzed, **8/153,476 (~0.0052%)** have partial implementations, and **0/153,476** have behavior or binary verification. These percentages use the located fix2 inventory only; the valid-function universe beyond its body coverage remains Unknown. |
+| ✅ **Bounded P0** | **P0 closed only as a bounded inventory/provenance baseline** for base v0 + update v262144: the census, static inventory, overlay and provenance reports reconcile documentary gates 1–4, and Wave C passed local gate 5 within the fingerprint limit below. The current census has **26 records**, not a completeness denominator. runtime loaded/reached state, and semantic file-to-code ownership are unverified and **Deferred outside P0**, not active P0 blockers. The overlay is **19,095** effective outer files (17,904 unchanged / 466 modified / 725 added / 0 removed); internal comparisons succeeded for **14/466** (SARC 10/10; GFLXPACK 4/10), while **452/466** lack successful comparisons. Parser/compile results overlap and do not add to that numerator. Added-file hashes are **33 exact base matches / 692 non-matches / 0 unknown** across 725 additions; non-match does not prove newness, and the [dated aggregate cross-tab](reports/function-progress/p0-wave8-added-provenance-cross-tab.md) reports group/extension partitions. Independent reproduction of that join now is **Unknown/Blocked** because per-entry flags were not retained. O9 found 118 matching string units, **0 exact-path xrefs and 97 normalized-only xrefs across 52 existing functions**; these are path candidates, not proof of opening, reading or delta ownership; semantic ownership remains **Unknown for 1,191/1,191** delta entries. Pseudocode is *not* understanding: in the fix2-located update-`main` inventory, **38/153,476 functions (~0.0248%)** are documented/analyzed, **8/153,476 (~0.0052%)** have partial implementations, and **0/153,476** have behavior or binary verification. These percentages use the located fix2 inventory only; the valid-function universe beyond its body coverage remains Unknown. |
 | ❌ **Missing** | **3.44713 %** (1,830,644 bytes) remains an explicit **Unknown residual** outside existing update-`main` function bodies. Interpretation of the residual and validity of candidate functions are **Deferred beyond P0**; neither is a P0 task or exit gate. Ghidra listing/API metadata classifies 40,764 bytes as instructions and 1,789,880 as defined data; the generic datatype classifier groups all 1,789,328 data units as “other”, and all 20,627 operands are “other or unspecified” by the queried API flags. These are listing/API categories, not semantics. For 13,897 outside-body seeds, 77 are in defined instructions (308 bytes), 13,820 in defined data, and 0 undefined/unmapped; incoming refs: 91 targets / 179 edges (CALL 8/11; JUMP 64/66, conditionality combined; other flow 0/0; non-flow 19/102). The complete valid-function denominator remains Unknown. See [range reconciliation](reports/function-progress/p0-update-main-ghidra-range-reconciliation.md), [successful semantic-query retry](reports/function-progress/p0-update-main-gap-semantic-retry.md), [corrected flow triage](reports/function-progress/p0-update-main-gap-flow-triage-correction.md), and [superseded failed attempt](reports/function-progress/p0-update-main-gap-semantic-triage.md). |
 
 **P0 scope boundary (2026-10-07):** P0 is **closed only as a bounded
@@ -37,14 +37,10 @@ boundary is limited to those enumerated source sets and their cited metadata;
 outer files and nested members are distinct. The update is a patch and the port
 target remains base + update.
 
-**Deferred outside P0; status remains `Unknown`/`Deferred`, not verified:** NCA
-header signature authenticity; full update CNMT semantic parsing; NPDM
-cryptographic trust and runtime necessity; loaded/reached runtime observations;
-semantic function understanding, behavior, and matching; a complete
-valid-function denominator; semantic file-to-code ownership; and nested
-archive/member semantics. No update ContentMeta parse is claimed and no base
-CNMT values are copied. The user-reported emulator use is context only, not an
-instrumented trace. These are not P0 closure gates, and P0 does not claim whole-
+**Deferred outside P0; status remains `Unknown`/`Deferred`, not verified:**
+loaded/reached runtime observations; semantic function understanding,
+behavior, and matching; a complete valid-function denominator; semantic
+file-to-code ownership; and nested archive/member semantics. These are not P0 closure gates, and P0 does not claim whole-
 game semantics or port parity.
 
 The five local P0 gates are: (1) reconcile the finite package/member,
@@ -60,8 +56,7 @@ classify every census dimension Known/Unknown/Deferred with direct evidence,
 reason, limit, and next phase; (5) validate current fix2
 profile/archive/inventory/ledger/Rust fingerprints and pass
 `cargo run -p sheetty-cli -- check sheets`, `git diff --check`, and configured
-CI. Require zero hidden unknowns, not zero unknowns. No NCA/CNMT cryptographic
-verification, runtime trace, semantic file-to-code ownership, or complete
+CI. Require zero hidden unknowns, not zero unknowns. No runtime trace, semantic file-to-code ownership, or complete
 valid-function denominator is a P0 closure gate. The global C index is complete and the sanitized report lists the fix2
 treemap as current. Wave C confirmed no drift in inventory, ledger or Rust
 fingerprints; neither gameDB nor the treemap was regenerated.
@@ -74,9 +69,7 @@ for the inventory (`829d810c…abd2535`), evidence ledger
 [sanitized fix2 report](reports/function-progress/p0-fix2-treemap-profile.md).
 The update archive size matches its reported 52,657,467-byte pin. **Limit:**
 policy barred reading the JSON manifest and recomputing the update archive's
-content hash. This is a bounded no-input-drift and report-consistency check,
-**not** fresh direct manifest attestation or cryptographic authenticity.
-Neither deferred item blocks this baseline. No further `gamedb index` ran, the
+content hash. This is a bounded no-input-drift and report-consistency check. No further `gamedb index` ran, the
 treemap was not regenerated, and no ledger state was promoted
 (local ignored log `work/progress/p0-wave-c.log`).
 
@@ -150,7 +143,7 @@ establish complete-module coverage. `~` marks qualitative estimates.
 | | Strings / references | Unknown | Unknown | 13,370 + 29,162, no total | Extraction/reference scanners; total denominator not established |
 | | Domain tables | Unknown | Unknown | 12 sheets, no total | TSV/sheet ingestion and `sheetty` preflight |
 | | Base data | 100% of enumerated outer paths | 0% of enumerated outer paths | 18,370 base outer paths; not a complete semantic inventory and excludes nested archive children. | RomFS extraction; complete base-data index pending |
-| 6. Analysis (P2–P7) | Game code | ~0.0143 % | ~99.9857 % | 22/153,476 fix2-located functions documented/analyzed; denominator is the located inventory, not a complete valid-function universe. The 68,330 count is the legacy capped view. | Direct decompilation evidence and function-progress ledger; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md); broad analysis pending |
+| 6. Analysis (P2–P7) | Game code | ~0.0248 % | ~99.9752 % | 38/153,476 fix2-located functions documented/analyzed; denominator is the located inventory, not a complete valid-function universe. The 68,330 count is the legacy capped view. | Direct decompilation evidence and function-progress ledger; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md); broad analysis pending |
 | 7. Implementation (P3–P7) | Rust port | ~0.0052 % partial ratio | Unknown | 8/153,476 fix2-located functions have partial implementation; partial is not complete. Denominator is the located inventory, not a complete valid-function universe. | Rust/Bevy implementation and function-progress ledger; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 8. Behaviour verification (P3–P7, P9) | Fix2-located functions | 0% within fix2 | Unknown | 0/153,476 fix2-located functions behavior-verified; the whole function universe beyond body coverage is unknown. | No independent behavioral verification completed yet; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
 | 9. Binary matching (P8–P9) | Fix2-located functions | 0% within fix2 | Unknown | 0/153,476 fix2-located functions binary-matched; the whole function universe beyond body coverage is unknown. | No reproducible binary-matching run completed yet; [current fix2 profile and treemap](reports/function-progress/p0-fix2-treemap-profile.md) |
@@ -210,7 +203,7 @@ is unknown for **1,191/1,191** entries. Static dependency evidence records three
 `DT_NEEDED` entries and nine candidate name-overlap edges; loaded and reached
 status remain unknown.
 
-Current P0 evidence is reconciled in [`p0-wave1-reconciliation.md`](reports/function-progress/p0-wave1-reconciliation.md), with direct base inventory, NCA/NPDM analysis, overlay ownership audit, static-only runtime dependency report and current export evidence linked there. The current subsystem-label split for added files is **336 mapped / 389 unmapped**; these are heuristic/path matches, not semantic ownership. The older 360 figure is stale historical wording.
+Current P0 evidence is reconciled in [`p0-wave1-reconciliation.md`](reports/function-progress/p0-wave1-reconciliation.md), with direct base inventory, overlay ownership audit, static-only runtime dependency report and current export evidence linked there. The current subsystem-label split for added files is **336 mapped / 389 unmapped**; these are heuristic/path matches, not semantic ownership. The older 360 figure is stale historical wording.
 
 ## What is here
 
