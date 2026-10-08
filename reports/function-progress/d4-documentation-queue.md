@@ -2,7 +2,7 @@
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
-**Current status:** automatic operation-only documentation resumed on 2026-10-08. [Batches 86–87](d4-batch87-documentation-first.md) closed together: 52,958 markers and 100,518 remaining. Two disjoint readers and independent audits continue in the active session; private proposals are not documentation until admitted. Earlier outages/stops below are historical.
+**Current status:** automatic operation-only documentation resumed on 2026-10-08. [Batches 88–89](d4-batch89-documentation-first.md) closed together: 53,020 markers and 100,456 remaining. Two disjoint readers and independent audits continue in the active session; private proposals are not documentation until admitted. Earlier outages/stops below are historical.
 
 ## Baseline and repeatable work unit
 
@@ -47,3 +47,5 @@ An indirect call returning a pointer is not direct proof of allocation; passing 
 The R84–R88 private backlog contains 153 proposals: 19 high/medium and 134 LOW. Existing LOW confidence already prevents admission. To prioritize new native reads without weakening that gate, LOW proposals in this bounded backlog receive an independent `unknown`/withheld record before fresh GET or semantic rereading. The record binds the original task, proposal, raw snapshot/body hashes and original capture exit/quiescence evidence, with no accepted summary and no invented live-body fields.
 
 Early-held LOW candidates add no documentation markers or EXACT copies and do not create or modify evidence-ledger rows; absent rows remain absent. They require an independent complete-body reread if revisited. This is retained uncertainty, not a semantic audit pass. High/medium proposals still require fresh independent complete-body capture, exact-summary audit, writer checks and native EXACT-identity gates. Original proposals and confidence remain unchanged.
+
+R84–R88 reconciliation: all 134 early-held LOW candidates retained their prior ledger bytes or absence. The 19 high/medium candidates were freshly reread; 14 original summaries passed admission and five remained UNKNOWN. Starting with R89, the complete independent-capture protocol applies again, including original LOW candidates; their conservative confidence gate still prevents promotion.
