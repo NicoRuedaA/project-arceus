@@ -1,7 +1,7 @@
 {
   "build": "update-v262144-fix2",
   "format": "function-progress-generation-status/v1",
-  "manifest_sha256": "e193f56530fc6dfedb3b0432a68b63043f46eee4e84437de746522920c4f1dec",
+  "manifest_sha256": "4686a5fdb2e1884105ed600d3dfce90a76b9f177586502669cc6314d3835f8e6",
   "message": "All report artifacts were generated from the recorded source fingerprints.",
   "state": "current"
 }
