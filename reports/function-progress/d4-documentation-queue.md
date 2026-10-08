@@ -2,7 +2,7 @@
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
-**Current status:** automatic operation-only documentation resumed on 2026-10-08. [Batches 82–83](d4-batch83-documentation-first.md) closed together: 52,932 markers and 100,544 remaining. Two disjoint readers and independent audits continue in the active session; private proposals are not documentation until admitted. Earlier outages/stops below are historical.
+**Current status:** automatic operation-only documentation resumed on 2026-10-08. [Batches 84–85](d4-batch85-documentation-first.md) closed together: 52,944 markers and 100,532 remaining. Two disjoint readers and independent audits continue in the active session; private proposals are not documentation until admitted. Earlier outages/stops below are historical.
 
 ## Baseline and repeatable work unit
 
@@ -41,3 +41,9 @@ Evidence: `work/d4/r13/infrastructure-diagnostics.txt`, `work/d4/scratch/R13-A1/
 ## Strict operation scope
 
 An indirect call returning a pointer is not direct proof of allocation; passing a pointer to an unread target is not proof of release. Describe the visible call, arguments, returned pointer and local writes, leaving target effects unresolved. Preserve original responses as exact bytes before parsing and hash raw bytes separately from decoded bodies; a hash of a transient response without those saved bytes is an integrity hold, not admission.
+
+## Bounded early rejection of LOW backlog (R84–R88)
+
+The R84–R88 private backlog contains 153 proposals: 19 high/medium and 134 LOW. Existing LOW confidence already prevents admission. To prioritize new native reads without weakening that gate, LOW proposals in this bounded backlog receive an independent `unknown`/withheld record before fresh GET or semantic rereading. The record binds the original task, proposal, raw snapshot/body hashes and original capture exit/quiescence evidence, with no accepted summary and no invented live-body fields.
+
+Early-held LOW candidates add no documentation markers or EXACT copies and do not create or modify evidence-ledger rows; absent rows remain absent. They require an independent complete-body reread if revisited. This is retained uncertainty, not a semantic audit pass. High/medium proposals still require fresh independent complete-body capture, exact-summary audit, writer checks and native EXACT-identity gates. Original proposals and confidence remain unchanged.
