@@ -2,7 +2,7 @@
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
-**Current status:** explicitly resumed on 2026-10-08 in automatic mode. Batches 38–40 closed together: 49,703 markers and 103,773 remaining. Two disjoint read-only authors capture new queues while independent audits validate prior proposals; only admitted evidence changes the ledger. Private read-ahead is not documentation. The outage and initial queue below are historical.
+**Current status:** automatic operation-only documentation resumed on 2026-10-08. [Batches 41–43](d4-batch43-documentation-first.md) closed together: 49,814 markers and 103,662 remaining. Two disjoint readers and independent audits continue in the active session; private proposals are not documentation until admitted. Earlier outages/stops below are historical.
 
 ## Baseline and repeatable work unit
 
