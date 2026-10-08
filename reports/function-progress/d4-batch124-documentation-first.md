@@ -1,0 +1,38 @@
+# D4 batch 124 — documentation-first continuation
+
+**54,588/153,476 located update-main functions have static documentation markers (35.57%).** Closed together with batches 124–125. This part adds 19 complete-body analyst records and 19 independently gated EXACT-copy records; 0 previous marker(s) were withdrawn. Net gain: **38**. The game target remains the base + update overlay; this is not whole-game coverage, typed recovery or runtime verification.
+
+## Evidence gates and scope
+
+- User priority is [documenting directly observed operations first](d4-documentation-queue.md), not guessing game purpose. Low copy yield is not a stop condition.
+- Read-only authors and separate independent auditors bind exact summary text to complete fresh live bodies. The writer validates imports/constants, completeness, unresolved calls and the exact audited subject. No names or signatures are proposed or applied.
+- EXACT identity was recomputed for every member of the selected groups, preserving local layout and absolute external call/data targets. Representative live bytes match the original ELF. No SHAPE propagation or export-only promotion.
+- Consistent pre-mutation working-project backup: `PLA-update-work-preR124-R125-astra`. The writer saved and closed only the working project, copied its `.gpr`/`.rep` pair without overwrite, verified every file digest, then reopened the same project. Reference project untouched; one MCP service, no parallel indexing.
+- 38 comments were written and read back exactly, then saved. Ledger analysis states changed only for admitted documentation or explicit withdrawal; implementation, behavior and binary-match columns remain unchanged. N2 register untouched.
+
+## Measured result
+
+| Category | Current markers |
+|---|---:|
+| Individually read | 3,829 |
+| Audited EXACT copies | 21,650 |
+| Deterministic mechanical | 28,308 |
+| Import stubs | 801 |
+| Total / still without marker | **54,588 / 98,888** |
+
+Decision: `sheets/decisions.tsv#dec249`. Private evidence: `work/d4/r124/gates.json`, `exact-gate.json`, `apply-plan.json`, `backup.log`, `apply.log` and the round's proposal/audit/validation files. These retain operation descriptions privately; public artifacts publish only metadata and evidence references.
+
+## Withheld evidence
+
+11 candidates remain unknown: `0269ee08`, `026efd44`, `026f0fac`, `026f1620`, `0280e8a8`, `02bb41cc`, `02db55a0`, `02dc70f4`, `030f7d78`, `026f1a8c`, `02d6a10c`. Their audit/validation records explain the unresolved evidence; no copies are admitted from these candidates. See `work/d4/r124/withheld.json`.
+
+## Verification and continuation
+
+- Final part: 19 exact original summaries and 19 independently gated EXACT copies; 11 subjects withheld. No corrected summary admitted.
+- Shared backup: eight file digests verified; same working project reopened with 153,476 functions. All 38 part comments were read back exactly and saved.
+- Per-part ledger checks passed immediately after application. Final batch checker (`work/d4/r124/batch-check.json`) independently binds 62 candidates, 42 admitted original summaries and 42 EXACT copies to the shared pre-batch ledger: **+84 markers**, 54,550 → 54,634; 20 subjects remain UNKNOWN. N2 and non-analysis columns unchanged.
+- `cargo run -p sheetty-cli -- check sheets`: 30 sheets / 323,540 rows, 0 errors and 0 warnings.
+- Fix2 regeneration completed. Manifest verified pinned archive identity (not a fresh archive cryptographic audit), exact 153,476-function inventory, current 49 Rust-source hashes, ledger/output/status hashes and unchanged non-analysis partitions.
+- English/Spanish README figures and bars synchronized. No purpose, type, implementation, runtime or matching claim.
+
+Runtime harness: N/A, static documentation only. Rollback is the complete batches 124–125 commit and shared pre-batch working-project backup; that backup does not isolate one part. No Rust, types, game-system mapping, boundary, reference-project, push or RDD changes.
