@@ -8,3 +8,5 @@ id:string*	name:string	kind:string	size:u32	fields:u32	status:enum
 elf64_ehdr	Elf64_Ehdr	StructureDB	64	21	identified
 elf64_phdr	Elf64_Phdr	StructureDB	56	8	identified
 elfnote_4_32	ElfNote_4_32	StructureDB	48	5	identified
+pml_pokemon_param	pml::pokepara::PokemonParam	StructureDB	112	11	identified
+pml_config	pml::PmlConfig	StructureDB	616	4	identified
