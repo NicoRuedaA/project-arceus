@@ -18,3 +18,5 @@ battle_damage_request	battle::calc::DamageRequest	StructureDB	24	6	identified
 field_ride_state	field::ride::RideState	StructureDB	32	4	identified
 pokedex_species_entry	contents::pokedex::SpeciesEntry	StructureDB	16	3	identified
 capture_context	field::capture::CaptureContext	StructureDB	128	4	identified
+player_dressup_data	savedata::io::MyDressup	StructureDB	160	3	identified
+field_weather_state	field::weather::WeatherState	StructureDB	48	4	identified

@@ -82,3 +82,10 @@ capture_context	target_actor_id	0	dword	Target wild Pokemon actor identifier
 capture_context	ball_item_id	4	dword	Item ID of thrown Poke Ball
 capture_context	backstrike_flag	8	dword	Flag indicating backstrike (unaware bonus)
 capture_context	status_condition_id	12	dword	Current status condition of target (0..7)
+player_dressup_data	empty_sentinel	0	qword	Empty visual slot sentinel (0xcbf29ce484222645)
+player_dressup_data	slots_hash_array	104	qword[12]	12 visual clothing FNV-1a 64-bit hash slots (+0x68)
+player_dressup_data	eyecolor_id	200	dword	Eye contact lens color ID
+field_weather_state	weather_type	0	dword	Current weather enum (0..6)
+field_weather_state	intensity	4	float	Current weather blend intensity (0.0..1.0)
+field_weather_state	time_of_day_phase	8	dword	Time of day phase (morning, day, evening, night)
+field_weather_state	clock_accumulator	12	float	In-game world clock accumulator in seconds
