@@ -69,3 +69,39 @@ them is copied here other than the type-name list above.
 ## Input fingerprint
 
 `work/pla/pk2/main.elf` SHA-256 prefix `b772390207e0de68`.
+
+## Addendum: `pead` vs. `sead` (3DWDecomp)
+
+Reference: `shibbo/3DWDecomp` (Super Mario 3D World + Bowser's Fury; unlicensed;
+read 2026-10-10). It contains a `sead` library reconstruction (`src/sead`,
+`include/sead`; 2,899 functions, 77.9 % matched per its README).
+
+Also reviewed, with no use for PLA: the Switchbrew `ExeFS` and `NSO0` pages
+(file layout and NSO header only; no module contents or names).
+
+### Findings
+
+- PLA has 24 base classes in namespace `pead`. 23 exist as classes in
+  `include/sead`; `RuntimeTypeInfo` is a namespace in `sead`. All 24 have a
+  counterpart. Name match alone does not prove identical code.
+- `pead::ExpHeap` (`FUN_0071ca64`, `ExpHeap::dumpYAML`): same structure as
+  `seadExpHeap.cpp` (scoped lock, base `Heap::dumpYAML` call, 128-character
+  scratch string, same print order `heap_type`, `alloc_mode`, `use_list_size`,
+  `free_list_size`). Difference: PLA has no `find_free_block_mode` line, so the
+  `sead` version differs from 3DWDecomp's.
+- String literals from the `sead` sources found in PLA `main`: `heap` 18/58
+  (`seadHeap.cpp` 11/21, `seadExpHeap.cpp` 6/14); `thread` 0/18; `prim` 2/23.
+  Matches in `codec`, `framework` and `system` are generic text and not
+  discriminating.
+
+### Conclusion
+
+`pead::Heap` and `pead::ExpHeap` correspond to `sead::Heap` and `sead::ExpHeap`
+(different `sead` version). `Thread`, `Mutex`, `SafeString` and `Delegate`
+could not be confirmed or ruled out by string comparison; they need a
+function-level structural comparison. 3DWDecomp builds with Clang for NX
+1.8.14; PLA's compiler is not established, so byte-level matching is not
+assumed.
+
+Hint only: nothing here advances states in
+`sheets/re/function_progress_evidence.tsv`.
