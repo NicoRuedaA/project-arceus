@@ -65,3 +65,9 @@ field_wild_pokemon_state	flags_153	339	byte	Reaction state flags at offset +0x15
 math_vec3	x	0	float	X coordinate in 3D world space
 math_vec3	y	4	float	Y coordinate in 3D world space
 math_vec3	z	8	float	Z coordinate in 3D world space
+battle_damage_request	power	0	dword	Move power scaled by Q12 modifiers
+battle_damage_request	level	4	dword	Attacker level read via selector 0xf (+0x7c)
+battle_damage_request	atk_stat	8	dword	Attacker offensive stat via selector 8 (+0x2d2)
+battle_damage_request	def_stat	12	dword	Defender defensive stat via selector 9 (+0x2d4/+0x2d8)
+battle_damage_request	modifier_slot1	16	dword	Stage modifier input 1
+battle_damage_request	modifier_slot2	20	dword	Stage modifier input 2

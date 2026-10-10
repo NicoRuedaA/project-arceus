@@ -14,3 +14,4 @@ pml_waza_oboe_entry	pml::waza::LearnedMoveEntry	StructureDB	8	3	identified
 pml_grow_group	pml::grow::GrowthGroupTable	StructureDB	404	2	identified
 field_wild_pokemon_state	field::pokemon::WildPokemonState	StructureDB	344	3	identified
 math_vec3	nn::util::Vector3f	StructureDB	12	3	identified
+battle_damage_request	battle::calc::DamageRequest	StructureDB	24	6	identified
