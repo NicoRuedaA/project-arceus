@@ -71,3 +71,10 @@ battle_damage_request	atk_stat	8	dword	Attacker offensive stat via selector 8 (+
 battle_damage_request	def_stat	12	dword	Defender defensive stat via selector 9 (+0x2d4/+0x2d8)
 battle_damage_request	modifier_slot1	16	dword	Stage modifier input 1
 battle_damage_request	modifier_slot2	20	dword	Stage modifier input 2
+field_ride_state	current_ride_id	0	dword	Current ride Pokemon mode (1..5)
+field_ride_state	state_flags	4	dword	Kinematic state flags (running, swimming, climbing)
+field_ride_state	velocity_forward	8	float	Forward movement speed
+field_ride_state	velocity_upward	12	float	Vertical jump/fall velocity
+pokedex_species_entry	species_id	0	word	Species identifier (0..905)
+pokedex_species_entry	research_score	2	word	Cumulative research score towards Level 10
+pokedex_species_entry	task_flags	4	qword	Bitmask of completed research task thresholds
