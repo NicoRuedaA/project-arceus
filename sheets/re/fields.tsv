@@ -78,3 +78,7 @@ field_ride_state	velocity_upward	12	float	Vertical jump/fall velocity
 pokedex_species_entry	species_id	0	word	Species identifier (0..905)
 pokedex_species_entry	research_score	2	word	Cumulative research score towards Level 10
 pokedex_species_entry	task_flags	4	qword	Bitmask of completed research task thresholds
+capture_context	target_actor_id	0	dword	Target wild Pokemon actor identifier
+capture_context	ball_item_id	4	dword	Item ID of thrown Poke Ball
+capture_context	backstrike_flag	8	dword	Flag indicating backstrike (unaware bonus)
+capture_context	status_condition_id	12	dword	Current status condition of target (0..7)
