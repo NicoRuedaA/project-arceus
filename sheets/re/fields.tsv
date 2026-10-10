@@ -59,3 +59,9 @@ pml_waza_oboe_entry	learned_level	2	byte	Level at which move is learned (1..100)
 pml_waza_oboe_entry	mastery_level	3	byte	Mastery level for Agile/Strong style in PLA
 pml_grow_group	group_id	0	dword	Growth group index (0..5)
 pml_grow_group	exp_thresholds	4	dword[100]	Experience thresholds for levels 1 to 100
+field_wild_pokemon_state	state_id	0	dword	Current AI behavior state (1..7)
+field_wild_pokemon_state	distance_to_player	16	float	Computed 3D distance to player
+field_wild_pokemon_state	flags_153	339	byte	Reaction state flags at offset +0x153
+math_vec3	x	0	float	X coordinate in 3D world space
+math_vec3	y	4	float	Y coordinate in 3D world space
+math_vec3	z	8	float	Z coordinate in 3D world space
