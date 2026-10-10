@@ -54,3 +54,8 @@ pml_config	personal_table	0	qword	Pointer to bin/pml/personal table
 pml_config	prng_generator_fn	584	qword	Xoroshiro generator callback (offset +0x248)
 pml_config	get_param_fn	592	qword	Lookup parameter callback (offset +0x250)
 pml_config	evolution_triggers	601	byte[12]	Evolution trigger counts (TechnicalWaza, PowerfulWaza, ReactionDamage)
+pml_waza_oboe_entry	waza_id	0	word	Move identifier
+pml_waza_oboe_entry	learned_level	2	byte	Level at which move is learned (1..100)
+pml_waza_oboe_entry	mastery_level	3	byte	Mastery level for Agile/Strong style in PLA
+pml_grow_group	group_id	0	dword	Growth group index (0..5)
+pml_grow_group	exp_thresholds	4	dword[100]	Experience thresholds for levels 1 to 100
