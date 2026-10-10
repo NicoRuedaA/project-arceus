@@ -14,7 +14,7 @@ from a versioned sheet book.
 
 ## Where the project stands
 
-Figures refer to the update v262144 `main` (153,476 located functions). The phase-by-phase detail is in the [Completion plan](#completion-plan). Last updated: 2026-10-07.
+Figures refer to the update v262144 `main` (153,476 located functions). The phase-by-phase detail is in the [Completion plan](#completion-plan). Last updated: 2026-10-10.
 
 ### 📊 Progress by phase
 
@@ -26,7 +26,7 @@ Figures refer to the update v262144 `main` (153,476 located functions). The phas
  4 gameDB index                     ████████████████████    100 %   of the exported C files
  5 Data (RomFS)                     ████████████████████    100 %   extracted and overlaid
      · interpretation               ░░░░░░░░░░░░░░░░░░░░    3.0 %   14/466 modified files compared inside
- 6 Analysis: read by analysts       ███████████░░░░░░░░░    57.1 %   87,685 of 153,476 functions
+ 6 Analysis: read by analysts       ███████████░░░░░░░░░   57.1 %   87,685 of 153,476 functions
      · classified by program        ███░░░░░░░░░░░░░░░░░   18.4 %   28,308: tiny functions; says what they do, not what they are for
      · copied from identical        ██░░░░░░░░░░░░░░░░░░   14.6 %   22,392: exact copies of an audited function
      · import stubs                 ░░░░░░░░░░░░░░░░░░░░    0.5 %   801: identified from link data

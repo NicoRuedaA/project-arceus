@@ -14,7 +14,7 @@ Rust/Bevy desde un libro de hojas versionado haciendo uso de **The Spreadsheet M
 
 ## Situación del proyecto
 
-Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El detalle fase a fase está en la [Tabla de cierre](#tabla-de-cierre). Última actualización: 2026-10-07.
+Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El detalle fase a fase está en la [Tabla de cierre](#tabla-de-cierre). Última actualización: 2026-10-10.
 
 ### 📊 Avance por fase
 
@@ -26,7 +26,7 @@ Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El de
  4 Índice gameDB                    ████████████████████    100 %   de los archivos C exportados
  5 Datos (RomFS)                    ████████████████████    100 %   extraídos y superpuestos
      · interpretación               ░░░░░░░░░░░░░░░░░░░░    3,0 %   14/466 modificados comparados por dentro
- 6 Análisis: leídas por analistas   ███████████░░░░░░░░░    57,1 %   87.685 de 153.476 funciones
+ 6 Análisis: leídas por analistas   ███████████░░░░░░░░░   57,1 %   87.685 de 153.476 funciones
      · clasificadas por el programa ███░░░░░░░░░░░░░░░░░   18,4 %   28.308: funciones diminutas; dice qué hacen, no para qué sirven
      · copiadas de idénticas        ██░░░░░░░░░░░░░░░░░░   14,6 %   22.392: copias exactas de una función auditada
      · centralitas de importación   ░░░░░░░░░░░░░░░░░░░░    0,5 %   801: identificadas con los datos de enlace
