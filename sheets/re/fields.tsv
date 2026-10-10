@@ -89,3 +89,12 @@ field_weather_state	weather_type	0	dword	Current weather enum (0..6)
 field_weather_state	intensity	4	float	Current weather blend intensity (0.0..1.0)
 field_weather_state	time_of_day_phase	8	dword	Time of day phase (morning, day, evening, night)
 field_weather_state	clock_accumulator	12	float	In-game world clock accumulator in seconds
+event_quest_list	descriptor_array	88	qword	Pointer to array of registered QuestParam descriptors (+0x58)
+event_quest_list	descriptor_array_end	96	qword	End pointer of registered QuestParam descriptors (+0x60)
+event_quest_list	bucket_array	152	qword	Pointer to hash table bucket array (+0x98)
+event_quest_list	bucket_mask	160	qword	Hash table bucket capacity and mask (+0xa0)
+event_quest_list	quest_id_vector	256	qword	Pointer to contiguous vector of 64-bit quest hashes (+0x100)
+event_quest_list	active_notification_list	456	qword	Pointer to active tracked quest notification entries (+0x1c8)
+mssn_notify_desc	notify_type	0	dword	Mission notification type enum (0: Start, 1: Clear, 2: Update)
+mssn_notify_desc	quest_id_hash	8	qword	64-bit FNV-1a hash of quest identifier string
+mssn_notify_desc	phase_index	16	dword	Target mission / quest phase sub-step index

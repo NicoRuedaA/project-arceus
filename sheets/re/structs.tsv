@@ -20,3 +20,5 @@ pokedex_species_entry	contents::pokedex::SpeciesEntry	StructureDB	16	3	identifie
 capture_context	field::capture::CaptureContext	StructureDB	128	4	identified
 player_dressup_data	savedata::io::MyDressup	StructureDB	160	3	identified
 field_weather_state	field::weather::WeatherState	StructureDB	48	4	identified
+event_quest_list	event_script::QuestList	StructureDB	520	6	identified
+mssn_notify_desc	contents::mssn_notify::Desc	StructureDB	32	3	identified
