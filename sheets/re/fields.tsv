@@ -5,6 +5,27 @@
 # requires: structs
 # doctrine: mode-b
 struct:string -> re/structs.id	name:string	offset:u32	type:string	note:string?
+battle_actor_move_slot	move_id	0	dword	Move identifier (0..876)
+battle_actor_move_slot	flags	4	byte	Move status and style availability flags
+battle_actor_move_slot	pp_remaining	7	byte	Current remaining Power Points
+battle_actor_state	slot_index	125	byte	Battle field slot index (0..5)
+battle_actor_state	status_condition	208	byte	Active battle status effect (+0xd0)
+battle_actor_state	moves	768	byte[112]	4 active move slots with 0x1c stride
+battle_actor_state	current_hp	1174	word	Current battle HP (+0x496)
+battle_damage_request	power	0	dword	Move power scaled by Q12 modifiers
+battle_damage_request	level	4	dword	Attacker level read via selector 0xf (+0x7c)
+battle_damage_request	atk_stat	8	dword	Attacker offensive stat via selector 8 (+0x2d2)
+battle_damage_request	def_stat	12	dword	Defender defensive stat via selector 9 (+0x2d4/+0x2d8)
+battle_damage_request	modifier_slot1	16	dword	Stage modifier input 1
+battle_damage_request	modifier_slot2	20	dword	Stage modifier input 2
+box_pasture_data	box_names_array	104	word[544]	32 pasture UTF-16 name entries (17 words / 34 bytes each at +0x68)
+box_pasture_data	unlocked_pasture_count	1192	byte	Unlocked pasture count (base 29 up to 32 max at +0x4a8)
+box_pasture_data	active_pasture_index	1193	byte	Currently viewed active pasture index (0..31 at +0x4a9)
+box_pasture_data	pasture_wallpapers	1196	byte[32]	Wallpaper/theme index for each of the 32 pastures (+0x4ac)
+capture_context	target_actor_id	0	dword	Target wild Pokemon actor identifier
+capture_context	ball_item_id	4	dword	Item ID of thrown Poke Ball
+capture_context	backstrike_flag	8	dword	Flag indicating backstrike (unaware bonus)
+capture_context	status_condition_id	12	dword	Current status condition of target (0..7)
 elf64_ehdr	e_ident_magic_num	0	byte	
 elf64_ehdr	e_ident_magic_str	1	string	
 elf64_ehdr	e_ident_class	4	byte	
@@ -39,6 +60,86 @@ elfnote_4_32	descsz	4	dword
 elfnote_4_32	type	8	dword	
 elfnote_4_32	name	12	string	
 elfnote_4_32	description	16	byte[32]	
+event_quest_list	descriptor_array	88	qword	Pointer to array of registered QuestParam descriptors (+0x58)
+event_quest_list	descriptor_array_end	96	qword	End pointer of registered QuestParam descriptors (+0x60)
+event_quest_list	bucket_array	152	qword	Pointer to hash table bucket array (+0x98)
+event_quest_list	bucket_mask	160	qword	Hash table bucket capacity and mask (+0xa0)
+event_quest_list	quest_id_vector	256	qword	Pointer to contiguous vector of 64-bit quest hashes (+0x100)
+event_quest_list	active_notification_list	456	qword	Pointer to active tracked quest notification entries (+0x1c8)
+field_area_setting_data	areas_start	632	qword	Start pointer to Area vector records (0x20 bytes each)
+field_area_setting_data	areas_end	640	qword	End pointer to Area vector records
+field_area_setting_data	doors_start	688	qword	Start pointer to Door vector records (0x20 bytes each)
+field_area_setting_data	doors_end	696	qword	End pointer to Door vector records
+field_area_setting_data	area_name_table	744	qword	Pointer to area name hash bucket table
+field_distortion_state	state	112	dword	Distortion phase state machine (0=idle, 1=notice, 2=active, 3=ending)
+field_distortion_state	phase_timer	116	dword	Current phase countdown timer in frames
+field_distortion_state	phase_duration	120	dword	Total duration of active phase in frames
+field_distortion_state	target_point_hash	128	qword	Selected distortion zone FNV-1a 64-bit hash (sentinel 0xcbf29ce484222645)
+field_distortion_state	is_active	136	byte	Boolean flag indicating active distortion dome
+field_distortion_state	candidate_points	192	qword	Pointer to candidate spawn points list
+field_placement_generator	category_table	104	qword	Pointer to placement category hash bucket table
+field_placement_generator	bucket_count	112	qword	Bucket count for placement category lookup
+field_ride_state	current_ride_id	0	dword	Current ride Pokemon mode (1..5)
+field_ride_state	state_flags	4	dword	Kinematic state flags (running, swimming, climbing)
+field_ride_state	velocity_forward	8	float	Forward movement speed
+field_ride_state	velocity_upward	12	float	Vertical jump/fall velocity
+field_weather_state	weather_type	0	dword	Current weather enum (0..6)
+field_weather_state	intensity	4	float	Current weather blend intensity (0.0..1.0)
+field_weather_state	time_of_day_phase	8	dword	Time of day phase (morning, day, evening, night)
+field_weather_state	clock_accumulator	12	float	In-game world clock accumulator in seconds
+field_wild_pokemon_state	state_id	0	dword	Current AI behavior state (1..7)
+field_wild_pokemon_state	distance_to_player	16	float	Computed 3D distance to player
+field_wild_pokemon_state	flags_153	339	byte	Reaction state flags at offset +0x153
+ha_btl_ai_move_candidate	target_id	0	dword	Target slot identifier
+ha_btl_ai_move_candidate	wazano	4	dword	Move identifier
+ha_btl_ai_move_candidate	total_score	8	dword	Aggregated tactical AI score (Basic + Strong + Expert + Allowance)
+ha_btl_ai_style_candidate	style	0	dword	Style enum (0 = Normal, 1 = Powerful/Strong, 2 = Technical/Agile)
+ha_btl_ai_style_candidate	score	4	dword	Computed evaluation score for this battle style
+ha_btl_item_use_ai_param	targetID	0	dword	Target Pokemon combat slot/ID
+ha_btl_item_use_ai_param	itemNo	4	dword	Battle item ID to use
+ha_btl_item_use_ai_param	wazano	8	dword	Associated move ID (0 if not move-targeted item)
+ha_btl_poke_change_ai_param	combatPokeID	0	dword	Current active Pokemon slot/ID to switch out
+ha_btl_poke_change_ai_param	benchPokeID	4	dword	Bench/party Pokemon slot/ID to switch in
+ha_btl_poke_change_ai_param	opponentPokeID	8	dword	Target opponent Pokemon combat slot/ID
+ha_btl_waza_ai_param	attackerID	0	dword	Attacking Pokemon combat slot/ID
+ha_btl_waza_ai_param	targetID	4	dword	Target Pokemon combat slot/ID
+ha_btl_waza_ai_param	wazano	8	dword	Move ID (waza number)
+hid_pad_state	trigger_mask	280	qword	Controller button trigger bitmask (+0x118)
+hid_pad_state	left_stick_x	304	float	Left analog stick horizontal axis (+0x130)
+hid_pad_state	left_stick_y	308	float	Left analog stick vertical axis (+0x134)
+hid_pad_state	right_stick_x	312	float	Right analog stick horizontal axis (+0x138)
+hid_pad_state	right_stick_y	316	float	Right analog stick vertical axis (+0x13c)
+hid_vibrator_state	vtable	0	qword	Virtual function table pointer (&DAT_040ed828)
+hid_vibrator_state	amplitude_left	104	float	Left motor amplitude multiplier (+0x68)
+hid_vibrator_state	amplitude_right	108	float	Right motor amplitude multiplier (+0x6c)
+hid_vibrator_state	freq_low	112	float	Low frequency multiplier (+0x70)
+hid_vibrator_state	freq_high	116	float	High frequency multiplier (+0x74)
+hid_vibrator_state	pattern_count	120	dword	Number of registered vibration patterns (+0x78)
+hid_vibrator_state	pattern_table	200	qword	Pointer to 112-byte pattern descriptor array (+0xc8)
+hid_vibrator_state	is_enabled	256	byte	Global vibration enabled boolean flag (+0x100)
+hid_vibrator_state	gfpak_loaded	260	dword	Archive vibration.gfpak loaded status (+0x104)
+item_storage_inventory	item_id	0	word	Item identifier in 16-bit inventory slot
+item_storage_inventory	quantity	2	word	Quantity in 16-bit inventory slot
+item_storage_inventory	slot_array	104	dword[180]	6 groups of 30 slots (180 total entries at +0x68)
+math_vec3	x	0	float	X coordinate in 3D world space
+math_vec3	y	4	float	Y coordinate in 3D world space
+math_vec3	z	8	float	Z coordinate in 3D world space
+mssn_notify_desc	notify_type	0	dword	Mission notification type enum (0: Start, 1: Clear, 2: Update)
+mssn_notify_desc	quest_id_hash	8	qword	64-bit FNV-1a hash of quest identifier string
+mssn_notify_desc	phase_index	16	dword	Target mission / quest phase sub-step index
+player_dressup_data	empty_sentinel	0	qword	Empty visual slot sentinel (0xcbf29ce484222645)
+player_dressup_data	slots_hash_array	104	qword[12]	12 visual clothing FNV-1a 64-bit hash slots (+0x68)
+player_dressup_data	eyecolor_id	200	dword	Eye contact lens color ID
+player_input_info	is_enabled	116	byte	Input processing enable flag (+0x74)
+player_input_info	buffer_ptr	208	qword	Pointer to input queue buffer (+0xd0)
+player_input_info	trigger_count	352	dword	Continuous trigger frame counter (+0x160)
+player_input_info	trigger_mask	360	qword	64-bit processed button trigger bitmask (+0x168)
+pml_config	personal_table	0	qword	Pointer to bin/pml/personal table
+pml_config	prng_generator_fn	584	qword	Xoroshiro generator callback (offset +0x248)
+pml_config	get_param_fn	592	qword	Lookup parameter callback (offset +0x250)
+pml_config	evolution_triggers	601	byte[12]	Evolution trigger counts (TechnicalWaza, PowerfulWaza, ReactionDamage)
+pml_grow_group	group_id	0	dword	Growth group index (0..5)
+pml_grow_group	exp_thresholds	4	dword[100]	Experience thresholds for levels 1 to 100
 pml_pokemon_param	pid	16	dword	Personality value (PID) generated by Xoroshiro128+
 pml_pokemon_param	flags	24	qword	Pokemon attribute flags
 pml_pokemon_param	encryption_constant	32	dword	Encryption constant generated by Xoroshiro128+
@@ -50,51 +151,16 @@ pml_pokemon_param	iv_spd	64	word	Speed individual value (0..31, -1 uninitialized
 pml_pokemon_param	iv_spatk	66	word	Sp. Atk individual value (0..31, -1 uninitialized)
 pml_pokemon_param	iv_spdef	68	word	Sp. Def individual value (0..31, -1 uninitialized)
 pml_pokemon_param	guaranteed_perfect_ivs	100	byte	Count of guaranteed 31 IVs (Alpha/Legendary mechanics)
-pml_config	personal_table	0	qword	Pointer to bin/pml/personal table
-pml_config	prng_generator_fn	584	qword	Xoroshiro generator callback (offset +0x248)
-pml_config	get_param_fn	592	qword	Lookup parameter callback (offset +0x250)
-pml_config	evolution_triggers	601	byte[12]	Evolution trigger counts (TechnicalWaza, PowerfulWaza, ReactionDamage)
 pml_waza_oboe_entry	waza_id	0	word	Move identifier
 pml_waza_oboe_entry	learned_level	2	byte	Level at which move is learned (1..100)
 pml_waza_oboe_entry	mastery_level	3	byte	Mastery level for Agile/Strong style in PLA
-pml_grow_group	group_id	0	dword	Growth group index (0..5)
-pml_grow_group	exp_thresholds	4	dword[100]	Experience thresholds for levels 1 to 100
-field_wild_pokemon_state	state_id	0	dword	Current AI behavior state (1..7)
-field_wild_pokemon_state	distance_to_player	16	float	Computed 3D distance to player
-field_wild_pokemon_state	flags_153	339	byte	Reaction state flags at offset +0x153
-math_vec3	x	0	float	X coordinate in 3D world space
-math_vec3	y	4	float	Y coordinate in 3D world space
-math_vec3	z	8	float	Z coordinate in 3D world space
-battle_damage_request	power	0	dword	Move power scaled by Q12 modifiers
-battle_damage_request	level	4	dword	Attacker level read via selector 0xf (+0x7c)
-battle_damage_request	atk_stat	8	dword	Attacker offensive stat via selector 8 (+0x2d2)
-battle_damage_request	def_stat	12	dword	Defender defensive stat via selector 9 (+0x2d4/+0x2d8)
-battle_damage_request	modifier_slot1	16	dword	Stage modifier input 1
-battle_damage_request	modifier_slot2	20	dword	Stage modifier input 2
-field_ride_state	current_ride_id	0	dword	Current ride Pokemon mode (1..5)
-field_ride_state	state_flags	4	dword	Kinematic state flags (running, swimming, climbing)
-field_ride_state	velocity_forward	8	float	Forward movement speed
-field_ride_state	velocity_upward	12	float	Vertical jump/fall velocity
 pokedex_species_entry	species_id	0	word	Species identifier (0..905)
 pokedex_species_entry	research_score	2	word	Cumulative research score towards Level 10
 pokedex_species_entry	task_flags	4	qword	Bitmask of completed research task thresholds
-capture_context	target_actor_id	0	dword	Target wild Pokemon actor identifier
-capture_context	ball_item_id	4	dword	Item ID of thrown Poke Ball
-capture_context	backstrike_flag	8	dword	Flag indicating backstrike (unaware bonus)
-capture_context	status_condition_id	12	dword	Current status condition of target (0..7)
-player_dressup_data	empty_sentinel	0	qword	Empty visual slot sentinel (0xcbf29ce484222645)
-player_dressup_data	slots_hash_array	104	qword[12]	12 visual clothing FNV-1a 64-bit hash slots (+0x68)
-player_dressup_data	eyecolor_id	200	dword	Eye contact lens color ID
-field_weather_state	weather_type	0	dword	Current weather enum (0..6)
-field_weather_state	intensity	4	float	Current weather blend intensity (0.0..1.0)
-field_weather_state	time_of_day_phase	8	dword	Time of day phase (morning, day, evening, night)
-field_weather_state	clock_accumulator	12	float	In-game world clock accumulator in seconds
-event_quest_list	descriptor_array	88	qword	Pointer to array of registered QuestParam descriptors (+0x58)
-event_quest_list	descriptor_array_end	96	qword	End pointer of registered QuestParam descriptors (+0x60)
-event_quest_list	bucket_array	152	qword	Pointer to hash table bucket array (+0x98)
-event_quest_list	bucket_mask	160	qword	Hash table bucket capacity and mask (+0xa0)
-event_quest_list	quest_id_vector	256	qword	Pointer to contiguous vector of 64-bit quest hashes (+0x100)
-event_quest_list	active_notification_list	456	qword	Pointer to active tracked quest notification entries (+0x1c8)
-mssn_notify_desc	notify_type	0	dword	Mission notification type enum (0: Start, 1: Clear, 2: Update)
-mssn_notify_desc	quest_id_hash	8	qword	64-bit FNV-1a hash of quest identifier string
-mssn_notify_desc	phase_index	16	dword	Target mission / quest phase sub-step index
+savedata_advresult	vtable_ptr	0	qword	Virtual method table pointer
+savedata_advresult	pokemon_result_flag	104	dword	Pokemon status/count result flag at offset +0x68
+savedata_bag	satchel_slots	104	dword[675]	Category 0 satchel item-id/quantity slot array (+0x68)
+savedata_bag	cat1_slots	2804	dword[100]	Category 1 fixed 100-slot item array (+0xaf4)
+savedata_bag	cat2_slots	3204	dword[70]	Category 2 fixed 70-slot item array (+0xc84)
+savedata_myitem	item_slot_array	104	dword[180]	180 4-byte item-id/quantity slots in 6 groups of 30 (+0x68)
+savedata_myitem	active_group	1328	dword	Active group index in item store (0..5 at +0x530)
