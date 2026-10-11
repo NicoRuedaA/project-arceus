@@ -235,6 +235,48 @@ class SafeScanTests(unittest.TestCase):
         ])
         self.assertTrue(all(length > 1 for _, length in stub.requests))
 
+    def test_quarantined_page_is_logged_and_never_touched_or_crossed(self):
+        quarantined = 0x1979C35000
+        start, end = quarantined - 0x2000, quarantined + 0x3fff
+
+        class RecordingMemory:
+            def __init__(self):
+                self.requests = []
+            def console(self, command):
+                import re
+                match = re.fullmatch(
+                    r"python print\(gdb\.selected_inferior\(\)\.connection\.send_packet\('m([0-9a-f]+),([0-9a-f]+)'\)\.decode\('ascii'\)\)",
+                    command,
+                )
+                address, length = int(match.group(1), 16), int(match.group(2), 16)
+                self.requests.append((address, length))
+                return (b"X" * length).hex()
+
+        class Controls:
+            def __init__(self):
+                self.lines = []
+            def log(self, line):
+                self.lines.append(line)
+
+        regions = [(start, end, "rw-", "Normal")]
+        controls = Controls()
+        selected = trace.log_scan_plan(controls, regions, end - start + 1)
+        self.assertIn("quarantined_pages=[\"0x1979c35000\"]", controls.lines[0])
+        self.assertIn("cause unproven", controls.lines[0])
+
+        stub = RecordingMemory()
+        with patch.object(trace, "SMALL_EXACT_REGION_MAX", 0):
+            with self.assertRaisesRegex(trace.TraceError, "no match"):
+                trace.scan_signature(
+                    stub, selected, b"quarantined-page-table-signature", 0x1f00,
+                    end - start + 1, 0x4000, request_delay=0,
+                )
+        self.assertTrue(stub.requests)
+        self.assertTrue(all(
+            address + length <= quarantined or address >= quarantined + trace.SCAN_PAGE_SIZE
+            for address, length in stub.requests
+        ))
+
     def test_fast_success_path_does_not_sleep(self):
         start = 0xc000
         signature = b"fast-success-path-signature-48-bytes!!"

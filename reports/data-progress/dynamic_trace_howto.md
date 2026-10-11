@@ -8,7 +8,9 @@ that buffer; field interpretation remains a separate pseudocode-evidence task.
 ## Current status and crash evidence
 
 **Latest rehearsal status (2026-10-11): no reader event or watchpoint has
-been captured; Eden and GDB are closed.** Attempt 1 launched one Eden 0.2.1
+been captured.** Attempt 3 aborted before a table match or watchpoint; Eden
+is closed, while the persistent GDB driver remains attached and idle after the
+remote target failure. Attempt 1 launched one Eden 0.2.1
 instance with the PLA base game, attached once, and validated `main.nss` at
 `0x80724000` against build ID `aee8f150dda1b5a838806e1a5ea6827ad9f3c51e`
 and all three independent byte pairs. After continuing to early boot, the
@@ -47,6 +49,24 @@ at each complete 0x1000 page start and verify each candidate against the full
 48-byte signature. This large-Normal pass is sampled, not exhaustive: it can
 miss a signature outside the first 16 bytes of a sampled page. No exhaustive
 1.37 GB scan is intended.
+
+Attempt 3 used a raw 16-byte RSP page probe. Eden 0.2.1 (PID 603652) aborted
+with SIGABRT on 2026-10-11 at 19:32:47 CEST; the affected thread was named
+`Debugger`. The RSP log's final request was exactly `m1979c35000,10`, with no
+reply. That address lies in the captured readable mapping
+`0x19670eb000-0x1979ceafff` (`rw-`, `Normal`, 314,572,800 bytes). The
+unsymbolized stack repeats `libstdc++ +0xb55ca <- eden +0x995da7 <-
+eden +0x996a25 <- eden +0x863409`. The same address/mapping was reported as
+failing in attempt 2. This correlation does **not** prove that this request or
+page caused either abort; the underlying cause remains unproven.
+
+As a conservative response to the repeated unanswered request followed by an
+abort, the driver now excludes the single page `0x1979c35000-0x1979c35fff`
+from both prefix probes and bulk reads and records that quarantine in the
+pre-scan plan. This evidence-based skip is intentionally narrow and is not a
+root-cause fix. It makes the scan incomplete for data in that page, and Eden
+may still abort on another read. Offline coverage verifies no memory packet
+touches or crosses the quarantined page; no live retry is implied by that test.
 
 An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
 15:33:32 CEST (PID 185443, TID 185562,

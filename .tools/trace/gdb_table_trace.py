@@ -42,6 +42,9 @@ PACKET_SIZE = re.compile(r"PacketSize=([0-9a-fA-F]+)")
 MAX_RSP_READ = 0x1F00
 SCAN_PAGE_SIZE = 0x1000
 SIGNATURE_PROBE_SIZE = 16
+# Evidence-based quarantine: this page had an unanswered probe immediately
+# before two separate Eden 0.2.1 Debugger-thread aborts. The cause is unknown.
+QUARANTINED_SCAN_PAGES = {0x1979C35000}
 SMALL_EXACT_REGION_MAX = 16 * 1024 * 1024
 HEAP_FIRST_WINDOW = 64 * 1024 * 1024
 MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
@@ -311,7 +314,9 @@ def log_scan_plan(controls: "ControlFiles", regions: list[tuple[int, int, str, s
     controls.log(
         f"scan plan: eligible_bytes={eligible_total}; selected_bytes={selected_total}; "
         f"cap_bytes={max_bytes}; pass_order=CodeData/Alias/ThreadLocal,heap-first-window="
-        f"{HEAP_FIRST_WINDOW},largest-Normal; regions={json.dumps(details, sort_keys=True)}"
+        f"{HEAP_FIRST_WINDOW},largest-Normal; quarantined_pages="
+        f"{json.dumps([f'0x{page:x}' for page in sorted(QUARANTINED_SCAN_PAGES)])} "
+        f"(evidence-based skip; cause unproven); regions={json.dumps(details, sort_keys=True)}"
     )
     if eligible_total > selected_total:
         controls.log(
@@ -521,6 +526,15 @@ def scan_signature(
         touched = page_set.intersection(pages_for(address, length))
         return max(touched) + SCAN_PAGE_SIZE if touched else None
 
+    # Never touch the one page with repeated unanswered probes before separate
+    # aborts. This is a conservative quarantine based on observed evidence;
+    # it does not establish that the page or read caused either abort.
+    for page_set, (start, end, _perms, _kind) in zip(bad_pages, selected):
+        page_set.update(
+            page for page in QUARANTINED_SCAN_PAGES
+            if page <= end and page + SCAN_PAGE_SIZE - 1 >= start
+        )
+
     def verify_candidates(start: int, end: int, candidates: list[int], page_set: set[int]) -> int | None:
         for candidate in candidates:
             if candidate < start or candidate + len(signature) - 1 > end:
@@ -549,6 +563,9 @@ def scan_signature(
         while page + SCAN_PAGE_SIZE - 1 <= end:
             if checkpoint:
                 checkpoint()
+            if page in QUARANTINED_SCAN_PAGES:
+                page += SCAN_PAGE_SIZE
+                continue
             try:
                 probe = memory_read(gdb, page, SIGNATURE_PROBE_SIZE)
             except MemoryReadError:
