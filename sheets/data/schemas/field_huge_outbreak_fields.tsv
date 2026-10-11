@@ -1,6 +1,0 @@
-# sheet: data/schemas/field_huge_outbreak_fields
-# version: 1
-# generator: manually curated; Python TSV writer
-# target: Pokémon Legends: Arceus update v262144 local-to-community field mapping for `field_huge_outbreak`
-local_artifact:string	local_raw_location:string	community_field:string	community_type:string	source_url:string	upstream_commit:string	check_used:string	status:string	notes:string
-n2-field ROMFS field/encount/field_huge_outbreak.bin	root table at 0x1d0	UNKNOWN	UNKNOWN	none	none	592-byte file; first table resolves to offset 464 with invalid vtable delta -99472; no schema-independent table can be read	contradicted	Exact blocker: invalid FlatBuffers table/vtable relation; no community schema found to recover this file. Do not guess fields.

@@ -19,7 +19,7 @@ The first command regenerates both TSVs from the external update-v262144 event-p
 | `bin/event/event_progress/quest_list_sub.bin` | 195,016 bytes / 122 root-vector entries | `d2aa18d65ffbfe2f6ea5849310d04d2415e8e63703c64592e93033ce2c0f4cb6` |
 | `bin/event/event_progress/trigger/trigger_quest_sub*.bin` | 115 files / 378,216 bytes / 911 root-vector entries / 8 empty root vectors | Sorted file inventory SHA-256: `13172f49659d90f23815f444f9850872d35e4a7e67105d97d473b4d6c08f4f51` |
 
-The trigger inventory digest is SHA-256 over the UTF-8 concatenation of sorted lines in the form `filename<TAB>file_size_bytes<TAB>file_sha256<LF>`. The exact SHA-256 for each trigger file is repeated in [`quest_triggers.tsv`](../../sheets/data/quest/quest_triggers.tsv). The per-file rows also retain each source filename, byte size, and its root-vector entry count.
+The trigger inventory digest is SHA-256 over the UTF-8 concatenation of sorted lines in the form `filename<TAB>file_size_bytes<TAB>file_sha256<LF>`. The exact SHA-256 for each trigger file is repeated in [`quest_triggers.tsv`](../../data/quest/quest_triggers.tsv). The per-file rows also retain each source filename, byte size, and its root-vector entry count.
 
 The eight empty trigger sources are `trigger_quest_sub104.bin`, `trigger_quest_sub105.bin`, `trigger_quest_sub106.bin`, `trigger_quest_sub107.bin`, `trigger_quest_sub108.bin`, `trigger_quest_sub109.bin`, `trigger_quest_sub251.bin`, and `trigger_quest_sub259.bin`. They remain present in the trigger TSV as `empty_source_table` rows rather than disappearing from the source inventory.
 
@@ -38,7 +38,7 @@ Across the trigger inventory, 107 files have at least one entry and all 911 targ
 
 ## Catalogue fields and limits
 
-[`quest_catalog.tsv`](../../sheets/data/quest/quest_catalog.tsv) contains 149 rows: 27 main-list entries and 122 side-list entries. It stores the vector offsets and raw main-table field spans under names such as `raw_index_00_value_hex`. [`quest_triggers.tsv`](../../sheets/data/quest/quest_triggers.tsv) contains 919 rows: 911 trigger-vector entries plus 8 empty-source rows. The `raw_bytes[n]` labels indicate only the byte span determined by adjacent vtable offsets; they do **not** claim a primitive type.
+[`quest_catalog.tsv`](../../data/quest/quest_catalog.tsv) contains 149 rows: 27 main-list entries and 122 side-list entries. It stores the vector offsets and raw main-table field spans under names such as `raw_index_00_value_hex`. [`quest_triggers.tsv`](../../data/quest/quest_triggers.tsv) contains 919 rows: 911 trigger-vector entries plus 8 empty-source rows. The `raw_bytes[n]` labels indicate only the byte span determined by adjacent vtable offsets; they do **not** claim a primitive type.
 
 Both tables include explicit `quest_id`, `quest_order`, `prerequisite_flags`, `trigger_conditions`, `target_counts`, `reward_refs`, and `linked_event_script_ids` columns set to `UNKNOWN`, plus `semantic_status=unknown`. A filename, grouped filename suffix, source-vector index, or row order is not treated as a quest identity or quest order. In particular, the trigger vectors count source records/conditions, not quests.
 

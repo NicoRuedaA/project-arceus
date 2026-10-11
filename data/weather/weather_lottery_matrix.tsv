@@ -1,4 +1,9 @@
-weather_id	weather_name	internal_code	disable_system_flag	default_weight	description
+# sheet: data/weather/weather_lottery_matrix
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 weather lottery matrix
+# requires: bin/misc/app_config/field_weathering_config.bin
+weather_id:u8*	weather_name:string	internal_code:string	disable_system_flag:string	default_weight:u8	description:string
 2	Clear / Sunny	WEATHER_SUNNY	NONE (Always allowed)	40	Clear skies ambient baseline
 3	Cloudy	WEATHER_CLOUDY	FSYS_WEATHER_DISABLE_CLOUDY	20	Overcast cloud cover
 4	Rain	WEATHER_RAINY	FSYS_WEATHER_DISABLE_RAINY	15	Standard rain precipitation

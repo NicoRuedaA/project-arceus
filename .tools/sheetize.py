@@ -40,7 +40,7 @@ PLA = ".tools/decoders/decode_pla_data.py"
 PML = ".tools/decode_pml_tables.py"
 MANUAL = "manually curated; Python TSV writer"
 
-# sheet name (relative to sheets/, no extension) -> manifest fields.
+# Sheet manifest name (relative to the sheet collection root, no extension) -> fields.
 # key: optional key column (verified unique at write time, otherwise ignored).
 META: dict[str, dict[str, str]] = {}
 
@@ -98,8 +98,15 @@ _add("data/trace/table_readers", MANUAL, "traced table reader functions")
 
 def sheet_name_for(path: Path) -> str:
     parts = Path(path).resolve().parts
-    idx = len(parts) - 1 - parts[::-1].index("sheets")
-    return "/".join(parts[idx + 1 :]).removesuffix(".tsv")
+    if "sheets" in parts:
+        idx = len(parts) - 1 - parts[::-1].index("sheets")
+        relative = parts[idx + 1 :]
+    elif "data" in parts:
+        idx = len(parts) - 1 - parts[::-1].index("data")
+        relative = ("data", *parts[idx + 1 :])
+    else:
+        raise ValueError(f"{path}: expected a path under data/ or sheets/")
+    return "/".join(relative).removesuffix(".tsv")
 
 
 def strip_name(raw: str) -> str:

@@ -17,7 +17,7 @@ SOURCE = Path(
     "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/"
     "pml/item/item_hash_to_index.dat"
 )
-OUTPUT = Path("sheets/data/items/item_hash_to_index.tsv")
+OUTPUT = Path("data/items/item_hash_to_index.tsv")
 HEADER_SIZE = 4
 RECORD_SIZE = 16
 class DecodeError(ValueError):

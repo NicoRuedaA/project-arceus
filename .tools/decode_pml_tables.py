@@ -2,11 +2,11 @@
 """PML (Pokemon Monster Library) Binary Decoder for PLA v262144.
 
 Decodes raw FlatBuffers and structured binary tables from RomFS:
-  - bin/pml/personal/personal_data_total.perbin -> sheets/data/pml_personal.tsv
-  - bin/pml/grow_table/grow_*.bin              -> sheets/data/pml_grow_table.tsv
-  - bin/pml/evolution/evolution_data_total.evobin -> sheets/data/pml_evolution.tsv
-  - bin/pml/waza/waza*.wazabin                 -> sheets/data/pml_moves.tsv
-  - bin/pml/waza_oboe/waza_oboe_total.wazaoboe -> sheets/data/pml_learnsets.tsv
+  - bin/pml/personal/personal_data_total.perbin -> data/pml_personal.tsv
+  - bin/pml/grow_table/grow_*.bin              -> data/pml_grow_table.tsv
+  - bin/pml/evolution/evolution_data_total.evobin -> data/pml_evolution.tsv
+  - bin/pml/waza/waza*.wazabin                 -> data/pml_moves.tsv
+  - bin/pml/waza_oboe/waza_oboe_total.wazaoboe -> data/pml_learnsets.tsv
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sheetize  # noqa: E402  (adds the sheet manifest and typed header)
 
 ROMFS_BIN_PML = Path("work/pla/pk2/romfs_patched/bin/pml")
-OUTPUT_DIR = Path("sheets/data")
+OUTPUT_DIR = Path("data")
 TOOLS_DIR = Path(".tools")
 
 # Canonical Pokemon Type Map

@@ -23,7 +23,7 @@ Source hint: [pkNX `PersonalInfoLAfb.fbs`](https://github.com/kwsch/pkNX/blob/d1
 
 **Unverified:** the schema's F02 `IsPresentInGame:bool` is not directly decoded in our TSV. `is_active` is currently derived from `base_hp > 0`, which is compatible with observed examples but does not prove it is F02. `base_stat_total`, display names, type labels, and growth labels are derived output, not raw schema fields.
 
-Detailed map: [`sheets/data/schemas/pml_personal_fields.tsv`](../../sheets/data/schemas/pml_personal_fields.tsv).
+Detailed map: [`data/schemas/pml_personal_fields.tsv`](../../data/schemas/pml_personal_fields.tsv).
 
 ### `item_hash_to_index.tsv` (n2-input proposal only)
 
@@ -33,7 +33,7 @@ Source hint: [pkNX `ItemHash8.cs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c
 
 **Contradicted:** n2-input currently exports +0x08 as `f08_u64`, while the community parser treats it as `i32`; upper 32 bits are zero in the local data, but the exported width remains mismatched. Do not rename that field yet. This worktree contains only a rename proposal; the n2-input TSV was not edited.
 
-Detailed map: [`sheets/data/schemas/item_hash_to_index_fields.tsv`](../../sheets/data/schemas/item_hash_to_index_fields.tsv).
+Detailed map: [`data/schemas/item_hash_to_index_fields.tsv`](../../data/schemas/item_hash_to_index_fields.tsv).
 
 ### `pml_evolution.tsv`
 
@@ -41,7 +41,7 @@ Source hint: [pkNX `EvolutionTable.fbs`](https://github.com/kwsch/pkNX/blob/d191
 
 **Observed:** all 146 flattened evolution entries align with the community table order and u16 scalar reads. Fact checks include Pikachu → Raichu with Thunder Stone (argument 83), Stantler → Wyrdeer (PLA method 51), and Ursaring → Ursaluna with Peat Block (argument 1692). The source schema's generic `Method/Argument/Species/Form/Level` names correspond to the local entry fields; source species/form are the containing `EvolutionSet` F00/F01.
 
-Detailed map: [`sheets/data/schemas/pml_evolution_fields.tsv`](../../sheets/data/schemas/pml_evolution_fields.tsv).
+Detailed map: [`data/schemas/pml_evolution_fields.tsv`](../../data/schemas/pml_evolution_fields.tsv).
 
 ### `pml_moves.tsv`
 
@@ -49,7 +49,7 @@ Source hint: [pkNX `Waza.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2
 
 **Observed:** the mapped type/category/power/accuracy/PP and PLA style fields match the local decoder's raw indices and u8 reads. Known facts include Pound (40 power, 35 PP) and Ice Punch (75 base, 60 Agile, 90 Strong, 100 Strong accuracy). However, **the move identifier is contradicted**: pkNX declares F00 `MoveID:int`, the local decoder reads u16, and the 851-row export has only 850 unique IDs (1 occurs twice; ID 0 is absent). Do not rename or rely on the ID join until the underlying per-move binaries and decoder width are re-audited.
 
-Detailed map: [`sheets/data/schemas/pml_moves_fields.tsv`](../../sheets/data/schemas/pml_moves_fields.tsv).
+Detailed map: [`data/schemas/pml_moves_fields.tsv`](../../data/schemas/pml_moves_fields.tsv).
 
 ### `pml_learnsets.tsv`
 
@@ -59,7 +59,7 @@ Source hint: [pkNX `Learnset.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c
 
 **Contradicted:** pkNX declares nested `Level` and `LevelMaster` as ushort, while the local decoder reads both as u8. The observed values fit in a byte (mastery range 0–100), but this does not prove their physical width. Keep those two field widths unresolved and do not infer that a low-byte-only read is complete.
 
-Detailed map: [`sheets/data/schemas/pml_learnsets_fields.tsv`](../../sheets/data/schemas/pml_learnsets_fields.tsv).
+Detailed map: [`data/schemas/pml_learnsets_fields.tsv`](../../data/schemas/pml_learnsets_fields.tsv).
 
 ### `pml_grow_table.tsv`
 
@@ -69,7 +69,7 @@ Community reference: [pkNX `EXPGroup.cs`](https://github.com/kwsch/pkNX/blob/d19
 
 **Unverified:** no matching public community structure for the growth-curve binary was located. The header meaning and threshold field name/type remain unverified against community evidence; only the group enum labels are promoted. The delta-to-next value is derived, not serialized.
 
-Detailed map: [`sheets/data/schemas/pml_grow_table_fields.tsv`](../../sheets/data/schemas/pml_grow_table_fields.tsv).
+Detailed map: [`data/schemas/pml_grow_table_fields.tsv`](../../data/schemas/pml_grow_table_fields.tsv).
 
 ### `item.dat` (n2-input binary; mapping/proposal only)
 
@@ -79,7 +79,7 @@ Sources: pkNX [`GameFileMapping.cs`](https://github.com/kwsch/pkNX/blob/d191cd0e
 
 **Limit:** no decoded per-item TSV or reliable item-ID/name row join is present in n2-input. Thus the specific Master Ball ID/price fact could not be checked, and gameplay semantics remain unverified beyond layout/consumer offsets. No other worktree was edited.
 
-Detailed map: [`sheets/data/schemas/item_dat_fields.tsv`](../../sheets/data/schemas/item_dat_fields.tsv).
+Detailed map: [`data/schemas/item_dat_fields.tsv`](../../data/schemas/item_dat_fields.tsv).
 
 ### Crafting recipes (`makelist.bin`)
 
@@ -89,7 +89,7 @@ Source hint: pkNX [`MakeList.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c
 
 **Limit:** no local decoded recipe TSV is present in n2-input, so mappings are against the available binary records and are not rename proposals. Field layout is a structurally verified candidate; recipe names and specific result/ingredient IDs remain unverified.
 
-Detailed map: [`sheets/data/schemas/crafting_recipes_fields.tsv`](../../sheets/data/schemas/crafting_recipes_fields.tsv).
+Detailed map: [`data/schemas/crafting_recipes_fields.tsv`](../../data/schemas/crafting_recipes_fields.tsv).
 
 ### Shop data (`ha_shop_data.bin`)
 
@@ -99,7 +99,7 @@ Source hint: pkNX [`HaShopTable.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0
 
 **Unverified:** pkNX deliberately calls the first fields `Field_00` and `Field_01`; their meaning is unknown. Item names and shop availability/price were not bound. No decoded shop TSV exists in n2-input; no other worktree was edited.
 
-Detailed map: [`sheets/data/schemas/shop_data_fields.tsv`](../../sheets/data/schemas/shop_data_fields.tsv).
+Detailed map: [`data/schemas/shop_data_fields.tsv`](../../data/schemas/shop_data_fields.tsv).
 
 ### Quest lists (`quest_list_main`, `quest_list_sub`)
 
@@ -107,7 +107,7 @@ Detailed map: [`sheets/data/schemas/shop_data_fields.tsv`](../../sheets/data/sch
 
 **Contradiction:** an earlier N2 summary's 28 main + 94 side count is not the count in these decoded lists; 27 + 122 agrees with the public inventories. No native source-to-file/schema binding was found. The main raw fields 00–12 remain unnamed; side-list record targets remain opaque. No rename proposals were made.
 
-Detailed maps: [main list](../../sheets/data/schemas/quest_list_main_fields.tsv), [side list](../../sheets/data/schemas/quest_list_sub_fields.tsv).
+Detailed maps: [main list](../../data/schemas/quest_list_main_fields.tsv), [side list](../../data/schemas/quest_list_sub_fields.tsv).
 
 ### `trigger_quest_sub*` tables
 
@@ -117,7 +117,7 @@ Source hint: pkNX [`Trigger.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c0
 
 **Unverified:** keep all three local fields raw. No quest-specific IDs/names or condition/command semantics were proven. Exact source-to-schema binding is the blocker.
 
-Detailed map: [`sheets/data/schemas/trigger_quest_sub_fields.tsv`](../../sheets/data/schemas/trigger_quest_sub_fields.tsv).
+Detailed map: [`data/schemas/trigger_quest_sub_fields.tsv`](../../data/schemas/trigger_quest_sub_fields.tsv).
 
 ### `pokemon/data/poke_event_encount.bin`
 
@@ -125,7 +125,7 @@ Source hint: pkNX [`EventEncountArchive.fbs`](https://github.com/kwsch/pkNX/blob
 
 **Observed:** all 251 local outer records contain fields F00, F01 and F03 as four-byte relative-offset slots; F02 is absent throughout. The community schema has string, string, int, vector in that order, with a comment that F02 is empty for all entries. The named asset's pkNX mapping and this per-record shape provide two independent checks for the outer layout. Nested Pokémon vector contents are not mapped here.
 
-Detailed map: [`sheets/data/schemas/poke_event_encount_fields.tsv`](../../sheets/data/schemas/poke_event_encount_fields.tsv).
+Detailed map: [`data/schemas/poke_event_encount_fields.tsv`](../../data/schemas/poke_event_encount_fields.tsv).
 
 ### `pokemon/data/poke_encount.bin`
 
@@ -133,7 +133,7 @@ Candidate analogue: pkNX [`EncounterMultiplerArchive.fbs`](https://github.com/kw
 
 **Observed:** 322 local records; F00 is u32 in range 25–905, F01 is absent, and F02–F13 are sparse floats in observed range −1.0 to 1.5. The 14-field shape resembles the candidate schema's Species/Form plus time/weather multipliers, but the missing form field and lack of asset-to-schema binding block all semantic assignments. The maps retain every candidate name as **unverified**.
 
-Detailed map: [`sheets/data/schemas/poke_encount_fields.tsv`](../../sheets/data/schemas/poke_encount_fields.tsv).
+Detailed map: [`data/schemas/poke_encount_fields.tsv`](../../data/schemas/poke_encount_fields.tsv).
 
 ### `field/encount/huge_outbreak.bin`
 
@@ -141,7 +141,7 @@ Source hint: pkNX [`MassOutbreakTable.fbs`](https://github.com/kwsch/pkNX/blob/d
 
 **Observed:** five local parent records match the eight-field schema shape. All five F00 u64 hashes match the five corresponding hashes in `new_huge_outbreak_lottery.bin`, an independent cross-table consistency check. The scalar widths and four-byte pointer slots are structurally compatible; integer signedness, pointer targets, and nested condition data remain unverified because the export captures offsets rather than dereferenced values.
 
-Detailed map: [`sheets/data/schemas/huge_outbreak_fields.tsv`](../../sheets/data/schemas/huge_outbreak_fields.tsv).
+Detailed map: [`data/schemas/huge_outbreak_fields.tsv`](../../data/schemas/huge_outbreak_fields.tsv).
 
 ### `field/encount/new_huge_outbreak_group.bin`
 
@@ -149,7 +149,7 @@ Source hint: pkNX [`NewHugeOutbreakGroup.fbs`](https://github.com/kwsch/pkNX/blo
 
 **Observed:** 166 parent records and 480 child records. Parent fields F00/F02 are u64, F01 is a 4-byte vector offset. Child indices 0–1 are captured as 8-byte spans; indices 2–6 are four-byte string offsets; index 8 is a four-byte integer span. The counts/widths and exact index sequence support the structural candidate, but field 8 `Rate:int32` remains **unverified** because the local exporter reports `u32`, which does not establish signedness or semantic interpretation. Child field 7 is named `EncounterTableID:ulong` upstream, but the local capture span varies (8 or 12 bytes), so its width is also **unverified**; pointed-to strings are not decoded.
 
-Detailed map: [`sheets/data/schemas/new_huge_outbreak_group_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_group_fields.tsv).
+Detailed map: [`data/schemas/new_huge_outbreak_group_fields.tsv`](../../data/schemas/new_huge_outbreak_group_fields.tsv).
 
 ### `field/encount/new_huge_outbreak_group_lottery.bin`
 
@@ -157,7 +157,7 @@ Source hint: pkNX [`NewHugeOutbreakGroupLottery.fbs`](https://github.com/kwsch/p
 
 **Observed:** seven parent records have the four-field shape `LotteryGroup` plus three candidate vectors; nested vectors contain 501 child rows. Child field 0 is captured as u64, consistent with `Group:ulong`. Child field 1 is absent in some entries, compatible with a FlatBuffers default but not sufficient to verify `Rate:int` or its signedness. Parent vector slots are four-byte offsets; payloads remain raw.
 
-Detailed map: [`sheets/data/schemas/new_huge_outbreak_group_lottery_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_group_lottery_fields.tsv).
+Detailed map: [`data/schemas/new_huge_outbreak_group_lottery_fields.tsv`](../../data/schemas/new_huge_outbreak_group_lottery_fields.tsv).
 
 ### `field/encount/new_huge_outbreak_lottery.bin`
 
@@ -165,7 +165,7 @@ Source hint: pkNX [`NewHugeOutbreakLottery.fbs`](https://github.com/kwsch/pkNX/b
 
 **Observed:** five local records have 18 fields, matching the public field count/order. F00 is u64 and all five hashes match `huge_outbreak.bin`. F01 and F15–F17 are four-byte offset candidates. F02–F14 are four-byte scalars whose positive value ranges fit the candidate int32 types, but the local TSV labels them u32 and cannot independently prove signedness. Offsets' target strings/vectors have not been decoded.
 
-Detailed map: [`sheets/data/schemas/new_huge_outbreak_lottery_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_lottery_fields.tsv).
+Detailed map: [`data/schemas/new_huge_outbreak_lottery_fields.tsv`](../../data/schemas/new_huge_outbreak_lottery_fields.tsv).
 
 ### `field/encount/new_huge_outbreak_time_limit.bin`
 
@@ -173,19 +173,19 @@ Source hint: pkNX [`NewHugeOutbreakTimeLimit.fbs`](https://github.com/kwsch/pkNX
 
 **Observed:** three local records each expose four four-byte fields, matching the schema's two scalar and two vector-offset slots. However, the local scalar columns are unsigned u32 while the community schema declares signed int32, and neither vector target has been cross-validated. Keep every candidate field unverified until those checks are made.
 
-Detailed map: [`sheets/data/schemas/new_huge_outbreak_time_limit_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_time_limit_fields.tsv).
+Detailed map: [`data/schemas/new_huge_outbreak_time_limit_fields.tsv`](../../data/schemas/new_huge_outbreak_time_limit_fields.tsv).
 
 ### `field/encount/field_huge_outbreak.bin`
 
 **Blocked:** no community schema was located, and the local 592-byte asset fails a schema-independent FlatBuffers table read: the first table resolves to offset 464 with vtable delta −99,472, which is invalid for the file. There are no defensible raw field indices or offsets to map. The exact blocker is recorded; no field names/types were guessed.
 
-Detailed blocker record: [`sheets/data/schemas/field_huge_outbreak_fields.tsv`](../../sheets/data/schemas/field_huge_outbreak_fields.tsv).
+Detailed blocker record: [`data/schemas/field_huge_outbreak_fields.tsv`](../../data/schemas/field_huge_outbreak_fields.tsv).
 
 ### `misc/app_config/field_wormhole_config.bin`
 
 pkNX's pinned [asset mapping](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Game/File/GameFileMapping.cs) labels this asset `WormholeConfig`, but no public field schema was found. The local decoded TSV contains 37 unique keys, each with `value_index=0`; 36 `value_text` values look integer-like and one is string-like. Those values prove only lexical output shape—not original scalar widths/types, field meanings, or key/value vector binding. Keep all candidate mappings unverified.
 
-Detailed map: [`sheets/data/schemas/field_wormhole_fields.tsv`](../../sheets/data/schemas/field_wormhole_fields.tsv).
+Detailed map: [`data/schemas/field_wormhole_fields.tsv`](../../data/schemas/field_wormhole_fields.tsv).
 
 ### Satchel/bag capacity (documented; no source table located)
 
@@ -193,8 +193,8 @@ PKHeX at commit `66ef5983a5d349efa2dd615f2926a1b1ee97306e` (GPL-3.0) identifies 
 
 **Limit:** these checks document capacity behavior and the save counter, not an expansion-price table. No tier-price asset/schema was located; do not infer prices from the counter.
 
-Detailed map: [`sheets/data/schemas/satchel_capacity_fields.tsv`](../../sheets/data/schemas/satchel_capacity_fields.tsv).
+Detailed map: [`data/schemas/satchel_capacity_fields.tsv`](../../data/schemas/satchel_capacity_fields.tsv).
 
 ## Rename proposals for other worktrees
 
-[`sheets/data/schemas/rename_proposals.tsv`](../../sheets/data/schemas/rename_proposals.tsv) contains proposal-only rows for the verified hash fields in item-hash and outbreak wide TSVs. Contradicted/unverified fields are explicitly marked do-not-apply or omitted. No files in n2-input, n2-battle, or n2-field were edited. The long-form raw field inventories retain their generic column names because their semantic records are represented as field-index rows rather than one output column per binary field.
+[`data/schemas/rename_proposals.tsv`](../../data/schemas/rename_proposals.tsv) contains proposal-only rows for the verified hash fields in item-hash and outbreak wide TSVs. Contradicted/unverified fields are explicitly marked do-not-apply or omitted. No files in n2-input, n2-battle, or n2-field were edited. The long-form raw field inventories retain their generic column names because their semantic records are represented as field-index rows rather than one output column per binary field.

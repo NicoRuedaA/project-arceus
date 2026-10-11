@@ -8,15 +8,15 @@ The AI evidence comes from `bin/haxe/release/battle/battle.blua`. The script wra
 
 ## TSV layouts
 
-### `sheets/data/ai/score_rules.tsv`
+### `data/ai/score_rules.tsv`
 
 One curated scoring/decision rule or explicit unknown per row. Fields encode a stable key, component, subject, condition, optional signed score delta, optional probability percentage, effect, source path/line range, evidence status, and notes. Blank score/probability means not applicable or not recovered; unrecovered numeric values are left blank and explained in notes.
 
-### `sheets/data/ai/expert_sequences.tsv`
+### `data/ai/expert_sequences.tsv`
 
 One row per observed ExpertAI sequence handler/subroutine (43 total). `score_delta_sequence` is the ordered `AddScore` sequence; `observed_condition_facilities` records source-exposed helper categories, not an asserted one-to-one mapping between each score and branch. Composite rows point to delegated handlers, while predicates needing deeper mapping remain marked partial.
 
-### `sheets/data/quest/progression_rules.tsv`
+### `data/quest/progression_rules.tsv`
 
 One observed generic progression rule or explicit unknown boundary per row. Fields encode scope, quest-ID expression, state/step, condition, effect, optional event flag/reward, source path/line range, evidence status, and notes. Quest-specific catalogue fields are not filled from assumptions.
 
@@ -41,7 +41,7 @@ One observed generic progression rule or explicit unknown boundary per row. Fiel
 
 - `quest_list_main.bin` has 27 root-vector entries and `quest_list_sub.bin` has 122. The trigger input set has 115 files, 911 root-vector entries, and 8 empty root vectors. These are structural source counts, not proven mission/request counts.
 - The catalogues preserve raw vtable-index byte spans where validated, retain opaque side-list targets, record exact source hashes, and expose quest identity/order, prerequisite flags, conditions, targets, rewards, and linked event scripts as `UNKNOWN`. Filenames and vector indices are not used as quest IDs or ordering.
-- The 28-main / 94-side totals in `n2-mission-and-quest-system.md` are not corroborated by these source-vector counts; no mapping or filter that would reconcile them was inferred. The layout and hashes are documented in [`quest_catalog.md`](quest_catalog.md), [`quest_catalog.tsv`](../../sheets/data/quest/quest_catalog.tsv), and [`quest_triggers.tsv`](../../sheets/data/quest/quest_triggers.tsv).
+- The 28-main / 94-side totals in `n2-mission-and-quest-system.md` are not corroborated by these source-vector counts; no mapping or filter that would reconcile them was inferred. The layout and hashes are documented in [`quest_catalog.md`](quest_catalog.md), [`quest_catalog.tsv`](../../data/quest/quest_catalog.tsv), and [`quest_triggers.tsv`](../../data/quest/quest_triggers.tsv).
 
 ## Validation and N2 cross-checks
 

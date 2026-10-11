@@ -37,13 +37,13 @@ The evidence column is present in `spawn_source_fields.tsv`, `spawn_nested_raw_f
 
 | Output | Source / contents | Data rows |
 |---|---|---:|
-| `sheets/data/capture/throwable_parameters.tsv` | `capture/throwable_param_table.bin`; raw-index typed columns `f00_raw_u32`, `f05_raw_u32`, `f06_f32`, `f07_string`, `f08_string`, `f09_f32` | 54 |
-| `sheets/data/field/spawn_source_fields.tsv` | Top-level records from five `field/encount` tables and `pokemon/data/poke_encount.bin`, `poke_event_encount.bin`, and `poke_battle_spawn.bin`; one row per vtable slot, including absent slots | 6,183 |
-| `sheets/data/field/spawn_nested_raw_fields.tsv` | Child table slots in `new_huge_outbreak_group.bin` and `new_huge_outbreak_group_lottery.bin`; exact storage bytes as hex and raw child field index | 5,074 |
-| `sheets/data/field/spawner_config_values.tsv` | Indexed key/value text from `misc/app_config/field_spawner_config.bin` | 3 |
-| `sheets/data/field/wild_encounter_modifiers.tsv` | Legacy output path retained, but columns now use raw field indices (`f00_u32`, `f01_u32`, `f02_f32`…`f13_f32`) rather than domain claims | 322 |
-| `sheets/data/field/huge_outbreak_areas.tsv` | Legacy output path retained; source record order and raw `f00_u64`…`f07_u32` fields, with no area names attached | 5 |
-| `sheets/data/field/huge_outbreak_lottery.tsv` | Legacy output path retained; source record order and raw `f00_u64`…`f17_u32` fields | 5 |
+| `data/capture/throwable_parameters.tsv` | `capture/throwable_param_table.bin`; raw-index typed columns `f00_raw_u32`, `f05_raw_u32`, `f06_f32`, `f07_string`, `f08_string`, `f09_f32` | 54 |
+| `data/field/spawn_source_fields.tsv` | Top-level records from five `field/encount` tables and `pokemon/data/poke_encount.bin`, `poke_event_encount.bin`, and `poke_battle_spawn.bin`; one row per vtable slot, including absent slots | 6,183 |
+| `data/field/spawn_nested_raw_fields.tsv` | Child table slots in `new_huge_outbreak_group.bin` and `new_huge_outbreak_group_lottery.bin`; exact storage bytes as hex and raw child field index | 5,074 |
+| `data/field/spawner_config_values.tsv` | Indexed key/value text from `misc/app_config/field_spawner_config.bin` | 3 |
+| `data/field/wild_encounter_modifiers.tsv` | Legacy output path retained, but columns now use raw field indices (`f00_u32`, `f01_u32`, `f02_f32`…`f13_f32`) rather than domain claims | 322 |
+| `data/field/huge_outbreak_areas.tsv` | Legacy output path retained; source record order and raw `f00_u64`…`f07_u32` fields, with no area names attached | 5 |
+| `data/field/huge_outbreak_lottery.tsv` | Legacy output path retained; source record order and raw `f00_u64`…`f17_u32` fields | 5 |
 
 `spawn_source_fields.tsv` records the relative source path, outer record index, field index, vtable byte offset, wire type, and decoded scalar. The top-level layouts are:
 

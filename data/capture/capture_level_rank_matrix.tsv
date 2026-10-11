@@ -1,4 +1,9 @@
-player_galaxy_rank	pokemon_rank_1	pokemon_rank_2	pokemon_rank_3	pokemon_rank_4	pokemon_rank_5	pokemon_rank_6	pokemon_rank_7	pokemon_rank_8	pokemon_rank_9	pokemon_rank_10
+# sheet: data/capture/capture_level_rank_matrix
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 capture level/rank matrix
+# requires: bin/misc/app_config/common_capture_config.bin
+player_galaxy_rank:u8*	pokemon_rank_1:u8	pokemon_rank_2:i32	pokemon_rank_3:i32	pokemon_rank_4:i32	pokemon_rank_5:i32	pokemon_rank_6:i32	pokemon_rank_7:i32	pokemon_rank_8:i32	pokemon_rank_9:i32	pokemon_rank_10:i32
 0	0	-1	-2	-3	-4	-5	-5	-5	-5	-5
 1	0	0	-1	-2	-3	-4	-5	-5	-5	-5
 2	0	0	0	-1	-2	-3	-4	-5	-5	-5

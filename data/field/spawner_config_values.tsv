@@ -1,4 +1,9 @@
-config_key	value_index	value_text	evidence
+# sheet: data/field/spawner_config_values
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 spawner app-config values (meaning unknown)
+# requires: bin/misc/app_config
+config_key:string	value_index:u8	value_text:u8?	evidence:string
 unique_oybn_leave_count	0	3	UNKNOWN
 unique_oybn_leave_count	1		UNKNOWN
 unique_oybn_leave_count	2		UNKNOWN

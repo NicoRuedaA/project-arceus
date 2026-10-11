@@ -1,4 +1,9 @@
-dex_index_national	species_name	form	is_active	stat_hp	stat_atk	stat_def	stat_spa	stat_spd	stat_spe	base_stat_total	type1	type_1	type2	type_2	gender	base_exp	exp_growth	growth_group
+# sheet: data/pml_personal
+# version: 1
+# generator: .tools/decode_pml_tables.py
+# target: Pokémon Legends: Arceus update v262144 personal data (species stats, types, abilities)
+# requires: bin/pml/personal/personal_data_total.perbin
+dex_index_national:u16	species_name:string	form:u8	is_active:bool	stat_hp:u8	stat_atk:u8	stat_def:u8	stat_spa:u8	stat_spd:u8	stat_spe:u8	base_stat_total:u16	type1:u8	type_1:string	type2:u8	type_2:string	gender:u8	base_exp:u16	exp_growth:u8	growth_group:string
 0	species_0	0	0	0	0	0	0	0	0	0	0	Normal	0	Normal	255	0	0	Medium Fast
 1	bulbasaur	0	0	0	0	0	0	0	0	0	0	Normal	0	Normal	255	0	0	Medium Fast
 2	ivysaur	0	0	0	0	0	0	0	0	0	0	Normal	0	Normal	255	0	0	Medium Fast

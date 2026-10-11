@@ -18,7 +18,7 @@ from pathlib import Path
 DEFAULT_GAME_BIN_ROOT = Path("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
 DEFAULT_DECOMP_ROOT = Path("/home/nico/work/decompilacion/work/pla/pk2/lua")
 DEFAULT_INDEX = DEFAULT_DECOMP_ROOT / "index.tsv"
-DEFAULT_TSV = Path("sheets/data/lua/host_bridge_catalog.tsv")
+DEFAULT_TSV = Path("data/lua/host_bridge_catalog.tsv")
 DEFAULT_REPORT = Path("reports/data-progress/lua_host_bridge.md")
 
 # These are class tables / host objects seen in the generated Lua, not a claim
@@ -324,15 +324,37 @@ def rows_from_evidence(calls: list[CallEvidence]) -> list[dict[str, str]]:
 
 def write_tsv(path: Path, rows: list[dict[str, str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    fields = ["namespace:string", "name:string", "call_count:u32", "distinct_scripts:u32",
+    core_fields = ["namespace:string", "name:string", "call_count:u32", "distinct_scripts:u32",
         "example_script:string", "example_line:u32", "observed_argument_count:string",
         "observed_argument_types:string", "semantic_category:string", "category_evidence:enum",
         "n2_reference:string", "evidence:string"]
+    native_fields = ["native_function_id:string", "native_registration_function_id:string",
+        "native_argument_types:string", "native_category:string", "native_category_evidence:enum",
+        "native_evidence:string"]
+    # Native bridge mappings are curated evidence, not derivable from Lua call
+    # sites. Retain them by the stable namespace/name key during regeneration.
+    native_by_key: dict[tuple[str, str], dict[str, str]] = {}
+    if path.is_file():
+        with path.open(encoding="utf-8", newline="") as f:
+            reader = csv.DictReader((line for line in f if not line.startswith("#")), delimiter="\t")
+            for prior in reader:
+                key = (prior.get("namespace:string", "").split(":", 1)[0], prior.get("name:string", "").split(":", 1)[0])
+                if all(key):
+                    native_by_key[key] = {
+                        field.split(":", 1)[0]: prior.get(field, "")
+                        for field in native_fields
+                    }
+    fields = core_fields + native_fields
     with path.open("w", encoding="utf-8", newline="") as f:
-        f.write("# sheet: data/lua/host_bridge_catalog\n# version: 1\n# generator: decode_lua_host_bridge.py\n# target: Pokémon Legends: Arceus update v262144 Lua host bridge call catalog\n# doctrine: D2,D3\n")
+        f.write("# sheet: data/lua/host_bridge_catalog\n# version: 2\n# generator: decode_lua_host_bridge.py\n# target: Pokémon Legends: Arceus update v262144 Lua host bridge call catalog\n# doctrine: D2,D3\n")
         writer = csv.writer(f, delimiter="\t", lineterminator="\n", quoting=csv.QUOTE_MINIMAL)
         writer.writerow(fields)
-        for row in rows: writer.writerow([row[field.split(":", 1)[0]] for field in fields])
+        for row in rows:
+            native = native_by_key.get((row["namespace"], row["name"]), {})
+            writer.writerow([
+                row.get(field.split(":", 1)[0], native.get(field.split(":", 1)[0], "unknown"))
+                for field in fields
+            ])
 
 
 def write_report(path: Path, rows: list[dict[str, str]], inventory_rows: list[dict[str, str]], coverage: dict[str, int], errors: list[str]) -> None:
