@@ -219,7 +219,10 @@ def export_throwable_and_bait(output_dir: Path) -> tuple[int, int]:
     param_count = vec_len
     with open(out_param_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t")
-        writer.writerow(["item_id", "category", "reaction_type", "mass_or_durability", "velocity_scale"])
+        # The FlatBuffer schema is not available. Keep field indices in the
+        # headers rather than assigning unverified domain meanings. Vtable
+        # inspection and the observed value ranges establish these wire types.
+        writer.writerow(["f00_u32", "f05_i32", "f06_f32", "f07_string", "f08_string", "f09_f32"])
         for i in range(vec_len):
             e_ptr = vec_offset + 4 + i * 4
             e_off = e_ptr + struct.unpack("<I", data[e_ptr:e_ptr+4])[0]
@@ -233,26 +236,29 @@ def export_throwable_and_bait(output_dir: Path) -> tuple[int, int]:
             for fi, fo in enumerate(ef_offs):
                 if fo != 0:
                     p = e_off + fo
-                    u = struct.unpack("<I", data[p:p+4])[0]
-                    t = p + u
-                    s = None
-                    if 0 <= t < len(data) - 4:
+                    if fi in (7, 8):
+                        # These vtable slots are string uoffsets. Never infer
+                        # pointer-ness merely because scalar bits resemble a
+                        # valid FlatBuffer string offset.
+                        u = struct.unpack("<I", data[p:p+4])[0]
+                        t = p + u
                         slen = struct.unpack("<I", data[t:t+4])[0]
-                        if 0 < slen < 100:
-                            try:
-                                s = data[t+4:t+4+slen].decode("utf-8")
-                            except:
-                                pass
-                    row.append(s if s is not None else struct.unpack("<i", data[p:p+4])[0])
+                        row.append(data[t+4:t+4+slen].decode("utf-8"))
+                    else:
+                        row.append(struct.unpack("<i", data[p:p+4])[0])
                 else:
                     row.append(None)
             
-            item_id = row[0]
-            category = row[7] if len(row) > 7 else None
-            reaction = row[8] if len(row) > 8 else None
-            mass = row[5] if len(row) > 5 else None
-            vel = row[6] if len(row) > 6 else None
-            writer.writerow([item_id, category, reaction, mass, vel])
+            # Fields 0 and 5 are 32-bit integers; fields 6 and 9 are IEEE-754
+            # float32 scalars. String fields 7/8 are FlatBuffer offsets.
+            # Preserve missing fields as empty cells rather than filling them.
+            f00 = row[0] if len(row) > 0 else None
+            f05 = row[5] if len(row) > 5 else None
+            f06 = struct.unpack("<f", struct.pack("<I", row[6]))[0] if len(row) > 6 and row[6] is not None else None
+            f07 = row[7] if len(row) > 7 else None
+            f08 = row[8] if len(row) > 8 else None
+            f09 = struct.unpack("<f", struct.pack("<I", row[9]))[0] if len(row) > 9 and row[9] is not None else None
+            writer.writerow([f00, f05, f06, f07, f08, f09])
 
     # 2. Bait parameters
     with open(bait_path, "rb") as f:

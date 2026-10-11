@@ -69,6 +69,19 @@ def validate_capture_data() -> None:
                 assert -5 <= iv <= 0, f"Level rank delta out of range (-5..0): {iv}"
     print("[PASS] Level rank matrix validation")
 
+    # Throwable table: retain physical FlatBuffer field indices because the
+    # schema's domain labels are not established by available evidence.
+    throwable_file = DATA_DIR / "capture/throwable_parameters.tsv"
+    with open(throwable_file, "r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    assert len(rows) == 54, f"Expected 54 throwable records, got {len(rows)}"
+    assert list(rows[0]) == ["f00_u32", "f05_i32", "f06_f32", "f07_string", "f08_string", "f09_f32"]
+    assert sum(not r["f06_f32"] for r in rows) == 43, "Expected 43 absent field-6 values"
+    assert {float(r["f06_f32"]) for r in rows if r["f06_f32"]} == {30.0, 40.0}, "Field 6 must decode as float32"
+    assert all(1 <= int(r["f00_u32"]) <= 65535 for r in rows)
+    assert all(int(r["f05_i32"]) >= 0 for r in rows)
+    print("[PASS] Throwable FlatBuffer field-index/type validation")
+
 
 def validate_weather_data() -> None:
     # Weather dry transitions
