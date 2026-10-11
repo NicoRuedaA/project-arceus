@@ -5,6 +5,7 @@
 
 pub mod app;
 pub mod assets;
+pub mod battle;
 pub mod dispatch;
 pub mod event;
 pub mod host;
