@@ -9,6 +9,8 @@ Verifies:
 """
 
 import csv
+import math
+import struct
 import sys
 from pathlib import Path
 
@@ -75,11 +77,11 @@ def validate_capture_data() -> None:
     with open(throwable_file, "r", encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
     assert len(rows) == 54, f"Expected 54 throwable records, got {len(rows)}"
-    assert list(rows[0]) == ["f00_u32", "f05_i32", "f06_f32", "f07_string", "f08_string", "f09_f32"]
+    assert list(rows[0]) == ["f00_raw_u32", "f05_raw_u32", "f06_f32", "f07_string", "f08_string", "f09_f32"]
     assert sum(not r["f06_f32"] for r in rows) == 43, "Expected 43 absent field-6 values"
     assert {float(r["f06_f32"]) for r in rows if r["f06_f32"]} == {30.0, 40.0}, "Field 6 must decode as float32"
-    assert all(1 <= int(r["f00_u32"]) <= 65535 for r in rows)
-    assert all(int(r["f05_i32"]) >= 0 for r in rows)
+    assert all(1 <= int(r["f00_raw_u32"]) <= 65535 for r in rows)
+    assert all(int(r["f05_raw_u32"]) >= 0 for r in rows)
     print("[PASS] Throwable FlatBuffer field-index/type validation")
 
 
@@ -121,13 +123,88 @@ def validate_field_data() -> None:
         reader = csv.DictReader(f, delimiter="\t")
         rows = list(reader)
         assert len(rows) == 322, f"Expected 322 encounter records, got {len(rows)}"
-        species_seen = set()
+        raw_ids_seen = set()
         for r in rows:
-            sid = int(r["species_id"])
-            species_seen.add(sid)
-            assert 1 <= sid <= 1025, f"Invalid species ID: {sid}"
-        assert len(species_seen) >= 240, f"Expected >= 240 unique species in Hisui, got {len(species_seen)}"
-    print("[PASS] Wild encounter modifiers validation")
+            sid = int(r["f00_u32"])
+            raw_ids_seen.add(sid)
+            assert 1 <= sid <= 1025, f"Field 0 value out of observed ID range: {sid}"
+        assert len(raw_ids_seen) >= 240, f"Expected >= 240 distinct field-0 values, got {len(raw_ids_seen)}"
+        for row in rows:
+            for field_index in range(2, 14):
+                cell = row[f"f{field_index:02d}_f32"]
+                if cell:
+                    value = float(cell)
+                    assert math.isfinite(value) and -1.0 <= value <= 1.5, f"Observed float field out of range: {field_index}={value}"
+    print("[PASS] Encounter raw-field range validation")
+
+    raw_file = DATA_DIR / "field/spawn_source_fields.tsv"
+    with open(raw_file, "r", encoding="utf-8", newline="") as f:
+        raw_rows = list(csv.DictReader(f, delimiter="\t"))
+    expected_counts = {
+        "field/encount/huge_outbreak.bin": 5,
+        "field/encount/new_huge_outbreak_group.bin": 166,
+        "field/encount/new_huge_outbreak_group_lottery.bin": 7,
+        "field/encount/new_huge_outbreak_lottery.bin": 5,
+        "field/encount/new_huge_outbreak_time_limit.bin": 3,
+        "pokemon/data/poke_encount.bin": 322,
+        "pokemon/data/poke_event_encount.bin": 251,
+        "pokemon/data/poke_battle_spawn.bin": 4,
+    }
+    observed_counts = {source: len({r["record_index"] for r in raw_rows if r["source_file"] == source}) for source in expected_counts}
+    assert observed_counts == expected_counts, f"Spawn source outer record counts differ: {observed_counts}"
+    assert all(r["wire_type"] in {"u32", "u64", "f32", "uoffset_u32", "absent", "raw_u32"} for r in raw_rows)
+    assert all(not r["value"] for r in raw_rows if r["wire_type"] == "absent")
+    assert all(r["value"] for r in raw_rows if r["wire_type"] != "absent" and r["vtable_byte_offset"])
+    type_layouts = {
+        "field/encount/huge_outbreak.bin": ["u64"] + ["u32"] * 7,
+        "field/encount/new_huge_outbreak_group.bin": ["u64", "uoffset_u32", "u64"],
+        "field/encount/new_huge_outbreak_group_lottery.bin": ["u64", "uoffset_u32", "uoffset_u32", "uoffset_u32"],
+        "field/encount/new_huge_outbreak_lottery.bin": ["u64"] + ["u32"] * 17,
+        "field/encount/new_huge_outbreak_time_limit.bin": ["u32"] * 4,
+        "pokemon/data/poke_encount.bin": ["u32", "absent"] + ["f32"] * 12,
+        "pokemon/data/poke_event_encount.bin": ["u32", "u32", "absent", "u32"],
+        "pokemon/data/poke_battle_spawn.bin": ["raw_u32"] * 6,
+    }
+    romfs = Path("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
+    expected = []
+    for source, layout in type_layouts.items():
+        data = (romfs / source).read_bytes()
+        root = struct.unpack_from("<I", data, 0)[0]
+        q = root + 4
+        vector = q + struct.unpack_from("<I", data, q)[0]
+        count = struct.unpack_from("<I", data, vector)[0]
+        for record_index in range(count):
+            elem = vector + 4 + record_index * 4
+            table = elem + struct.unpack_from("<I", data, elem)[0]
+            vtable = table - struct.unpack_from("<i", data, table)[0]
+            vsize = struct.unpack_from("<H", data, vtable)[0]
+            offsets = struct.unpack_from("<" + "H" * ((vsize - 4) // 2), data, vtable + 4)
+            for field_index, offset in enumerate(offsets):
+                wire_type = layout[field_index]
+                value = ""
+                if offset:
+                    pos = table + offset
+                    if wire_type == "u64":
+                        value = str(struct.unpack_from("<Q", data, pos)[0])
+                    elif wire_type == "f32":
+                        value = format(struct.unpack_from("<f", data, pos)[0], ".9g")
+                    elif wire_type != "absent":
+                        value = str(struct.unpack_from("<I", data, pos)[0])
+                expected.append((source, str(record_index), str(field_index), str(offset or ""), wire_type, value))
+    actual = [(r["source_file"], r["record_index"], r["field_index"], r["vtable_byte_offset"], r["wire_type"], r["value"]) for r in raw_rows]
+    assert actual == expected, "Raw spawn field TSV differs from source table bytes"
+    nested_file = DATA_DIR / "field/spawn_nested_raw_fields.tsv"
+    with open(nested_file, "r", encoding="utf-8", newline="") as f:
+        nested = list(csv.DictReader(f, delimiter="\t"))
+    group_children = {(r["parent_record"], r["child_index"]) for r in nested if r["source_file"] == "field/encount/new_huge_outbreak_group.bin"}
+    assert len(group_children) == 480, f"Expected 480 nested outbreak group records, got {len(group_children)}"
+    lottery_children = {(r["parent_record"], r["vector_field_index"], r["child_index"]) for r in nested if r["source_file"] == "field/encount/new_huge_outbreak_group_lottery.bin"}
+    assert len(lottery_children) == 501, f"Expected 501 nested group-lottery records, got {len(lottery_children)}"
+    spawner_cfg = DATA_DIR / "field/spawner_config_values.tsv"
+    with open(spawner_cfg, "r", encoding="utf-8", newline="") as f:
+        cfg = list(csv.DictReader(f, delimiter="\t"))
+    assert len(cfg) == 3 and any(r["config_key"] == "unique_oybn_leave_count" and r["value_text"] == "3" for r in cfg)
+    print("[PASS] Spawn source and nested-vector inventory validation")
 
 
 def validate_world_data() -> None:

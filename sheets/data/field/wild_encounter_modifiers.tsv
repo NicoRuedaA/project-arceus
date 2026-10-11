@@ -1,4 +1,4 @@
-species_id	form_id	modifier_0	modifier_1	modifier_2	modifier_3	modifier_4	modifier_5	modifier_6	modifier_7	modifier_8	modifier_9	modifier_10	modifier_11
+f00_u32	f01_u32	f02_f32	f03_f32	f04_f32	f05_f32	f06_f32	f07_f32	f08_f32	f09_f32	f10_f32	f11_f32	f12_f32	f13_f32
 25		-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0
 26		-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0
 35					1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0

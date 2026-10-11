@@ -1,4 +1,4 @@
-f00_u32	f05_i32	f06_f32	f07_string	f08_string	f09_f32
+f00_raw_u32	f05_raw_u32	f06_f32	f07_string	f08_string	f09_f32
 1710	10	30.0	ball	warning	5.0
 1711	10	30.0	ball	warning	5.0
 1712	10	30.0	ball	check	5.0

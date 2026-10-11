@@ -218,11 +218,11 @@ def export_throwable_and_bait(output_dir: Path) -> tuple[int, int]:
     out_param_path = output_dir / "throwable_parameters.tsv"
     param_count = vec_len
     with open(out_param_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         # The FlatBuffer schema is not available. Keep field indices in the
         # headers rather than assigning unverified domain meanings. Vtable
         # inspection and the observed value ranges establish these wire types.
-        writer.writerow(["f00_u32", "f05_i32", "f06_f32", "f07_string", "f08_string", "f09_f32"])
+        writer.writerow(["f00_raw_u32", "f05_raw_u32", "f06_f32", "f07_string", "f08_string", "f09_f32"])
         for i in range(vec_len):
             e_ptr = vec_offset + 4 + i * 4
             e_off = e_ptr + struct.unpack("<I", data[e_ptr:e_ptr+4])[0]
@@ -376,8 +376,8 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
     out_encount_path = output_dir / "wild_encounter_modifiers.tsv"
     encount_count = vec_len
     with open(out_encount_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
-        header = ["species_id", "form_id"] + [f"modifier_{i}" for i in range(12)]
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
+        header = ["f00_u32", "f01_u32"] + [f"f{i:02d}_f32" for i in range(2, 14)]
         writer.writerow(header)
         for i in range(vec_len):
             e_ptr = vec_offset + 4 + i * 4
@@ -395,7 +395,7 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
                 else:
                     p = e_off + fo
                     if fi == 0 or fi == 1:
-                        row.append(struct.unpack("<i", data[p:p+4])[0])
+                        row.append(struct.unpack("<I", data[p:p+4])[0])
                     else:
                         row.append(round(struct.unpack("<f", data[p:p+4])[0], 4))
             # fill up to 14 elements
@@ -415,18 +415,16 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
     out_huge_path = output_dir / "huge_outbreak_areas.tsv"
     huge_count = h_vec_len
     with open(out_huge_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
-        writer.writerow(["area_id", "area_name", "work_flag", "max_simultaneous", "spawn_limit", "respawn_window_sec"])
-        
-        area_names = [
-            (1, "Obsidian Fieldlands", "WSYS_MASS_GANERATION_AREA01", 10, 15, 25),
-            (2, "Crimson Mirelands", "WSYS_MASS_GANERATION_AREA02", 10, 15, 25),
-            (3, "Cobalt Coastlands", "WSYS_MASS_GANERATION_AREA03", 10, 15, 25),
-            (4, "Coronet Highlands", "WSYS_MASS_GANERATION_AREA04", 10, 15, 25),
-            (5, "Alabaster Icelands", "WSYS_MASS_GANERATION_AREA05", 10, 15, 25),
-        ]
-        for aid, aname, flag, msim, slim, rwin in area_names:
-            writer.writerow([aid, aname, flag, msim, slim, rwin])
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
+        writer.writerow(["record_index", "f00_u64"] + [f"f{i:02d}_u32" for i in range(1, 8)])
+        for record_index in range(h_vec_len):
+            elem = h_vec_offset + 4 + record_index * 4
+            table = elem + struct.unpack_from("<I", hdata, elem)[0]
+            vt = table - struct.unpack_from("<i", hdata, table)[0]
+            vsize, _ = struct.unpack_from("<HH", hdata, vt)
+            offsets = struct.unpack_from("<" + "H" * ((vsize - 4) // 2), hdata, vt + 4)
+            values = [struct.unpack_from("<Q" if fi == 0 else "<I", hdata, table + off)[0] if off else "" for fi, off in enumerate(offsets)]
+            writer.writerow([record_index, *values])
 
     # 3. Huge Outbreak Lottery Parameters
     lottery_path = ROMFS_BIN / "field/encount/new_huge_outbreak_lottery.bin"
@@ -440,18 +438,16 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
     out_lottery_path = output_dir / "huge_outbreak_lottery.tsv"
     lottery_count = l_vec_len
     with open(out_lottery_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
-        writer.writerow(["area_id", "area_name", "system_flag", "base_chance_percent", "rain_bonus_percent", "duration_min", "duration_max"])
-        
-        lottery_data = [
-            (1, "Obsidian Fieldlands", "FSYS_NEW_OUTBREAK_OPEN_AREA01", 25, 11, 10, 15),
-            (2, "Crimson Mirelands", "FSYS_NEW_OUTBREAK_OPEN_AREA02", 25, 11, 10, 15),
-            (3, "Cobalt Coastlands", "FSYS_NEW_OUTBREAK_OPEN_AREA03", 25, 11, 10, 15),
-            (4, "Coronet Highlands", "FSYS_NEW_OUTBREAK_OPEN_AREA04", 25, 11, 10, 15),
-            (5, "Alabaster Icelands", "FSYS_NEW_OUTBREAK_OPEN_AREA05", 25, 11, 10, 15),
-        ]
-        for aid, aname, flag, base_c, rain_b, dmin, dmax in lottery_data:
-            writer.writerow([aid, aname, flag, base_c, rain_b, dmin, dmax])
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
+        writer.writerow(["record_index", "f00_u64"] + [f"f{i:02d}_u32" for i in range(1, 18)])
+        for record_index in range(l_vec_len):
+            elem = l_vec_offset + 4 + record_index * 4
+            table = elem + struct.unpack_from("<I", ldata, elem)[0]
+            vt = table - struct.unpack_from("<i", ldata, table)[0]
+            vsize, _ = struct.unpack_from("<HH", ldata, vt)
+            offsets = struct.unpack_from("<" + "H" * ((vsize - 4) // 2), ldata, vt + 4)
+            values = [struct.unpack_from("<Q" if fi == 0 else "<I", ldata, table + off)[0] if off else "" for fi, off in enumerate(offsets)]
+            writer.writerow([record_index, *values])
 
     return encount_count, huge_count, lottery_count
 
@@ -472,6 +468,134 @@ def export_world_config(output_dir: Path) -> int:
                 lexical_type = "integer" if value.lstrip("+-").isdigit() else "float" if _is_float(value) else "string"
                 writer.writerow([key, index, value, lexical_type])
     return sum(len([v for v in values if v != ""]) for values in config.values())
+
+
+def export_spawn_source_fields(output_dir: Path) -> int:
+    """Export exact FlatBuffer table words without assigning game semantics.
+
+    Domain labels remain unproven, so headers use raw field indices. Wire
+    types are assigned only where the record layout and observed bits support
+    them; offset fields retain their relative u32 value and are not followed.
+    """
+    source_files = [
+        ROMFS_BIN / "field/encount/huge_outbreak.bin",
+        ROMFS_BIN / "field/encount/new_huge_outbreak_group.bin",
+        ROMFS_BIN / "field/encount/new_huge_outbreak_group_lottery.bin",
+        ROMFS_BIN / "field/encount/new_huge_outbreak_lottery.bin",
+        ROMFS_BIN / "field/encount/new_huge_outbreak_time_limit.bin",
+        ROMFS_BIN / "pokemon/data/poke_encount.bin",
+        ROMFS_BIN / "pokemon/data/poke_event_encount.bin",
+        ROMFS_BIN / "pokemon/data/poke_battle_spawn.bin",
+    ]
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = output_dir / "spawn_source_fields.tsv"
+    nested_path = output_dir / "spawn_nested_raw_fields.tsv"
+    row_count = 0
+    nested_count = 0
+    with out_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
+        writer.writerow(["source_file", "record_index", "field_index", "vtable_byte_offset", "wire_type", "value"])
+        type_layouts = {
+            "field/encount/huge_outbreak.bin": ["u64"] + ["u32"] * 7,
+            "field/encount/new_huge_outbreak_group.bin": ["u64", "uoffset_u32", "u64"],
+            "field/encount/new_huge_outbreak_group_lottery.bin": ["u64", "uoffset_u32", "uoffset_u32", "uoffset_u32"],
+            "field/encount/new_huge_outbreak_lottery.bin": ["u64"] + ["u32"] * 17,
+            "field/encount/new_huge_outbreak_time_limit.bin": ["u32"] * 4,
+            "pokemon/data/poke_encount.bin": ["u32", "absent"] + ["f32"] * 12,
+            "pokemon/data/poke_event_encount.bin": ["u32", "u32", "absent", "u32"],
+            "pokemon/data/poke_battle_spawn.bin": ["raw_u32"] * 6,
+        }
+        for path in source_files:
+            if not path.is_file():
+                raise FileNotFoundError(f"Missing spawn source: {path}")
+            data = path.read_bytes()
+            root = struct.unpack_from("<I", data, 0)[0]
+            root_vt = root - struct.unpack_from("<i", data, root)[0]
+            root_vsize = struct.unpack_from("<H", data, root_vt)[0]
+            root_fields = struct.unpack_from("<" + "H" * ((root_vsize - 4) // 2), data, root_vt + 4)
+            if not root_fields or not root_fields[0]:
+                raise ValueError(f"No root vector field in {path}")
+            vec_ptr = root + root_fields[0]
+            vec = vec_ptr + struct.unpack_from("<I", data, vec_ptr)[0]
+            count = struct.unpack_from("<I", data, vec)[0]
+            relative_name = path.relative_to(ROMFS_BIN).as_posix()
+            for record_index in range(count):
+                elem = vec + 4 + record_index * 4
+                table = elem + struct.unpack_from("<I", data, elem)[0]
+                vtable = table - struct.unpack_from("<i", data, table)[0]
+                vsize = struct.unpack_from("<H", data, vtable)[0]
+                field_offsets = struct.unpack_from("<" + "H" * ((vsize - 4) // 2), data, vtable + 4)
+                for field_index, field_offset in enumerate(field_offsets):
+                    wire_type = type_layouts[relative_name][field_index]
+                    value = ""
+                    if field_offset:
+                        pos = table + field_offset
+                        if wire_type == "u64":
+                            value = struct.unpack_from("<Q", data, pos)[0]
+                        elif wire_type == "f32":
+                            value = format(struct.unpack_from("<f", data, pos)[0], ".9g")
+                        elif wire_type != "absent":
+                            value = struct.unpack_from("<I", data, pos)[0]
+                    writer.writerow([relative_name, record_index, field_index, field_offset or "", wire_type, value])
+                    row_count += 1
+    # The 166-group and 7-lottery tables contain vectors of child tables.
+    # Export child vtable slots as uninterpreted storage bytes; no species,
+    # level, area, or probability interpretation is established by this.
+    with nested_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
+        writer.writerow(["source_file", "parent_record", "vector_field_index", "child_index", "child_field_index", "vtable_byte_offset", "storage_hex"])
+        vector_fields = {
+            "field/encount/new_huge_outbreak_group.bin": (1,),
+            "field/encount/new_huge_outbreak_group_lottery.bin": (1, 2, 3),
+        }
+        for path in source_files:
+            rel = path.relative_to(ROMFS_BIN).as_posix()
+            if rel not in vector_fields:
+                continue
+            data = path.read_bytes()
+            root = struct.unpack_from("<I", data, 0)[0]
+            q = root + 4
+            vec = q + struct.unpack_from("<I", data, q)[0]
+            count = struct.unpack_from("<I", data, vec)[0]
+            for parent_index in range(count):
+                elem = vec + 4 + parent_index * 4
+                parent = elem + struct.unpack_from("<I", data, elem)[0]
+                pvt = parent - struct.unpack_from("<i", data, parent)[0]
+                pvs = struct.unpack_from("<H", data, pvt)[0]
+                poffs = struct.unpack_from("<" + "H" * ((pvs - 4) // 2), data, pvt + 4)
+                for field_index in vector_fields[rel]:
+                    poff = poffs[field_index]
+                    if not poff:
+                        continue
+                    vp = parent + poff
+                    child_vec = vp + struct.unpack_from("<I", data, vp)[0]
+                    child_count = struct.unpack_from("<I", data, child_vec)[0]
+                    for child_index in range(child_count):
+                        celem = child_vec + 4 + child_index * 4
+                        child = celem + struct.unpack_from("<I", data, celem)[0]
+                        cvt = child - struct.unpack_from("<i", data, child)[0]
+                        cvs, cts = struct.unpack_from("<HH", data, cvt)
+                        coffs = struct.unpack_from("<" + "H" * ((cvs - 4) // 2), data, cvt + 4)
+                        sorted_offsets = sorted(x for x in coffs if x)
+                        next_offset = {x: sorted_offsets[i + 1] if i + 1 < len(sorted_offsets) else cts for i, x in enumerate(sorted_offsets)}
+                        for child_field, coff in enumerate(coffs):
+                            storage = ""
+                            if coff:
+                                width = next_offset[coff] - coff
+                                storage = data[child + coff:child + coff + width].hex()
+                            writer.writerow([rel, parent_index, field_index, child_index, child_field, coff or "", storage])
+                            nested_count += 1
+    # A separate app-config has a usable key/value layout but no demonstrated
+    # per-area species, level, or weight fields.
+    spawner_cfg = ROMFS_BIN / "misc/app_config/field_spawner_config.bin"
+    app_values = parse_app_config(spawner_cfg)
+    with (output_dir / "spawner_config_values.tsv").open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
+        writer.writerow(["config_key", "value_index", "value_text"])
+        for key in sorted(app_values):
+            for value_index, value in enumerate(app_values[key]):
+                writer.writerow([key, value_index, value])
+    return row_count + nested_count
 
 
 def _is_float(value: str) -> bool:
@@ -499,6 +623,9 @@ def main() -> None:
 
     n_wormhole = export_world_config(SHEETS_DATA / "world")
     print(f"[+] Preserved {n_wormhole} non-empty wormhole config values into sheets/data/world/")
+
+    n_spawn_fields = export_spawn_source_fields(SHEETS_DATA / "field")
+    print(f"[+] Preserved {n_spawn_fields} raw FlatBuffer fields from spawn/encounter sources")
 
     print("=== Decoding complete successfully! ===")
 
