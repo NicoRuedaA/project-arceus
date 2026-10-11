@@ -1336,9 +1336,22 @@ def main() -> int:
         with args.event_log.open("a", encoding="utf-8") as events:
             def on_stop(line: str) -> None:
                 nonlocal count
+                # Preserve the exact MI async record before interpreting it. A
+                # stop must never be silently lost or strand the guest paused.
+                controls.log(f"MI_STOP verbatim: {line}")
                 stopped = parse_stop([line]) or {}
                 if stopped.get("reason") != "watchpoint-trigger":
-                    raise TraceError(f"Unexpected target stop during trace: {line}")
+                    events.write(json.dumps({
+                        "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
+                        "module": module_name, "module_base": f"0x{base:x}",
+                        "main_nso_build_id": build_id,
+                        "type": "non-watchpoint-stop", "stop_reason": stopped.get("reason"),
+                        "raw_stopped": line,
+                    }, sort_keys=True) + "\n")
+                    events.flush()
+                    controls.log(f"non-watchpoint stop recorded; resuming guest: {stopped.get('reason')}")
+                    continue_target(gdb)
+                    return
                 pc = parse_address(evaluate(gdb, "$pc"))
                 lr = parse_address(evaluate(gdb, "$x30"))
                 frames = get_frames(gdb, base, functions, args.frames)
@@ -1348,7 +1361,7 @@ def main() -> int:
                     "host_scan_result": str(host_scan_result),
                     "table_file": str(args.file), "signature_hex": signature.hex(),
                     "buffer_address": f"0x{address:x}", "watchpoint": args.watchpoint,
-                    "stop_reason": stopped.get("reason"),
+                    "stop_reason": stopped.get("reason"), "raw_stopped": line,
                     "pc": f"0x{pc:x}", "pc_function": find_function(pc, base, functions),
                     "lr": f"0x{lr:x}", "lr_function": find_function(lr, base, functions),
                     "frames": frames,
