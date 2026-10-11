@@ -24,8 +24,8 @@ class DecodeError(ValueError):
     """Raised when the source does not match the observed binary layout."""
 
 
-def parse_records(data: bytes) -> list[tuple[int, int, int]]:
-    """Return (record_index, f00_u64, f08_u64) after strict size checks."""
+def parse_records(data: bytes) -> list[tuple[int, int, int, str]]:
+    """Return raw records; evidence remains UNKNOWN until a reader is linked."""
     if len(data) < HEADER_SIZE:
         raise DecodeError(f"file is shorter than {HEADER_SIZE}-byte count header")
     count = struct.unpack_from("<I", data, 0)[0]
@@ -39,7 +39,7 @@ def parse_records(data: bytes) -> list[tuple[int, int, int]]:
     for index in range(count):
         offset = HEADER_SIZE + index * RECORD_SIZE
         first, second = struct.unpack_from("<QQ", data, offset)
-        records.append((index, first, second))
+        records.append((index, first, second, "UNKNOWN"))
     return records
 
 
@@ -54,7 +54,7 @@ def write_tsv(path: Path, records: list[tuple[int, int, int]]) -> None:
         stream.write("# requires: -\n")
         stream.write("# doctrine: D2,D3\n")
         writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
-        writer.writerow(("record_index:u32*", "f00_u64:u64", "f08_u64:u64"))
+        writer.writerow(("record_index:u32*", "f00_u64:u64", "f08_u64:u64", "evidence:string"))
         writer.writerows(records)
 
 

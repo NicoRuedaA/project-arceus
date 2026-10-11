@@ -13,7 +13,10 @@ class ItemHashToIndexTests(unittest.TestCase):
         data = struct.pack("<IQQQQ", 2, 0x0102030405060708, 9, 10, 0xFFFFFFFFFFFFFFFF)
         self.assertEqual(
             decoder.parse_records(data),
-            [(0, 0x0102030405060708, 9), (1, 10, 0xFFFFFFFFFFFFFFFF)],
+            [
+                (0, 0x0102030405060708, 9, "UNKNOWN"),
+                (1, 10, 0xFFFFFFFFFFFFFFFF, "UNKNOWN"),
+            ],
         )
 
     def test_rejects_short_count_header(self) -> None:
