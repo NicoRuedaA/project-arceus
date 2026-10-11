@@ -154,14 +154,14 @@ fn rust_type(col: &Column) -> String {
 
 fn rust_value(col: &Column, value: &str) -> String {
     let base = match col.ty.as_str() {
-        "u8" | "u16" | "u32" | "u64" | "i32" | "i64" | "f32" => {
+        "u8" | "u16" | "u32" | "u64" | "i32" | "i64" => {
             if value.is_empty() {
                 "0".to_string()
             } else {
                 value.to_string()
             }
         }
-        "f64" => f64_literal(value),
+        "f32" | "f64" => f64_literal(value),
         "bool" => {
             if value == "1" {
                 "true".to_string()
@@ -327,25 +327,25 @@ mod tests {
     use super::{f64_literal, rust_value};
     use crate::parse::Column;
 
-    #[test]
-    fn emits_integer_shaped_values_as_f64_literals() {
-        let required = Column {
-            name: "amount".into(),
-            ty: "f64".into(),
-            optional: false,
+    fn column(ty: &str, optional: bool) -> Column {
+        Column {
+            name: "value".into(),
+            ty: ty.into(),
+            optional,
             reference: None,
             default: None,
             flags: String::new(),
-        };
-        let optional = Column {
-            optional: true,
-            ..required.clone()
-        };
-        assert_eq!(rust_value(&required, "2"), "2.0");
-        assert_eq!(rust_value(&required, ""), "0.0");
-        assert_eq!(rust_value(&optional, "2"), "Some(2.0)");
-        assert_eq!(rust_value(&optional, ""), "None");
-        assert_eq!(f64_literal("1.25"), "1.25");
+        }
+    }
+
+    #[test]
+    fn emits_float_literals_for_integral_float_cells() {
+        assert_eq!(rust_value(&column("f64", false), "2"), "2.0");
+        assert_eq!(rust_value(&column("f32", false), "-3"), "-3.0");
+        assert_eq!(rust_value(&column("f64", false), "1.25"), "1.25");
+        assert_eq!(rust_value(&column("f64", false), ""), "0.0");
+        assert_eq!(rust_value(&column("f64", true), "4"), "Some(4.0)");
+        assert_eq!(rust_value(&column("f64", true), ""), "None");
         assert_eq!(f64_literal("1e-3"), "1e-3");
     }
 }

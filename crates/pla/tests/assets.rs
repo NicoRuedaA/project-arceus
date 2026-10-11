@@ -13,7 +13,7 @@ use pla::assets::{
     gfpak::GfPak,
     message::{MessageEntry, MessageFile, MessageStore},
     sarc::Sarc,
-    tr::TrMbf,
+    tr::{TrMbf, TrSkl},
     vfxb::Vfxb,
 };
 
@@ -167,6 +167,44 @@ fn gfpak_locators_payload_has_names() {
         text.contains("lower_head"),
         "expected locator names in payload"
     );
+}
+
+#[test]
+fn pokemon_gfpak_oodle_entries_decode_to_declared_size_and_parse() {
+    let Some(bytes) = fixture("pm0025_00_00.gfpak") else {
+        return;
+    };
+    let pak = GfPak::parse(&bytes).expect("Pokémon GFLXPACK parses");
+    assert_eq!(pak.kind, 4);
+    assert_eq!(pak.entry_count as usize, pak.entries.len());
+
+    let mut framed = 0;
+    let mut compressed = 0;
+    let mut trmbf = 0;
+    let mut trskl = 0;
+    for entry in &pak.entries {
+        let raw = pak.data(&bytes, entry).expect("entry payload");
+        if pla::assets::gfpak::is_oodle_frame(raw) {
+            framed += 1;
+            compressed += usize::from(raw[0] & 0x40 == 0);
+            let decoded = pak
+                .decoded_data(&bytes, entry)
+                .expect("Oodle entry decodes");
+            assert_eq!(decoded.len(), entry.declared_decompressed_size() as usize);
+            trmbf += usize::from(TrMbf::parse(&decoded).is_ok());
+            trskl += usize::from(TrSkl::parse(&decoded).is_ok());
+        }
+    }
+    assert_eq!(framed, 180, "every sample entry should be Oodle-framed");
+    assert_eq!(
+        compressed, 177,
+        "the remaining framed entries are raw blocks"
+    );
+    assert!(
+        trmbf > 0,
+        "at least one decompressed mesh buffer should parse"
+    );
+    eprintln!("[census] decoded trmbf={trmbf}, trskl={trskl}");
 }
 
 #[test]
