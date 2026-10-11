@@ -184,3 +184,11 @@ Detailed blocker record: [`sheets/data/schemas/field_huge_outbreak_fields.tsv`](
 pkNX's pinned [asset mapping](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Game/File/GameFileMapping.cs) labels this asset `WormholeConfig`, but no public field schema was found. The local decoded TSV contains 37 unique keys, each with `value_index=0`; 36 `value_text` values look integer-like and one is string-like. Those values prove only lexical output shape—not original scalar widths/types, field meanings, or key/value vector binding. Keep all candidate mappings unverified.
 
 Detailed map: [`sheets/data/schemas/field_wormhole_fields.tsv`](../../sheets/data/schemas/field_wormhole_fields.tsv).
+
+### Satchel/bag capacity (documented; no source table located)
+
+PKHeX at commit `66ef5983a5d349efa2dd615f2926a1b1ee97306e` (GPL-3.0) identifies the save counter `KSatchelUpgrades` as U32 key hash `0x75CE2CF6`, range 0–39, and computes satchel size as `min(675, counter + 20)`. It also defines separate pouch sizes: 100 key items, 180 stored items, and 70 treasure/recipe items. [Serebii's upgrade guide](https://www.serebii.net/legendsarceus/itemstorageupgrade.shtml) corroborates a starting capacity of 20 and maximum of 59; the local native audit's capacity branches align with the fixed pouch sizes.
+
+**Limit:** these checks document capacity behavior and the save counter, not an expansion-price table. No tier-price asset/schema was located; do not infer prices from the counter.
+
+Detailed map: [`sheets/data/schemas/satchel_capacity_fields.tsv`](../../sheets/data/schemas/satchel_capacity_fields.tsv).
