@@ -29,7 +29,7 @@ class MockStub:
         address, length = int(match.group(1), 16), int(match.group(2))
         self.requests.append((address, length))
         if address in self.failures:
-            raise trace.TraceError("GDB rejected memory read: E01")
+            raise trace.MemoryReadError("GDB rejected memory read: E01")
         region = next(((base, data) for base, data in self.mapped
                        if base <= address and address + length <= base + len(data)), None)
         if region is None:
@@ -76,7 +76,7 @@ class SafeScanTests(unittest.TestCase):
 
     def test_packet_size_is_parsed_and_reads_are_capped(self):
         self.assertEqual(trace.parse_packet_size("PacketSize=2000;qXfer:features:read+"), 0x2000)
-        self.assertEqual(trace.safe_read_size(0x2000, 0x10000), 0x400)
+        self.assertEqual(trace.safe_read_size(0x4000, 0x10000), 0x1000)
         self.assertEqual(trace.safe_read_size(0x120), 0x80)
         with self.assertRaises(trace.TraceError):
             trace.parse_packet_size("qXfer:features:read+")
@@ -98,7 +98,7 @@ class SafeScanTests(unittest.TestCase):
         )
         self.assertEqual(found, second_start)
         self.assertTrue(stub.requests)
-        self.assertTrue(all(length <= 0x400 for _, length in stub.requests))
+        self.assertTrue(all(length <= 0x1000 for _, length in stub.requests))
         for address, length in stub.requests:
             self.assertTrue(start <= address <= start + 0x4ff or second_start <= address < second_start + len(second))
             self.assertLessEqual(address + length - 1, start + 0x4ff if address < second_start else second_start + len(second) - 1)
@@ -106,19 +106,149 @@ class SafeScanTests(unittest.TestCase):
     def test_e01_chunk_is_skipped_and_scan_continues(self):
         start = 0x8000
         signature = b"distinctive-table-signature"
-        stub = MockStub([(start, b"X" * 0x100 + b"?" * 0x100 +
-                          signature + b"Y" * (0x100 - len(signature)))],
-                        failures={start + 0x100})
+        contents = b"X" * 0x1000 + b"?" * 0x1000 + signature + b"Y" * (0x1000 - len(signature))
+        stub = MockStub([(start, contents)], failures={start + 0x1000})
         found = trace.scan_signature(
-            stub, [(start, start + 0x2ff, "r--", "Normal")], signature,
-            0x100, 0x1000, 0x1000, request_delay=0,
+            stub, [(start, start + len(contents) - 1, "r--", "Normal")], signature,
+            0x1000, len(contents), 0x4000, request_delay=0,
         )
-        self.assertEqual(found, start + 0x200)
-        self.assertEqual([address for address, _ in stub.requests], [start, start + 0x100, start + 0x200])
+        self.assertEqual(found, start + 0x2000)
+        self.assertEqual([address for address, _ in stub.requests], [start, start + 0x1000, start + 0x2000])
+
+    def test_mi_timeout_aborts_scan_without_issuing_another_memory_read(self):
+        class TimeoutStub:
+            def __init__(self):
+                self.requests = []
+            def ok(self, command):
+                self.requests.append(command)
+                raise trace.TraceError("Timed out waiting for GDB MI output")
+
+        stub = TimeoutStub()
+        with self.assertRaisesRegex(trace.TraceError, "Timed out waiting"):
+            trace.scan_signature(
+                stub, [(0x9000, 0xafff, "r--", "Normal")], b"table-signature",
+                0x1000, 0x2000, 0x4000, request_delay=0,
+            )
+        self.assertEqual(stub.requests, ["-data-read-memory-bytes 0x9000 4096"])
+
+    def test_short_memory_reply_is_skipped_and_scan_continues(self):
+        start = 0xa000
+        signature = b"short-reply-followed-by-table-signature"
+        class ShortThenData:
+            def __init__(self):
+                self.requests = []
+            def ok(self, command):
+                import re
+                match = re.fullmatch(r"-data-read-memory-bytes 0x([0-9a-f]+) ([0-9]+)", command)
+                address, length = int(match.group(1), 16), int(match.group(2))
+                self.requests.append(address)
+                if address == start:
+                    return '^done,memory=[]', []
+                data = signature + b"Z" * (length - len(signature))
+                return f'^done,memory=[{{begin="0x{address:x}",contents="{data.hex()}"}}]', []
+
+        stub = ShortThenData()
+        found = trace.scan_signature(
+            stub, [(start, start + 0x1fff, "r--", "Normal")], signature,
+            0x1000, 0x2000, 0x4000, request_delay=0,
+        )
+        self.assertEqual(found, start + 0x1000)
+        self.assertEqual(stub.requests, [start, start + 0x1000])
+
+    def test_scan_caps_reads_at_page_and_skips_partial_tail_without_crossing_region(self):
+        start = 0xb003
+        size = 0x3000 + 0x800
+        class NoMatch:
+            def __init__(self):
+                self.requests = []
+            def ok(self, command):
+                import re
+                match = re.fullmatch(r"-data-read-memory-bytes 0x([0-9a-f]+) ([0-9]+)", command)
+                address, length = int(match.group(1), 16), int(match.group(2))
+                self.requests.append((address, length))
+                return f'^done,memory=[{{begin="0x{address:x}",contents="{(b"X" * length).hex()}"}}]', []
+
+        stub = NoMatch()
+        with self.assertRaisesRegex(trace.TraceError, "no match"):
+            trace.scan_signature(
+                stub, [(start, start + size - 1, "r--", "CodeData")], b"not-present-signature",
+                0x1000, size, 0x4000, request_delay=0,
+            )
+        self.assertEqual([length for _, length in stub.requests], [0x1000, 0x1000, 0x1000])
+        self.assertTrue(all(start <= address and address + length - 1 <= start + size - 1
+                            for address, length in stub.requests))
+
+    def test_fast_success_path_does_not_sleep(self):
+        start = 0xc000
+        signature = b"fast-success-path-signature-48-bytes!!"
+        signature = signature[:48].ljust(48, b"!")
+        stub = MockStub([(start, signature + b"Z" * 32)])
+        with patch.object(trace.time, "sleep") as sleep:
+            found = trace.scan_signature(
+                stub, [(start, start + 79, "rw-", "Alias")], signature,
+                0x1000, 0x1000, 0x4000, request_delay=0.01,
+            )
+        self.assertEqual(found, start)
+        sleep.assert_not_called()
+
+    def test_explicit_read_error_is_paced_but_successful_reads_are_not(self):
+        start = 0xd000
+        signature = b"paced-error-then-successful-signature-48"[:48]
+        contents = b"X" * 0x1000 + signature + b"Z" * (0x1000 - len(signature))
+        stub = MockStub([(start, contents)], failures={start})
+        with patch.object(trace.time, "sleep") as sleep:
+            found = trace.scan_signature(
+                stub, [(start, start + len(contents) - 1, "rw-", "ThreadLocal")], signature,
+                0x1000, len(contents), 0x4000, request_delay=0.02,
+            )
+        self.assertEqual(found, start + 0x1000)
+        sleep.assert_called_once_with(0.02)
+
+    def test_large_normal_uses_page_prefix_then_verifies_full_signature(self):
+        start = 0x100000
+        signature = bytes(range(48))
+        class CandidateStub:
+            def __init__(self):
+                self.requests = []
+            def ok(self, command):
+                import re
+                match = re.fullmatch(r"-data-read-memory-bytes 0x([0-9a-f]+) ([0-9]+)", command)
+                address, length = int(match.group(1), 16), int(match.group(2))
+                self.requests.append((address, length))
+                if length == trace.SIGNATURE_PROBE_SIZE:
+                    block = signature[:16] if address in (start, start + 0x1000) else b"X" * 16
+                elif address == start:
+                    block = signature[:16] + b"?" * (length - 16)
+                elif address == start + 0x1000:
+                    block = signature
+                else:
+                    block = b"X" * length
+                return f'^done,memory=[{{begin="0x{address:x}",contents="{block.hex()}"}}]', []
+
+        stub = CandidateStub()
+        region_end = start + trace.SMALL_EXACT_REGION_MAX + 0x1fff
+        found = trace.scan_signature(
+            stub, [(start, region_end, "r--", "Normal")], signature,
+            0x1000, region_end - start + 1, 0x4000, request_delay=0,
+        )
+        self.assertEqual(found, start + 0x1000)
+        self.assertEqual(stub.requests, [(start, 16), (start, 48), (start + 0x1000, 16), (start + 0x1000, 48)])
+
+    def test_heap_first_window_is_bounded_before_normal_regions(self):
+        heap = (0x100000, 0x100000 + trace.HEAP_FIRST_WINDOW * 2 - 1, "rw-", "Heap")
+        code = (0x1000, 0x1fff, "rw-", "CodeData")
+        normal = (0x2000, 0x2fff, "r--", "Normal")
+        selected, _eligible, total = trace.select_scan_regions(
+            [heap, normal, code], trace.HEAP_FIRST_WINDOW + 0x2000,
+        )
+        self.assertEqual(total, trace.HEAP_FIRST_WINDOW + 0x2000)
+        self.assertEqual(selected[0], code)
+        self.assertEqual(selected[1], (heap[0], heap[0] + trace.HEAP_FIRST_WINDOW - 1, "rw-", "Heap"))
+        self.assertEqual(selected[2], normal)
 
     def test_memory_read_rejects_oversize_and_tolerates_malformed_short_reply(self):
         with self.assertRaises(trace.TraceError):
-            trace.memory_read(MockStub({}), 0x1000, 0x401)
+            trace.memory_read(MockStub([]), 0x1000, 0x1001)
         class ShortReply:
             def ok(self, _command):
                 return '^done,memory=[]', []
@@ -140,21 +270,30 @@ class SafeScanTests(unittest.TestCase):
         ])
         found = trace.parse_mappings(rows)
         self.assertEqual([kind for _, _, _, kind in found],
-                         ["Heap", "Normal", "CodeData", "Alias", "Stack", "ThreadLocal"])
+                         ["CodeData", "Alias", "ThreadLocal", "Heap", "Normal", "Stack"])
         self.assertTrue(all("r" in perms for _, _, perms, _ in found))
 
-    def test_region_selection_orders_heap_first_and_caps_pass(self):
+    def test_region_selection_prioritizes_data_heap_window_and_largest_normal(self):
         regions = [
             (0x1000, 0x1fff, "r--", "Normal"),
             (0x5000, 0x5fff, "rw-", "Heap"),
             (0x3000, 0x3fff, "rw-", "Heap"),
+            (0x7000, 0x7fff, "rw-", "Alias"),
+            (0x9000, 0x9fff, "rw-", "CodeData"),
+            (0xb000, 0xbfff, "rw-", "ThreadLocal"),
+            (0xd000, 0x1cfff, "r--", "Normal"),
         ]
-        selected, eligible, total = trace.select_scan_regions(regions, 0x1800)
-        self.assertEqual(eligible, 0x3000)
-        self.assertEqual(total, 0x1800)
+        selected, eligible, total = trace.select_scan_regions(regions, 0x20000)
+        self.assertEqual(eligible, 0x16000)
+        self.assertEqual(total, eligible)
         self.assertEqual(selected, [
+            (0x9000, 0x9fff, "rw-", "CodeData"),
+            (0x7000, 0x7fff, "rw-", "Alias"),
+            (0xb000, 0xbfff, "rw-", "ThreadLocal"),
             (0x3000, 0x3fff, "rw-", "Heap"),
-            (0x5000, 0x57ff, "rw-", "Heap"),
+            (0x5000, 0x5fff, "rw-", "Heap"),
+            (0xd000, 0x1cfff, "r--", "Normal"),
+            (0x1000, 0x1fff, "r--", "Normal"),
         ])
         with self.assertRaisesRegex(trace.TraceError, "hard maximum"):
             trace.select_scan_regions(regions, trace.MAX_REVIEWED_SCAN_BYTES + 1)

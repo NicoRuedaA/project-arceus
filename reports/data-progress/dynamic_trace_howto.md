@@ -7,31 +7,49 @@ that buffer; field interpretation remains a separate pseudocode-evidence task.
 
 ## Current status and crash evidence
 
-**Current live trace blocker (2026-10-11): the quest scan has not run and no
-watchpoint is armed.** The driver received a successful gameplay interrupt,
-but the readable-map aggregate guard rejected 549,746,958,336 bytes before
-issuing any RAM-read request. Offline review found that the captured RSP
-`monitor get mappings` reply was truncated (`[325500 of 326012 bytes
-omitted]`); the only visible row is `0x0000000000 - 0x0080723fff Free -----
-[0, 0]`. The full map and committed-region list were not captured, so no
-claim about the game's actual heap/layout or scan coverage is supported. The
-guest was resumed to avoid a prolonged freeze; do not infer that the table was
-found. The parser bug was that it treated `Free` as a permission token and
-tested it for `r`.
+**Latest rehearsal status (2026-10-11): no reader event or watchpoint has
+been captured; Eden and GDB are closed.** Attempt 1 launched one Eden 0.2.1
+instance with the PLA base game, attached once, and validated `main.nss` at
+`0x80724000` against build ID `aee8f150dda1b5a838806e1a5ea6827ad9f3c51e`
+and all three independent byte pairs. After continuing to early boot, the
+driver interrupted and scanned for the 48-byte prefix of
+`event/event_progress/event_random_seed.bin` (648 bytes). It selected
+1,368,727,552 bytes of mapped data, but the 0x400-byte/10 ms scanner processed
+only part of the Normal regions after about 14 minutes. No signature match or
+watchpoint was recorded.
 
-For a future run, the scanner accepts only readable rows whose exact region
-type is `Heap`, `Normal`, `CodeData`, `Alias`, `Stack`, or `ThreadLocal`;
-permission-less `Free`, `Reserved`, `IO`, code/Code-RO, kernel, and unknown
-types are excluded. It logs every selected range, size, aggregate, and cap
-before the first memory-read packet. The default pass cap is 6 GiB and cannot
-be raised above that limit; when eligible memory is larger, the selected pass
-is ordered heap-first and is capped at 6 GiB. Reads remain at most 0x400 bytes,
-paced by 10 ms, and E01/short replies skip only their affected chunk. The
-scan stops at the first complete 48-byte signature match in that pass. No
-scan was attempted against the current live session.
+Eden then aborted with SIGABRT (PID 345245, TID 345385 named `Debugger`); the
+unsymbolized stack repeats `libstdc++ +0xb55ca <- eden +0x995da7 <-
+eden +0x996a25 <- eden +0x863409`. The selected mapping containing the last
+unanswered read was `0x118490c000-0x1184955fff`, type `Normal`, permissions
+`rw-`, size 303,104 bytes. GDB sent `m1184916000,400` and received no reply,
+then attempted `m1184916000,1` and `m11849163ff,1`; the core timestamp is
+within seconds of those packets. The mapping-state column was not preserved
+separately. This timing is evidence to investigate, **not proof that this
+exact read caused the abort**.
 
-The first live RAM scan attempt is **blocked pending a fresh user-started Eden
-session**. Eden aborted on 2026-10-11 at 15:33:32 CEST (PID 185443, TID 185562,
+The earlier 549,746,958,336-byte cap failure was a separate pre-scan parser
+bug: a permission-less `Free` row had been treated as a permission token and
+tested for `r`. The corrected parser accepts only readable rows with exact
+types `Heap`, `Normal`, `CodeData`, `Alias`, `Stack`, or `ThreadLocal`; `Free`,
+`Reserved`, `IO`, code/Code-RO, kernel, and unknown types are excluded. It
+records each selected range, permissions, size, aggregate, and cap before the
+first memory-read packet.
+
+Attempt 2 uses bounded priority scanning: reads are capped at 0x1000 bytes and
+clamped to `PacketSize` (Eden advertised `PacketSize=0x4000`); reads never
+cross a mapping end or use one-byte fallback. Only explicit target read errors
+are skipped with a brief delay; MI timeout, stream closure, or stub silence
+stops the scan and enters the retained-session idle hold. Small
+CodeData/Alias/ThreadLocal mappings are scanned exactly, followed by an
+initial bounded heap window. Large Normal mappings use 16-byte prefix probes
+at each complete 0x1000 page start and verify each candidate against the full
+48-byte signature. This large-Normal pass is sampled, not exhaustive: it can
+miss a signature outside the first 16 bytes of a sampled page. No exhaustive
+1.37 GB scan is intended.
+
+An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
+15:33:32 CEST (PID 185443, TID 185562,
 thread named `Debugger`, SIGABRT; core present). The supplied unsymbolized stack
 is `libc abort <- libstdc++ +0xb55ca <- eden +0x995da7 <- eden +0x996a25 <-
 eden +0x863409 ... <- libstdc++ thread start +0xfef44`. Eden's log was buffered;
@@ -52,14 +70,12 @@ the preceding Eden request: GDB itself (PID 189243) separately aborted at
 That later GDB failure is distinct from Eden's earlier crash.
 
 The scan implementation explicitly queries `qSupported` and requires
-`PacketSize`, limits requested chunks to at most 0x400 bytes (and the
-advertised packet capacity), pauses 10 ms between requests, and skips
-E01/short/error replies while clearing cross-gap signature overlap. The
-current implementation filters mapping types and records the heap-first
-bounded pass before scanning. Offline mock-stub tests cover parser exclusions,
-pass ordering/capping, pre-scan logging, bounded requests, mapped-only reads,
-error tolerance, and signature detection. No live retry is performed by
-offline tests.
+`PacketSize`. Offline mock-stub tests cover parser exclusions, scan priority
+and caps, pre-scan logging, page-sized requests, boundary/tail handling,
+short-read page skipping, transport timeout stopping, explicit E01 tolerance,
+page probes, and full-signature verification. These tests do not establish
+that the emulator will survive a live scan or that a candidate table is loaded
+at early boot.
 
 A later attach made seconds after Launching began did **not** crash Eden. The
 orchestrator confirmed the guest process had not yet been created, so an empty
@@ -91,7 +107,7 @@ never uses terminal `input()`:
 
 | Marker | Meaning |
 |---|---|
-| `gameplay-ready` | User confirms gameplay is visible and the in-game menu is closed. Driver interrupts the running guest on the same GDB connection, scans only readable mappings in <=0x400-byte paced reads, arms the watchpoint, then resumes. |
+| `gameplay-ready` | Control signal that the target is at the chosen scan point. Driver interrupts the running guest on the same GDB connection, scans selected readable mappings with bounded reads, arms the watchpoint, then resumes. For the autonomous rehearsal this is triggered by the operator only after early boot has settled; the user is not used as a test bench. |
 | `menu-action-done` | User completed the requested menu/action sequence. Driver interrupts briefly, disables the watchpoint, resumes gameplay, and keeps GDB attached and idle. |
 | `stop` | User confirms the game may be closed. This is the only exit gate after GDB attaches; the subsequent GDB exit can send `k` and close the game. |
 
@@ -137,13 +153,16 @@ The driver is `.tools/trace/gdb_table_trace.py`. The patched RomFS is at
 `/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/`. Update-main
 identity inputs are `main.nso` and its decompressed ELF, `main.elf`, under
 `/home/nico/work/decompilacion/work/pla/pk2/`. No runtime reader events are
-recorded in this preparation guide; run the driver only after Eden is running
-the game and the user is ready to exercise the selected screen.
+recorded in this preparation guide. For the autonomous early-table rehearsal,
+the user is not asked to play until a watchpoint hit has been captured.
 
 ## Before each trace
 
-1. Start Eden from the GUI and load Pokémon Legends: Arceus update v262144.
-   Keep the game paused at the title/menu or at the point specified below.
+1. Before each Eden launch, run `flatpak kill dev.eden_emu.eden` and verify
+   `flatpak ps` shows no Eden instance. Start exactly one process with the PLA
+   base game and update v262144. The X11 selection and
+   `QT_QPA_PLATFORM=xcb` override should avoid the Wayland prompt; if a dialog
+   still blocks launch, report it instead of launching again.
 2. In a terminal at the repository root, choose one exact table file from the
    patched RomFS. Keep the driver attached to the same running game instance.
 3. The driver checks the `main.nso` NSO header and `main.elf` GNU build ID
@@ -159,9 +178,10 @@ the game and the user is ready to exercise the selected screen.
    emulator and does not launch it. Eden's stub accepts one connection; keep
    this GDB client alive for the whole trace and do not attach another client.
    It can attach while Eden shows **Launching**: after build/module checks, the
-   driver continues the guest and waits for `gameplay-ready`. Once gameplay is
-   visible with the in-game menu closed, signal that stage from another
-   terminal with `touch work/progress/trace-ctl/gameplay-ready`. `--rsp-log`
+   driver continues the guest and waits for `gameplay-ready`. For a screen-
+   driven trace, signal that stage with
+   `touch work/progress/trace-ctl/gameplay-ready` once the game is at the
+   specified point. `--rsp-log`
    captures decoded remote packet debug lines from the initial handshake onward.
 
 ```sh
@@ -172,10 +192,13 @@ python3 .tools/trace/gdb_table_trace.py \
 
 The driver discovers the unique `main` module using `monitor get info`, parses
 readable mappings, queries the raw `qSupported` reply for `PacketSize`, and
-scans for the first 48 bytes of the table file using only mapped ranges. Every
-memory read is at most 0x400 bytes (also bounded by advertised packet capacity),
-with a 10 ms pause after each request; E01 and short/error replies skip only
-that chunk and cannot join a signature across the gap. It
+scans selected mapped ranges for the first 48 bytes of the table file. Reads
+are at most 0x1000 bytes and bounded by advertised packet capacity; they do
+not cross a mapping end, and there is no success-path delay. Explicit memory
+errors and short replies skip the affected page. MI timeout, stream closure,
+or stub silence stops the scan rather than triggering another request. Large
+Normal mappings use the documented sampled 16-byte page-start probe and full
+signature verification. It
 validates all three derived instruction sequences before mapping PCs to
 `functions.tsv` IDs. The event log records the checked build ID and validation
 bytes with each event. If an input identity mismatches, the signature is

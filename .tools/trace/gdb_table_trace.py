@@ -39,7 +39,11 @@ MAP_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(.*?)\s*$"
 MODULE_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(.+?)\s*$")
 MODULE_AT_LINE = re.compile(r"^\s*(.+?)\s+(?:at|@)\s+(0x[0-9a-fA-F]+)\s*$", re.IGNORECASE)
 PACKET_SIZE = re.compile(r"PacketSize=([0-9a-fA-F]+)")
-MAX_RSP_READ = 0x400
+MAX_RSP_READ = 0x1000
+SCAN_PAGE_SIZE = 0x1000
+SIGNATURE_PROBE_SIZE = 16
+SMALL_EXACT_REGION_MAX = 16 * 1024 * 1024
+HEAP_FIRST_WINDOW = 64 * 1024 * 1024
 MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
 SCAN_REGION_TYPES = {"heap", "normal", "codedata", "alias", "stack", "threadlocal"}
 MAP_PERMISSIONS = re.compile(r"^[r-][w-][x-](?:[r-][w-])?$")
@@ -51,6 +55,10 @@ class TraceError(RuntimeError):
 
 class TraceStop(TraceError):
     """A control-file request to stop the trace cleanly."""
+
+
+class MemoryReadError(TraceError):
+    """The target rejected one memory-read request (for example, with E01)."""
 
 
 def mi_unescape(value: str) -> str:
@@ -173,6 +181,8 @@ class GdbMi:
     def ok(self, command: str, timeout: float | None = None) -> tuple[str, list[str]]:
         result, lines = self.command(command, timeout)
         if result.startswith("^error"):
+            if command.startswith("-data-read-memory-bytes "):
+                raise MemoryReadError(f"GDB rejected memory read: {result}")
             raise TraceError(f"GDB rejected {command}: {result}")
         return result, lines
 
@@ -241,14 +251,26 @@ def parse_mappings(output: str) -> list[tuple[int, int, str, str]]:
 
 
 def order_scan_regions(regions: list[tuple[int, int, str, str]]) -> list[tuple[int, int, str, str]]:
-    """Order eligible data mappings with heap first, preserving address order otherwise."""
-    return sorted(regions, key=lambda region: (region[3].casefold() != "heap", region[0]))
+    """Prioritize likely data buffers, then heaps, then the largest Normal mappings."""
+    rank = {"codedata": 0, "alias": 1, "threadlocal": 2, "heap": 3,
+            "normal": 4, "stack": 5}
+    def key(region: tuple[int, int, str, str]) -> tuple[int, int, int]:
+        start, end, _perms, kind = region
+        kind_key = kind.casefold()
+        size_key = -(end - start + 1) if kind_key == "normal" else 0
+        return rank.get(kind_key, 6), size_key, start
+    return sorted(regions, key=key)
 
 
 def select_scan_regions(
     regions: list[tuple[int, int, str, str]], max_bytes: int,
 ) -> tuple[list[tuple[int, int, str, str]], int, int]:
-    """Select at most the reviewed byte cap, heap-first, truncating the last range."""
+    """Select a bounded pass in data/heap/Normal priority order.
+
+    Heap scanning is deliberately restricted to the first 64 MiB across heap
+    mappings so it cannot consume the whole pass before higher-value mapped
+    data and Normal regions are considered.
+    """
     if max_bytes < 1 or max_bytes > MAX_REVIEWED_SCAN_BYTES:
         raise TraceError(
             f"--max-scan-bytes must be between 1 and {MAX_REVIEWED_SCAN_BYTES} "
@@ -258,13 +280,20 @@ def select_scan_regions(
     eligible_total = sum(end - start + 1 for start, end, _, _ in ordered)
     selected: list[tuple[int, int, str, str]] = []
     remaining = max_bytes
+    heap_remaining = HEAP_FIRST_WINDOW
     for start, end, perms, region_type in ordered:
         if remaining <= 0:
             break
         size = end - start + 1
+        if region_type.casefold() == "heap":
+            if heap_remaining <= 0:
+                continue
+            size = min(size, heap_remaining)
         selected_size = min(size, remaining)
         selected.append((start, start + selected_size - 1, perms, region_type))
         remaining -= selected_size
+        if region_type.casefold() == "heap":
+            heap_remaining -= selected_size
     return selected, eligible_total, max_bytes - remaining
 
 
@@ -274,12 +303,15 @@ def log_scan_plan(controls: "ControlFiles", regions: list[tuple[int, int, str, s
     selected, eligible_total, selected_total = select_scan_regions(regions, max_bytes)
     details = [
         {"start": f"0x{start:x}", "end": f"0x{end:x}", "size": end - start + 1,
-         "type": kind, "perms": perms}
+         "type": kind, "perms": perms,
+         "scan": "page-probe" if kind.casefold() == "normal"
+                 and end - start + 1 > SMALL_EXACT_REGION_MAX else "exact"}
         for start, end, perms, kind in selected
     ]
     controls.log(
         f"scan plan: eligible_bytes={eligible_total}; selected_bytes={selected_total}; "
-        f"cap_bytes={max_bytes}; pass_order=heap-first; regions={json.dumps(details, sort_keys=True)}"
+        f"cap_bytes={max_bytes}; pass_order=CodeData/Alias/ThreadLocal,heap-first-window="
+        f"{HEAP_FIRST_WINDOW},largest-Normal; regions={json.dumps(details, sort_keys=True)}"
     )
     if eligible_total > selected_total:
         controls.log(
@@ -442,13 +474,13 @@ def parse_packet_size(output: str) -> int:
 
 def safe_read_size(packet_size: int, requested: int = MAX_RSP_READ) -> int:
     # An RSP memory reply hex-encodes each byte. Leave room for framing and
-    # never exceed 0x400 bytes, even when the stub advertises a larger packet.
+    # never exceed one 0x1000-byte guest page, even when the stub advertises a larger packet.
     return max(1, min(requested, MAX_RSP_READ, (packet_size - 32) // 2))
 
 
 def memory_read(gdb: GdbMi, address: int, length: int) -> bytes | None:
     if not 0 < length <= MAX_RSP_READ:
-        raise TraceError(f"Refusing unsafe memory read length {length}; maximum is 0x400")
+        raise TraceError(f"Refusing unsafe memory read length {length}; maximum is 0x1000")
     result, _ = gdb.ok(f"-data-read-memory-bytes 0x{address:x} {length}")
     match = re.search(r'contents="([0-9a-fA-F]*)"', result)
     if not match or len(match.group(1)) != length * 2:
@@ -461,48 +493,107 @@ def scan_signature(
     chunk_size: int, max_bytes: int, packet_size: int, request_delay: float = 0.01,
     checkpoint: Callable[[], None] | None = None,
 ) -> int:
-    chunk_size = min(chunk_size, safe_read_size(packet_size))
+    chunk_size = min(chunk_size, safe_read_size(packet_size), SCAN_PAGE_SIZE)
+    if chunk_size < 1:
+        raise TraceError("Negotiated RSP packet size cannot safely carry a memory read")
     selected, eligible_total, selected_total = select_scan_regions(regions, max_bytes)
     if eligible_total > selected_total:
-        print(f"Eligible mappings total {eligible_total} bytes; scanning heap-first capped pass of {selected_total} bytes", flush=True)
+        print(f"Eligible mappings total {eligible_total} bytes; scanning prioritized capped pass of {selected_total} bytes", flush=True)
     overlap = len(signature) - 1
     for start, end, _perms, _state in selected:
+        region_size = end - start + 1
+        page_probe = _state.casefold() == "normal" and region_size > SMALL_EXACT_REGION_MAX
+        if page_probe:
+            # This is a fast, sampled pass: probe the first 16 bytes of each
+            # complete 0x1000 page for the signature prefix, then verify the
+            # full signature at each candidate. Small regions use exact reads.
+            addr = start
+            while end - addr + 1 >= SCAN_PAGE_SIZE:
+                if checkpoint:
+                    checkpoint()
+                try:
+                    probe = memory_read(gdb, addr, SIGNATURE_PROBE_SIZE)
+                except MemoryReadError:
+                    if request_delay:
+                        time.sleep(request_delay)
+                    addr += SCAN_PAGE_SIZE
+                    if checkpoint:
+                        checkpoint()
+                    continue
+                if probe is not None:
+                    pos = probe.find(signature[:SIGNATURE_PROBE_SIZE])
+                    while pos >= 0:
+                        candidate = addr + pos
+                        if candidate + len(signature) - 1 <= end:
+                            try:
+                                full = memory_read(gdb, candidate, len(signature))
+                            except MemoryReadError:
+                                if request_delay:
+                                    time.sleep(request_delay)
+                                full = None
+                            if full == signature:
+                                return candidate
+                        pos = probe.find(signature[:SIGNATURE_PROBE_SIZE], pos + 1)
+                addr += SCAN_PAGE_SIZE
+                if checkpoint:
+                    checkpoint()
+            # Ignore any final partial page: it is not one of the reviewed
+            # 0x1000-page probes and must not trigger a small boundary read.
+            continue
+
         addr = start
         carry = b""
-        while addr <= end:
+        # A truly small candidate mapping is read once in full. Larger regions
+        # are scanned only in complete page-sized chunks; a short tail is not
+        # retried with a smaller or one-byte fallback request.
+        if region_size < SCAN_PAGE_SIZE:
+            if region_size < len(signature):
+                continue
+            if checkpoint:
+                checkpoint()
+            try:
+                block = memory_read(gdb, addr, region_size)
+            except MemoryReadError:
+                if request_delay:
+                    time.sleep(request_delay)
+                block = None
+            if block is not None:
+                hit = block.find(signature)
+                if hit >= 0:
+                    return addr + hit
+            if checkpoint:
+                checkpoint()
+            continue
+
+        while end - addr + 1 >= SCAN_PAGE_SIZE:
             if checkpoint:
                 checkpoint()
             size = min(chunk_size, end - addr + 1)
             try:
                 block = memory_read(gdb, addr, size)
-            except TraceError:
+            except MemoryReadError:
+                if request_delay:
+                    time.sleep(request_delay)
                 block = None
-            time.sleep(request_delay)
             if block is None:
-                # Stubs may reject a readable-looking mapping (E01 or a short
-                # reply). Skip that chunk and reset overlap so a signature can
-                # never be assembled across an unreadable gap.
+                # A rejected or short page invalidates overlap and skips this
+                # whole page; transport failures still propagate immediately.
                 carry = b""
-                addr += size
+                page_offset = (addr - start) % SCAN_PAGE_SIZE
+                addr += SCAN_PAGE_SIZE - page_offset
                 if checkpoint:
                     checkpoint()
                 continue
             data = carry + block
             data_base = addr - len(carry)
-            offset = 0
-            while True:
-                hit = data.find(signature, offset)
-                if hit < 0:
-                    break
-                # The signature is at least 32 bytes (48 by default). Stop at
-                # the first complete match so a bounded pass need not scan the
-                # entire guest address space merely to prove global uniqueness.
+            hit = data.find(signature)
+            if hit >= 0:
                 return data_base + hit
             carry = data[-overlap:] if overlap else b""
             addr += size
             if checkpoint:
                 checkpoint()
-    raise TraceError("Signature search found no match in the selected heap-first scan pass")
+    raise TraceError("Signature search found no match in the selected prioritized scan pass")
 
 
 def parse_stop(lines: list[str]) -> dict[str, str] | None:
@@ -754,10 +845,10 @@ def main() -> int:
     parser.add_argument("--functions", type=Path, default=DEFAULT_FUNCTIONS)
     parser.add_argument("--module-name", default="main", help="unique substring in the module list")
     parser.add_argument("--signature-length", type=int, default=48, help="bytes from file offset zero (32..64)")
-    parser.add_argument("--chunk-size", type=int, default=MAX_RSP_READ, help="maximum read chunk; hard-capped at 0x400 bytes")
-    parser.add_argument("--scan-delay", type=float, default=0.01, help="seconds to pause after each memory request")
+    parser.add_argument("--chunk-size", type=int, default=MAX_RSP_READ, help="maximum read chunk; hard-capped at 0x1000 bytes")
+    parser.add_argument("--scan-delay", type=float, default=0.01, help="seconds to pause only after explicit target read errors")
     parser.add_argument("--max-scan-bytes", type=int, default=MAX_REVIEWED_SCAN_BYTES,
-                        help="maximum bytes in one heap-first scan pass (hard maximum 6 GiB)")
+                        help="maximum bytes in one prioritized scan pass (hard maximum 6 GiB)")
     parser.add_argument("--main-elf", type=Path, default=DEFAULT_MAIN_ELF)
     parser.add_argument("--main-nso", type=Path, default=DEFAULT_MAIN_NSO)
     parser.add_argument("--n2-evidence", type=Path, default=DEFAULT_N2_EVIDENCE)
