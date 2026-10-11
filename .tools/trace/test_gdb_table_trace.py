@@ -92,8 +92,8 @@ class SafeScanTests(unittest.TestCase):
         second = body[0x500:]
         stub = MockStub([(start, first), (second_start, second)])
         found = trace.scan_signature(
-            stub, [(start, start + 0x4ff, "r--", "mapped"),
-                   (second_start, second_start + len(second) - 1, "rw-", "mapped")],
+            stub, [(start, start + 0x4ff, "r--", "Normal"),
+                   (second_start, second_start + len(second) - 1, "rw-", "Heap")],
             target, 0x10000, 0x10000, 0x2000, request_delay=0,
         )
         self.assertEqual(found, second_start)
@@ -110,7 +110,7 @@ class SafeScanTests(unittest.TestCase):
                           signature + b"Y" * (0x100 - len(signature)))],
                         failures={start + 0x100})
         found = trace.scan_signature(
-            stub, [(start, start + 0x2ff, "r--", "mapped")], signature,
+            stub, [(start, start + 0x2ff, "r--", "Normal")], signature,
             0x100, 0x1000, 0x1000, request_delay=0,
         )
         self.assertEqual(found, start + 0x200)
@@ -123,6 +123,63 @@ class SafeScanTests(unittest.TestCase):
             def ok(self, _command):
                 return '^done,memory=[]', []
         self.assertIsNone(trace.memory_read(ShortReply(), 0x1000, 16))
+
+    def test_mapping_parser_excludes_permissionless_free_and_non_data_types(self):
+        rows = "\n".join([
+            "0x0000000000 - 0x0080723fff Free ----- [0, 0]",
+            "0x0000001000 - 0x0000001fff Normal r-- [4096, 4096]",
+            "0x0000002000 - 0x0000002fff CodeData rw- [4096, 4096]",
+            "0x0000003000 - 0x0000003fff Alias rw- [4096, 4096]",
+            "0x0000004000 - 0x0000004fff Stack rw- [4096, 4096]",
+            "0x0000005000 - 0x0000005fff ThreadLocal rw- [4096, 4096]",
+            "0x0000006000 - 0x0000006fff Heap rw- [4096, 4096]",
+            "0x0000007000 - 0x0000007fff Reserved r-- [4096, 4096]",
+            "0x0000008000 - 0x0000008fff IO rw- [4096, 4096]",
+            "0x0000009000 - 0x0000009fff Code-RO r-- [4096, 4096]",
+            "0x000000a000 - 0x000000afff Kernel r-- [4096, 4096]",
+        ])
+        found = trace.parse_mappings(rows)
+        self.assertEqual([kind for _, _, _, kind in found],
+                         ["Heap", "Normal", "CodeData", "Alias", "Stack", "ThreadLocal"])
+        self.assertTrue(all("r" in perms for _, _, perms, _ in found))
+
+    def test_region_selection_orders_heap_first_and_caps_pass(self):
+        regions = [
+            (0x1000, 0x1fff, "r--", "Normal"),
+            (0x5000, 0x5fff, "rw-", "Heap"),
+            (0x3000, 0x3fff, "rw-", "Heap"),
+        ]
+        selected, eligible, total = trace.select_scan_regions(regions, 0x1800)
+        self.assertEqual(eligible, 0x3000)
+        self.assertEqual(total, 0x1800)
+        self.assertEqual(selected, [
+            (0x3000, 0x3fff, "rw-", "Heap"),
+            (0x5000, 0x57ff, "rw-", "Heap"),
+        ])
+        with self.assertRaisesRegex(trace.TraceError, "hard maximum"):
+            trace.select_scan_regions(regions, trace.MAX_REVIEWED_SCAN_BYTES + 1)
+
+    def test_scan_plan_is_logged_before_first_memory_request(self):
+        class Session:
+            requested = False
+            def ok(self, _command):
+                self.requested = True
+                return '^done,memory=[{begin="0x1000",contents="' + (b"A" * 48).hex() + '"}]', []
+        class Controls:
+            def __init__(self, session):
+                self.session = session
+                self.lines = []
+            def log(self, line):
+                if "scan plan:" in line:
+                    assert not self.session.requested
+                self.lines.append(line)
+        session = Session()
+        controls = Controls(session)
+        regions = [(0x1000, 0x102f, "rw-", "Heap")]
+        selected = trace.log_scan_plan(controls, regions, 0x1000)
+        found = trace.scan_signature(session, selected, b"A" * 48, 0x400, 0x1000, 0x1000, request_delay=0)
+        self.assertIn("cap_bytes=4096", controls.lines[0])
+        self.assertEqual(found, 0x1000)
 
     def test_file_triggered_gameplay_interrupt_scan_watch_and_stop(self):
         class Session:

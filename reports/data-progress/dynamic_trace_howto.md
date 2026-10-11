@@ -7,6 +7,29 @@ that buffer; field interpretation remains a separate pseudocode-evidence task.
 
 ## Current status and crash evidence
 
+**Current live trace blocker (2026-10-11): the quest scan has not run and no
+watchpoint is armed.** The driver received a successful gameplay interrupt,
+but the readable-map aggregate guard rejected 549,746,958,336 bytes before
+issuing any RAM-read request. Offline review found that the captured RSP
+`monitor get mappings` reply was truncated (`[325500 of 326012 bytes
+omitted]`); the only visible row is `0x0000000000 - 0x0080723fff Free -----
+[0, 0]`. The full map and committed-region list were not captured, so no
+claim about the game's actual heap/layout or scan coverage is supported. The
+guest was resumed to avoid a prolonged freeze; do not infer that the table was
+found. The parser bug was that it treated `Free` as a permission token and
+tested it for `r`.
+
+For a future run, the scanner accepts only readable rows whose exact region
+type is `Heap`, `Normal`, `CodeData`, `Alias`, `Stack`, or `ThreadLocal`;
+permission-less `Free`, `Reserved`, `IO`, code/Code-RO, kernel, and unknown
+types are excluded. It logs every selected range, size, aggregate, and cap
+before the first memory-read packet. The default pass cap is 6 GiB and cannot
+be raised above that limit; when eligible memory is larger, the selected pass
+is ordered heap-first and is capped at 6 GiB. Reads remain at most 0x400 bytes,
+paced by 10 ms, and E01/short replies skip only their affected chunk. The
+scan stops at the first complete 48-byte signature match in that pass. No
+scan was attempted against the current live session.
+
 The first live RAM scan attempt is **blocked pending a fresh user-started Eden
 session**. Eden aborted on 2026-10-11 at 15:33:32 CEST (PID 185443, TID 185562,
 thread named `Debugger`, SIGABRT; core present). The supplied unsymbolized stack
@@ -28,13 +51,15 @@ the preceding Eden request: GDB itself (PID 189243) separately aborted at
 `0x804e5e10`, with an internal `inferior_thread` current-thread assertion.
 That later GDB failure is distinct from Eden's earlier crash.
 
-The scan implementation now uses the parsed readable map only, explicitly
-queries `qSupported` and requires `PacketSize`, limits requested chunks to at
-most 0x400 bytes (and the advertised packet capacity), pauses 10 ms between
-requests, and skips E01/short/error replies while clearing cross-gap signature
-overlap. Its offline mock-stub tests cover packet-size parsing, bounded
-requests, mapped-only reads, error tolerance, and signature detection. No live
-retry is performed by this offline test.
+The scan implementation explicitly queries `qSupported` and requires
+`PacketSize`, limits requested chunks to at most 0x400 bytes (and the
+advertised packet capacity), pauses 10 ms between requests, and skips
+E01/short/error replies while clearing cross-gap signature overlap. The
+current implementation filters mapping types and records the heap-first
+bounded pass before scanning. Offline mock-stub tests cover parser exclusions,
+pass ordering/capping, pre-scan logging, bounded requests, mapped-only reads,
+error tolerance, and signature detection. No live retry is performed by
+offline tests.
 
 A later attach made seconds after Launching began did **not** crash Eden. The
 orchestrator confirmed the guest process had not yet been created, so an empty

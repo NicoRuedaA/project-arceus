@@ -35,11 +35,14 @@ EXPECTED_BUILD_ID = "aee8f150dda1b5a838806e1a5ea6827ad9f3c51e"
 VALIDATION_FUNCTION_IDS = ("00052e10", "007a6cac", "007d780c")
 MI_RECORD = re.compile(r'^(\d*)(\^|\*|=)([^,]+)(?:,(.*))?$')
 MI_FIELD = re.compile(r'([A-Za-z0-9_-]+)=(?:"((?:\\.|[^"\\])*)"|([^,]*))')
-MAP_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(\S+)\s+(\S+)")
+MAP_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(.*?)\s*$")
 MODULE_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(.+?)\s*$")
 MODULE_AT_LINE = re.compile(r"^\s*(.+?)\s+(?:at|@)\s+(0x[0-9a-fA-F]+)\s*$", re.IGNORECASE)
 PACKET_SIZE = re.compile(r"PacketSize=([0-9a-fA-F]+)")
 MAX_RSP_READ = 0x400
+MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
+SCAN_REGION_TYPES = {"heap", "normal", "codedata", "alias", "stack", "threadlocal"}
+MAP_PERMISSIONS = re.compile(r"^[r-][w-][x-](?:[r-][w-])?$")
 
 
 class TraceError(RuntimeError):
@@ -214,17 +217,76 @@ def parse_modules(output: str, wanted: str) -> tuple[int, str]:
 
 
 def parse_mappings(output: str) -> list[tuple[int, int, str, str]]:
-    regions = []
+    """Parse committed data-bearing mappings; ignore free/reserved/unknown rows.
+
+    Eden's monitor output puts the region type and permissions in varying
+    columns. In particular, a Free row can have no permission column at all,
+    so testing the word "Free" for an `r` is unsafe.
+    """
+    regions: list[tuple[int, int, str, str]] = []
     for line in output.splitlines():
         match = MAP_LINE.match(line)
         if match:
             start, end = int(match.group(1), 16), int(match.group(2), 16)
-            perms, state = match.group(3), match.group(4)
-            if end >= start and "r" in perms and state.casefold() not in {"inaccessible", "free"}:
-                regions.append((start, end, perms, state))
+            columns = match.group(3).split()
+            region_type = next((column for column in columns
+                                if column.casefold() in SCAN_REGION_TYPES), None)
+            perms = next((column for column in columns if MAP_PERMISSIONS.fullmatch(column)), None)
+            if (end >= start and region_type is not None and perms is not None
+                    and "r" in perms):
+                regions.append((start, end, perms, region_type))
     if not regions:
-        raise TraceError("The GDB stub returned no parseable readable memory mappings")
-    return regions
+        raise TraceError("The GDB stub returned no readable committed data-bearing mappings")
+    return order_scan_regions(regions)
+
+
+def order_scan_regions(regions: list[tuple[int, int, str, str]]) -> list[tuple[int, int, str, str]]:
+    """Order eligible data mappings with heap first, preserving address order otherwise."""
+    return sorted(regions, key=lambda region: (region[3].casefold() != "heap", region[0]))
+
+
+def select_scan_regions(
+    regions: list[tuple[int, int, str, str]], max_bytes: int,
+) -> tuple[list[tuple[int, int, str, str]], int, int]:
+    """Select at most the reviewed byte cap, heap-first, truncating the last range."""
+    if max_bytes < 1 or max_bytes > MAX_REVIEWED_SCAN_BYTES:
+        raise TraceError(
+            f"--max-scan-bytes must be between 1 and {MAX_REVIEWED_SCAN_BYTES} "
+            "(6 GiB hard maximum)"
+        )
+    ordered = order_scan_regions(regions)
+    eligible_total = sum(end - start + 1 for start, end, _, _ in ordered)
+    selected: list[tuple[int, int, str, str]] = []
+    remaining = max_bytes
+    for start, end, perms, region_type in ordered:
+        if remaining <= 0:
+            break
+        size = end - start + 1
+        selected_size = min(size, remaining)
+        selected.append((start, start + selected_size - 1, perms, region_type))
+        remaining -= selected_size
+    return selected, eligible_total, max_bytes - remaining
+
+
+def log_scan_plan(controls: "ControlFiles", regions: list[tuple[int, int, str, str]],
+                  max_bytes: int) -> list[tuple[int, int, str, str]]:
+    """Persist selected addresses and byte totals before issuing any memory read."""
+    selected, eligible_total, selected_total = select_scan_regions(regions, max_bytes)
+    details = [
+        {"start": f"0x{start:x}", "end": f"0x{end:x}", "size": end - start + 1,
+         "type": kind, "perms": perms}
+        for start, end, perms, kind in selected
+    ]
+    controls.log(
+        f"scan plan: eligible_bytes={eligible_total}; selected_bytes={selected_total}; "
+        f"cap_bytes={max_bytes}; pass_order=heap-first; regions={json.dumps(details, sort_keys=True)}"
+    )
+    if eligible_total > selected_total:
+        controls.log(
+            f"scan plan truncated: {eligible_total - selected_total} eligible bytes excluded "
+            "after the heap-first capped pass"
+        )
+    return selected
 
 
 def parse_functions(path: Path) -> list[tuple[int, int, str, str]]:
@@ -400,12 +462,11 @@ def scan_signature(
     checkpoint: Callable[[], None] | None = None,
 ) -> int:
     chunk_size = min(chunk_size, safe_read_size(packet_size))
-    total = sum(end - start + 1 for start, end, _, _ in regions)
-    if total > max_bytes:
-        raise TraceError(f"Readable mappings total {total} bytes, over --max-scan-bytes={max_bytes}; narrow the scan limit only after reviewing mappings")
-    matches: list[int] = []
+    selected, eligible_total, selected_total = select_scan_regions(regions, max_bytes)
+    if eligible_total > selected_total:
+        print(f"Eligible mappings total {eligible_total} bytes; scanning heap-first capped pass of {selected_total} bytes", flush=True)
     overlap = len(signature) - 1
-    for start, end, _perms, _state in regions:
+    for start, end, _perms, _state in selected:
         addr = start
         carry = b""
         while addr <= end:
@@ -433,17 +494,15 @@ def scan_signature(
                 hit = data.find(signature, offset)
                 if hit < 0:
                     break
-                matches.append(data_base + hit)
-                offset = hit + 1
-                if len(matches) > 1:
-                    raise TraceError("Signature is ambiguous (more than one RAM match); choose a longer --signature-length (up to 64) and retry")
+                # The signature is at least 32 bytes (48 by default). Stop at
+                # the first complete match so a bounded pass need not scan the
+                # entire guest address space merely to prove global uniqueness.
+                return data_base + hit
             carry = data[-overlap:] if overlap else b""
             addr += size
             if checkpoint:
                 checkpoint()
-    if len(matches) != 1:
-        raise TraceError(f"Signature search found {len(matches)} matches; exactly one is required before setting a watchpoint")
-    return matches[0]
+    raise TraceError("Signature search found no match in the selected heap-first scan pass")
 
 
 def parse_stop(lines: list[str]) -> dict[str, str] | None:
@@ -697,7 +756,8 @@ def main() -> int:
     parser.add_argument("--signature-length", type=int, default=48, help="bytes from file offset zero (32..64)")
     parser.add_argument("--chunk-size", type=int, default=MAX_RSP_READ, help="maximum read chunk; hard-capped at 0x400 bytes")
     parser.add_argument("--scan-delay", type=float, default=0.01, help="seconds to pause after each memory request")
-    parser.add_argument("--max-scan-bytes", type=int, default=3 * 1024**3)
+    parser.add_argument("--max-scan-bytes", type=int, default=MAX_REVIEWED_SCAN_BYTES,
+                        help="maximum bytes in one heap-first scan pass (hard maximum 6 GiB)")
     parser.add_argument("--main-elf", type=Path, default=DEFAULT_MAIN_ELF)
     parser.add_argument("--main-nso", type=Path, default=DEFAULT_MAIN_NSO)
     parser.add_argument("--n2-evidence", type=Path, default=DEFAULT_N2_EVIDENCE)
@@ -715,7 +775,8 @@ def main() -> int:
 
     if not 32 <= args.signature_length <= 64:
         parser.error("--signature-length must be between 32 and 64")
-    if (args.frames < 1 or args.chunk_size < 1 or args.max_scan_bytes < 1 or args.scan_delay < 0
+    if (args.frames < 1 or args.chunk_size < 1 or args.max_scan_bytes < 1
+            or args.max_scan_bytes > MAX_REVIEWED_SCAN_BYTES or args.scan_delay < 0
             or args.module_wait_seconds <= 0 or args.module_poll_interval <= 0
             or args.control_timeout <= 0 or args.control_poll_interval <= 0):
         parser.error("frames/chunk/cap/wait/poll values must be positive; scan delay must be non-negative")
@@ -787,8 +848,9 @@ def main() -> int:
 
         def do_scan(checkpoint: Callable[[], None]) -> int:
             mappings = parse_mappings(gdb.console("monitor get mappings"))
+            selected = log_scan_plan(controls, mappings, args.max_scan_bytes)
             return scan_signature(
-                gdb, mappings, signature, scan_chunk, args.max_scan_bytes,
+                gdb, selected, signature, scan_chunk, args.max_scan_bytes,
                 packet_size, args.scan_delay, checkpoint=checkpoint,
             )
 
