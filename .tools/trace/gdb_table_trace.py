@@ -14,6 +14,7 @@ import datetime as dt
 import json
 import os
 import re
+import select
 import shlex
 import shutil
 import struct
@@ -21,7 +22,8 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+from collections import deque
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -44,6 +46,10 @@ class TraceError(RuntimeError):
     pass
 
 
+class TraceStop(TraceError):
+    """A control-file request to stop the trace cleanly."""
+
+
 def mi_unescape(value: str) -> str:
     # GDB MI C strings use the common escapes relevant to console output.
     return (value.replace(r"\n", "\n").replace(r"\r", "\r")
@@ -61,6 +67,7 @@ class GdbMi:
     def __init__(self, executable: str, timeout: float, rsp_log: Path | None = None):
         self.timeout = timeout
         self.counter = 0
+        self.remote_connected = False
         self.rsp_log = None
         if rsp_log is not None:
             rsp_log.parent.mkdir(parents=True, exist_ok=True)
@@ -70,10 +77,15 @@ class GdbMi:
         self.proc = subprocess.Popen(
             [executable, "--nx", "--quiet", "--interpreter=mi2"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1, env=env,
+            text=False, bufsize=0, env=env,
         )
+        self._stdout_fd = self.proc.stdout.fileno() if self.proc.stdout else -1
+        self._buffer = bytearray()
+        self._lines: deque[str] = deque()
 
-    def close(self) -> None:
+    def close(self, stop_authorized: bool = False) -> None:
+        if self.remote_connected and not stop_authorized:
+            raise TraceError("Refusing to exit an attached GDB session before explicit stop control")
         if self.proc.poll() is None:
             try:
                 self.command("-gdb-exit", timeout=2)
@@ -86,13 +98,7 @@ class GdbMi:
         if self.rsp_log:
             self.rsp_log.close()
 
-    def _readline(self) -> str:
-        if not self.proc.stdout:
-            raise TraceError("GDB has no MI output stream")
-        line = self.proc.stdout.readline()
-        if line == "":
-            raise TraceError("GDB closed its MI output")
-        line = line.rstrip("\r\n")
+    def _accept_line(self, line: str) -> str:
         if self.rsp_log and line.startswith('&"') and line.endswith('"'):
             debug = mi_unescape(line[2:-1])
             if "Sending packet:" in debug or "Packet received:" in debug:
@@ -100,17 +106,59 @@ class GdbMi:
                 self.rsp_log.flush()
         return line
 
+    def _extract_lines(self) -> None:
+        while b"\n" in self._buffer:
+            line, _, rest = self._buffer.partition(b"\n")
+            self._buffer = bytearray(rest)
+            self._lines.append(self._accept_line(line.rstrip(b"\r").decode("utf-8", errors="replace")))
+
+    def _readline(self, timeout: float | None = None) -> str:
+        if self._stdout_fd < 0:
+            raise TraceError("GDB has no MI output stream")
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            self._extract_lines()
+            if self._lines:
+                return self._lines.popleft()
+            remaining = None if deadline is None else deadline - time.monotonic()
+            if remaining is not None and remaining <= 0:
+                raise TraceError("Timed out waiting for a complete GDB MI line")
+            readable, _, _ = select.select([self._stdout_fd], [], [], remaining)
+            if not readable:
+                raise TraceError("Timed out waiting for GDB MI output")
+            chunk = os.read(self._stdout_fd, 4096)
+            if not chunk:
+                raise TraceError("GDB closed its MI output")
+            self._buffer.extend(chunk)
+
+    def poll_lines(self) -> list[str]:
+        """Read only currently available complete MI lines; never blocks."""
+        self._extract_lines()
+        while self._stdout_fd >= 0:
+            readable, _, _ = select.select([self._stdout_fd], [], [], 0)
+            if not readable:
+                break
+            chunk = os.read(self._stdout_fd, 4096)
+            if not chunk:
+                self._stdout_fd = -1
+                break
+            self._buffer.extend(chunk)
+            self._extract_lines()
+        lines = list(self._lines)
+        self._lines.clear()
+        return lines
+
     def command(self, command: str, timeout: float | None = None) -> tuple[str, list[str]]:
-        if self.proc.poll() is not None or not self.proc.stdin or not self.proc.stdout:
+        if self.proc.poll() is not None or not self.proc.stdin or self._stdout_fd < 0:
             raise TraceError("GDB exited before completing the requested operation")
         self.counter += 1
         token = str(self.counter)
-        self.proc.stdin.write(token + command + "\n")
+        self.proc.stdin.write((token + command + "\n").encode("utf-8"))
         self.proc.stdin.flush()
         deadline = time.monotonic() + (timeout if timeout is not None else self.timeout)
         lines: list[str] = []
         while time.monotonic() < deadline:
-            line = self._readline()
+            line = self._readline(max(0.0, deadline - time.monotonic()))
             if line.startswith(token + "^     ") or line.startswith(token + "^done") or line.startswith(token + "^error") or line.startswith(token + "^connected") or line.startswith(token + "^running") or line.startswith(token + "^exit"):
                 return line[len(token):], lines
             if line.startswith("*stopped") or line.startswith("=thread-group-exited"):
@@ -349,6 +397,7 @@ def memory_read(gdb: GdbMi, address: int, length: int) -> bytes | None:
 def scan_signature(
     gdb: GdbMi, regions: list[tuple[int, int, str, str]], signature: bytes,
     chunk_size: int, max_bytes: int, packet_size: int, request_delay: float = 0.01,
+    checkpoint: Callable[[], None] | None = None,
 ) -> int:
     chunk_size = min(chunk_size, safe_read_size(packet_size))
     total = sum(end - start + 1 for start, end, _, _ in regions)
@@ -360,6 +409,8 @@ def scan_signature(
         addr = start
         carry = b""
         while addr <= end:
+            if checkpoint:
+                checkpoint()
             size = min(chunk_size, end - addr + 1)
             try:
                 block = memory_read(gdb, addr, size)
@@ -372,6 +423,8 @@ def scan_signature(
                 # never be assembled across an unreadable gap.
                 carry = b""
                 addr += size
+                if checkpoint:
+                    checkpoint()
                 continue
             data = carry + block
             data_base = addr - len(carry)
@@ -386,6 +439,8 @@ def scan_signature(
                     raise TraceError("Signature is ambiguous (more than one RAM match); choose a longer --signature-length (up to 64) and retry")
             carry = data[-overlap:] if overlap else b""
             addr += size
+            if checkpoint:
+                checkpoint()
     if len(matches) != 1:
         raise TraceError(f"Signature search found {len(matches)} matches; exactly one is required before setting a watchpoint")
     return matches[0]
@@ -399,22 +454,171 @@ def parse_stop(lines: list[str]) -> dict[str, str] | None:
     return None
 
 
-def wait_until_gameplay_and_interrupt(gdb: GdbMi, input_fn=input) -> None:
-    """Run from the startup stop, wait for operator confirmation, then stop same target."""
+class ControlFiles:
+    NAMES = ("gameplay-ready", "menu-action-done", "stop")
+
+    def __init__(self, directory: Path, progress_log: Path):
+        self.directory = directory
+        self.progress_log = progress_log
+        self.stop_authorized = False
+        self.directory.mkdir(parents=True, exist_ok=True)
+        for name in self.NAMES:
+            stale = self.directory / name
+            if stale.exists():
+                stale.unlink()
+                self.log(f"control stale marker cleared: {name}")
+        self.log(f"control directory ready: {self.directory}")
+
+    def log(self, message: str) -> None:
+        stamp = dt.datetime.now().astimezone().isoformat()
+        self.progress_log.parent.mkdir(parents=True, exist_ok=True)
+        with self.progress_log.open("a", encoding="utf-8") as stream:
+            stream.write(f"{stamp} {message}\n")
+
+    def consume(self, name: str) -> bool:
+        if name not in self.NAMES:
+            raise TraceError(f"Unknown trace control: {name}")
+        marker = self.directory / name
+        try:
+            marker.unlink()
+        except FileNotFoundError:
+            return False
+        if name == "stop":
+            self.stop_authorized = True
+        self.log(f"control consumed: {name}")
+        return True
+
+
+def wait_for_control(
+    gdb: GdbMi, controls: ControlFiles, accepted: tuple[str, ...], timeout: float,
+    poll_interval: float, on_stop: Callable[[str], None] | None = None,
+    sleep_fn=time.sleep,
+) -> str:
+    deadline = time.monotonic() + timeout
+    order = ("stop",) + tuple(name for name in accepted if name != "stop")
+    while True:
+        for line in gdb.poll_lines():
+            if line.startswith("=thread-group-exited"):
+                raise TraceError("Emulated process exited while awaiting a trace control")
+            if line.startswith("*stopped"):
+                if on_stop is None:
+                    raise TraceError(f"Unexpected guest stop while waiting for control: {line}")
+                on_stop(line)
+        for name in order:
+            if name in accepted and controls.consume(name):
+                controls.log(f"stage transition: control {name}")
+                return name
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            controls.log(f"stage timeout: waiting for {'/'.join(accepted)}")
+            raise TraceError(f"Timed out waiting for trace control file: {'/'.join(accepted)}")
+        sleep_fn(min(poll_interval, remaining))
+
+
+def wait_for_stop_gate(
+    controls: ControlFiles, poll_interval: float, sleep_fn=time.sleep,
+) -> None:
+    """Keep the attached GDB process alive until an explicit stop marker."""
+    controls.log("stage transition: idle with GDB attached; waiting for explicit stop control")
+    while not controls.consume("stop"):
+        sleep_fn(poll_interval)
+    controls.log("stage transition: stop authorized; GDB exit may close the game")
+
+
+def hold_session_after_error(
+    controls: ControlFiles, reason: str, poll_interval: float, sleep_fn=time.sleep,
+) -> None:
+    controls.log(f"fatal post-attach error: {reason}; no GDB remote requests; retaining session until stop control")
+    wait_for_stop_gate(controls, poll_interval, sleep_fn=sleep_fn)
+
+
+def finalize_attached_session(
+    gdb: GdbMi, controls: ControlFiles, poll_interval: float, sleep_fn=time.sleep,
+) -> None:
+    """Only close GDB after explicit user authorization; close may send remote K."""
+    if not controls.stop_authorized:
+        wait_for_stop_gate(controls, poll_interval, sleep_fn=sleep_fn)
+    controls.log("stage transition: explicit stop confirmed; closing GDB (remote K may stop the game)")
+    gdb.close(stop_authorized=True)
+
+
+def continue_target(gdb: GdbMi) -> None:
     result, _ = gdb.command("-exec-continue")
     if not result.startswith("^running"):
-        raise TraceError(f"Could not continue guest into gameplay: {result}")
-    input_fn("Continue playing until gameplay is visible with the menu closed, then press Enter here: ")
-    result, lines = gdb.command("-exec-interrupt --all")
+        raise TraceError(f"Could not continue emulated guest: {result}")
+
+
+def interrupt_target(gdb: GdbMi, timeout: float) -> None:
+    result, lines = gdb.command("-exec-interrupt --all", timeout=timeout)
     if result.startswith("^error"):
-        raise TraceError(f"Could not interrupt guest for table scan: {result}")
-    stopped = parse_stop(lines)
-    while stopped is None:
-        line = gdb._readline()
-        if line.startswith("*stopped"):
-            stopped = parse_stop([line])
-        elif line.startswith("=thread-group-exited"):
-            raise TraceError("Emulated process exited before the gameplay scan")
+        raise TraceError(f"Could not interrupt guest for RAM scan: {result}")
+    if parse_stop(lines):
+        return
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        for line in gdb.poll_lines():
+            if line.startswith("*stopped"):
+                return
+            if line.startswith("=thread-group-exited"):
+                raise TraceError("Emulated process exited while interrupting for RAM scan")
+        time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
+    raise TraceError("Timed out waiting for guest interrupt stop")
+
+
+def stage_scan_and_arm(
+    gdb: GdbMi, controls: ControlFiles, scan_fn: Callable[[Callable[[], None]], int],
+    watchpoint: str, control_timeout: float, poll_interval: float,
+    sleep_fn=time.sleep,
+) -> tuple[int, str] | None:
+    controls.log("stage transition: validated startup; continuing guest and waiting for gameplay-ready")
+    continue_target(gdb)
+    signal = wait_for_control(gdb, controls, ("gameplay-ready", "stop"), control_timeout,
+                              poll_interval, sleep_fn=sleep_fn)
+    if signal == "stop":
+        return None
+    controls.log("stage transition: gameplay-ready; interrupting target before scan")
+    interrupt_target(gdb, timeout=20.0)
+    controls.log("stage transition: target interrupted; starting safe mapped-memory scan")
+
+    def checkpoint() -> None:
+        if controls.consume("stop"):
+            controls.log("stage transition: stop requested during scan")
+            raise TraceStop("Stop control received during memory scan")
+
+    address = scan_fn(checkpoint)
+    controls.log(f"stage transition: table signature located at 0x{address:x}")
+    mi_watch = "-r" if watchpoint == "rwatch" else "-a"
+    expression = f"*(unsigned char*)0x{address:x}"
+    result, _ = gdb.ok(f"-break-watch {mi_watch} {mi_quote(expression)}")
+    number = re.search(r'(?:wpt|bkpt)=\{[^}]*number="([0-9]+)"', result)
+    if not number:
+        raise TraceError(f"GDB did not return a watchpoint number: {result}")
+    watchpoint_id = number.group(1)
+    controls.log(f"stage transition: {watchpoint} watchpoint armed at 0x{address:x}")
+    continue_target(gdb)
+    controls.log("stage transition: trace resumed; waiting for menu-action-done or stop")
+    return address, watchpoint_id
+
+
+def finish_action_stage(
+    gdb: GdbMi, controls: ControlFiles, watchpoint_id: str,
+    control_timeout: float, poll_interval: float,
+    on_stop: Callable[[str], None] | None = None,
+    sleep_fn=time.sleep,
+) -> str:
+    signal = wait_for_control(
+        gdb, controls, ("menu-action-done", "stop"), control_timeout, poll_interval,
+        on_stop=on_stop,
+    )
+    if signal == "stop":
+        return signal
+    controls.log("stage transition: menu-action-done; interrupting to disable trace watchpoint")
+    interrupt_target(gdb, timeout=20.0)
+    gdb.ok(f"-break-disable {watchpoint_id}")
+    controls.log(f"stage transition: watchpoint {watchpoint_id} disabled; resuming gameplay")
+    continue_target(gdb)
+    wait_for_stop_gate(controls, poll_interval, sleep_fn=sleep_fn)
+    return signal
 
 
 def parse_thread_info(output: str) -> bool:
@@ -425,12 +629,15 @@ def parse_thread_info(output: str) -> bool:
 
 def wait_for_main_module(
     gdb: GdbMi, wanted: str, max_polls: int, poll_interval: float,
-    sleep_fn=time.sleep, status_fn=print,
+    sleep_fn=time.sleep, status_fn=print, controls: ControlFiles | None = None,
 ) -> tuple[int, str]:
     """Poll startup metadata without disconnecting while the guest is halted."""
     last_info = ""
     last_threads = ""
     for attempt in range(1, max_polls + 1):
+        if controls and controls.consume("stop"):
+            controls.log("stage transition: stop requested while waiting for guest module")
+            raise TraceStop("Stop control received while waiting for module")
         last_info = gdb.console("monitor get info")
         # Request the target's thread inventory on the same persistent client.
         last_threads = gdb.console("maintenance packet qfThreadInfo")
@@ -446,25 +653,6 @@ def wait_for_main_module(
         f"Timed out waiting for module {wanted!r} after {max_polls} polls; "
         f"last qfThreadInfo={last_threads[:300]!r}; last monitor get info={last_info[:1000]!r}"
     )
-
-
-def resume_and_detach(gdb: GdbMi) -> str:
-    """Best-effort safe guest release before GDB process cleanup."""
-    outcomes = []
-    try:
-        result, _ = gdb.command("-exec-continue")
-        outcomes.append(f"continue={result}")
-    except Exception as exc:
-        outcomes.append(f"continue_error={exc}")
-    try:
-        result, _ = gdb.command("-target-detach")
-        if result.startswith("^done"):
-            outcomes.append("detach=success")
-        else:
-            outcomes.append(f"detach={result}")
-    except Exception as exc:
-        outcomes.append(f"detach_error={exc}")
-    return "; ".join(outcomes)
 
 
 def evaluate(gdb: GdbMi, expression: str) -> str:
@@ -516,17 +704,21 @@ def main() -> int:
     parser.add_argument("--event-log", type=Path, default=ROOT / "work/progress/trace-events.jsonl")
     parser.add_argument("--rsp-log", type=Path, help="append decoded GDB remote Sending packet/Packet received debug lines here")
     parser.add_argument("--frames", type=int, default=6)
-    parser.add_argument("--max-events", type=int, default=0, help="0 means continue until interrupted")
     parser.add_argument("--timeout", type=float, default=20.0)
     parser.add_argument("--module-wait-seconds", type=float, default=300.0, help="maximum wait for Eden's application module after attach")
     parser.add_argument("--module-poll-interval", type=float, default=1.0, help="seconds between startup module/thread probes")
+    parser.add_argument("--control-dir", type=Path, default=ROOT / "work/progress/trace-ctl")
+    parser.add_argument("--control-timeout", type=float, default=1800.0, help="seconds to wait for a stage control before fail-safe idle")
+    parser.add_argument("--control-poll-interval", type=float, default=0.1)
+    parser.add_argument("--watchpoint", choices=("rwatch", "awatch"), default="rwatch")
     args = parser.parse_args()
 
     if not 32 <= args.signature_length <= 64:
         parser.error("--signature-length must be between 32 and 64")
     if (args.frames < 1 or args.chunk_size < 1 or args.max_scan_bytes < 1 or args.scan_delay < 0
-            or args.module_wait_seconds <= 0 or args.module_poll_interval <= 0):
-        parser.error("frames/chunk/cap/module wait/poll interval must be positive; scan delay must be non-negative")
+            or args.module_wait_seconds <= 0 or args.module_poll_interval <= 0
+            or args.control_timeout <= 0 or args.control_poll_interval <= 0):
+        parser.error("frames/chunk/cap/wait/poll values must be positive; scan delay must be non-negative")
     if not args.file.is_file():
         raise TraceError(f"Table file not found: {args.file}")
     if not args.gdb or not Path(args.gdb).exists():
@@ -538,9 +730,10 @@ def main() -> int:
     build_id, validations = static_validation_pairs(args.main_elf, args.main_nso, args.functions, args.n2_evidence)
 
     args.event_log.parent.mkdir(parents=True, exist_ok=True)
+    controls = ControlFiles(args.control_dir, ROOT / "work/progress/trace.log")
     gdb = GdbMi(args.gdb, args.timeout, args.rsp_log)
     attached = False
-    detached = False
+    exit_code = 0
     try:
         gdb.ok('-gdb-set pagination off')
         gdb.ok('-gdb-set confirm off')
@@ -549,12 +742,14 @@ def main() -> int:
         if args.rsp_log:
             # Enable logging before target-select so the handshake is captured.
             gdb.ok("-gdb-set debug remote 1")
-        # A target-select failure may still follow acceptance by a one-shot
-        # stub, so cleanup must make a release attempt even on a bad reply.
+        # Preserve the one-shot session even if target-select's reply is
+        # malformed after the stub has accepted the TCP connection.
         attached = True
+        gdb.remote_connected = True
         result, _ = gdb.command(f'-target-select remote {args.host}:{args.port}', timeout=args.timeout)
         if not result.startswith("^connected"):
             raise TraceError(f"GDB remote connection did not succeed: {result}")
+        controls.log("stage transition: GDB attached; awaiting guest module while retaining this connection")
 
         # Query the connected stub directly through GDB's raw packet facility.
         # Do not start a scan without knowing the negotiated packet ceiling.
@@ -566,6 +761,7 @@ def main() -> int:
         max_module_polls = max(1, int(args.module_wait_seconds / args.module_poll_interval))
         base, module_name = wait_for_main_module(
             gdb, args.module_name, max_module_polls, args.module_poll_interval,
+            controls=controls,
         )
         print(f"Found startup module {module_name} at 0x{base:x}; continuing with independent build-byte validation.", flush=True)
         validated_functions = []
@@ -587,23 +783,39 @@ def main() -> int:
             flush=True,
         )
 
-        print("Startup validation passed. The guest will now continue; confirm gameplay with the menu closed at the terminal prompt.", flush=True)
-        wait_until_gameplay_and_interrupt(gdb)
-        mappings = parse_mappings(gdb.console("monitor get mappings"))
-        address = scan_signature(gdb, mappings, signature, scan_chunk, args.max_scan_bytes, packet_size, args.scan_delay)
-        print(f"Unique signature match at 0x{address:x}; arming read watchpoint. Perform the requested in-game action now.", flush=True)
-        gdb.console(f"rwatch *(unsigned char*)0x{address:x}")
+        controls.log("stage transition: build/module validation passed")
+
+        def do_scan(checkpoint: Callable[[], None]) -> int:
+            mappings = parse_mappings(gdb.console("monitor get mappings"))
+            return scan_signature(
+                gdb, mappings, signature, scan_chunk, args.max_scan_bytes,
+                packet_size, args.scan_delay, checkpoint=checkpoint,
+            )
+
+        print(
+            f"After gameplay is visible with the menu closed, run: touch {args.control_dir / 'gameplay-ready'}",
+            flush=True,
+        )
+        stage_result = stage_scan_and_arm(
+            gdb, controls, do_scan, args.watchpoint,
+            args.control_timeout, args.control_poll_interval,
+        )
+        if stage_result is None:
+            raise TraceStop("Stop control received before gameplay-ready")
+        address, watchpoint_id = stage_result
+        print(
+            f"Unique signature match at 0x{address:x}; {args.watchpoint} watchpoint {watchpoint_id} armed. "
+            f"Touch {args.control_dir / 'menu-action-done'} after the requested in-game action; "
+            f"touch {args.control_dir / 'stop'} only when you are finished and accept that closing GDB may close the game.",
+            flush=True,
+        )
         count = 0
         with args.event_log.open("a", encoding="utf-8") as events:
-            while args.max_events == 0 or count < args.max_events:
-                _, async_lines = gdb.command("-exec-continue", timeout=args.timeout)
-                stopped = parse_stop(async_lines)
-                while stopped is None:
-                    line = gdb._readline()
-                    if line.startswith("*stopped"):
-                        stopped = parse_stop([line])
-                    elif line.startswith("=thread-group-exited"):
-                        raise TraceError("Emulated process exited before a watchpoint stop")
+            def on_stop(line: str) -> None:
+                nonlocal count
+                stopped = parse_stop([line]) or {}
+                if stopped.get("reason") != "watchpoint-trigger":
+                    raise TraceError(f"Unexpected target stop during trace: {line}")
                 pc = parse_address(evaluate(gdb, "$pc"))
                 lr = parse_address(evaluate(gdb, "$x30"))
                 frames = get_frames(gdb, base, functions, args.frames)
@@ -612,7 +824,7 @@ def main() -> int:
                     "module": module_name, "module_base": f"0x{base:x}", "main_nso_build_id": build_id,
                     "validated_functions": validated_functions,
                     "table_file": str(args.file), "signature_hex": signature.hex(),
-                    "buffer_address": f"0x{address:x}", "watchpoint": "read",
+                    "buffer_address": f"0x{address:x}", "watchpoint": args.watchpoint,
                     "stop_reason": stopped.get("reason"),
                     "pc": f"0x{pc:x}", "pc_function": find_function(pc, base, functions),
                     "lr": f"0x{lr:x}", "lr_function": find_function(lr, base, functions),
@@ -622,26 +834,27 @@ def main() -> int:
                 events.flush()
                 print(json.dumps(event, sort_keys=True), flush=True)
                 count += 1
-                # A read watchpoint may fire repeatedly on the same instruction.
-                # Do not auto-continue silently: each event is user-visible.
-                if args.max_events and count >= args.max_events:
-                    break
-                input("Watchpoint hit. Press Enter to continue, or Ctrl-C to stop: ")
+                controls.log(f"watchpoint event recorded: {count}")
+                continue_target(gdb)
+            signal = finish_action_stage(
+                gdb, controls, watchpoint_id, args.control_timeout,
+                args.control_poll_interval, on_stop=on_stop,
+            )
+            if signal == "menu-action-done":
+                controls.log(f"stage transition: requested menu action complete; {count} read events recorded")
+    except TraceStop as exc:
+        print(f"Trace control: {exc}", flush=True)
+    except (TraceError, OSError, KeyboardInterrupt) as exc:
+        print(f"trace error: {exc}", file=sys.stderr, flush=True)
+        exit_code = 2
+        if attached and not controls.stop_authorized:
+            hold_session_after_error(controls, str(exc), args.control_poll_interval)
     finally:
-        if attached and not detached:
-            outcome = resume_and_detach(gdb)
-            detached = "detach=success" in outcome
-            cleanup = f"Post-attach cleanup (best-effort resume/detach): {outcome}"
-            print(cleanup, flush=True)
-            try:
-                progress = ROOT / "work/progress/trace.log"
-                progress.parent.mkdir(parents=True, exist_ok=True)
-                with progress.open("a", encoding="utf-8") as stream:
-                    stream.write(f"{dt.datetime.now().astimezone().isoformat()} {cleanup}\n")
-            except OSError as exc:
-                print(f"Could not append cleanup outcome to progress log: {exc}", file=sys.stderr, flush=True)
-        gdb.close()
-    return 0
+        if attached:
+            finalize_attached_session(gdb, controls, args.control_poll_interval)
+        else:
+            gdb.close()
+    return exit_code
 
 
 if __name__ == "__main__":

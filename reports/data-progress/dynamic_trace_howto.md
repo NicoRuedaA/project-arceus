@@ -48,10 +48,44 @@ before validating the module or continuing the guest. That attempt observed
 `m80ce6ffc,4 -> E01` and an Eden `Unmapped @ 0X00000080CE6FFC ... size=4`
 message; no new Eden core was found, and no causal link is established.
 
-If any fatal error occurs after attach, cleanup now makes a best-effort guest
-continue followed by GDB detach before exiting, and records the outcome in
-`work/progress/trace.log`. An unresolved module timeout remains fail-closed:
-no function-byte validation, RAM scan, or watchpoint is attempted.
+The latest rescue attempt confirmed why an attached GDB process must not be
+closed while the user may still be playing. Driver PID 235955 was waiting on a
+PTY with GDB PID 235957. One authorized `kill -INT 235957` was followed within
+about five seconds by reads `m82bafbd0,4`, `m82bafbd4,4`, `vCont;c`, then
+`$D#44` with an empty reply; no `$Z3`/`$Z4` watchpoint request or reader event
+was observed. Eden PID 233201 stayed alive, but its log recorded two
+`ProcessData: Received interrupt` messages, `ExecuteCommand: Shutting down
+emulation`, and `ForceStop`. No new coredump was reported. The game shutdown is
+correlated with this rescue, not proven to have been caused by it. The cleanup
+attempt also reported `continue=^running` and detach failure because the remote
+stub does not support detach. The orchestrator's verified diagnosis is that
+GDB exit sends remote `k` (kill); `D` detach is unsupported.
+
+Accordingly, controls are files in `work/progress/trace-ctl/` and the driver
+never uses terminal `input()`:
+
+| Marker | Meaning |
+|---|---|
+| `gameplay-ready` | User confirms gameplay is visible and the in-game menu is closed. Driver interrupts the running guest on the same GDB connection, scans only readable mappings in <=0x400-byte paced reads, arms the watchpoint, then resumes. |
+| `menu-action-done` | User completed the requested menu/action sequence. Driver interrupts briefly, disables the watchpoint, resumes gameplay, and keeps GDB attached and idle. |
+| `stop` | User confirms the game may be closed. This is the only exit gate after GDB attaches; the subsequent GDB exit can send `k` and close the game. |
+
+Touch the requested marker from another terminal, for example:
+
+```sh
+touch work/progress/trace-ctl/gameplay-ready
+touch work/progress/trace-ctl/menu-action-done
+touch work/progress/trace-ctl/stop
+```
+
+The driver polls these markers and non-blockingly drains MI output so async
+watchpoint stops cannot hang a PTY `readline()`. Every state/control transition
+is timestamped in `work/progress/trace.log`. If a fatal error occurs after
+attach, it records the error and sends **no more GDB commands** while keeping
+the client alive until the user creates `stop`; this avoids accidental remote
+kill. A timeout is also fail-closed and waits at this idle gate. No `D` detach
+is attempted. An unresolved module timeout still prevents byte validation,
+RAM scanning, or watchpoint installation.
 
 ## Current preparation status
 
@@ -81,9 +115,9 @@ the game and the user is ready to exercise the selected screen.
    emulator and does not launch it. Eden's stub accepts one connection; keep
    this GDB client alive for the whole trace and do not attach another client.
    It can attach while Eden shows **Launching**: after build/module checks, the
-   driver continues the guest and waits at a terminal prompt. Once gameplay is
-   visible with the in-game menu closed, press Enter in that terminal; the same
-   client interrupts the guest, scans, and arms the watchpoint. `--rsp-log`
+   driver continues the guest and waits for `gameplay-ready`. Once gameplay is
+   visible with the in-game menu closed, signal that stage from another
+   terminal with `touch work/progress/trace-ctl/gameplay-ready`. `--rsp-log`
    captures decoded remote packet debug lines from the initial handshake onward.
 
 ```sh
@@ -103,10 +137,15 @@ validates all three derived instruction sequences before mapping PCs to
 bytes with each event. If an input identity mismatches, the signature is
 absent/ambiguous, any runtime byte check differs, the module is not unique, or
 GDB cannot install an `rwatch`, it stops without producing a reader claim. A
-unique match arms a one-byte read watchpoint; a hit is recorded in
+unique match arms a one-byte `rwatch` (or `awatch` with
+`--watchpoint awatch`); each hit is recorded in
 `work/progress/trace-events.jsonl` with PC, LR, unwound frames, and mapped
-function IDs. Press Enter in the tracing terminal to continue after each hit;
-Ctrl-C stops the trace. Increase `--signature-length` only up to 64 if a
+function IDs, then the driver continues automatically. After the requested
+in-game action, touch `work/progress/trace-ctl/menu-action-done`; the driver
+briefly interrupts to disable the watchpoint, resumes gameplay, and remains
+attached. Touch `work/progress/trace-ctl/stop` only after you are finished and
+accept that GDB exit can close the game. Do not kill GDB or the driver as a
+stop mechanism. Increase `--signature-length` only up to 64 if a
 signature is ambiguous.
 
 ## In-game actions by table group
