@@ -40,3 +40,11 @@ Source hint: [pkNX `EvolutionTable.fbs`](https://github.com/kwsch/pkNX/blob/d191
 **Observed:** all 146 flattened evolution entries align with the community table order and u16 scalar reads. Fact checks include Pikachu → Raichu with Thunder Stone (argument 83), Stantler → Wyrdeer (PLA method 51), and Ursaring → Ursaluna with Peat Block (argument 1692). The source schema's generic `Method/Argument/Species/Form/Level` names correspond to the local entry fields; source species/form are the containing `EvolutionSet` F00/F01.
 
 Detailed map: [`sheets/data/schemas/pml_evolution_fields.tsv`](../../sheets/data/schemas/pml_evolution_fields.tsv).
+
+### `pml_moves.tsv`
+
+Source hint: [pkNX `Waza.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Poke/Moves/Waza.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** the mapped type/category/power/accuracy/PP and PLA style fields match the local decoder's raw indices and u8 reads. Known facts include Pound (40 power, 35 PP) and Ice Punch (75 base, 60 Agile, 90 Strong, 100 Strong accuracy). However, **the move identifier is contradicted**: pkNX declares F00 `MoveID:int`, the local decoder reads u16, and the 851-row export has only 850 unique IDs (1 occurs twice; ID 0 is absent). Do not rename or rely on the ID join until the underlying per-move binaries and decoder width are re-audited.
+
+Detailed map: [`sheets/data/schemas/pml_moves_fields.tsv`](../../sheets/data/schemas/pml_moves_fields.tsv).
