@@ -385,6 +385,7 @@ def render_trigger_tsv(rows: list[dict[str, str]], max_fields: int, stats: dict[
     output.write("# sheet: data/quest/quest_triggers\n")
     output.write("# version: 1\n")
     output.write("# generator: .tools/quest_catalog.py\n")
+    output.write("# target: Pokémon Legends: Arceus update v262144 quest trigger table raw indices and byte spans\n")
     output.write("# source scope: bin/event/event_progress/trigger/trigger_quest_sub*.bin\n")
     output.write(
         f"# source files: {stats['file_count']}; root-vector entries: {stats['entry_count']}; "
@@ -430,7 +431,7 @@ def typed_columns(columns: list[str]) -> list[str]:
             "record_raw_hex",
         } or column.endswith("_object_offset") or column.endswith("_value_hex")
         if column in integer_columns or column.endswith("_object_offset"):
-            kind = "int"
+            kind = "u32"
         elif column in enum_columns:
             kind = "enum"
         else:
@@ -459,7 +460,7 @@ def validate_typed_tsv(data: bytes, output_path: Path, expected_header: list[str
         if ":" not in column:
             raise ValueError(f"{output_path}: column has no declared type: {column}")
         type_name = column.rsplit(":", 1)[1].removesuffix("?")
-        if type_name not in {"string", "int", "enum"}:
+        if type_name not in {"string", "u32", "enum"}:
             raise ValueError(f"{output_path}: unsupported declared type in {column}")
     for line_number, record in enumerate(records[1:], start=2):
         cells = next(csv.reader([record], delimiter="\t"))

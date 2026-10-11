@@ -329,7 +329,7 @@ def write_tsv(path: Path, rows: list[dict[str, str]]) -> None:
         "observed_argument_types:string", "semantic_category:string", "category_evidence:enum",
         "n2_reference:string", "evidence:string"]
     with path.open("w", encoding="utf-8", newline="") as f:
-        f.write("# sheet: data/lua/host_bridge_catalog\n# version: 1\n# generator: decode_lua_host_bridge.py\n# doctrine: D2,D3\n")
+        f.write("# sheet: data/lua/host_bridge_catalog\n# version: 1\n# generator: decode_lua_host_bridge.py\n# target: Pokémon Legends: Arceus update v262144 Lua host bridge call catalog\n# doctrine: D2,D3\n")
         writer = csv.writer(f, delimiter="\t", lineterminator="\n", quoting=csv.QUOTE_MINIMAL)
         writer.writerow(fields)
         for row in rows: writer.writerow([row[field.split(":", 1)[0]] for field in fields])

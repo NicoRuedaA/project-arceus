@@ -2,6 +2,7 @@
 # version: 2
 # generator: decode_lua_host_bridge.py
 # doctrine: D2,D3
+# target: Pokémon Legends: Arceus update v262144 Lua host bridge call catalog
 namespace:string	name:string	call_count:u32	distinct_scripts:u32	example_script:string	example_line:u32	observed_argument_count:string	observed_argument_types:string	semantic_category:string	category_evidence:enum	n2_reference:string	evidence:string	native_function_id:string	native_registration_function_id:string	native_argument_types:string	native_category:string	native_category_evidence:enum	native_evidence:string
 AiEvaluator	AddScore	1	1	bin/haxe/release/battle/battle.blua.lua	1492	2	unknown,unknown	battle_ai	observed	reports/function-progress/n2-combat-tactical-ai.md:160	decompiled Lua call site; count includes explicit receiver when present	unknown	FUN_007dbfe0	unknown	battle_ai	observed	FUN_007dbfe0; reports/function-progress/n2-combat-tactical-ai.md:160 (method registration proven; leaf callback association/signature unknown)
 AiEvaluator	CalcAgility	1	1	bin/haxe/release/battle/battle.blua.lua	2825	2	unknown,unknown	battle_ai	inferred	unknown	decompiled Lua call site; count includes explicit receiver when present	unknown	unknown	unknown	unknown	unknown	unknown
