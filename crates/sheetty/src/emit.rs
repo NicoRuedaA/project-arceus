@@ -154,7 +154,16 @@ fn rust_type(col: &Column) -> String {
 
 fn rust_value(col: &Column, value: &str) -> String {
     let base = match col.ty.as_str() {
-        "u8" | "u16" | "u32" | "u64" | "i32" | "i64" | "f32" | "f64" => {
+        "f32" | "f64" => {
+            if value.is_empty() {
+                "0.0".to_string()
+            } else if value.chars().any(|c| matches!(c, '.' | 'e' | 'E')) {
+                value.to_string()
+            } else {
+                format!("{value}.0")
+            }
+        }
+        "u8" | "u16" | "u32" | "u64" | "i32" | "i64" => {
             if value.is_empty() {
                 "0".to_string()
             } else {
@@ -310,4 +319,30 @@ fn write_if_changed(path: &Path, contents: &str) -> Result<(), String> {
         }
     }
     fs::write(path, contents).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rust_value;
+    use crate::parse::Column;
+
+    fn column(ty: &str, optional: bool) -> Column {
+        Column {
+            name: "value".into(),
+            ty: ty.into(),
+            optional,
+            reference: None,
+            default: None,
+            flags: String::new(),
+        }
+    }
+
+    #[test]
+    fn emits_float_literals_for_integral_float_cells() {
+        assert_eq!(rust_value(&column("f64", false), "2"), "2.0");
+        assert_eq!(rust_value(&column("f32", false), "-3"), "-3.0");
+        assert_eq!(rust_value(&column("f64", false), "1.25"), "1.25");
+        assert_eq!(rust_value(&column("f64", false), ""), "0.0");
+        assert_eq!(rust_value(&column("f64", true), "4"), "Some(4.0)");
+    }
 }
