@@ -1,4 +1,8 @@
-worktree_artifact	local_raw_field	local_object_offset	local_observed_width	community_field	community_type	source_url	upstream_commit	check_used	status	notes
+# sheet: data/schemas/quest_list_main_fields
+# version: 1
+# generator: manually curated; Python TSV writer
+# target: Pokémon Legends: Arceus update v262144 local-to-community field mapping for `quest_list_main`
+worktree_artifact:string	local_raw_field:string	local_object_offset:string	local_observed_width:string	community_field:string	community_type:string	source_url:string	upstream_commit:string	check_used:string	status:string	notes:string
 n2-battle:sheets/data/quest/quest_catalog.tsv	raw_index_00.value_hex	+36	4/8 bytes	UNKNOWN	UNKNOWN	none	none	27 main rows; public guides list 27 main missions; local field names/types remain raw	unverified	Public title/ID checks do not bind quest entries to opaque local rows.
 n2-battle:sheets/data/quest/quest_catalog.tsv	raw_index_01.value_hex	+44	4/8 bytes	UNKNOWN	UNKNOWN	none	none	27 main rows; offsets observed at +44; no schema/source binding	unverified	No community field mapping found.
 n2-battle:sheets/data/quest/quest_catalog.tsv	raw_index_02.value_hex	+4	4/8 bytes	UNKNOWN	UNKNOWN	none	none	27 main rows; offsets observed at +4; no schema/source binding	unverified	No community field mapping found.

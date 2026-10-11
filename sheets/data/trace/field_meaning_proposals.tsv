@@ -1,1 +1,5 @@
-table_file	field_offset_or_name	proposed_meaning	reader_function_ids	pseudocode_evidence	confidence	status
+# sheet: data/trace/field_meaning_proposals
+# version: 1
+# generator: manually curated; Python TSV writer
+# target: Pokémon Legends: Arceus update v262144 traced table field meaning proposals
+table_file:string	field_offset_or_name:string	proposed_meaning:string	reader_function_ids:string	pseudocode_evidence:string	confidence:string	status:string
