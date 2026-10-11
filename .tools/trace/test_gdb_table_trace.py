@@ -236,8 +236,9 @@ class SafeScanTests(unittest.TestCase):
         self.assertTrue(all(length > 1 for _, length in stub.requests))
 
     def test_quarantined_mapping_range_is_logged_and_never_touched_or_crossed(self):
-        quarantine_start, quarantine_end = trace.QUARANTINED_SCAN_RANGES[0]
-        start, end = quarantine_start - 0x2000, quarantine_end + 0x3000
+        first_start, first_end = trace.QUARANTINED_SCAN_RANGES[0]
+        second_start, second_end = trace.QUARANTINED_SCAN_RANGES[1]
+        start, end = first_start - 0x2000, second_end + 0x3000
 
         class RecordingMemory:
             def __init__(self):
@@ -262,10 +263,10 @@ class SafeScanTests(unittest.TestCase):
         controls = Controls()
         selected = trace.log_scan_plan(controls, regions, end - start + 1)
         self.assertIn(
-            'quarantined_ranges=[["0x19670eb000", "0x1979ceafff"]]',
+            'quarantined_ranges=[["0x19576eb000", "0x19670eafff"], ["0x19670eb000", "0x1979ceafff"]]',
             controls.lines[0],
         )
-        self.assertIn("quarantined_bytes_in_selected=314572800", controls.lines[0])
+        self.assertIn("quarantined_bytes_in_selected=576716800", controls.lines[0])
         self.assertIn("cause unproven", controls.lines[0])
 
         stub = RecordingMemory()
@@ -277,7 +278,8 @@ class SafeScanTests(unittest.TestCase):
                 )
         self.assertTrue(stub.requests)
         self.assertTrue(all(
-            address + length <= quarantine_start or address > quarantine_end
+            all(address + length <= quarantine_start or address > quarantine_end
+                for quarantine_start, quarantine_end in trace.QUARANTINED_SCAN_RANGES)
             for address, length in stub.requests
         ))
 

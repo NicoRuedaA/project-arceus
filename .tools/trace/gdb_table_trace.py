@@ -44,7 +44,10 @@ SCAN_PAGE_SIZE = 0x1000
 SIGNATURE_PROBE_SIZE = 16
 # Evidence-based quarantine: two unanswered probes inside this exact mapping
 # preceded separate Eden 0.2.1 Debugger-thread aborts. The cause is unknown.
-QUARANTINED_SCAN_RANGES = ((0x19670EB000, 0x1979CEAFFF),)
+QUARANTINED_SCAN_RANGES = (
+    (0x19576EB000, 0x19670EAFFF),
+    (0x19670EB000, 0x1979CEAFFF),
+)
 SMALL_EXACT_REGION_MAX = 16 * 1024 * 1024
 HEAP_FIRST_WINDOW = 64 * 1024 * 1024
 MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
