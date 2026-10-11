@@ -1,0 +1,55 @@
+f00_raw_u32	f05_raw_u32	f06_f32	f07_string	f08_string	f09_f32
+1710	10	30.0	ball	warning	5.0
+1711	10	30.0	ball	warning	5.0
+1712	10	30.0	ball	check	5.0
+1713	10	40.0	ball	warning	5.0
+1746	10	40.0	ball	warning	5.0
+1747	10	40.0	ball	warning	5.0
+1748	10	30.0	ball	warning	
+1749	10	30.0	ball	warning	
+1750	10	30.0	ball	warning	
+1771	10	30.0	ball	warning	
+1785	10	30.0	ball	warning	
+1716	10		bibiridama	warning	30.0
+1717	10		kemuridama	warning	30.0
+1724	300		bait	check	30.0
+1725	300		bait	check	30.0
+1726	300		bait	check	30.0
+1727	300		bait	check	30.0
+1728	300		bait	check	30.0
+159	300		bait	check	15.0
+160	300		bait	check	15.0
+161	300		bait	check	15.0
+162	300		bait	check	15.0
+163	300		bait	check	15.0
+164	300		bait	check	15.0
+166	300		bait	check	15.0
+168	300		bait	check	15.0
+1754	300		bait	check	15.0
+1632	300		bait	check	30.0
+1633	300		bait	check	30.0
+1634	300		bait	check	30.0
+1635	300		bait	check	30.0
+1636	300		bait	check	30.0
+149	300		bait	check	15.0
+150	300		bait	check	15.0
+151	300		bait	check	15.0
+152	300		bait	check	15.0
+153	300		bait	check	15.0
+154	300		bait	check	15.0
+155	300		bait	check	15.0
+157	300		bait	check	15.0
+158	300		bait	check	15.0
+1678	10		shizumedama	warning	20.0
+1639	10		shizumedama	warning	20.0
+1721	10		shizumedama	warning	20.0
+1722	10		shizumedama	warning	20.0
+1723	10		shizumedama	warning	20.0
+1608	10		shizumedama	warning	20.0
+1609	10		shizumedama	warning	20.0
+1610	10		shizumedama	warning	20.0
+1684	10		fatigue	check	30.0
+1688	10		fatigue	check	30.0
+1689	10		fatigue	check	30.0
+1690	10		fatigue	check	30.0
+1622	10		fatigue	warning	
