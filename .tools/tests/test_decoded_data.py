@@ -117,11 +117,38 @@ def validate_field_data() -> None:
     print("[PASS] Wild encounter modifiers validation")
 
 
+def validate_world_data() -> None:
+    world_file = DATA_DIR / "world/wormhole_config_values.tsv"
+    source = Path("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/misc/app_config/field_wormhole_config.bin")
+    with open(world_file, "r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    assert len(rows) == 37, f"Expected 37 non-empty wormhole config values, got {len(rows)}"
+    assert source.is_file(), f"Missing exact source binary: {source}"
+    # Re-read the FlatBuffer with the decoder so the exported key/value set is
+    # checked against the complete source vector, not only a hard-coded count.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("decode_pla_data", Path(".tools/decoders/decode_pla_data.py"))
+    decoder = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(decoder)
+    expected = {
+        (key, str(index), value)
+        for key, values in decoder.parse_app_config(source).items()
+        for index, value in enumerate(values)
+        if value != ""
+    }
+    actual = {(r["config_key"], r["value_index"], r["value_text"]) for r in rows}
+    assert actual == expected, "Wormhole TSV differs from non-empty source key/value entries"
+    assert all(r["lexical_type"] in {"integer", "float", "string"} for r in rows)
+    print("[PASS] Wormhole config source row-count and value-set validation")
+
+
 def main() -> None:
     print("=== Running Data Integrity Validation Suite ===")
     validate_capture_data()
     validate_weather_data()
     validate_field_data()
+    validate_world_data()
     print("=== All data integrity checks PASSED! ===")
 
 

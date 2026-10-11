@@ -16,7 +16,9 @@ import struct
 import sys
 from pathlib import Path
 
-ROMFS_BIN = Path("work/pla/pk2/romfs_patched/bin")
+ROMFS_BIN = Path(os.environ.get(
+    "PLA_ROMFS_BIN", "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin"
+))
 SHEETS_DATA = Path("sheets/data")
 
 
@@ -448,6 +450,32 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
     return encount_count, huge_count, lottery_count
 
 
+def export_world_config(output_dir: Path) -> int:
+    """Preserve every field-wormhole app-config value without semantic guessing."""
+    config_path = ROMFS_BIN / "misc/app_config/field_wormhole_config.bin"
+    config = parse_app_config(config_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "wormhole_config_values.tsv"
+    with output_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["config_key", "value_index", "value_text", "lexical_type"])
+        for key in sorted(config):
+            for index, value in enumerate(config[key]):
+                if value == "":
+                    continue
+                lexical_type = "integer" if value.lstrip("+-").isdigit() else "float" if _is_float(value) else "string"
+                writer.writerow([key, index, value, lexical_type])
+    return sum(len([v for v in values if v != ""]) for values in config.values())
+
+
+def _is_float(value: str) -> bool:
+    try:
+        float(value)
+    except ValueError:
+        return False
+    return True
+
+
 def main() -> None:
     print("=== PLA v262144 Binary Data Decoders ===")
     
@@ -462,6 +490,9 @@ def main() -> None:
     
     n_enc, n_huge, n_lot = export_field_spawns(SHEETS_DATA / "field")
     print(f"[+] Decoded {n_enc} encounter records & {n_huge} outbreak areas into sheets/data/field/")
+
+    n_wormhole = export_world_config(SHEETS_DATA / "world")
+    print(f"[+] Preserved {n_wormhole} non-empty wormhole config values into sheets/data/world/")
 
     print("=== Decoding complete successfully! ===")
 
