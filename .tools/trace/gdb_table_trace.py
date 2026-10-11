@@ -42,13 +42,6 @@ PACKET_SIZE = re.compile(r"PacketSize=([0-9a-fA-F]+)")
 MAX_RSP_READ = 0x1F00
 SCAN_PAGE_SIZE = 0x1000
 SIGNATURE_PROBE_SIZE = 16
-# Evidence-based quarantine: two unanswered probes inside this exact mapping
-# preceded separate Eden 0.2.1 Debugger-thread aborts. The cause is unknown.
-QUARANTINED_SCAN_RANGES = (
-    (0x19576EB000, 0x19670EAFFF),
-    (0x19670EB000, 0x1979CEAFFF),
-)
-SMALL_EXACT_REGION_MAX = 16 * 1024 * 1024
 HEAP_FIRST_WINDOW = 64 * 1024 * 1024
 MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
 SCAN_REGION_TYPES = {"heap", "normal", "codedata", "alias", "stack", "threadlocal"}
@@ -257,13 +250,13 @@ def parse_mappings(output: str) -> list[tuple[int, int, str, str]]:
 
 
 def order_scan_regions(regions: list[tuple[int, int, str, str]]) -> list[tuple[int, int, str, str]]:
-    """Prioritize likely data buffers, then heaps, then the largest Normal mappings."""
+    """Prioritize likely data buffers, then heaps and stacks."""
     rank = {"codedata": 0, "alias": 1, "threadlocal": 2, "heap": 3,
-            "normal": 4, "stack": 5}
+            "stack": 4}
     def key(region: tuple[int, int, str, str]) -> tuple[int, int, int]:
         start, end, _perms, kind = region
         kind_key = kind.casefold()
-        size_key = -(end - start + 1) if kind_key == "normal" else 0
+        size_key = 0
         return rank.get(kind_key, 6), size_key, start
     return sorted(regions, key=key)
 
@@ -271,18 +264,20 @@ def order_scan_regions(regions: list[tuple[int, int, str, str]]) -> list[tuple[i
 def select_scan_regions(
     regions: list[tuple[int, int, str, str]], max_bytes: int,
 ) -> tuple[list[tuple[int, int, str, str]], int, int]:
-    """Select a bounded pass in data/heap/Normal priority order.
+    """Select a bounded pass from readable non-Normal data-bearing mappings.
 
     Heap scanning is deliberately restricted to the first 64 MiB across heap
     mappings so it cannot consume the whole pass before higher-value mapped
-    data and Normal regions are considered.
+    data and stacks are considered. Normal mappings remain visible in the
+    parsed map inventory but are excluded from scan eligibility.
     """
     if max_bytes < 1 or max_bytes > MAX_REVIEWED_SCAN_BYTES:
         raise TraceError(
             f"--max-scan-bytes must be between 1 and {MAX_REVIEWED_SCAN_BYTES} "
             "(6 GiB hard maximum)"
         )
-    ordered = order_scan_regions(regions)
+    eligible_regions = [region for region in regions if region[3].casefold() != "normal"]
+    ordered = order_scan_regions(eligible_regions)
     eligible_total = sum(end - start + 1 for start, end, _, _ in ordered)
     selected: list[tuple[int, int, str, str]] = []
     remaining = max_bytes
@@ -307,24 +302,22 @@ def log_scan_plan(controls: "ControlFiles", regions: list[tuple[int, int, str, s
                   max_bytes: int) -> list[tuple[int, int, str, str]]:
     """Persist selected addresses and byte totals before issuing any memory read."""
     selected, eligible_total, selected_total = select_scan_regions(regions, max_bytes)
-    quarantined_bytes = sum(
-        max(0, min(end, quarantine_end) - max(start, quarantine_start) + 1)
-        for start, end, _perms, _kind in selected
-        for quarantine_start, quarantine_end in QUARANTINED_SCAN_RANGES
+    normal_bytes_excluded = sum(
+        end - start + 1
+        for start, end, _perms, kind in regions
+        if kind.casefold() == "normal"
     )
     details = [
         {"start": f"0x{start:x}", "end": f"0x{end:x}", "size": end - start + 1,
          "type": kind, "perms": perms,
-         "scan": "page-probe" if kind.casefold() == "normal"
-                 and end - start + 1 > SMALL_EXACT_REGION_MAX else "exact"}
+         "scan": "exact"}
         for start, end, perms, kind in selected
     ]
     controls.log(
         f"scan plan: eligible_bytes={eligible_total}; selected_bytes={selected_total}; "
         f"cap_bytes={max_bytes}; pass_order=CodeData/Alias/ThreadLocal,heap-first-window="
-        f"{HEAP_FIRST_WINDOW},largest-Normal; quarantined_ranges="
-        f"{json.dumps([[f'0x{start:x}', f'0x{end:x}'] for start, end in QUARANTINED_SCAN_RANGES])}; "
-        f"quarantined_bytes_in_selected={quarantined_bytes} (evidence-based skip; cause unproven); "
+        f"{HEAP_FIRST_WINDOW},Stack; excluded_type=Normal; "
+        f"normal_bytes_excluded={normal_bytes_excluded}; "
         f"regions={json.dumps(details, sort_keys=True)}"
     )
     if eligible_total > selected_total:
@@ -535,22 +528,9 @@ def scan_signature(
         touched = page_set.intersection(pages_for(address, length))
         return max(touched) + SCAN_PAGE_SIZE if touched else None
 
-    def skip_quarantined_range(address: int, length: int) -> int | None:
-        end = address + length - 1
-        for quarantine_start, quarantine_end in QUARANTINED_SCAN_RANGES:
-            if address <= quarantine_end and end >= quarantine_start:
-                return quarantine_end + 1
-        return None
-
-    # Never touch the exact mapping range where repeated unanswered requests
-    # preceded separate aborts. This evidence-based quarantine does not
-    # establish that the range or requests caused either abort.
-
     def verify_candidates(start: int, end: int, candidates: list[int], page_set: set[int]) -> int | None:
         for candidate in candidates:
             if candidate < start or candidate + len(signature) - 1 > end:
-                continue
-            if skip_quarantined_range(candidate, len(signature)) is not None:
                 continue
             covered = pages_for(candidate, len(signature))
             if covered & page_set:
@@ -576,9 +556,6 @@ def scan_signature(
         while page + SCAN_PAGE_SIZE - 1 <= end:
             if checkpoint:
                 checkpoint()
-            if skip_quarantined_range(page, SIGNATURE_PROBE_SIZE) is not None:
-                page += SCAN_PAGE_SIZE
-                continue
             try:
                 probe = memory_read(gdb, page, SIGNATURE_PROBE_SIZE)
             except MemoryReadError:
@@ -609,7 +586,7 @@ def scan_signature(
             if checkpoint:
                 checkpoint()
             page_set = bad_pages[index]
-            if not page_set and skip_quarantined_range(start, region_size) is None:
+            if not page_set:
                 try:
                     block = memory_read(gdb, start, region_size)
                 except MemoryReadError:
@@ -640,11 +617,6 @@ def scan_signature(
             if checkpoint:
                 checkpoint()
             size = min(chunk_size, end - addr + 1)
-            quarantine_skip = skip_quarantined_range(addr, size)
-            if quarantine_skip is not None:
-                addr = max(addr + 1, quarantine_skip)
-                carry = b""
-                continue
             skip_to = skip_bad_pages(bad_pages[index], addr, size)
             if skip_to is not None:
                 addr = max(addr + 1, skip_to)

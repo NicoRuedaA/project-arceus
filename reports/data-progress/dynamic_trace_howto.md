@@ -8,7 +8,7 @@ that buffer; field interpretation remains a separate pseudocode-evidence task.
 ## Current status and crash evidence
 
 **Latest rehearsal status (2026-10-11): no reader event or watchpoint has
-been captured.** Attempt 5 aborted before a table match or watchpoint; all
+been captured.** Attempt 6 aborted before a table match or watchpoint; all
 Eden and GDB processes are now closed after collecting evidence. Attempt 1
 launched one Eden 0.2.1
 instance with the PLA base game, attached once, and validated `main.nss` at
@@ -78,13 +78,28 @@ offsets match attempts 3 and 4. Attempt 4's 300 MiB range quarantine avoided
 its observed addresses but did not prevent this separate unanswered request.
 This evidence does **not** prove that the request or mapping caused the abort.
 
-The driver now quarantines both exact mapping ranges from prefix probes, bulk
-reads, and full-signature candidate reads, and logs both ranges and the number
-of selected bytes excluded. The combined excluded range is 576,716,800 bytes
-for a scan that selects both mappings. This evidence-based quarantine is not a
-root-cause fix and makes the scan incomplete for data in those mappings. Eden
-may still abort on another read. Offline coverage verifies no memory packet
-touches or crosses either range; no live retry is implied by that test.
+Before attempt 6, the driver quarantined both exact mapping ranges from prefix
+probes, bulk reads, and full-signature candidate reads. Attempt 6 then aborted
+in a third distinct `Normal rw-` mapping: Eden 0.2.1 PID 623101, TID 623180
+(`Debugger`), SIGABRT at 2026-10-11 19:43:28 CEST. Its last packet was exactly
+`m194e9be000,10`, with no reply, inside
+`0x194e9be000-0x19519bdfff` (`rw-`, `Normal`, 50,331,648 bytes / 48 MiB).
+The unsymbolized stack again included `libstdc++ +0xb55ca <- eden +0x995da7 <-
+eden +0x996a25 <- eden +0x863409`. The repeated association across distinct
+Normal mappings still does **not** establish that a read or mapping caused an
+abort.
+
+For a conservative attempt 7, the driver excludes **all `Normal` mappings**
+from scan eligibility. It continues parsing and retaining Normal rows as map
+metadata for reports, but they do not appear in the selected scan regions and
+receive no `m` packets. The attempt will be limited to readable `CodeData`,
+`Alias`, `ThreadLocal`, bounded `Heap`, and `Stack` rows, with the selected
+plan logged before any memory read. These other region types are not proven
+safe; this change only avoids repeating the observed Normal-mapping pattern.
+If a target table resides in Normal memory, the scan may miss it; a no-match
+result will not prove the table is absent. Offline tests verify that Normal
+metadata remains parsed while no Normal mapping is selected or read. No live
+attempt 7 is implied by those tests.
 
 An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
 15:33:32 CEST (PID 185443, TID 185562,

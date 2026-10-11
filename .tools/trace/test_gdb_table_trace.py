@@ -95,7 +95,7 @@ class SafeScanTests(unittest.TestCase):
         second = body[0x500:]
         stub = MockStub([(start, first), (second_start, second)])
         found = trace.scan_signature(
-            stub, [(start, start + 0x4ff, "r--", "Normal"),
+            stub, [(start, start + 0x4ff, "r--", "CodeData"),
                    (second_start, second_start + len(second) - 1, "rw-", "Heap")],
             target, 0x10000, 0x10000, 0x2000, request_delay=0,
         )
@@ -112,7 +112,7 @@ class SafeScanTests(unittest.TestCase):
         contents = b"X" * 0x1000 + b"?" * 0x1000 + signature + b"Y" * (0x1000 - len(signature))
         stub = MockStub([(start, contents)], failures={start + 0x1000})
         found = trace.scan_signature(
-            stub, [(start, start + len(contents) - 1, "r--", "Normal")], signature,
+            stub, [(start, start + len(contents) - 1, "r--", "CodeData")], signature,
             0x1000, len(contents), 0x4000, request_delay=0,
         )
         self.assertEqual(found, start + 0x2000)
@@ -131,7 +131,7 @@ class SafeScanTests(unittest.TestCase):
         stub = TimeoutStub()
         with self.assertRaisesRegex(trace.TraceError, "Timed out waiting"):
             trace.scan_signature(
-                stub, [(0x9000, 0xafff, "r--", "Normal")], b"table-signature",
+                stub, [(0x9000, 0xafff, "r--", "CodeData")], b"table-signature",
                 0x1000, 0x2000, 0x4000, request_delay=0,
             )
         self.assertEqual(stub.requests, [
@@ -159,7 +159,7 @@ class SafeScanTests(unittest.TestCase):
 
         stub = ShortThenData()
         found = trace.scan_signature(
-            stub, [(start, start + 0x1fff, "r--", "Normal")], signature,
+            stub, [(start, start + 0x1fff, "r--", "CodeData")], signature,
             0x1000, 0x2000, 0x4000, request_delay=0,
         )
         self.assertEqual(found, start + 0x1000)
@@ -235,53 +235,49 @@ class SafeScanTests(unittest.TestCase):
         ])
         self.assertTrue(all(length > 1 for _, length in stub.requests))
 
-    def test_quarantined_mapping_range_is_logged_and_never_touched_or_crossed(self):
-        first_start, first_end = trace.QUARANTINED_SCAN_RANGES[0]
-        second_start, second_end = trace.QUARANTINED_SCAN_RANGES[1]
-        start, end = first_start - 0x2000, second_end + 0x3000
+    def test_normal_metadata_is_preserved_but_never_selected_or_read(self):
+        normal_start = 0x1000
+        normal_end = normal_start + 0x2000 - 1
+        data_start = 0x8000
+        rows = "\n".join([
+            f"0x{normal_start:010x} - 0x{normal_end:010x} Normal rw- [8192, 0]",
+            f"0x{data_start:010x} - 0x{data_start + 0xfff:010x} CodeData rw- [4096, 0]",
+        ])
+        parsed = trace.parse_mappings(rows)
+        self.assertIn((normal_start, normal_end, "rw-", "Normal"), parsed)
 
-        class RecordingMemory:
-            def __init__(self):
-                self.requests = []
-            def console(self, command):
-                import re
-                match = re.fullmatch(
-                    r"python print\(gdb\.selected_inferior\(\)\.connection\.send_packet\('m([0-9a-f]+),([0-9a-f]+)'\)\.decode\('ascii'\)\)",
-                    command,
-                )
-                address, length = int(match.group(1), 16), int(match.group(2), 16)
-                self.requests.append((address, length))
-                return (b"X" * length).hex()
+        selected, eligible, total = trace.select_scan_regions(parsed, 0x10000)
+        self.assertEqual(eligible, 0x1000)
+        self.assertEqual(total, 0x1000)
+        self.assertEqual(selected, [(data_start, data_start + 0xfff, "rw-", "CodeData")])
 
-        class Controls:
+        class PlanLog:
             def __init__(self):
                 self.lines = []
             def log(self, line):
                 self.lines.append(line)
 
-        regions = [(start, end, "rw-", "Normal")]
-        controls = Controls()
-        selected = trace.log_scan_plan(controls, regions, end - start + 1)
-        self.assertIn(
-            'quarantined_ranges=[["0x19576eb000", "0x19670eafff"], ["0x19670eb000", "0x1979ceafff"]]',
-            controls.lines[0],
-        )
-        self.assertIn("quarantined_bytes_in_selected=576716800", controls.lines[0])
-        self.assertIn("cause unproven", controls.lines[0])
+        plan = PlanLog()
+        logged_selected = trace.log_scan_plan(plan, parsed, 0x10000)
+        self.assertEqual(logged_selected, selected)
+        self.assertIn("excluded_type=Normal", plan.lines[0])
+        self.assertIn("normal_bytes_excluded=8192", plan.lines[0])
 
-        stub = RecordingMemory()
-        with patch.object(trace, "SMALL_EXACT_REGION_MAX", 0):
-            with self.assertRaisesRegex(trace.TraceError, "no match"):
-                trace.scan_signature(
-                    stub, selected, b"quarantined-page-table-signature", 0x1f00,
-                    end - start + 1, 0x4000, request_delay=0,
-                )
-        self.assertTrue(stub.requests)
-        self.assertTrue(all(
-            all(address + length <= quarantine_start or address > quarantine_end
-                for quarantine_start, quarantine_end in trace.QUARANTINED_SCAN_RANGES)
-            for address, length in stub.requests
-        ))
+        class NoReads:
+            def __init__(self):
+                self.requests = []
+            def console(self, command):
+                self.requests.append(command)
+                return (b"X" * 16).hex()
+
+        stub = NoReads()
+        with self.assertRaisesRegex(trace.TraceError, "no match"):
+            trace.scan_signature(
+                stub, [(normal_start, normal_end, "rw-", "Normal")],
+                b"normal-region-must-not-be-read", 0x1000, 0x10000, 0x4000,
+                request_delay=0,
+            )
+        self.assertEqual(stub.requests, [])
 
     def test_fast_success_path_does_not_sleep(self):
         start = 0xc000
@@ -309,47 +305,18 @@ class SafeScanTests(unittest.TestCase):
         self.assertEqual(found, start + 0x1000)
         sleep.assert_called_once_with(0.02)
 
-    def test_large_normal_uses_page_prefix_then_verifies_full_signature(self):
-        start = 0x100000
-        signature = bytes(range(48))
-        class CandidateStub:
-            def __init__(self):
-                self.requests = []
-            def console(self, command):
-                import re
-                match = re.fullmatch(r"python print\(gdb\.selected_inferior\(\)\.connection\.send_packet\('m([0-9a-f]+),([0-9a-f]+)'\)\.decode\('ascii'\)\)", command)
-                address, length = int(match.group(1), 16), int(match.group(2), 16)
-                self.requests.append((address, length))
-                if length == trace.SIGNATURE_PROBE_SIZE:
-                    block = signature[:16] if address in (start, start + 0x1000) else b"X" * 16
-                elif address == start:
-                    block = signature[:16] + b"?" * (length - 16)
-                elif address == start + 0x1000:
-                    block = signature
-                else:
-                    block = b"X" * length
-                return block.hex()
-
-        stub = CandidateStub()
-        region_end = start + trace.SMALL_EXACT_REGION_MAX + 0x1fff
-        found = trace.scan_signature(
-            stub, [(start, region_end, "r--", "Normal")], signature,
-            0x1000, region_end - start + 1, 0x4000, request_delay=0,
-        )
-        self.assertEqual(found, start + 0x1000)
-        self.assertEqual(stub.requests, [(start, 16), (start, 48), (start + 0x1000, 16), (start + 0x1000, 48)])
-
-    def test_heap_first_window_is_bounded_before_normal_regions(self):
+    def test_heap_first_window_is_bounded_and_normal_is_not_selected(self):
         heap = (0x100000, 0x100000 + trace.HEAP_FIRST_WINDOW * 2 - 1, "rw-", "Heap")
         code = (0x1000, 0x1fff, "rw-", "CodeData")
         normal = (0x2000, 0x2fff, "r--", "Normal")
-        selected, _eligible, total = trace.select_scan_regions(
+        selected, eligible, total = trace.select_scan_regions(
             [heap, normal, code], trace.HEAP_FIRST_WINDOW + 0x2000,
         )
-        self.assertEqual(total, trace.HEAP_FIRST_WINDOW + 0x2000)
+        self.assertEqual(eligible, trace.HEAP_FIRST_WINDOW * 2 + 0x1000)
+        self.assertEqual(total, trace.HEAP_FIRST_WINDOW + 0x1000)
         self.assertEqual(selected[0], code)
         self.assertEqual(selected[1], (heap[0], heap[0] + trace.HEAP_FIRST_WINDOW - 1, "rw-", "Heap"))
-        self.assertEqual(selected[2], normal)
+        self.assertNotIn(normal, selected)
 
     def test_memory_read_rejects_oversize_and_tolerates_malformed_short_reply(self):
         with self.assertRaises(trace.TraceError):
@@ -393,10 +360,10 @@ class SafeScanTests(unittest.TestCase):
         ])
         found = trace.parse_mappings(rows)
         self.assertEqual([kind for _, _, _, kind in found],
-                         ["CodeData", "Alias", "ThreadLocal", "Heap", "Normal", "Stack"])
+                         ["CodeData", "Alias", "ThreadLocal", "Heap", "Stack", "Normal"])
         self.assertTrue(all("r" in perms for _, _, perms, _ in found))
 
-    def test_region_selection_prioritizes_data_heap_window_and_largest_normal(self):
+    def test_region_selection_prioritizes_data_and_heap_but_excludes_normal(self):
         regions = [
             (0x1000, 0x1fff, "r--", "Normal"),
             (0x5000, 0x5fff, "rw-", "Heap"),
@@ -407,7 +374,7 @@ class SafeScanTests(unittest.TestCase):
             (0xd000, 0x1cfff, "r--", "Normal"),
         ]
         selected, eligible, total = trace.select_scan_regions(regions, 0x20000)
-        self.assertEqual(eligible, 0x16000)
+        self.assertEqual(eligible, 0x5000)
         self.assertEqual(total, eligible)
         self.assertEqual(selected, [
             (0x9000, 0x9fff, "rw-", "CodeData"),
@@ -415,9 +382,9 @@ class SafeScanTests(unittest.TestCase):
             (0xb000, 0xbfff, "rw-", "ThreadLocal"),
             (0x3000, 0x3fff, "rw-", "Heap"),
             (0x5000, 0x5fff, "rw-", "Heap"),
-            (0xd000, 0x1cfff, "r--", "Normal"),
-            (0x1000, 0x1fff, "r--", "Normal"),
         ])
+        self.assertNotIn((0xd000, 0x1cfff, "r--", "Normal"), selected)
+        self.assertNotIn((0x1000, 0x1fff, "r--", "Normal"), selected)
         with self.assertRaisesRegex(trace.TraceError, "hard maximum"):
             trace.select_scan_regions(regions, trace.MAX_REVIEWED_SCAN_BYTES + 1)
 
