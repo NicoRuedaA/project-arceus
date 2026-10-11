@@ -42,9 +42,9 @@ PACKET_SIZE = re.compile(r"PacketSize=([0-9a-fA-F]+)")
 MAX_RSP_READ = 0x1F00
 SCAN_PAGE_SIZE = 0x1000
 SIGNATURE_PROBE_SIZE = 16
-# Evidence-based quarantine: this page had an unanswered probe immediately
-# before two separate Eden 0.2.1 Debugger-thread aborts. The cause is unknown.
-QUARANTINED_SCAN_PAGES = {0x1979C35000}
+# Evidence-based quarantine: two unanswered probes inside this exact mapping
+# preceded separate Eden 0.2.1 Debugger-thread aborts. The cause is unknown.
+QUARANTINED_SCAN_RANGES = ((0x19670EB000, 0x1979CEAFFF),)
 SMALL_EXACT_REGION_MAX = 16 * 1024 * 1024
 HEAP_FIRST_WINDOW = 64 * 1024 * 1024
 MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
@@ -304,6 +304,11 @@ def log_scan_plan(controls: "ControlFiles", regions: list[tuple[int, int, str, s
                   max_bytes: int) -> list[tuple[int, int, str, str]]:
     """Persist selected addresses and byte totals before issuing any memory read."""
     selected, eligible_total, selected_total = select_scan_regions(regions, max_bytes)
+    quarantined_bytes = sum(
+        max(0, min(end, quarantine_end) - max(start, quarantine_start) + 1)
+        for start, end, _perms, _kind in selected
+        for quarantine_start, quarantine_end in QUARANTINED_SCAN_RANGES
+    )
     details = [
         {"start": f"0x{start:x}", "end": f"0x{end:x}", "size": end - start + 1,
          "type": kind, "perms": perms,
@@ -314,9 +319,10 @@ def log_scan_plan(controls: "ControlFiles", regions: list[tuple[int, int, str, s
     controls.log(
         f"scan plan: eligible_bytes={eligible_total}; selected_bytes={selected_total}; "
         f"cap_bytes={max_bytes}; pass_order=CodeData/Alias/ThreadLocal,heap-first-window="
-        f"{HEAP_FIRST_WINDOW},largest-Normal; quarantined_pages="
-        f"{json.dumps([f'0x{page:x}' for page in sorted(QUARANTINED_SCAN_PAGES)])} "
-        f"(evidence-based skip; cause unproven); regions={json.dumps(details, sort_keys=True)}"
+        f"{HEAP_FIRST_WINDOW},largest-Normal; quarantined_ranges="
+        f"{json.dumps([[f'0x{start:x}', f'0x{end:x}'] for start, end in QUARANTINED_SCAN_RANGES])}; "
+        f"quarantined_bytes_in_selected={quarantined_bytes} (evidence-based skip; cause unproven); "
+        f"regions={json.dumps(details, sort_keys=True)}"
     )
     if eligible_total > selected_total:
         controls.log(
@@ -526,18 +532,22 @@ def scan_signature(
         touched = page_set.intersection(pages_for(address, length))
         return max(touched) + SCAN_PAGE_SIZE if touched else None
 
-    # Never touch the one page with repeated unanswered probes before separate
-    # aborts. This is a conservative quarantine based on observed evidence;
-    # it does not establish that the page or read caused either abort.
-    for page_set, (start, end, _perms, _kind) in zip(bad_pages, selected):
-        page_set.update(
-            page for page in QUARANTINED_SCAN_PAGES
-            if page <= end and page + SCAN_PAGE_SIZE - 1 >= start
-        )
+    def skip_quarantined_range(address: int, length: int) -> int | None:
+        end = address + length - 1
+        for quarantine_start, quarantine_end in QUARANTINED_SCAN_RANGES:
+            if address <= quarantine_end and end >= quarantine_start:
+                return quarantine_end + 1
+        return None
+
+    # Never touch the exact mapping range where repeated unanswered requests
+    # preceded separate aborts. This evidence-based quarantine does not
+    # establish that the range or requests caused either abort.
 
     def verify_candidates(start: int, end: int, candidates: list[int], page_set: set[int]) -> int | None:
         for candidate in candidates:
             if candidate < start or candidate + len(signature) - 1 > end:
+                continue
+            if skip_quarantined_range(candidate, len(signature)) is not None:
                 continue
             covered = pages_for(candidate, len(signature))
             if covered & page_set:
@@ -563,7 +573,7 @@ def scan_signature(
         while page + SCAN_PAGE_SIZE - 1 <= end:
             if checkpoint:
                 checkpoint()
-            if page in QUARANTINED_SCAN_PAGES:
+            if skip_quarantined_range(page, SIGNATURE_PROBE_SIZE) is not None:
                 page += SCAN_PAGE_SIZE
                 continue
             try:
@@ -596,7 +606,7 @@ def scan_signature(
             if checkpoint:
                 checkpoint()
             page_set = bad_pages[index]
-            if not page_set:
+            if not page_set and skip_quarantined_range(start, region_size) is None:
                 try:
                     block = memory_read(gdb, start, region_size)
                 except MemoryReadError:
@@ -627,6 +637,11 @@ def scan_signature(
             if checkpoint:
                 checkpoint()
             size = min(chunk_size, end - addr + 1)
+            quarantine_skip = skip_quarantined_range(addr, size)
+            if quarantine_skip is not None:
+                addr = max(addr + 1, quarantine_skip)
+                carry = b""
+                continue
             skip_to = skip_bad_pages(bad_pages[index], addr, size)
             if skip_to is not None:
                 addr = max(addr + 1, skip_to)

@@ -8,9 +8,9 @@ that buffer; field interpretation remains a separate pseudocode-evidence task.
 ## Current status and crash evidence
 
 **Latest rehearsal status (2026-10-11): no reader event or watchpoint has
-been captured.** Attempt 3 aborted before a table match or watchpoint; Eden
-is closed, while the persistent GDB driver remains attached and idle after the
-remote target failure. Attempt 1 launched one Eden 0.2.1
+been captured.** Attempt 4 aborted before a table match or watchpoint; all
+Eden and GDB processes are now closed after collecting evidence. Attempt 1
+launched one Eden 0.2.1
 instance with the PLA base game, attached once, and validated `main.nss` at
 `0x80724000` against build ID `aee8f150dda1b5a838806e1a5ea6827ad9f3c51e`
 and all three independent byte pairs. After continuing to early boot, the
@@ -60,13 +60,23 @@ eden +0x996a25 <- eden +0x863409`. The same address/mapping was reported as
 failing in attempt 2. This correlation does **not** prove that this request or
 page caused either abort; the underlying cause remains unproven.
 
-As a conservative response to the repeated unanswered request followed by an
-abort, the driver now excludes the single page `0x1979c35000-0x1979c35fff`
-from both prefix probes and bulk reads and records that quarantine in the
-pre-scan plan. This evidence-based skip is intentionally narrow and is not a
-root-cause fix. It makes the scan incomplete for data in that page, and Eden
-may still abort on another read. Offline coverage verifies no memory packet
-touches or crosses the quarantined page; no live retry is implied by that test.
+Attempt 3's single-page quarantine avoided the original page but allowed the
+scan to proceed 13 pages before another unanswered request in the same mapping.
+Attempt 4 then aborted: Eden 0.2.1 PID 610627, TID 610708 (`Debugger`),
+SIGABRT at 2026-10-11 19:36:46 CEST. The final packet was exactly
+`m1979c42000,10`, with no reply, inside the same mapping
+`0x19670eb000-0x1979ceafff` (`rw-`, `Normal`, 314,572,800 bytes). The reported
+abort stack matches attempt 3. This repeated correlation does **not** prove
+that either packet or the mapping caused the abort; the root cause remains
+unproven.
+
+As a conservative response, the driver now excludes that full captured mapping
+range from prefix probes, bulk reads, and full-signature candidate reads. The
+range and excluded-byte count are recorded in the pre-scan plan. This
+evidence-based quarantine is not a root-cause fix and makes the scan incomplete
+for all data in the mapping. Eden may still abort on another read. Offline
+coverage verifies no memory packet touches or crosses the range; no live retry
+is implied by that test.
 
 An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
 15:33:32 CEST (PID 185443, TID 185562,

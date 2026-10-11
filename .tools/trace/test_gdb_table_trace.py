@@ -235,9 +235,9 @@ class SafeScanTests(unittest.TestCase):
         ])
         self.assertTrue(all(length > 1 for _, length in stub.requests))
 
-    def test_quarantined_page_is_logged_and_never_touched_or_crossed(self):
-        quarantined = 0x1979C35000
-        start, end = quarantined - 0x2000, quarantined + 0x3fff
+    def test_quarantined_mapping_range_is_logged_and_never_touched_or_crossed(self):
+        quarantine_start, quarantine_end = trace.QUARANTINED_SCAN_RANGES[0]
+        start, end = quarantine_start - 0x2000, quarantine_end + 0x3000
 
         class RecordingMemory:
             def __init__(self):
@@ -261,7 +261,11 @@ class SafeScanTests(unittest.TestCase):
         regions = [(start, end, "rw-", "Normal")]
         controls = Controls()
         selected = trace.log_scan_plan(controls, regions, end - start + 1)
-        self.assertIn("quarantined_pages=[\"0x1979c35000\"]", controls.lines[0])
+        self.assertIn(
+            'quarantined_ranges=[["0x19670eb000", "0x1979ceafff"]]',
+            controls.lines[0],
+        )
+        self.assertIn("quarantined_bytes_in_selected=314572800", controls.lines[0])
         self.assertIn("cause unproven", controls.lines[0])
 
         stub = RecordingMemory()
@@ -273,7 +277,7 @@ class SafeScanTests(unittest.TestCase):
                 )
         self.assertTrue(stub.requests)
         self.assertTrue(all(
-            address + length <= quarantined or address >= quarantined + trace.SCAN_PAGE_SIZE
+            address + length <= quarantine_start or address > quarantine_end
             for address, length in stub.requests
         ))
 
