@@ -156,3 +156,11 @@ Source hint: pkNX [`NewHugeOutbreakGroupLottery.fbs`](https://github.com/kwsch/p
 **Observed:** seven parent records have the four-field shape `LotteryGroup` plus three candidate vectors; nested vectors contain 501 child rows. Child field 0 is captured as u64, consistent with `Group:ulong`. Child field 1 is absent in some entries, compatible with a FlatBuffers default but not sufficient to verify `Rate:int` or its signedness. Parent vector slots are four-byte offsets; payloads remain raw.
 
 Detailed map: [`sheets/data/schemas/new_huge_outbreak_group_lottery_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_group_lottery_fields.tsv).
+
+### `field/encount/new_huge_outbreak_lottery.bin`
+
+Source hint: pkNX [`NewHugeOutbreakLottery.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Field/NewHuge/NewHugeOutbreakLottery.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** five local records have 18 fields, matching the public field count/order. F00 is u64 and all five hashes match `huge_outbreak.bin`. F01 and F15–F17 are four-byte offset candidates. F02–F14 are four-byte scalars whose positive value ranges fit the candidate int32 types, but the local TSV labels them u32 and cannot independently prove signedness. Offsets' target strings/vectors have not been decoded.
+
+Detailed map: [`sheets/data/schemas/new_huge_outbreak_lottery_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_lottery_fields.tsv).
