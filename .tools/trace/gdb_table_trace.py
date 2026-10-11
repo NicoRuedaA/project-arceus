@@ -1175,37 +1175,6 @@ def wait_for_main_module(
     )
 
 
-def evaluate(gdb: GdbMi, expression: str) -> str:
-    result, _ = gdb.ok("-data-evaluate-expression " + mi_quote(expression))
-    match = re.search(r'value="([^"]+)"', result)
-    if not match:
-        raise TraceError(f"Could not read register/expression {expression}: {result}")
-    return match.group(1)
-
-
-def parse_address(value: str) -> int:
-    match = re.search(r"0x[0-9a-fA-F]+", value)
-    if not match:
-        raise TraceError(f"Expected a hex address, got {value!r}")
-    return int(match.group(0), 16)
-
-
-def get_frames(gdb: GdbMi, base: int, functions: list[tuple[int, int, str, str]], limit: int) -> list[dict[str, Any]]:
-    result, _ = gdb.ok(f"-stack-list-frames 0 {limit - 1}")
-    frames = []
-    for item in re.finditer(r'frame=\{([^{}]*)\}', result):
-        fields = parse_mi_fields(item.group(1))
-        if "addr" not in fields:
-            continue
-        address = parse_address(fields["addr"])
-        frames.append({
-            "level": fields.get("level"), "pc": f"0x{address:x}",
-            "function": fields.get("func"), "file": fields.get("fullname", fields.get("file")),
-            "mapped_function": find_function(address, base, functions),
-        })
-    return frames
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--file", required=True, type=Path, help="table file whose first bytes are the RAM signature")
@@ -1336,10 +1305,20 @@ def main() -> int:
         with args.event_log.open("a", encoding="utf-8") as events:
             def on_stop(line: str) -> None:
                 nonlocal count
-                # Preserve the exact MI async record before interpreting it. A
-                # stop must never be silently lost or strand the guest paused.
-                controls.log(f"MI_STOP verbatim: {line}")
                 stopped = parse_stop([line]) or {}
+                # Persist the exact MI record before issuing any more MI/RSP
+                # traffic. A register query or timeout must not lose the stop.
+                raw_event = {
+                    "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
+                    "module": module_name, "module_base": f"0x{base:x}",
+                    "main_nso_build_id": build_id, "table_file": str(args.file),
+                    "buffer_address": f"0x{address:x}", "watchpoint": args.watchpoint,
+                    "stop_reason": stopped.get("reason"), "raw_stopped": line,
+                    "type": "raw-stop",
+                }
+                events.write(json.dumps(raw_event, sort_keys=True) + "\n")
+                events.flush()
+                controls.log(f"MI_STOP verbatim: {line}")
                 if stopped.get("reason") != "watchpoint-trigger":
                     events.write(json.dumps({
                         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -1350,28 +1329,50 @@ def main() -> int:
                     }, sort_keys=True) + "\n")
                     events.flush()
                     controls.log(f"non-watchpoint stop recorded; resuming guest: {stopped.get('reason')}")
-                    continue_target(gdb)
+                    try:
+                        result, _ = gdb.command("-exec-continue --all", timeout=5.0)
+                        controls.log(f"auto-continue after non-watchpoint stop: {result}")
+                    except Exception as exc:
+                        controls.log(f"auto-continue command failed; retaining GDB: {exc!r}")
                     return
-                pc = parse_address(evaluate(gdb, "$pc"))
-                lr = parse_address(evaluate(gdb, "$x30"))
-                frames = get_frames(gdb, base, functions, args.frames)
-                event = {
-                    "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
-                    "module": module_name, "module_base": f"0x{base:x}", "main_nso_build_id": build_id,
-                    "host_scan_result": str(host_scan_result),
-                    "table_file": str(args.file), "signature_hex": signature.hex(),
-                    "buffer_address": f"0x{address:x}", "watchpoint": args.watchpoint,
-                    "stop_reason": stopped.get("reason"), "raw_stopped": line,
-                    "pc": f"0x{pc:x}", "pc_function": find_function(pc, base, functions),
-                    "lr": f"0x{lr:x}", "lr_function": find_function(lr, base, functions),
-                    "frames": frames,
+                event: dict[str, Any] = {
+                    **raw_event, "host_scan_result": str(host_scan_result),
+                    "signature_hex": signature.hex(), "watchpoint_id": stopped.get("wpnum"),
                 }
-                events.write(json.dumps(event, sort_keys=True) + "\n")
-                events.flush()
-                print(json.dumps(event, sort_keys=True), flush=True)
-                count += 1
-                controls.log(f"watchpoint event recorded: {count}")
-                continue_target(gdb)
+                try:
+                    result, _ = gdb.command("-data-list-register-values x", timeout=5.0)
+                    regs = {
+                        int(number): int(value, 16)
+                        for number, value in re.findall(
+                            r'number="(\d+)",value="0x([0-9a-fA-F]+)"', result
+                        )
+                    }
+                    pc, lr = regs.get(32), regs.get(30)
+                    event["registers"] = {
+                        (f"x{number}" if number <= 30 else {31: "sp", 32: "pc", 33: "pstate"}.get(number, f"reg{number}")): f"0x{value:x}"
+                        for number, value in regs.items()
+                    }
+                    event["pc"] = None if pc is None else f"0x{pc:x}"
+                    event["pc_function"] = None if pc is None else find_function(pc, base, functions)
+                    event["lr"] = None if lr is None else f"0x{lr:x}"
+                    event["lr_function"] = None if lr is None else find_function(lr, base, functions)
+                    event["frame_pointer"] = None if regs.get(29) is None else f"0x{regs[29]:x}"
+                    event["stack_pointer"] = None if regs.get(31) is None else f"0x{regs[31]:x}"
+                    event["capture_status"] = "registers-captured"
+                except Exception as exc:
+                    event["capture_status"] = "register-capture-failed"
+                    event["capture_error"] = repr(exc)
+                finally:
+                    events.write(json.dumps(event, sort_keys=True) + "\n")
+                    events.flush()
+                    controls.log(f"watchpoint capture record: {json.dumps(event, sort_keys=True)}")
+                    try:
+                        result, _ = gdb.command("-exec-continue --all", timeout=5.0)
+                        controls.log(f"auto-continue after stop: {result}")
+                    except Exception as exc:
+                        controls.log(f"auto-continue command failed; retaining GDB: {exc!r}")
+                    count += 1
+                    print(json.dumps(event, sort_keys=True), flush=True)
             signal = finish_action_stage(
                 gdb, controls, watchpoint_id, args.control_timeout,
                 args.control_poll_interval, on_stop=on_stop,
