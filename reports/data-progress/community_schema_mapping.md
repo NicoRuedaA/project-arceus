@@ -68,3 +68,13 @@ Community reference: [pkNX `EXPGroup.cs`](https://github.com/kwsch/pkNX/blob/d19
 **Unverified:** no matching public community structure for the growth-curve binary was located. The header meaning and threshold field name/type remain unverified against community evidence; only the group enum labels are promoted. The delta-to-next value is derived, not serialized.
 
 Detailed map: [`sheets/data/schemas/pml_grow_table_fields.tsv`](../../sheets/data/schemas/pml_grow_table_fields.tsv).
+
+### `item.dat` (n2-input binary; mapping/proposal only)
+
+Sources: pkNX [`GameFileMapping.cs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Game/File/GameFileMapping.cs) and [`Item8a.cs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Structures/Item/Item8a.cs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** pkNX maps `bin/pml/item/item.dat` to `ItemStats`; the local 53,560-byte file has 807 records of 0x3c bytes beginning at 0x1414, and the computed record end is exactly EOF. The native consumer audit independently reads the +0x11 low-nibble pouch/category value and the u16 stack ceiling at +0x1c, corroborating those offsets. Candidate fields include Price u32 +0, BattleEffect u8 +0x0c, Pouch low nibble +0x11, ItemType u8 +0x16, MaxQuantity u16 +0x1c, and ItemGroup u8 +0x20.
+
+**Limit:** no decoded per-item TSV or reliable item-ID/name row join is present in n2-input. Thus the specific Master Ball ID/price fact could not be checked, and gameplay semantics remain unverified beyond layout/consumer offsets. No other worktree was edited.
+
+Detailed map: [`sheets/data/schemas/item_dat_fields.tsv`](../../sheets/data/schemas/item_dat_fields.tsv).
