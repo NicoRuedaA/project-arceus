@@ -132,3 +132,11 @@ Candidate analogue: pkNX [`EncounterMultiplerArchive.fbs`](https://github.com/kw
 **Observed:** 322 local records; F00 is u32 in range 25–905, F01 is absent, and F02–F13 are sparse floats in observed range −1.0 to 1.5. The 14-field shape resembles the candidate schema's Species/Form plus time/weather multipliers, but the missing form field and lack of asset-to-schema binding block all semantic assignments. The maps retain every candidate name as **unverified**.
 
 Detailed map: [`sheets/data/schemas/poke_encount_fields.tsv`](../../sheets/data/schemas/poke_encount_fields.tsv).
+
+### `field/encount/huge_outbreak.bin`
+
+Source hint: pkNX [`MassOutbreakTable.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Field/MassOutbreakTable.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** five local parent records match the eight-field schema shape. All five F00 u64 hashes match the five corresponding hashes in `new_huge_outbreak_lottery.bin`, an independent cross-table consistency check. The scalar widths and four-byte pointer slots are structurally compatible; integer signedness, pointer targets, and nested condition data remain unverified because the export captures offsets rather than dereferenced values.
+
+Detailed map: [`sheets/data/schemas/huge_outbreak_fields.tsv`](../../sheets/data/schemas/huge_outbreak_fields.tsv).
