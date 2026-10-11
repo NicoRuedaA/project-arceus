@@ -1,0 +1,6 @@
+area_id	area_name	work_flag	max_simultaneous	spawn_limit	respawn_window_sec
+1	Obsidian Fieldlands	WSYS_MASS_GANERATION_AREA01	10	15	25
+2	Crimson Mirelands	WSYS_MASS_GANERATION_AREA02	10	15	25
+3	Cobalt Coastlands	WSYS_MASS_GANERATION_AREA03	10	15	25
+4	Coronet Highlands	WSYS_MASS_GANERATION_AREA04	10	15	25
+5	Alabaster Icelands	WSYS_MASS_GANERATION_AREA05	10	15	25

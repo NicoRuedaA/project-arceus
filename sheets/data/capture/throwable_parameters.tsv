@@ -1,0 +1,55 @@
+item_id	category	reaction_type	mass_or_durability	velocity_scale
+1710	ball	warning	10	1106247680
+1711	ball	warning	10	1106247680
+1712	ball	check	10	1106247680
+1713	ball	warning	10	1109393408
+1746	ball	warning	10	1109393408
+1747	ball	warning	10	1109393408
+1748	ball	warning	10	1106247680
+1749	ball	warning	10	1106247680
+1750	ball	warning	10	1106247680
+1771	ball	warning	10	1106247680
+1785	ball	warning	10	1106247680
+1716	bibiridama	warning	10	
+1717	kemuridama	warning	10	
+1724	bait	check	300	
+1725	bait	check	300	
+1726	bait	check	300	
+1727	bait	check	300	
+1728	bait	check	bait	
+159	bait	check	bait	
+160	bait	check	bait	
+161	bait	check	bait	
+162	bait	check	bait	
+163	bait	check	bait	
+164	bait	check	bait	
+166	bait	check	bait	
+168	bait	check	bait	
+1754	bait	check	bait	
+1632	bait	check	bait	
+1633	bait	check	bait	
+1634	bait	check	bait	
+1635	bait	check	bait	
+1636	bait	check	bait	
+149	bait	check	bait	
+150	bait	check	bait	
+151	bait	check	bait	
+152	bait	check	bait	
+153	bait	check	bait	
+154	bait	check	bait	
+155	bait	check	bait	
+157	bait	check	bait	
+158	bait	check	bait	
+1678	shizumedama	warning	10	
+1639	shizumedama	warning	10	
+1721	shizumedama	warning	10	
+1722	shizumedama	warning	10	
+1723	shizumedama	warning	10	
+1608	shizumedama	warning	10	
+1609	shizumedama	warning	10	
+1610	shizumedama	warning	10	
+1684	fatigue	check	10	
+1688	fatigue	check	10	
+1689	fatigue	check	10	
+1690	fatigue	check	10	
+1622	fatigue	warning	10	

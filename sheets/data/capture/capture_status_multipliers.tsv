@@ -1,0 +1,7 @@
+status_condition	multiplier_key	multiplier	description
+None	capture_index_sick_factor_none	1	Standard unmodified catch rate
+Paralysis	capture_index_sick_factor_paralysis	2	Paralyzed condition multiplier
+Drowsiness / Sleep	capture_index_sick_factor_sleep	2	Drowsy / Asleep condition multiplier
+Poison	capture_index_sick_factor_poison	2	Poisoned condition multiplier
+Burn	capture_index_sick_factor_burn	2	Burned condition multiplier
+Frostbite / Freeze	capture_index_sick_factor_freeze	2	Frostbitten condition multiplier

@@ -1,0 +1,6 @@
+area_id	area_name	system_flag	base_chance_percent	rain_bonus_percent	duration_min	duration_max
+1	Obsidian Fieldlands	FSYS_NEW_OUTBREAK_OPEN_AREA01	25	11	10	15
+2	Crimson Mirelands	FSYS_NEW_OUTBREAK_OPEN_AREA02	25	11	10	15
+3	Cobalt Coastlands	FSYS_NEW_OUTBREAK_OPEN_AREA03	25	11	10	15
+4	Coronet Highlands	FSYS_NEW_OUTBREAK_OPEN_AREA04	25	11	10	15
+5	Alabaster Icelands	FSYS_NEW_OUTBREAK_OPEN_AREA05	25	11	10	15
