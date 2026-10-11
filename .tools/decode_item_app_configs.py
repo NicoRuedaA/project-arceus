@@ -44,6 +44,7 @@ class RowLayout:
     object_size: int
     vtable_size: int
     field_offsets: tuple[int, int, int, int, int, int, int]
+    evidence: str = "UNKNOWN"
 
 
 def _require_range(data: bytes, offset: int, size: int, label: str) -> None:
@@ -169,6 +170,7 @@ def write_tsv(path: Path, rows: list[RowLayout]) -> None:
         "object_size:u16",
         "vtable_size:u16",
         *(f"f{slot:02d}_vtable_offset:u16?" for slot in range(7)),
+        "evidence:string",
     )
     with path.open("w", encoding="utf-8", newline="") as stream:
         stream.write("# sheet: data/items/app_config_row_layouts\n")
@@ -189,6 +191,7 @@ def write_tsv(path: Path, rows: list[RowLayout]) -> None:
                     row.object_size,
                     row.vtable_size,
                     *row.field_offsets,
+                    row.evidence,
                 )
             )
 

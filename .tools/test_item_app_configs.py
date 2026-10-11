@@ -31,7 +31,7 @@ class ItemAppConfigTests(unittest.TestCase):
         self.assertEqual(
             rows[0],
             decoder.RowLayout(
-                "fixture.bin", 0, 64, 16, 18, (4, 6, 8, 10, 12, 14, 15)
+                "fixture.bin", 0, 64, 16, 18, (4, 6, 8, 10, 12, 14, 15), "UNKNOWN"
             ),
         )
 
