@@ -32,3 +32,11 @@ Source hint: [pkNX `ItemHash8.cs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c
 **Contradicted:** n2-input currently exports +0x08 as `f08_u64`, while the community parser treats it as `i32`; upper 32 bits are zero in the local data, but the exported width remains mismatched. Do not rename that field yet. This worktree contains only a rename proposal; the n2-input TSV was not edited.
 
 Detailed map: [`sheets/data/schemas/item_hash_to_index_fields.tsv`](../../sheets/data/schemas/item_hash_to_index_fields.tsv).
+
+### `pml_evolution.tsv`
+
+Source hint: [pkNX `EvolutionTable.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Poke/EvolutionTable.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** all 146 flattened evolution entries align with the community table order and u16 scalar reads. Fact checks include Pikachu → Raichu with Thunder Stone (argument 83), Stantler → Wyrdeer (PLA method 51), and Ursaring → Ursaluna with Peat Block (argument 1692). The source schema's generic `Method/Argument/Species/Form/Level` names correspond to the local entry fields; source species/form are the containing `EvolutionSet` F00/F01.
+
+Detailed map: [`sheets/data/schemas/pml_evolution_fields.tsv`](../../sheets/data/schemas/pml_evolution_fields.tsv).
