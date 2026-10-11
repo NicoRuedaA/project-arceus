@@ -98,3 +98,11 @@ Source hint: pkNX [`HaShopTable.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0
 **Unverified:** pkNX deliberately calls the first fields `Field_00` and `Field_01`; their meaning is unknown. Item names and shop availability/price were not bound. No decoded shop TSV exists in n2-input; no other worktree was edited.
 
 Detailed map: [`sheets/data/schemas/shop_data_fields.tsv`](../../sheets/data/schemas/shop_data_fields.tsv).
+
+### Quest lists (`quest_list_main`, `quest_list_sub`)
+
+**No community field schema found** for the main/side quest list binaries in pinned pkNX or PKHeX. Public inventory checks: [Gamepedia's main-quest list](https://gamepedia.jp/pokemon-legends-arceus/quests?quest_type=%E3%83%A1%E3%82%A4%E3%83%B3%E4%BB%BB%E5%8B%99) lists 27 main missions, including 1 *In an Unfamiliar Land* and 2 *The Galaxy Team's Entry Trial*; [Serebii's request list](https://www.serebii.net/legendsarceus/requests.shtml) and [Game8](https://game8.co/games/Pokemon-Legends-Arceus/archives/353893) list requests 1 *Wurmple Can Evolve* and 2 *Adorable Starly* through Request 122. Local counts are 27 main and 122 side rows, but local quest IDs and order remain UNKNOWN, so those public names cannot be joined to local records.
+
+**Contradiction:** an earlier N2 summary's 28 main + 94 side count is not the count in these decoded lists; 27 + 122 agrees with the public inventories. No native source-to-file/schema binding was found. The main raw fields 00–12 remain unnamed; side-list record targets remain opaque. No rename proposals were made.
+
+Detailed maps: [main list](../../sheets/data/schemas/quest_list_main_fields.tsv), [side list](../../sheets/data/schemas/quest_list_sub_fields.tsv).
