@@ -106,3 +106,13 @@ Detailed map: [`sheets/data/schemas/shop_data_fields.tsv`](../../sheets/data/sch
 **Contradiction:** an earlier N2 summary's 28 main + 94 side count is not the count in these decoded lists; 27 + 122 agrees with the public inventories. No native source-to-file/schema binding was found. The main raw fields 00–12 remain unnamed; side-list record targets remain opaque. No rename proposals were made.
 
 Detailed maps: [main list](../../sheets/data/schemas/quest_list_main_fields.tsv), [side list](../../sheets/data/schemas/quest_list_sub_fields.tsv).
+
+### `trigger_quest_sub*` tables
+
+Source hint: pkNX [`Trigger.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Event/Trigger.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0). Candidate outer vtable fields are F00 `Meta:TriggerMeta`, F01 `Conditions:[TriggerCondition]`, F02 `Commands:[TriggerCommand]`.
+
+**Observed:** local trigger export contains 911 entry records plus eight empty-source rows (919 total). Each entry has three raw four-byte spans at object offsets +4/+8/+12, matching a plausible three-field table shape. This is structural compatibility only; the native resource evidence does not bind these trigger files to the pkNX schema, and nested payloads are not decoded.
+
+**Unverified:** keep all three local fields raw. No quest-specific IDs/names or condition/command semantics were proven. Exact source-to-schema binding is the blocker.
+
+Detailed map: [`sheets/data/schemas/trigger_quest_sub_fields.tsv`](../../sheets/data/schemas/trigger_quest_sub_fields.tsv).
