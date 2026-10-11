@@ -737,23 +737,30 @@ class SafeScanTests(unittest.TestCase):
         self.assertEqual(session.calls, ["monitor get info", "maintenance packet qfThreadInfo"] * 2)
 
     def test_host_memory_map_parser_selects_only_unique_hostmemory_memfd(self):
-        mapping = trace.parse_host_memory_mapping(
+        base = 0x7e7224000000
+        arena_end = base + 4 * 1024**3
+        maps = (
             "00400000-00401000 r-xp 00000000 00:00 1 /app/eden\n"
-            "7e7224000000-7e7324000000 rw-s 00000000 00:01 2 /memfd:HostMemory (deleted)\n"
+            "7e03a8716000-7e03a8746000 ---s edb56000 00:01 17606 /memfd:HostMemory (deleted)\n"
+            "7e03b0000000-7e03b0010000 rw-s edc00000 00:01 17606 /memfd:HostMemory (deleted)\n"
+            f"{base:x}-{arena_end:x} rw-s 00000000 00:01 17606 /memfd:HostMemory (deleted)\n"
+            f"{arena_end:x}-{arena_end + 0x1000:x} r--s 100000000 00:01 17606 /memfd:HostMemory (deleted)\n"
         )
+        with patch.object(trace, "HOST_MEMORY_SIZE", 4 * 1024**3):
+            mapping = trace.parse_host_memory_mapping(maps)
         self.assertEqual(mapping.start, 0x7e7224000000)
         self.assertEqual(mapping.size, 4 * 1024**3)
-        with self.assertRaisesRegex(trace.TraceError, "found 2"):
+        duplicated_arena = maps + f"{base + 0x1000000000:x}-{base + 0x1000000000 + 4 * 1024**3:x} rw-s 00000000 00:01 17606 /memfd:HostMemory (deleted)\n"
+        with patch.object(trace, "HOST_MEMORY_SIZE", 4 * 1024**3), self.assertRaisesRegex(trace.TraceError, "found 2"):
             trace.parse_host_memory_mapping(
-                "1000-2000 rw-s 0 0:0 1 /memfd:HostMemory\n"
-                "3000-4000 rw-s 0 0:0 2 /memfd:HostMemory\n"
+                duplicated_arena
             )
 
     def test_host_offset_fallback_requires_three_unique_consistent_function_matches(self):
         start, size, module_base = 0x100000, 0x20000, 0x1000
-        mapping = trace.HostMemoryMapping(start, start + size - 1, "rw-s", "/memfd:HostMemory")
+        mapping = trace.HostMemoryMapping(start, start + size, "rw-s", "/memfd:HostMemory")
         backing = bytearray(size)
-        validations = [(f"{fid:x}", fid, 0x20 + i, bytes([0x40 + i]) * 16)
+        validations = [(f"{fid:x}", fid, 0x20 + i, bytes([0x40 + i]) * 64)
                        for i, fid in enumerate((0x100, 0x200, 0x300))]
         derived_offset = start + 0x5000
         for _name, fid, _size, expected in validations:
@@ -772,6 +779,7 @@ class SafeScanTests(unittest.TestCase):
             ),
             derived_offset,
         )
+        self.assertTrue(all(len(expected) >= 64 for _, _, _, expected in validations))
 
     def test_host_scan_persists_unique_match_and_translates_to_guest_va(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -786,7 +794,7 @@ class SafeScanTests(unittest.TestCase):
             memory_path = root / "mem"
             memory_path.write_bytes(bytes(map_size))
             backing = bytearray(map_size)
-            validations = [(f"{fid:x}", fid, 0x20 + index, bytes([0x50 + index]) * 16)
+            validations = [(f"{fid:x}", fid, 0x20 + index, bytes([0x50 + index]) * 64)
                            for index, fid in enumerate((0x100, 0x200, 0x300))]
             for _name, fid, _size, expected in validations:
                 offset = module_base + fid
@@ -815,9 +823,18 @@ class SafeScanTests(unittest.TestCase):
             self.assertTrue(reads)
             self.assertTrue(all(length <= trace.HOST_SCAN_CHUNK_SIZE for _, length in reads))
 
+    def test_executable_validation_extracts_64_bytes_from_independent_elf_segment(self):
+        elf = bytes((index % 251 for index in range(0x400)))
+        segments = [(0x1000, 0x80, 0x200, 1)]
+        extracted = trace.extract_executable_bytes(elf, segments, 0x1080)
+        self.assertEqual(extracted, elf[0x100:0x140])
+        self.assertEqual(len(extracted), 64)
+        with self.assertRaisesRegex(trace.TraceError, "does not map uniquely"):
+            trace.extract_executable_bytes(elf, segments, 0x11D0, 64)
+
     def test_host_signature_requires_unique_match(self):
         start = 0x400000
-        mapping = trace.HostMemoryMapping(start, start + 0x3fff, "rw-s", "/memfd:HostMemory")
+        mapping = trace.HostMemoryMapping(start, start + 0x4000, "rw-s", "/memfd:HostMemory")
         data = bytearray(mapping.size)
         signature = b"unique-host-signature"
         data[0x100:0x100 + len(signature)] = signature

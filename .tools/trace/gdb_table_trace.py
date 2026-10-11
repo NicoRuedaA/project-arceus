@@ -47,6 +47,7 @@ HEAP_FIRST_WINDOW = 64 * 1024 * 1024
 MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
 HOST_MEMORY_SIZE = 4 * 1024**3
 HOST_SCAN_CHUNK_SIZE = 1024 * 1024
+VALIDATION_BYTE_LENGTH = 64
 SIGNATURE_NO_MATCH = "Signature search found no match in the selected prioritized scan pass"
 SCAN_REGION_TYPES = {"heap", "normal", "codedata", "alias", "stack", "threadlocal"}
 MAP_PERMISSIONS = re.compile(r"^[r-][w-][x-](?:[r-][w-])?$")
@@ -267,13 +268,17 @@ class HostMemoryMapping:
 
 
 def parse_host_memory_mapping(maps_text: str) -> HostMemoryMapping:
-    """Find the unique readable `/memfd:HostMemory` mapping in proc maps."""
+    """Select the exact 4 GiB, offset-zero rw-s HostMemory arena.
+
+    Linux can expose other HostMemory memfd fragments, including unreadable
+    subranges. Those are not the scanner's backing arena and are ignored.
+    """
     matches: list[HostMemoryMapping] = []
     for line in maps_text.splitlines():
         columns = line.split(None, 5)
-        if len(columns) < 5 or len(columns[0].split("-")) != 2:
+        if len(columns) < 6 or len(columns[0].split("-")) != 2:
             continue
-        path = columns[5] if len(columns) == 6 else ""
+        path = columns[5]
         if "memfd:HostMemory" not in path:
             continue
         try:
@@ -282,11 +287,19 @@ def parse_host_memory_mapping(maps_text: str) -> HostMemoryMapping:
         except ValueError as exc:
             raise TraceError(f"Malformed HostMemory mapping row: {line!r}") from exc
         permissions = columns[1]
-        if end < start or "r" not in permissions:
-            raise TraceError(f"HostMemory mapping is not a readable valid range: {line!r}")
-        matches.append(HostMemoryMapping(start, end, permissions, path))
+        try:
+            file_offset = int(columns[2], 16)
+        except ValueError as exc:
+            raise TraceError(f"Malformed HostMemory file offset: {line!r}") from exc
+        if end < start:
+            raise TraceError(f"HostMemory mapping has an invalid range: {line!r}")
+        if (end - start == HOST_MEMORY_SIZE and file_offset == 0
+                and permissions == "rw-s"):
+            matches.append(HostMemoryMapping(start, end, permissions, path))
     if len(matches) != 1:
-        raise TraceError(f"Expected one readable HostMemory mapping; found {len(matches)}")
+        raise TraceError(
+            f"Expected one 4 GiB offset-zero rw-s HostMemory mapping; found {len(matches)}"
+        )
     return matches[0]
 
 
@@ -605,6 +618,24 @@ def parse_elf(data: bytes) -> tuple[str, list[tuple[int, int, int, int]]]:
     return build_id, segments
 
 
+def extract_executable_bytes(
+    elf: bytes, segments: list[tuple[int, int, int, int]], address: int,
+    length: int = VALIDATION_BYTE_LENGTH,
+) -> bytes:
+    """Independently extract a longer exact byte pattern from one executable PT_LOAD."""
+    candidates = [(vaddr, offset, file_size) for vaddr, offset, file_size, flags in segments
+                  if flags & 1 and vaddr <= address and address + length <= vaddr + file_size]
+    if len(candidates) != 1:
+        raise TraceError(
+            f"Address 0x{address:x} does not map uniquely to {length} bytes in an executable PT_LOAD"
+        )
+    vaddr, offset, _file_size = candidates[0]
+    instruction_bytes = elf[offset + address - vaddr:offset + address - vaddr + length]
+    if len(instruction_bytes) != length:
+        raise TraceError(f"Could not derive {length} instruction bytes at 0x{address:x}")
+    return instruction_bytes
+
+
 def static_validation_pairs(
     elf_path: Path, nso_path: Path, functions_path: Path, n2_path: Path
 ) -> tuple[str, list[tuple[str, int, int, bytes]]]:
@@ -645,16 +676,13 @@ def static_validation_pairs(
         if fid not in n2_ids or fid not in exports:
             raise TraceError(f"Validation function {fid_text} is not an N2-verified exported function")
         size = exports[fid][1]
+        if size < VALIDATION_BYTE_LENGTH:
+            raise TraceError(
+                f"Validation function {fid_text} is shorter than {VALIDATION_BYTE_LENGTH} bytes"
+            )
         if size in sizes:
             raise TraceError("Validation functions must have distinct exported sizes")
-        candidates = [(vaddr, offset, file_size) for vaddr, offset, file_size, flags in segments
-                      if flags & 1 and vaddr <= fid and fid + 16 <= vaddr + file_size]
-        if len(candidates) != 1:
-            raise TraceError(f"Function {fid_text} does not map uniquely to an executable PT_LOAD segment")
-        vaddr, offset, _ = candidates[0]
-        insn = elf[offset + fid - vaddr:offset + fid - vaddr + 16]
-        if len(insn) != 16:
-            raise TraceError(f"Could not derive 16 instruction bytes for function {fid_text}")
+        insn = extract_executable_bytes(elf, segments, fid)
         pairs.append((fid_text, fid, size, insn))
         sizes.add(size)
     return build_id, pairs

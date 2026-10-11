@@ -7,10 +7,12 @@ that buffer; field interpretation remains a separate pseudocode-evidence task.
 
 ## Current status and crash evidence
 
-**Latest rehearsal status (2026-10-11): no reader event or watchpoint has
-been captured.** Attempt 6 aborted before a table match or watchpoint. The
-host-side redesign below is offline-tested only; it has not scanned process
-memory or armed a watchpoint. Attempt 1
+**Latest rehearsal status (2026-10-11): no reader event has been captured.**
+The host-side attempt found a unique signature in HostMemory but its computed
+guest address was rejected as unmapped; no watchpoint was armed. The attempt
+has since been closed. Do not reuse that affine guest address or send further
+watchpoint packets until the HostMemory-to-guest mapping is independently
+established. Attempt 1
 launched one Eden 0.2.1
 instance with the PLA base game, attached once, and validated `main.nss` at
 `0x80724000` against build ID `aee8f150dda1b5a838806e1a5ea6827ad9f3c51e`
@@ -99,13 +101,15 @@ had zero RSS and are not scan candidates. Eden PID 635707 was reported alive
 while this redesign was prepared; this implementation did not contact,
 interrupt, or inspect that process.
 
-Before scanning, the driver reads `/proc/<pid>/maps`, requires exactly one
-readable HostMemory mapping of the expected size, and logs its address range,
-size, and result-file path. It first tests `HostMemory.start + guest VA`
-against all three independently derived function instruction sequences. If
-that fails, it searches only the bounded 4 GiB HostMemory map for unique
-matches of those sequences and requires one consistent host-minus-guest
-offset. It then searches the same map for the exact 48-byte table signature,
+Before scanning, the driver reads `/proc/<pid>/maps`, selects exactly one
+read-write shared HostMemory arena of the expected size at file offset zero,
+and logs its address range, size, and result-file path. Other HostMemory
+fragments (including unreadable ones) are ignored. It first tests
+`HostMemory.start + guest VA` against all three independently derived
+64-byte function instruction sequences. If that fails, it searches only the
+bounded 4 GiB HostMemory arena for unique matches of those sequences and
+requires one consistent host-minus-guest offset. It then searches the same
+arena for the exact 48-byte table signature,
 requires a unique match, translates the host address to guest VA, and
 persists/read-backs `host-scan-result.json` before watchpoint insertion. No
 `memory_read` call is used for table scanning; GDB is reserved for module
@@ -115,10 +119,31 @@ potentially slow. A completed no-match scan resumes the guest and retains the
 attached GDB session idle. Transport-level failures still produce no
 follow-up RSP requests.
 
-Offline tests cover map selection, direct and fallback offset derivation,
-unique-signature enforcement, and persisted host-to-guest translation. They do
-not establish that host memory has the assumed guest-VA layout or that Eden's
-mapping is safe to read; those remain unverified runtime assumptions.
+Attempt-host-1 runtime evidence: the process map contained 444 readable
+HostMemory fragments plus the exact `rw-s`, offset-zero 4 GiB arena
+`0x7e7224000000-0x7e7324000000`; the arena is now selected independently of
+the other fragments. The 16-byte validation patterns had multiple matches;
+64-byte sequences independently derived from `main.elf` each matched once and
+implied the same file offset. The `event_random_seed.bin` signature matched
+uniquely at HostMemory file offset `0x8345b2a0`. Applying the function-byte
+affine delta yielded guest candidate `0x217b82a0`, but attempt logs show that
+candidate is invalid: `monitor get info` reported Alias
+`0x1106600000-0x21065fffff` and Heap `0x2106600000-0x23065fffff`, so the
+candidate lies outside both ranges. GDB's watchpoint setup emitted
+`m217b82a0,4` -> `E01` and `Z3,217b82a0,4` -> `E01`; the MI log says the
+watchpoint could not be inserted, and the trace log records Eden's
+`Unmapped @ 0X000000217B82A0` report. No watchpoint hit was recorded.
+
+Adding `0x8345b2a0` to the reported Alias and Heap starts yields arithmetic
+hypotheses `0x1189a5b2a0` and `0x2189a5b2a0`, respectively. Both are in-range,
+but neither is proven to be the buffer's guest pointer. The captured
+`monitor get mappings` reply is truncated and does not establish this
+relation. Therefore the table-read trace is
+blocked at address translation; no candidate should be used to arm a
+watchpoint. Offline tests cover selecting the exact arena amid fragments,
+extracting 64 independent ELF bytes, direct/fallback offset derivation, unique
+signature enforcement, and persisted address handoff. They do not establish
+the HostMemory-to-guest mapping.
 
 An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
 15:33:32 CEST (PID 185443, TID 185562,
