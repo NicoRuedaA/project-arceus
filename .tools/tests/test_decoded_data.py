@@ -115,6 +115,8 @@ def validate_field_data() -> None:
         reader = csv.DictReader(f, delimiter="\t")
         rows = list(reader)
         assert len(rows) == 5, f"Expected 5 Hisui major areas, got {len(rows)}"
+        assert list(rows[0])[-1] == "evidence", "Huge outbreak area schema must record evidence status"
+        assert all(r["evidence"] == "UNKNOWN" for r in rows), "Huge outbreak areas have no proven direct reader"
     print("[PASS] Huge outbreak areas validation")
 
     # Wild encounter modifiers
@@ -123,6 +125,8 @@ def validate_field_data() -> None:
         reader = csv.DictReader(f, delimiter="\t")
         rows = list(reader)
         assert len(rows) == 322, f"Expected 322 encounter records, got {len(rows)}"
+        assert list(rows[0])[-1] == "evidence", "Encounter schema must record evidence status"
+        assert all(r["evidence"] == "UNKNOWN" for r in rows), "Encounter fields have no proven direct reader"
         raw_ids_seen = set()
         for r in rows:
             sid = int(r["f00_u32"])
@@ -137,9 +141,19 @@ def validate_field_data() -> None:
                     assert math.isfinite(value) and -1.0 <= value <= 1.5, f"Observed float field out of range: {field_index}={value}"
     print("[PASS] Encounter raw-field range validation")
 
+    lottery_file = DATA_DIR / "field/huge_outbreak_lottery.tsv"
+    with open(lottery_file, "r", encoding="utf-8", newline="") as f:
+        lottery_rows = list(csv.DictReader(f, delimiter="\t"))
+    assert len(lottery_rows) == 5, f"Expected 5 huge outbreak lottery rows, got {len(lottery_rows)}"
+    assert list(lottery_rows[0])[-1] == "evidence", "Huge outbreak lottery schema must record evidence status"
+    assert all(r["evidence"] == "UNKNOWN" for r in lottery_rows), "Huge outbreak lottery has no proven direct reader"
+
     raw_file = DATA_DIR / "field/spawn_source_fields.tsv"
     with open(raw_file, "r", encoding="utf-8", newline="") as f:
         raw_rows = list(csv.DictReader(f, delimiter="\t"))
+    assert len(raw_rows) == 6183, f"Expected 6,183 raw spawn fields, got {len(raw_rows)}"
+    assert raw_rows and list(raw_rows[0])[-1] == "evidence", "Spawn source schema must record evidence status"
+    assert all(r["evidence"] == "UNKNOWN" for r in raw_rows), "Spawn source fields have no proven direct reader"
     expected_counts = {
         "field/encount/huge_outbreak.bin": 5,
         "field/encount/new_huge_outbreak_group.bin": 166,
@@ -196,6 +210,9 @@ def validate_field_data() -> None:
     nested_file = DATA_DIR / "field/spawn_nested_raw_fields.tsv"
     with open(nested_file, "r", encoding="utf-8", newline="") as f:
         nested = list(csv.DictReader(f, delimiter="\t"))
+    assert len(nested) == 5074, f"Expected 5,074 nested raw fields, got {len(nested)}"
+    assert nested and list(nested[0])[-1] == "evidence", "Nested spawn schema must record evidence status"
+    assert all(r["evidence"] == "UNKNOWN" for r in nested), "Nested spawn fields have no proven direct reader"
     group_children = {(r["parent_record"], r["child_index"]) for r in nested if r["source_file"] == "field/encount/new_huge_outbreak_group.bin"}
     assert len(group_children) == 480, f"Expected 480 nested outbreak group records, got {len(group_children)}"
     lottery_children = {(r["parent_record"], r["vector_field_index"], r["child_index"]) for r in nested if r["source_file"] == "field/encount/new_huge_outbreak_group_lottery.bin"}
@@ -203,6 +220,8 @@ def validate_field_data() -> None:
     spawner_cfg = DATA_DIR / "field/spawner_config_values.tsv"
     with open(spawner_cfg, "r", encoding="utf-8", newline="") as f:
         cfg = list(csv.DictReader(f, delimiter="\t"))
+    assert cfg and list(cfg[0])[-1] == "evidence", "Spawner config schema must record evidence status"
+    assert all(r["evidence"] == "UNKNOWN" for r in cfg), "Spawner config has no proven direct reader"
     assert len(cfg) == 3 and any(r["config_key"] == "unique_oybn_leave_count" and r["value_text"] == "3" for r in cfg)
     print("[PASS] Spawn source and nested-vector inventory validation")
 

@@ -6,6 +6,33 @@ This pass fixes the throwable-field type error and exports source-exact FlatBuff
 
 The source root is `/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/` (update v262144). `PLA_ROMFS_BIN` remains the decoder override. No Ghidra was used and no Rust source was created or edited.
 
+## Round 3 consumer audit — outcome: no direct field-index consumer established
+
+Round 3 did **not** identify a native function that reads these exported FlatBuffer field indices. The tables remain raw; every row in the affected outputs now carries `evidence=UNKNOWN`. This means no direct consumer was proven, not that the fields are unused. Candidate function IDs are recorded below as audit scope only and are not entered as evidence.
+
+### Observed evidence
+
+| Area | Directly observed | Audit anchors |
+|---|---|---|
+| Pokémon encounter | Resource-name searches in GameDB for `encount`, `huge_outbreak`, `poke_event`, `field_spawner_config`, and `unique_oybn` returned no loader/resource literal. `FUN_024dbfbc` is the wild-entity loop and calls `FUN_024e26b4`; the reviewed excerpts do not establish access to these FlatBuffer fields. | `decompiled/update-main/FUN_024dbfbc_024dbfbc.c:2639`; `reports/function-progress/n2-engine-subsystems.md:24-26` (behavioral context only). |
+| Outbreak / spawner | `FUN_024e26b4` excerpts read wild-Pokémon reaction distances and sleep timing. `FUN_024dbfbc` excerpts include town-smile lookups. None shows field-index reads from the exported tables. | `decompiled/update-main/FUN_024e26b4_024e26b4.c:461-465,623-629,760-766,827-832`; `decompiled/update-main/FUN_024dbfbc_024dbfbc.c:967-971,1679-1685`; N2 context: `reports/function-progress/n2-engine-subsystems.md:24-26`. |
+| Distortion | No wave/drop table or loader was found in the searched `field`, `pokemon`, `misc`, Lua, GameDB, or N2 materials. The inspected code anchors describe generic `wormhole` / `kWhEventFlag` lookup, a runtime list capped at 128 and shuffled with its source unknown, and visual effects—not table-backed encounters or rewards. | `decompiled/update-main/FUN_024a2030_024a2030.c:67-75`; `decompiled/update-main/FUN_01b600c8_01b600c8.c:18-25,54-64`; `decompiled/update-main/FUN_01b4ef20_01b4ef20.c:67-84`; behavioral context: `reports/function-progress/n2-field-placement-and-distortions.md:8-30`. |
+
+### Inference and evidence status
+
+The pseudocode and N2 reports provide behavior context, not a mapping from a native reader to any numeric field index. `FUN_024dbfbc`, `FUN_024e26b4`, `FUN_024a2030`, `FUN_01b600c8`, and `FUN_01b4ef20` are therefore not claimed as consumers. The known-species check also failed: `poke_encount.bin` field 0 begins at 25, but no native mapping from that value to a species was established. No field was relabeled.
+
+`evidence=UNKNOWN` is an explicit unresolved status: the audit did not find a direct consumer-function ID supported by a field read. It is not a negative claim that no consumer exists. Raw field names, values, and data-row counts are unchanged.
+
+The evidence column is present in `spawn_source_fields.tsv`, `spawn_nested_raw_fields.tsv`, `spawner_config_values.tsv`, `wild_encounter_modifiers.tsv`, `huge_outbreak_areas.tsv`, and `huge_outbreak_lottery.tsv`. The decoder writes the same status for future regenerations.
+
+### Attempted routes and remaining blockers
+
+- Searched GameDB for encounter/outbreak/spawner resource-name literals and searched the available pseudocode exports, Lua material, and N2 reports for distortion wave/drop table or loader evidence; no direct field-index access was established.
+- Inspected the candidate function excerpts listed above. Their observed reads are reaction parameters, town-smile settings, generic wormhole/event-flag lookup, an opaque runtime list, or visual effects—not the exported field slots.
+- `misc/app_config/field_huge_outbreak.bin` remains blocked from decoding: its first vector entry reaches table offset 464 with signed vtable displacement 99,936, yielding invalid vtable offset -99,472 outside the 592-byte file. Later entries share an in-range vtable at offset 294; no schema-independent recovery was justified.
+- No semantic spawn table, denominator, species mapping, or area-linked spawn mapping was established. README completion percentages remain unchanged.
+
 ## Outputs and layouts
 
 | Output | Source / contents | Data rows |

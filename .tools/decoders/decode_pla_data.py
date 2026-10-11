@@ -377,7 +377,7 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
     encount_count = vec_len
     with open(out_encount_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t", lineterminator="\n")
-        header = ["f00_u32", "f01_u32"] + [f"f{i:02d}_f32" for i in range(2, 14)]
+        header = ["f00_u32", "f01_u32"] + [f"f{i:02d}_f32" for i in range(2, 14)] + ["evidence"]
         writer.writerow(header)
         for i in range(vec_len):
             e_ptr = vec_offset + 4 + i * 4
@@ -401,7 +401,7 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
             # fill up to 14 elements
             while len(row) < 14:
                 row.append(None)
-            writer.writerow(row)
+            writer.writerow([*row, "UNKNOWN"])
 
     # 2. Huge Outbreak Area Configurations
     huge_path = ROMFS_BIN / "field/encount/huge_outbreak.bin"
@@ -416,7 +416,7 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
     huge_count = h_vec_len
     with open(out_huge_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t", lineterminator="\n")
-        writer.writerow(["record_index", "f00_u64"] + [f"f{i:02d}_u32" for i in range(1, 8)])
+        writer.writerow(["record_index", "f00_u64"] + [f"f{i:02d}_u32" for i in range(1, 8)] + ["evidence"])
         for record_index in range(h_vec_len):
             elem = h_vec_offset + 4 + record_index * 4
             table = elem + struct.unpack_from("<I", hdata, elem)[0]
@@ -424,7 +424,7 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
             vsize, _ = struct.unpack_from("<HH", hdata, vt)
             offsets = struct.unpack_from("<" + "H" * ((vsize - 4) // 2), hdata, vt + 4)
             values = [struct.unpack_from("<Q" if fi == 0 else "<I", hdata, table + off)[0] if off else "" for fi, off in enumerate(offsets)]
-            writer.writerow([record_index, *values])
+            writer.writerow([record_index, *values, "UNKNOWN"])
 
     # 3. Huge Outbreak Lottery Parameters
     lottery_path = ROMFS_BIN / "field/encount/new_huge_outbreak_lottery.bin"
@@ -439,7 +439,7 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
     lottery_count = l_vec_len
     with open(out_lottery_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t", lineterminator="\n")
-        writer.writerow(["record_index", "f00_u64"] + [f"f{i:02d}_u32" for i in range(1, 18)])
+        writer.writerow(["record_index", "f00_u64"] + [f"f{i:02d}_u32" for i in range(1, 18)] + ["evidence"])
         for record_index in range(l_vec_len):
             elem = l_vec_offset + 4 + record_index * 4
             table = elem + struct.unpack_from("<I", ldata, elem)[0]
@@ -447,7 +447,7 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
             vsize, _ = struct.unpack_from("<HH", ldata, vt)
             offsets = struct.unpack_from("<" + "H" * ((vsize - 4) // 2), ldata, vt + 4)
             values = [struct.unpack_from("<Q" if fi == 0 else "<I", ldata, table + off)[0] if off else "" for fi, off in enumerate(offsets)]
-            writer.writerow([record_index, *values])
+            writer.writerow([record_index, *values, "UNKNOWN"])
 
     return encount_count, huge_count, lottery_count
 
@@ -494,7 +494,7 @@ def export_spawn_source_fields(output_dir: Path) -> int:
     nested_count = 0
     with out_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t", lineterminator="\n")
-        writer.writerow(["source_file", "record_index", "field_index", "vtable_byte_offset", "wire_type", "value"])
+        writer.writerow(["source_file", "record_index", "field_index", "vtable_byte_offset", "wire_type", "value", "evidence"])
         type_layouts = {
             "field/encount/huge_outbreak.bin": ["u64"] + ["u32"] * 7,
             "field/encount/new_huge_outbreak_group.bin": ["u64", "uoffset_u32", "u64"],
@@ -536,14 +536,14 @@ def export_spawn_source_fields(output_dir: Path) -> int:
                             value = format(struct.unpack_from("<f", data, pos)[0], ".9g")
                         elif wire_type != "absent":
                             value = struct.unpack_from("<I", data, pos)[0]
-                    writer.writerow([relative_name, record_index, field_index, field_offset or "", wire_type, value])
+                    writer.writerow([relative_name, record_index, field_index, field_offset or "", wire_type, value, "UNKNOWN"])
                     row_count += 1
     # The 166-group and 7-lottery tables contain vectors of child tables.
     # Export child vtable slots as uninterpreted storage bytes; no species,
     # level, area, or probability interpretation is established by this.
     with nested_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t", lineterminator="\n")
-        writer.writerow(["source_file", "parent_record", "vector_field_index", "child_index", "child_field_index", "vtable_byte_offset", "storage_hex"])
+        writer.writerow(["source_file", "parent_record", "vector_field_index", "child_index", "child_field_index", "vtable_byte_offset", "storage_hex", "evidence"])
         vector_fields = {
             "field/encount/new_huge_outbreak_group.bin": (1,),
             "field/encount/new_huge_outbreak_group_lottery.bin": (1, 2, 3),
@@ -583,7 +583,7 @@ def export_spawn_source_fields(output_dir: Path) -> int:
                             if coff:
                                 width = next_offset[coff] - coff
                                 storage = data[child + coff:child + coff + width].hex()
-                            writer.writerow([rel, parent_index, field_index, child_index, child_field, coff or "", storage])
+                            writer.writerow([rel, parent_index, field_index, child_index, child_field, coff or "", storage, "UNKNOWN"])
                             nested_count += 1
     # A separate app-config has a usable key/value layout but no demonstrated
     # per-area species, level, or weight fields.
@@ -591,10 +591,10 @@ def export_spawn_source_fields(output_dir: Path) -> int:
     app_values = parse_app_config(spawner_cfg)
     with (output_dir / "spawner_config_values.tsv").open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t", lineterminator="\n")
-        writer.writerow(["config_key", "value_index", "value_text"])
+        writer.writerow(["config_key", "value_index", "value_text", "evidence"])
         for key in sorted(app_values):
             for value_index, value in enumerate(app_values[key]):
-                writer.writerow([key, value_index, value])
+                writer.writerow([key, value_index, value, "UNKNOWN"])
     return row_count + nested_count
 
 
