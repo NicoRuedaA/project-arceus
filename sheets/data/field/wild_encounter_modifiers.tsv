@@ -1,4 +1,9 @@
-f00_u32	f01_u32	f02_f32	f03_f32	f04_f32	f05_f32	f06_f32	f07_f32	f08_f32	f09_f32	f10_f32	f11_f32	f12_f32	f13_f32	evidence
+# sheet: data/field/wild_encounter_modifiers
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 wild encounter modifier records (raw fields, meaning unknown)
+# requires: bin/field/encount
+f00_u32:u32	f01_u32:u32?	f02_f32:f32?	f03_f32:f32?	f04_f32:f32?	f05_f32:f32?	f06_f32:f32?	f07_f32:f32?	f08_f32:f32?	f09_f32:f32?	f10_f32:f32?	f11_f32:f32?	f12_f32:f32?	f13_f32:f32?	evidence:string
 25		-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	UNKNOWN
 26		-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	UNKNOWN
 35					1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	-1.0	UNKNOWN

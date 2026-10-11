@@ -1,4 +1,9 @@
-source_file	record_index	field_index	vtable_byte_offset	wire_type	value	evidence
+# sheet: data/field/spawn_source_fields
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 spawner source raw fields (meaning unknown)
+# requires: bin/field/encount
+source_file:string	record_index:u16	field_index:u8	vtable_byte_offset:u8?	wire_type:string	value:f64?	evidence:string
 field/encount/huge_outbreak.bin	0	0	32	u64	16409972469766838813	UNKNOWN
 field/encount/huge_outbreak.bin	0	1	4	u32	20	UNKNOWN
 field/encount/huge_outbreak.bin	0	2	8	u32	68	UNKNOWN

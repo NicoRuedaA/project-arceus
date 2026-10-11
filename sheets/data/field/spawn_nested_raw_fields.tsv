@@ -1,4 +1,9 @@
-source_file	parent_record	vector_field_index	child_index	child_field_index	vtable_byte_offset	storage_hex	evidence
+# sheet: data/field/spawn_nested_raw_fields
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 spawner nested raw fields (meaning unknown)
+# requires: bin/field/encount
+source_file:string	parent_record:u8	vector_field_index:u8	child_index:u8	child_field_index:u8	vtable_byte_offset:u8	storage_hex:string	evidence:string
 field/encount/new_huge_outbreak_group.bin	0	1	0	0	28	45262284e49cf2cb	UNKNOWN
 field/encount/new_huge_outbreak_group.bin	0	1	0	1	36	45262284e49cf2cb	UNKNOWN
 field/encount/new_huge_outbreak_group.bin	0	1	0	2	4	50000000	UNKNOWN
