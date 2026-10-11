@@ -1,0 +1,39 @@
+time_of_day	weather_condition	target_surface	rate	description
+Day	Sunny	WetField/Human	0.05	Wet surface evaporation rate during Day Sunny
+Day	Sunny	SnowField/Human	0.05	Snow accumulation melting rate during Day Sunny
+Day	Cloudy	WetField/Human	0.05	Wet surface evaporation rate during Day Cloudy
+Day	Cloudy	SnowField/Human	0.05	Snow accumulation melting rate during Day Cloudy
+Day	Rain	WetField/Human	0.05	Wet surface evaporation rate during Day Rain
+Day	Rain	SnowField/Human	0.05	Snow accumulation melting rate during Day Rain
+Day	Snow	WetField/Human	0.05	Wet surface evaporation rate during Day Snow
+Day	Snow	SnowField/Human	0.05	Snow accumulation melting rate during Day Snow
+Day	Drought	WetField/Human	0.05	Wet surface evaporation rate during Day Drought
+Day	Drought	SnowField/Human	0.05	Snow accumulation melting rate during Day Drought
+Day	Mist	WetField/Human	0.05	Wet surface evaporation rate during Day Mist
+Day	Mist	SnowField/Human	0.05	Snow accumulation melting rate during Day Mist
+Day	Storm	WetField/Human	0.05	Wet surface evaporation rate during Day Storm
+Day	Storm	SnowField/Human	0.05	Snow accumulation melting rate during Day Storm
+Day	SnowStorm	WetField/Human	0.05	Wet surface evaporation rate during Day SnowStorm
+Day	SnowStorm	SnowField/Human	0.05	Snow accumulation melting rate during Day SnowStorm
+Day	Aurora	WetField/Human	0.05	Wet surface evaporation rate during Day Aurora
+Day	Aurora	SnowField/Human	0.05	Snow accumulation melting rate during Day Aurora
+Day	All	DirtHuman	0.05	Dirt surface clearing rate during Day
+Night	Sunny	WetField/Human	0.05	Wet surface evaporation rate during Night Sunny
+Night	Sunny	SnowField/Human	0.05	Snow accumulation melting rate during Night Sunny
+Night	Cloudy	WetField/Human	0.05	Wet surface evaporation rate during Night Cloudy
+Night	Cloudy	SnowField/Human	0.05	Snow accumulation melting rate during Night Cloudy
+Night	Rain	WetField/Human	0.05	Wet surface evaporation rate during Night Rain
+Night	Rain	SnowField/Human	0.05	Snow accumulation melting rate during Night Rain
+Night	Snow	WetField/Human	0.05	Wet surface evaporation rate during Night Snow
+Night	Snow	SnowField/Human	0.05	Snow accumulation melting rate during Night Snow
+Night	Drought	WetField/Human	0.05	Wet surface evaporation rate during Night Drought
+Night	Drought	SnowField/Human	0.05	Snow accumulation melting rate during Night Drought
+Night	Mist	WetField/Human	0.05	Wet surface evaporation rate during Night Mist
+Night	Mist	SnowField/Human	0.05	Snow accumulation melting rate during Night Mist
+Night	Storm	WetField/Human	0.05	Wet surface evaporation rate during Night Storm
+Night	Storm	SnowField/Human	0.05	Snow accumulation melting rate during Night Storm
+Night	SnowStorm	WetField/Human	0.05	Wet surface evaporation rate during Night SnowStorm
+Night	SnowStorm	SnowField/Human	0.05	Snow accumulation melting rate during Night SnowStorm
+Night	Aurora	WetField/Human	0.05	Wet surface evaporation rate during Night Aurora
+Night	Aurora	SnowField/Human	0.05	Snow accumulation melting rate during Night Aurora
+Night	All	DirtHuman	0.05	Dirt surface clearing rate during Night
