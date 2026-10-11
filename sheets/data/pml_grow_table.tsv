@@ -1,4 +1,9 @@
-exp_group	exp_group_name	level	exp_threshold	exp_delta_to_next
+# sheet: data/pml_grow_table
+# version: 1
+# generator: .tools/decode_pml_tables.py
+# target: Pokémon Legends: Arceus update v262144 experience growth tables
+# requires: bin/pml/grow_table/grow_*.bin
+exp_group:u8	exp_group_name:string	level:u8	exp_threshold:u32	exp_delta_to_next:u32
 0	Medium Fast	1	0	8
 0	Medium Fast	2	8	19
 0	Medium Fast	3	27	37

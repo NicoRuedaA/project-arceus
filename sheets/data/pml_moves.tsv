@@ -1,4 +1,9 @@
-source_file	move	move_name	type	type_name	category	category_name	power	accuracy	pp	agile_power	strong_power	strong_accuracy
+# sheet: data/pml_moves
+# version: 1
+# generator: .tools/decode_pml_tables.py
+# target: Pokémon Legends: Arceus update v262144 move (waza) data
+# requires: bin/pml/waza/waza*.wazabin
+source_file:string	move:u16	move_name:string	type:u8	type_name:string	category:u8	category_name:string	power:u8	accuracy:u8	pp:u8	agile_power:u8	strong_power:u8	strong_accuracy:u8
 waza0000.wazabin	1	pound	0	Normal	1	Physical	40	100	35	0	0	0
 waza0001.wazabin	1	pound	0	Normal	1	Physical	40	100	35	0	0	0
 waza0002.wazabin	2	karate-chop	1	Fighting	1	Physical	50	100	25	0	0	0

@@ -1,4 +1,9 @@
-species	species_name	form	learn_method	level	level_master	move	move_name
+# sheet: data/pml_learnsets
+# version: 1
+# generator: .tools/decode_pml_tables.py
+# target: Pokémon Legends: Arceus update v262144 level-up and tutor learnsets
+# requires: bin/pml/waza_oboe/waza_oboe_total.wazaoboe
+species:u16	species_name:string	form:u8	learn_method:string	level:u8	level_master:u8	move:u16	move_name:string
 1	bulbasaur	0	level_up	1	0	33	tackle
 1	bulbasaur	0	level_up	1	0	45	growl
 1	bulbasaur	0	move_tutor	0	0	33	tackle
