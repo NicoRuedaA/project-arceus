@@ -1,4 +1,9 @@
-item_id	bait_type	taste	category	color_hex_primary	color_hex_secondary	special_effect
+# sheet: data/capture/bait_parameters
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 throwable bait parameters
+# requires: bin/capture/throwable_bait_param_dictionary.bin
+item_id:string*	bait_type:string	taste:string	category:string	color_hex_primary:string	color_hex_secondary:string	special_effect:string
 1724	extract	other	yosedama	FF573B	763D17	none
 1725	grass	other	yosedama	FBF851	55400C	none
 1726	beans	other	yosedama	47CF65	193B1E	none

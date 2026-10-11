@@ -1,4 +1,9 @@
-status_condition	multiplier_key	multiplier	description
+# sheet: data/capture/capture_status_multipliers
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 capture status-condition multipliers
+# requires: bin/misc/app_config/common_capture_config.bin
+status_condition:string*	multiplier_key:string	multiplier:u8	description:string
 None	capture_index_sick_factor_none	1	Standard unmodified catch rate
 Paralysis	capture_index_sick_factor_paralysis	2	Paralyzed condition multiplier
 Drowsiness / Sleep	capture_index_sick_factor_sleep	2	Drowsy / Asleep condition multiplier

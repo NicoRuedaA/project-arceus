@@ -1,4 +1,9 @@
-config_key	value_index	value_text	lexical_type
+# sheet: data/world/wormhole_config_values
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 wormhole app-config values
+# requires: bin/misc/app_config
+config_key:string*	value_index:u8	value_text:string	lexical_type:string
 kDomeSeAttenuationDistance	0	10	integer
 kLightChangeSecond	0	1	integer
 kRareCollorEffectTimer	0	15	integer

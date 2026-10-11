@@ -1,4 +1,9 @@
-category	factor_key	multiplier	description
+# sheet: data/capture/capture_context_modifiers
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 capture context modifiers
+# requires: bin/misc/app_config/common_capture_config.bin
+category:string	factor_key:string*	multiplier:f64	description:string
 Backstrike	capture_index_backstrike_success_factor	1.75	Backstrike / Unaware strike bonus
 Backstrike	capture_index_backstrike_failure_factor	1	Normal frontal throw
 Bait	capture_index_baiteffect_available_factor	1.3	Active favorite bait / berry feeding bonus

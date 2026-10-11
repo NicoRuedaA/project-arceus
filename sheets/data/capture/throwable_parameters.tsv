@@ -1,4 +1,9 @@
-f00_raw_u32	f05_raw_u32	f06_f32	f07_string	f08_string	f09_f32
+# sheet: data/capture/throwable_parameters
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 throwable ball ballistics parameters
+# requires: bin/capture/throwable_param_table.bin
+f00_raw_u32:u32*	f05_raw_u32:u32	f06_f32:f32?	f07_string:string	f08_string:string	f09_f32:f32?
 1710	10	30.0	ball	warning	5.0
 1711	10	30.0	ball	warning	5.0
 1712	10	30.0	ball	check	5.0

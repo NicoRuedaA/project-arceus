@@ -1,4 +1,9 @@
-ball_category	multiplier_key	base_multiplier	suitable_multiplier	description
+# sheet: data/capture/capture_ball_multipliers
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 capture ball multipliers
+# requires: bin/misc/app_config/common_capture_config.bin
+ball_category:string*	multiplier_key:string	base_multiplier:f64	suitable_multiplier:f64	description:string
 Regular	capture_index_ball_factor_default	0.75	0.75	Poké Ball standard capture rate
 Great	capture_index_ball_factor_super	1.5	1.5	Great Ball enhanced capture rate
 Ultra	capture_index_ball_factor_hyper	2.25	2.25	Ultra Ball high capture rate

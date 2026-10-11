@@ -1,4 +1,9 @@
-constant_key	value	type	description
+# sheet: data/capture/capture_constants
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 capture formula constants
+# requires: bin/misc/app_config/common_capture_config.bin
+constant_key:string*	value:f64	type:string	description:string
 capture_exp_coef	0.5	float	Capture experience base modifier (0.5)
 capture_exp_coef_inclease	1	float	Capture experience increment per rank (1.0)
 capture_index_basic_coef	30	float	Base capture scale constant (30.0)

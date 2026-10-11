@@ -1,4 +1,9 @@
-time_of_day	weather_condition	target_surface	rate	description
+# sheet: data/weather/weather_dry_transitions
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 weather dry/wet surface transition rates
+# requires: bin/misc/app_config/field_weathering_config.bin
+time_of_day:string	weather_condition:string	target_surface:string	rate:f64	description:string
 Day	Sunny	WetField/Human	0.05	Wet surface evaporation rate during Day Sunny
 Day	Sunny	SnowField/Human	0.05	Snow accumulation melting rate during Day Sunny
 Day	Cloudy	WetField/Human	0.05	Wet surface evaporation rate during Day Cloudy
