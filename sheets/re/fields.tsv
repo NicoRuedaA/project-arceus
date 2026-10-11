@@ -71,14 +71,71 @@ field_area_setting_data	areas_end	640	qword	End pointer to Area vector records
 field_area_setting_data	doors_start	688	qword	Start pointer to Door vector records (0x20 bytes each)
 field_area_setting_data	doors_end	696	qword	End pointer to Door vector records
 field_area_setting_data	area_name_table	744	qword	Pointer to area name hash bucket table
+field_camera_interpolation_param	start_param	0	byte[64]	Initial CameraParameter state snapshot before transition (0x00)
+field_camera_interpolation_param	target_param	64	byte[64]	Destination CameraParameter target state (0x40)
+field_camera_interpolation_param	current_param	128	byte[64]	Current interpolated CameraParameter state (0x80)
+field_camera_interpolation_param	add_rate	196	float	Per-frame interpolation rate increment (1.0 / frame) at +0xc4
+field_camera_interpolation_param	frame	200	dword	Total duration frames of interpolation transition at +0xc8
+field_camera_interpolation_param	current_rate	204	float	Current interpolation progress normalized 0.0 to 1.0 at +0xcc
+field_camera_parameter	look_at_pos	0	byte[16]	Target look-at focal point in world or offset space (0x00)
+field_camera_parameter	camera_pos	16	byte[16]	Camera eye position in world or offset space (0x10)
+field_camera_parameter	pitch	36	float	Camera pitch elevation angle in radians (0x24)
+field_camera_parameter	yaw	40	float	Camera yaw azimuth rotation angle in radians (0x28)
+field_camera_parameter	distance	44	float	Camera distance from look-at target (0x2c)
+field_camera_parameter	is_world_coord	48	byte	Coordinate mode flag: 1 for world Cartesian, 0 for local spherical offset (0x30)
+field_camp_manager	active_area_id	0	dword	Active map zone area identifier (0..6)
+field_camp_manager	active_camp_slot	4	dword	Active camp slot index within area (0..3)
+field_camp_manager	fast_travel_enabled	8	byte	Fast travel availability flag from FSYS_CAN_USE_FAST_TRAVEL
+field_camp_manager	target_warp_position	16	byte[16]	Resolved fast travel target spatial coordinates
+field_camp_mkrg_component	target_pos_component	440	qword	Pointer to survey interaction target position component (+0x1b8)
+field_camp_mkrg_component	is_move_active	544	byte	Laventon path movement active flag (+0x220)
+field_camp_mkrg_component	path_move_state	556	dword	Path motion sequence state index (+0x22c)
+field_camp_mkrg_component	object_handle	592	qword	Survey presentation actor object handle (+0x250)
+field_camp_tent_rest	day_night_clock_tick	120	qword	Accumulated day/night progression tick state (+0x78)
+field_camp_tent_rest	weather_override	192	dword	Active weather override identifier (+0xc0)
+field_camp_tent_rest	time_phase	196	dword	Active time-of-day phase (morning, midday, evening, night at +0xc4)
+field_camp_tent_rest	transition_state	364	dword	Time transition animation state (+0x16c)
 field_distortion_state	state	112	dword	Distortion phase state machine (0=idle, 1=notice, 2=active, 3=ending)
 field_distortion_state	phase_timer	116	dword	Current phase countdown timer in frames
 field_distortion_state	phase_duration	120	dword	Total duration of active phase in frames
 field_distortion_state	target_point_hash	128	qword	Selected distortion zone FNV-1a 64-bit hash (sentinel 0xcbf29ce484222645)
 field_distortion_state	is_active	136	byte	Boolean flag indicating active distortion dome
 field_distortion_state	candidate_points	192	qword	Pointer to candidate spawn points list
+field_ground_item_interact	item_id	0	dword	Item identifier for ground pickup / deposit
+field_ground_item_interact	quantity	4	dword	Quantity of item units to acquire
+field_ground_item_interact	banner_manager	88	qword	Pointer to active item acquisition banner queue (+0x58)
+field_ground_item_interact	banner_capacity	96	qword	Pointer to banner vector end capacity (+0x60)
+field_harvesting_node_state	active_spawners_start	960	qword	Pointer to active item drop spawner vector start (+0x3c0)
+field_harvesting_node_state	active_spawners_end	968	qword	Pointer to active item drop spawner vector end (+0x3c8)
+field_harvesting_node_state	inactive_spawners_start	1072	qword	Inactive / harvested drop spawner vector start (+0x430)
+field_harvesting_node_state	inactive_spawners_end	1080	qword	Inactive / harvested drop spawner vector end (+0x438)
+field_harvesting_node_state	harvest_state_flags	1192	dword	Harvesting state bitmask flags (+0x4a8, bit 0x10 = harvesting active)
+field_npc_talk_state	target_actor	24	qword	Target interactable entity / NPC actor pointer (+0x18)
+field_npc_talk_state	inhibit_flags	96	qword	Interaction inhibitor bitmask (+0x60, bit 0x10 = dialogue active)
+field_npc_talk_state	interaction_mode	110	byte	Interaction initiator mode (+0x6e)
+field_npc_talk_state	event_state	112	word	Interaction event state code (+0x70, 0x101 = talk active)
 field_placement_generator	category_table	104	qword	Pointer to placement category hash bucket table
 field_placement_generator	bucket_count	112	qword	Bucket count for placement category lookup
+field_player_camera_controller	is_behind_mode	1016	byte	Behind-the-back tracking camera mode active flag (+0x3f8)
+field_player_camera_controller	orbit_component	1456	qword	Active orbit kinematic controller component reference (+0x5b0)
+field_player_camera_controller	active_orbit_mode	56656	dword	Active orbit mode selector index (+0xdd50)
+field_player_camera_controller	is_lock_on	56832	byte	ZL target lock-on mode active flag (+0xde00)
+field_player_camera_controller	target_actor	57600	qword	Pointer to locked-on Pokemon actor (+0xe100)
+field_player_camera_controller	is_aiming	57616	byte	ZL Poke Ball over-the-shoulder aiming zoom active flag (+0xe110)
+field_player_camera_controller	aim_keep	57936	byte	Aim keep state flag preventing zoom drop during throw motion (+0xe250)
+field_player_camera_settings	start_mode	0	dword	Initial camera mode index (+0x00)
+field_player_camera_settings	move_mode	4	dword	Movement interaction mode (+0x04)
+field_player_camera_settings	camera_mode	8	dword	Camera operational mode index (+0x08)
+field_player_camera_settings	camera_offset	16	byte[16]	Camera look-at offset vector (+0x10)
+field_player_camera_settings	camera_length	32	float	Default third-person follow distance (+0x20)
+field_player_camera_settings	rotation_speed	40	float	Analog stick camera rotation sensitivity multiplier (+0x28)
+field_player_camera_settings	camera_yaw_rate	44	float	Yaw rotation rate multiplier (+0x2c)
+field_player_camera_settings	pitch_deg	56	float	Pitch elevation angle limit in degrees (+0x38)
+field_player_camera_settings	yaw_limit_deg	60	float	Yaw rotation limit in degrees (+0x3c)
+field_player_camera_settings	is_hit_cancel	72	byte	Terrain collision hit cancellation toggle (+0x48)
+field_player_camera_settings	fov_y_deg	76	float	Vertical field of view in degrees (+0x4c)
+field_player_camera_settings	hit_range	100	float	Collision raycast probe radius (+0x64)
+field_player_camera_settings	speed_rate	112	float	Camera tracking and lag compensation speed rate (+0x70)
 field_ride_state	current_ride_id	0	dword	Current ride Pokemon mode (1..5)
 field_ride_state	state_flags	4	dword	Kinematic state flags (running, swimming, climbing)
 field_ride_state	velocity_forward	8	float	Forward movement speed
@@ -127,6 +184,32 @@ math_vec3	z	8	float	Z coordinate in 3D world space
 mssn_notify_desc	notify_type	0	dword	Mission notification type enum (0: Start, 1: Clear, 2: Update)
 mssn_notify_desc	quest_id_hash	8	qword	64-bit FNV-1a hash of quest identifier string
 mssn_notify_desc	phase_index	16	dword	Target mission / quest phase sub-step index
+noble_battle_director	cached_gauge_percent	1148	dword	Cached integer frenzy gauge percentage (0..100)
+noble_battle_director	cached_phase	1152	dword	Cached boss combat phase (1 = Phase 1, 2 = Phase 2 enrage)
+noble_battle_director	target_actor	1224	qword	Target noble pokemon actor component pointer
+noble_battle_director	noble_state	1256	qword	Noble state and frenzy gauge container pointer
+noble_battle_director	is_battle_active	1272	byte	Active boss battle encounter flag
+noble_battle_director	is_stagger_trigger_handled	1278	byte	Flag clearing stagger transition trigger on noble hit
+noble_pokemon_component	frenzy_gauge	2800	float	Current frenzy gauge value (0.0 to 100.0)
+noble_pokemon_component	is_stagger_active	2807	byte	Flag indicating noble is in vulnerable stagger state
+noble_pokemon_component	boss_phase	2808	dword	Boss attack phase state (1 = Phase 1, 2 = Phase 2 enrage)
+noble_pokemon_component	is_stagger_window	2884	byte	Noble stagger window state; triggers SET_STATE_NUSHI_NO_SUKI Wwise event
+noble_pokemon_component	is_stagger_active_query	2885	byte	Query flag for active stagger opening checked during ball impact
+noble_pokemon_component	stagger_timer	2888	dword	Timer or tick counter for stagger opening window
+noble_pokemon_component	rim_power	2944	float	OverrideRimPower float value for frenzy aura intensity
+noble_pokemon_component	frenzy_aura_mode	2992	dword	Frenzy aura mode (0 = Calm, 1 = Mode A, 2 = Mode B telegraphed)
+player_controller_state	damage_component_ptr	504	qword	Pointer to player damage/health state (+0x1f8)
+player_controller_state	respawn_position	544	byte[16]	Base camp respawn position vector (+0x220)
+player_controller_state	invincible_bitmask	600	qword	Player invulnerability bitmask (+0x258, low 4 bits active)
+player_controller_state	locomotion_state_ptr	1472	qword	Pointer to locomotion state state-machine (+0x5c0)
+player_controller_state	movement_controller_ptr	1480	qword	Pointer to character movement controller (+0x5c8)
+player_controller_state	hide_volume_detector	1496	qword	Grass and hide zone detector component (+0x5d8)
+player_controller_state	is_drowning	2333	byte	Active water drowning state flag (+0x91d)
+player_controller_state	is_rolling	3160	dword	Active dodge roll state flag (+0xc58)
+player_controller_state	is_inside_tall_grass	3172	byte	Active tall grass hiding flag (+0xc64)
+player_damage_state	current_health	104	float	Current player HP / damage buffer float (+0x68)
+player_damage_state	max_health	108	float	Max player HP threshold float (+0x6c)
+player_damage_state	damage_dirty_flag	112	byte	Damage applied / blackout status flag (+0x70)
 player_dressup_data	empty_sentinel	0	qword	Empty visual slot sentinel (0xcbf29ce484222645)
 player_dressup_data	slots_hash_array	104	qword[12]	12 visual clothing FNV-1a 64-bit hash slots (+0x68)
 player_dressup_data	eyecolor_id	200	dword	Eye contact lens color ID
@@ -134,6 +217,10 @@ player_input_info	is_enabled	116	byte	Input processing enable flag (+0x74)
 player_input_info	buffer_ptr	208	qword	Pointer to input queue buffer (+0xd0)
 player_input_info	trigger_count	352	dword	Continuous trigger frame counter (+0x160)
 player_input_info	trigger_mask	360	qword	64-bit processed button trigger bitmask (+0x168)
+player_locomotion_state	move_state	104	dword	Locomotion state: 0=idle, 1=walk, 2=dash, 3=roll (+0x68)
+player_locomotion_state	locomotion_invincible	153	byte	Kinematic roll invulnerability active flag (+0x99)
+player_locomotion_state	falling_distance	196	float	Accumulated vertical falling distance in meters (+0xc4)
+player_locomotion_state	falling_start_height	200	float	Detachment elevation at start of fall (+0xc8)
 pml_config	personal_table	0	qword	Pointer to bin/pml/personal table
 pml_config	prng_generator_fn	584	qword	Xoroshiro generator callback (offset +0x248)
 pml_config	get_param_fn	592	qword	Lookup parameter callback (offset +0x250)
