@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trace reads from a file-backed table in suyu's GDB remote target.
+"""Trace reads from a file-backed table in Eden's GDB remote target.
 
 The tool deliberately requires an independently known instruction-byte check
 before translating runtime PCs into the static function export's RVA space.
@@ -421,7 +421,13 @@ def main() -> int:
             raise TraceError(f"GDB remote connection did not succeed: {result}")
 
         info = gdb.console("monitor get info")
-        base, module_name = parse_modules(info, args.module_name)
+        try:
+            base, module_name = parse_modules(info, args.module_name)
+        except TraceError as exc:
+            # Keep the emulator-specific monitor response visible on failure;
+            # forks can format module ranges differently from suyu.
+            excerpt = "\n".join(info.splitlines()[:40]) or "<empty monitor response>"
+            raise TraceError(f"{exc}. Raw monitor get info response:\n{excerpt}") from exc
         validated_functions = []
         for fid_text, fid, size, expected_bytes in validations:
             runtime_check = base + fid

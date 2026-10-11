@@ -1,7 +1,7 @@
 # Dynamic table-reader tracing (PLA update v262144)
 
-This workflow uses the locally built suyu GDB stub to identify native readers of
-loaded table buffers. It does not control the emulator or infer field meanings
+This workflow uses the Eden Flatpak GDB stub (`dev.eden_emu.eden` 0.2.1) to
+identify native readers of loaded table buffers. It does not control the emulator or infer field meanings
 from a read alone. A matching read proves only that the traced code accessed
 that buffer; field interpretation remains a separate pseudocode-evidence task.
 
