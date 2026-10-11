@@ -1,0 +1,12 @@
+# sheet: data/quest/progression_rules
+# version: 1
+# generator: manually curated from decompiled Lua; Python TSV writer
+# target: Pokémon Legends: Arceus update v262144 quest/event progression behavior
+# requires: bin/haxe/release/event/questboardevent.blua; bin/haxe/release/event/ev_sub001_0010.blua
+# doctrine: quest-specific predicates not decoded are explicitly UNKNOWN
+record_id:string*	scope:enum	quest_id_expression:string?	state_or_step:string	condition:string	effect:string	flag:string?	reward:string?	source_path:string	source_lines:string?	evidence_status:enum	notes:string?
+side_list_id_format	side_request_list	sub_ + zero-padded numeric index	list enumeration	index < 10; else if index < 100; otherwise	Format as sub_00{index} / sub_0{index} / sub_{index}; index==0 is rejected earlier			bin/haxe/release/event/questboardevent.blua	2089-2108	observed_lua	
+side_list_active_filter	side_request_list	formatted sub_ ID	visible/listed	QuestList.GetProgress(FnvHash64(id)) == 1	Append {id, no} to questIDList; other progress values are excluded			bin/haxe/release/event/questboardevent.blua	2109-2133	observed_lua	This is the quest-board list filter, not proof of all side-request eligibility rules.
+side_complete_from_active	side_request_list	caller-supplied quest ID	progress state 1 to 10	current progress != 1 returns false; current progress == 1 continues	SetProgress(FnvHash64(id), 10), then return true			bin/haxe/release/event/questboardevent.blua	2144-2184	observed_lua	Observed state transition in this script; semantic label of state 10 is not independently established here.
+event_metadata_flag_transfer	generic_sub_event	event metadata selected by GetScriptID	event initialization	GetFlag() hash is non-empty	Set that EventWork event flag			bin/haxe/release/event/ev_sub001_0010.blua	11694-11736	observed_lua	Generic event initialization behavior; not a quest-specific objective condition.
+quest_specific_catalog_unknown	main_and_side	UNKNOWN	IDs, steps, conditions, flags, rewards	Quest-list/trigger binaries are separate inputs and have not been decoded into records in this partial pass	UNKNOWN			bin/event/event_progress/quest_list_main.bin; bin/event/event_progress/quest_list_sub.bin		unknown	The N2 report asserts 28 main + 94 side entries; this count is not yet corroborated against decoded source tables.
