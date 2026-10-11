@@ -164,3 +164,11 @@ Source hint: pkNX [`NewHugeOutbreakLottery.fbs`](https://github.com/kwsch/pkNX/b
 **Observed:** five local records have 18 fields, matching the public field count/order. F00 is u64 and all five hashes match `huge_outbreak.bin`. F01 and F15–F17 are four-byte offset candidates. F02–F14 are four-byte scalars whose positive value ranges fit the candidate int32 types, but the local TSV labels them u32 and cannot independently prove signedness. Offsets' target strings/vectors have not been decoded.
 
 Detailed map: [`sheets/data/schemas/new_huge_outbreak_lottery_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_lottery_fields.tsv).
+
+### `field/encount/new_huge_outbreak_time_limit.bin`
+
+Source hint: pkNX [`NewHugeOutbreakTimeLimit.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Field/NewHuge/NewHugeOutbreakTimeLimit.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** three local records each expose four four-byte fields, matching the schema's two scalar and two vector-offset slots. However, the local scalar columns are unsigned u32 while the community schema declares signed int32, and neither vector target has been cross-validated. Keep every candidate field unverified until those checks are made.
+
+Detailed map: [`sheets/data/schemas/new_huge_outbreak_time_limit_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_time_limit_fields.tsv).
