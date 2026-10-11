@@ -20,9 +20,14 @@
 //! is available. A layout-aware parse attaches the validated `.trmsh` fields.
 
 mod animation;
+mod bevy;
 pub use animation::{
     reference_unpack_rotation, TrAnmBoneTrack, TrAnmChannel, TrAnmClip, TrAnmEncoding, TrAnmKey,
     TrAnmReferenceChannel,
+};
+pub use bevy::{
+    animation_clip as bevy_animation_clip, animation_target_id, insert_skin_attributes,
+    BevyTrSkeleton,
 };
 mod matrices;
 pub use matrices::{TrSklBindRecord, TrSklBindResidual, TrSklMatrix, TrSklReferencePose};

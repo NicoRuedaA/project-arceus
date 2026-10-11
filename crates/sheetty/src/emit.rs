@@ -154,13 +154,14 @@ fn rust_type(col: &Column) -> String {
 
 fn rust_value(col: &Column, value: &str) -> String {
     let base = match col.ty.as_str() {
-        "u8" | "u16" | "u32" | "u64" | "i32" | "i64" | "f32" | "f64" => {
+        "u8" | "u16" | "u32" | "u64" | "i32" | "i64" | "f32" => {
             if value.is_empty() {
                 "0".to_string()
             } else {
                 value.to_string()
             }
         }
+        "f64" => f64_literal(value),
         "bool" => {
             if value == "1" {
                 "true".to_string()
@@ -178,6 +179,15 @@ fn rust_value(col: &Column, value: &str) -> String {
         }
     } else {
         base
+    }
+}
+
+fn f64_literal(value: &str) -> String {
+    let value = if value.is_empty() { "0" } else { value };
+    if value.contains('.') || value.contains('e') || value.contains('E') {
+        value.to_string()
+    } else {
+        format!("{value}.0")
     }
 }
 
@@ -310,4 +320,32 @@ fn write_if_changed(path: &Path, contents: &str) -> Result<(), String> {
         }
     }
     fs::write(path, contents).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{f64_literal, rust_value};
+    use crate::parse::Column;
+
+    #[test]
+    fn emits_integer_shaped_values_as_f64_literals() {
+        let required = Column {
+            name: "amount".into(),
+            ty: "f64".into(),
+            optional: false,
+            reference: None,
+            default: None,
+            flags: String::new(),
+        };
+        let optional = Column {
+            optional: true,
+            ..required.clone()
+        };
+        assert_eq!(rust_value(&required, "2"), "2.0");
+        assert_eq!(rust_value(&required, ""), "0.0");
+        assert_eq!(rust_value(&optional, "2"), "Some(2.0)");
+        assert_eq!(rust_value(&optional, ""), "None");
+        assert_eq!(f64_literal("1.25"), "1.25");
+        assert_eq!(f64_literal("1e-3"), "1e-3");
+    }
 }
