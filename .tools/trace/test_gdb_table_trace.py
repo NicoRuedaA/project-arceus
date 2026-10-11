@@ -8,6 +8,7 @@ import unittest
 import tempfile
 import os
 import time
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -39,6 +40,40 @@ class MockStub:
 
 
 class SafeScanTests(unittest.TestCase):
+    def test_gdb_starts_with_mi_async_enabled_before_remote_attach(self):
+        class Captured:
+            args = None
+            def __init__(self, args, **_kwargs):
+                Captured.args = args
+                raise RuntimeError("captured startup argv")
+        with patch.object(trace.subprocess, "Popen", Captured):
+            with self.assertRaisesRegex(RuntimeError, "captured startup argv"):
+                trace.GdbMi("/usr/bin/gdb", 1)
+        argv = Captured.args
+        self.assertEqual(argv[3:5], ["-iex", "set mi-async on"])
+        self.assertLess(argv.index("-iex"), argv.index("--interpreter=mi2"))
+
+    def test_async_continue_uses_all_threads_and_interrupt_waits_for_late_stop(self):
+        class AsyncSession:
+            def __init__(self):
+                self.commands = []
+                self.polls = 0
+            def command(self, command, timeout=None):
+                self.commands.append(command)
+                if command == "-exec-continue --all":
+                    return "^running", []
+                if command == "-exec-interrupt --all":
+                    return "^done", []
+                raise AssertionError(command)
+            def poll_lines(self):
+                self.polls += 1
+                return ['*stopped,reason="signal-received"'] if self.polls == 2 else []
+        session = AsyncSession()
+        trace.continue_target(session)
+        trace.interrupt_target(session, timeout=0.2)
+        self.assertEqual(session.commands, ["-exec-continue --all", "-exec-interrupt --all"])
+        self.assertGreaterEqual(session.polls, 2)
+
     def test_packet_size_is_parsed_and_reads_are_capped(self):
         self.assertEqual(trace.parse_packet_size("PacketSize=2000;qXfer:features:read+"), 0x2000)
         self.assertEqual(trace.safe_read_size(0x2000, 0x10000), 0x400)
@@ -96,7 +131,7 @@ class SafeScanTests(unittest.TestCase):
                 self.console_calls = []
             def command(self, command, timeout=None):
                 self.commands.append(command)
-                if command == "-exec-continue":
+                if command == "-exec-continue --all":
                     return "^running", []
                 if command == "-exec-interrupt --all":
                     return "^done", ['*stopped,reason="signal-received",signal-name="SIGINT"']
@@ -124,9 +159,9 @@ class SafeScanTests(unittest.TestCase):
                 sleep_fn=sleep_and_signal,
             )
             self.assertEqual(address, (0x9000, "7"))
-            self.assertEqual(session.commands, ["-exec-continue", "-exec-interrupt --all",
+            self.assertEqual(session.commands, ["-exec-continue --all", "-exec-interrupt --all",
                                                 '-break-watch -r "*(unsigned char*)0x9000"',
-                                                "-exec-continue"])
+                                                "-exec-continue --all"])
             self.assertEqual(session.console_calls, [])
 
     def test_menu_action_done_and_stop_controls_are_distinct(self):
@@ -157,7 +192,7 @@ class SafeScanTests(unittest.TestCase):
                     return "^done", ['*stopped,reason="signal-received"']
                 if command == "-break-disable 7":
                     return "^done", []
-                if command == "-exec-continue":
+                if command == "-exec-continue --all":
                     return "^running", []
                 raise AssertionError(command)
             def ok(self, command):
@@ -176,7 +211,7 @@ class SafeScanTests(unittest.TestCase):
             result = trace.finish_action_stage(session, controls, "7", 1, 0.001,
                                                sleep_fn=create_stop)
             self.assertEqual(result, "menu-action-done")
-            self.assertEqual(session.commands, ["-exec-interrupt --all", "-break-disable 7", "-exec-continue"])
+            self.assertEqual(session.commands, ["-exec-interrupt --all", "-break-disable 7", "-exec-continue --all"])
             self.assertTrue(controls.stop_authorized)
 
     def test_async_watchpoint_stop_is_dispatched_and_resumed_while_polling(self):
@@ -202,7 +237,7 @@ class SafeScanTests(unittest.TestCase):
             )
             self.assertEqual(signal, "menu-action-done")
             self.assertEqual(len(hits), 1)
-            self.assertEqual(session.commands, ["-exec-continue"])
+            self.assertEqual(session.commands, ["-exec-continue --all"])
 
     def test_nonblocking_mi_read_and_control_timeout_are_bounded(self):
         read_fd, write_fd = os.pipe()

@@ -87,6 +87,25 @@ kill. A timeout is also fail-closed and waits at this idle gate. No `D` detach
 is attempted. An unresolved module timeout still prevents byte validation,
 RAM scanning, or watchpoint installation.
 
+### MI asynchronous execution and interrupt handling
+
+GDB starts with `-iex "set mi-async on"`, before connecting to Eden. All guest
+resumes use `-exec-continue --all`. This matters because a synchronous MI
+target can block the command loop while the guest runs: `-exec-interrupt
+--all` may then time out before GDB can process the remote stop. With async MI,
+the interrupt command can return `^done` first; the driver continues polling MI
+output until the corresponding `*stopped` record arrives, then begins the
+bounded memory scan. The same async-safe interrupt path is used when disabling
+the watchpoint after the menu action. Offline tests verify the startup flag,
+all-thread continue command, and a delayed `*stopped` event after `^done`.
+
+The current gameplay rescue was attempted once: SIGINT was sent to GDB PID
+300668 at 16:35:44+02. At 16:35:58 there was no `*stopped`, Eden `Received
+interrupt`, or RSP-log change (the log remained 7,516 bytes at its startup
+modification time), and the driver reported `Timed out waiting for GDB MI
+output`. Driver/GDB stayed alive. No further live session access was made;
+do not repeat the interrupt during offline driver work.
+
 ## Current preparation status
 
 The driver is `.tools/trace/gdb_table_trace.py`. The patched RomFS is at

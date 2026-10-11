@@ -75,7 +75,7 @@ class GdbMi:
         env = dict(os.environ)
         env["LC_ALL"] = "C"
         self.proc = subprocess.Popen(
-            [executable, "--nx", "--quiet", "--interpreter=mi2"],
+            [executable, "--nx", "--quiet", "-iex", "set mi-async on", "--interpreter=mi2"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=False, bufsize=0, env=env,
         )
@@ -543,7 +543,7 @@ def finalize_attached_session(
 
 
 def continue_target(gdb: GdbMi) -> None:
-    result, _ = gdb.command("-exec-continue")
+    result, _ = gdb.command("-exec-continue --all")
     if not result.startswith("^running"):
         raise TraceError(f"Could not continue emulated guest: {result}")
 
