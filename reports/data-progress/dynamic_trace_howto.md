@@ -8,8 +8,9 @@ that buffer; field interpretation remains a separate pseudocode-evidence task.
 ## Current status and crash evidence
 
 **Latest rehearsal status (2026-10-11): no reader event or watchpoint has
-been captured.** Attempt 6 aborted before a table match or watchpoint; all
-Eden and GDB processes are now closed after collecting evidence. Attempt 1
+been captured.** Attempt 6 aborted before a table match or watchpoint. The
+host-side redesign below is offline-tested only; it has not scanned process
+memory or armed a watchpoint. Attempt 1
 launched one Eden 0.2.1
 instance with the PLA base game, attached once, and validated `main.nss` at
 `0x80724000` against build ID `aee8f150dda1b5a838806e1a5ea6827ad9f3c51e`
@@ -89,21 +90,35 @@ eden +0x996a25 <- eden +0x863409`. The repeated association across distinct
 Normal mappings still does **not** establish that a read or mapping caused an
 abort.
 
-For a conservative attempt 7, the driver excludes **all `Normal` mappings**
-from scan eligibility. It continues parsing and retaining Normal rows as map
-metadata for reports, but they do not appear in the selected scan regions and
-receive no `m` packets. The attempt will be limited to readable `CodeData`,
-`Alias`, `ThreadLocal`, bounded `Heap`, and `Stack` rows, with the selected
-plan logged before any memory read. These other region types are not proven
-safe; this change only avoids repeating the observed Normal-mapping pattern.
-If a target table resides in Normal memory, the scan may miss it; a no-match
-result will not prove the table is absent. Offline tests verify that Normal
-metadata remains parsed while no Normal mapping is selected or read. No live
-attempt 7 is implied by those tests. When a completed scan pass reports no
-match, the driver resumes the guest with async continue and keeps GDB attached
-and idle until the explicit `stop` control. Transport-level RSP failures do
-not trigger a continue or any follow-up remote request; they remain in the
-existing attached idle hold.
+## Attempt 7 strategy: host-side memory scan
+
+The next attempt avoids guest-memory `m` requests entirely. Parent-reported
+host evidence identifies one readable 4 GiB `/memfd:HostMemory (deleted)` map
+at `0x7e7224000000-0x7e7324000000`; adjacent 64 GiB and 445 GiB anonymous maps
+had zero RSS and are not scan candidates. Eden PID 635707 was reported alive
+while this redesign was prepared; this implementation did not contact,
+interrupt, or inspect that process.
+
+Before scanning, the driver reads `/proc/<pid>/maps`, requires exactly one
+readable HostMemory mapping of the expected size, and logs its address range,
+size, and result-file path. It first tests `HostMemory.start + guest VA`
+against all three independently derived function instruction sequences. If
+that fails, it searches only the bounded 4 GiB HostMemory map for unique
+matches of those sequences and requires one consistent host-minus-guest
+offset. It then searches the same map for the exact 48-byte table signature,
+requires a unique match, translates the host address to guest VA, and
+persists/read-backs `host-scan-result.json` before watchpoint insertion. No
+`memory_read` call is used for table scanning; GDB is reserved for module
+metadata, watchpoint insertion, continuation, and later hit capture. The
+fallback may scan the full 4 GiB mapping and is therefore bounded but
+potentially slow. A completed no-match scan resumes the guest and retains the
+attached GDB session idle. Transport-level failures still produce no
+follow-up RSP requests.
+
+Offline tests cover map selection, direct and fallback offset derivation,
+unique-signature enforcement, and persisted host-to-guest translation. They do
+not establish that host memory has the assumed guest-VA layout or that Eden's
+mapping is safe to read; those remain unverified runtime assumptions.
 
 An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
 15:33:32 CEST (PID 185443, TID 185562,
@@ -224,12 +239,12 @@ the user is not asked to play until a watchpoint hit has been captured.
    patched RomFS. Keep the driver attached to the same running game instance.
 3. The driver checks the `main.nso` NSO header and `main.elf` GNU build ID
    against `aee8f150dda1b5a838806e1a5ea6827ad9f3c51e`. It independently reads
-   AArch64 `PT_LOAD` bytes from `main.elf` and validates three distinct-size,
-   N2-verified function starts against the export and
+   AArch64 `PT_LOAD` bytes from `main.elf` and derives three distinct-size,
+   N2-verified function starts from the export and
    `sheets/re/function_n2_evidence.tsv`: `00052e10` (424 bytes), `007a6cac`
-   (944 bytes), and `007d780c` (3144 bytes). Runtime checks use
-   `module_base + function_id`; no bytes are taken from a Ghidra export or from
-   the runtime itself.
+   (944 bytes), and `007d780c` (3144 bytes). Before searching, the host scanner
+   validates the candidate host/guest translation against all three byte
+   sequences in `/proc/<pid>/mem`.
 4. Run the command below, replacing the table path. The
    default GDB endpoint is `127.0.0.1:6543`; it attaches to the already-running
    emulator and does not launch it. Eden's stub accepts one connection; keep
@@ -244,24 +259,20 @@ the user is not asked to play until a watchpoint hit has been captured.
 ```sh
 python3 .tools/trace/gdb_table_trace.py \
   --file /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/<relative-table-path> \
+  --target-pid <eden-pid> \
   --rsp-log work/progress/eden-rsp.log
 ```
 
-The driver discovers the unique `main` module using `monitor get info`, parses
-readable mappings, queries the raw `qSupported` reply for `PacketSize`, and
-scans selected mapped ranges for the first 48 bytes of the table file. Reads
-are at most 0x1000 bytes and bounded by advertised packet capacity; they do
-not cross a mapping end, and there is no success-path delay. Explicit memory
-errors and short replies skip the affected page. MI timeout, stream closure,
-or stub silence stops the scan rather than triggering another request. Large
-Normal mappings use the documented sampled 16-byte page-start probe and full
-signature verification. It
-validates all three derived instruction sequences before mapping PCs to
-`functions.tsv` IDs. The event log records the checked build ID and validation
-bytes with each event. If an input identity mismatches, the signature is
-absent/ambiguous, any runtime byte check differs, the module is not unique, or
-GDB cannot install an `rwatch`, it stops without producing a reader claim. A
-unique match arms a one-byte `rwatch` (or `awatch` with
+The driver discovers the unique `main` module using `monitor get info`, then
+scans only the readable 4 GiB `/memfd:HostMemory` mapping from the specified
+Eden PID. It does not read table bytes through GDB/RSP. A unique exact
+48-byte signature match is translated back to guest VA and persisted in
+`work/progress/trace-ctl/host-scan-result.json` before the watchpoint is armed.
+The host map range and size are logged before scanning. If there is no unique
+match, no watchpoint is installed; a completed no-match scan resumes the guest
+and retains GDB idle. Mapping/translation mismatches, short host reads,
+ambiguous signatures, or a watchpoint insertion failure do not produce a
+reader claim. A unique match arms a one-byte `rwatch` (or `awatch` with
 `--watchpoint awatch`); each hit is recorded in
 `work/progress/trace-events.jsonl` with PC, LR, unwound frames, and mapped
 function IDs, then the driver continues automatically. After the requested

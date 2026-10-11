@@ -736,6 +736,102 @@ class SafeScanTests(unittest.TestCase):
                                        sleep_fn=lambda _duration: None, status_fn=lambda _message: None)
         self.assertEqual(session.calls, ["monitor get info", "maintenance packet qfThreadInfo"] * 2)
 
+    def test_host_memory_map_parser_selects_only_unique_hostmemory_memfd(self):
+        mapping = trace.parse_host_memory_mapping(
+            "00400000-00401000 r-xp 00000000 00:00 1 /app/eden\n"
+            "7e7224000000-7e7324000000 rw-s 00000000 00:01 2 /memfd:HostMemory (deleted)\n"
+        )
+        self.assertEqual(mapping.start, 0x7e7224000000)
+        self.assertEqual(mapping.size, 4 * 1024**3)
+        with self.assertRaisesRegex(trace.TraceError, "found 2"):
+            trace.parse_host_memory_mapping(
+                "1000-2000 rw-s 0 0:0 1 /memfd:HostMemory\n"
+                "3000-4000 rw-s 0 0:0 2 /memfd:HostMemory\n"
+            )
+
+    def test_host_offset_fallback_requires_three_unique_consistent_function_matches(self):
+        start, size, module_base = 0x100000, 0x20000, 0x1000
+        mapping = trace.HostMemoryMapping(start, start + size - 1, "rw-s", "/memfd:HostMemory")
+        backing = bytearray(size)
+        validations = [(f"{fid:x}", fid, 0x20 + i, bytes([0x40 + i]) * 16)
+                       for i, fid in enumerate((0x100, 0x200, 0x300))]
+        derived_offset = start + 0x5000
+        for _name, fid, _size, expected in validations:
+            guest_address = module_base + fid
+            host_address = derived_offset + guest_address
+            backing[host_address - start:host_address - start + len(expected)] = expected
+
+        def pread(_fd, length, address):
+            if address < start or address + length > start + size:
+                raise AssertionError("Host fallback read escaped mapping")
+            return bytes(backing[address - start:address - start + length])
+
+        self.assertEqual(
+            trace.derive_guest_host_offset(
+                pread, 1, mapping, module_base, validations, fallback_chunk_size=0x1000,
+            ),
+            derived_offset,
+        )
+
+    def test_host_scan_persists_unique_match_and_translates_to_guest_va(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            map_start, map_size, module_base = 0x100000, 0x10000, 0x1000
+            mapping_text = (
+                f"{map_start:x}-{map_start + map_size:x} rw-s 00000000 00:01 2 "
+                "/memfd:HostMemory (deleted)\n"
+            )
+            maps_path = root / "maps"
+            maps_path.write_text(mapping_text, encoding="utf-8")
+            memory_path = root / "mem"
+            memory_path.write_bytes(bytes(map_size))
+            backing = bytearray(map_size)
+            validations = [(f"{fid:x}", fid, 0x20 + index, bytes([0x50 + index]) * 16)
+                           for index, fid in enumerate((0x100, 0x200, 0x300))]
+            for _name, fid, _size, expected in validations:
+                offset = module_base + fid
+                backing[offset:offset + len(expected)] = expected
+            signature = bytes(range(48))
+            expected_guest = 0x8000
+            backing[expected_guest:expected_guest + len(signature)] = signature
+            reads = []
+
+            def pread(_fd, length, address):
+                reads.append((address, length))
+                if address < map_start or address + length > map_start + map_size:
+                    raise AssertionError("Host scan escaped HostMemory")
+                offset = address - map_start
+                return bytes(backing[offset:offset + length])
+
+            with patch.object(trace, "HOST_MEMORY_SIZE", map_size):
+                guest_address = trace.host_scan_for_table(
+                    42, signature, module_base, validations, root / "result.json",
+                    maps_path=maps_path, memory_path=memory_path, pread=pread,
+                )
+            result = __import__("json").loads((root / "result.json").read_text(encoding="utf-8"))
+            self.assertEqual(guest_address, expected_guest)
+            self.assertEqual(int(result["guest_address"], 16), expected_guest)
+            self.assertEqual(result["schema"], "pla-host-signature-match/v1")
+            self.assertTrue(reads)
+            self.assertTrue(all(length <= trace.HOST_SCAN_CHUNK_SIZE for _, length in reads))
+
+    def test_host_signature_requires_unique_match(self):
+        start = 0x400000
+        mapping = trace.HostMemoryMapping(start, start + 0x3fff, "rw-s", "/memfd:HostMemory")
+        data = bytearray(mapping.size)
+        signature = b"unique-host-signature"
+        data[0x100:0x100 + len(signature)] = signature
+        data[0x200:0x200 + len(signature)] = signature
+
+        def pread(_fd, length, address):
+            if address < start or address + length - 1 > mapping.end:
+                raise AssertionError("Host read escaped mapping")
+            offset = address - start
+            return bytes(data[offset:offset + length])
+
+        with self.assertRaisesRegex(trace.TraceError, "not unique"):
+            trace.find_unique_host_signature(pread, 1, mapping, signature, chunk_size=0x1000)
+
 
 if __name__ == "__main__":
     unittest.main()

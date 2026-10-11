@@ -21,6 +21,7 @@ import struct
 import subprocess
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 from collections import deque
@@ -44,6 +45,8 @@ SCAN_PAGE_SIZE = 0x1000
 SIGNATURE_PROBE_SIZE = 16
 HEAP_FIRST_WINDOW = 64 * 1024 * 1024
 MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
+HOST_MEMORY_SIZE = 4 * 1024**3
+HOST_SCAN_CHUNK_SIZE = 1024 * 1024
 SIGNATURE_NO_MATCH = "Signature search found no match in the selected prioritized scan pass"
 SCAN_REGION_TYPES = {"heap", "normal", "codedata", "alias", "stack", "threadlocal"}
 MAP_PERMISSIONS = re.compile(r"^[r-][w-][x-](?:[r-][w-])?$")
@@ -248,6 +251,212 @@ def parse_mappings(output: str) -> list[tuple[int, int, str, str]]:
     if not regions:
         raise TraceError("The GDB stub returned no readable committed data-bearing mappings")
     return order_scan_regions(regions)
+
+
+@dataclass(frozen=True)
+class HostMemoryMapping:
+    start: int
+    end: int
+    permissions: str
+    path: str
+
+    @property
+    def size(self) -> int:
+        # /proc/<pid>/maps uses a half-open [start, end) range.
+        return self.end - self.start
+
+
+def parse_host_memory_mapping(maps_text: str) -> HostMemoryMapping:
+    """Find the unique readable `/memfd:HostMemory` mapping in proc maps."""
+    matches: list[HostMemoryMapping] = []
+    for line in maps_text.splitlines():
+        columns = line.split(None, 5)
+        if len(columns) < 5 or len(columns[0].split("-")) != 2:
+            continue
+        path = columns[5] if len(columns) == 6 else ""
+        if "memfd:HostMemory" not in path:
+            continue
+        try:
+            start_text, end_text = columns[0].split("-", 1)
+            start, end = int(start_text, 16), int(end_text, 16)
+        except ValueError as exc:
+            raise TraceError(f"Malformed HostMemory mapping row: {line!r}") from exc
+        permissions = columns[1]
+        if end < start or "r" not in permissions:
+            raise TraceError(f"HostMemory mapping is not a readable valid range: {line!r}")
+        matches.append(HostMemoryMapping(start, end, permissions, path))
+    if len(matches) != 1:
+        raise TraceError(f"Expected one readable HostMemory mapping; found {len(matches)}")
+    return matches[0]
+
+
+def _host_read_exact(
+    pread: Callable[[int, int, int], bytes], fd: int,
+    mapping: HostMemoryMapping, address: int, length: int,
+) -> bytes:
+    if length <= 0 or address < mapping.start or address + length > mapping.end:
+        raise TraceError(f"Refusing host read outside HostMemory mapping: 0x{address:x}+{length}")
+    block = pread(fd, length, address)
+    if len(block) != length:
+        raise TraceError(f"Short host read at 0x{address:x}: {len(block)} < {length}")
+    return block
+
+
+def _unique_pattern_addresses(
+    pread: Callable[[int, int, int], bytes], fd: int, mapping: HostMemoryMapping,
+    patterns: list[bytes], chunk_size: int,
+    checkpoint: Callable[[], None] | None = None,
+) -> list[list[int]]:
+    if chunk_size < 1 or not patterns or any(not pattern for pattern in patterns):
+        raise TraceError("Host pattern scan requires non-empty patterns and positive chunks")
+    found: list[list[int]] = [[] for _ in patterns]
+    carry = b""
+    offset = 0
+    max_overlap = max(map(len, patterns)) - 1
+    while offset < mapping.size:
+        if checkpoint:
+            checkpoint()
+        request = min(chunk_size, mapping.size - offset)
+        block = _host_read_exact(pread, fd, mapping, mapping.start + offset, request)
+        data = carry + block
+        data_offset = offset - len(carry)
+        for index, pattern in enumerate(patterns):
+            search_at = 0
+            while len(found[index]) < 2:
+                match_at = data.find(pattern, search_at)
+                if match_at < 0:
+                    break
+                absolute = data_offset + match_at
+                # Overlap bytes are rescanned on the next chunk; deduplicate.
+                if absolute >= 0 and (not found[index] or found[index][-1] != mapping.start + absolute):
+                    found[index].append(mapping.start + absolute)
+                search_at = match_at + 1
+        offset += request
+        carry = data[-max_overlap:] if max_overlap else b""
+    return found
+
+
+def derive_guest_host_offset(
+    pread: Callable[[int, int, int], bytes], fd: int,
+    mapping: HostMemoryMapping, module_base: int,
+    validations: list[tuple[str, int, int, bytes]],
+    fallback_chunk_size: int = HOST_SCAN_CHUNK_SIZE,
+    checkpoint: Callable[[], None] | None = None,
+) -> int:
+    """Validate HostMemory-base + guest VA; derive a consistent offset only as bounded fallback."""
+    guest_addresses = [module_base + fid for _fid_text, fid, _size, _expected in validations]
+    direct = all(
+        mapping.start <= mapping.start + guest_address
+        and mapping.start + guest_address + len(expected) <= mapping.end
+        and _host_read_exact(pread, fd, mapping, mapping.start + guest_address, len(expected)) == expected
+        for guest_address, (_fid_text, _fid, _size, expected) in zip(guest_addresses, validations)
+    )
+    if direct:
+        return mapping.start
+
+    matches = _unique_pattern_addresses(
+        pread, fd, mapping, [expected for _fid_text, _fid, _size, expected in validations],
+        fallback_chunk_size, checkpoint,
+    )
+    if any(len(found) != 1 for found in matches):
+        counts = [len(found) for found in matches]
+        raise TraceError(f"Could not uniquely derive guest-to-host offset from module bytes; matches={counts}")
+    offsets = {
+        found[0] - guest_address
+        for found, guest_address in zip(matches, guest_addresses)
+    }
+    if len(offsets) != 1:
+        raise TraceError(f"Module byte matches imply inconsistent guest-to-host offsets: {sorted(offsets)}")
+    host_offset = offsets.pop()
+    if any(host_offset + guest_address < mapping.start
+           or host_offset + guest_address + len(expected) > mapping.end
+           for guest_address, (_fid_text, _fid, _size, expected)
+           in zip(guest_addresses, validations)):
+        raise TraceError("Derived guest-to-host offset places validated functions outside HostMemory")
+    return host_offset
+
+
+def find_unique_host_signature(
+    pread: Callable[[int, int, int], bytes], fd: int,
+    mapping: HostMemoryMapping, signature: bytes,
+    chunk_size: int = HOST_SCAN_CHUNK_SIZE,
+    checkpoint: Callable[[], None] | None = None,
+) -> int | None:
+    """Return the unique absolute host address of a signature, or None if absent."""
+    if not signature:
+        raise TraceError("Host signature must not be empty")
+    matches = _unique_pattern_addresses(
+        pread, fd, mapping, [signature], chunk_size, checkpoint,
+    )[0]
+    if len(matches) > 1:
+        raise TraceError(f"Host signature is not unique in HostMemory ({len(matches)} matches)")
+    return matches[0] if matches else None
+
+
+def host_scan_for_table(
+    pid: int, signature: bytes, module_base: int,
+    validations: list[tuple[str, int, int, bytes]], result_path: Path,
+    maps_path: Path | None = None, memory_path: Path | None = None,
+    pread: Callable[[int, int, int], bytes] = os.pread,
+    checkpoint: Callable[[], None] | None = None,
+) -> int:
+    """Find one table signature in Eden's HostMemory without issuing RSP m packets."""
+    maps_path = maps_path or Path(f"/proc/{pid}/maps")
+    memory_path = memory_path or Path(f"/proc/{pid}/mem")
+    try:
+        mapping = parse_host_memory_mapping(maps_path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise TraceError(f"Could not read host process mappings for PID {pid}: {exc}") from exc
+    if mapping.size != HOST_MEMORY_SIZE:
+        raise TraceError(
+            f"HostMemory mapping size changed: expected 0x{HOST_MEMORY_SIZE:x}, "
+            f"found 0x{mapping.size:x}"
+        )
+    try:
+        fd = os.open(memory_path, os.O_RDONLY)
+    except OSError as exc:
+        raise TraceError(f"Could not open host process memory for PID {pid}: {exc}") from exc
+    try:
+        guest_to_host_offset = derive_guest_host_offset(
+            pread, fd, mapping, module_base, validations, checkpoint=checkpoint,
+        )
+        host_address = find_unique_host_signature(
+            pread, fd, mapping, signature, checkpoint=checkpoint,
+        )
+    finally:
+        os.close(fd)
+
+    if host_address is None:
+        raise TraceError(SIGNATURE_NO_MATCH)
+    guest_address = host_address - guest_to_host_offset
+    if guest_address < 0 or guest_to_host_offset + guest_address != host_address:
+        raise TraceError("Host signature translated to an invalid guest address")
+    result = {
+        "schema": "pla-host-signature-match/v1",
+        "pid": pid,
+        "mapping": {"start": f"0x{mapping.start:x}", "end": f"0x{mapping.end:x}",
+                    "size": mapping.size, "path": mapping.path},
+        "guest_to_host_offset": f"0x{guest_to_host_offset:x}",
+        "host_address": f"0x{host_address:x}",
+        "guest_address": f"0x{guest_address:x}",
+        "signature_hex": signature.hex(),
+    }
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = result_path.with_suffix(result_path.suffix + ".tmp")
+    temporary.write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(result_path)
+    # The persistent driver consumes the separately persisted host-scan result;
+    # this also makes the host->guest handoff auditable across process stages.
+    try:
+        observed = json.loads(result_path.read_text(encoding="utf-8"))
+        if observed.get("schema") != "pla-host-signature-match/v1":
+            raise TraceError("Host scan result file has an unexpected schema")
+        returned_address = int(observed["guest_address"], 16)
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise TraceError(f"Could not verify persisted host scan result: {exc}") from exc
+    if returned_address != guest_address:
+        raise TraceError("Persisted host scan guest address differs from the unique match")
+    return returned_address
 
 
 def order_scan_regions(regions: list[tuple[int, int, str, str]]) -> list[tuple[int, int, str, str]]:
@@ -487,6 +696,7 @@ def safe_read_size(packet_size: int, requested: int = MAX_RSP_READ) -> int:
 
 
 def memory_read(gdb: GdbMi, address: int, length: int) -> bytes | None:
+    """Legacy RSP scanner helper; the CLI host-scan path never calls this."""
     if not 0 < length <= MAX_RSP_READ:
         raise TraceError(f"Refusing unsafe memory read length {length}; maximum is 0x1f00")
     packet = f"m{address:x},{length:x}"
@@ -511,6 +721,12 @@ def scan_signature(
     chunk_size: int, max_bytes: int, packet_size: int, request_delay: float = 0.01,
     checkpoint: Callable[[], None] | None = None,
 ) -> int:
+    """Legacy RSP scanner retained for offline packet-safety regression tests.
+
+    The command-line tracing flow intentionally uses ``host_scan_for_table``;
+    do not wire this helper back into that flow because Eden aborted on small
+    guest-memory RSP reads in prior attempts.
+    """
     chunk_size = min(chunk_size, safe_read_size(packet_size), MAX_RSP_READ)
     if chunk_size < 1:
         raise TraceError("Negotiated RSP packet size cannot safely carry a memory read")
@@ -928,18 +1144,18 @@ def main() -> int:
     parser.add_argument("--file", required=True, type=Path, help="table file whose first bytes are the RAM signature")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=6543)
+    parser.add_argument("--target-pid", type=int, required=True,
+                        help="Eden host PID whose HostMemory memfd is scanned without RSP m packets")
     parser.add_argument("--gdb", default=shutil.which("gdb") or "gdb")
     parser.add_argument("--functions", type=Path, default=DEFAULT_FUNCTIONS)
     parser.add_argument("--module-name", default="main", help="unique substring in the module list")
     parser.add_argument("--signature-length", type=int, default=48, help="bytes from file offset zero (32..64)")
-    parser.add_argument("--chunk-size", type=int, default=MAX_RSP_READ, help="maximum read chunk; hard-capped at 0x1f00 bytes")
-    parser.add_argument("--scan-delay", type=float, default=0.01, help="seconds to pause only after explicit target read errors")
-    parser.add_argument("--max-scan-bytes", type=int, default=MAX_REVIEWED_SCAN_BYTES,
-                        help="maximum bytes in one prioritized scan pass (hard maximum 6 GiB)")
     parser.add_argument("--main-elf", type=Path, default=DEFAULT_MAIN_ELF)
     parser.add_argument("--main-nso", type=Path, default=DEFAULT_MAIN_NSO)
     parser.add_argument("--n2-evidence", type=Path, default=DEFAULT_N2_EVIDENCE)
     parser.add_argument("--event-log", type=Path, default=ROOT / "work/progress/trace-events.jsonl")
+    parser.add_argument("--host-scan-result", type=Path,
+                        help="auditable host-to-guest match handoff (defaults under --control-dir)")
     parser.add_argument("--rsp-log", type=Path, help="append decoded GDB remote Sending packet/Packet received debug lines here")
     parser.add_argument("--frames", type=int, default=6)
     parser.add_argument("--timeout", type=float, default=20.0)
@@ -953,11 +1169,10 @@ def main() -> int:
 
     if not 32 <= args.signature_length <= 64:
         parser.error("--signature-length must be between 32 and 64")
-    if (args.frames < 1 or args.chunk_size < 1 or args.max_scan_bytes < 1
-            or args.max_scan_bytes > MAX_REVIEWED_SCAN_BYTES or args.scan_delay < 0
+    if (args.target_pid < 1 or args.frames < 1
             or args.module_wait_seconds <= 0 or args.module_poll_interval <= 0
             or args.control_timeout <= 0 or args.control_poll_interval <= 0):
-        parser.error("frames/chunk/cap/wait/poll values must be positive; scan delay must be non-negative")
+        parser.error("target PID, frame count, wait and poll values must be positive")
     if not args.file.is_file():
         raise TraceError(f"Table file not found: {args.file}")
     if not args.gdb or not Path(args.gdb).exists():
@@ -970,6 +1185,7 @@ def main() -> int:
 
     args.event_log.parent.mkdir(parents=True, exist_ok=True)
     controls = ControlFiles(args.control_dir, ROOT / "work/progress/trace.log")
+    host_scan_result = args.host_scan_result or args.control_dir / "host-scan-result.json"
     gdb = GdbMi(args.gdb, args.timeout, args.rsp_log)
     attached = False
     exit_code = 0
@@ -990,47 +1206,43 @@ def main() -> int:
             raise TraceError(f"GDB remote connection did not succeed: {result}")
         controls.log("stage transition: GDB attached; awaiting guest module while retaining this connection")
 
-        # Query the connected stub directly through GDB's raw packet facility.
-        # Do not start a scan without knowing the negotiated packet ceiling.
-        qsupported = gdb.console("maintenance packet qSupported")
-        packet_size = parse_packet_size(qsupported)
-        scan_chunk = min(args.chunk_size, safe_read_size(packet_size))
-        print(f"RSP qSupported raw reply: {qsupported.strip()}; scan reads <=0x{scan_chunk:x} bytes with {args.scan_delay:g}s pacing", flush=True)
-
         max_module_polls = max(1, int(args.module_wait_seconds / args.module_poll_interval))
         base, module_name = wait_for_main_module(
             gdb, args.module_name, max_module_polls, args.module_poll_interval,
             controls=controls,
         )
         print(f"Found startup module {module_name} at 0x{base:x}; continuing with independent build-byte validation.", flush=True)
-        validated_functions = []
-        for fid_text, fid, size, expected_bytes in validations:
-            runtime_check = base + fid
-            observed = memory_read(gdb, runtime_check, len(expected_bytes))
-            if observed != expected_bytes:
-                raise TraceError(
-                    f"Static-RVA validation failed for {fid_text}: runtime 0x{runtime_check:x} "
-                    f"had {observed.hex()}, expected {expected_bytes.hex()}; no PC mapping/watchpoint was used"
-                )
-            validated_functions.append({
-                "function_id": fid_text, "size_bytes": size,
-                "runtime_address": f"0x{runtime_check:x}", "instruction_bytes": observed.hex(),
-            })
         print(
             f"Validated module {module_name} base=0x{base:x} against NSO build ID {build_id}; "
-            f"three independent PT_LOAD byte checks: {json.dumps(validated_functions, sort_keys=True)}",
+            "instruction-byte translation will be checked against the host HostMemory mapping before scanning.",
             flush=True,
         )
 
         controls.log("stage transition: build/module validation passed")
 
         def do_scan(checkpoint: Callable[[], None]) -> int:
-            mappings = parse_mappings(gdb.console("monitor get mappings"))
-            selected = log_scan_plan(controls, mappings, args.max_scan_bytes)
-            return scan_signature(
-                gdb, selected, signature, scan_chunk, args.max_scan_bytes,
-                packet_size, args.scan_delay, checkpoint=checkpoint,
+            checkpoint()
+            host_map = parse_host_memory_mapping(
+                Path(f"/proc/{args.target_pid}/maps").read_text(encoding="utf-8")
             )
+            if host_map.size != HOST_MEMORY_SIZE:
+                raise TraceError(
+                    f"HostMemory mapping size changed: expected 0x{HOST_MEMORY_SIZE:x}, "
+                    f"found 0x{host_map.size:x}"
+                )
+            controls.log(
+                f"host scan plan: source=/proc/{args.target_pid}/mem; "
+                f"selected_regions=[{{'start':'0x{host_map.start:x}','end':'0x{host_map.end:x}',"
+                f"'size':{host_map.size},'path':{host_map.path!r}}}]; "
+                f"read_chunk=0x{HOST_SCAN_CHUNK_SIZE:x}; "
+                f"result_file={host_scan_result}; RSP guest-memory reads=disabled"
+            )
+            address = host_scan_for_table(
+                args.target_pid, signature, base, validations, host_scan_result,
+                checkpoint=checkpoint,
+            )
+            controls.log(f"host scan matched unique signature; guest_address=0x{address:x}")
+            return address
 
         print(
             f"After gameplay is visible with the menu closed, run: touch {args.control_dir / 'gameplay-ready'}",
@@ -1062,7 +1274,7 @@ def main() -> int:
                 event = {
                     "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
                     "module": module_name, "module_base": f"0x{base:x}", "main_nso_build_id": build_id,
-                    "validated_functions": validated_functions,
+                    "host_scan_result": str(host_scan_result),
                     "table_file": str(args.file), "signature_hex": signature.hex(),
                     "buffer_address": f"0x{address:x}", "watchpoint": args.watchpoint,
                     "stop_reason": stopped.get("reason"),
