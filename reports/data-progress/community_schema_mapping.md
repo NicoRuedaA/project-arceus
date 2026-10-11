@@ -22,3 +22,13 @@ Source hint: [pkNX `PersonalInfoLAfb.fbs`](https://github.com/kwsch/pkNX/blob/d1
 **Unverified:** the schema's F02 `IsPresentInGame:bool` is not directly decoded in our TSV. `is_active` is currently derived from `base_hp > 0`, which is compatible with observed examples but does not prove it is F02. `base_stat_total`, display names, type labels, and growth labels are derived output, not raw schema fields.
 
 Detailed map: [`sheets/data/schemas/pml_personal_fields.tsv`](../../sheets/data/schemas/pml_personal_fields.tsv).
+
+### `item_hash_to_index.tsv` (n2-input proposal only)
+
+Source hint: [pkNX `ItemHash8.cs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Structures/Item/ItemHash8.cs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** the 29,284-byte binary size matches a 4-byte count plus 1,830 16-byte records; the local n2-input TSV contains 1,830 rows. pkNX reads a 64-bit field at +0 and a signed 32-bit key at +8. The key candidates span 0–1,828, and the nonzero index domain is compatible with the local report's 1,829 item-name entries. These checks verify the record shape and numeric domain, not the hash's semantics or its join to an item name.
+
+**Contradicted:** n2-input currently exports +0x08 as `f08_u64`, while the community parser treats it as `i32`; upper 32 bits are zero in the local data, but the exported width remains mismatched. Do not rename that field yet. This worktree contains only a rename proposal; the n2-input TSV was not edited.
+
+Detailed map: [`sheets/data/schemas/item_hash_to_index_fields.tsv`](../../sheets/data/schemas/item_hash_to_index_fields.tsv).

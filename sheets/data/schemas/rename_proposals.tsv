@@ -1,0 +1,3 @@
+worktree_branch	source_tsv	raw_column	proposed_column	status	evidence_or_blocker
+n2-input:feat/n2-input	sheets/data/items/item_hash_to_index.tsv	f00_u64	hash_u64	verified_candidate	pkNX ItemHash8 reads u64 hash at record +0; semantic item-name join remains unverified.
+n2-input:feat/n2-input	sheets/data/items/item_hash_to_index.tsv	f08_u64	key_i32	contradicted_do_not_apply	Community type is i32, but local export emits u64; upper 32 bits zero does not establish the exported width.
