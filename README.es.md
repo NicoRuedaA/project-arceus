@@ -14,7 +14,7 @@ Rust/Bevy desde un libro de hojas versionado haciendo uso de **The Spreadsheet M
 
 ## Situación del proyecto
 
-Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El detalle fase a fase está en la [Tabla de cierre](#tabla-de-cierre). Última actualización: 2026-10-11.
+Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El detalle fase a fase está en la [Tabla de cierre](#tabla-de-cierre). Última actualización: 2026-10-12.
 
 ### 📊 Avance por fase
 
@@ -131,7 +131,7 @@ completa del módulo. `~` marca estimaciones cualitativas.
 | | Enlaces al sistema (*host bindings*) | ~10 % | ~90 % | 4 módulos de subsistema registrados (save, field, event_script, message); guardado (flags de eventos) y decodificación de textos de mensajes son reales; `event_script` devuelve el id del propio script y campos por defecto conservadores; `field` responde sobre todo con respuestas fijas; el resto son stubs que registran llamadas | Bindings Rust/Bevy, trazas de eventos y stubs |
 | | Sistema de guardado | ~30 % | ~70 % | sembrado con 450 flags de evento | Modelo de estado Rust y fixtures de flags de evento |
 | | Subsistema visual | ~40 % | ~60 % | solo a nivel de assets; sin render completo | Decodificador BNTX, ruta Bevy imagen/sprite y tests headless |
-| | Modelos/animaciones `tr*` | Desconocido | Desconocido | aún no se ha hecho censo; parsers implementados con tests (TrMshLayout/TrMbf/TrMtr/TrSkl/TrAnm en `crates/pla/src/assets/tr.rs` y `tr/`, evaluación nativa de animación, ejemplo `mesh_spike`), sin medir todavía contra todo el corpus del juego ni renderizados como modelo animado completo en Bevy | Parsers `tr*` en Rust, tests y ejemplo `mesh_spike` |
+| | Modelos Pokémon/animaciones `tr*` | Desconocido | Desconocido | Censo de 356 archivos Pokémon `pm*.gfpak`: 64.974 entradas con trama Oodle se decodificaron en memoria y coincidieron con el tamaño declarado; `TrMbf` aceptó 819 entradas en 301 paquetes, el parser de formas de skin aceptó 586 formas en 63 paquetes y `TrSkl` aceptó 2 entradas en 2 paquetes. Dos cargas exceden los límites del archivo; no se ha establecido la relación entre entradas, roles ni modelos, y no se ha renderizado un modelo completo en Bevy. | Decodificador MIT `oozextract` 0.5.5 fijado; censo GFLXPACK y parsers `tr*` en Rust; [informe Oodle](reports/data-progress/gfpak_oodle.md) |
 | | Havok→avian3d | 0 % | 100 % | no hay dependencia de física ni parser Havok en el workspace | No completado; no hay evidencia de implementación |
 
 Esta tabla inventaría *lo que existe* en cada tramo de

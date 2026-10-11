@@ -12,8 +12,8 @@
 //!
 //! File-entry table: `entry_count` entries of 24 bytes
 //!   { u16 type, u16 kind, u32 checksum, u32 size, u32 flags, u32 data_offset, u32 reserved }
-//! Invariant verified on every sample: `entry[0].data_offset == table_offset + count * 24`
-//! (data begins right after the table).
+//! Entry tables may be followed directly by payloads or by an 8-byte pad so the
+//! first payload is 16-byte aligned (observed in kind-4 Pokémon model packs).
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GfPakEntry {
@@ -24,6 +24,14 @@ pub struct GfPakEntry {
     pub flags: u32,
     pub data_offset: u32,
     pub reserved: u32,
+}
+
+impl GfPakEntry {
+    /// Observed declared decoded size in Pokémon kind-4 Oodle entries.
+    /// The field is named `checksum` for compatibility with the earlier parser.
+    pub fn declared_decompressed_size(&self) -> u32 {
+        self.checksum
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -56,18 +64,24 @@ impl GfPak {
             pos += 8;
         }
 
-        // The file-entry table is the offset whose first entry's data_offset
-        // equals table_offset + count * 24.
+        // Locate the file-entry table by checking whether its first payload
+        // begins immediately after the rows or at the next 16-byte boundary.
         let entry_size = 24u64;
         let mut found = None;
         for &table in &table_offsets {
-            let data_start = table + entry_count as u64 * entry_size;
-            if data_start + entry_size > size {
+            let table_end = table.checked_add(entry_count as u64 * entry_size);
+            let Some(table_end) = table_end else {
+                continue;
+            };
+            if table_end + entry_size > size {
                 continue;
             }
             let first = parse_entry(bytes, table as usize)?;
-            if first.data_offset as u64 == data_start {
-                found = Some((table, data_start));
+            let aligned_start = table_end.checked_add(15).map(|n| n & !15);
+            if first.data_offset as u64 == table_end
+                || Some(first.data_offset as u64) == aligned_start
+            {
+                found = Some((table, table_end));
                 break;
             }
         }
@@ -94,11 +108,50 @@ impl GfPak {
     /// Borrow an entry's payload.
     pub fn data<'a>(&self, bytes: &'a [u8], entry: &GfPakEntry) -> Result<&'a [u8], String> {
         let start = entry.data_offset as usize;
-        let end = start + entry.size as usize;
+        let end = start
+            .checked_add(entry.size as usize)
+            .ok_or_else(|| "entry range overflow".to_string())?;
         bytes
             .get(start..end)
             .ok_or_else(|| "entry out of range".to_string())
     }
+
+    /// Return an Oodle-framed entry decoded in memory, or a copy of a raw
+    /// payload when the entry does not use the observed Oodle frame headers.
+    ///
+    /// In Pokémon kind-4 packs, `checksum` is observed to be the declared
+    /// decompressed byte count and `size` is the compressed payload length.
+    pub fn decoded_data(&self, bytes: &[u8], entry: &GfPakEntry) -> Result<Vec<u8>, String> {
+        let payload = self.data(bytes, entry)?;
+        if !is_oodle_frame(payload) {
+            return Ok(payload.to_vec());
+        }
+
+        let expected = usize::try_from(entry.declared_decompressed_size())
+            .map_err(|_| "declared decompressed size does not fit this platform".to_string())?;
+        if expected == 0 || expected > 256 * 1024 * 1024 {
+            return Err(format!("invalid declared decompressed size {expected}"));
+        }
+        let mut output = vec![0; expected];
+        let written = oozextract::Extractor::new()
+            .read_from_slice(payload, &mut output)
+            .map_err(|error| format!("Oodle decode failed: {error}"))?;
+        if written != expected {
+            return Err(format!(
+                "Oodle wrote {written} bytes; entry declares {expected}"
+            ));
+        }
+        Ok(output)
+    }
+}
+
+/// The Pokémon model corpus observed so far uses Oodle Kraken frames. `0x8c`
+/// is a compressed block; `0xcc` marks an uncompressed block in the same frame.
+pub fn is_oodle_frame(payload: &[u8]) -> bool {
+    payload.len() >= 2
+        && payload[0] & 0x0f == 0x0c
+        && (payload[0] >> 4) & 0x03 == 0
+        && payload[1] & 0x7f == 0x06
 }
 
 fn parse_entry(bytes: &[u8], offset: usize) -> Result<GfPakEntry, String> {
