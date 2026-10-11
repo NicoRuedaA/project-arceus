@@ -16,6 +16,9 @@ import struct
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import sheetize  # noqa: E402  (adds the sheet manifest and typed header)
+
 ROMFS_BIN = Path(os.environ.get(
     "PLA_ROMFS_BIN", "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin"
 ))
@@ -196,6 +199,7 @@ def export_capture_parameters(output_dir: Path) -> int:
                 row.append(val)
             writer.writerow(row)
 
+    sheetize.sheetize_all(output_dir, ["capture_constants", "capture_ball_multipliers", "capture_status_multipliers", "capture_context_modifiers", "capture_level_rank_matrix"])
     return len(config)
 
 
@@ -309,6 +313,7 @@ def export_throwable_and_bait(output_dir: Path) -> tuple[int, int]:
             eff = row[7]
             writer.writerow([item_id, btype, taste, cat, col1, col2, eff])
 
+    sheetize.sheetize_all(output_dir, ["throwable_parameters", "bait_parameters"])
     return param_count, bait_count
 
 
@@ -356,6 +361,7 @@ def export_weather_data(output_dir: Path) -> int:
         for wid, wname, code, flag, weight, desc in weather_states:
             writer.writerow([wid, wname, code, flag, weight, desc])
 
+    sheetize.sheetize_all(output_dir, ["weather_dry_transitions", "weather_lottery_matrix"])
     return len(config)
 
 
@@ -449,6 +455,7 @@ def export_field_spawns(output_dir: Path) -> tuple[int, int, int]:
             values = [struct.unpack_from("<Q" if fi == 0 else "<I", ldata, table + off)[0] if off else "" for fi, off in enumerate(offsets)]
             writer.writerow([record_index, *values, "UNKNOWN"])
 
+    sheetize.sheetize_all(output_dir, ["wild_encounter_modifiers", "huge_outbreak_areas", "huge_outbreak_lottery"])
     return encount_count, huge_count, lottery_count
 
 
@@ -467,6 +474,7 @@ def export_world_config(output_dir: Path) -> int:
                     continue
                 lexical_type = "integer" if value.lstrip("+-").isdigit() else "float" if _is_float(value) else "string"
                 writer.writerow([key, index, value, lexical_type])
+    sheetize.sheetize_all(output_dir, ["wormhole_config_values"])
     return sum(len([v for v in values if v != ""]) for values in config.values())
 
 
@@ -595,6 +603,7 @@ def export_spawn_source_fields(output_dir: Path) -> int:
         for key in sorted(app_values):
             for value_index, value in enumerate(app_values[key]):
                 writer.writerow([key, value_index, value, "UNKNOWN"])
+    sheetize.sheetize_all(output_dir, ["spawn_source_fields", "spawn_nested_raw_fields", "spawner_config_values"])
     return row_count + nested_count
 
 

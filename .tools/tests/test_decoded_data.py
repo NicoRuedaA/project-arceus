@@ -14,6 +14,9 @@ import struct
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import sheetize  # noqa: E402  (skips # manifest lines, strips :type from headers)
+
 DATA_DIR = Path("sheets/data")
 
 
@@ -21,7 +24,7 @@ def validate_capture_data() -> None:
     # 1. Constants
     constants_file = DATA_DIR / "capture/capture_constants.tsv"
     with open(constants_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(sheetize.data_lines(f), delimiter="\t")
         consts = {row["constant_key"]: row["value"] for row in reader}
     
     assert consts["evaluation_num"] == "2", f"Invalid evaluation_num: {consts['evaluation_num']}"
@@ -34,7 +37,7 @@ def validate_capture_data() -> None:
     # 2. Ball multipliers
     balls_file = DATA_DIR / "capture/capture_ball_multipliers.tsv"
     with open(balls_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(sheetize.data_lines(f), delimiter="\t")
         for row in reader:
             b_val = float(row["base_multiplier"])
             s_val = float(row["suitable_multiplier"])
@@ -45,7 +48,7 @@ def validate_capture_data() -> None:
     # 3. Status condition multipliers
     status_file = DATA_DIR / "capture/capture_status_multipliers.tsv"
     with open(status_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(sheetize.data_lines(f), delimiter="\t")
         for row in reader:
             m = float(row["multiplier"])
             assert 1.0 <= m <= 2.5, f"Status multiplier out of range: {m}"
@@ -54,7 +57,7 @@ def validate_capture_data() -> None:
     # 4. Context modifiers
     context_file = DATA_DIR / "capture/capture_context_modifiers.tsv"
     with open(context_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(sheetize.data_lines(f), delimiter="\t")
         for row in reader:
             m = float(row["multiplier"])
             assert 1.0 <= m <= 4.0, f"Context multiplier out of range: {m}"
@@ -63,7 +66,7 @@ def validate_capture_data() -> None:
     # 5. Level rank matrix
     matrix_file = DATA_DIR / "capture/capture_level_rank_matrix.tsv"
     with open(matrix_file, "r", encoding="utf-8") as f:
-        reader = list(csv.reader(f, delimiter="\t"))
+        reader = list(csv.reader(sheetize.data_lines(f), delimiter="\t"))
         assert len(reader) == 12, f"Matrix must have 1 header + 11 rank rows (got {len(reader)})"
         for r in reader[1:]:
             for val in r[1:]:
@@ -75,7 +78,7 @@ def validate_capture_data() -> None:
     # schema's domain labels are not established by available evidence.
     throwable_file = DATA_DIR / "capture/throwable_parameters.tsv"
     with open(throwable_file, "r", encoding="utf-8", newline="") as f:
-        rows = list(csv.DictReader(f, delimiter="\t"))
+        rows = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
     assert len(rows) == 54, f"Expected 54 throwable records, got {len(rows)}"
     assert list(rows[0]) == ["f00_raw_u32", "f05_raw_u32", "f06_f32", "f07_string", "f08_string", "f09_f32"]
     assert sum(not r["f06_f32"] for r in rows) == 43, "Expected 43 absent field-6 values"
@@ -89,7 +92,7 @@ def validate_weather_data() -> None:
     # Weather dry transitions
     trans_file = DATA_DIR / "weather/weather_dry_transitions.tsv"
     with open(trans_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(sheetize.data_lines(f), delimiter="\t")
         rows = list(reader)
         assert len(rows) == 38, f"Expected 38 dry transitions, got {len(rows)}"
         for row in rows:
@@ -100,7 +103,7 @@ def validate_weather_data() -> None:
     # Weather lottery
     lot_file = DATA_DIR / "weather/weather_lottery_matrix.tsv"
     with open(lot_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(sheetize.data_lines(f), delimiter="\t")
         rows = list(reader)
         assert len(rows) == 8, f"Expected 8 weather states, got {len(rows)}"
         total_weight = sum(int(r["default_weight"]) for r in rows)
@@ -112,7 +115,7 @@ def validate_field_data() -> None:
     # Huge outbreak areas
     huge_file = DATA_DIR / "field/huge_outbreak_areas.tsv"
     with open(huge_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(sheetize.data_lines(f), delimiter="\t")
         rows = list(reader)
         assert len(rows) == 5, f"Expected 5 Hisui major areas, got {len(rows)}"
         assert list(rows[0])[-1] == "evidence", "Huge outbreak area schema must record evidence status"
@@ -122,7 +125,7 @@ def validate_field_data() -> None:
     # Wild encounter modifiers
     enc_file = DATA_DIR / "field/wild_encounter_modifiers.tsv"
     with open(enc_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(sheetize.data_lines(f), delimiter="\t")
         rows = list(reader)
         assert len(rows) == 322, f"Expected 322 encounter records, got {len(rows)}"
         assert list(rows[0])[-1] == "evidence", "Encounter schema must record evidence status"
@@ -143,14 +146,14 @@ def validate_field_data() -> None:
 
     lottery_file = DATA_DIR / "field/huge_outbreak_lottery.tsv"
     with open(lottery_file, "r", encoding="utf-8", newline="") as f:
-        lottery_rows = list(csv.DictReader(f, delimiter="\t"))
+        lottery_rows = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
     assert len(lottery_rows) == 5, f"Expected 5 huge outbreak lottery rows, got {len(lottery_rows)}"
     assert list(lottery_rows[0])[-1] == "evidence", "Huge outbreak lottery schema must record evidence status"
     assert all(r["evidence"] == "UNKNOWN" for r in lottery_rows), "Huge outbreak lottery has no proven direct reader"
 
     raw_file = DATA_DIR / "field/spawn_source_fields.tsv"
     with open(raw_file, "r", encoding="utf-8", newline="") as f:
-        raw_rows = list(csv.DictReader(f, delimiter="\t"))
+        raw_rows = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
     assert len(raw_rows) == 6183, f"Expected 6,183 raw spawn fields, got {len(raw_rows)}"
     assert raw_rows and list(raw_rows[0])[-1] == "evidence", "Spawn source schema must record evidence status"
     assert all(r["evidence"] == "UNKNOWN" for r in raw_rows), "Spawn source fields have no proven direct reader"
@@ -209,7 +212,7 @@ def validate_field_data() -> None:
     assert actual == expected, "Raw spawn field TSV differs from source table bytes"
     nested_file = DATA_DIR / "field/spawn_nested_raw_fields.tsv"
     with open(nested_file, "r", encoding="utf-8", newline="") as f:
-        nested = list(csv.DictReader(f, delimiter="\t"))
+        nested = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
     assert len(nested) == 5074, f"Expected 5,074 nested raw fields, got {len(nested)}"
     assert nested and list(nested[0])[-1] == "evidence", "Nested spawn schema must record evidence status"
     assert all(r["evidence"] == "UNKNOWN" for r in nested), "Nested spawn fields have no proven direct reader"
@@ -219,7 +222,7 @@ def validate_field_data() -> None:
     assert len(lottery_children) == 501, f"Expected 501 nested group-lottery records, got {len(lottery_children)}"
     spawner_cfg = DATA_DIR / "field/spawner_config_values.tsv"
     with open(spawner_cfg, "r", encoding="utf-8", newline="") as f:
-        cfg = list(csv.DictReader(f, delimiter="\t"))
+        cfg = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
     assert cfg and list(cfg[0])[-1] == "evidence", "Spawner config schema must record evidence status"
     assert all(r["evidence"] == "UNKNOWN" for r in cfg), "Spawner config has no proven direct reader"
     assert len(cfg) == 3 and any(r["config_key"] == "unique_oybn_leave_count" and r["value_text"] == "3" for r in cfg)
@@ -230,7 +233,7 @@ def validate_world_data() -> None:
     world_file = DATA_DIR / "world/wormhole_config_values.tsv"
     source = Path("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/misc/app_config/field_wormhole_config.bin")
     with open(world_file, "r", encoding="utf-8", newline="") as f:
-        rows = list(csv.DictReader(f, delimiter="\t"))
+        rows = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
     assert len(rows) == 37, f"Expected 37 non-empty wormhole config values, got {len(rows)}"
     assert source.is_file(), f"Missing exact source binary: {source}"
     # Re-read the FlatBuffer with the decoder so the exported key/value set is

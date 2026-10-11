@@ -18,6 +18,9 @@ import struct
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sheetize  # noqa: E402  (skips # manifest lines, strips :type from headers)
+
 DATA_DIR = Path("sheets/data")
 ROMFS_BIN_PML = Path("work/pla/pk2/romfs_patched/bin/pml")
 
@@ -26,9 +29,7 @@ def load_tsv(filename: str) -> list[dict[str, str]]:
     path = DATA_DIR / filename
     if not path.exists():
         raise FileNotFoundError(f"Missing required TSV: {path}")
-    with open(path, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        return list(reader)
+    return sheetize.read_rows(path)
 
 
 def validate_personal(records: list[dict[str, str]]) -> None:

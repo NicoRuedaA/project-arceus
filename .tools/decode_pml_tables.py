@@ -19,6 +19,9 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sheetize  # noqa: E402  (adds the sheet manifest and typed header)
+
 ROMFS_BIN_PML = Path("work/pla/pk2/romfs_patched/bin/pml")
 OUTPUT_DIR = Path("sheets/data")
 TOOLS_DIR = Path(".tools")
@@ -490,6 +493,7 @@ def write_tsv(filename: Path, records: List[dict[str, Any]]) -> None:
         row = [str(r.get(h, "")) for h in headers]
         lines.append("\t".join(row))
     filename.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    sheetize.sheetize_file(filename)
     print(f"Exported {len(records)} rows to {filename}")
 
 
