@@ -73,11 +73,15 @@
     "port.png": "ce2ee67b5cef89051213a395735c8979a4d11df2c99c2117882f9eeed6bae0a4"
   },
   "rust_source_fingerprint": {
-    "file_count": 49,
+    "file_count": 51,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
         "sha256": "47f73dbab8a66607c74f3d1807d8441f5ec24cfe2f355ee463cbf1f6072ca68f"
+      },
+      {
+        "path": "crates/pla/examples/anim_spike.rs",
+        "sha256": "08b0389feed445203ae1ec48d6138c3a09d7c8f0e498fa307b41edafee3accf0"
       },
       {
         "path": "crates/pla/examples/dump_bntx.rs",
@@ -132,6 +136,10 @@
         "sha256": "6a622137cfb4b476161c69000411870e107349ea2e7ca6c22134b52b539e0636"
       },
       {
+        "path": "crates/pla/src/assets/tr/bevy.rs",
+        "sha256": "de44a0ed782a9a5d01cdda0b1e37c4cfb778b0f5ab45fa0a8b178dfedd1d07f3"
+      },
+      {
         "path": "crates/pla/src/assets/tr/matrices.rs",
         "sha256": "fe7e6600b53f54a68c578462a68375facb05007a994b239ad15ed669781e39a0"
       },
@@ -149,7 +157,7 @@
       },
       {
         "path": "crates/pla/src/assets/tr.rs",
-        "sha256": "13fa46ead6d08308c93d12486110cc7418fcc611254c214befffac02aae997e4"
+        "sha256": "f50fd81efdc644e1927ebca020e6f83a4bc341b526d97641f8f2c84394f3897e"
       },
       {
         "path": "crates/pla/src/assets/vfxb.rs",
@@ -229,7 +237,7 @@
       },
       {
         "path": "crates/pla/tests/tr_animation_reference.rs",
-        "sha256": "c96c0668b3298f7c6baa02f98269b6f73009a345d34616c838444949e1e78328"
+        "sha256": "ea1bd4f5955eb6e936d0216a2292871a5746ca444fb266853727eb39e3fc91f1"
       },
       {
         "path": "crates/pla/tests/tr_matrices.rs",
@@ -253,7 +261,7 @@
       },
       {
         "path": "crates/sheetty/src/emit.rs",
-        "sha256": "fb6b997cba167cf8fd96f6eaccfccf307a27294b8b867c84634df085d81564f0"
+        "sha256": "b5a99ffe17fc9f109098d71c1afeb8ddb49c1591495d1e35fc0c4807423146c3"
       },
       {
         "path": "crates/sheetty/src/lib.rs",
@@ -273,7 +281,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "e388b355e086b370295b2b41f3f59b10b43806f21404469a72bb156137f34bfb"
+    "sha256": "0a5bd48d9cbd36a75d36a05e6ce5ae0b9cd835a9c986aa1d5390ee7c9cf5e8b3"
   },
   "state_partitions": {
     "analysis_documentation_status": {
