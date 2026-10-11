@@ -87,7 +87,7 @@ def export_capture_parameters(output_dir: Path) -> int:
     # 1. Base capture formula constants
     constants_path = output_dir / "capture_constants.tsv"
     with open(constants_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         writer.writerow(["constant_key", "value", "type", "description"])
         
         desc_map = {
@@ -115,7 +115,7 @@ def export_capture_parameters(output_dir: Path) -> int:
     # 2. Poke ball catch multipliers
     balls_path = output_dir / "capture_ball_multipliers.tsv"
     with open(balls_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         writer.writerow(["ball_category", "multiplier_key", "base_multiplier", "suitable_multiplier", "description"])
         
         ball_defs = [
@@ -140,7 +140,7 @@ def export_capture_parameters(output_dir: Path) -> int:
     # 3. Status condition multipliers
     status_path = output_dir / "capture_status_multipliers.tsv"
     with open(status_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         writer.writerow(["status_condition", "multiplier_key", "multiplier", "description"])
         status_defs = [
             ("None", "capture_index_sick_factor_none", "Standard unmodified catch rate"),
@@ -157,7 +157,7 @@ def export_capture_parameters(output_dir: Path) -> int:
     # 4. Bait & Backstrike & AI state modifiers
     context_path = output_dir / "capture_context_modifiers.tsv"
     with open(context_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         writer.writerow(["category", "factor_key", "multiplier", "description"])
         
         context_defs = [
@@ -185,7 +185,7 @@ def export_capture_parameters(output_dir: Path) -> int:
     # 5. Level Rank vs Galaxy Rank Matrix
     matrix_path = output_dir / "capture_level_rank_matrix.tsv"
     with open(matrix_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         header = ["player_galaxy_rank"] + [f"pokemon_rank_{p}" for p in range(1, 11)]
         writer.writerow(header)
         for pl in range(11):
@@ -272,7 +272,7 @@ def export_throwable_and_bait(output_dir: Path) -> tuple[int, int]:
     out_bait_path = output_dir / "bait_parameters.tsv"
     bait_count = b_vec_len
     with open(out_bait_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         writer.writerow(["item_id", "bait_type", "taste", "category", "color_hex_primary", "color_hex_secondary", "special_effect"])
         for i in range(b_vec_len):
             e_ptr = b_vec_offset + 4 + i * 4
@@ -321,7 +321,7 @@ def export_weather_data(output_dir: Path) -> int:
     # 1. Weather transition dry rates
     trans_path = output_dir / "weather_dry_transitions.tsv"
     with open(trans_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         writer.writerow(["time_of_day", "weather_condition", "target_surface", "rate", "description"])
         
         weathers = ["Sunny", "Cloudy", "Rain", "Snow", "Drought", "Mist", "Storm", "SnowStorm", "Aurora"]
@@ -340,7 +340,7 @@ def export_weather_data(output_dir: Path) -> int:
     # 2. Weather simulation lottery states & weights
     lottery_path = output_dir / "weather_lottery_matrix.tsv"
     with open(lottery_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         writer.writerow(["weather_id", "weather_name", "internal_code", "disable_system_flag", "default_weight", "description"])
         
         weather_states = [
@@ -459,7 +459,7 @@ def export_world_config(output_dir: Path) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "wormhole_config_values.tsv"
     with output_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
         writer.writerow(["config_key", "value_index", "value_text", "lexical_type"])
         for key in sorted(config):
             for index, value in enumerate(config[key]):
