@@ -589,6 +589,66 @@ class SafeScanTests(unittest.TestCase):
             self.assertFalse(session.alive)
             self.assertEqual(session.commands, [])
 
+    def test_no_match_resumes_guest_then_retains_attached_session_until_stop(self):
+        class Session:
+            def __init__(self):
+                self.commands = []
+                self.alive = True
+                self.closed = False
+            def command(self, command, timeout=None):
+                self.commands.append(command)
+                return "^running", []
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            controls = trace.ControlFiles(root / "ctl", root / "progress.log")
+            session = Session()
+            sleeps = 0
+
+            def eventually_stop(_duration):
+                nonlocal sleeps
+                sleeps += 1
+                self.assertTrue(session.alive)
+                self.assertFalse(session.closed)
+                if sleeps == 2:
+                    (root / "ctl" / "stop").touch()
+
+            trace.handle_post_attach_error(
+                session, controls, trace.SIGNATURE_NO_MATCH, 0.001,
+                sleep_fn=eventually_stop,
+            )
+
+            self.assertEqual(session.commands, ["-exec-continue --all"])
+            self.assertTrue(session.alive)
+            self.assertFalse(session.closed)
+            self.assertTrue(controls.stop_authorized)
+            log_text = (root / "progress.log").read_text(encoding="utf-8")
+            self.assertIn("no signature match; resuming guest", log_text)
+            self.assertIn("guest resumed; waiting with GDB attached", log_text)
+
+    def test_transport_failure_error_hold_sends_no_resume_packet(self):
+        class Session:
+            def __init__(self):
+                self.commands = []
+                self.alive = True
+                self.closed = False
+            def command(self, command, timeout=None):
+                self.commands.append(command)
+                raise AssertionError(f"Transport failure path sent remote command: {command}")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            controls = trace.ControlFiles(root / "ctl", root / "progress.log")
+            (root / "ctl" / "stop").touch()
+            session = Session()
+            trace.handle_post_attach_error(
+                session, controls, "RSP transport timeout", 0.001,
+                sleep_fn=lambda _duration: self.fail("stop control should be immediate"),
+            )
+            self.assertEqual(session.commands, [])
+            self.assertTrue(session.alive)
+            self.assertFalse(session.closed)
+
     def test_finalizer_does_not_close_attached_gdb_before_stop_file(self):
         class Session:
             def __init__(self, controls):

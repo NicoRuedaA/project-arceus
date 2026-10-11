@@ -44,6 +44,7 @@ SCAN_PAGE_SIZE = 0x1000
 SIGNATURE_PROBE_SIZE = 16
 HEAP_FIRST_WINDOW = 64 * 1024 * 1024
 MAX_REVIEWED_SCAN_BYTES = 6 * 1024**3
+SIGNATURE_NO_MATCH = "Signature search found no match in the selected prioritized scan pass"
 SCAN_REGION_TYPES = {"heap", "normal", "codedata", "alias", "stack", "threadlocal"}
 MAP_PERMISSIONS = re.compile(r"^[r-][w-][x-](?:[r-][w-])?$")
 
@@ -656,7 +657,7 @@ def scan_signature(
             addr += size
             if checkpoint:
                 checkpoint()
-    raise TraceError("Signature search found no match in the selected prioritized scan pass")
+    raise TraceError(SIGNATURE_NO_MATCH)
 
 
 def parse_stop(lines: list[str]) -> dict[str, str] | None:
@@ -743,6 +744,29 @@ def hold_session_after_error(
 ) -> None:
     controls.log(f"fatal post-attach error: {reason}; no GDB remote requests; retaining session until stop control")
     wait_for_stop_gate(controls, poll_interval, sleep_fn=sleep_fn)
+
+
+def handle_post_attach_error(
+    gdb: GdbMi, controls: ControlFiles, reason: str, poll_interval: float,
+    sleep_fn=time.sleep,
+) -> None:
+    """Resume only after a completed scan with no match; keep all failures attached."""
+    if reason == SIGNATURE_NO_MATCH:
+        controls.log("scan outcome: no signature match; resuming guest and retaining attached GDB session")
+        try:
+            continue_target(gdb)
+        except (TraceError, OSError) as exc:
+            hold_session_after_error(
+                controls, f"no-match resume failed ({exc}); no further GDB requests", poll_interval,
+                sleep_fn=sleep_fn,
+            )
+            return
+        controls.log("stage transition: no-match scan pass complete; guest resumed; waiting with GDB attached")
+        wait_for_stop_gate(controls, poll_interval, sleep_fn=sleep_fn)
+        return
+    # In particular, transport-level RSP failures must not trigger a resume
+    # packet or any other remote request; retain the existing held connection.
+    hold_session_after_error(controls, reason, poll_interval, sleep_fn=sleep_fn)
 
 
 def finalize_attached_session(
@@ -1064,7 +1088,7 @@ def main() -> int:
         print(f"trace error: {exc}", file=sys.stderr, flush=True)
         exit_code = 2
         if attached and not controls.stop_authorized:
-            hold_session_after_error(controls, str(exc), args.control_poll_interval)
+            handle_post_attach_error(gdb, controls, str(exc), args.control_poll_interval)
     finally:
         if attached:
             finalize_attached_session(gdb, controls, args.control_poll_interval)

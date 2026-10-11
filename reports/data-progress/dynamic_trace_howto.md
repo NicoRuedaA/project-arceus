@@ -99,7 +99,11 @@ safe; this change only avoids repeating the observed Normal-mapping pattern.
 If a target table resides in Normal memory, the scan may miss it; a no-match
 result will not prove the table is absent. Offline tests verify that Normal
 metadata remains parsed while no Normal mapping is selected or read. No live
-attempt 7 is implied by those tests.
+attempt 7 is implied by those tests. When a completed scan pass reports no
+match, the driver resumes the guest with async continue and keeps GDB attached
+and idle until the explicit `stop` control. Transport-level RSP failures do
+not trigger a continue or any follow-up remote request; they remain in the
+existing attached idle hold.
 
 An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
 15:33:32 CEST (PID 185443, TID 185562,
