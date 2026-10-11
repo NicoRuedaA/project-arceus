@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sheetize  # noqa: E402  (skips # manifest lines, strips :type from headers)
 
-DATA_DIR = Path("sheets/data")
+DATA_DIR = Path("data")
 ROMFS_BIN_PML = Path("work/pla/pk2/romfs_patched/bin/pml")
 
 

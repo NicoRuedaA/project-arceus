@@ -1,4 +1,8 @@
-raw_field_index	local_tsv_column	community_field	community_type	source_url	upstream_commit	check_used	status	notes
+# sheet: data/schemas/pml_moves_fields
+# version: 1
+# generator: manually curated; Python TSV writer
+# target: Pokémon Legends: Arceus update v262144 local-to-community field mapping for `pml_moves`
+raw_field_index:string	local_tsv_column:string	community_field:string	community_type:string	source_url:string	upstream_commit:string	check_used:string	status:string	notes:string
 F00	move	MoveID	int32	https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Poke/Moves/Waza.fbs	d191cd0e5c05f2af81d9a41c1f1d82e6621b351a	851 source files; raw F00 is int32; source rows preserve 851 records with duplicated ID 1 in byte-identical files and no ID 0	verified	Community name and int32 width now match source bytes. The duplicate/missing ID is a source-content anomaly, not a field mapping contradiction.
 F02	type	Type	ubyte	https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Poke/Moves/Waza.fbs	d191cd0e5c05f2af81d9a41c1f1d82e6621b351a	values 0..17; Pound is Normal (0), Ice Punch is Ice (14); local decoder reads u8	verified	The numeric Type field is stored in TSV column type; type_name is a derived display label.
 F04	category	Category	ubyte	https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Poke/Moves/Waza.fbs	d191cd0e5c05f2af81d9a41c1f1d82e6621b351a	values 0..2; Pound and Ice Punch category 1 Physical; decoder reads u8	verified	The numeric Category field is stored in TSV column category; category_name is a derived display label.

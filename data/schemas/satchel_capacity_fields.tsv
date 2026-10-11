@@ -1,4 +1,8 @@
-local_artifact_or_source	local_field_or_key	community_field_or_rule	community_type	source_url	upstream_commit	check_used	status	notes
+# sheet: data/schemas/satchel_capacity_fields
+# version: 1
+# generator: manually curated; Python TSV writer
+# target: Pokémon Legends: Arceus update v262144 local-to-community field mapping for `satchel_capacity`
+local_artifact_or_source:string	local_field_or_key:string	community_field_or_rule:string	community_type:string	source_url:string	upstream_commit:string	check_used:string	status:string	notes:string
 PLA save block (no decoded TSV)	hash 0x75CE2CF6	KSatchelUpgrades	u32	https://github.com/kwsch/PKHeX/blob/66ef5983a5d349efa2dd615f2926a1b1ee97306e/PKHeX.Core/Saves/Access/SaveBlockAccessor8LA.cs	66ef5983a5d349efa2dd615f2926a1b1ee97306e	PKHeX defines counter range 0..39; initial capacity 20 plus 39 upgrades equals documented 59 slots	verified	Save-block key, not a raw byte offset or table field.
 PKHeX PlayerBag8a.cs	satchel counter	rule: min(675, satchel + 20)	capacity formula	https://github.com/kwsch/PKHeX/blob/66ef5983a5d349efa2dd615f2926a1b1ee97306e/PKHeX.Core/Items/Bags/PlayerBag8a.cs	66ef5983a5d349efa2dd615f2926a1b1ee97306e	Serebii documents starting 20 and maximum 59; formula with counter 0 and 39 yields 20 and 59	verified	Community code rule corroborated by public capacity facts.
 PKHeX PlayerBag8a.cs	key item pouch size	100 items	constant	https://github.com/kwsch/PKHeX/blob/66ef5983a5d349efa2dd615f2926a1b1ee97306e/PKHeX.Core/Items/Bags/PlayerBag8a.cs	66ef5983a5d349efa2dd615f2926a1b1ee97306e	local native capacity audit has a matching key-item capacity branch	verified	Pouch limit, not satchel expansion tier.

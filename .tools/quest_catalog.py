@@ -487,13 +487,13 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=repository_root / "sheets/data/quest/quest_catalog.tsv",
+        default=repository_root / "data/quest/quest_catalog.tsv",
         help="destination TSV path",
     )
     parser.add_argument(
         "--triggers-output",
         type=Path,
-        default=repository_root / "sheets/data/quest/quest_triggers.tsv",
+        default=repository_root / "data/quest/quest_triggers.tsv",
         help="destination trigger TSV path",
     )
     parser.add_argument(

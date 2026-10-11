@@ -373,9 +373,9 @@ selection, or close.
 ## Evidence and interpretation
 
 Append validated reader observations to
-`sheets/data/trace/table_readers.tsv`, with table path, signature, function
+`data/trace/table_readers.tsv`, with table path, signature, function
 IDs, caller chain, and the corresponding event-log evidence. Keep ambiguous or
-unmapped frames explicitly unknown. Use `sheets/data/trace/field_meaning_proposals.tsv`
+unmapped frames explicitly unknown. Use `data/trace/field_meaning_proposals.tsv`
 for later field-name proposals only after inspecting the native consumers'
 pseudocode under `/home/nico/work/decompilacion/decompiled`; cite function,
 offset/field, and concrete use evidence. Dynamic access does not establish a

@@ -22,7 +22,7 @@ import sheetize  # noqa: E402  (adds the sheet manifest and typed header)
 ROMFS_BIN = Path(os.environ.get(
     "PLA_ROMFS_BIN", "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin"
 ))
-SHEETS_DATA = Path("sheets/data")
+DATA_DIR = Path("data")
 
 
 def parse_app_config(file_path: Path) -> dict[str, list[str]]:
@@ -618,22 +618,22 @@ def _is_float(value: str) -> bool:
 def main() -> None:
     print("=== PLA v262144 Binary Data Decoders ===")
     
-    n_cap = export_capture_parameters(SHEETS_DATA / "capture")
-    print(f"[+] Decoded {n_cap} capture parameter entries into sheets/data/capture/")
+    n_cap = export_capture_parameters(DATA_DIR / "capture")
+    print(f"[+] Decoded {n_cap} capture parameter entries into data/capture/")
     
-    n_throw, n_bait = export_throwable_and_bait(SHEETS_DATA / "capture")
-    print(f"[+] Decoded {n_throw} throwable records & {n_bait} bait records into sheets/data/capture/")
+    n_throw, n_bait = export_throwable_and_bait(DATA_DIR / "capture")
+    print(f"[+] Decoded {n_throw} throwable records & {n_bait} bait records into data/capture/")
     
-    n_w = export_weather_data(SHEETS_DATA / "weather")
-    print(f"[+] Decoded {n_w} weather entries into sheets/data/weather/")
+    n_w = export_weather_data(DATA_DIR / "weather")
+    print(f"[+] Decoded {n_w} weather entries into data/weather/")
     
-    n_enc, n_huge, n_lot = export_field_spawns(SHEETS_DATA / "field")
-    print(f"[+] Decoded {n_enc} encounter records & {n_huge} outbreak areas into sheets/data/field/")
+    n_enc, n_huge, n_lot = export_field_spawns(DATA_DIR / "field")
+    print(f"[+] Decoded {n_enc} encounter records & {n_huge} outbreak areas into data/field/")
 
-    n_wormhole = export_world_config(SHEETS_DATA / "world")
-    print(f"[+] Preserved {n_wormhole} non-empty wormhole config values into sheets/data/world/")
+    n_wormhole = export_world_config(DATA_DIR / "world")
+    print(f"[+] Preserved {n_wormhole} non-empty wormhole config values into data/world/")
 
-    n_spawn_fields = export_spawn_source_fields(SHEETS_DATA / "field")
+    n_spawn_fields = export_spawn_source_fields(DATA_DIR / "field")
     print(f"[+] Preserved {n_spawn_fields} raw FlatBuffer fields from spawn/encounter sources")
 
     print("=== Decoding complete successfully! ===")

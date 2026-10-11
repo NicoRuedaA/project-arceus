@@ -9,13 +9,13 @@ python3 .tools/decoders/decode_pla_data.py
 python3 .tools/tests/test_decoded_data.py
 ```
 
-The input root defaults to `/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/`; `PLA_ROMFS_BIN` can override it. The new output is `sheets/data/world/wormhole_config_values.tsv`.
+The input root defaults to `/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/`; `PLA_ROMFS_BIN` can override it. The new output is `data/world/wormhole_config_values.tsv`.
 
 ## Exported table and layout
 
 | Output | Source | Rows | Columns / interpretation |
 |---|---|---:|---|
-| `sheets/data/world/wormhole_config_values.tsv` | `misc/app_config/field_wormhole_config.bin` | 37 | `config_key` (string), `value_index` (integer index in source value vector), `value_text` (verbatim non-empty string), `lexical_type` (integer/float/string inferred from text syntax only) |
+| `data/world/wormhole_config_values.tsv` | `misc/app_config/field_wormhole_config.bin` | 37 | `config_key` (string), `value_index` (integer index in source value vector), `value_text` (verbatim non-empty string), `lexical_type` (integer/float/string inferred from text syntax only) |
 
 `parse_app_config` reads the FlatBuffer root table and its vector of keyed entries; each entry's value vector is retained as indexed text. The export omits only empty string slots. It sorts keys for deterministic output and does not assign game semantics to individual lottery/time keys. `lexical_type` is not a claim about the original FlatBuffer scalar type.
 

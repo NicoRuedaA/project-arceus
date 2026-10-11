@@ -1,4 +1,9 @@
-record_index	f00_u64	f01_u32	f02_u32	f03_u32	f04_u32	f05_u32	f06_u32	f07_u32	f08_u32	f09_u32	f10_u32	f11_u32	f12_u32	f13_u32	f14_u32	f15_u32	f16_u32	f17_u32	evidence
+# sheet: data/field/huge_outbreak_lottery
+# version: 1
+# generator: .tools/decoders/decode_pla_data.py
+# target: Pokémon Legends: Arceus update v262144 massive outbreak lottery records (raw fields, meaning unknown)
+# requires: bin/field/encount
+record_index:u8*	f00_u64:u64	f01_u32:u32	f02_u32:u32	f03_u32:u32	f04_u32:u32	f05_u32:u32	f06_u32:u32	f07_u32:u32	f08_u32:u32	f09_u32:u32	f10_u32:u32	f11_u32:u32	f12_u32:u32	f13_u32:u32	f14_u32:u32	f15_u32:u32	f16_u32:u32	f17_u32:u32	evidence:string
 0	16409972469766838813	1288	25	11	15	1	1	8	10	6	7	15	20	10	12	228	120	12	UNKNOWN
 1	16409969171231954180	1336	25	11	15	1	1	8	10	6	7	15	20	10	12	236	124	12	UNKNOWN
 2	16409970270743582391	1288	25	11	15	1	1	8	10	6	7	15	20	10	12	228	120	12	UNKNOWN

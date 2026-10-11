@@ -1,9 +1,0 @@
-# sheet: data/schemas/field_wormhole_fields
-# version: 1
-# generator: manually curated; Python TSV writer
-# target: Pokémon Legends: Arceus update v262144 local-to-community field mapping for `field_wormhole`
-worktree_artifact:string	local_tsv_column:string	community_field:string	community_type:string	source_url:string	upstream_commit:string	check_used:string	status:string	notes:string
-n2-field:sheets/data/world/wormhole_config_values.tsv	config_key	UNKNOWN	UNKNOWN	https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Game/File/GameFileMapping.cs	d191cd0e5c05f2af81d9a41c1f1d82e6621b351a	37 unique keys; file path is mapped as WormholeConfig; no field schema found	unverified	Key names are decoded strings but their community field/type mapping is unavailable.
-n2-field:sheets/data/world/wormhole_config_values.tsv	value_index	UNKNOWN	UNKNOWN	https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Game/File/GameFileMapping.cs	d191cd0e5c05f2af81d9a41c1f1d82e6621b351a	all 37 local value_index fields are 0; native/source type not established	unverified	No candidate community type.
-n2-field:sheets/data/world/wormhole_config_values.tsv	value_text	UNKNOWN	UNKNOWN	https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Game/File/GameFileMapping.cs	d191cd0e5c05f2af81d9a41c1f1d82e6621b351a	36 values are integer-like and one is string-like text; lexical type is not original storage type	unverified	Do not infer binary primitive type from textual formatting.
-n2-field:sheets/data/world/wormhole_config_values.tsv	lexical_type	—	derived	https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Game/File/GameFileMapping.cs	d191cd0e5c05f2af81d9a41c1f1d82e6621b351a	values are inferred from value_text syntax; not a community-serialized field	unverified	Derived lexical classification only.

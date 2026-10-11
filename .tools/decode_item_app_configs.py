@@ -17,7 +17,7 @@ from pathlib import Path
 SOURCE_ROOT = Path(
     "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin"
 )
-OUTPUT = Path("sheets/data/items/app_config_row_layouts.tsv")
+OUTPUT = Path("data/items/app_config_row_layouts.tsv")
 EXPECTED_ROWS = {
     "event_farm_config.bin": 95,
     "field_item.bin": 13,

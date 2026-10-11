@@ -19,7 +19,7 @@ The English message-entry counts observed for `itemname`, `iteminfo`, `shop`, `m
 
 ### `item_hash_to_index.dat`
 
-The previously committed `sheets/data/items/item_hash_to_index.tsv` contains 1,830 records. The file has a little-endian u32 count at offset 0 followed by exactly that many 16-byte records. Each record is `<u64,u64>`; the export retains the values as raw `f00_u64` and `f08_u64`, with a zero-based `record_index`. No field meaning or name join is asserted.
+The previously committed `data/items/item_hash_to_index.tsv` contains 1,830 records. The file has a little-endian u32 count at offset 0 followed by exactly that many 16-byte records. Each record is `<u64,u64>`; the export retains the values as raw `f00_u64` and `f08_u64`, with a zero-based `record_index`. No field meaning or name join is asserted.
 
 ### Six `misc/app_config` FlatBuffers
 
@@ -35,7 +35,7 @@ The previously committed `sheets/data/items/item_hash_to_index.tsv` contains 1,8
 | `event_mkrg_reward_config.bin` | 1,600 bytes | 12 |
 | **Total** | — | **126** |
 
-The generated `sheets/data/items/app_config_row_layouts.tsv` has one row per vector element: `source_file`, `row_index`, raw table offset, object/vtable sizes, raw `f00`–`f06` vtable field offsets, and `evidence`. All `evidence` values are `UNKNOWN`: the audited native code did not tie a row field to a source table. The observed six row counts match the source vectors exactly. A vector count match validates structure, not table completeness or gameplay meaning.
+The generated `data/items/app_config_row_layouts.tsv` has one row per vector element: `source_file`, `row_index`, raw table offset, object/vtable sizes, raw `f00`–`f06` vtable field offsets, and `evidence`. All `evidence` values are `UNKNOWN`: the audited native code did not tie a row field to a source table. The observed six row counts match the source vectors exactly. A vector count match validates structure, not table completeness or gameplay meaning.
 
 ## Reproduction and validation
 

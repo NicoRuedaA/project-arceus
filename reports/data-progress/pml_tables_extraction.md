@@ -1,10 +1,10 @@
 # PML (Pokémon Monster Library) Binary Tables Extraction — PLA v262144
 
-**Date:** 2026-10-11  
-**Target:** Pokémon Legends: Arceus (update v262144, `pk2.nsz`)  
-**Scope:** Phase 1 PML Core Data Extraction  
-**Decoders:** `.tools/decode_pml_tables.py`, `.tools/validate_pml_tables.py`  
-**Outputs:** `sheets/data/pml_*.tsv`  
+- **Date:** 2026-10-11
+- **Target:** Pokémon Legends: Arceus (update v262144, `pk2.nsz`)
+- **Scope:** Phase 1 PML Core Data Extraction
+- **Decoders:** `.tools/decode_pml_tables.py`, `.tools/validate_pml_tables.py`
+- **Outputs:** `data/pml_*.tsv`
 
 ---
 
@@ -16,11 +16,11 @@ In Phase 1, the core PML tables were reverse engineered, decoded directly from t
 
 | Table Artifact | Source Binary | Record Count | Description |
 |---|---|---|---|
-| [`pml_personal.tsv`](../../sheets/data/pml_personal.tsv) | `bin/pml/personal/personal_data_total.perbin` | **1,276** rows | Base stats (HP, Atk, Def, SpA, SpD, Spe), primary/secondary types, gender ratio, exp yield, growth group for all 906 species & forms |
-| [`pml_grow_table.tsv`](../../sheets/data/pml_grow_table.tsv) | `bin/pml/grow_table/grow_*.bin` | **600** rows | Exact cumulative experience thresholds (levels 1..100) across all 6 growth curves |
-| [`pml_evolution.tsv`](../../sheets/data/pml_evolution.tsv) | `bin/pml/evolution/evolution_data_total.evobin` | **146** transitions | Complete evolution graph including PLA style counters, moon phase items, recoil damage, and level thresholds |
-| [`pml_moves.tsv`](../../sheets/data/pml_moves.tsv) | `bin/pml/waza/waza*.wazabin` (851 files) | **851 files / 850 unique source IDs** | Move definitions: type, damage category, base power, accuracy, PP, plus Agile and Strong Style modifications |
-| [`pml_learnsets.tsv`](../../sheets/data/pml_learnsets.tsv) | `bin/pml/waza_oboe/waza_oboe_total.wazaoboe` | **26,160** entries | Level-up learnsets (with PLA style mastery levels) and Training Grounds (Dojo) tutor pools |
+| [`pml_personal.tsv`](../../data/pml_personal.tsv) | `bin/pml/personal/personal_data_total.perbin` | **1,276** rows | Base stats (HP, Atk, Def, SpA, SpD, Spe), primary/secondary types, gender ratio, exp yield, growth group for all 906 species & forms |
+| [`pml_grow_table.tsv`](../../data/pml_grow_table.tsv) | `bin/pml/grow_table/grow_*.bin` | **600** rows | Exact cumulative experience thresholds (levels 1..100) across all 6 growth curves |
+| [`pml_evolution.tsv`](../../data/pml_evolution.tsv) | `bin/pml/evolution/evolution_data_total.evobin` | **146** transitions | Complete evolution graph including PLA style counters, moon phase items, recoil damage, and level thresholds |
+| [`pml_moves.tsv`](../../data/pml_moves.tsv) | `bin/pml/waza/waza*.wazabin` (851 files) | **851 files / 850 unique source IDs** | Move definitions: type, damage category, base power, accuracy, PP, plus Agile and Strong Style modifications |
+| [`pml_learnsets.tsv`](../../data/pml_learnsets.tsv) | `bin/pml/waza_oboe/waza_oboe_total.wazaoboe` | **26,160** entries | Level-up learnsets (with PLA style mastery levels) and Training Grounds (Dojo) tutor pools |
 
 ---
 

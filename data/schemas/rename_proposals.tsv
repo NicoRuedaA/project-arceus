@@ -1,5 +1,9 @@
-worktree_branch	source_tsv	raw_column	proposed_column	status	evidence_or_blocker
-n2-input:feat/n2-input	sheets/data/items/item_hash_to_index.tsv	f00_u64	hash_u64	verified_candidate	pkNX ItemHash8 reads u64 hash at record +0; semantic item-name join remains unverified.
-n2-input:feat/n2-input	sheets/data/items/item_hash_to_index.tsv	f08_u64	key_i32	contradicted_do_not_apply	Community type is i32, but local export emits u64; upper 32 bits zero does not establish the exported width.
-n2-field:feat/n2-field	sheets/data/field/huge_outbreak_areas.tsv	f00_u64	alpha_level_boost_entry_hash_u64	verified_candidate	Community field name/type and local u64 width agree; all five hashes match the corresponding new_huge_outbreak_lottery rows.
-n2-field:feat/n2-field	sheets/data/field/huge_outbreak_lottery.tsv	f00_u64	hash_u64	verified_candidate	Community field Hash:ulong; all five hashes match the corresponding huge_outbreak.bin records.
+# sheet: data/schemas/rename_proposals
+# version: 1
+# generator: manually curated; Python TSV writer
+# target: Pokémon Legends: Arceus update v262144 proposed column renames derived from community schemas
+worktree_branch:string	source_tsv:string	raw_column:string	proposed_column:string	status:string	evidence_or_blocker:string
+n2-input:feat/n2-input	data/items/item_hash_to_index.tsv	f00_u64	hash_u64	verified_candidate	pkNX ItemHash8 reads u64 hash at record +0; semantic item-name join remains unverified.
+n2-input:feat/n2-input	data/items/item_hash_to_index.tsv	f08_u64	key_i32	contradicted_do_not_apply	Community type is i32, but local export emits u64; upper 32 bits zero does not establish the exported width.
+n2-field:feat/n2-field	data/field/huge_outbreak_areas.tsv	f00_u64	alpha_level_boost_entry_hash_u64	verified_candidate	Community field name/type and local u64 width agree; all five hashes match the corresponding new_huge_outbreak_lottery rows.
+n2-field:feat/n2-field	data/field/huge_outbreak_lottery.tsv	f00_u64	hash_u64	verified_candidate	Community field Hash:ulong; all five hashes match the corresponding huge_outbreak.bin records.

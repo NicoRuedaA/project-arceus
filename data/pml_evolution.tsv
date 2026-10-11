@@ -1,4 +1,9 @@
-species	species_name	form	evolution_index	method	trigger_name	argument	condition_detail	target_species	target_species_name	target_form	level
+# sheet: data/pml_evolution
+# version: 1
+# generator: .tools/decode_pml_tables.py
+# target: Pokémon Legends: Arceus update v262144 evolution data
+# requires: bin/pml/evolution/evolution_data_total.evobin
+species:u16	species_name:string	form:u8	evolution_index:u8	method:u8	trigger_name:string	argument:u16	condition_detail:string?	target_species:u16	target_species_name:string	target_form:u8	level:u8
 25	pikachu	0	0	8	Evolution Item	83	Thunder Stone	26	raichu	0	0
 35	clefairy	0	0	8	Evolution Item	81	Moon Stone	36	clefable	0	0
 37	vulpix	0	0	8	Evolution Item	82	Fire Stone	38	ninetales	0	0
