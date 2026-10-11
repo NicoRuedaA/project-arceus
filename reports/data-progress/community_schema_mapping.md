@@ -124,3 +124,11 @@ Source hint: pkNX [`EventEncountArchive.fbs`](https://github.com/kwsch/pkNX/blob
 **Observed:** all 251 local outer records contain fields F00, F01 and F03 as four-byte relative-offset slots; F02 is absent throughout. The community schema has string, string, int, vector in that order, with a comment that F02 is empty for all entries. The named asset's pkNX mapping and this per-record shape provide two independent checks for the outer layout. Nested Pokémon vector contents are not mapped here.
 
 Detailed map: [`sheets/data/schemas/poke_event_encount_fields.tsv`](../../sheets/data/schemas/poke_event_encount_fields.tsv).
+
+### `pokemon/data/poke_encount.bin`
+
+Candidate analogue: pkNX [`EncounterMultiplerArchive.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Field/Slots/EncounterMultiplerArchive.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0). pkNX separately maps this filename to an encounter-rate table, but does **not** establish that this multiplier schema belongs to this file.
+
+**Observed:** 322 local records; F00 is u32 in range 25–905, F01 is absent, and F02–F13 are sparse floats in observed range −1.0 to 1.5. The 14-field shape resembles the candidate schema's Species/Form plus time/weather multipliers, but the missing form field and lack of asset-to-schema binding block all semantic assignments. The maps retain every candidate name as **unverified**.
+
+Detailed map: [`sheets/data/schemas/poke_encount_fields.tsv`](../../sheets/data/schemas/poke_encount_fields.tsv).
