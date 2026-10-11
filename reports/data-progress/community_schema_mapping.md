@@ -116,3 +116,11 @@ Source hint: pkNX [`Trigger.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c0
 **Unverified:** keep all three local fields raw. No quest-specific IDs/names or condition/command semantics were proven. Exact source-to-schema binding is the blocker.
 
 Detailed map: [`sheets/data/schemas/trigger_quest_sub_fields.tsv`](../../sheets/data/schemas/trigger_quest_sub_fields.tsv).
+
+### `pokemon/data/poke_event_encount.bin`
+
+Source hint: pkNX [`EventEncountArchive.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Field/Static/EventEncountArchive.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0), plus its asset mapping to the static encounter class.
+
+**Observed:** all 251 local outer records contain fields F00, F01 and F03 as four-byte relative-offset slots; F02 is absent throughout. The community schema has string, string, int, vector in that order, with a comment that F02 is empty for all entries. The named asset's pkNX mapping and this per-record shape provide two independent checks for the outer layout. Nested Pokémon vector contents are not mapped here.
+
+Detailed map: [`sheets/data/schemas/poke_event_encount_fields.tsv`](../../sheets/data/schemas/poke_event_encount_fields.tsv).
