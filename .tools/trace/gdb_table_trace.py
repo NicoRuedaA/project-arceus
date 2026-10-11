@@ -57,9 +57,13 @@ def parse_mi_fields(payload: str) -> dict[str, str]:
 
 
 class GdbMi:
-    def __init__(self, executable: str, timeout: float):
+    def __init__(self, executable: str, timeout: float, rsp_log: Path | None = None):
         self.timeout = timeout
         self.counter = 0
+        self.rsp_log = None
+        if rsp_log is not None:
+            rsp_log.parent.mkdir(parents=True, exist_ok=True)
+            self.rsp_log = rsp_log.open("a", encoding="utf-8", buffering=1)
         env = dict(os.environ)
         env["LC_ALL"] = "C"
         self.proc = subprocess.Popen(
@@ -78,6 +82,22 @@ class GdbMi:
                 self.proc.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 self.proc.kill()
+        if self.rsp_log:
+            self.rsp_log.close()
+
+    def _readline(self) -> str:
+        if not self.proc.stdout:
+            raise TraceError("GDB has no MI output stream")
+        line = self.proc.stdout.readline()
+        if line == "":
+            raise TraceError("GDB closed its MI output")
+        line = line.rstrip("\r\n")
+        if self.rsp_log and line.startswith('&"') and line.endswith('"'):
+            debug = mi_unescape(line[2:-1])
+            if "Sending packet:" in debug or "Packet received:" in debug:
+                self.rsp_log.write(f"{dt.datetime.now(dt.timezone.utc).isoformat()} {debug}\n")
+                self.rsp_log.flush()
+        return line
 
     def command(self, command: str, timeout: float | None = None) -> tuple[str, list[str]]:
         if self.proc.poll() is not None or not self.proc.stdin or not self.proc.stdout:
@@ -89,10 +109,7 @@ class GdbMi:
         deadline = time.monotonic() + (timeout if timeout is not None else self.timeout)
         lines: list[str] = []
         while time.monotonic() < deadline:
-            line = self.proc.stdout.readline()
-            if line == "":
-                raise TraceError("GDB closed its MI output")
-            line = line.rstrip("\r\n")
+            line = self._readline()
             if line.startswith(token + "^     ") or line.startswith(token + "^done") or line.startswith(token + "^error") or line.startswith(token + "^connected") or line.startswith(token + "^running") or line.startswith(token + "^exit"):
                 return line[len(token):], lines
             if line.startswith("*stopped") or line.startswith("=thread-group-exited"):
@@ -373,6 +390,24 @@ def parse_stop(lines: list[str]) -> dict[str, str] | None:
     return None
 
 
+def wait_until_gameplay_and_interrupt(gdb: GdbMi, input_fn=input) -> None:
+    """Run from the startup stop, wait for operator confirmation, then stop same target."""
+    result, _ = gdb.command("-exec-continue")
+    if not result.startswith("^running"):
+        raise TraceError(f"Could not continue guest into gameplay: {result}")
+    input_fn("Continue playing until gameplay is visible with the menu closed, then press Enter here: ")
+    result, lines = gdb.command("-exec-interrupt --all")
+    if result.startswith("^error"):
+        raise TraceError(f"Could not interrupt guest for table scan: {result}")
+    stopped = parse_stop(lines)
+    while stopped is None:
+        line = gdb._readline()
+        if line.startswith("*stopped"):
+            stopped = parse_stop([line])
+        elif line.startswith("=thread-group-exited"):
+            raise TraceError("Emulated process exited before the gameplay scan")
+
+
 def evaluate(gdb: GdbMi, expression: str) -> str:
     result, _ = gdb.ok("-data-evaluate-expression " + mi_quote(expression))
     match = re.search(r'value="([^"]+)"', result)
@@ -420,6 +455,7 @@ def main() -> int:
     parser.add_argument("--main-nso", type=Path, default=DEFAULT_MAIN_NSO)
     parser.add_argument("--n2-evidence", type=Path, default=DEFAULT_N2_EVIDENCE)
     parser.add_argument("--event-log", type=Path, default=ROOT / "work/progress/trace-events.jsonl")
+    parser.add_argument("--rsp-log", type=Path, help="append decoded GDB remote Sending packet/Packet received debug lines here")
     parser.add_argument("--frames", type=int, default=6)
     parser.add_argument("--max-events", type=int, default=0, help="0 means continue until interrupted")
     parser.add_argument("--timeout", type=float, default=20.0)
@@ -440,12 +476,15 @@ def main() -> int:
     build_id, validations = static_validation_pairs(args.main_elf, args.main_nso, args.functions, args.n2_evidence)
 
     args.event_log.parent.mkdir(parents=True, exist_ok=True)
-    gdb = GdbMi(args.gdb, args.timeout)
+    gdb = GdbMi(args.gdb, args.timeout, args.rsp_log)
     try:
         gdb.ok('-gdb-set pagination off')
         gdb.ok('-gdb-set confirm off')
         gdb.ok('-gdb-set can-use-hw-watchpoints 1')
         gdb.ok('-interpreter-exec console "set architecture aarch64"')
+        if args.rsp_log:
+            # Enable logging before target-select so the handshake is captured.
+            gdb.ok("-gdb-set debug remote 1")
         result, _ = gdb.command(f'-target-select remote {args.host}:{args.port}', timeout=args.timeout)
         if not result.startswith("^connected"):
             raise TraceError(f"GDB remote connection did not succeed: {result}")
@@ -484,6 +523,8 @@ def main() -> int:
             flush=True,
         )
 
+        print("Startup validation passed. The guest will now continue; confirm gameplay with the menu closed at the terminal prompt.", flush=True)
+        wait_until_gameplay_and_interrupt(gdb)
         mappings = parse_mappings(gdb.console("monitor get mappings"))
         address = scan_signature(gdb, mappings, signature, scan_chunk, args.max_scan_bytes, packet_size, args.scan_delay)
         print(f"Unique signature match at 0x{address:x}; arming read watchpoint. Perform the requested in-game action now.", flush=True)
@@ -494,10 +535,7 @@ def main() -> int:
                 _, async_lines = gdb.command("-exec-continue", timeout=args.timeout)
                 stopped = parse_stop(async_lines)
                 while stopped is None:
-                    line = gdb.proc.stdout.readline() if gdb.proc.stdout else ""
-                    if not line:
-                        raise TraceError("GDB ended while waiting for a watchpoint stop")
-                    line = line.rstrip("\r\n")
+                    line = gdb._readline()
                     if line.startswith("*stopped"):
                         stopped = parse_stop([line])
                     elif line.startswith("=thread-group-exited"):

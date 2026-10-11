@@ -63,10 +63,16 @@ the game and the user is ready to exercise the selected screen.
    default GDB endpoint is `127.0.0.1:6543`; it attaches to the already-running
    emulator and does not launch it. Eden's stub accepts one connection; keep
    this GDB client alive for the whole trace and do not attach another client.
+   It can attach while Eden shows **Launching**: after build/module checks, the
+   driver continues the guest and waits at a terminal prompt. Once gameplay is
+   visible with the in-game menu closed, press Enter in that terminal; the same
+   client interrupts the guest, scans, and arms the watchpoint. `--rsp-log`
+   captures decoded remote packet debug lines from the initial handshake onward.
 
 ```sh
 python3 .tools/trace/gdb_table_trace.py \
-  --file /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/<relative-table-path>
+  --file /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/<relative-table-path> \
+  --rsp-log work/progress/eden-rsp.log
 ```
 
 The driver discovers the unique `main` module using `monitor get info`, parses

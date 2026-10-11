@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import sys
 import unittest
+import io
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -85,6 +87,39 @@ class SafeScanTests(unittest.TestCase):
             def ok(self, _command):
                 return '^done,memory=[]', []
         self.assertIsNone(trace.memory_read(ShortReply(), 0x1000, 16))
+
+    def test_staged_startup_continues_then_interrupts_same_session(self):
+        class Session:
+            def __init__(self):
+                self.commands = []
+            def command(self, command):
+                self.commands.append(command)
+                if command == "-exec-continue":
+                    return "^running", []
+                return "^done", ['*stopped,reason="signal-received",signal-name="SIGINT"']
+        session = Session()
+        prompts = []
+        trace.wait_until_gameplay_and_interrupt(session, lambda prompt: prompts.append(prompt))
+        self.assertEqual(session.commands, ["-exec-continue", "-exec-interrupt --all"])
+        self.assertEqual(len(prompts), 1)
+        self.assertIn("menu closed", prompts[0])
+
+    def test_rsp_debug_lines_are_written_to_separate_log(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "rsp.log"
+            logger = trace.GdbMi.__new__(trace.GdbMi)
+            logger.proc = type("Proc", (), {"stdout": io.StringIO(
+                '&"Sending packet: $qSupported#37\\n"\n'
+                '&"Packet received: PacketSize=4000#00\\n"\n'
+                '1^done\n'
+            )})()
+            logger.rsp_log = path.open("a", encoding="utf-8")
+            lines = [logger._readline(), logger._readline(), logger._readline()]
+            logger.rsp_log.close()
+            contents = path.read_text(encoding="utf-8")
+            self.assertIn("Sending packet: $qSupported#37", contents)
+            self.assertIn("Packet received: PacketSize=4000#00", contents)
+            self.assertEqual(lines[2], "1^done")
 
 
 if __name__ == "__main__":
