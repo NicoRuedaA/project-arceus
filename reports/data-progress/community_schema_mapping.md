@@ -88,3 +88,13 @@ Source hint: pkNX [`MakeList.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c
 **Limit:** no local decoded recipe TSV is present in n2-input, so mappings are against the available binary records and are not rename proposals. Field layout is a structurally verified candidate; recipe names and specific result/ingredient IDs remain unverified.
 
 Detailed map: [`sheets/data/schemas/crafting_recipes_fields.tsv`](../../sheets/data/schemas/crafting_recipes_fields.tsv).
+
+### Shop data (`ha_shop_data.bin`)
+
+Source hint: pkNX [`HaShopTable.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/HaShopTable.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** 143 rows match the public schema's three-field shape: F00/F01 are u64 and F02 `ItemID` is signed i32. The F02 values range 17–1,754 with 105 distinct IDs; 24 distinct IDs overlap the recipe result-ID set. These count/type/domain and cross-table checks support layout and shared numeric ID-domain compatibility.
+
+**Unverified:** pkNX deliberately calls the first fields `Field_00` and `Field_01`; their meaning is unknown. Item names and shop availability/price were not bound. No decoded shop TSV exists in n2-input; no other worktree was edited.
+
+Detailed map: [`sheets/data/schemas/shop_data_fields.tsv`](../../sheets/data/schemas/shop_data_fields.tsv).
