@@ -1,4 +1,4 @@
-species_id	species_name	form_id	evolution_index	trigger_id	trigger_name	condition_param	condition_detail	target_species_id	target_species_name	target_form_id	min_level
+species	species_name	form	evolution_index	method	trigger_name	argument	condition_detail	target_species	target_species_name	target_form	level
 25	pikachu	0	0	8	Evolution Item	83	Thunder Stone	26	raichu	0	0
 35	clefairy	0	0	8	Evolution Item	81	Moon Stone	36	clefable	0	0
 37	vulpix	0	0	8	Evolution Item	82	Fire Stone	38	ninetales	0	0

@@ -227,24 +227,24 @@ def decode_personal_table(species_names: dict[int, str]) -> List[dict[str, Any]]
         gg_name = GROWTH_GROUPS.get(growth_group_id, f"Group_{growth_group_id}")
 
         records.append({
-            "species_id": species_id,
+            "dex_index_national": species_id,
             "species_name": sp_name,
-            "form_id": form_id,
+            "form": form_id,
             "is_active": is_active,
-            "base_hp": hp,
-            "base_atk": atk,
-            "base_def": defense,
-            "base_sp_atk": sp_atk,
-            "base_sp_def": sp_def,
-            "base_speed": speed,
+            "stat_hp": hp,
+            "stat_atk": atk,
+            "stat_def": defense,
+            "stat_spa": sp_atk,
+            "stat_spd": sp_def,
+            "stat_spe": speed,
             "base_stat_total": bst,
-            "type_1_id": type_1_id,
+            "type1": type_1_id,
             "type_1": t1_name,
-            "type_2_id": type_2_id,
+            "type2": type_2_id,
             "type_2": t2_name,
-            "gender_ratio_id": gender_ratio,
-            "exp_yield": exp_yield,
-            "growth_group_id": growth_group_id,
+            "gender": gender_ratio,
+            "base_exp": exp_yield,
+            "exp_growth": growth_group_id,
             "growth_group": gg_name,
         })
 
@@ -276,8 +276,8 @@ def decode_grow_tables() -> List[dict[str, Any]]:
             delta = next_exp - exp
 
             records.append({
-                "growth_group_id": group_idx,
-                "growth_group_name": group_name,
+                "exp_group": group_idx,
+                "exp_group_name": group_name,
                 "level": level,
                 "exp_threshold": exp,
                 "exp_delta_to_next": delta,
@@ -336,18 +336,18 @@ def decode_evolution_table(species_names: dict[int, str]) -> List[dict[str, Any]
                 param_detail = str(param)
 
             records.append({
-                "species_id": species_id,
+                "species": species_id,
                 "species_name": src_name,
-                "form_id": form_id,
+                "form": form_id,
                 "evolution_index": e_idx,
-                "trigger_id": trig_id,
+                "method": trig_id,
                 "trigger_name": trig_name,
-                "condition_param": param,
+                "argument": param,
                 "condition_detail": param_detail,
-                "target_species_id": target_species,
+                "target_species": target_species,
                 "target_species_name": tgt_name,
-                "target_form_id": target_form,
-                "min_level": min_lvl,
+                "target_form": target_form,
+                "level": min_lvl,
             })
 
     return records
@@ -367,7 +367,7 @@ def decode_moves_table(move_names: dict[int, str]) -> List[dict[str, Any]]:
         root_offset = struct.unpack_from("<I", data, 0)[0]
         table_size, field_offsets = parse_vtable(data, root_offset)
 
-        move_id = get_field_u16(data, root_offset, field_offsets, 0, table_size, default=0)
+        move_id = struct.unpack_from("<i", data, root_offset + field_offsets[0])[0] if field_offsets[0] else 0
         type_id = get_field_u8(data, root_offset, field_offsets, 2, default=0)
         category_id = get_field_u8(data, root_offset, field_offsets, 4, default=0)
         power = get_field_u8(data, root_offset, field_offsets, 5, default=0)
@@ -383,12 +383,13 @@ def decode_moves_table(move_names: dict[int, str]) -> List[dict[str, Any]]:
         c_name = CATEGORIES.get(category_id, f"Cat_{category_id}")
 
         records.append({
-            "move_id": move_id,
+            "source_file": path.name,
+            "move": move_id,
             "move_name": m_name,
-            "type_id": type_id,
-            "type": t_name,
-            "category_id": category_id,
-            "category": c_name,
+            "type": type_id,
+            "type_name": t_name,
+            "category": category_id,
+            "category_name": c_name,
             "power": power,
             "accuracy": accuracy,
             "pp": pp,
@@ -432,19 +433,19 @@ def decode_learnsets_table(species_names: dict[int, str], move_names: dict[int, 
                 mpos += struct.unpack_from("<I", data, mpos)[0]
                 mtsize, mfos = parse_vtable(data, mpos)
 
-                learn_lvl = get_field_u8(data, mpos, mfos, 0, default=1)
-                mastery_lvl = get_field_u8(data, mpos, mfos, 1, default=0)
+                learn_lvl = get_field_u16(data, mpos, mfos, 0, mtsize, default=1)
+                mastery_lvl = get_field_u16(data, mpos, mfos, 1, mtsize, default=0)
                 move_id = get_field_u16(data, mpos, mfos, 2, mtsize, default=0)
                 mv_name = move_names.get(move_id, f"move_{move_id}")
 
                 records.append({
-                    "species_id": species_id,
+                    "species": species_id,
                     "species_name": sp_name,
-                    "form_id": form_id,
+                    "form": form_id,
                     "learn_method": "level_up",
                     "level": learn_lvl,
-                    "mastery_level": mastery_lvl,
-                    "move_id": move_id,
+                    "level_master": mastery_lvl,
+                    "move": move_id,
                     "move_name": mv_name,
                 })
 
@@ -463,13 +464,13 @@ def decode_learnsets_table(species_names: dict[int, str], move_names: dict[int, 
                 mv_name = move_names.get(move_id, f"move_{move_id}")
 
                 records.append({
-                    "species_id": species_id,
+                    "species": species_id,
                     "species_name": sp_name,
-                    "form_id": form_id,
+                    "form": form_id,
                     "learn_method": "move_tutor",
                     "level": 0,
-                    "mastery_level": 0,
-                    "move_id": move_id,
+                    "level_master": 0,
+                    "move": move_id,
                     "move_name": mv_name,
                 })
 

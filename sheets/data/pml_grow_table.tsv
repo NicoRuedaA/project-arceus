@@ -1,4 +1,4 @@
-growth_group_id	growth_group_name	level	exp_threshold	exp_delta_to_next
+exp_group	exp_group_name	level	exp_threshold	exp_delta_to_next
 0	Medium Fast	1	0	8
 0	Medium Fast	2	8	19
 0	Medium Fast	3	27	37

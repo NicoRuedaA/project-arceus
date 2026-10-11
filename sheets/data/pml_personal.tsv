@@ -1,4 +1,4 @@
-species_id	species_name	form_id	is_active	base_hp	base_atk	base_def	base_sp_atk	base_sp_def	base_speed	base_stat_total	type_1_id	type_1	type_2_id	type_2	gender_ratio_id	exp_yield	growth_group_id	growth_group
+dex_index_national	species_name	form	is_active	stat_hp	stat_atk	stat_def	stat_spa	stat_spd	stat_spe	base_stat_total	type1	type_1	type2	type_2	gender	base_exp	exp_growth	growth_group
 0	species_0	0	0	0	0	0	0	0	0	0	0	Normal	0	Normal	255	0	0	Medium Fast
 1	bulbasaur	0	0	0	0	0	0	0	0	0	0	Normal	0	Normal	255	0	0	Medium Fast
 2	ivysaur	0	0	0	0	0	0	0	0	0	0	Normal	0	Normal	255	0	0	Medium Fast

@@ -1,4 +1,4 @@
-species_id	species_name	form_id	learn_method	level	mastery_level	move_id	move_name
+species	species_name	form	learn_method	level	level_master	move	move_name
 1	bulbasaur	0	level_up	1	0	33	tackle
 1	bulbasaur	0	level_up	1	0	45	growl
 1	bulbasaur	0	move_tutor	0	0	33	tackle
