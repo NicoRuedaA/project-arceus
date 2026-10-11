@@ -58,3 +58,13 @@ Source hint: [pkNX `Learnset.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c
 **Contradicted:** pkNX declares nested `Level` and `LevelMaster` as ushort, while the local decoder reads both as u8. The observed values fit in a byte (mastery range 0–100), but this does not prove their physical width. Keep those two field widths unresolved and do not infer that a low-byte-only read is complete.
 
 Detailed map: [`sheets/data/schemas/pml_learnsets_fields.tsv`](../../sheets/data/schemas/pml_learnsets_fields.tsv).
+
+### `pml_grow_table.tsv`
+
+Community reference: [pkNX `EXPGroup.cs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Structures/Personal/EXPGroup.cs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0). This is an enum of the six curve names, not a schema for grow-table binaries.
+
+**Observed:** six local groups × 100 levels = 600 rows, and all six group IDs/names match the enum order. Known checks include the Medium Fast level-100 cap of 1,000,000 EXP and the Slow cap of 1,250,000 EXP; the other four caps are also recorded in the detailed map. The local decoder reads a u32 file header and 100 u32 thresholds beginning at +0x04.
+
+**Unverified:** no matching public community structure for the growth-curve binary was located. The header meaning and threshold field name/type remain unverified against community evidence; only the group enum labels are promoted. The delta-to-next value is derived, not serialized.
+
+Detailed map: [`sheets/data/schemas/pml_grow_table_fields.tsv`](../../sheets/data/schemas/pml_grow_table_fields.tsv).
