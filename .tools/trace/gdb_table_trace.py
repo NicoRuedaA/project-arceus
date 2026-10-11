@@ -35,6 +35,8 @@ MI_RECORD = re.compile(r'^(\d*)(\^|\*|=)([^,]+)(?:,(.*))?$')
 MI_FIELD = re.compile(r'([A-Za-z0-9_-]+)=(?:"((?:\\.|[^"\\])*)"|([^,]*))')
 MAP_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(\S+)\s+(\S+)")
 MODULE_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(.+?)\s*$")
+PACKET_SIZE = re.compile(r"PacketSize=([0-9a-fA-F]+)")
+MAX_RSP_READ = 0x400
 
 
 class TraceError(RuntimeError):
@@ -291,15 +293,38 @@ def find_function(address: int, base: int, functions: list[tuple[int, int, str, 
     return {"id": fid, "name": name, "rva": f"0x{rva:x}", "offset": f"0x{rva-start:x}"}
 
 
-def memory_read(gdb: GdbMi, address: int, length: int) -> bytes:
+def parse_packet_size(output: str) -> int:
+    """Read the negotiated RSP packet payload limit from a raw qSupported reply."""
+    match = PACKET_SIZE.search(output)
+    if not match:
+        raise TraceError(f"qSupported reply has no PacketSize field: {output[:500]!r}")
+    size = int(match.group(1), 16)
+    if size < 64:
+        raise TraceError(f"qSupported PacketSize is implausibly small: {size}")
+    return size
+
+
+def safe_read_size(packet_size: int, requested: int = MAX_RSP_READ) -> int:
+    # An RSP memory reply hex-encodes each byte. Leave room for framing and
+    # never exceed 0x400 bytes, even when the stub advertises a larger packet.
+    return max(1, min(requested, MAX_RSP_READ, (packet_size - 32) // 2))
+
+
+def memory_read(gdb: GdbMi, address: int, length: int) -> bytes | None:
+    if not 0 < length <= MAX_RSP_READ:
+        raise TraceError(f"Refusing unsafe memory read length {length}; maximum is 0x400")
     result, _ = gdb.ok(f"-data-read-memory-bytes 0x{address:x} {length}")
     match = re.search(r'contents="([0-9a-fA-F]*)"', result)
     if not match or len(match.group(1)) != length * 2:
-        raise TraceError(f"Short or malformed memory read at 0x{address:x} (wanted {length} bytes)")
+        return None
     return bytes.fromhex(match.group(1))
 
 
-def scan_signature(gdb: GdbMi, regions: list[tuple[int, int, str, str]], signature: bytes, chunk_size: int, max_bytes: int) -> int:
+def scan_signature(
+    gdb: GdbMi, regions: list[tuple[int, int, str, str]], signature: bytes,
+    chunk_size: int, max_bytes: int, packet_size: int, request_delay: float = 0.01,
+) -> int:
+    chunk_size = min(chunk_size, safe_read_size(packet_size))
     total = sum(end - start + 1 for start, end, _, _ in regions)
     if total > max_bytes:
         raise TraceError(f"Readable mappings total {total} bytes, over --max-scan-bytes={max_bytes}; narrow the scan limit only after reviewing mappings")
@@ -313,8 +338,12 @@ def scan_signature(gdb: GdbMi, regions: list[tuple[int, int, str, str]], signatu
             try:
                 block = memory_read(gdb, addr, size)
             except TraceError:
-                # A mapping may include guard/device portions; skip only this
-                # unreadable segment, never report a partial signature result.
+                block = None
+            time.sleep(request_delay)
+            if block is None:
+                # Stubs may reject a readable-looking mapping (E01 or a short
+                # reply). Skip that chunk and reset overlap so a signature can
+                # never be assembled across an unreadable gap.
                 carry = b""
                 addr += size
                 continue
@@ -382,10 +411,11 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=6543)
     parser.add_argument("--gdb", default=shutil.which("gdb") or "gdb")
     parser.add_argument("--functions", type=Path, default=DEFAULT_FUNCTIONS)
-    parser.add_argument("--module-name", default="main", help="unique substring in the suyu module list")
+    parser.add_argument("--module-name", default="main", help="unique substring in the module list")
     parser.add_argument("--signature-length", type=int, default=48, help="bytes from file offset zero (32..64)")
-    parser.add_argument("--chunk-size", type=int, default=65536)
-    parser.add_argument("--max-scan-bytes", type=int, default=2 * 1024**3)
+    parser.add_argument("--chunk-size", type=int, default=MAX_RSP_READ, help="maximum read chunk; hard-capped at 0x400 bytes")
+    parser.add_argument("--scan-delay", type=float, default=0.01, help="seconds to pause after each memory request")
+    parser.add_argument("--max-scan-bytes", type=int, default=3 * 1024**3)
     parser.add_argument("--main-elf", type=Path, default=DEFAULT_MAIN_ELF)
     parser.add_argument("--main-nso", type=Path, default=DEFAULT_MAIN_NSO)
     parser.add_argument("--n2-evidence", type=Path, default=DEFAULT_N2_EVIDENCE)
@@ -397,8 +427,8 @@ def main() -> int:
 
     if not 32 <= args.signature_length <= 64:
         parser.error("--signature-length must be between 32 and 64")
-    if args.frames < 1 or args.chunk_size < 4096 or args.max_scan_bytes < 1:
-        parser.error("frames, chunk size, and scan cap must be positive (chunk size >= 4096)")
+    if args.frames < 1 or args.chunk_size < 1 or args.max_scan_bytes < 1 or args.scan_delay < 0:
+        parser.error("frames, chunk size, scan cap, and scan delay must be non-negative (frames/chunk/cap positive)")
     if not args.file.is_file():
         raise TraceError(f"Table file not found: {args.file}")
     if not args.gdb or not Path(args.gdb).exists():
@@ -419,6 +449,13 @@ def main() -> int:
         result, _ = gdb.command(f'-target-select remote {args.host}:{args.port}', timeout=args.timeout)
         if not result.startswith("^connected"):
             raise TraceError(f"GDB remote connection did not succeed: {result}")
+
+        # Query the connected stub directly through GDB's raw packet facility.
+        # Do not start a scan without knowing the negotiated packet ceiling.
+        qsupported = gdb.console("maintenance packet qSupported")
+        packet_size = parse_packet_size(qsupported)
+        scan_chunk = min(args.chunk_size, safe_read_size(packet_size))
+        print(f"RSP qSupported raw reply: {qsupported.strip()}; scan reads <=0x{scan_chunk:x} bytes with {args.scan_delay:g}s pacing", flush=True)
 
         info = gdb.console("monitor get info")
         try:
@@ -448,7 +485,7 @@ def main() -> int:
         )
 
         mappings = parse_mappings(gdb.console("monitor get mappings"))
-        address = scan_signature(gdb, mappings, signature, args.chunk_size, args.max_scan_bytes)
+        address = scan_signature(gdb, mappings, signature, scan_chunk, args.max_scan_bytes, packet_size, args.scan_delay)
         print(f"Unique signature match at 0x{address:x}; arming read watchpoint. Perform the requested in-game action now.", flush=True)
         gdb.console(f"rwatch *(unsigned char*)0x{address:x}")
         count = 0

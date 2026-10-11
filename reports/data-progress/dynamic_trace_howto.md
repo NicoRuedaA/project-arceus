@@ -5,18 +5,49 @@ identify native readers of loaded table buffers. It does not control the emulato
 from a read alone. A matching read proves only that the traced code accessed
 that buffer; field interpretation remains a separate pseudocode-evidence task.
 
+## Current status and crash evidence
+
+The first live RAM scan attempt is **blocked pending a fresh user-started Eden
+session**. Eden aborted on 2026-10-11 at 15:33:32 CEST (PID 185443, TID 185562,
+thread named `Debugger`, SIGABRT; core present). The supplied unsymbolized stack
+is `libc abort <- libstdc++ +0xb55ca <- eden +0x995da7 <- eden +0x996a25 <-
+eden +0x863409 ... <- libstdc++ thread start +0xfef44`. Eden's log was buffered;
+its last written line is 15:32:43. This establishes an abort on the Debugger
+thread, but does **not** establish which request caused it or that an uncaught
+C++ exception was the cause.
+
+The scan had parsed `monitor get mappings` as 2,961 readable ranges totaling
+2,489,569,280 bytes. It then used GDB's `inferior.read_memory` in chunks up to
+0x10000 bytes and printed repeated `Ignoring packet error, continuing...`;
+there was no signature hit. **No raw RSP packet log was enabled**, so the exact
+last request sent to Eden cannot be reconstructed. The last known operation
+was an in-flight chunked memory scan (`read_memory` requested up to 0x10000
+bytes); the exact final RSP `m` packet is unknown. Do not treat later events as
+the preceding Eden request: GDB itself (PID 189243) separately aborted at
+15:34:22 CEST (SIGABRT, 4.3 MB core) after a 16-byte `read_memory` at
+`0x804e5e10`, with an internal `inferior_thread` current-thread assertion.
+That later GDB failure is distinct from Eden's earlier crash.
+
+The scan implementation now uses the parsed readable map only, explicitly
+queries `qSupported` and requires `PacketSize`, limits requested chunks to at
+most 0x400 bytes (and the advertised packet capacity), pauses 10 ms between
+requests, and skips E01/short/error replies while clearing cross-gap signature
+overlap. Its offline mock-stub tests cover packet-size parsing, bounded
+requests, mapped-only reads, error tolerance, and signature detection. No live
+retry is performed by this offline test.
+
 ## Current preparation status
 
 The driver is `.tools/trace/gdb_table_trace.py`. The patched RomFS is at
 `/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/`. Update-main
 identity inputs are `main.nso` and its decompressed ELF, `main.elf`, under
 `/home/nico/work/decompilacion/work/pla/pk2/`. No runtime reader events are
-recorded in this preparation guide; run the driver only after suyu is running
+recorded in this preparation guide; run the driver only after Eden is running
 the game and the user is ready to exercise the selected screen.
 
 ## Before each trace
 
-1. Start suyu from the GUI and load Pokémon Legends: Arceus update v262144.
+1. Start Eden from the GUI and load Pokémon Legends: Arceus update v262144.
    Keep the game paused at the title/menu or at the point specified below.
 2. In a terminal at the repository root, choose one exact table file from the
    patched RomFS. Keep the driver attached to the same running game instance.
@@ -30,7 +61,8 @@ the game and the user is ready to exercise the selected screen.
    the runtime itself.
 4. Run the command below, replacing the table path. The
    default GDB endpoint is `127.0.0.1:6543`; it attaches to the already-running
-   emulator and does not launch it.
+   emulator and does not launch it. Eden's stub accepts one connection; keep
+   this GDB client alive for the whole trace and do not attach another client.
 
 ```sh
 python3 .tools/trace/gdb_table_trace.py \
@@ -38,7 +70,11 @@ python3 .tools/trace/gdb_table_trace.py \
 ```
 
 The driver discovers the unique `main` module using `monitor get info`, parses
-readable mappings, and scans for the first 48 bytes of the table file. It
+readable mappings, queries the raw `qSupported` reply for `PacketSize`, and
+scans for the first 48 bytes of the table file using only mapped ranges. Every
+memory read is at most 0x400 bytes (also bounded by advertised packet capacity),
+with a 10 ms pause after each request; E01 and short/error replies skip only
+that chunk and cannot join a signature across the gap. It
 validates all three derived instruction sequences before mapping PCs to
 `functions.tsv` IDs. The event log records the checked build ID and validation
 bytes with each event. If an input identity mismatches, the signature is
