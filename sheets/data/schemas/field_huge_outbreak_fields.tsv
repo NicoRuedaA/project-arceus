@@ -1,0 +1,2 @@
+local_artifact	local_raw_location	community_field	community_type	source_url	upstream_commit	check_used	status	notes
+n2-field ROMFS field/encount/field_huge_outbreak.bin	root table at 0x1d0	UNKNOWN	UNKNOWN	none	none	592-byte file; first table resolves to offset 464 with invalid vtable delta -99472; no schema-independent table can be read	contradicted	Exact blocker: invalid FlatBuffers table/vtable relation; no community schema found to recover this file. Do not guess fields.

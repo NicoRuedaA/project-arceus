@@ -172,3 +172,9 @@ Source hint: pkNX [`NewHugeOutbreakTimeLimit.fbs`](https://github.com/kwsch/pkNX
 **Observed:** three local records each expose four four-byte fields, matching the schema's two scalar and two vector-offset slots. However, the local scalar columns are unsigned u32 while the community schema declares signed int32, and neither vector target has been cross-validated. Keep every candidate field unverified until those checks are made.
 
 Detailed map: [`sheets/data/schemas/new_huge_outbreak_time_limit_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_time_limit_fields.tsv).
+
+### `field/encount/field_huge_outbreak.bin`
+
+**Blocked:** no community schema was located, and the local 592-byte asset fails a schema-independent FlatBuffers table read: the first table resolves to offset 464 with vtable delta −99,472, which is invalid for the file. There are no defensible raw field indices or offsets to map. The exact blocker is recorded; no field names/types were guessed.
+
+Detailed blocker record: [`sheets/data/schemas/field_huge_outbreak_fields.tsv`](../../sheets/data/schemas/field_huge_outbreak_fields.tsv).
