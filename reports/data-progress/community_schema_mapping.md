@@ -8,6 +8,8 @@
 - **verified**: candidate field order/name/type agrees with the local decoder's raw index and width, with the specified local range and fact checks.
 - **unverified**: plausible public candidate, but the source-to-file binding or one or more required checks are missing.
 - **contradicted**: an observed local value, index, count, or width conflicts with the candidate or expected uniqueness/integrity rule.
+
+Across 22 mapping TSVs (164 field rows), the final tally is **89 verified, 70 unverified, and 5 contradicted**. The separate rename proposal contains 3 eligible candidate rows plus 1 contradicted do-not-apply row and is excluded from this count.
 - No upstream implementation code is copied into this repository. Mapping TSVs retain field names/types, source URLs, commit IDs, and verification notes only.
 - pkNX at commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` is **GPL-3.0**; PKHeX at commit `66ef5983a5d349efa2dd615f2926a1b1ee97306e` is **GPL-3.0**. Only field labels, primitive types, source links, and commit identifiers are recorded here.
 
@@ -145,7 +147,7 @@ Detailed map: [`sheets/data/schemas/huge_outbreak_fields.tsv`](../../sheets/data
 
 Source hint: pkNX [`NewHugeOutbreakGroup.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Field/NewHuge/NewHugeOutbreakGroup.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
 
-**Observed:** 166 parent records and 480 child records. Parent fields F00/F02 are u64, F01 is a 4-byte vector offset. Child indices 0–1 are captured as 8-byte spans; indices 2–6 are four-byte string offsets; index 8 is a four-byte integer span. These counts/widths and the exact index sequence support the structural candidate. Child field 7 is named `EncounterTableID:ulong` upstream, but the local capture span varies (8 or 12 bytes), so its width is **unverified**; pointed-to strings are not decoded.
+**Observed:** 166 parent records and 480 child records. Parent fields F00/F02 are u64, F01 is a 4-byte vector offset. Child indices 0–1 are captured as 8-byte spans; indices 2–6 are four-byte string offsets; index 8 is a four-byte integer span. The counts/widths and exact index sequence support the structural candidate, but field 8 `Rate:int32` remains **unverified** because the local exporter reports `u32`, which does not establish signedness or semantic interpretation. Child field 7 is named `EncounterTableID:ulong` upstream, but the local capture span varies (8 or 12 bytes), so its width is also **unverified**; pointed-to strings are not decoded.
 
 Detailed map: [`sheets/data/schemas/new_huge_outbreak_group_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_group_fields.tsv).
 
@@ -192,3 +194,7 @@ PKHeX at commit `66ef5983a5d349efa2dd615f2926a1b1ee97306e` (GPL-3.0) identifies 
 **Limit:** these checks document capacity behavior and the save counter, not an expansion-price table. No tier-price asset/schema was located; do not infer prices from the counter.
 
 Detailed map: [`sheets/data/schemas/satchel_capacity_fields.tsv`](../../sheets/data/schemas/satchel_capacity_fields.tsv).
+
+## Rename proposals for other worktrees
+
+[`sheets/data/schemas/rename_proposals.tsv`](../../sheets/data/schemas/rename_proposals.tsv) contains proposal-only rows for the verified hash fields in item-hash and outbreak wide TSVs. Contradicted/unverified fields are explicitly marked do-not-apply or omitted. No files in n2-input, n2-battle, or n2-field were edited. The long-form raw field inventories retain their generic column names because their semantic records are represented as field-index rows rather than one output column per binary field.
