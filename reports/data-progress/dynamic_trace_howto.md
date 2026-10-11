@@ -136,9 +136,25 @@ watchpoint could not be inserted, and the trace log records Eden's
 
 The prior affine address was outside both reported ranges. The new host-view
 translation is an implementation change only: it does not retroactively
-validate the prior address or establish a live table reader. The existing
-captured `monitor get mappings` reply was truncated; future runs must capture
-and parse the full mapping reply before selecting a candidate.
+validate the prior address or establish a live table reader. The prior RSP log
+truncated its display of `monitor get mappings`; the driver itself had parsed
+the complete reply in the successful rehearsal below.
+
+Attempt-host-2 runtime evidence (2026-10-11): Eden 0.2.1 PID 706646 loaded
+`main.nss` at `0x80912000`; build ID
+`aee8f150dda1b5a838806e1a5ea6827ad9f3c51e` and the three independent
+instruction-byte checks passed. The complete monitor mapping reply yielded 390
+readable committed regions. In `/proc/706646/maps`, the unique table signature
+was at HostMemory file offset `0x834612a0`. The three code-pattern views agreed
+on virtual base `0x765847000000`; the table view translated to
+`0x11862a12a0`, inside a reported committed Alias region. A single four-byte
+RSP read at that address returned `10000000`, matching the table prefix.
+GDB then sent one read-watchpoint insertion packet, `Z3,11862a12a0,1`, and
+received `OK`; it resumed with `vCont;c`. GDB emitted three one-byte `m` probes
+while preparing the watchpoint. At the time of this report the guest and
+single GDB session remain alive, but no watchpoint hit has yet been captured.
+This validates host-view translation and watchpoint insertion, not the table's
+reader function or the full trace pipeline.
 
 An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
 15:33:32 CEST (PID 185443, TID 185562,
