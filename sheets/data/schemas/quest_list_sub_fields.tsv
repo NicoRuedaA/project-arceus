@@ -1,0 +1,2 @@
+worktree_artifact	local_raw_field	local_object_offset	local_observed_width	community_field	community_type	source_url	upstream_commit	check_used	status	notes
+n2-battle:sheets/data/quest/quest_catalog.tsv	opaque side-list targets	UNKNOWN	UNKNOWN	UNKNOWN	UNKNOWN	none	none	122 side rows; public request inventory contains IDs 1..122, but local quest_id/quest_order are UNKNOWN	unverified	Side list target records are opaque; no row-field schema or source binding was found.
