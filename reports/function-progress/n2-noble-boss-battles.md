@@ -1,7 +1,7 @@
 # Pokémon Legends: Arceus (update-v262144) — N2 Frenzied Noble Boss Battles & Mechanics Evidence Report
 
 ## Overview
-This report formalizes the reverse engineering, structure recovery, and N2 promotion of the PLA Frenzied Noble Pokémon Boss Battles engine (`battle::boss`), under decision `dec319`.
+This report formalizes the reverse engineering, structure recovery, and N2 promotion of the PLA Frenzied Noble Pokémon Boss Battles engine (`battle::boss`), under decision `dec323`.
 
 In Pokémon Legends: Arceus, Frenzied Noble Pokémon (Lords and Ladies: Kleavor, Lilligant, Arcanine, Electrode, Avalugg, and Origin Form Dialga/Palkia) operate through a hybrid real-time action and turn-based combat system coordinated by `NobleBattleDirector` and `NoblePokemonComponent`.
 

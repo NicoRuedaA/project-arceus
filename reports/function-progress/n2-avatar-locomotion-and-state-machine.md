@@ -1,7 +1,7 @@
 # Pokémon Legends: Arceus (update-v262144) — N2 Avatar Locomotion, State Machine & Fall Damage Report
 
 ## Overview
-This report formalizes the reverse engineering, struct recovery, and N2 promotion of **`field::player::PlayerController` and `chara::player`** (Avatar Locomotion, State Machine, Crouch & Tall Grass Stealth State, Dodge Roll Invulnerability Frames, and Fall Damage / Blackout Respawn) under decision `dec319`.
+This report formalizes the reverse engineering, struct recovery, and N2 promotion of **`field::player::PlayerController` and `chara::player`** (Avatar Locomotion, State Machine, Crouch & Tall Grass Stealth State, Dodge Roll Invulnerability Frames, and Fall Damage / Blackout Respawn) under decision `dec320`.
 
 ---
 

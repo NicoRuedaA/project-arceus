@@ -1,7 +1,7 @@
 # Pokémon Legends: Arceus (update-v262144) — N2 Base Camps, Tent Rest & Fast Travel Report
 
 ## Overview
-This report documents the reverse engineering, architectural reconstruction, and N2 promotion of Subsystem 7 (`field::camp`, `field::travel`, and `event::camp`) under decision `dec319`.
+This report documents the reverse engineering, architectural reconstruction, and N2 promotion of Subsystem 7 (`field::camp`, `field::travel`, and `event::camp`) under decision `dec322`.
 It formalizes three core mechanisms:
 1. **Map Zone Fast Travel Dispatcher & Warp Matrix**: Spatial destination resolution, story progression gating (`WPHA_STORY`), availability validation via `FSYS_CAN_USE_FAST_TRAVEL`, and area-specific camp lookup across Hisui (Areas 00 through 06).
 2. **Tent Rest & Clock Advancement**: Advance-time-of-day mechanics (morning, midday, evening, nightfall), clock schedule ticks, transition state machines (`0x16c == 1 | 2`), and lighting/sky cycle synchronizers.
