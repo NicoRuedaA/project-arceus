@@ -8,6 +8,7 @@ pub mod assets;
 pub mod dispatch;
 pub mod event;
 pub mod host;
+pub mod pml;
 pub mod render;
 pub mod save;
 pub mod script;
