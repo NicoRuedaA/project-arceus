@@ -1,0 +1,50 @@
+# sheet: data/ai/expert_sequences
+# version: 1
+# generator: manually curated from unluac Lua output; Python TSV writer
+# target: Pokémon Legends: Arceus update v262144 WazaExpertAI sequence handlers
+# requires: bin/haxe/release/battle/battle.blua
+# doctrine: score sequence is ordered AddScore values; condition facilities are not a per-score predicate map
+handler_id:string*	handler_kind:enum	score_delta_sequence:string?	observed_condition_facilities:string?	source_path:string	source_lines:string	evidence_status:enum	notes:string?
+ExpertAI_Seq_001	score	+1,+1,-2,-1,-1,+2,-2	HaveWazaAiSeqNo; GetTokusei; IfRand	bin/haxe/release/battle/battle.blua	10393-10517	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_003	score	-2,+2	GetTokusei; HP/max HP; incoming max damage; drain HP; IfRand	bin/haxe/release/battle/battle.blua	10518-10572	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_007	score	-1,-1,-1,-1,-2,+3,+2	target move sequence; HP bounds; agility; IfRand	bin/haxe/release/battle/battle.blua	10573-10715	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_008	score	-2,-1,-2,+3	affinity; ability; sleep; IfRand	bin/haxe/release/battle/battle.blua	10716-10791	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_010	score	-2,-2	HP-under; IfRand	bin/haxe/release/battle/battle.blua	10792-10835	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_011	composite		delegates waza_kind_sub and rankup_sub; rank/Defense	bin/haxe/release/battle/battle.blua	10836-10859	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_waza_kind_sub	score	-2,-2	move damageType/previous move; HP; IfRand	bin/haxe/release/battle/battle.blua	10860-10905	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_rankup_sub	score	-2,-2	HP; IfRand	bin/haxe/release/battle/battle.blua	10906-10949	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_012	score	-5,+1,+1,+1,+1,+1,+1,+1,+1,+1,+1	agility; target move sequence; IfRand	bin/haxe/release/battle/battle.blua	10950-11143	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_013	composite		delegates rankup_sub; rank/SpAttack	bin/haxe/release/battle/battle.blua	11144-11162	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_014	composite		delegates waza_kind_sub and rankup_sub; rank/SpDefense	bin/haxe/release/battle/battle.blua	11163-11186	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_017	score	+2	affinity; avoid-up; IfRand	bin/haxe/release/battle/battle.blua	11187-11229	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_018	composite		delegates rankdown_sub; rank/Attack/previous move	bin/haxe/release/battle/battle.blua	11230-11268	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_rankdown_sub	score	-1	HP; IfRand	bin/haxe/release/battle/battle.blua	11269-11294	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_020	score	-3,-3,+2	ability; agility; IfRand	bin/haxe/release/battle/battle.blua	11295-11340	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_032	score	+2,-5,-4,+2,+2,-2	status; rank; accuracy/avoid; HP; ability/agility	bin/haxe/release/battle/battle.blua	11341-11510	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_033	score	-2,+2,-1,+1,+1,+1	moves; HP; rank; defense; avoid; IfRand	bin/haxe/release/battle/battle.blua	11511-11624	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_037	score	-5,-4,+2,+2,-2	HP; ability; agility; rank; defense; avoid; moves; item	bin/haxe/release/battle/battle.blua	11625-11763	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_043	score	+1,+1,+1	affinity; damage type; rank/defense	bin/haxe/release/battle/battle.blua	11764-11838	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_048	score	-1	target ability; HP; IfRand	bin/haxe/release/battle/battle.blua	11839-11870	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_067	score	-2,+3,-1	moves; agility; HP; IfRand	bin/haxe/release/battle/battle.blua	11871-11942	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_070	composite		delegates move-enabled check and Seq_020	bin/haxe/release/battle/battle.blua	11943-11990	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_080	score	+1,-1,-1	affinity; ability; agility; HP	bin/haxe/release/battle/battle.blua	11991-12071	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_152	score	+2	previous move; IfRand	bin/haxe/release/battle/battle.blua	12072-12096	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_204	score	-1	HP; bench count; IfRand	bin/haxe/release/battle/battle.blua	12097-12128	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_229	score	-1	single-battle; HP; bench count; IfRand	bin/haxe/release/battle/battle.blua	12129-12165	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_266	score	+2	IfRand	bin/haxe/release/battle/battle.blua	12166-12184	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_268	partial		ExpertAI_TypeCheck with species/item branches; no parsed direct AddScore sequence	bin/haxe/release/battle/battle.blua	12185-13544	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_272	score	+1	poison; IfRand	bin/haxe/release/battle/battle.blua	13545-13569	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_283	score	+1	affinity; poison status	bin/haxe/release/battle/battle.blua	13570-13605	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_296	score	-2	SpDefense rank; IfRand	bin/haxe/release/battle/battle.blua	13606-13632	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_310	score	+2,+2	affinity; status; IfRand	bin/haxe/release/battle/battle.blua	13633-13683	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_500	score	+1	fragment status	bin/haxe/release/battle/battle.blua	13684-13702	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_125	score	+1	attack-up status	bin/haxe/release/battle/battle.blua	13703-13721	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_253	composite		delegates 048 and 125	bin/haxe/release/battle/battle.blua	13722-13738	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_262	composite		delegates 048 and 501	bin/haxe/release/battle/battle.blua	13739-13755	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_501	score	+1	sleep status	bin/haxe/release/battle/battle.blua	13756-13774	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_502	composite		delegates 043 and 500	bin/haxe/release/battle/battle.blua	13775-13791	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_103	score	+2	continuous action	bin/haxe/release/battle/battle.blua	13792-13812	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_503	composite		delegates 043 and 103	bin/haxe/release/battle/battle.blua	13813-13829	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_504	composite		delegates 048 and 103	bin/haxe/release/battle/battle.blua	13830-13846	composite	Composite dispatch; score values are in the delegated handlers.
+ExpertAI_Seq_505	score	-2,-10	CanKillAny; CanKillOnlyUsedWaza	bin/haxe/release/battle/battle.blua	13847-13878	partial	Exact per-score predicate mapping remains partial.
+ExpertAI_Seq_506	score	-2,-2	CanKillAny; CanKillOnlyUsedWaza	bin/haxe/release/battle/battle.blua	13879-13908	partial	Exact per-score predicate mapping remains partial.
