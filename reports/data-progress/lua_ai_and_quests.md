@@ -35,26 +35,33 @@ One observed generic progression rule or explicit unknown boundary per row. Fiel
 - The quest-board list includes an ID only when `QuestList.GetProgress(FnvHash64(id)) == 1`.
 - Its `SetQuestProgress(id)` helper returns false unless progress is 1; in that case it writes progress 10 and returns true. The Lua code proves the numeric transition, but this extraction does not assign an English semantic label to state 10.
 - Generic `ev_sub001_0010` initialization looks up event metadata using the script ID and sets an `EventWork` flag when the metadata flag hash is nonempty. This is generic event metadata handling, not a specific quest objective condition.
-- Quest-specific mission/request IDs, objective steps, predicates, flags, and rewards remain unknown because the `quest_list_main.bin`, `quest_list_sub.bin`, and 115 `event/event_progress/trigger/trigger_quest_subNNN.bin` files were not decoded into per-quest records in this pass.
+- Quest-specific mission/request IDs, objective steps, predicates, flags, and rewards remain unknown. The quest-list and trigger binaries now have a structural raw-field catalogue, but it does not decode per-quest semantics; see [`quest_catalog.md`](quest_catalog.md).
+
+### Structural quest-binary catalogue
+
+- `quest_list_main.bin` has 27 root-vector entries and `quest_list_sub.bin` has 122. The trigger input set has 115 files, 911 root-vector entries, and 8 empty root vectors. These are structural source counts, not proven mission/request counts.
+- The catalogues preserve raw vtable-index byte spans where validated, retain opaque side-list targets, record exact source hashes, and expose quest identity/order, prerequisite flags, conditions, targets, rewards, and linked event scripts as `UNKNOWN`. Filenames and vector indices are not used as quest IDs or ordering.
+- The 28-main / 94-side totals in `n2-mission-and-quest-system.md` are not corroborated by these source-vector counts; no mapping or filter that would reconcile them was inferred. The layout and hashes are documented in [`quest_catalog.md`](quest_catalog.md), [`quest_catalog.tsv`](../../sheets/data/quest/quest_catalog.tsv), and [`quest_triggers.tsv`](../../sheets/data/quest/quest_triggers.tsv).
 
 ## Validation and N2 cross-checks
 
 - AI rule TSV: **30 data rows**, all record IDs unique. Numeric score fields parse as integers when present; all probability percentages are within 0–100. Expert sequence TSV: **43 data rows** (32 ordered score sequences, 10 composite handlers, 1 partially parsed handler), all handler IDs unique. These are curated extraction counts, not complete source-script rule denominators.
-- Quest TSV: **5 data rows** = 4 observed generic Lua rules + 1 explicit unknown catalogue boundary; record IDs are unique.
+- Quest progression-rules TSV: **5 data rows** = 4 observed generic Lua rules + 1 explicit unknown catalogue boundary; record IDs are unique.
+- Quest binary list catalogue: **149 rows** = 27 main-list entries + 122 side-list entries. Trigger catalogue: **919 rows** = 911 root-vector entries + 8 empty-source records across 115 files. All 911 trigger targets pass table/vtable bounds checks. These counts are verified structurally, not interpreted as quests.
 - Decompiler index/source verification passed: `battle.blua` = 15,001 decoded lines; `questboardevent.blua` = 13,813 lines; `ev_sub001_0010.blua` = 14,440 lines. For each, the source SHA-256 matched the successful `ok` entry in the existing unluac index.
 - The AI findings align with the boundaries in `n2-combat-tactical-ai.md`: native affinity and style-selection evidence exist separately from Lua; this extraction does not derive a type multiplier or style score from the `WazaStrongAI` class name.
-- `n2-mission-and-quest-system.md` reports 28 main missions and 94 side quests from native evidence. Those totals are **not validated by these Lua excerpts**. Event-script file counts are not quest counts; quest table/trigger decode is still required before asserting catalogue row counts.
+- `n2-mission-and-quest-system.md` reports 28 main missions and 94 side quests from native evidence. Those totals remain **unverified against the update-v262144 quest tables**: the observed vectors contain 27 main and 122 side entries, while trigger counts are not quest counts. The structural catalogue does not establish whether another native filter changes the population.
 - `.tools/message_cipher.py` decodes message `.dat` text, and `sheets/domain/phase_works.tsv` lists phase-work IDs; neither is a quest progression catalogue or a `.blua` decoder.
-- No completion-plan README rows were changed because neither requested source table is complete.
+- The Completion plan has one new quest-binary row in both README languages; semantic coverage and its denominator remain `Unknown`.
 
 ## Remaining unknowns
 
 1. Full per-branch predicate-to-score matrix for `ExpertAI_Seq_*`, including the large Seq_268 type-check handler and the `BasicWazaAI.Score_BaseAll` suite (43 Expert handler entries are inventoried, not fully formula-normalized).
 2. Exact Lua-visible semantics for the native affinity scale and type-effectiveness multipliers.
 3. Agile/Strong style selection logic and numeric style weights in Lua (the N2 native report is separate evidence).
-4. Per-mission and per-request IDs, steps, conditions, flags, and rewards from the quest-list/trigger source tables.
-5. Whether the N2 report's 28 + 94 quest totals correspond exactly to the update-v262144 tables.
+4. Per-mission and per-request identities/order, steps, conditions, prerequisite flags, targets, rewards, and linked event-script IDs from a schema-backed decode of the quest-list/trigger payloads.
+5. Whether the N2 report's 28 + 94 totals describe a different filtered population; the raw source-vector counts do not match that split and are not themselves quest counts.
 
 ## Delivery note
 
-An early commit of the first validated AI TSV was attempted with the exact file path staged, but Git could not create the common-dir `index.lock` because that filesystem is read-only. No commit was created. The pre-existing untracked `decompiled` symlink was not staged or modified. Receipt-driven development status was off (global decision); no approval or review receipt is claimed.
+The initial quest-list catalogue was committed as `bcdbaf4`; the trigger catalogue and report updates described here are the current follow-on work. The pre-existing untracked `decompiled` symlink was not staged or modified.
