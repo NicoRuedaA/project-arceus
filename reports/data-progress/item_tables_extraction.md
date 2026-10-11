@@ -54,3 +54,7 @@ The decoder defaults to the user-provided source root `/home/nico/work/decompila
 The N2 reports `reports/function-progress/n2-pml-pokemon-param.md`, `n2-crafting-and-boxes.md`, and `n2-field-interact-and-harvesting.md` provide runtime context for item parameters, crafting/pasture operations, and item pickup/resource harvesting. They do not establish values or schemas for the candidate files above and were not used as binary-field proof.
 
 Still unknown are item ID/name-hash relationships; item categories; stack limits; buy/sell prices; `item.dat` field meanings; recipe results, ingredients, and quantities; exact shop/workbench links; satchel capacities and expansion tiers; and harvest/drop/pasture reward meanings. These remain unknown until direct schema or byte-backed relationships are established.
+
+### `item.dat` format attempts
+
+`item.dat` is 53,560 bytes (`0xd138`). Interpreting the little-endian u32 at offset 0 as a FlatBuffer root uoffset yields `0x07280725` (120,063,781), outside the file bounds. `.tools/message_cipher.py` expects version 1 at offset 0, but the observed u16 there is 1829. That prefix value superficially matches the 1,829 English `itemname` entries; however, file-size/stride arithmetic does not prove a fixed-width record layout or count. Therefore no reliable `item.dat` layout or record count is established.
