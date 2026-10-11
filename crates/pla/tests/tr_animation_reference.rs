@@ -1,5 +1,11 @@
 //! Authored synthetic values only; actual importer oracles remain opted-in/private.
-use pla::assets::tr::{reference_unpack_rotation, TrAnm, TrAnmChannel, TrAnmEncoding, TrAnmKey};
+use bevy::animation::animated_field;
+use bevy::animation::prelude::AnimatedField;
+use bevy::prelude::Transform;
+use pla::assets::tr::{
+    animation_target_id, bevy_animation_clip, reference_unpack_rotation, TrAnm, TrAnmChannel,
+    TrAnmEncoding, TrAnmKey, TrSkl,
+};
 use std::io::{Cursor, Read};
 
 fn pack(values: [u16; 3], selector: u8, negative: bool) -> [u16; 3] {
@@ -242,4 +248,97 @@ fn entire_actual_corpus_matches_executed_selected_importer_helpers() {
     assert_eq!((files, tracks, records), (1522, 25394, 1264143));
     assert_eq!(slots, 8546341);
     eprintln!("[selected importer differential] files={files} tracks={tracks} rotation_records={records} track_frame_slots={slots} compared_components={compared} max_absolute_error={max_error}");
+}
+
+#[test]
+fn optional_mysterygift_bevy_clip_matches_importer_at_every_authored_frame() {
+    let (Ok(root), Ok(oracles)) = (
+        std::env::var("PLA_ANIMATION_CORPUS"),
+        std::env::var("PLA_ANIMATION_REFERENCE"),
+    ) else {
+        eprintln!("[skip] private animation corpus/reference not configured");
+        return;
+    };
+    let relative_clip =
+        "bin/demo/graphic/sd/sd9150/sd9150_mysterygift/anm/sd9150_misterygift_anim.tranm";
+    let relative_skeleton =
+        "bin/demo/graphic/sd/sd9150/sd9150_mysterygift/mdl/sd9150_mysterygift.trskl";
+    let clip_path = std::path::Path::new(&root).join(relative_clip);
+    let skeleton_path = std::path::Path::new(&root).join(relative_skeleton);
+    if !clip_path.is_file() || !skeleton_path.is_file() {
+        eprintln!("[skip] readable mysterygift clip/skeleton sample is absent");
+        return;
+    }
+    let metadata = include_str!("../../../reports/skeleton/update-v262144-animation-reference.tsv");
+    let row = metadata
+        .lines()
+        .skip(1)
+        .map(|line| line.split('\t').collect::<Vec<_>>())
+        .find(|fields| fields.first() == Some(&relative_clip))
+        .expect("mysterygift clip missing from pinned importer reference index");
+    let clip_bytes = std::fs::read(clip_path).unwrap();
+    let skeleton_bytes = std::fs::read(skeleton_path).unwrap();
+    let clip = TrAnm::parse_tracks(&clip_bytes).unwrap();
+    let skeleton = TrSkl::parse(&skeleton_bytes).unwrap();
+    let bevy_clip = bevy_animation_clip(&skeleton, &clip).unwrap();
+    let mapped_nodes = clip.skeleton_nodes(&skeleton).unwrap();
+    let oracle = std::fs::read(std::path::Path::new(&oracles).join(format!("{}.bin", row[1])))
+        .expect("open pinned importer per-frame reference");
+    let mut cursor = Cursor::new(oracle.as_slice());
+    assert_eq!(u32_from(&mut cursor), clip.tracks.len() as u32);
+    assert_eq!(u32_from(&mut cursor), clip.frame_count);
+    for (track_index, (track, &node_index)) in clip.tracks.iter().zip(&mapped_nodes).enumerate() {
+        let rotation_keys = u32_from(&mut cursor) as usize;
+        assert_eq!(rotation_keys, track.rotation.keys.len());
+        for (key_index, key) in track.rotation.keys.iter().enumerate() {
+            let expected = reference_unpack_rotation(key.value);
+            for value in expected {
+                assert_eq!(
+                    f32::to_bits(value),
+                    u32_from(&mut cursor),
+                    "rotation record {key_index}"
+                );
+            }
+        }
+        let target = animation_target_id(&skeleton, node_index).unwrap();
+        for frame in 0..clip.frame_count {
+            let mask = cursor.get_ref()[cursor.position() as usize];
+            cursor.set_position(cursor.position() + 1);
+            let time = frame as f32 / clip.frame_rate as f32;
+            for (bit, lane, width) in [(0, "scale", 3), (1, "rotation", 4), (2, "translation", 3)] {
+                let present = mask & (1 << bit) != 0;
+                if !present {
+                    continue;
+                }
+                let expected = (0..width)
+                    .map(|_| f32::from_bits(u32_from(&mut cursor)))
+                    .collect::<Vec<_>>();
+                let actual = match lane {
+                    "scale" => bevy_clip
+                        .sample_clamped(animated_field!(Transform::scale), target, time)
+                        .map(|v| v.to_array().to_vec()),
+                    "rotation" => bevy_clip
+                        .sample_clamped(animated_field!(Transform::rotation), target, time)
+                        .map(|v| v.to_array().to_vec()),
+                    _ => bevy_clip
+                        .sample_clamped(animated_field!(Transform::translation), target, time)
+                        .map(|v| v.to_array().to_vec()),
+                }
+                .expect("Bevy curve missing an importer-authored frame");
+                assert_eq!(actual.len(), expected.len());
+                for (component, (actual, expected)) in actual.iter().zip(expected).enumerate() {
+                    assert!(
+                        (actual - expected).abs() <= 1e-6,
+                        "track={track_index} frame={frame} lane={lane} component={component}: {actual} != {expected}"
+                    );
+                }
+            }
+        }
+    }
+    assert_eq!(
+        cursor.position() as usize,
+        oracle.len(),
+        "unconsumed importer oracle"
+    );
+    eprintln!("[Bevy/importer differential] clip={relative_clip} tracks={} frames={} per-frame authored samples matched", clip.tracks.len(), clip.frame_count);
 }
