@@ -46,6 +46,33 @@ Both TSVs use the adjacent `progression_rules.tsv` `name:type` header convention
 
 The `28 + 94` claim remains unverified against these binaries. The list vectors contain 27 and 122 entries—not 28 and 94—and these structural entry counts do not themselves establish mission/request counts. No filter that could reduce the side list to 94 was inferred.
 
+## Round 3: observed native behavior vs unresolved binary binding
+
+Round 3 attempted to assign semantics only where native consumers could be tied to these exact source files. No direct binding from a native reader to `quest_list_main.bin`, `quest_list_sub.bin`, or the `trigger_quest_sub*.bin` set was established. Accordingly, the new `evidence:string` column is `UNKNOWN` on every catalogue and trigger row; raw indices and field names remain unchanged.
+
+| Evidence | Directly observed | Why this does not bind the catalogued files |
+|---|---|---|
+| [`FUN_015a4aa8` pseudocode, lines 34–65 and 103–139](../../decompiled/update-main/FUN_015a4aa8_015a4aa8.c#L34-L65) | `QuestList::InitializeQuestInventory` walks registered descriptors (`this+0x58` through `this+0x60`); it reads a FlatBuffer root vector count through raw vtable index 2, adds those counts, then iterates child entries and reads a qword via child vtable index 3. | The pseudocode does not name or resolve those descriptor pointers to any of the three paths. A generic descriptor/vector access pattern is not proof that it consumes these binaries or that its child vtable slot matches their raw slots. |
+| [`FUN_015afddc` line 20](../../decompiled/update-main/FUN_015afddc_015afddc.c#L20); [`FUN_015a4548` lines 132, 144–157, and 173–212](../../decompiled/update-main/FUN_015a4548_015a4548.c#L132) | The callsite passes its resource object to `FUN_015a4548`. That function traverses a resource vector, processes/registers its elements, and then calls `FUN_015a4aa8` to initialize the quest inventory. | This supplies an intermediate resource-loader path, but these lines contain no path, filename, or identity that binds the resource object/vector to `quest_list_main.bin`, `quest_list_sub.bin`, or the trigger files. The generic loader-to-inventory chain therefore does not authorize field renaming. |
+| [`FUN_015a864c` pseudocode, lines 97–124 and 125–174](../../decompiled/update-main/FUN_015a864c_015a864c.c#L97-L124) | `QuestList::CheckQuestCondition` finds quest/hash nodes and consults nested metadata/cache structures; the N2 report describes this function as checking conditions against `QuestParam` metadata. | This is runtime behavior on registered hash/metadata structures, but no path or resource registration edge identifies the structures as rows from these list or trigger binaries. |
+| [`n2-mission-and-quest-system.md`, lines 82–85](../function-progress/n2-mission-and-quest-system.md#L82-L85) | The existing N2 report attributes a 28-main + 94-side runtime total to `FUN_015a4aa8`. | That report states a runtime total; the reviewed pseudocode does not prove that the descriptor collection is this work unit's two named list files, so the total cannot be used to relabel these raw rows. |
+| `/bin/event/event_progress/load_path_list/trigger_files_list.bin` (listed in the [base/update overlay inventory](../function-progress/p0-base-update-overlay.md#L964)) | The inventory records this asset-path list. | Asset path membership establishes that paths are listed, not that a native reader opens these particular tables or interprets their row fields. |
+
+### Exact search attempts
+
+- Decompiled update-main/exported inventory filename-token searches: `quest_list_main`, `quest_list_sub`, and `trigger_quest_sub`. No direct reader/resource binding was found.
+- GameDB exact `search` and `strings` terms: `QuestParam`, `quest_list`, `trigger_quest`, `trigger_files_list`, `quest_list_files_list`, and `event_progress`. These returned no matching direct consumer evidence.
+- Asset-list/path-token check: `trigger_files_list.bin` is present as `/bin/event/event_progress/load_path_list/trigger_files_list.bin`; the inventory proves the path-list asset exists, not that it binds a reader to the catalogued tables.
+- Read-only caller/graph and SQL inspection around `FUN_015a4aa8`, `FUN_015a864c`, and QuestList initialization/registration did not reveal a descriptor-to-source-path edge. The related `trigger_files_list.bin` path listing does not close that gap.
+
+### Field-level blockers
+
+- **Main list:** 27 target tables are structurally validated, each with 13 raw vtable slots. No slot-to-reader binding is established, so all `raw_index_00`–`raw_index_12` semantics remain UNKNOWN.
+- **Side list:** 122 root-vector targets are in bounds, but their target layouts were intentionally left opaque. There is no validated per-record field map to name.
+- **Triggers:** 911 target tables validate as 16-byte objects with three raw spans at object offsets `+4`, `+8`, and `+12` (raw indices 0–2). No direct trigger-table consumer binding establishes their meanings.
+
+The count discrepancy is still unresolved: these files structurally contain 27 main-list rows and 122 side-list rows, while the N2 report says 28 + 94 runtime entries. Neither the filename nor row index proves quest identity/order, and the native count loop is not bound to these source paths. No reconciliation or denominator is asserted.
+
 ## Validation and next evidence
 
 - The generator pins the exact main and side input hashes, validates their root vectors and expected counts, and pins the 115-file trigger inventory using its ordered manifest hash and expected file/entry/empty counts.

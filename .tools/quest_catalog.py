@@ -46,6 +46,7 @@ SEMANTIC_UNKNOWN_FIELDS = {
     "linked_event_script_ids": "UNKNOWN",
     "semantic_status": "unknown",
     "semantic_note": "Filenames and source vector indices do not establish quest identity or order.",
+    "evidence": "UNKNOWN",
 }
 
 
@@ -452,6 +453,8 @@ def validate_typed_tsv(data: bytes, output_path: Path, expected_header: list[str
     header = next(csv.reader([records[0]], delimiter="\t"))
     if header != expected_header:
         raise ValueError(f"{output_path}: typed header differs from generated schema")
+    if "evidence:string" not in header:
+        raise ValueError(f"{output_path}: required evidence:string column is missing")
     for column in header:
         if ":" not in column:
             raise ValueError(f"{output_path}: column has no declared type: {column}")
@@ -463,6 +466,11 @@ def validate_typed_tsv(data: bytes, output_path: Path, expected_header: list[str
         if len(cells) != len(header):
             raise ValueError(
                 f"{output_path}: row {line_number} has {len(cells)} cells; expected {len(header)}"
+            )
+        evidence_index = header.index("evidence:string")
+        if cells[evidence_index] != "UNKNOWN":
+            raise ValueError(
+                f"{output_path}: row {line_number} must keep evidence UNKNOWN until a direct reader binding is proven"
             )
 
 
