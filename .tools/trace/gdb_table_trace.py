@@ -259,6 +259,7 @@ class HostMemoryMapping:
     start: int
     end: int
     permissions: str
+    file_offset: int
     path: str
 
     @property
@@ -267,13 +268,9 @@ class HostMemoryMapping:
         return self.end - self.start
 
 
-def parse_host_memory_mapping(maps_text: str) -> HostMemoryMapping:
-    """Select the exact 4 GiB, offset-zero rw-s HostMemory arena.
-
-    Linux can expose other HostMemory memfd fragments, including unreadable
-    subranges. Those are not the scanner's backing arena and are ignored.
-    """
-    matches: list[HostMemoryMapping] = []
+def parse_host_memory_mappings(maps_text: str) -> list[HostMemoryMapping]:
+    """Parse every HostMemory memfd view, retaining its backing-file offset."""
+    mappings: list[HostMemoryMapping] = []
     for line in maps_text.splitlines():
         columns = line.split(None, 5)
         if len(columns) < 6 or len(columns[0].split("-")) != 2:
@@ -284,23 +281,39 @@ def parse_host_memory_mapping(maps_text: str) -> HostMemoryMapping:
         try:
             start_text, end_text = columns[0].split("-", 1)
             start, end = int(start_text, 16), int(end_text, 16)
-        except ValueError as exc:
-            raise TraceError(f"Malformed HostMemory mapping row: {line!r}") from exc
-        permissions = columns[1]
-        try:
             file_offset = int(columns[2], 16)
         except ValueError as exc:
-            raise TraceError(f"Malformed HostMemory file offset: {line!r}") from exc
-        if end < start:
+            raise TraceError(f"Malformed HostMemory mapping row: {line!r}") from exc
+        if end <= start:
             raise TraceError(f"HostMemory mapping has an invalid range: {line!r}")
-        if (end - start == HOST_MEMORY_SIZE and file_offset == 0
-                and permissions == "rw-s"):
-            matches.append(HostMemoryMapping(start, end, permissions, path))
+        mappings.append(HostMemoryMapping(start, end, columns[1], file_offset, path))
+    if not mappings:
+        raise TraceError("No HostMemory memfd views found in process mappings")
+    return mappings
+
+
+def parse_host_memory_mapping(maps_text: str) -> HostMemoryMapping:
+    """Select the exact 4 GiB, offset-zero rw-s HostMemory arena.
+
+    Linux can expose other HostMemory memfd fragments, including unreadable
+    subranges. Those are not the scanner's backing arena and are ignored.
+    """
+    matches = [mapping for mapping in parse_host_memory_mappings(maps_text)
+               if mapping.size == HOST_MEMORY_SIZE and mapping.file_offset == 0
+               and mapping.permissions == "rw-s"]
     if len(matches) != 1:
         raise TraceError(
             f"Expected one 4 GiB offset-zero rw-s HostMemory mapping; found {len(matches)}"
         )
     return matches[0]
+
+
+def host_view_addresses(mappings: list[HostMemoryMapping], file_offset: int) -> list[int]:
+    """Return readable host virtual addresses that view a memfd file offset."""
+    return sorted({mapping.start + file_offset - mapping.file_offset
+                   for mapping in mappings
+                   if "r" in mapping.permissions
+                   and mapping.file_offset <= file_offset < mapping.file_offset + mapping.size})
 
 
 def _host_read_exact(
@@ -349,44 +362,32 @@ def _unique_pattern_addresses(
     return found
 
 
-def derive_guest_host_offset(
+def derive_guest_virtual_bases(
     pread: Callable[[int, int, int], bytes], fd: int,
-    mapping: HostMemoryMapping, module_base: int,
+    arena: HostMemoryMapping, views: list[HostMemoryMapping], module_base: int,
     validations: list[tuple[str, int, int, bytes]],
-    fallback_chunk_size: int = HOST_SCAN_CHUNK_SIZE,
     checkpoint: Callable[[], None] | None = None,
-) -> int:
-    """Validate HostMemory-base + guest VA; derive a consistent offset only as bounded fallback."""
-    guest_addresses = [module_base + fid for _fid_text, fid, _size, _expected in validations]
-    direct = all(
-        mapping.start <= mapping.start + guest_address
-        and mapping.start + guest_address + len(expected) <= mapping.end
-        and _host_read_exact(pread, fd, mapping, mapping.start + guest_address, len(expected)) == expected
-        for guest_address, (_fid_text, _fid, _size, expected) in zip(guest_addresses, validations)
-    )
-    if direct:
-        return mapping.start
-
+) -> set[int]:
+    """Find bases shared by all three unique code hits and their memfd views."""
     matches = _unique_pattern_addresses(
-        pread, fd, mapping, [expected for _fid_text, _fid, _size, expected in validations],
-        fallback_chunk_size, checkpoint,
+        pread, fd, arena, [expected for _fid_text, _fid, _size, expected in validations],
+        HOST_SCAN_CHUNK_SIZE, checkpoint,
     )
-    if any(len(found) != 1 for found in matches):
-        counts = [len(found) for found in matches]
-        raise TraceError(f"Could not uniquely derive guest-to-host offset from module bytes; matches={counts}")
-    offsets = {
-        found[0] - guest_address
-        for found, guest_address in zip(matches, guest_addresses)
-    }
-    if len(offsets) != 1:
-        raise TraceError(f"Module byte matches imply inconsistent guest-to-host offsets: {sorted(offsets)}")
-    host_offset = offsets.pop()
-    if any(host_offset + guest_address < mapping.start
-           or host_offset + guest_address + len(expected) > mapping.end
-           for guest_address, (_fid_text, _fid, _size, expected)
-           in zip(guest_addresses, validations)):
-        raise TraceError("Derived guest-to-host offset places validated functions outside HostMemory")
-    return host_offset
+    if len(validations) != 3 or any(len(found) != 1 for found in matches):
+        raise TraceError("Expected three independently unique module instruction patterns")
+    possible_bases: list[set[int]] = []
+    for found, (_fid_text, fid, _size, _expected) in zip(matches, validations):
+        file_offset = found[0] - arena.start
+        guest_address = module_base + fid
+        possible_bases.append({view_address - guest_address
+                               for view_address in host_view_addresses(views, file_offset)})
+    common = set.intersection(*possible_bases) if possible_bases else set()
+    if not common:
+        raise TraceError(
+            "Module code views have no consistent guest virtual base; "
+            f"per-pattern candidates={[sorted(bases) for bases in possible_bases]}"
+        )
+    return common
 
 
 def find_unique_host_signature(
@@ -409,6 +410,7 @@ def find_unique_host_signature(
 def host_scan_for_table(
     pid: int, signature: bytes, module_base: int,
     validations: list[tuple[str, int, int, bytes]], result_path: Path,
+    guest_mappings: list[tuple[int, int, str, str]],
     maps_path: Path | None = None, memory_path: Path | None = None,
     pread: Callable[[int, int, int], bytes] = os.pread,
     checkpoint: Callable[[], None] | None = None,
@@ -417,7 +419,15 @@ def host_scan_for_table(
     maps_path = maps_path or Path(f"/proc/{pid}/maps")
     memory_path = memory_path or Path(f"/proc/{pid}/mem")
     try:
-        mapping = parse_host_memory_mapping(maps_path.read_text(encoding="utf-8"))
+        maps_text = maps_path.read_text(encoding="utf-8")
+        mapping = parse_host_memory_mapping(maps_text)
+        # The selected 4 GiB offset-zero map is the bounded scan window, not a
+        # guest-address view. Keep every other HostMemory fragment as a view.
+        views = [view for view in parse_host_memory_mappings(maps_text)
+                 if (view.start, view.end, view.file_offset) !=
+                 (mapping.start, mapping.end, mapping.file_offset)]
+        if not views:
+            raise TraceError("No HostMemory guest-view fragments remain outside the scan arena")
     except OSError as exc:
         raise TraceError(f"Could not read host process mappings for PID {pid}: {exc}") from exc
     if mapping.size != HOST_MEMORY_SIZE:
@@ -430,8 +440,8 @@ def host_scan_for_table(
     except OSError as exc:
         raise TraceError(f"Could not open host process memory for PID {pid}: {exc}") from exc
     try:
-        guest_to_host_offset = derive_guest_host_offset(
-            pread, fd, mapping, module_base, validations, checkpoint=checkpoint,
+        virtual_bases = derive_guest_virtual_bases(
+            pread, fd, mapping, views, module_base, validations, checkpoint=checkpoint,
         )
         host_address = find_unique_host_signature(
             pread, fd, mapping, signature, checkpoint=checkpoint,
@@ -441,15 +451,27 @@ def host_scan_for_table(
 
     if host_address is None:
         raise TraceError(SIGNATURE_NO_MATCH)
-    guest_address = host_address - guest_to_host_offset
-    if guest_address < 0 or guest_to_host_offset + guest_address != host_address:
-        raise TraceError("Host signature translated to an invalid guest address")
+    file_offset = host_address - mapping.start
+    candidates = {(virtual_base, view - virtual_base)
+                  for virtual_base in virtual_bases
+                  for view in host_view_addresses(views, file_offset)
+                  if view - virtual_base >= 0 and any(
+                      start <= view - virtual_base
+                      and view - virtual_base + len(signature) <= end + 1
+                      for start, end, _permissions, _kind in guest_mappings
+                  )}
+    if len(candidates) != 1:
+        raise TraceError(
+            f"Host signature maps to {len(candidates)} guest candidates inside committed mappings: "
+            f"{[(hex(base), hex(candidate)) for base, candidate in sorted(candidates)]}"
+        )
+    virtual_base, guest_address = candidates.pop()
     result = {
         "schema": "pla-host-signature-match/v1",
         "pid": pid,
         "mapping": {"start": f"0x{mapping.start:x}", "end": f"0x{mapping.end:x}",
-                    "size": mapping.size, "path": mapping.path},
-        "guest_to_host_offset": f"0x{guest_to_host_offset:x}",
+            "size": mapping.size, "path": mapping.path},
+        "virtual_base": f"0x{virtual_base:x}", "file_offset": f"0x{file_offset:x}",
         "host_address": f"0x{host_address:x}",
         "guest_address": f"0x{guest_address:x}",
         "signature_hex": signature.hex(),
@@ -470,6 +492,23 @@ def host_scan_for_table(
     if returned_address != guest_address:
         raise TraceError("Persisted host scan guest address differs from the unique match")
     return returned_address
+
+
+def validate_guest_candidate(
+    read_memory: Callable[[int, int], bytes | None], address: int, signature: bytes,
+) -> None:
+    """Fail closed unless one four-byte RSP probe matches the file prefix."""
+    expected = signature[:4]
+    if len(expected) != 4:
+        raise TraceError("Table signature is too short for the four-byte guest validation")
+    observed = read_memory(address, 4)
+    if observed is None or len(observed) != 4:
+        raise TraceError("Guest candidate validation returned a short or malformed four-byte read")
+    if observed != expected:
+        raise TraceError(
+            f"Guest candidate validation mismatch at 0x{address:x}: "
+            f"expected {expected.hex()}, got {observed.hex()}"
+        )
 
 
 def order_scan_regions(regions: list[tuple[int, int, str, str]]) -> list[tuple[int, int, str, str]]:
@@ -1250,6 +1289,7 @@ def main() -> int:
 
         def do_scan(checkpoint: Callable[[], None]) -> int:
             checkpoint()
+            guest_mappings = parse_mappings(gdb.console("monitor get mappings"))
             host_map = parse_host_memory_mapping(
                 Path(f"/proc/{args.target_pid}/maps").read_text(encoding="utf-8")
             )
@@ -1262,13 +1302,16 @@ def main() -> int:
                 f"host scan plan: source=/proc/{args.target_pid}/mem; "
                 f"selected_regions=[{{'start':'0x{host_map.start:x}','end':'0x{host_map.end:x}',"
                 f"'size':{host_map.size},'path':{host_map.path!r}}}]; "
-                f"read_chunk=0x{HOST_SCAN_CHUNK_SIZE:x}; "
-                f"result_file={host_scan_result}; RSP guest-memory reads=disabled"
+                f"read_chunk=0x{HOST_SCAN_CHUNK_SIZE:x}; guest_mappings={len(guest_mappings)}; "
+                f"result_file={host_scan_result}; bulk RSP guest-memory reads=disabled"
             )
             address = host_scan_for_table(
                 args.target_pid, signature, base, validations, host_scan_result,
-                checkpoint=checkpoint,
+                guest_mappings=guest_mappings, checkpoint=checkpoint,
             )
+            validate_guest_candidate(lambda location, length: memory_read(gdb, location, length),
+                                     address, signature)
+            controls.log(f"single four-byte RSP candidate validation passed at 0x{address:x}")
             controls.log(f"host scan matched unique signature; guest_address=0x{address:x}")
             return address
 

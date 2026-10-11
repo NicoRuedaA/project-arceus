@@ -92,32 +92,32 @@ eden +0x996a25 <- eden +0x863409`. The repeated association across distinct
 Normal mappings still does **not** establish that a read or mapping caused an
 abort.
 
-## Attempt 7 strategy: host-side memory scan
+## Revised host-view translation (offline-tested; no live trace claim)
 
-The next attempt avoids guest-memory `m` requests entirely. Parent-reported
-host evidence identifies one readable 4 GiB `/memfd:HostMemory (deleted)` map
-at `0x7e7224000000-0x7e7324000000`; adjacent 64 GiB and 445 GiB anonymous maps
-had zero RSS and are not scan candidates. Eden PID 635707 was reported alive
-while this redesign was prepared; this implementation did not contact,
-interrupt, or inspect that process.
+The first host-side scan proved that the 48-byte `event_random_seed.bin`
+signature is unique at memfd file offset `0x8345b2a0`, but the prior single
+module-wide affine translation produced an unmapped guest address. Do not use
+that address or the earlier arithmetic Alias/Heap guesses.
 
-Before scanning, the driver reads `/proc/<pid>/maps`, selects exactly one
-read-write shared HostMemory arena of the expected size at file offset zero,
-and logs its address range, size, and result-file path. Other HostMemory
-fragments (including unreadable ones) are ignored. It first tests
-`HostMemory.start + guest VA` against all three independently derived
-64-byte function instruction sequences. If that fails, it searches only the
-bounded 4 GiB HostMemory arena for unique matches of those sequences and
-requires one consistent host-minus-guest offset. It then searches the same
-arena for the exact 48-byte table signature,
-requires a unique match, translates the host address to guest VA, and
-persists/read-backs `host-scan-result.json` before watchpoint insertion. No
-`memory_read` call is used for table scanning; GDB is reserved for module
-metadata, watchpoint insertion, continuation, and later hit capture. The
-fallback may scan the full 4 GiB mapping and is therefore bounded but
-potentially slow. A completed no-match scan resumes the guest and retains the
-attached GDB session idle. Transport-level failures still produce no
-follow-up RSP requests.
+The driver now parses every `/memfd:HostMemory` row in `/proc/<pid>/maps`,
+including host start/end, permissions, and backing-file offset. It scans only
+the unique readable, offset-zero 4 GiB arena. The arena is the bounded scan
+window; the other readable memfd fragments are treated as guest-address views.
+For each of three unique 64-byte module instruction patterns, it converts the
+pattern's arena offset through every covering view. All three patterns must
+share a candidate virtual base (`host_view - (module_base + function_RVA)`).
+The unique table signature's file offset is then converted through all views;
+only candidate guest ranges that contain the complete signature in the
+captured committed Heap/Alias/Normal mapping list are eligible. Any remaining
+ambiguous candidate set fails closed rather than guessing.
+
+Before setting a watchpoint, the attached GDB client makes exactly one four-
+byte `m` probe at the selected candidate and compares it to the table prefix.
+An E01, short response, or mismatch prevents watchpoint insertion. Bulk table
+searches remain host-side; GDB/RSP is not used for them. Only after this
+validation does the existing watchpoint/continue/hit-capture flow run. This
+translation and failure behavior are covered by offline mocks; no Eden launch
+or live watchpoint was performed for this revision.
 
 Attempt-host-1 runtime evidence: the process map contained 444 readable
 HostMemory fragments plus the exact `rw-s`, offset-zero 4 GiB arena
@@ -134,16 +134,11 @@ candidate lies outside both ranges. GDB's watchpoint setup emitted
 watchpoint could not be inserted, and the trace log records Eden's
 `Unmapped @ 0X000000217B82A0` report. No watchpoint hit was recorded.
 
-Adding `0x8345b2a0` to the reported Alias and Heap starts yields arithmetic
-hypotheses `0x1189a5b2a0` and `0x2189a5b2a0`, respectively. Both are in-range,
-but neither is proven to be the buffer's guest pointer. The captured
-`monitor get mappings` reply is truncated and does not establish this
-relation. Therefore the table-read trace is
-blocked at address translation; no candidate should be used to arm a
-watchpoint. Offline tests cover selecting the exact arena amid fragments,
-extracting 64 independent ELF bytes, direct/fallback offset derivation, unique
-signature enforcement, and persisted address handoff. They do not establish
-the HostMemory-to-guest mapping.
+The prior affine address was outside both reported ranges. The new host-view
+translation is an implementation change only: it does not retroactively
+validate the prior address or establish a live table reader. The existing
+captured `monitor get mappings` reply was truncated; future runs must capture
+and parse the full mapping reply before selecting a candidate.
 
 An earlier live RAM scan attempt ended with Eden aborting on 2026-10-11 at
 15:33:32 CEST (PID 185443, TID 185562,
@@ -267,9 +262,9 @@ the user is not asked to play until a watchpoint hit has been captured.
    AArch64 `PT_LOAD` bytes from `main.elf` and derives three distinct-size,
    N2-verified function starts from the export and
    `sheets/re/function_n2_evidence.tsv`: `00052e10` (424 bytes), `007a6cac`
-   (944 bytes), and `007d780c` (3144 bytes). Before searching, the host scanner
-   validates the candidate host/guest translation against all three byte
-   sequences in `/proc/<pid>/mem`.
+   (944 bytes), and `007d780c` (3144 bytes). The host-view translator finds
+   each pattern in `/proc/<pid>/mem` and requires all three to imply the same
+   guest virtual base through the parsed memfd views.
 4. Run the command below, replacing the table path. The
    default GDB endpoint is `127.0.0.1:6543`; it attaches to the already-running
    emulator and does not launch it. Eden's stub accepts one connection; keep
@@ -288,16 +283,18 @@ python3 .tools/trace/gdb_table_trace.py \
   --rsp-log work/progress/eden-rsp.log
 ```
 
-The driver discovers the unique `main` module using `monitor get info`, then
-scans only the readable 4 GiB `/memfd:HostMemory` mapping from the specified
-Eden PID. It does not read table bytes through GDB/RSP. A unique exact
-48-byte signature match is translated back to guest VA and persisted in
-`work/progress/trace-ctl/host-scan-result.json` before the watchpoint is armed.
-The host map range and size are logged before scanning. If there is no unique
-match, no watchpoint is installed; a completed no-match scan resumes the guest
-and retains GDB idle. Mapping/translation mismatches, short host reads,
-ambiguous signatures, or a watchpoint insertion failure do not produce a
-reader claim. A unique match arms a one-byte `rwatch` (or `awatch` with
+The driver discovers the unique `main` module using `monitor get info`, captures
+committed ranges using `monitor get mappings`, then scans only the readable
+4 GiB offset-zero `/memfd:HostMemory` map from the specified Eden PID. It does
+not bulk-read table bytes through GDB/RSP. A unique exact 48-byte signature
+match is translated through the other memfd views and persisted in
+`work/progress/trace-ctl/host-scan-result.json`. Before watchpoint insertion,
+the driver performs one four-byte RSP read at that guest address and requires
+an exact signature-prefix match. If there is no unique mapped candidate, the
+probe fails, or any host read is short, no watchpoint is installed. A completed
+no-match scan resumes the guest and retains GDB idle; a reader claim requires
+an actual captured watchpoint hit. A unique validated match arms a one-byte
+`rwatch` (or `awatch` with
 `--watchpoint awatch`); each hit is recorded in
 `work/progress/trace-events.jsonl` with PC, LR, unwound frames, and mapped
 function IDs, then the driver continues automatically. After the requested

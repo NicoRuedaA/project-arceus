@@ -750,58 +750,40 @@ class SafeScanTests(unittest.TestCase):
             mapping = trace.parse_host_memory_mapping(maps)
         self.assertEqual(mapping.start, 0x7e7224000000)
         self.assertEqual(mapping.size, 4 * 1024**3)
+        self.assertEqual([view.file_offset for view in trace.parse_host_memory_mappings(maps)],
+                         [0xedb56000, 0xedc00000, 0, 0x100000000])
         duplicated_arena = maps + f"{base + 0x1000000000:x}-{base + 0x1000000000 + 4 * 1024**3:x} rw-s 00000000 00:01 17606 /memfd:HostMemory (deleted)\n"
         with patch.object(trace, "HOST_MEMORY_SIZE", 4 * 1024**3), self.assertRaisesRegex(trace.TraceError, "found 2"):
             trace.parse_host_memory_mapping(
                 duplicated_arena
             )
 
-    def test_host_offset_fallback_requires_three_unique_consistent_function_matches(self):
-        start, size, module_base = 0x100000, 0x20000, 0x1000
-        mapping = trace.HostMemoryMapping(start, start + size, "rw-s", "/memfd:HostMemory")
-        backing = bytearray(size)
-        validations = [(f"{fid:x}", fid, 0x20 + i, bytes([0x40 + i]) * 64)
-                       for i, fid in enumerate((0x100, 0x200, 0x300))]
-        derived_offset = start + 0x5000
-        for _name, fid, _size, expected in validations:
-            guest_address = module_base + fid
-            host_address = derived_offset + guest_address
-            backing[host_address - start:host_address - start + len(expected)] = expected
-
-        def pread(_fd, length, address):
-            if address < start or address + length > start + size:
-                raise AssertionError("Host fallback read escaped mapping")
-            return bytes(backing[address - start:address - start + length])
-
-        self.assertEqual(
-            trace.derive_guest_host_offset(
-                pread, 1, mapping, module_base, validations, fallback_chunk_size=0x1000,
-            ),
-            derived_offset,
-        )
-        self.assertTrue(all(len(expected) >= 64 for _, _, _, expected in validations))
-
-    def test_host_scan_persists_unique_match_and_translates_to_guest_va(self):
+    def test_host_views_derive_consistent_virtual_base_and_select_mapped_candidate(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             map_start, map_size, module_base = 0x100000, 0x10000, 0x1000
-            mapping_text = (
-                f"{map_start:x}-{map_start + map_size:x} rw-s 00000000 00:01 2 "
-                "/memfd:HostMemory (deleted)\n"
-            )
+            virtual_base = 0x10000000
+            guest_table, file_table = 0x2106601000, 0x1800
+            view_lines = [f"{map_start:x}-{map_start + map_size:x} rw-s 00000000 00:01 2 /memfd:HostMemory (deleted)\n"]
+            validations = [(f"{fid:x}", fid, 0x20 + index, bytes([0x50 + index]) * 64)
+                           for index, fid in enumerate((0x100, 0x200, 0x300))]
+            for _name, fid, _size, _expected in validations:
+                guest = module_base + fid
+                host_view = virtual_base + guest
+                view_lines.append(f"{host_view:x}-{host_view + 0x1000:x} rw-s {guest:08x} 00:01 2 /memfd:HostMemory (deleted)\n")
+            host_table_view = virtual_base + guest_table
+            view_lines.append(f"{host_table_view:x}-{host_table_view + 0x1000:x} rw-s {file_table:08x} 00:01 2 /memfd:HostMemory (deleted)\n")
+            mapping_text = "".join(view_lines)
             maps_path = root / "maps"
             maps_path.write_text(mapping_text, encoding="utf-8")
             memory_path = root / "mem"
             memory_path.write_bytes(bytes(map_size))
             backing = bytearray(map_size)
-            validations = [(f"{fid:x}", fid, 0x20 + index, bytes([0x50 + index]) * 64)
-                           for index, fid in enumerate((0x100, 0x200, 0x300))]
             for _name, fid, _size, expected in validations:
                 offset = module_base + fid
                 backing[offset:offset + len(expected)] = expected
             signature = bytes(range(48))
-            expected_guest = 0x8000
-            backing[expected_guest:expected_guest + len(signature)] = signature
+            backing[file_table:file_table + len(signature)] = signature
             reads = []
 
             def pread(_fd, length, address):
@@ -814,14 +796,94 @@ class SafeScanTests(unittest.TestCase):
             with patch.object(trace, "HOST_MEMORY_SIZE", map_size):
                 guest_address = trace.host_scan_for_table(
                     42, signature, module_base, validations, root / "result.json",
+                    guest_mappings=[(0x2106600000, 0x23065fffff, "rw-", "Heap")],
                     maps_path=maps_path, memory_path=memory_path, pread=pread,
                 )
             result = __import__("json").loads((root / "result.json").read_text(encoding="utf-8"))
-            self.assertEqual(guest_address, expected_guest)
-            self.assertEqual(int(result["guest_address"], 16), expected_guest)
+            self.assertEqual(guest_address, guest_table)
+            self.assertEqual(int(result["guest_address"], 16), guest_table)
+            self.assertEqual(int(result["virtual_base"], 16), virtual_base)
+            self.assertEqual(int(result["file_offset"], 16), file_table)
             self.assertEqual(result["schema"], "pla-host-signature-match/v1")
             self.assertTrue(reads)
             self.assertTrue(all(length <= trace.HOST_SCAN_CHUNK_SIZE for _, length in reads))
+
+    def test_host_view_translation_fails_closed_when_table_candidate_is_ambiguous(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            host_start, size, module_base = 0x100000, 0x10000, 0x1000
+            virtual_base, guest_table, file_table = 0x10000000, 0x2106601000, 0x1800
+            validations = [(f"{fid:x}", fid, 0x20, bytes([0x60 + index]) * 64)
+                           for index, fid in enumerate((0x100, 0x200, 0x300))]
+            rows = [f"{host_start:x}-{host_start + size:x} rw-s 00000000 00:01 2 /memfd:HostMemory (deleted)\n"]
+            for _name, fid, _length, _pattern in validations:
+                guest = module_base + fid
+                view = virtual_base + guest
+                rows.append(f"{view:x}-{view + 0x1000:x} rw-s {guest:08x} 00:01 2 /memfd:HostMemory (deleted)\n")
+            second_guest = guest_table + 0x10000
+            for guest in (guest_table, second_guest):
+                view = virtual_base + guest
+                rows.append(f"{view:x}-{view + 0x1000:x} rw-s {file_table:08x} 00:01 2 /memfd:HostMemory (deleted)\n")
+            maps_path, memory_path = root / "maps", root / "mem"
+            maps_path.write_text("".join(rows), encoding="utf-8")
+            memory_path.write_bytes(bytes(size))
+            backing = bytearray(size)
+            for _name, fid, _length, pattern in validations:
+                offset = module_base + fid
+                backing[offset:offset + len(pattern)] = pattern
+            signature = b"T" * 48
+            backing[file_table:file_table + len(signature)] = signature
+
+            def pread(_fd, length, address):
+                return bytes(backing[address - host_start:address - host_start + length])
+
+            with patch.object(trace, "HOST_MEMORY_SIZE", size), self.assertRaisesRegex(
+                trace.TraceError, "maps to 2 guest candidates",
+            ):
+                trace.host_scan_for_table(
+                    42, signature, module_base, validations, root / "result.json",
+                    guest_mappings=[(guest_table, guest_table + 0x20000, "rw-", "Heap")],
+                    maps_path=maps_path, memory_path=memory_path, pread=pread,
+                )
+
+    def test_guest_candidate_validation_rejects_e01_short_and_mismatch(self):
+        signature = b"ABCD" + b"x" * 44
+        with self.assertRaisesRegex(trace.MemoryReadError, "E01"):
+            trace.validate_guest_candidate(
+                lambda _address, _length: (_ for _ in ()).throw(trace.MemoryReadError("E01")),
+                0x1234, signature,
+            )
+        with self.assertRaisesRegex(trace.TraceError, "short or malformed"):
+            trace.validate_guest_candidate(lambda _address, _length: b"ABC", 0x1234, signature)
+        with self.assertRaisesRegex(trace.TraceError, "mismatch"):
+            trace.validate_guest_candidate(lambda _address, _length: b"WXYZ", 0x1234, signature)
+        self.assertIsNone(trace.validate_guest_candidate(
+            lambda address, length: (self.assertEqual((address, length), (0x1234, 4)) or b"ABCD"),
+            0x1234, signature,
+        ))
+
+    def test_module_patterns_with_inconsistent_view_bases_fail_closed(self):
+        arena_start, module_base = 0x100000, 0x1000
+        arena = trace.HostMemoryMapping(arena_start, arena_start + 0x10000,
+                                        "rw-s", 0, "/memfd:HostMemory")
+        virtual_base = 0x10000000
+        validations = [(f"{fid:x}", fid, 64, bytes([0x70 + index]) * 64)
+                       for index, fid in enumerate((0x100, 0x200, 0x300))]
+        backing = bytearray(arena.size)
+        views = []
+        for index, (_name, fid, _size, pattern) in enumerate(validations):
+            guest = module_base + fid
+            offset = guest
+            backing[offset:offset + len(pattern)] = pattern
+            host_start = virtual_base + guest + (0x1000 if index == 2 else 0)
+            views.append(trace.HostMemoryMapping(host_start, host_start + 0x100,
+                                                 "rw-s", offset, "/memfd:HostMemory"))
+
+        def pread(_fd, length, address):
+            return bytes(backing[address - arena_start:address - arena_start + length])
+
+        with self.assertRaisesRegex(trace.TraceError, "no consistent guest virtual base"):
+            trace.derive_guest_virtual_bases(pread, 1, arena, views, module_base, validations)
 
     def test_executable_validation_extracts_64_bytes_from_independent_elf_segment(self):
         elf = bytes((index % 251 for index in range(0x400)))
@@ -834,7 +896,7 @@ class SafeScanTests(unittest.TestCase):
 
     def test_host_signature_requires_unique_match(self):
         start = 0x400000
-        mapping = trace.HostMemoryMapping(start, start + 0x4000, "rw-s", "/memfd:HostMemory")
+        mapping = trace.HostMemoryMapping(start, start + 0x4000, "rw-s", 0, "/memfd:HostMemory")
         data = bytearray(mapping.size)
         signature = b"unique-host-signature"
         data[0x100:0x100 + len(signature)] = signature
