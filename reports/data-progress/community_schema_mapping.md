@@ -178,3 +178,9 @@ Detailed map: [`sheets/data/schemas/new_huge_outbreak_time_limit_fields.tsv`](..
 **Blocked:** no community schema was located, and the local 592-byte asset fails a schema-independent FlatBuffers table read: the first table resolves to offset 464 with vtable delta −99,472, which is invalid for the file. There are no defensible raw field indices or offsets to map. The exact blocker is recorded; no field names/types were guessed.
 
 Detailed blocker record: [`sheets/data/schemas/field_huge_outbreak_fields.tsv`](../../sheets/data/schemas/field_huge_outbreak_fields.tsv).
+
+### `misc/app_config/field_wormhole_config.bin`
+
+pkNX's pinned [asset mapping](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/pkNX.Game/File/GameFileMapping.cs) labels this asset `WormholeConfig`, but no public field schema was found. The local decoded TSV contains 37 unique keys, each with `value_index=0`; 36 `value_text` values look integer-like and one is string-like. Those values prove only lexical output shape—not original scalar widths/types, field meanings, or key/value vector binding. Keep all candidate mappings unverified.
+
+Detailed map: [`sheets/data/schemas/field_wormhole_fields.tsv`](../../sheets/data/schemas/field_wormhole_fields.tsv).
