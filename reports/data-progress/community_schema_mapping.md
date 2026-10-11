@@ -148,3 +148,11 @@ Source hint: pkNX [`NewHugeOutbreakGroup.fbs`](https://github.com/kwsch/pkNX/blo
 **Observed:** 166 parent records and 480 child records. Parent fields F00/F02 are u64, F01 is a 4-byte vector offset. Child indices 0–1 are captured as 8-byte spans; indices 2–6 are four-byte string offsets; index 8 is a four-byte integer span. These counts/widths and the exact index sequence support the structural candidate. Child field 7 is named `EncounterTableID:ulong` upstream, but the local capture span varies (8 or 12 bytes), so its width is **unverified**; pointed-to strings are not decoded.
 
 Detailed map: [`sheets/data/schemas/new_huge_outbreak_group_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_group_fields.tsv).
+
+### `field/encount/new_huge_outbreak_group_lottery.bin`
+
+Source hint: pkNX [`NewHugeOutbreakGroupLottery.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Field/NewHuge/NewHugeOutbreakGroupLottery.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
+
+**Observed:** seven parent records have the four-field shape `LotteryGroup` plus three candidate vectors; nested vectors contain 501 child rows. Child field 0 is captured as u64, consistent with `Group:ulong`. Child field 1 is absent in some entries, compatible with a FlatBuffers default but not sufficient to verify `Rate:int` or its signedness. Parent vector slots are four-byte offsets; payloads remain raw.
+
+Detailed map: [`sheets/data/schemas/new_huge_outbreak_group_lottery_fields.tsv`](../../sheets/data/schemas/new_huge_outbreak_group_lottery_fields.tsv).
