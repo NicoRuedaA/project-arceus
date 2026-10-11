@@ -39,7 +39,7 @@ MAP_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(.*?)\s*$"
 MODULE_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(.+?)\s*$")
 MODULE_AT_LINE = re.compile(r"^\s*(.+?)\s+(?:at|@)\s+(0x[0-9a-fA-F]+)\s*$", re.IGNORECASE)
 PACKET_SIZE = re.compile(r"PacketSize=([0-9a-fA-F]+)")
-MAX_RSP_READ = 0x1000
+MAX_RSP_READ = 0x1F00
 SCAN_PAGE_SIZE = 0x1000
 SIGNATURE_PROBE_SIZE = 16
 SMALL_EXACT_REGION_MAX = 16 * 1024 * 1024
@@ -474,18 +474,28 @@ def parse_packet_size(output: str) -> int:
 
 def safe_read_size(packet_size: int, requested: int = MAX_RSP_READ) -> int:
     # An RSP memory reply hex-encodes each byte. Leave room for framing and
-    # never exceed one 0x1000-byte guest page, even when the stub advertises a larger packet.
+    # keep a 0xF0-byte margin under PacketSize=0x4000 (0x1F00 bytes of data).
     return max(1, min(requested, MAX_RSP_READ, (packet_size - 32) // 2))
 
 
 def memory_read(gdb: GdbMi, address: int, length: int) -> bytes | None:
     if not 0 < length <= MAX_RSP_READ:
-        raise TraceError(f"Refusing unsafe memory read length {length}; maximum is 0x1000")
-    result, _ = gdb.ok(f"-data-read-memory-bytes 0x{address:x} {length}")
-    match = re.search(r'contents="([0-9a-fA-F]*)"', result)
-    if not match or len(match.group(1)) != length * 2:
+        raise TraceError(f"Refusing unsafe memory read length {length}; maximum is 0x1f00")
+    packet = f"m{address:x},{length:x}"
+    # GDB's MI memory-read command may split failed reads into byte-sized RSP
+    # requests. Use the remote Python packet API so this operation stays one
+    # explicitly-sized request; GDB can still retransmit that same packet if
+    # the peer is silent, so transport failures must remain fatal to the scan.
+    command = (
+        "python print(gdb.selected_inferior().connection.send_packet("
+        f"'{packet}').decode('ascii'))"
+    )
+    response = gdb.console(command).strip()
+    if re.fullmatch(r"E[0-9a-fA-F]{2}", response):
+        raise MemoryReadError(f"Remote memory read returned {response}")
+    if not re.fullmatch(r"[0-9a-fA-F]*", response) or len(response) != length * 2:
         return None
-    return bytes.fromhex(match.group(1))
+    return bytes.fromhex(response)
 
 
 def scan_signature(
@@ -493,82 +503,118 @@ def scan_signature(
     chunk_size: int, max_bytes: int, packet_size: int, request_delay: float = 0.01,
     checkpoint: Callable[[], None] | None = None,
 ) -> int:
-    chunk_size = min(chunk_size, safe_read_size(packet_size), SCAN_PAGE_SIZE)
+    chunk_size = min(chunk_size, safe_read_size(packet_size), MAX_RSP_READ)
     if chunk_size < 1:
         raise TraceError("Negotiated RSP packet size cannot safely carry a memory read")
     selected, eligible_total, selected_total = select_scan_regions(regions, max_bytes)
     if eligible_total > selected_total:
         print(f"Eligible mappings total {eligible_total} bytes; scanning prioritized capped pass of {selected_total} bytes", flush=True)
-    overlap = len(signature) - 1
-    for start, end, _perms, _state in selected:
-        region_size = end - start + 1
-        page_probe = _state.casefold() == "normal" and region_size > SMALL_EXACT_REGION_MAX
-        if page_probe:
-            # This is a fast, sampled pass: probe the first 16 bytes of each
-            # complete 0x1000 page for the signature prefix, then verify the
-            # full signature at each candidate. Small regions use exact reads.
-            addr = start
-            while end - addr + 1 >= SCAN_PAGE_SIZE:
-                if checkpoint:
-                    checkpoint()
-                try:
-                    probe = memory_read(gdb, addr, SIGNATURE_PROBE_SIZE)
-                except MemoryReadError:
-                    if request_delay:
-                        time.sleep(request_delay)
-                    addr += SCAN_PAGE_SIZE
-                    if checkpoint:
-                        checkpoint()
-                    continue
-                if probe is not None:
-                    pos = probe.find(signature[:SIGNATURE_PROBE_SIZE])
-                    while pos >= 0:
-                        candidate = addr + pos
-                        if candidate + len(signature) - 1 <= end:
-                            try:
-                                full = memory_read(gdb, candidate, len(signature))
-                            except MemoryReadError:
-                                if request_delay:
-                                    time.sleep(request_delay)
-                                full = None
-                            if full == signature:
-                                return candidate
-                        pos = probe.find(signature[:SIGNATURE_PROBE_SIZE], pos + 1)
-                addr += SCAN_PAGE_SIZE
-                if checkpoint:
-                    checkpoint()
-            # Ignore any final partial page: it is not one of the reviewed
-            # 0x1000-page probes and must not trigger a small boundary read.
-            continue
+    prefix = signature[:SIGNATURE_PROBE_SIZE]
+    bad_pages: list[set[int]] = [set() for _ in selected]
 
-        addr = start
-        carry = b""
-        # A truly small candidate mapping is read once in full. Larger regions
-        # are scanned only in complete page-sized chunks; a short tail is not
-        # retried with a smaller or one-byte fallback request.
+    def pages_for(address: int, length: int) -> set[int]:
+        first = address & ~(SCAN_PAGE_SIZE - 1)
+        last = (address + length - 1) & ~(SCAN_PAGE_SIZE - 1)
+        return set(range(first, last + 1, SCAN_PAGE_SIZE))
+
+    def skip_bad_pages(page_set: set[int], address: int, length: int) -> int | None:
+        touched = page_set.intersection(pages_for(address, length))
+        return max(touched) + SCAN_PAGE_SIZE if touched else None
+
+    def verify_candidates(start: int, end: int, candidates: list[int], page_set: set[int]) -> int | None:
+        for candidate in candidates:
+            if candidate < start or candidate + len(signature) - 1 > end:
+                continue
+            covered = pages_for(candidate, len(signature))
+            if covered & page_set:
+                continue
+            try:
+                full = memory_read(gdb, candidate, len(signature))
+            except MemoryReadError:
+                if request_delay:
+                    time.sleep(request_delay)
+                page_set.update(covered)
+                continue
+            if full is None:
+                page_set.update(covered)
+            elif full == signature:
+                return candidate
+        return None
+
+    # First pass: sparse 16-byte prefix probes at page boundaries across every
+    # selected region. Only a prefix match can trigger a full-signature read.
+    # This gives likely page-aligned file buffers a cheap chance before bulk I/O.
+    for index, (start, end, _perms, _kind) in enumerate(selected):
+        page = (start + SCAN_PAGE_SIZE - 1) & ~(SCAN_PAGE_SIZE - 1)
+        while page + SCAN_PAGE_SIZE - 1 <= end:
+            if checkpoint:
+                checkpoint()
+            try:
+                probe = memory_read(gdb, page, SIGNATURE_PROBE_SIZE)
+            except MemoryReadError:
+                if request_delay:
+                    time.sleep(request_delay)
+                bad_pages[index].add(page)
+                page += SCAN_PAGE_SIZE
+                continue
+            if probe is None:
+                bad_pages[index].add(page)
+            elif probe == prefix:
+                hit = verify_candidates(start, end, [page], bad_pages[index])
+                if hit is not None:
+                    return hit
+            page += SCAN_PAGE_SIZE
+            if checkpoint:
+                checkpoint()
+
+    # Second pass: bulk-read mapped bytes, search only for the 16-byte prefix,
+    # and verify each candidate with a separate exact 48-byte read. There is no
+    # successful-read sleep and no byte-wise retry after a short/error packet.
+    overlap = len(prefix) - 1
+    for index, (start, end, _perms, _kind) in enumerate(selected):
+        region_size = end - start + 1
         if region_size < SCAN_PAGE_SIZE:
             if region_size < len(signature):
                 continue
             if checkpoint:
                 checkpoint()
-            try:
-                block = memory_read(gdb, addr, region_size)
-            except MemoryReadError:
-                if request_delay:
-                    time.sleep(request_delay)
-                block = None
-            if block is not None:
-                hit = block.find(signature)
-                if hit >= 0:
-                    return addr + hit
+            page_set = bad_pages[index]
+            if not page_set:
+                try:
+                    block = memory_read(gdb, start, region_size)
+                except MemoryReadError:
+                    if request_delay:
+                        time.sleep(request_delay)
+                    block = None
+                if block is not None:
+                    positions: list[int] = []
+                    cursor = 0
+                    while True:
+                        pos = block.find(prefix, cursor)
+                        if pos < 0:
+                            break
+                        positions.append(start + pos)
+                        cursor = pos + 1
+                    hit = verify_candidates(start, end, positions, page_set)
+                    if hit is not None:
+                        return hit
+                else:
+                    page_set.update(pages_for(start, region_size))
             if checkpoint:
                 checkpoint()
             continue
 
+        addr = start
+        carry = b""
         while end - addr + 1 >= SCAN_PAGE_SIZE:
             if checkpoint:
                 checkpoint()
             size = min(chunk_size, end - addr + 1)
+            skip_to = skip_bad_pages(bad_pages[index], addr, size)
+            if skip_to is not None:
+                addr = max(addr + 1, skip_to)
+                carry = b""
+                continue
             try:
                 block = memory_read(gdb, addr, size)
             except MemoryReadError:
@@ -576,19 +622,29 @@ def scan_signature(
                     time.sleep(request_delay)
                 block = None
             if block is None:
-                # A rejected or short page invalidates overlap and skips this
-                # whole page; transport failures still propagate immediately.
+                # A failed/short bulk read makes every intersecting page
+                # unreadable for this pass. Advance beyond those whole pages.
+                touched = pages_for(addr, size)
+                bad_pages[index].update(touched)
+                addr = max(addr + 1, max(touched) + SCAN_PAGE_SIZE)
                 carry = b""
-                page_offset = (addr - start) % SCAN_PAGE_SIZE
-                addr += SCAN_PAGE_SIZE - page_offset
                 if checkpoint:
                     checkpoint()
                 continue
+
             data = carry + block
             data_base = addr - len(carry)
-            hit = data.find(signature)
-            if hit >= 0:
-                return data_base + hit
+            candidates: list[int] = []
+            cursor = 0
+            while True:
+                pos = data.find(prefix, cursor)
+                if pos < 0:
+                    break
+                candidates.append(data_base + pos)
+                cursor = pos + 1
+            hit = verify_candidates(start, end, candidates, bad_pages[index])
+            if hit is not None:
+                return hit
             carry = data[-overlap:] if overlap else b""
             addr += size
             if checkpoint:
@@ -845,7 +901,7 @@ def main() -> int:
     parser.add_argument("--functions", type=Path, default=DEFAULT_FUNCTIONS)
     parser.add_argument("--module-name", default="main", help="unique substring in the module list")
     parser.add_argument("--signature-length", type=int, default=48, help="bytes from file offset zero (32..64)")
-    parser.add_argument("--chunk-size", type=int, default=MAX_RSP_READ, help="maximum read chunk; hard-capped at 0x1000 bytes")
+    parser.add_argument("--chunk-size", type=int, default=MAX_RSP_READ, help="maximum read chunk; hard-capped at 0x1f00 bytes")
     parser.add_argument("--scan-delay", type=float, default=0.01, help="seconds to pause only after explicit target read errors")
     parser.add_argument("--max-scan-bytes", type=int, default=MAX_REVIEWED_SCAN_BYTES,
                         help="maximum bytes in one prioritized scan pass (hard maximum 6 GiB)")
