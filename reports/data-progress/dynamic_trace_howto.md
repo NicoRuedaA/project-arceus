@@ -36,6 +36,23 @@ overlap. Its offline mock-stub tests cover packet-size parsing, bounded
 requests, mapped-only reads, error tolerance, and signature detection. No live
 retry is performed by this offline test.
 
+A later attach made seconds after Launching began did **not** crash Eden. The
+orchestrator confirmed the guest process had not yet been created, so an empty
+module list and empty `qfThreadInfo` at that instant are expected transient
+startup state. The 15:45 attempt's RSP log shows a successful `qRcmd,get info`
+reply (836 bytes), but the MI monitor reader collected only `~` console stream
+records; this remote target delivered the monitor text as `@` target-stream
+output. The reader now captures both MI stream types. It also waits on the same
+connection, polling `monitor get info` and `qfThreadInfo` up to five minutes,
+before validating the module or continuing the guest. That attempt observed
+`m80ce6ffc,4 -> E01` and an Eden `Unmapped @ 0X00000080CE6FFC ... size=4`
+message; no new Eden core was found, and no causal link is established.
+
+If any fatal error occurs after attach, cleanup now makes a best-effort guest
+continue followed by GDB detach before exiting, and records the outcome in
+`work/progress/trace.log`. An unresolved module timeout remains fail-closed:
+no function-byte validation, RAM scan, or watchpoint is attempted.
+
 ## Current preparation status
 
 The driver is `.tools/trace/gdb_table_trace.py`. The patched RomFS is at

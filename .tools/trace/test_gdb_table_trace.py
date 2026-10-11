@@ -121,6 +121,61 @@ class SafeScanTests(unittest.TestCase):
             self.assertIn("Packet received: PacketSize=4000#00", contents)
             self.assertEqual(lines[2], "1^done")
 
+    def test_monitor_output_from_target_stream_discovers_main_nss(self):
+        class MonitorSession:
+            def ok(self, _command):
+                return "^done", [
+                    '~"Process: 0x51 (Application)\\n"',
+                    '@"Modules:\\n  main.nss at 0x80ce7000\\n"',
+                ]
+        info = trace.GdbMi.console(MonitorSession(), "monitor get info")
+        self.assertIn("Modules:\n", info)
+        self.assertEqual(trace.parse_modules(info, "main"), (0x80ce7000, "main.nss"))
+
+    def test_monitor_range_format_discovers_main_nss(self):
+        output = "Modules:\n  0x80ce7000 - 0x80ceaf000 main.nss\n"
+        self.assertEqual(trace.parse_modules(output, "main"), (0x80ce7000, "main.nss"))
+
+    def test_startup_wait_keeps_same_connection_until_main_module_and_thread_exist(self):
+        class StartupSession:
+            def __init__(self):
+                self.responses = [
+                    "", "received: l",  # first stop: no app module and no threads
+                    "Modules:\n  0x80ce7000 - 0x80ceaf000 main.nss\n", "received: m4c",
+                ]
+                self.calls = []
+            def console(self, command):
+                self.calls.append(command)
+                return self.responses.pop(0)
+        session = StartupSession()
+        base, name = trace.wait_for_main_module(
+            session, "main", max_polls=3, poll_interval=0,
+            sleep_fn=lambda _duration: None, status_fn=lambda _message: None,
+        )
+        self.assertEqual((base, name), (0x80ce7000, "main.nss"))
+        self.assertEqual(session.calls, ["monitor get info", "maintenance packet qfThreadInfo"] * 2)
+
+    def test_startup_timeout_preserves_connection_until_resume_detach(self):
+        class StartupSession:
+            def __init__(self):
+                self.responses = ["", "received: l"] * 2
+                self.calls = []
+            def console(self, command):
+                self.calls.append(command)
+                return self.responses.pop(0)
+            def command(self, command):
+                self.calls.append(command)
+                return "^running" if command == "-exec-continue" else "^done", []
+        session = StartupSession()
+        with self.assertRaisesRegex(trace.TraceError, "Timed out waiting"):
+            trace.wait_for_main_module(session, "main", max_polls=2, poll_interval=0,
+                                       sleep_fn=lambda _duration: None, status_fn=lambda _message: None)
+        self.assertEqual(len(session.calls), 4)  # polling did not drop the one-shot connection
+        outcome = trace.resume_and_detach(session)
+        self.assertIn("continue=^running", outcome)
+        self.assertIn("detach=success", outcome)
+        self.assertEqual(session.calls[-2:], ["-exec-continue", "-target-detach"])
+
 
 if __name__ == "__main__":
     unittest.main()

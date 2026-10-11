@@ -35,6 +35,7 @@ MI_RECORD = re.compile(r'^(\d*)(\^|\*|=)([^,]+)(?:,(.*))?$')
 MI_FIELD = re.compile(r'([A-Za-z0-9_-]+)=(?:"((?:\\.|[^"\\])*)"|([^,]*))')
 MAP_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(\S+)\s+(\S+)")
 MODULE_LINE = re.compile(r"^\s*(0x[0-9a-fA-F]+)\s*-\s*(0x[0-9a-fA-F]+)\s+(.+?)\s*$")
+MODULE_AT_LINE = re.compile(r"^\s*(.+?)\s+(?:at|@)\s+(0x[0-9a-fA-F]+)\s*$", re.IGNORECASE)
 PACKET_SIZE = re.compile(r"PacketSize=([0-9a-fA-F]+)")
 MAX_RSP_READ = 0x400
 
@@ -128,8 +129,12 @@ class GdbMi:
         result, lines = self.ok("-interpreter-exec console " + mi_quote(command))
         chunks: list[str] = []
         for line in lines:
-            if line.startswith("~\"") and line.endswith('"'):
+            # GDB MI may classify monitor/qRcmd output as either console
+            # (~) or target (@) stream output depending on the remote target.
+            if line.startswith(("~\"", "@\"")) and line.endswith('"'):
                 chunks.append(mi_unescape(line[2:-1]))
+        if not chunks and result.startswith("^error"):
+            raise TraceError(f"GDB console command failed: {result}")
         return "".join(chunks)
 
 
@@ -149,6 +154,10 @@ def parse_modules(output: str, wanted: str) -> tuple[int, str]:
         match = MODULE_LINE.match(line)
         if match:
             modules.append((int(match.group(1), 16), match.group(3)))
+            continue
+        match = MODULE_AT_LINE.match(line)
+        if match:
+            modules.append((int(match.group(2), 16), match.group(1)))
     hits = [(base, name) for base, name in modules if wanted.casefold() in name.casefold()]
     if len(hits) != 1:
         names = ", ".join(f"{name}@0x{base:x}" for base, name in modules) or "none reported"
@@ -408,6 +417,56 @@ def wait_until_gameplay_and_interrupt(gdb: GdbMi, input_fn=input) -> None:
             raise TraceError("Emulated process exited before the gameplay scan")
 
 
+def parse_thread_info(output: str) -> bool:
+    """Return whether a qfThreadInfo reply contains at least one thread ID."""
+    match = re.search(r"(?:received:\s*)?m([0-9a-fA-F,]+)", output)
+    return bool(match and match.group(1))
+
+
+def wait_for_main_module(
+    gdb: GdbMi, wanted: str, max_polls: int, poll_interval: float,
+    sleep_fn=time.sleep, status_fn=print,
+) -> tuple[int, str]:
+    """Poll startup metadata without disconnecting while the guest is halted."""
+    last_info = ""
+    last_threads = ""
+    for attempt in range(1, max_polls + 1):
+        last_info = gdb.console("monitor get info")
+        # Request the target's thread inventory on the same persistent client.
+        last_threads = gdb.console("maintenance packet qfThreadInfo")
+        if parse_thread_info(last_threads):
+            try:
+                return parse_modules(last_info, wanted)
+            except TraceError:
+                pass  # Eden may accept GDB before the application module exists.
+        if attempt < max_polls:
+            status_fn(f"Waiting for guest module {wanted!r}: poll {attempt}/{max_polls}; connection remains attached.")
+            sleep_fn(poll_interval)
+    raise TraceError(
+        f"Timed out waiting for module {wanted!r} after {max_polls} polls; "
+        f"last qfThreadInfo={last_threads[:300]!r}; last monitor get info={last_info[:1000]!r}"
+    )
+
+
+def resume_and_detach(gdb: GdbMi) -> str:
+    """Best-effort safe guest release before GDB process cleanup."""
+    outcomes = []
+    try:
+        result, _ = gdb.command("-exec-continue")
+        outcomes.append(f"continue={result}")
+    except Exception as exc:
+        outcomes.append(f"continue_error={exc}")
+    try:
+        result, _ = gdb.command("-target-detach")
+        if result.startswith("^done"):
+            outcomes.append("detach=success")
+        else:
+            outcomes.append(f"detach={result}")
+    except Exception as exc:
+        outcomes.append(f"detach_error={exc}")
+    return "; ".join(outcomes)
+
+
 def evaluate(gdb: GdbMi, expression: str) -> str:
     result, _ = gdb.ok("-data-evaluate-expression " + mi_quote(expression))
     match = re.search(r'value="([^"]+)"', result)
@@ -459,12 +518,15 @@ def main() -> int:
     parser.add_argument("--frames", type=int, default=6)
     parser.add_argument("--max-events", type=int, default=0, help="0 means continue until interrupted")
     parser.add_argument("--timeout", type=float, default=20.0)
+    parser.add_argument("--module-wait-seconds", type=float, default=300.0, help="maximum wait for Eden's application module after attach")
+    parser.add_argument("--module-poll-interval", type=float, default=1.0, help="seconds between startup module/thread probes")
     args = parser.parse_args()
 
     if not 32 <= args.signature_length <= 64:
         parser.error("--signature-length must be between 32 and 64")
-    if args.frames < 1 or args.chunk_size < 1 or args.max_scan_bytes < 1 or args.scan_delay < 0:
-        parser.error("frames, chunk size, scan cap, and scan delay must be non-negative (frames/chunk/cap positive)")
+    if (args.frames < 1 or args.chunk_size < 1 or args.max_scan_bytes < 1 or args.scan_delay < 0
+            or args.module_wait_seconds <= 0 or args.module_poll_interval <= 0):
+        parser.error("frames/chunk/cap/module wait/poll interval must be positive; scan delay must be non-negative")
     if not args.file.is_file():
         raise TraceError(f"Table file not found: {args.file}")
     if not args.gdb or not Path(args.gdb).exists():
@@ -477,6 +539,8 @@ def main() -> int:
 
     args.event_log.parent.mkdir(parents=True, exist_ok=True)
     gdb = GdbMi(args.gdb, args.timeout, args.rsp_log)
+    attached = False
+    detached = False
     try:
         gdb.ok('-gdb-set pagination off')
         gdb.ok('-gdb-set confirm off')
@@ -485,6 +549,9 @@ def main() -> int:
         if args.rsp_log:
             # Enable logging before target-select so the handshake is captured.
             gdb.ok("-gdb-set debug remote 1")
+        # A target-select failure may still follow acceptance by a one-shot
+        # stub, so cleanup must make a release attempt even on a bad reply.
+        attached = True
         result, _ = gdb.command(f'-target-select remote {args.host}:{args.port}', timeout=args.timeout)
         if not result.startswith("^connected"):
             raise TraceError(f"GDB remote connection did not succeed: {result}")
@@ -496,14 +563,11 @@ def main() -> int:
         scan_chunk = min(args.chunk_size, safe_read_size(packet_size))
         print(f"RSP qSupported raw reply: {qsupported.strip()}; scan reads <=0x{scan_chunk:x} bytes with {args.scan_delay:g}s pacing", flush=True)
 
-        info = gdb.console("monitor get info")
-        try:
-            base, module_name = parse_modules(info, args.module_name)
-        except TraceError as exc:
-            # Keep the emulator-specific monitor response visible on failure;
-            # forks can format module ranges differently from suyu.
-            excerpt = "\n".join(info.splitlines()[:40]) or "<empty monitor response>"
-            raise TraceError(f"{exc}. Raw monitor get info response:\n{excerpt}") from exc
+        max_module_polls = max(1, int(args.module_wait_seconds / args.module_poll_interval))
+        base, module_name = wait_for_main_module(
+            gdb, args.module_name, max_module_polls, args.module_poll_interval,
+        )
+        print(f"Found startup module {module_name} at 0x{base:x}; continuing with independent build-byte validation.", flush=True)
         validated_functions = []
         for fid_text, fid, size, expected_bytes in validations:
             runtime_check = base + fid
@@ -564,6 +628,18 @@ def main() -> int:
                     break
                 input("Watchpoint hit. Press Enter to continue, or Ctrl-C to stop: ")
     finally:
+        if attached and not detached:
+            outcome = resume_and_detach(gdb)
+            detached = "detach=success" in outcome
+            cleanup = f"Post-attach cleanup (best-effort resume/detach): {outcome}"
+            print(cleanup, flush=True)
+            try:
+                progress = ROOT / "work/progress/trace.log"
+                progress.parent.mkdir(parents=True, exist_ok=True)
+                with progress.open("a", encoding="utf-8") as stream:
+                    stream.write(f"{dt.datetime.now().astimezone().isoformat()} {cleanup}\n")
+            except OSError as exc:
+                print(f"Could not append cleanup outcome to progress log: {exc}", file=sys.stderr, flush=True)
         gdb.close()
     return 0
 
