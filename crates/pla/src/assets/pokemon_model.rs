@@ -9,6 +9,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+const TRMBF_VERTEX_OFFSET: usize = 0x44;
+
 #[derive(Debug, Clone)]
 pub struct PokemonTexture {
     pub entry_index: usize,
@@ -21,6 +23,8 @@ pub struct PokemonMaterial {
     pub entry_index: usize,
     pub references: Vec<String>,
     pub parsed: tr::TrMtr,
+    /// Decoded material bytes are retained for sized, length-prefixed property readback.
+    pub raw_bytes: Vec<u8>,
     /// `(material role, BNTX internal name)` links; only exact normalized stem
     /// matches are included. Missing/ambiguous links remain absent.
     pub texture_links: Vec<(String, String)>,
@@ -30,6 +34,8 @@ pub struct PokemonMaterial {
 pub struct PokemonLodMesh {
     pub entry_index: usize,
     pub name: String,
+    /// TRMSH `SubMesh.AppliedMaterial`, preserved as authored.
+    pub material_binding: String,
     pub shape_index: usize,
     pub lod: Option<u32>,
     pub buffer_entry_index: usize,
@@ -66,6 +72,100 @@ pub struct PokemonModel {
     pub textures: Vec<PokemonTexture>,
     pub clips: Vec<PokemonClip>,
     pub diagnostics: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayerBlendFormula {
+    /// Hypothesis: albedo multiplied by the clamped weighted sum of mask layers.
+    WeightedSum,
+    /// Hypothesis: sequentially lerp albedo toward albedo times each layer color.
+    SequentialLerp,
+}
+
+/// Compose an offline base-color texture from the observed albedo and layer mask.
+/// Neither formula is claimed to match the game's native shader.
+pub fn bake_layered_base_color(
+    albedo: &bntx::TextureData,
+    mask: &bntx::TextureData,
+    layers: &[[f32; 4]; 4],
+    formula: LayerBlendFormula,
+) -> Result<bntx::TextureData, String> {
+    let expected = (albedo.width as usize)
+        .checked_mul(albedo.height as usize)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or("layered texture size overflow")?;
+    let mask_expected = (mask.width as usize)
+        .checked_mul(mask.height as usize)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or("layer-mask texture size overflow")?;
+    if albedo.rgba.len() != expected || mask.rgba.len() != mask_expected {
+        return Err("albedo or layer-mask payload size mismatch".into());
+    }
+    if albedo.width == 0 || albedo.height == 0 || mask.width == 0 || mask.height == 0 {
+        return Err("albedo or layer-mask dimensions are zero".into());
+    }
+    if layers.iter().flatten().any(|value| !value.is_finite()) {
+        return Err("non-finite material layer color".into());
+    }
+    let mut rgba = vec![0; expected];
+    for (pixel, output) in rgba.chunks_exact_mut(4).enumerate() {
+        let x = pixel % albedo.width as usize;
+        let y = pixel / albedo.width as usize;
+        let mask_x = ((2 * x + 1) * mask.width as usize / (2 * albedo.width as usize))
+            .min(mask.width as usize - 1);
+        let mask_y = ((2 * y + 1) * mask.height as usize / (2 * albedo.height as usize))
+            .min(mask.height as usize - 1);
+        let offset = pixel * 4;
+        let mask_offset = (mask_y * mask.width as usize + mask_x) * 4;
+        let source = albedo.rgba[offset..offset + 4]
+            .iter()
+            .map(|value| srgb_to_linear(f32::from(*value) / 255.0))
+            .collect::<Vec<_>>();
+        let weights = mask.rgba[mask_offset..mask_offset + 4]
+            .iter()
+            .map(|value| f32::from(*value) / 255.0)
+            .collect::<Vec<_>>();
+        for channel in 0..3 {
+            let result = match formula {
+                LayerBlendFormula::WeightedSum => {
+                    let color = (0..4)
+                        .map(|layer| weights[layer] * layers[layer][channel])
+                        .sum::<f32>()
+                        .clamp(0.0, 1.0);
+                    source[channel] * color
+                }
+                LayerBlendFormula::SequentialLerp => {
+                    (0..4).fold(source[channel], |current, layer| {
+                        let target = source[channel] * layers[layer][channel];
+                        current + (target - current) * weights[layer].clamp(0.0, 1.0)
+                    })
+                }
+            };
+            output[channel] = (linear_to_srgb(result.clamp(0.0, 1.0)) * 255.0).round() as u8;
+        }
+        output[3] = albedo.rgba[offset + 3];
+    }
+    Ok(bntx::TextureData {
+        width: albedo.width,
+        height: albedo.height,
+        rgba,
+    })
+}
+
+fn srgb_to_linear(value: f32) -> f32 {
+    if value <= 0.04045 {
+        value / 12.92
+    } else {
+        ((value + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+fn linear_to_srgb(value: f32) -> f32 {
+    if value <= 0.0031308 {
+        value * 12.92
+    } else {
+        1.055 * value.powf(1.0 / 2.4) - 0.055
+    }
 }
 
 #[derive(Debug)]
@@ -116,6 +216,7 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
                 entry_index,
                 references: entry.references.clone(),
                 parsed,
+                raw_bytes: entry.bytes.clone(),
                 texture_links: Vec::new(),
             }),
             Err(error) => {
@@ -231,13 +332,62 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
         for shape_index in 0..shape_count {
             match tr::TrMbf::parse_skin_shape(&buffer.bytes, &entry.bytes, shape_index) {
                 Ok(mesh) => {
-                    let name = flatbuffer_vector_element(&entry.bytes, 1, shape_index)
+                    let shape_name = flatbuffer_vector_element(&entry.bytes, 1, shape_index)
                         .and_then(|shape_at| flatbuffer_string_field(&entry.bytes, shape_at, 0))
                         .unwrap_or_else(|| format!("{}#shape{shape_index}", stem(&mesh_file)));
-                    meshes.push(PokemonLodMesh {
-                    entry_index, name, shape_index, lod: lod_number(&mesh_file),
-                    buffer_entry_index, mesh, buffer_bytes: buffer.bytes.clone(), mesh_bytes: entry.bytes.clone(), material_entry_index,
-                    })
+                    let submeshes = match shape_submeshes(&entry.bytes, shape_index) {
+                        Some(submeshes) if !submeshes.is_empty() => submeshes,
+                        _ => {
+                            diagnostics.push(format!(
+                                "mesh {mesh_file} shape {shape_index}: submesh/material records unavailable"
+                            ));
+                            continue;
+                        }
+                    };
+                    for (submesh_index, submesh) in submeshes.into_iter().enumerate() {
+                        let end = match submesh.index_offset.checked_add(submesh.index_count) {
+                            Some(end) if end <= mesh.indices.len() => end,
+                            _ => {
+                                diagnostics.push(format!(
+                                    "mesh {mesh_file} shape {shape_index} submesh {submesh_index}: index range outside shape"
+                                ));
+                                continue;
+                            }
+                        };
+                        if submesh.index_count == 0 || !submesh.index_count.is_multiple_of(3) {
+                            diagnostics.push(format!(
+                                "mesh {mesh_file} shape {shape_index} submesh {submesh_index}: unsupported triangle index count {}",
+                                submesh.index_count
+                            ));
+                            continue;
+                        }
+                        let (submesh_data, submesh_buffer) = match compact_submesh(
+                            &mesh,
+                            &buffer.bytes,
+                            &mesh.indices[submesh.index_offset..end],
+                        ) {
+                            Ok(compacted) => compacted,
+                            Err(error) => {
+                                diagnostics.push(format!(
+                                    "mesh {mesh_file} shape {shape_index} submesh {submesh_index}: {error}"
+                                ));
+                                continue;
+                            }
+                        };
+                        let name = format!("{shape_name}#{}", submesh.applied_material);
+                        meshes.push(PokemonLodMesh {
+                            entry_index,
+                            name,
+                            material_binding: submesh.applied_material,
+                            shape_index,
+                            lod: lod_number(&mesh_file),
+                            buffer_entry_index,
+                            mesh: submesh_data,
+                            buffer_bytes: submesh_buffer,
+                            mesh_bytes: entry.bytes.clone(),
+                            material_entry_index,
+                        });
+                    }
                 },
                 Err(error) => diagnostics.push(format!("mesh {mesh_file} shape {shape_index} entry {entry_index} / buffer entry {buffer_entry_index}: {error}")),
             }
@@ -300,7 +450,7 @@ pub fn write_static_lod(
         .find(|mesh| mesh.name == mesh_name)
         .ok_or("mesh name is not assembled")?;
     let mut export = gltf_export::GltfExport::default();
-    let material_index = add_static_material(model, mesh, &mut export, gltf_path.as_ref())?;
+    let material_index = add_static_material(model, mesh, &mut export, gltf_path.as_ref(), None)?;
     export.primitives.push(gltf_export::primitive_from_tr(
         &mesh.name,
         &mesh.mesh,
@@ -319,7 +469,7 @@ pub fn write_static_lod_level(
 ) -> Result<(), String> {
     let mut export = gltf_export::GltfExport::default();
     for mesh in model.meshes.iter().filter(|mesh| mesh.lod == Some(lod)) {
-        let material = add_static_material(model, mesh, &mut export, gltf_path.as_ref())?;
+        let material = add_static_material(model, mesh, &mut export, gltf_path.as_ref(), None)?;
         export.primitives.push(gltf_export::primitive_from_tr(
             &mesh.name,
             &mesh.mesh,
@@ -331,6 +481,33 @@ pub fn write_static_lod_level(
     if export.primitives.is_empty() {
         return Err(format!("LOD {lod} has no parsed shapes"));
     }
+    add_mesh_nodes(&mut export, None, None)?;
+    export.write(gltf_path)
+}
+
+/// Export a complete LOD using one explicitly hypothetical layered-color bake.
+pub fn write_static_lod_level_baked(
+    model: &PokemonModel,
+    lod: u32,
+    gltf_path: impl AsRef<Path>,
+    formula: LayerBlendFormula,
+) -> Result<(), String> {
+    let mut export = gltf_export::GltfExport::default();
+    for mesh in model.meshes.iter().filter(|mesh| mesh.lod == Some(lod)) {
+        let material =
+            add_static_material(model, mesh, &mut export, gltf_path.as_ref(), Some(formula))?;
+        export.primitives.push(gltf_export::primitive_from_tr(
+            &mesh.name,
+            &mesh.mesh,
+            &mesh.buffer_bytes,
+            None,
+            material,
+        )?);
+    }
+    if export.primitives.is_empty() {
+        return Err(format!("LOD {lod} has no parsed shapes"));
+    }
+    add_mesh_nodes(&mut export, None, None)?;
     export.write(gltf_path)
 }
 
@@ -415,7 +592,94 @@ pub fn write_skinned_lod(
         clip_name.to_owned(),
         gltf_export::animation_tracks_from_tr(skeleton, clip)?,
     ));
+    let root = export.skins.first().and_then(|skin| skin.skeleton);
+    add_mesh_nodes(&mut export, Some(0), root)?;
     export.write(gltf_path)
+}
+
+/// Export every parsed shape in an LOD with the same parsed skeleton and clip.
+pub fn write_skinned_lod_level(
+    model: &PokemonModel,
+    lod: u32,
+    clip_name: &str,
+    gltf_path: impl AsRef<Path>,
+    formula: Option<LayerBlendFormula>,
+) -> Result<(), String> {
+    let skeleton = model.skeleton.as_ref().ok_or_else(|| {
+        format!(
+            "pack has no supported parsed skeleton: {}",
+            model
+                .skeleton_parse_error
+                .as_deref()
+                .unwrap_or("unknown reason")
+        )
+    })?;
+    if skeleton.bind_count == 0 || model.bind_records.is_empty() {
+        return Err("skinned export requires authored bind records".into());
+    }
+    let clip = model
+        .clips
+        .iter()
+        .find(|clip| clip.name == clip_name)
+        .ok_or("clip name is not assembled")?;
+    let clip = clip
+        .parsed
+        .as_ref()
+        .map_err(|error| format!("clip {clip_name}: {error}"))?;
+    let mut export = gltf_export::GltfExport::default();
+    let mut primitive_count = 0;
+    for mesh in model.meshes.iter().filter(|mesh| mesh.lod == Some(lod)) {
+        let material = add_static_material(model, mesh, &mut export, gltf_path.as_ref(), formula)?;
+        export.primitives.push(gltf_export::primitive_from_tr(
+            &mesh.name,
+            &mesh.mesh,
+            &mesh.buffer_bytes,
+            Some(skeleton),
+            material,
+        )?);
+        primitive_count += 1;
+    }
+    if primitive_count == 0 {
+        return Err(format!("LOD {lod} has no parsed shapes"));
+    }
+    let (nodes, skin) = gltf_export::skeleton_from_tr(skeleton, &model.bind_records, 0, 0)?;
+    export.nodes = nodes;
+    export.skins.push(skin);
+    export.animations.push((
+        clip_name.to_owned(),
+        gltf_export::animation_tracks_from_tr(skeleton, clip)?,
+    ));
+    let root = export.skins.first().and_then(|skin| skin.skeleton);
+    add_mesh_nodes(&mut export, Some(0), root)?;
+    export.write(gltf_path)
+}
+
+fn add_mesh_nodes(
+    export: &mut gltf_export::GltfExport,
+    skin: Option<usize>,
+    parent: Option<usize>,
+) -> Result<(), String> {
+    for mesh in 0..export.primitives.len() {
+        let node_index = export.nodes.len();
+        export.nodes.push(gltf_export::GltfNode {
+            name: export.primitives[mesh].name.clone(),
+            children: Vec::new(),
+            mesh: Some(mesh),
+            skin,
+            translation: [0.0; 3],
+            rotation: [0.0, 0.0, 0.0, 1.0],
+            scale: [1.0; 3],
+        });
+        if let Some(parent) = parent {
+            export
+                .nodes
+                .get_mut(parent)
+                .ok_or("mesh parent node is outside export node table")?
+                .children
+                .push(node_index);
+        }
+    }
+    Ok(())
 }
 
 fn save_texture(
@@ -456,6 +720,7 @@ fn add_static_material(
     mesh: &PokemonLodMesh,
     export: &mut gltf_export::GltfExport,
     gltf_path: &Path,
+    formula: Option<LayerBlendFormula>,
 ) -> Result<Option<usize>, String> {
     let material = mesh
         .material_entry_index
@@ -467,14 +732,13 @@ fn add_static_material(
             .filter(|(role, _)| role == "BaseColorMap")
             .map(|(_, name)| name)
             .collect::<Vec<_>>();
-        let hint = if mesh.name.contains("eye") {
-            "_eye_alb"
-        } else if mesh.name.contains("sippo") {
-            "_body_b_alb"
-        } else if mesh.name.contains("body") || mesh.name.contains("tongue") {
-            "_body_a_alb"
-        } else {
-            ""
+        let binding = mesh.material_binding.to_ascii_lowercase();
+        let hint = match binding.as_str() {
+            "l_eye" | "r_eye" => "_eye_alb",
+            "body_a" => "_body_a_alb",
+            "body_b" => "_body_b_alb",
+            "body_c" => "_body_c_alb",
+            _ => "",
         };
         textures
             .iter()
@@ -492,7 +756,12 @@ fn add_static_material(
             .iter()
             .any(|texture| &texture.internal_name == *name)
     });
-    let base_uri = save_texture(model, base_name, gltf_path)?;
+    let base_uri = match (material, base_name, formula) {
+        (Some(material), Some(name), Some(formula)) => Some(save_baked_base_color(
+            model, material, name, formula, gltf_path,
+        )?),
+        (_, name, _) => save_texture(model, name, gltf_path)?,
+    };
     let normal_uri = save_texture(model, normal_name, gltf_path)?;
     let material_index = if base_uri.is_some() || normal_uri.is_some() {
         let index = export.materials.len();
@@ -506,6 +775,120 @@ fn add_static_material(
         None
     };
     Ok(material_index)
+}
+
+fn save_baked_base_color(
+    model: &PokemonModel,
+    material: &PokemonMaterial,
+    albedo_name: &str,
+    formula: LayerBlendFormula,
+    gltf_path: &Path,
+) -> Result<String, String> {
+    let base_files = material
+        .parsed
+        .textures
+        .iter()
+        .filter(|(_, role)| role == "BaseColorMap")
+        .map(|(file, _)| file)
+        .collect::<Vec<_>>();
+    let group = base_files
+        .iter()
+        .position(|file| normalized_stem(file) == normalized_stem(albedo_name))
+        .ok_or("albedo has no declared material group")?;
+    let mask_file = material
+        .parsed
+        .textures
+        .iter()
+        .filter(|(_, role)| role == "LayerMaskMap")
+        .nth(group)
+        .map(|(file, _)| file)
+        .ok_or("material group has no layer-mask texture")?;
+    let albedo = decoded_texture(model, albedo_name)?;
+    let mask = decoded_texture_by_file(model, mask_file)?;
+    let layers: [Option<[f32; 4]>; 4] = std::array::from_fn(|index| {
+        let property = format!("BaseColorLayer{}", index + 1);
+        named_vector4_values(&material.raw_bytes, &property)
+            .and_then(|values| values.get(group).copied())
+    });
+    let layers = layers
+        .into_iter()
+        .collect::<Option<Vec<_>>>()
+        .ok_or("material layer color count does not match texture groups")?;
+    let layers: [[f32; 4]; 4] = layers.try_into().map_err(|_| "invalid layer color count")?;
+    let baked = bake_layered_base_color(albedo, mask, &layers, formula)?;
+    let suffix = match formula {
+        LayerBlendFormula::WeightedSum => "weighted_sum",
+        LayerBlendFormula::SequentialLerp => "sequential_lerp",
+    };
+    let filename = format!("{albedo_name}_{suffix}.png");
+    let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));
+    baked
+        .save_png(&output.join(&filename))
+        .map_err(|error| error.to_string())?;
+    Ok(filename)
+}
+
+fn decoded_texture<'a>(
+    model: &'a PokemonModel,
+    internal_name: &str,
+) -> Result<&'a bntx::TextureData, String> {
+    let texture = model
+        .textures
+        .iter()
+        .find(|texture| texture.internal_name == internal_name)
+        .ok_or_else(|| format!("texture {internal_name} is not assembled"))?;
+    texture
+        .image
+        .as_ref()
+        .map_err(|error| format!("texture {internal_name}: {error}"))
+}
+
+fn decoded_texture_by_file<'a>(
+    model: &'a PokemonModel,
+    file: &str,
+) -> Result<&'a bntx::TextureData, String> {
+    let wanted = normalized_stem(file);
+    let texture = model
+        .textures
+        .iter()
+        .find(|texture| normalized_stem(&texture.internal_name) == wanted)
+        .ok_or_else(|| format!("texture file {file} is not assembled"))?;
+    texture
+        .image
+        .as_ref()
+        .map_err(|error| format!("texture {file}: {error}"))
+}
+
+fn named_vector4_values(bytes: &[u8], name: &str) -> Option<Vec<[f32; 4]>> {
+    let needle = name.as_bytes();
+    let mut values = Vec::new();
+    let mut search_from = 0;
+    while search_from < bytes.len() {
+        let Some(relative) = bytes[search_from..]
+            .windows(needle.len())
+            .position(|window| window == needle)
+        else {
+            break;
+        };
+        let at = search_from + relative;
+        if at < 24
+            || u32::from_le_bytes(bytes[at - 24..at - 20].try_into().ok()?) != 20
+            || u32::from_le_bytes(bytes[at - 4..at].try_into().ok()?) as usize != needle.len()
+        {
+            return None;
+        }
+        let mut vector = [0.0; 4];
+        for (index, value) in vector.iter_mut().enumerate() {
+            let start = at - 20 + index * 4;
+            *value = f32::from_le_bytes(bytes[start..start + 4].try_into().ok()?);
+        }
+        if vector.iter().any(|value| !value.is_finite()) {
+            return None;
+        }
+        values.push(vector);
+        search_from = at + needle.len();
+    }
+    Some(values)
 }
 
 fn referenced_names(bytes: &[u8]) -> Vec<String> {
@@ -588,6 +971,142 @@ fn root_vector_count(bytes: &[u8], field_index: usize) -> Option<usize> {
         u32::from_le_bytes(bytes.get(vector..vector.checked_add(4)?)?.try_into().ok()?) as usize;
     let end = vector.checked_add(4)?.checked_add(count.checked_mul(4)?)?;
     (end <= bytes.len()).then_some(count)
+}
+
+#[derive(Debug)]
+struct PokemonSubMesh {
+    index_count: usize,
+    index_offset: usize,
+    applied_material: String,
+}
+
+fn compact_submesh(
+    mesh: &tr::TrMbf,
+    buffer: &[u8],
+    indices: &[u16],
+) -> Result<(tr::TrMbf, Vec<u8>), String> {
+    if indices.is_empty() || mesh.vertex_stride == 0 {
+        return Err("empty submesh or zero vertex stride".into());
+    }
+    let source_vertices = mesh.vertices(buffer);
+    let used = indices.iter().copied().collect::<BTreeSet<_>>();
+    if used
+        .iter()
+        .any(|index| usize::from(*index) >= mesh.vertex_count)
+    {
+        return Err("submesh vertex index is outside its source mesh".into());
+    }
+    let remap = used
+        .iter()
+        .enumerate()
+        .map(|(new, old)| (*old, new as u16))
+        .collect::<BTreeMap<_, _>>();
+    let remapped_indices = indices
+        .iter()
+        .map(|index| remap.get(index).copied().ok_or("missing compacted vertex"))
+        .collect::<Result<Vec<_>, _>>()?;
+    let vertex_size = used
+        .len()
+        .checked_mul(mesh.vertex_stride)
+        .ok_or("compacted vertex payload size overflow")?;
+    let total_size = TRMBF_VERTEX_OFFSET
+        .checked_add(vertex_size)
+        .ok_or("compacted vertex buffer size overflow")?;
+    let mut compacted_buffer = vec![0; total_size];
+    compacted_buffer[0x28..0x2c].copy_from_slice(
+        &u32::try_from(vertex_size + 28)
+            .map_err(|_| "compacted size exceeds TR header")?
+            .to_le_bytes(),
+    );
+    compacted_buffer[0x40..0x44].copy_from_slice(
+        &u32::try_from(vertex_size)
+            .map_err(|_| "compacted payload exceeds TR header")?
+            .to_le_bytes(),
+    );
+    let mut output_offset = TRMBF_VERTEX_OFFSET;
+    for old in &used {
+        let source_offset = usize::from(*old) * mesh.vertex_stride;
+        let source = source_vertices
+            .get(source_offset..source_offset + mesh.vertex_stride)
+            .ok_or("source vertex record is out of range")?;
+        compacted_buffer[output_offset..output_offset + mesh.vertex_stride].copy_from_slice(source);
+        output_offset += mesh.vertex_stride;
+    }
+    let mut compacted = mesh.clone();
+    compacted.vertex_offset = TRMBF_VERTEX_OFFSET;
+    compacted.vertex_count = remap.len();
+    compacted.vertex_size = vertex_size;
+    compacted.indices = remapped_indices;
+    Ok((compacted, compacted_buffer))
+}
+
+fn shape_submeshes(bytes: &[u8], shape_index: usize) -> Option<Vec<PokemonSubMesh>> {
+    let shape = flatbuffer_vector_element(bytes, 1, shape_index)?;
+    flatbuffer_table_vector(bytes, shape, 4)?
+        .into_iter()
+        .map(|submesh| {
+            let index_count = flatbuffer_u32_field(bytes, submesh, 0)? as usize;
+            let index_offset = flatbuffer_u32_field(bytes, submesh, 1).unwrap_or(0) as usize;
+            let applied_material = flatbuffer_string_field(bytes, submesh, 3)?;
+            Some(PokemonSubMesh {
+                index_count,
+                index_offset,
+                applied_material,
+            })
+        })
+        .collect()
+}
+
+fn flatbuffer_table_vector(bytes: &[u8], table: usize, field_index: usize) -> Option<Vec<usize>> {
+    let vtable = table_vtable_offset(bytes, table)?;
+    let vsize =
+        u16::from_le_bytes(bytes.get(vtable..vtable.checked_add(2)?)?.try_into().ok()?) as usize;
+    let slot = vtable.checked_add(4 + field_index.checked_mul(2)?)?;
+    if slot + 2 > vtable + vsize {
+        return None;
+    }
+    let offset = u16::from_le_bytes(bytes.get(slot..slot + 2)?.try_into().ok()?) as usize;
+    if offset == 0 {
+        return None;
+    }
+    let field = table.checked_add(offset)?;
+    let vector = field.checked_add(u32::from_le_bytes(
+        bytes.get(field..field.checked_add(4)?)?.try_into().ok()?,
+    ) as usize)?;
+    let count =
+        u32::from_le_bytes(bytes.get(vector..vector.checked_add(4)?)?.try_into().ok()?) as usize;
+    if count > 4096 {
+        return None;
+    }
+    (0..count)
+        .map(|index| {
+            let element = vector.checked_add(4 + index.checked_mul(4)?)?;
+            element.checked_add(u32::from_le_bytes(
+                bytes
+                    .get(element..element.checked_add(4)?)?
+                    .try_into()
+                    .ok()?,
+            ) as usize)
+        })
+        .collect()
+}
+
+fn flatbuffer_u32_field(bytes: &[u8], table: usize, field_index: usize) -> Option<u32> {
+    let vtable = table_vtable_offset(bytes, table)?;
+    let vsize =
+        u16::from_le_bytes(bytes.get(vtable..vtable.checked_add(2)?)?.try_into().ok()?) as usize;
+    let slot = vtable.checked_add(4 + field_index.checked_mul(2)?)?;
+    if slot + 2 > vtable + vsize {
+        return None;
+    }
+    let offset = u16::from_le_bytes(bytes.get(slot..slot + 2)?.try_into().ok()?) as usize;
+    if offset == 0 {
+        return None;
+    }
+    let at = table.checked_add(offset)?;
+    Some(u32::from_le_bytes(
+        bytes.get(at..at.checked_add(4)?)?.try_into().ok()?,
+    ))
 }
 
 fn flatbuffer_vector_element(bytes: &[u8], root_field: usize, index: usize) -> Option<usize> {
@@ -735,4 +1254,53 @@ fn lod_number(name: &str) -> Option<u32> {
         .take_while(char::is_ascii_digit)
         .collect::<String>();
     digits.parse().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layered_color_formulas_keep_distinct_overlap_behavior() {
+        let albedo = bntx::TextureData {
+            width: 1,
+            height: 1,
+            rgba: vec![255, 255, 255, 255],
+        };
+        let mask = bntx::TextureData {
+            width: 1,
+            height: 1,
+            rgba: vec![128, 128, 0, 0],
+        };
+        let layers = [
+            [1.0, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            [1.0; 4],
+        ];
+        let sum = bake_layered_base_color(&albedo, &mask, &layers, LayerBlendFormula::WeightedSum)
+            .unwrap();
+        let lerp =
+            bake_layered_base_color(&albedo, &mask, &layers, LayerBlendFormula::SequentialLerp)
+                .unwrap();
+        assert_eq!(sum.rgba, [188, 188, 0, 255]);
+        assert_eq!(lerp.rgba, [187, 225, 136, 255]);
+    }
+
+    #[test]
+    fn material_layer_values_are_read_from_every_declared_group() {
+        let mut bytes = Vec::new();
+        for value in [0.25f32, 0.75] {
+            bytes.extend(20u32.to_le_bytes());
+            for component in [value, 0.0, 0.0, 1.0] {
+                bytes.extend(component.to_le_bytes());
+            }
+            bytes.extend(15u32.to_le_bytes());
+            bytes.extend(b"BaseColorLayer1\0");
+        }
+        assert_eq!(
+            named_vector4_values(&bytes, "BaseColorLayer1"),
+            Some(vec![[0.25, 0.0, 0.0, 1.0], [0.75, 0.0, 0.0, 1.0]])
+        );
+    }
 }

@@ -1,4 +1,7 @@
-use pla::assets::pokemon_model::{assemble_pack, write_skinned_lod, write_static_lod_level};
+use pla::assets::pokemon_model::{
+    assemble_pack, write_skinned_lod_level, write_static_lod_level, write_static_lod_level_baked,
+    LayerBlendFormula,
+};
 use std::{env, fs, path::PathBuf};
 
 fn main() -> Result<(), String> {
@@ -86,6 +89,16 @@ fn main() -> Result<(), String> {
             Err(error) => report.push_str(&format!("static_lod{lod}_export=failed: {error}\n")),
         }
     }
+    for (name, formula) in [
+        ("weighted_sum", LayerBlendFormula::WeightedSum),
+        ("sequential_lerp", LayerBlendFormula::SequentialLerp),
+    ] {
+        let output = out.join(format!("pikachu_lod0_{name}.gltf"));
+        match write_static_lod_level_baked(&model, 0, &output, formula) {
+            Ok(()) => report.push_str(&format!("layer_bake_{name}=ok\n")),
+            Err(error) => report.push_str(&format!("layer_bake_{name}=blocked:{error}\n")),
+        }
+    }
     for texture in &model.textures {
         if let Ok(image) = &texture.image {
             let filename = format!("{}.png", texture.internal_name.replace('/', "_"));
@@ -133,7 +146,13 @@ fn main() -> Result<(), String> {
         match matching {
             Some(clip) => {
                 let output = out.join(format!("pikachu_{wanted}.gltf"));
-                match write_skinned_lod(&model, "pm0025_00_00", &clip.name, &output) {
+                match write_skinned_lod_level(
+                    &model,
+                    0,
+                    &clip.name,
+                    &output,
+                    Some(LayerBlendFormula::WeightedSum),
+                ) {
                     Ok(()) => report.push_str(&format!("skinned_export={wanted}:ok\n")),
                     Err(error) => {
                         report.push_str(&format!("skinned_export={wanted}:blocked: {error}\n"))

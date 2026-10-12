@@ -1018,6 +1018,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn material_numeric_properties_follow_declared_value_sizes() {
+        let mut number_bytes = 8u32.to_le_bytes().to_vec();
+        number_bytes.extend(0.25f32.to_le_bytes());
+        number_bytes.extend(10u32.to_le_bytes());
+        number_bytes.extend(b"TestNumber\0");
+        assert_eq!(
+            TrMtr::default().number(&number_bytes, "TestNumber"),
+            Some(0.25)
+        );
+
+        let mut vector_bytes = 20u32.to_le_bytes().to_vec();
+        for component in [0.1f32, 0.2, 0.3, 1.0] {
+            vector_bytes.extend(component.to_le_bytes());
+        }
+        vector_bytes.extend(10u32.to_le_bytes());
+        vector_bytes.extend(b"TestVector\0");
+        assert_eq!(
+            TrMtr::default().vector4(&vector_bytes, "TestVector"),
+            Some([0.1, 0.2, 0.3, 1.0])
+        );
+    }
+
+    #[test]
     fn rejects_a_truncated_file() {
         assert!(TrMbf::parse(&[0u8; 8]).is_err());
         let mut bytes = vec![0u8; 0x50];
@@ -1268,32 +1291,31 @@ impl TrMtr {
         self.texture("BaseColorMap")
     }
 
-    /// A numeric property (the file stores it as a little-endian `f32`
-    /// immediately before its name, the same value-first layout the booleans
-    /// use).
+    /// A numeric property (the file stores an eight-byte size marker, a
+    /// little-endian `f32`, and then a length-prefixed property name).
     pub fn number(&self, bytes: &[u8], name: &str) -> Option<f32> {
         let needle = name.as_bytes();
         let at = bytes.windows(needle.len()).position(|w| w == needle)?;
-        if at < 4 {
+        if at < 12 || u32::from_le_bytes(bytes[at - 12..at - 8].try_into().ok()?) != 8 {
             return None;
         }
-        let value = f32::from_le_bytes(bytes[at - 4..at].try_into().ok()?);
+        let value = f32::from_le_bytes(bytes[at - 8..at - 4].try_into().ok()?);
         value.is_finite().then_some(value)
     }
 
     /// A four-float property such as `UVScaleOffset` (scale.xy + offset.xy).
     ///
-    /// Values are stored value-first, so the vector sits in the sixteen bytes
-    /// immediately before its name.
+    /// The serialized value is preceded by its byte size (20) and followed by
+    /// a length-prefixed property name.
     pub fn vector4(&self, bytes: &[u8], name: &str) -> Option<[f32; 4]> {
         let needle = name.as_bytes();
         let at = bytes.windows(needle.len()).position(|w| w == needle)?;
-        if at < 16 {
+        if at < 24 || u32::from_le_bytes(bytes[at - 24..at - 20].try_into().ok()?) != 20 {
             return None;
         }
         let mut out = [0.0f32; 4];
         for (i, slot) in out.iter_mut().enumerate() {
-            let o = at - 16 + i * 4;
+            let o = at - 20 + i * 4;
             *slot = f32::from_le_bytes(bytes[o..o + 4].try_into().ok()?);
         }
         out.iter().all(|v| v.is_finite()).then_some(out)
