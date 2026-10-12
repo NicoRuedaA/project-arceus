@@ -27,18 +27,14 @@ Zone id, player position and yaw, time slot, party (<= 6: dex id, form, level, c
 - Engine conversions: `PartyMember::from_combatant(&Combatant)`, `PartyMember::to_combatant(species, moves, nature_percent)` (stats recomputed from level + effort; HP, PP, status restored), `SavedStatus <-> MajorStatus`, `PlayerSave::bag_from_engine(&ItemBag, ids)`, `PlayerSave::bag_to_engine(&ItemTable)`.
 - Versioning: `CURRENT_VERSION = 2`; `migrate()` chains steps. v1 (members without form/effort) -> v2 is implemented and tested.
 
-## Wiring plan (for the viewer owner; not edited here)
-1. App setup: `app.insert_resource(game::save_game::SaveGame::from_env())`.
-2. Start-up: `SaveGame::load()`; if `Some`, apply zone (`--area`), player transform/yaw, time slot, spawn RNG seed, `ActiveBattleSession` bag via `bag_to_engine`, and rebuild the party with `to_combatant` (look up `BattleSpecies` by dex and `BattleMove` by id).
-3. Save triggers: a key (e.g. F5) in the world state, on zone change, and after `GameState::BattleEnded`. Build `PlayerSave` from the `PlayerAvatar` transform, `ActiveZoneInfo`, lighting time slot, the party `Combatant`s (`from_combatant`) and the bag (`bag_from_engine` with the `ItemTable` ids).
-4. After a successful catch/victory: update `caught`/`seen` sets and counters.
-5. HUD: show `SaveGame::message` for a few seconds.
+## Wiring (done in `crates/pla/src/game/save_wire.rs`)
+- `PlayerProgress` resource: party (<= 6), box list (memory only), bag map, money, seen/caught sets, defeated/caught counters, rng seed, time slot. Seeded with the demo party (Pikachu, Bidoof, Starly) and starter bag, or from the save.
+- Each battle: `install_party` rebuilds the player side from the saved members (HP, PP, status restored; fainted stay fainted; first living member leads; if all are fainted the party is restored, a placeholder for a village return); `engine_bag` and the rng seed are installed. Every frame `snapshot` + `apply_sync` mirror party and bag back; when the session disappears `apply_outcome` updates seen (on encounter), caught/caught_count (party if room else box), defeated (win), then autosaves.
+- Start-up (`load_startup`): zone, position (x/z), player yaw, time slot, party, bag, sets from `SaveGame::load` (message shown as a HUD toast). Explicit `--area`, `--player-pos`, `--time-slot` win over the save. Height is recomputed from terrain.
+- F5 saves in the world (refused during a battle); autosave after each battle and when `ActiveZoneInfo` changes (the viewer has no runtime zone change yet, so that path is untested live).
+- CLI: `--new-game` (ignore save), `--save-dir <path>` (sets `PLA_SAVE_DIR`), `--save-selftest` (evidence log).
+- Tests: 9 unit tests in `save_wire.rs` (temp dirs only), 4 use the real battle engine and data.
+- Evidence: one offscreen `--script` run with a temp save dir (`--new-game --save-selftest`): party before battle `#25 hp=78; #399 hp=92; #396 hp=64`, after `#25 hp=67; ...`, reloaded from the file identical. The reload was done in-process with a fresh file handle, not a second process.
 
-## Engine gaps (documented, not edited)
-- `ItemBag` has no iterator: saving needs the candidate id list (`ItemTable` ids).
-- `Combatant` has no form, nickname or nature id; the save keeps form/nickname but the engine cannot supply them yet. Nature percentages must be passed back in.
-- There is no persistent party type outside a battle; `ActiveBattleSession` builds `Combatant`s per battle, so the viewer must keep a party list to save.
-- Money, seen/caught sets, defeated counters and the time slot have no engine owner yet.
-
-## NOT done
-Viewer integration (no call sites edited), UI, multiple save slots, encryption, in-game quest/event flags (those belong to the script layer), live-engine round trip test (tests are pure and use temp dirs only), automatic migration of v1 files that never existed in the wild (v1 is a test fixture).
+## Still not done
+Box persistence (format has no box), form/nickname/nature from the engine, money income, runtime time-slot changes, saving mid-battle, multiple slots, windowed interactive check of F5/toast, encryption, quest/event flags.
