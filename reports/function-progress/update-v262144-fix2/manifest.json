@@ -341,7 +341,7 @@
       },
       {
         "path": "crates/pla/src/game/pokemon_anim.rs",
-        "sha256": "4f7d1279586ebbf89f80da8668fa50e5374cead5ddc54b5e1c5bc2a74c14429f"
+        "sha256": "06e447c5d4d766c5e25c0ac4159cf93f2af9374eb7b736f72e7ae20bc43d3bbd"
       },
       {
         "path": "crates/pla/src/game/save_game.rs",
@@ -429,7 +429,7 @@
       },
       {
         "path": "crates/pla/tests/pokemon_anim.rs",
-        "sha256": "d1e9970313491547b112237b8612bff567b859544626a9a72454f22dd5d59c9a"
+        "sha256": "69001144f24de2c4757c7434c263631947ff18651967ea8e3b9ae5d89f802575"
       },
       {
         "path": "crates/pla/tests/port_camera.rs",
@@ -493,7 +493,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "1e7e5de860f435af320422295917788edaed8f5c401284401a00d5b9547c225a"
+    "sha256": "2517f8f3598adc75480313ddea2d13063107d2cf81ebffa938a6b2586f60c2c4"
   },
   "state_partitions": {
     "analysis_documentation_status": {
