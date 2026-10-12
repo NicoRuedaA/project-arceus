@@ -35,7 +35,7 @@ fn main() {
     let dir = root.join("archive/field/terrain");
     let mut packs: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(Result::ok).map(|e| e.path()).collect();
     packs.sort();
-    let mut summary = String::from("pack\tmeshes\tfaces\tedges\tvertices\tmin_x\tmin_y\tmin_z\tmax_x\tmax_y\tmax_z\n");
+    let mut summary = String::from("# sheet: data/field/navmesh_summary\n# version: 1\n# generator: crates/pla/examples/navmesh_report.rs\n# target: Pokémon Legends: Arceus update v262144 Havok navmesh pack summary (bounds in world units; flag/face-data meaning unknown)\npack:string*\tmeshes:u32\tfaces:u32\tedges:u32\tvertices:u32\tmin_x:f64\tmin_y:f64\tmin_z:f64\tmax_x:f64\tmax_y:f64\tmax_z:f64\n");
     let (mut total_packs, mut total_meshes, mut total_faces) = (0, 0usize, 0usize);
     let mut flag_hist: BTreeMap<u8, usize> = BTreeMap::new();
     let mut face_data_hist: BTreeMap<i32, usize> = BTreeMap::new();

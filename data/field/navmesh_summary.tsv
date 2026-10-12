@@ -1,4 +1,8 @@
-pack	meshes	faces	edges	vertices	min_x	min_y	min_z	max_x	max_y	max_z
+# sheet: data/field/navmesh_summary
+# version: 1
+# generator: crates/pla/examples/navmesh_report.rs
+# target: Pokémon Legends: Arceus update v262144 Havok navmesh pack summary (bounds in world units; flag/face-data meaning unknown)
+pack:string*	meshes:u32	faces:u32	edges:u32	vertices:u32	min_x:f64	min_y:f64	min_z:f64	max_x:f64	max_y:f64	max_z:f64
 ha_area00#0	2	24177	81513	30968	7.77	1.06	3.94	1024.33	155.92	1024.33
 ha_area00#1	2	484	1880	915	263.08	59.31	453.42	1017.30	60.17	713.66
 ha_area00_s01#0	1	367	1482	707	16.58	4.48	62.73	75.39	21.91	87.55
