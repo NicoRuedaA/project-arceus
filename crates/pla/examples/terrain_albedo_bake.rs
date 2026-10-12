@@ -1,8 +1,10 @@
 //! Dump decoded terrain textures (raw RGBA8 / f32 + sizes) for one area.
 //! Usage: terrain_albedo_bake --bin-root BIN --area N --out DIR   (raw dump)
-//!        terrain_albedo_bake --bin-root BIN --area N|all --bake WORK_ROOT [--size 2048] [--mean]
+//!        terrain_albedo_bake --bin-root BIN --area N|all --bake WORK_ROOT [--size 4096] [--mean] [--overrides DIR] [--skip-if-unchanged]
 use pla::assets::terrain::TerrainArea;
-use pla::assets::terrain_albedo::{albedo_cache_path, bake_albedo};
+use pla::assets::terrain_albedo::{
+    albedo_cache_path, bake_area_to_cache, BakeOptions, BakeOutcome, DEFAULT_BAKE_SIZE, OVERRIDE_SUBDIR,
+};
 use std::{env, fs, path::PathBuf};
 
 fn main() {
@@ -11,15 +13,28 @@ fn main() {
     let bin = get("--bin-root").expect("--bin-root");
     let area: u8 = if a.iter().any(|x| x == "all") { 0 } else { area_arg(&a) };
     if let Some(work) = get("--bake") {
-        // --bake WORK_ROOT [--size 2048] [--mean]  (areas via --area N or --area all)
-        let size: u32 = get("--size").map(|v| v.parse().unwrap()).unwrap_or(2048);
+        // --bake WORK_ROOT [--size 4096] [--mean] [--overrides DIR] [--skip-if-unchanged]
+        let size: u32 = get("--size").map(|v| v.parse().unwrap()).unwrap_or(DEFAULT_BAKE_SIZE);
         let areas: Vec<u8> = if a.iter().any(|x| x == "all") { (0..=6).collect() } else { vec![area_arg(&a)] };
+        let override_dir = get("--overrides").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(&work).join(OVERRIDE_SUBDIR));
+        let opts = BakeOptions {
+            size,
+            detail: !a.iter().any(|x| x == "--mean"),
+            override_dir: override_dir.is_dir().then_some(override_dir),
+            threads: 0,
+        };
+        let skip = a.iter().any(|x| x == "--skip-if-unchanged");
         for ar in areas {
             let t = TerrainArea::load(&bin, ar).expect("load");
-            let img = bake_albedo(&t, size, !a.iter().any(|x| x == "--mean")).expect("bake");
-            let p = albedo_cache_path(&work, ar);
-            img.save_png(&p).unwrap();
-            eprintln!("wrote {}", p.display());
+            let started = std::time::Instant::now();
+            match bake_area_to_cache(&t, std::path::Path::new(&work), &opts, skip).expect("bake") {
+                BakeOutcome::Skipped => eprintln!("area{ar:02}: unchanged, skipped"),
+                BakeOutcome::Baked => eprintln!(
+                    "wrote {} ({size}px, {:.1}s)",
+                    albedo_cache_path(&work, ar).display(),
+                    started.elapsed().as_secs_f32()
+                ),
+            }
         }
         return;
     }

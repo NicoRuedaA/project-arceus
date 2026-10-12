@@ -229,6 +229,36 @@ impl TerrainArea {
         Self::load_pack(&source_path, area)
     }
 
+    /// Decode the per-layer normal maps (`SplatNormal<k>` slots, BC5) from the area pack.
+    /// Returns `(file_name, role, texture)`; slots missing from the pack are skipped.
+    pub fn load_layer_normals(&self) -> Result<Vec<(String, String, TextureData)>, String> {
+        let Some(material) = &self.material else { return Ok(Vec::new()) };
+        let bytes = std::fs::read(&self.source_path)
+            .map_err(|e| format!("read terrain pack {}: {e}", self.source_path.display()))?;
+        let pack = GfPak::parse(&bytes)?;
+        let pack_prefix = format!("bin/field/terrain/ha_area{:02}/terrain/", self.area);
+        let mut out = Vec::new();
+        for (file_name, role) in &material.slots.textures {
+            if !role.starts_with("SplatNormal") {
+                continue;
+            }
+            let stem = file_name
+                .strip_suffix(".bntx")
+                .or_else(|| file_name.strip_suffix(".BNTX"))
+                .unwrap_or(file_name);
+            let Some(entry_index) = pack.entry_index_by_path(&format!("{pack_prefix}{stem}.bntx"))? else {
+                continue;
+            };
+            let decoded = pack.decoded_data(&bytes, &pack.entries[entry_index])?;
+            let bntx = Bntx::parse(&decoded)?;
+            let Some(texture_index) = bntx.textures.iter().position(|t| t.name == stem) else {
+                continue;
+            };
+            out.push((file_name.clone(), role.clone(), bntx.decode(&decoded, texture_index)?));
+        }
+        Ok(out)
+    }
+
     /// Load from one archive path. Kept public for fixture-based tests/tools.
     pub fn load_pack(path: impl AsRef<Path>, area: u8) -> Result<Self, String> {
         if area > 6 {
