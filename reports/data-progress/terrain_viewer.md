@@ -7,7 +7,7 @@
 - `TerrainMeshSettings` is resolved from each descriptor as `extent_x / (sample_count - 1)` horizontally and `H` vertically; no provisional scale is used. Callers can still explicitly override either scale. Mesh coordinates retain the corner origin.
 - `terrain::instances(area)` exposes `.trins` records as model name, filename X/Z grid cell, and 4×4 row-vector matrix (translation in row 3). Matrices are found by scanning aligned 64-byte windows for the row-vector identity constraints, finite values, positive translation y, and plausible terrain x/z. The optional real-data test checked all 6,211 transforms in areas 00–05 against the normalized heightmap using x=column, z=row, bilinear sampling, and `H`: every instance is within 2 descriptor units of the surface. Counts are area00=60, area01=1,430, area02=2,204, area03=788, area04=901, and area05=828. This independently validates the transform for those areas; it does not establish general placement semantics for other objects.
 - The same game-data-optional test checks 1025-unit extents and per-area `H` for all seven maps. Its documented Havok heuristic examines `TAG0` payloads for the longest contiguous 16-byte `(x,y,z,w)` vector run, with finite coordinates, x/z in `[0,5000]`, `|y| <= 5000`, and w within 0.001 of 0 or 1. Full-area runs in areas 00–05 span within 1% of the terrain extent; their maximum y is between 95% and 101% of `heightmap_max * H`. Area06 has an interior candidate run but no full-span run, so its navmesh cross-check is reported as unknown rather than used to reject the descriptor scale.
-- The path-resolved terrain material is loaded directly, including area06; its 17 material slots are available. Splat-channel-to-ground-texture binding is still an unverified hypothesis. Vegetation/detail masks are resolved from descriptor names and hashes; their semantics remain unknown.
+- The path-resolved terrain material is loaded directly, including area06; its 17 material slots are available. Splat-channel-to-ground-texture binding: the earlier RGBA-only hypothesis is superseded by [terrain_albedo.md](terrain_albedo.md) (8 channels over a 2-layer array). Vegetation/detail masks are resolved from descriptor names and hashes; their semantics remain unknown.
 - `terrain_viewer --screenshot-dir DIR` writes three 1024² CPU shaded-relief previews per area, marking each parsed `.trins` instance as a magenta dot, plus a CPU elevation profile along x through the middle z row. These are map previews, not camera screenshots or proof of Bevy/GPU rendering. The interactive Bevy viewer remains opt-in via `--interactive`; no visible window was used for capture.
 
 ## Evidence and limits
@@ -28,6 +28,6 @@ All heavy commands use the repository's 6 GiB systemd scope, `CARGO_BUILD_JOBS=3
 
 ## Remaining unknowns
 
-1. Prove or reject the `SplatColor0..3` to RGBA channel hypothesis and identify intended lighting.
+1. Confirm the 8-channel splat mapping against the game's own rendering (see terrain_albedo.md) and identify intended lighting.
 2. Decode detail-mask semantics and broader object placement; `.trins` model/transform evidence does not cover every game object.
 3. Compare decoded normal maps quantitatively with height-derived normals.

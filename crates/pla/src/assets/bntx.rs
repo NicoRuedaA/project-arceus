@@ -380,7 +380,7 @@ impl BntxTexture {
     /// Decode mip 0 of a single-channel R16_FLOAT or R32_FLOAT texture.
     pub fn decode_f32(&self, bytes: &[u8]) -> Result<FloatTextureData, String> {
         let bytes_per_pixel = match self.format {
-            BntxFormat::R16Float => 2usize,
+            BntxFormat::R16Float | BntxFormat::R16Unorm => 2usize,
             BntxFormat::R32Float => 4usize,
             _ => {
                 return Err(format!(
@@ -434,6 +434,10 @@ impl BntxTexture {
                 .chunks_exact(2)
                 .map(|raw| half_to_f32(u16::from_le_bytes([raw[0], raw[1]])))
                 .collect(),
+            BntxFormat::R16Unorm => linear[..required]
+                .chunks_exact(2)
+                .map(|raw| u16::from_le_bytes([raw[0], raw[1]]) as f32 / 65535.0)
+                .collect(),
             BntxFormat::R32Float => linear[..required]
                 .chunks_exact(4)
                 .map(|raw| f32::from_le_bytes(raw.try_into().unwrap()))
@@ -447,9 +451,26 @@ impl BntxTexture {
         })
     }
 
-    /// Decode mip 0 to tightly packed RGBA8.
+    /// Decode mip 0 of array layer 0 to tightly packed RGBA8.
     pub fn decode(&self, bytes: &[u8]) -> Result<TextureData, String> {
+        self.decode_layer(bytes, 0)
+    }
+
+    /// Decode mip 0 of array layer `layer` to tightly packed RGBA8. Layers
+    /// after the first are only addressed for single-mip arrays (the terrain
+    /// splat control arrays), where each layer is `grid_w * grid_h * bpb` bytes.
+    pub fn decode_layer(&self, bytes: &[u8], layer: u32) -> Result<TextureData, String> {
         let (bw, bh, bpb) = self.format.block();
+        if layer >= self.array_count.max(1) {
+            return Err(format!("array layer {layer} out of range"));
+        }
+        if layer > 0 && self.mip_count > 1 {
+            return Err("array layers beyond 0 are only supported for single-mip textures".into());
+        }
+        let layer_bytes = (self.width.div_ceil(bw) as usize)
+            * (self.height.div_ceil(bh) as usize)
+            * bpb as usize;
+        let layer_base = layer as usize * layer_bytes;
         if bpb == 0 {
             return Err(format!("unsupported format {:#x}", self.format.code()));
         }
@@ -493,7 +514,7 @@ impl BntxTexture {
             let mut channels = [0u8; 64];
             for by in 0..grid_h {
                 for bx in 0..grid_w {
-                    let off = ((by * grid_w + bx) * bpb) as usize;
+                    let off = layer_base + ((by * grid_w + bx) * bpb) as usize;
                     if off + bpb as usize > linear.len() {
                         return Err(format!("block {bx},{by} out of range"));
                     }
@@ -554,7 +575,7 @@ impl BntxTexture {
             // Uncompressed: bpb bytes per pixel.
             for y in 0..height {
                 for x in 0..width {
-                    let s = ((y * width + x) * bpb) as usize;
+                    let s = layer_base + ((y * width + x) * bpb) as usize;
                     if s + bpb as usize > linear.len() {
                         return Err("pixel out of range".into());
                     }
