@@ -73,7 +73,7 @@
     "port.png": "ce2ee67b5cef89051213a395735c8979a4d11df2c99c2117882f9eeed6bae0a4"
   },
   "rust_source_fingerprint": {
-    "file_count": 52,
+    "file_count": 57,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -81,7 +81,7 @@
       },
       {
         "path": "crates/pla/examples/anim_spike.rs",
-        "sha256": "08b0389feed445203ae1ec48d6138c3a09d7c8f0e498fa307b41edafee3accf0"
+        "sha256": "acf199b805fc45a4ae4a5172f7788c2dbd1f318d3afa62258deef81c22645719"
       },
       {
         "path": "crates/pla/examples/dump_bntx.rs",
@@ -96,8 +96,16 @@
         "sha256": "349c663fb29c68a15f9c8cf80de8c5d316cd41fef2e34798be1edbf57c83100d"
       },
       {
+        "path": "crates/pla/examples/pokemon_spike.rs",
+        "sha256": "2cd1a02720b07bf49eb4a5a15792df017679498cef26c2ceb8b9986c481afa29"
+      },
+      {
+        "path": "crates/pla/examples/port_viewer.rs",
+        "sha256": "943b60a0115526c1aca56a8f6e3a2b0d214a94903026d4c4b8d8ab52e6476088"
+      },
+      {
         "path": "crates/pla/examples/run_script.rs",
-        "sha256": "896f067d44771124f69f988a5b0d7c70449eb649549871e35eccb8512b0fda93"
+        "sha256": "8985704e6ccd193d788438ea0a7384568b61c71460bcf3f94052efbb71f6c443"
       },
       {
         "path": "crates/pla/examples/window_spike.rs",
@@ -141,7 +149,7 @@
       },
       {
         "path": "crates/pla/src/assets/tr/bevy.rs",
-        "sha256": "de44a0ed782a9a5d01cdda0b1e37c4cfb778b0f5ab45fa0a8b178dfedd1d07f3"
+        "sha256": "35fa589c6ca9c6c4205c66f0983500c48be99c63d2fe3dab265d9ab94dc0247a"
       },
       {
         "path": "crates/pla/src/assets/tr/matrices.rs",
@@ -161,11 +169,15 @@
       },
       {
         "path": "crates/pla/src/assets/tr.rs",
-        "sha256": "f50fd81efdc644e1927ebca020e6f83a4bc341b526d97641f8f2c84394f3897e"
+        "sha256": "3966db1b790b1b19d06ad87c08b29800627122d8b05e5faf838994baa8e38e7a"
       },
       {
         "path": "crates/pla/src/assets/vfxb.rs",
         "sha256": "4a9d6d0379b38e35596dc5a77adad73fc4aced18cfef34241c89ff1cbd98b4a6"
+      },
+      {
+        "path": "crates/pla/src/battle.rs",
+        "sha256": "658fbd236bc51a6dbe1f7428a8456374f95bb217ecb9172c40b671c9771de4c4"
       },
       {
         "path": "crates/pla/src/dispatch.rs",
@@ -177,11 +189,11 @@
       },
       {
         "path": "crates/pla/src/host/mod.rs",
-        "sha256": "dc0e99047731f8accaaf023b2b0c1d37d2e0a4fdcad734a773dde829638d372e"
+        "sha256": "17ff2cd035f40704f826081b8942cba3d8fbca0c90eefa53dc70d72c1e1f9984"
       },
       {
         "path": "crates/pla/src/host/subsystems/event_script.rs",
-        "sha256": "890de316c052142731fcf7c5a8b0d9992838279bb42f3891ff993f0b8a70f2c0"
+        "sha256": "13f694b0b1be2451ec28739ec664f81f8105e8f4df7c2ac4c70970c4913ef065"
       },
       {
         "path": "crates/pla/src/host/subsystems/field.rs",
@@ -197,11 +209,15 @@
       },
       {
         "path": "crates/pla/src/host/subsystems/save.rs",
-        "sha256": "cb515a1e3cc893493b3f230e7ea59f633ae922cc03ff7dded31504d196003dec"
+        "sha256": "dfe6809fdbf958329a8e1fa8826ad53048aaafdf66c8cb72701a5fd478b66ace"
       },
       {
         "path": "crates/pla/src/lib.rs",
-        "sha256": "1784dd071bd5bc7fa25e7d91b46ec7853aec17addd30115295fbcec4d29a4804"
+        "sha256": "b9f3ed45bfa5068d2e471abfb61f78fdb89a7721ca1dd78032d91ee4cb64bda8"
+      },
+      {
+        "path": "crates/pla/src/pml.rs",
+        "sha256": "28b1b7d71c85017ad229ef45b88e7ced1ab03343b9ee1f7c82054c110c7adcc8"
       },
       {
         "path": "crates/pla/src/render.rs",
@@ -228,12 +244,16 @@
         "sha256": "01eef379e8e69c3ae9c483c999c4495a7c56f3cc1e8c5b7035f6c9346aa65ea7"
       },
       {
+        "path": "crates/pla/tests/port_camera.rs",
+        "sha256": "c8e3d56374bb670d6e9e0def595ebb33df6ab473023dfd87179df1e1471b8631"
+      },
+      {
         "path": "crates/pla/tests/script.rs",
         "sha256": "5832ff60958403ad2371aa143ca4236f8334ee04aaf89355d8ef1437808afcb1"
       },
       {
         "path": "crates/pla/tests/tr_animation.rs",
-        "sha256": "807465e5800339d04d35bdbd369cbbdf9d073ee683970ed28f097cf3c914f778"
+        "sha256": "dddc3605db296c60c5f04ebc30548f3ffbf9c0b712909191c9b463c6c01f387b"
       },
       {
         "path": "crates/pla/tests/tr_animation_native.rs",
@@ -245,11 +265,11 @@
       },
       {
         "path": "crates/pla/tests/tr_matrices.rs",
-        "sha256": "f15736d7d4dcef5b2e783341297669b582b53861c3b02d8e11f38c0851de282e"
+        "sha256": "74a3dde3a2c6486e6497f70bace5efbc7bbdf73ef3f99049c8daffbbe20057d3"
       },
       {
         "path": "crates/pla/tests/tr_skin.rs",
-        "sha256": "a3b927dcf8d4ea2a39323457fd72af5e230b8f680afa450a577fb5580b4cba75"
+        "sha256": "1781fd4441bfc666e249cd082692e04552a997120f6dd221b8a315c5d400aafb"
       },
       {
         "path": "crates/pla/tests/trskl.rs",
@@ -285,7 +305,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "74f15653d4436c97f2f19b35b80e45a1005f642e7734bdf9b244602f7b2c625e"
+    "sha256": "905049367dd00c48da28c901a2c2afba38903031b8be0741b3c8c7f62b736a74"
   },
   "state_partitions": {
     "analysis_documentation_status": {
