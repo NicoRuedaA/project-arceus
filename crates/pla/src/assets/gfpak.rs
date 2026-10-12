@@ -41,6 +41,8 @@ pub struct GfPak {
     pub table_offsets: Vec<u64>,
     pub entry_table_offset: u64,
     pub entries: Vec<GfPakEntry>,
+    /// FNV-1a hashes indexed in the same order as `entries`.
+    pub entry_path_hashes: Vec<u64>,
 }
 
 impl GfPak {
@@ -85,6 +87,16 @@ impl GfPak {
                 break;
             }
         }
+        let hash_offset = pos;
+        let hashes_end = hash_offset
+            .checked_add(entry_count as usize * 8)
+            .ok_or("GFLXPACK hash array range overflow")?;
+        let hashes = bytes
+            .get(hash_offset..hashes_end)
+            .ok_or_else(|| format!("truncated GFLXPACK path hash array at {hash_offset:#x}"))?
+            .chunks_exact(8)
+            .map(|value| u64::from_le_bytes(value.try_into().unwrap()))
+            .collect::<Vec<_>>();
         let (entry_table_offset, _) = found.ok_or_else(|| {
             format!("no file-entry table among offsets {table_offsets:?} (count={entry_count})")
         })?;
@@ -102,7 +114,30 @@ impl GfPak {
             table_offsets,
             entry_table_offset,
             entries,
+            entry_path_hashes: hashes,
         })
+    }
+
+    /// Resolve an entry using the archive's verified path-hash table.
+    pub fn entry_index_by_path(&self, full_path: &str) -> Result<Option<usize>, String> {
+        let expected = fnv1a64(full_path.as_bytes());
+        let matches: Vec<_> = self
+            .entry_path_hashes
+            .iter()
+            .enumerate()
+            .filter_map(|(index, hash)| (*hash == expected).then_some(index))
+            .collect();
+        match matches.as_slice() {
+            [] => Ok(None),
+            [index] => Ok(Some(*index)),
+            _ => Err(format!("ambiguous GFLXPACK path hash for {full_path}")),
+        }
+    }
+
+    pub fn entry_by_path(&self, full_path: &str) -> Result<Option<&GfPakEntry>, String> {
+        Ok(self
+            .entry_index_by_path(full_path)?
+            .map(|index| &self.entries[index]))
     }
 
     /// Borrow an entry's payload.
@@ -142,6 +177,26 @@ impl GfPak {
             ));
         }
         Ok(output)
+    }
+}
+
+/// 64-bit FNV-1a used by the GFLXPACK full-relative-path index.
+pub fn fnv1a64(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222645, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fnv1a64;
+
+    #[test]
+    fn hashes_full_paths_with_the_observed_gfpack_variant() {
+        assert_eq!(
+            fnv1a64(b"bin/field/terrain/ha_area00/terrain/area00_0_0.trmtr"),
+            0x6ceec3b41b224870
+        );
     }
 }
 
