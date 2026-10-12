@@ -120,6 +120,49 @@ fn ballistics_trajectory_and_ccd_intersection() {
     assert!(hit_detected, "Poké Ball trajectory must connect with target via CCD");
 }
 
+/// Tests that ballistic loft compensation correctly offsets gravity drop,
+/// ensuring the projectile reaches the aim convergence target.
+#[test]
+fn ballistics_loft_compensation_converges_on_aim_target() {
+    let spawn_pos = Vec3::new(0.4, 0.9, 0.0);
+    let target_aim_point = Vec3::new(0.0, 0.45, -3.8);
+    let init_speed = 30.0f32;
+    let gravity = -16.0f32;
+
+    let to_target = target_aim_point - spawn_pos;
+    let target_dist = to_target.length();
+    let flight_time = target_dist / init_speed;
+    let arc_loft = 0.5 * gravity.abs() * flight_time * flight_time;
+    let compensated_target = target_aim_point + Vec3::new(0.0, arc_loft, 0.0);
+    let aim_dir = (compensated_target - spawn_pos).normalize();
+    let mut velocity = aim_dir * init_speed;
+
+    let dt = 1.0 / 60.0f32;
+    let mut pos = spawn_pos;
+    let mut min_dist_to_target = f32::INFINITY;
+
+    for _ in 0..60 {
+        let prev_pos = pos;
+        let next_pos = prev_pos + velocity * dt;
+        velocity.y += gravity * dt;
+        pos = next_pos;
+
+        let seg = next_pos - prev_pos;
+        let t = ((target_aim_point - prev_pos).dot(seg) / seg.length_squared()).clamp(0.0, 1.0);
+        let closest = prev_pos + seg * t;
+        let dist = closest.distance(target_aim_point);
+        if dist < min_dist_to_target {
+            min_dist_to_target = dist;
+        }
+    }
+
+    assert!(
+        min_dist_to_target < 0.15,
+        "Compensated trajectory should pass within 15cm of exact target, was {:.3}m",
+        min_dist_to_target
+    );
+}
+
 /// Tests PLA capture rate evaluation with BattleData multipliers.
 #[test]
 fn pla_capture_rate_evaluation_with_battle_data() {

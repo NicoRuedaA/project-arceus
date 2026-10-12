@@ -321,7 +321,6 @@ fn setup_scene(
     mut materials: ResMut<Assets<StandardMaterial>>,
     pml: Res<LoadedPml>,
     pkmn_state: Res<ActivePokemonState>,
-    camera_ctrl: Res<CameraController>,
 ) {
     // Ground plane (grid checkered field).
     let ground_size = 40.0;
@@ -448,28 +447,54 @@ fn setup_scene(
             ));
         });
 
-    // Aiming Reticle (attached to camera space or positioned in front).
-    commands.spawn((
-        Reticle,
-        Mesh3d(meshes.add(Mesh::from(Torus::new(0.04, 0.005)))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(1.0, 0.2, 0.2),
-            unlit: true,
-            ..default()
-        })),
-        Transform::from_xyz(0.0, 0.0, -2.0),
-        if camera_ctrl.mode == CameraMode::AimOverShoulder {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        },
-    ));
+    // Third-person Orbit Camera with centered aiming crosshair ("X").
+    commands
+        .spawn((
+            Camera3d::default(),
+            Transform::from_xyz(0.0, 3.0, 5.0).looking_at(Vec3::new(0.0, 1.2, 0.0), Vec3::Y),
+        ))
+        .with_children(|cam| {
+            // Screen-centered aiming reticle with prominent "X" crosshair,
+            // center dot, and circular frame positioned in camera local space.
+            cam.spawn((
+                Reticle,
+                Transform::from_xyz(0.0, 0.0, -1.8),
+                Visibility::Visible,
+            ))
+            .with_children(|reticle| {
+                let x_bar_mat = materials.add(StandardMaterial {
+                    base_color: Color::srgb(1.0, 1.0, 1.0), // Crisp white
+                    unlit: true,
+                    ..default()
+                });
+                let center_dot_mat = materials.add(StandardMaterial {
+                    base_color: Color::srgb(1.0, 0.2, 0.2), // Bright red center pip
+                    unlit: true,
+                    ..default()
+                });
 
-    // Third-person Orbit Camera.
-    commands.spawn((
-        Camera3d::default(),
-        Transform::from_xyz(0.0, 3.0, 5.0).looking_at(Vec3::new(0.0, 1.2, 0.0), Vec3::Y),
-    ));
+                // Diagonal bar 1 of "X": +45 degrees in XY plane
+                reticle.spawn((
+                    Mesh3d(meshes.add(Mesh::from(Cylinder::new(0.003, 0.10)))),
+                    MeshMaterial3d(x_bar_mat.clone()),
+                    Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_4)),
+                ));
+
+                // Diagonal bar 2 of "X": -45 degrees in XY plane
+                reticle.spawn((
+                    Mesh3d(meshes.add(Mesh::from(Cylinder::new(0.003, 0.10)))),
+                    MeshMaterial3d(x_bar_mat),
+                    Transform::from_rotation(Quat::from_rotation_z(-std::f32::consts::FRAC_PI_4)),
+                ));
+
+                // Center dot / pip marking exact pixel center
+                reticle.spawn((
+                    Mesh3d(meshes.add(Mesh::from(Sphere::new(0.005)))),
+                    MeshMaterial3d(center_dot_mat),
+                    Transform::from_xyz(0.0, 0.0, 0.002),
+                ));
+            });
+        });
 
     // Sun directional light & ambient illumination.
     commands.spawn((
@@ -622,10 +647,7 @@ fn camera_controls(
     camera_ctrl.distance += (desired_dist - camera_ctrl.distance) * (10.0 * dt).min(1.0);
 
     if let Ok(mut ret_vis) = reticle_query.single_mut() {
-        *ret_vis = match camera_ctrl.mode {
-            CameraMode::OrbitDefault => Visibility::Hidden,
-            CameraMode::AimOverShoulder => Visibility::Visible,
-        };
+        *ret_vis = Visibility::Visible;
     }
 }
 
@@ -636,9 +658,8 @@ fn camera_controls(
 /// cameraPos = lookAtPos + Δ
 fn update_camera_transform(
     camera_ctrl: Res<CameraController>,
-    player_query: Query<&Transform, (With<PlayerAvatar>, Without<Camera3d>, Without<Reticle>)>,
-    mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlayerAvatar>, Without<Reticle>)>,
-    mut reticle_query: Query<&mut Transform, (With<Reticle>, Without<Camera3d>, Without<PlayerAvatar>)>,
+    player_query: Query<&Transform, (With<PlayerAvatar>, Without<Camera3d>)>,
+    mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
 ) {
     let Ok(player_xf) = player_query.single() else {
         return;
@@ -679,12 +700,6 @@ fn update_camera_transform(
 
     cam_xf.translation = eye_pos;
     cam_xf.look_at(look_target, Vec3::Y);
-
-    // Position aiming reticle in front of camera along forward ray.
-    if let Ok(mut ret_xf) = reticle_query.single_mut() {
-        ret_xf.translation = eye_pos + forward_dir * 3.0;
-        ret_xf.look_at(eye_pos, Vec3::Y);
-    }
 }
 
 /// Selects active Poké Ball type using keyboard shortcuts:
@@ -717,6 +732,8 @@ fn ball_throw_input(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut inventory: ResMut<BallInventory>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
+    camera_query: Query<&Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
+    pokemon_query: Query<&Transform, (With<PokemonSpawn>, Without<PlayerAvatar>, Without<Camera3d>)>,
     camera_ctrl: Res<CameraController>,
     automation: Res<AutomationOptions>,
 ) {
@@ -736,27 +753,72 @@ fn ball_throw_input(
     let Ok(player_xf) = player_query.single() else {
         return;
     };
+    let Ok(cam_xf) = camera_query.single() else {
+        return;
+    };
 
     inventory.balls_thrown += 1;
     let ball_kind = inventory.selected;
 
-    let pitch = camera_ctrl.pitch;
     let yaw = camera_ctrl.yaw;
-    let forward_dir = Vec3::new(-pitch.cos() * yaw.sin(), -pitch.sin(), -pitch.cos() * yaw.cos()).normalize();
     let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
+    let forward_horiz = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
 
     // Spawn origin: right hand of player
     let spawn_pos = player_xf.translation + right * 0.4 + Vec3::new(0.0, 0.9, 0.0);
 
-    // Aim convergence point: intersection at target range (approx 4.5m ahead)
-    let eye_pos = player_xf.translation + right * 0.45 + Vec3::new(0.0, 1.35, 0.0)
-        + Vec3::new(camera_ctrl.distance * pitch.cos() * yaw.sin(), camera_ctrl.distance * pitch.sin(), camera_ctrl.distance * pitch.cos() * yaw.cos());
-    let target_aim_point = eye_pos + forward_dir * 5.0;
-    let aim_dir = (target_aim_point - spawn_pos).normalize();
+    // Aim convergence point: raycast from camera along camera look vector
+    let cam_pos = cam_xf.translation;
+    let cam_forward = *cam_xf.forward();
+
+    // 1. Check if camera aim ray directly targets any wild Pokémon
+    let mut best_target: Option<Vec3> = None;
+    let mut closest_pkmn_dist = f32::INFINITY;
+
+    for pkmn_xf in &pokemon_query {
+        let pkmn_pos = pkmn_xf.translation;
+        let to_pkmn = pkmn_pos - cam_pos;
+        let proj = to_pkmn.dot(cam_forward);
+        if proj > 0.0 {
+            let closest_point_on_ray = cam_pos + cam_forward * proj;
+            let ray_pkmn_dist = (pkmn_pos - closest_point_on_ray).length();
+            if ray_pkmn_dist < 1.0 && proj < closest_pkmn_dist {
+                closest_pkmn_dist = proj;
+                best_target = Some(pkmn_pos);
+            }
+        }
+    }
+
+    // 2. If not locked onto a Pokémon, check ground intersection
+    let target_aim_point = if let Some(target) = best_target {
+        target
+    } else if cam_forward.y < -0.01 {
+        let t_ground = (-cam_pos.y) / cam_forward.y;
+        if t_ground > 0.0 && t_ground < 60.0 {
+            let ground_pt = cam_pos + cam_forward * t_ground;
+            if (ground_pt - player_xf.translation).dot(forward_horiz) > 0.5 {
+                ground_pt
+            } else {
+                player_xf.translation + forward_horiz * 8.0 + Vec3::new(0.0, 0.5, 0.0)
+            }
+        } else {
+            cam_pos + cam_forward * 15.0
+        }
+    } else {
+        cam_pos + cam_forward * 20.0
+    };
 
     let init_speed = ball_kind.initial_velocity();
-    let velocity = aim_dir * init_speed;
     let gravity = ball_kind.gravity();
+
+    // Calculate ballistic trajectory from spawn_pos to target_aim_point with arc loft compensation
+    let to_target = target_aim_point - spawn_pos;
+    let target_dist = to_target.length().max(1.0);
+    let flight_time = target_dist / init_speed;
+    let arc_loft = 0.5 * gravity.abs() * flight_time * flight_time;
+    let compensated_target = target_aim_point + Vec3::new(0.0, arc_loft, 0.0);
+    let aim_dir = (compensated_target - spawn_pos).normalize();
+    let velocity = aim_dir * init_speed;
 
     println!(
         "Throwing {} #{}: Speed: {:.1} m/s, Gravity: {:.1} m/s²",
