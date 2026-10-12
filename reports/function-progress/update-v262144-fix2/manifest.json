@@ -73,7 +73,7 @@
     "port.png": "ce2ee67b5cef89051213a395735c8979a4d11df2c99c2117882f9eeed6bae0a4"
   },
   "rust_source_fingerprint": {
-    "file_count": 77,
+    "file_count": 82,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -133,7 +133,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "445b40a73d1ae04114659313a25eb851ded40b5fc936e4c4b59a47a51d7779ec"
+        "sha256": "027aa4f51a37fb1d280a015ce6922b8bca05cb066d21c89a38466f7307758d79"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
@@ -264,6 +264,26 @@
         "sha256": "9d6781953e8e2570565fd9db6de3415c35a6bb88a4fe83a06215061d696b1452"
       },
       {
+        "path": "crates/pla/src/game/battle_controller.rs",
+        "sha256": "09b4b366a40cf64f812ef5ab05bf20655b26b8c4e6b61d23c2d89035c219ee20"
+      },
+      {
+        "path": "crates/pla/src/game/mod.rs",
+        "sha256": "09f61eb6d35dd63628bb5a0d652c6c4a5571db49ec9e569514ab1067c3a0dc99"
+      },
+      {
+        "path": "crates/pla/src/game/navigation.rs",
+        "sha256": "8a8254ce6df7014a9cf845fb7ea8033662409616015b35466aeb7feba2f4291b"
+      },
+      {
+        "path": "crates/pla/src/game/state.rs",
+        "sha256": "96f75076517d891f98382f1c61089bd5256f349d7140b6a11e9c3999f5f426a2"
+      },
+      {
+        "path": "crates/pla/src/game/wild.rs",
+        "sha256": "f189ad4cc10626af7c8bcd7b375b87a59ddfbaa7477c70eb0b87f9cabb78c7a9"
+      },
+      {
         "path": "crates/pla/src/host/mod.rs",
         "sha256": "17ff2cd035f40704f826081b8942cba3d8fbca0c90eefa53dc70d72c1e1f9984"
       },
@@ -289,7 +309,7 @@
       },
       {
         "path": "crates/pla/src/lib.rs",
-        "sha256": "9d3f7fa0b0d3d75599e86ab7869ba278a69308274fbed7697e25038cd37029b9"
+        "sha256": "71390e14bb6262f948db9e2a7339776b32fdf988b3b2106d35fdf7ef2ed78cab"
       },
       {
         "path": "crates/pla/src/pml.rs",
@@ -385,7 +405,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "ee31c7e710d68e3011e449864e982613ad79f514b59c43e4c074a77c103b7429"
+    "sha256": "4cc4da802e84072a8195a214a4fbc44fc45391154c470de89aaf899f3bf6b007"
   },
   "state_partitions": {
     "analysis_documentation_status": {
