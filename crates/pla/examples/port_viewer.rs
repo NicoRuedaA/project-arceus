@@ -372,10 +372,30 @@ fn main() -> ExitCode {
                 println!("  --mode <orbit|aim>    Initial camera mode (default: orbit)");
                 println!("  --species <DEX>       National dex species ID to spawn (default: 25 Pikachu)");
                 println!("  --throw               Automatically throw Poké Ball on tick 20");
+                println!("  --new-game            Ignore the existing save and start fresh");
+                println!("  --save-dir <PATH>     Save directory (sets PLA_SAVE_DIR); F5 saves");
                 return ExitCode::SUCCESS;
             }
             _ => {}
         }
+    }
+
+    // Player save: --new-game / --save-dir; a loaded save supplies zone and position unless given.
+    let cli_args: Vec<String> = std::env::args().collect();
+    let wire_cli = pla::game::save_wire::WireCli::from_args(&cli_args);
+    wire_cli.apply_env();
+    let mut save_game = pla::game::save_game::SaveGame::from_env();
+    let mut wire_start = pla::game::save_wire::load_startup(&mut save_game, &wire_cli);
+    if wire_cli.has_time_slot {
+        wire_start.progress.time_slot = pla::game::lighting::time_slot_from_args(&cli_args) as u8;
+    }
+    if !wire_cli.has_area {
+        if let Some(a) = wire_start.area {
+            area_idx = a;
+        }
+    }
+    if !wire_cli.has_player_pos && initial_player_pos.is_none() {
+        initial_player_pos = wire_start.position.map(|p| Vec2::new(p[0], p[2]));
     }
 
     if auto_demo {
@@ -617,7 +637,10 @@ fn main() -> ExitCode {
             },
             pla::game::lighting::ZoneLightingPlugin {
                 area: area_idx,
-                slot: pla::game::lighting::time_slot_from_args(&cli),
+                slot: match wire_start.time_slot {
+                    Some(t) if !wire_cli.has_time_slot => t,
+                    _ => pla::game::lighting::time_slot_from_args(&cli),
+                },
             },
         ));
     }
@@ -644,6 +667,7 @@ fn main() -> ExitCode {
         demo_step_tick: 0,
     });
 
+    pla::game::save_wire::SaveWirePlugin::install(&mut app, save_game, wire_start, &wire_cli);
     app.add_systems(Startup, (setup_scene, setup_game_ui));
     app.add_systems(
         Update,

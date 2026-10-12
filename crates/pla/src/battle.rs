@@ -238,6 +238,37 @@ impl BattleData {
         }))
     }
 
+    /// Find an active base-form species by national dex number (used to rebuild a saved party).
+    pub fn species_row_by_dex(&self, dex: u16) -> Result<Option<BattleSpecies>, String> {
+        let want = dex.to_string();
+        let name = self.personal_data.rows.iter().find_map(|row| {
+            (row.get("dex_index_national:u16").is_some_and(|v| *v == want)
+                && row.get("form:u8").is_some_and(|v| v == "0")
+                && row.get("is_active:bool").is_some_and(|v| v == "1"))
+            .then(|| row.get("species_name:string").cloned())
+            .flatten()
+        });
+        match name {
+            Some(n) => self.species_row(&n),
+            None => Ok(None),
+        }
+    }
+
+    /// Find a move by numeric id (first row wins; the table has one known duplicate id).
+    pub fn move_row_by_id(&self, id: u16) -> Result<Option<BattleMove>, String> {
+        let want = id.to_string();
+        let name = self.move_data.rows.iter().find_map(|row| {
+            row.get("move:u16")
+                .is_some_and(|v| *v == want)
+                .then(|| row.get("move_name:string").cloned())
+                .flatten()
+        });
+        match name {
+            Some(n) => self.move_row(&n),
+            None => Ok(None),
+        }
+    }
+
     /// Find a move by its canonical lower-kebab name in the checked-in move table.
     pub fn move_row(&self, name: &str) -> Result<Option<BattleMove>, String> {
         let Some(row) = self
