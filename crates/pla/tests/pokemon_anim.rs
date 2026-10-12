@@ -213,3 +213,74 @@ fn anim_plugin_registers_scene_types() {
     assert!(reg.contains(std::any::TypeId::of::<Visibility>()));
     assert!(reg.contains(std::any::TypeId::of::<Name>()));
 }
+
+fn bone_translation(app: &mut App, name: &str) -> Option<Vec3> {
+    let mut q = app.world_mut().query::<(&Name, &Transform)>();
+    q.iter(app.world()).find(|(n, _)| n.as_str() == name).map(|(_, t)| t.translation)
+}
+
+/// Root motion: while the walk clip plays, the `origin` bone keeps its horizontal
+/// position (pinned) and its vertical bob, while other joints still move; the clip's
+/// own root speed is measured and the playback speed follows the entity speed.
+#[test]
+fn walk_root_motion_is_pinned_and_speed_is_matched() {
+    let Some(work) = work_dir() else {
+        eprintln!("SKIP: work/cache/pokemon_batch not present");
+        return;
+    };
+    for dex in [25u16, 74, 399, 41] {
+        let mut app = app_for(&work);
+        // Deterministic frame time (16 ms) instead of wall clock.
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(Duration::from_millis(16)));
+        let src = {
+            let server = app.world().resource::<AssetServer>().clone();
+            PokemonAnimSource::from_idle_path(&server, &format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_idle.gltf"))
+        };
+        let root = app.world_mut().spawn((src, Transform::default(), Visibility::default())).id();
+        for _ in 0..2000 {
+            app.update();
+            std::thread::sleep(Duration::from_millis(2));
+            if app.world().get::<PokemonAnimState>(root).is_some_and(|s| s.player != Entity::PLACEHOLDER) {
+                break;
+            }
+        }
+        let st = app.world().get::<PokemonAnimState>(root).expect("wired");
+        assert!(st.root_bone.is_some(), "pm{dex:04}: origin bone not found");
+        let rest = st.rest;
+        // Walk at 1 m/s for ~4 s of game time and record the root bone and a limb each frame.
+        let mut origin_xz = Vec::new();
+        let mut origin_y = Vec::new();
+        let mut moving_joint_changes = 0usize;
+        let mut prev_joints = joints(&mut app);
+        for i in 0..250 {
+            app.world_mut().get_mut::<Transform>(root).unwrap().translation.x = i as f32 * 0.016;
+            app.update();
+            if i > 60 {
+                let o = bone_translation(&mut app, "origin").unwrap();
+                origin_xz.push((o.x, o.z));
+                origin_y.push(o.y);
+                let j = joints(&mut app);
+                moving_joint_changes += j
+                    .iter()
+                    .zip(prev_joints.iter())
+                    .filter(|(a, b)| a.1.rotation.angle_between(b.1.rotation) > 1e-4)
+                    .count();
+                prev_joints = j;
+            }
+        }
+        let st = app.world().get::<PokemonAnimState>(root).unwrap();
+        assert!(st.walking, "pm{dex:04}: should be walking");
+        for (x, z) in &origin_xz {
+            assert!((x - rest.x).abs() < 1e-5 && (z - rest.z).abs() < 1e-5, "pm{dex:04}: origin slid to ({x},{z}), rest ({},{})", rest.x, rest.z);
+        }
+        assert!(moving_joint_changes > 0, "pm{dex:04}: no other joint moved while walking");
+        let clip_speed = st.root_meter.speed();
+        println!("pm{dex:04}: measured clip root speed {clip_speed:?} m/s, playback x{:.2}, origin y range {:.4}..{:.4}",
+            st.walk_speed,
+            origin_y.iter().cloned().fold(f32::MAX, f32::min),
+            origin_y.iter().cloned().fold(f32::MIN, f32::max));
+        let v = clip_speed.expect("root speed measured");
+        assert!(v > 0.1 && v < 4.0, "pm{dex:04}: implausible clip root speed {v}");
+        assert!(st.walk_speed >= 0.5 && st.walk_speed <= 2.0);
+    }
+}

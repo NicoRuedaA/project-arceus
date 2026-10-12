@@ -134,3 +134,10 @@ User report: in zones 1-5 the player spawned on a mountain and could not get dow
 - `game::spawn_point` (pure, unit tested): connected components, `choose_safe_spawn` (largest island, slope <= 15 deg, 10 m clearance), `choose_start` (`--player-pos` honoured > valid saved position > safe start; an invalid saved position shows a HUD toast), `escape_step` (off-mesh: walk to the nearest walkable point), `boxed_in` + `StuckTracker` (boxed in 8 directions with input held > 1 s: back to the safe spawn), `slide_move` (angled slide fallback).
 - Pause menu: new row "Back to safe spawn" (`SafeSpawnRequested`).
 - Evidence: unit tests and the `spawn_report` example on the real navmeshes of areas 00-05; the viewer was NOT run (operating rule 7).
+
+## Wild Pokémon leave the world after a battle (fix/pokeanim; unit tests only, not yet seen by the maintainer)
+
+Report: after winning a battle the wild Pokémon was still standing in the world. Cause: `battle_input_system` only set `defeated = true` and left the entity alive (it was also marked "defeated" when the player fled).
+- `game::wild`: `wild_fate(hp, caught)` -> `Defeated | Captured | Fled`. Defeated and captured creatures are despawned by `battle_input_system`, their spawner id goes into `ConsumedSpawners` (respawn after `RESPAWN_AFTER_S` = 600 s of game time, or `clear()` on a zone reload; the viewer does not yet call `clear()`), and `stream_wild_spawners` skips consumed spawners so the streaming radius does not refill them at once.
+- Fleeing (or losing) keeps the creature alive, no longer marked defeated, with `FleeCooldown` (6 s) so the encounter check does not restart the battle while the player is still next to it.
+- Tests: pure bookkeeping (`wild::lifecycle_tests`: fate classification, respawn time, purge/clear, cooldown). Not covered: a full battle in an app. The overworld ball capture path (`ball_ballistics_and_physics`) still only hides the target and was not changed.
