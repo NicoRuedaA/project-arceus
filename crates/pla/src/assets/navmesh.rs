@@ -160,6 +160,34 @@ impl NavMesh {
         Ok(())
     }
 
+    /// Build a mesh from raw parts (tests, tools) and index it; no tagfile needed.
+    pub fn from_parts(vertices: Vec<[f32; 3]>, faces: Vec<NavFace>, edges: Vec<NavEdge>) -> Result<NavMesh, String> {
+        let mut mesh = NavMesh {
+            vertices,
+            faces,
+            edges,
+            face_data: Vec::new(),
+            face_data_stride: 0,
+            edge_data: Vec::new(),
+            edge_data_stride: 0,
+            grid: HashMap::new(),
+        };
+        mesh.validate()?;
+        mesh.build_grid();
+        Ok(mesh)
+    }
+
+    /// The face whose surface is highest at (x, z), with that height (same pick as `height_at`).
+    pub fn face_at(&self, x: f32, z: f32) -> Option<(u32, f32)> {
+        let cell = self.grid.get(&((x / CELL).floor() as i32, (z / CELL).floor() as i32))?;
+        cell.iter()
+            .filter_map(|f| self.face_height(*f, x, z).map(|y| (*f, y)))
+            .fold(None, |a: Option<(u32, f32)>, c| match a {
+                Some(p) if p.1 >= c.1 => Some(p),
+                _ => Some(c),
+            })
+    }
+
     /// Vertex positions of a face, in stored order.
     pub fn face_vertices(&self, face: u32) -> Vec<[f32; 3]> {
         let f = self.faces[face as usize];

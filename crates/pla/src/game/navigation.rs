@@ -33,33 +33,8 @@ impl GameNavmeshResource {
     /// Try moving from (curr_x, curr_z) along move_vec (dx, dz).
     /// If target (curr_x + dx, curr_z + dz) is walkable, returns target.
     /// If not walkable, tries sliding along x-only or z-only axis.
-    /// If neither is walkable, clamps to nearest valid point or stays in place.
+    /// If neither is walkable, tries the move rotated by up to 90 deg, else stays in place.
     pub fn try_move_with_slide(&self, curr: Vec2, delta: Vec2) -> Vec2 {
-        let target = curr + delta;
-        if self.is_walkable(target.x, target.y) {
-            return target;
-        }
-
-        // Try sliding along X axis
-        let target_x = Vec2::new(target.x, curr.y);
-        if delta.x.abs() > 1e-4 && self.is_walkable(target_x.x, target_x.y) {
-            return target_x;
-        }
-
-        // Try sliding along Z axis
-        let target_z = Vec2::new(curr.x, target.y);
-        if delta.y.abs() > 1e-4 && self.is_walkable(target_z.x, target_z.y) {
-            return target_z;
-        }
-
-        // If hitting corner or wall, check nearest walkable boundary
-        if let Some(hit) = self.nearest(target.x, target.y, 1.2) {
-            if hit.distance > 0.05 {
-                // Return current position preventing boundary penetration
-                return curr;
-            }
-        }
-
-        curr
+        crate::game::spawn_point::slide_move(curr, delta, |p| self.is_walkable(p.x, p.y))
     }
 }

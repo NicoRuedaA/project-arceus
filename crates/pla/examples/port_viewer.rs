@@ -517,6 +517,7 @@ fn main() -> ExitCode {
             area_idx = a;
         }
     }
+    let pos_from_cli = wire_cli.has_player_pos || initial_player_pos.is_some();
     if !wire_cli.has_player_pos && initial_player_pos.is_none() {
         initial_player_pos = wire_start.position.map(|p| Vec2::new(p[0], p[2]));
     }
@@ -623,19 +624,38 @@ fn main() -> ExitCode {
         }
     };
 
-    // Ensure initial spawn position is on a validated walkable navmesh face
+    // Safe start (largest walkable island, gentle slope, clearance; see game/spawn_point.rs):
+    // `--player-pos` is honoured, a valid saved position too, otherwise the safe start is used.
+    use pla::game::spawn_point as sp;
+    let mut safe_spawn_xz: Option<Vec2> = None;
+    let mut spawn_notice: Option<&str> = None;
     let player_spawn_pos = if let Some(ref nr) = navmesh_res {
         let nav = nr.nav.primary();
-        if nav.is_walkable(player_spawn_pos.x, player_spawn_pos.y) {
-            player_spawn_pos
-        } else if let Some(hit) = nav.nearest(player_spawn_pos.x, player_spawn_pos.y, 400.0) {
-            let vs = nav.face_vertices(hit.face);
-            let cx = vs.iter().map(|v| v[0]).sum::<f32>() / vs.len() as f32;
-            let cz = vs.iter().map(|v| v[2]).sum::<f32>() / vs.len() as f32;
-            println!("Adjusted initial spawn position to walkable navmesh face: ({:.1}, {:.1})", cx, cz);
-            Vec2::new(cx, cz)
-        } else {
-            player_spawn_pos
+        let comps = sp::components(nav);
+        let rd = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
+        let marks = sp::landmarks_for_area(area_idx, &rd("data/field_spawn_table.tsv"), &rd("data/field_object_placements.tsv"));
+        let safe = sp::choose_safe_spawn(nav, &comps, &marks, &sp::SpawnConfig::default());
+        safe_spawn_xz = safe.map(|s| s.xz);
+        let (explicit, saved) = if pos_from_cli { (initial_player_pos, None) } else { (None, initial_player_pos) };
+        let snap = |p: Vec2| {
+            if nav.is_walkable(p.x, p.y) {
+                p
+            } else if let Some(hit) = nav.nearest(p.x, p.y, 400.0) {
+                let c = sp::face_centroid(nav, hit.face);
+                println!("Adjusted initial spawn position to walkable navmesh face: ({:.1}, {:.1})", c[0], c[2]);
+                Vec2::new(c[0], c[2])
+            } else {
+                p
+            }
+        };
+        match sp::choose_start(nav, &comps, explicit, saved, safe) {
+            sp::StartChoice::Explicit(p) | sp::StartChoice::Saved(p) => snap(p),
+            sp::StartChoice::Safe(p) => p,
+            sp::StartChoice::SafeReplacingSaved(p) => {
+                spawn_notice = Some("Saved position was not on the main walkable area: moved to the safe start.");
+                p
+            }
+            sp::StartChoice::NoSafe => snap(player_spawn_pos),
         }
     } else {
         player_spawn_pos
@@ -824,6 +844,13 @@ fn main() -> ExitCode {
     });
 
     pla::game::save_wire::SaveWirePlugin::install(&mut app, save_game, wire_start, &wire_cli);
+    if let Some(p) = safe_spawn_xz {
+        app.insert_resource(sp::SafeSpawnPoint(p));
+    }
+    if let Some(msg) = spawn_notice {
+        app.world_mut().resource_mut::<pla::game::save_wire::SaveToast>().show(msg);
+    }
+    app.add_systems(Update, apply_safe_spawn_request);
     app.add_systems(Startup, (setup_scene, setup_game_ui, spawn_aim_hint));
     app.add_systems(
         Update,
@@ -1526,6 +1553,29 @@ fn get_species_color(dex: u16) -> Color {
     }
 }
 
+/// Pause-menu "Back to safe spawn": teleport the player to the area's safe start.
+fn apply_safe_spawn_request(
+    mut request: ResMut<pla::game::pause_menu::SafeSpawnRequested>,
+    safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
+    navmesh_res: Option<Res<GameNavmeshResource>>,
+    mut toast: ResMut<pla::game::save_wire::SaveToast>,
+    mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
+) {
+    if !std::mem::take(&mut request.0) {
+        return;
+    }
+    let (Some(safe), Ok(mut t)) = (safe, player_query.single_mut()) else {
+        toast.show("No safe spawn available for this area.");
+        return;
+    };
+    t.translation.x = safe.0.x;
+    t.translation.z = safe.0.y;
+    if let Some(y) = navmesh_res.as_ref().and_then(|n| n.height_at(safe.0.x, safe.0.y)) {
+        t.translation.y = y + 0.9;
+    }
+    toast.show("Back at the safe spawn.");
+}
+
 /// Player locomotion system: translates input along camera relative vectors,
 /// uses navmesh collision to block cliffs/water with smooth sliding, and samples surface height.
 fn player_locomotion(
@@ -1534,6 +1584,9 @@ fn player_locomotion(
     camera_ctrl: Res<CameraController>,
     terrain_res: Option<Res<TerrainResource>>,
     navmesh_res: Option<Res<GameNavmeshResource>>,
+    safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
+    mut stuck: Local<pla::game::spawn_point::StuckTracker>,
+    mut toast: ResMut<pla::game::save_wire::SaveToast>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
 ) {
     let Ok(mut transform) = player_query.single_mut() else {
@@ -1572,7 +1625,24 @@ fn player_locomotion(
 
         // Apply navmesh collision sliding if real navmesh is loaded
         let final_xz = if let Some(ref nav) = navmesh_res {
-            nav.try_move_with_slide(current_xz, delta_xz)
+            use pla::game::spawn_point as sp;
+            let walk = |p: Vec2| nav.is_walkable(p.x, p.y);
+            // Off the navmesh: walk toward the nearest walkable point instead of rejecting every move.
+            let escape = sp::escape_step(current_xz, delta_xz, walk, |p| {
+                nav.nearest(p.x, p.y, 60.0).map(|h| {
+                    let c = sp::face_centroid(nav.nav.primary(), h.face);
+                    Vec2::new(c[0], c[2])
+                })
+            });
+            // Boxed in on all 8 sides for > 1 s with input held: back to the safe spawn.
+            let boxed = escape.is_none() && sp::boxed_in(current_xz, 0.3, walk);
+            match (stuck.update(dt, true, boxed), safe.as_ref()) {
+                (true, Some(s)) => {
+                    toast.show("Stuck: moved back to the safe spawn.");
+                    s.0
+                }
+                _ => escape.unwrap_or_else(|| nav.try_move_with_slide(current_xz, delta_xz)),
+            }
         } else {
             current_xz + delta_xz
         };
@@ -1583,6 +1653,8 @@ fn player_locomotion(
         // Smoothly orient player avatar towards movement direction.
         transform.rotation =
             pla::game::player_anim::step_facing(transform.rotation, Vec2::new(move_vec.x, move_vec.z), dt);
+    } else {
+        stuck.blocked_secs = 0.0;
     }
 
     // Keep player avatar on the real terrain or navmesh surface
