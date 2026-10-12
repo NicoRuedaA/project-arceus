@@ -6,8 +6,8 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
 2. Overworld HUD with Bevy UI (zone title, coordinates, nearby creature radar with distance and compass direction).
 3. Real glTF Pokémon meshes loaded from cache, drawn with a provisional flat species tint (baked textures not used yet).
 4. Multi-zone navigation across Hisui sectors (`--area 0`, `--area 1`, etc.).
-5. Turn-based battle loop with physical attacks, in-battle capture (`[C]`), and state transitions.
-6. Offscreen 6-step auto-demo verification driver (`--auto-demo`).
+5. Turn-based battle loop driven by the engine: move effects, 3-member party, item bag, real catch rate, engine-AI opponent, in-battle capture (`[C]`), and state transitions.
+6. Offscreen auto-demo verification driver (`--auto-demo` / `--script <dir>`): world walk, encounter, then a scripted battle (status move, item menu, medicine, capture) with 4 frames.
 
 ## Implemented and Verified (Lo logrado)
 
@@ -32,41 +32,28 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
    - Verified across Area 00 (Jubilife Village, 60 tree instances) and Area 01 (Obsidian Fieldlands, 1,379 tree instances from 7 distinct glTF models).
    - Initial player spawn automatically clamped to the nearest guaranteed walkable polygon face on the Havok navmesh.
 
-5. **In-Battle Capture Action**:
-   - Integrated `attempt_capture_in_battle` into the turn-based controller, querying `Battle::attempt_capture` with Poké Ball, capture modifiers, and placeholder catch rate (45).
-   - Sets captured state on target combatant, logs the outcome, and marks creature as defeated upon battle completion.
+5. **Data-driven battle (`battle_controller.rs`, `battle_items.rs`, `battle_log.rs`, `battle_ai.rs`, `catch_rate.rs`, `battle_input.rs`)**:
+   - **Move effects**: `BattleAssets` loads `data/pml_move_effects.tsv` and `data/item_effects.tsv` once; every battle calls `Battle::set_move_effects` and `set_item_table`. Real move priority (Quick Attack acts first), secondary status with chance, stat stages, drain/recoil, healing, multi-hit and flinch now happen in the game. The log shows status (`was paralyzed! [PAR]`), stage changes (`Attack fell! [ATK-]`), drain, recoil, `Hit 2 times!` and flinches, and the HP cards carry a status tag plus ATK/DEF/SPE stage markers. The engine reports effects in a separate stream, so effect lines follow the main events of the turn; moves without power emit no engine event, so the log announces them from the chosen action.
+   - **Party**: Pikachu leads with Bidoof and Starly behind it (real species rows, real moves; levels are lead-8 and lead-11). The SWITCH menu (`[S]`) lists them with HP/status, costs the turn, and a fainted active Pokemon is replaced by the engine automatically.
+   - **ITEM menu (`[I]`)**: the starter bag is chosen from `data/item_effects.tsv` by effect columns (no names exist in the sheet): lowest-id plain HP restorer, strongest plain HP restorer, one single-status cure each for poison, burn and paralysis, an all-status cure, a half-HP revive, and Regular and Great balls. Quantities (5/2/2/2/2/1/1/10/5) are a local choice; the stack ceiling comes from the engine bag. Selecting an item uses `Battle::use_item_on` / `throw_ball_item`; an item with no effect is refused with a message, is not consumed and costs no turn.
+   - **Capture**: `[C]` and the bag throw a ball through `throw_ball_item`; the log shows the catch rate with its source, the chance, the shakes and the result. The shakes come from replaying the engine's two capture checks on a copy of the RNG (`capture_preview`, tested to agree with the real throw over 199 seeds).
+   - **Catch rate**: real per-species value, personal-table field 17 decoded by `.tools/decode_pml_tables.py` into the new sheet `data/pml_personal_extra.tsv` (Bidoof 255, Starly 245, Shinx 225, Pikachu 145, Arceus 3). The placeholder 45 remains only as fallback when a species is missing or the sheet is not loaded.
+   - **Opponent AI**: the wild side picks moves with `BattleData::score_rules` (`basic_affinity_ineffective`, `strong_non_max_damage`); equal scores are broken randomly and status moves are tried one time in four (local simplification). The random-gated and unmapped rules of the game's AI are not used.
+   - **Input**: digits pick a move or list entry, arrows/A/D scroll, Enter confirms, Esc/Backspace goes back, S/I/C/R/F open switch, item, capture, run, fight. Menu and turn logic is plain Rust on `ActiveBattleSession::handle_input` with 26 unit tests (menu state, bag selection, log formatting, capture preview, effects reaching the log).
 
-6. **6-Screenshot Auto-Demo Playthrough Driver (`--auto-demo`)**:
-   - Fully automated headless execution (~2.8 seconds) producing 6 sequential frames in `work/cache/game_demo/`.
+6. **Auto-Demo Playthrough Driver (`--auto-demo`, or `--script <dir>` for a custom output dir)**:
+   - Headless run producing 4 battle frames: `02_battle_status_move.png` (Thunder Wave paralyzes the wild Pikachu), `03_battle_item_menu.png` (bag with quantities), `04_battle_medicine_used.png` (Heal 60 HP #17), `05_battle_capture_attempt.png` (shakes and result). The medicine beat first sets the player to 55% HP (logged as `[demo setup]`) so the heal has something to restore.
 
 ## Visual Verification Observations (Inspected PNGs)
 
-All six screenshots and the secondary zone verification were directly opened and visually inspected:
+The 4 frames of the latest run were opened and looked at (`work/battleui_demo/`, not committed). The compositor sized the window 529x1894 (a tall column), so the layout is cramped: the bottom of the battle log and the second row of the 2x2 grid are clipped, and the RUN tab is cut at the right edge. Text that is visible:
 
-- **`01_world_exploration.png` (World State, Step 0)**:
-  - World HUD is fully visible in crisp text: `ZONE: Jubilife Village (ha_area00)`, `POS: X=448.0 Y=62.0m Z=650.3`, `NEARBY: #25 PIKACHU (4.4m) [N]`.
-  - Player avatar standing on green ha_area00 terrain near a foliage tree; wild glTF Pikachu visible in front.
-- **`02_battle_encounter.png` (Battle State, Step 1)**:
-  - Complete Bevy UI combat interface visible.
-  - Top-left card: `WILD PIKACHU Lv. 5`, full green HP bar, `HP: 19 / 19`.
-  - Right card: `PLAYER PIKACHU Lv. 25`, full green HP bar, `HP: 56 / 56`.
-  - Dialogue box: `[ BATTLE LOG ]`, `Battle Started!`.
-  - Action tabs: `[1] FIGHT` highlighted in gold; move grid displaying 4 moves with types and PP.
-  - 3D arena: player avatar and wild glTF Pikachu clearly visible.
-- **`03_battle_move_selection.png` (Move Selection, Step 2)**:
-  - Dialogue box: `Select a move: [1] Thunderbolt [2] Quick Attack [3] Iron Tail [4] Spark`.
-  - Move slot 1 highlighted with yellow outline.
-- **`04_battle_attack_action.png` (Attack Resolution, Step 3)**:
-  - Turn 1 resolved: `pikachu used quick-attack! (2 dmg, normal) | pikachu used thunderbolt! (44 dmg, not very effective) | pikachu fainted! | Battle Ended: Player won!`.
-  - Wild HP bar completely empty (`0%`, `HP: 0 / 19`). Player HP reduced to `54 / 56`. Move 1 PP decremented to `9/10`.
-- **`05_battle_capture_attempt.png` (Capture Action, Step 4)**:
-  - Action tab `[C] CAPTURE` highlighted in gold. Battle dialogue and combatant cards reflecting battle state.
-- **`06_world_return.png` (World Return, Step 5)**:
-  - Battle cleanly resolved and cleaned up; seamless transition back to `GameState::World`.
-  - World HUD active: `POS: X=449.1 Y=62.0m Z=648.4`, `NEARBY: None detected`.
-- **`area01_verification.png` (Obsidian Fieldlands, ha_area01)**:
-  - Verified multi-zone loading: HUD reads `ZONE: Obsidian Fieldlands (ha_area01)`, `POS: X=512.5 Y=60.5m Z=512.5`.
-  - 1,379 tree instances rendered across hills; wild blue Shinx glTF model visible on the left, yellow Pikachu on the right.
+- **`02_battle_status_move.png`**: wild card `WILD PIKACHU Lv. 5 [PAR]`, HP 43/43; player card `PLAYER PIKACHU Lv. 25`, HP 75/78 (after the wild Quick Attack, which acted first by its real priority +1). Log: `Wild PIKACHU used quick-attack! (3 dmg, normal)`, `PIKACHU used thunder-wave!`, `Wild PIKACHU was paralyzed! [PAR]`. Slot 3 thunder-wave highlighted.
+- **`03_battle_item_menu.png`**: `[I] ITEM` tab highlighted; grid shows `[1] Heal 60 HP #17 x5`, `[2] Heal 150 HP #25 x2`, `[3] Cure PSN #18 x2`, `[4] Cure BRN #19 x2` (quantities visible for slots 1 and 3 only because of clipping). Player HP 42/78.
+- **`04_battle_medicine_used.png`**: player HP back at 75/78 after `Used Heal 60 HP #17: PIKACHU regained 36 HP!` (the lower log lines are clipped); the grid is back on moves.
+- **`05_battle_capture_attempt.png`**: log `You threw a Regular Ball at Wild PIKACHU!`, `(catch rate 145 [game data], chance about 49%)`, `Shake...`, `Wild PIKACHU broke free!`, `-- Turn 3 --`; wild card still `[PAR]`.
+
+The 3D models are placeholder capsules/tints in this run (the viewer's model loading is out of scope here). The earlier 6-frame set and the Area 01 frame were from the previous driver and are not regenerated.
 
 ## Remaining Limitations & Unknowns (Lo NO logrado)
 
@@ -76,12 +63,14 @@ Zone naming: the game data numbers areas `ha_area00` = Jubilife Village, `ha_are
    - Baked colour textures now exist on `main` in `work/cache/pokemon_batch/` (per-model `*_color.png`), but `port_viewer` does not use them: it replaces every glTF material with a single `StandardMaterial` tinted by `get_species_color` (see `attach_pokemon_models`), so in-game colour is a per-species placeholder, not the game texture.
 2. **Animation Playback Over Time**:
    - Pokémon models are rendered as static meshes (skinning attributes stripped). Skeletal animation of Pokémon is not shown in the game.
-3. **Catch Rate Field Unknown in PML Table**:
-   - `data/pml_personal.tsv` does not expose a `catch_rate` column; capture formulas keep the placeholder `CAPTURE_CATCH_RATE_PLACEHOLDER` (45).
+3. **Catch rate is real, the capture formula is still LIKELY**:
+   - The rate comes from personal field 17 (`data/pml_personal_extra.tsv`); how the game combines it with HP, status and ball is the engine's LIKELY model, and the shake count shown is derived from that model's two checks, not recovered from the game's animation.
 4. **Overworld spawns are scripted, not the decoded table**:
    - Only 4 scripted wild spawns are placed (deterministic species per area). The decoded `data/field_spawn_table.tsv` exists but is not wired into the game.
-5. **Items and move effects not wired into the UI**:
-   - `data/item_effects.tsv` and `data/pml_move_effects.tsv` exist but are not connected to the battle UI (the ITEM tab does not apply them).
+5. **Battle features still missing**:
+   - Not modelled by the engine (so absent in game): confusion and trapping, charge/recharge turns, Protect/Counter reactions, speed stages in turn order, stat-boost items, vitamins, level-up and evolution items. Item names do not exist in the sheet (labels describe the effect plus the id). The bag is a fixed starter bag, not the player's save. The AI uses only two recovered rules plus local tie-breaks; the party is a fixed 3-member party, not a save.
+   - If `BattleAssets` fails to load (data dir missing) the viewer falls back to the plain `ActiveBattleSession::new` path: no effects, no bag, no switching, placeholder catch rate.
+   - The windowed layout is only checked at the sizes the compositor gave (2560x1414 earlier, 529x1894 now); narrow windows clip the bottom of the log and the move grid.
 6. **`--area N` loads terrain and trees only**:
    - Spawns and other area objects are not decoded per area. The battle UI (HP bars, move menu, log) exists; the game is unfinished and not complete.
 
@@ -91,7 +80,7 @@ Run complete 6-screenshot auto-demo offscreen:
 ```bash
 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
   env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target \
-  cargo run -p pla --example port_viewer -- --auto-demo --out-dir work/cache/game_demo
+  cargo run -p pla --example port_viewer -- --script work/cache/game_demo
 ```
 
 Run multi-zone exploration (Area 01 Obsidian Fieldlands) offscreen:
