@@ -49,3 +49,20 @@ The ground is a **heightmap**, not a mesh. Inside each main area pack (`terrain/
 The BNTX formats `0x0a05` and `0x1405` are NOT handled by `crates/pla/src/assets/bntx.rs` (the earlier census only covered loose `.bntx` files, not the 4,739 inside packs). `.tools/bntxdump` decodes them (tegra_swizzle block-linear, tile mode 0) and `.tools/terrain_preview.py` draws the result.
 
 Still unknown: the horizontal size of a cell and the vertical scale that turns 0..1 into meters, which splat channel maps to which ground texture, and where explicit (non-scattered) objects such as buildings are placed.
+
+## World scale and terrain descriptor (verified 2026-10-12)
+Each area pack has one descriptor entry (the FlatBuffer that names `areaNN_0_0.trmtr`, `areaNN_0_0_detailmap_N.trtbf`, the `plants_*.trmdl` models and the `.trins` names) and one large per-sample entry (ha_area00: entry 3, 12.6 MB; its `f5` vector has 1,025 x 1,025 = 1,050,625 elements). Both carry inline 3-float structs:
+- **Extent `(1025.0, H, 1025.0)`** (descriptor offset 104; also at the tail of the per-sample entry) in all seven areas, with H per area = 185.0, 121.756, 200.240, 127.079, 302.0, 168.0, 36.67 (ha_area00..06).
+- A second struct `(s, H, s)` with s = 1.0009765625 (= 1025/1024) in areas 00 to 05 and 0.50048828125 (= 1025/2048) in area 06.
+
+Independent check with the Havok navigation meshes (`hkaiNavMesh`, one per area; vertices as 16-byte hkVector4): the longest run of vertices spans x, z = 0..1024.3 (ha_area00), 0..1024.2 (ha_area01) and x 0..1017.9, z 0..1024.2 (ha_area03), with maximum y 155.9, 121.5 and 125.8. Heightmap maximum x H gives 158.0 (ha_area00: 0.854 x 185) and 126.9 (ha_area03: 0.9986 x 127.079), slightly above the navmesh maximum as expected for walkable surfaces.
+
+Conclusions, bounded:
+- **Observed:** every area is 1025 units wide in x and z (also for the 2049-sample heightmaps), local origin at one corner (navmesh minimum 0, 0, 0). Heightmap values 0..1 map to 0..H.
+- **Contradiction:** the second struct `s` is 1.00098 for the 2049-sample areas 02, 03 and 05, which would give 2050 units; the navmesh of ha_area03 says about 1024. So `s` is not the sample spacing there; use extent / (samples - 1). It is consistent for the 1025-sample areas and for area 06.
+- **Inferred:** the unit is metres (Havok convention); not proven.
+- Areas are separate maps with their own local frame; no global placement between areas appears in these packs.
+
+## Corrections to earlier statements in this report
+- The three 16,777,288-byte entries of ha_area00 are named by the descriptor as `area00_0_0_detailmap_0..2.trtbf` (4096 x 4096 byte maps); the descriptor also lists the `plants_*` models they drive (grass01/02/05, flowers, shrubs, stones). That they gate vegetation placement is still an inference.
+- The `FlatBuffer-like` entries rich in floats (for example ha_area00 entry 149) are `.trmbf` mesh buffers (a 36-byte-stride vertex blob and a u16 triangle index blob), not instance lists. The `.trins` instance files named in the descriptor (for example `area00_0_0_plants_tree01_X8Z9_d0.trins`, a grid of cells X/Z) have not been located yet: their names appear only in the descriptor.
