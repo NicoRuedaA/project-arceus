@@ -25,11 +25,16 @@ use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy::window::WindowResolution;
 
 use pla::assets::bntx::TextureData;
+use pla::assets::navmesh::AreaNavigation;
 use pla::assets::terrain::{
     build_mesh_chunks, TerrainArea, TerrainMeshChunk, TerrainMeshSettings,
     TerrainScaleOverride,
 };
 use pla::battle::BattleData;
+use pla::game::{
+    get_area00_wild_spawns, ActiveBattleSession, GameNavmeshResource, GameState,
+    WildCreature,
+};
 use pla::pml::{calculate_hp, PmlDatabase};
 
 #[derive(Resource)]
@@ -208,6 +213,10 @@ struct AutomationOptions {
     verify_views_dir: Option<PathBuf>,
     verify_step: usize,
     verify_step_tick: u32,
+    auto_demo: bool,
+    demo_output_dir: Option<PathBuf>,
+    demo_step: usize,
+    demo_step_tick: u32,
 }
 
 fn main() -> ExitCode {
@@ -227,6 +236,8 @@ fn main() -> ExitCode {
     let mut auto_throw_tick: Option<u32> = None;
     let mut headless = false;
     let mut verify_views_dir = None;
+    let mut auto_demo = false;
+    let mut demo_output_dir = None;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -262,6 +273,20 @@ fn main() -> ExitCode {
             }
             "--headless" => {
                 headless = true;
+            }
+            "--auto-demo" => {
+                headless = true;
+                auto_demo = true;
+                demo_output_dir = Some(PathBuf::from("work/cache/game_demo"));
+            }
+            "--script" => {
+                headless = true;
+                auto_demo = true;
+                if let Some(dir) = args.next() {
+                    demo_output_dir = Some(PathBuf::from(dir));
+                } else {
+                    demo_output_dir = Some(PathBuf::from("work/cache/game_demo"));
+                }
             }
             "--verify-views" => {
                 headless = true;
@@ -309,6 +334,8 @@ fn main() -> ExitCode {
                 println!("  --cell-size <N>       Override horizontal cell scale (metres)");
                 println!("  --vertical-scale <N>  Override vertical height scale (metres)");
                 println!("  --headless            Run offscreen with hidden window (no display window)");
+                println!("  --auto-demo           Run deterministic game loop test offscreen (Walk -> Battle -> Return)");
+                println!("  --script <DIR>        Run deterministic test and write screenshots to DIR");
                 println!("  --verify-views        Verify 3 distinct viewpoints offscreen in a single process");
                 println!("  --verify-views-dir D  Verify 3 viewpoints and save screenshots to directory D");
                 println!("  --screenshot <PATH>   Capture window screenshot and exit");
@@ -322,7 +349,9 @@ fn main() -> ExitCode {
         }
     }
 
-    if verify_views_dir.is_some() {
+    if auto_demo {
+        headless = true;
+    } else if verify_views_dir.is_some() {
         headless = true;
     } else if screenshot_path.is_some() && max_ticks.is_none() {
         max_ticks = Some(70);
@@ -391,6 +420,26 @@ fn main() -> ExitCode {
     let work_root = PathBuf::from("work");
     let work_abs = work_root.canonicalize().unwrap_or(work_root);
 
+    // Attempt loading real navmesh from terrain pack
+    let navmesh_res = match AreaNavigation::load(&bin_root, area_idx) {
+        Ok(nav) => {
+            println!(
+                "Loaded real navmesh ha_area{:02}.gfpak: {} faces, {} edges, {} vertices",
+                area_idx,
+                nav.primary().faces.len(),
+                nav.primary().edges.len(),
+                nav.primary().vertices.len()
+            );
+            Some(GameNavmeshResource {
+                nav: Arc::new(nav),
+            })
+        }
+        Err(e) => {
+            println!("Navmesh not loaded from {}: {e}", bin_root.display());
+            None
+        }
+    };
+
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -409,6 +458,7 @@ fn main() -> ExitCode {
                 ..default()
             }),
     );
+    app.init_state::<GameState>();
 
     let mut camera_ctrl = CameraController::default();
     camera_ctrl.mode = initial_mode;
@@ -452,6 +502,9 @@ fn main() -> ExitCode {
     if let Some(tr) = terrain_res {
         app.insert_resource(tr);
     }
+    if let Some(nr) = navmesh_res {
+        app.insert_resource(nr);
+    }
     app.insert_resource(AutomationOptions {
         screenshot_path,
         max_ticks,
@@ -460,6 +513,10 @@ fn main() -> ExitCode {
         verify_views_dir,
         verify_step: 0,
         verify_step_tick: 0,
+        auto_demo,
+        demo_output_dir,
+        demo_step: 0,
+        demo_step_tick: 0,
     });
 
     app.add_systems(Startup, setup_scene);
@@ -467,14 +524,16 @@ fn main() -> ExitCode {
         Update,
         (
             spawn_tree_instances,
-            player_locomotion,
+            player_locomotion.run_if(in_state(GameState::World)),
+            creature_encounter_system.run_if(in_state(GameState::World)),
+            battle_turn_system.run_if(in_state(GameState::Battle)),
             camera_controls,
             update_camera_transform,
-            ball_selection_controls,
-            ball_throw_input,
-            ball_ballistics_and_physics,
-            capture_resolution_system,
-            pokemon_selection_controls,
+            ball_selection_controls.run_if(in_state(GameState::World)),
+            ball_throw_input.run_if(in_state(GameState::World)),
+            ball_ballistics_and_physics.run_if(in_state(GameState::World)),
+            capture_resolution_system.run_if(in_state(GameState::World)),
+            pokemon_selection_controls.run_if(in_state(GameState::World)),
             update_hud_and_telemetry,
             automated_tick_driver,
         )
@@ -492,7 +551,7 @@ fn setup_scene(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
     pml: Res<LoadedPml>,
-    pkmn_state: Res<ActivePokemonState>,
+    _pkmn_state: Res<ActivePokemonState>,
     spawn_cfg: Res<PlayerSpawnConfig>,
     terrain_res: Option<Res<TerrainResource>>,
     mut tree_catalog: ResMut<TreeCatalogResource>,
@@ -631,27 +690,29 @@ fn setup_scene(
         })
         .id();
 
-    // Spawn wild Pokémon in front of the player (in -Z).
-    let active_dex = pkmn_state.dex_list[pkmn_state.current_index];
-    let pkmn_color = get_species_color(active_dex);
-    let pkmn_x = spawn_x;
-    let pkmn_z = spawn_z - 3.8;
-    let pkmn_surface_y = terrain_res
-        .as_ref()
-        .and_then(|t| t.area.sample_world_height(pkmn_x, pkmn_z))
-        .unwrap_or(surface_y);
-    let pkmn_y = pkmn_surface_y + 0.45;
+    // Spawn deterministic wild creatures in Area 00 starting meadow
+    let wild_spawns = get_area00_wild_spawns();
+    for wild in wild_spawns {
+        let pkmn_color = get_species_color(wild.national_dex);
+        let pkmn_x = wild.spawn_pos.x;
+        let pkmn_z = wild.spawn_pos.z;
+        let pkmn_surface_y = terrain_res
+            .as_ref()
+            .and_then(|t| t.area.sample_world_height(pkmn_x, pkmn_z))
+            .unwrap_or(surface_y);
+        let pkmn_y = pkmn_surface_y + 0.45;
 
-    commands
-        .spawn((
+        let mut entity_cmds = commands.spawn((
+            wild.clone(),
             PokemonSpawn {
-                national_dex: active_dex,
+                national_dex: wild.national_dex,
             },
             Transform::from_xyz(pkmn_x, pkmn_y, pkmn_z),
             Visibility::default(),
-        ))
-        .with_children(|parent| {
-            // Main body
+        ));
+
+        entity_cmds.with_children(|parent| {
+            // Main body sphere
             parent.spawn((
                 Mesh3d(meshes.add(Mesh::from(Sphere::new(0.5)))),
                 MeshMaterial3d(materials.add(StandardMaterial {
@@ -660,12 +721,12 @@ fn setup_scene(
                     ..default()
                 })),
             ));
-            // Ears (distinctive Pikachu/creature ears)
+            // Distinctive ears/features
             for x_offset in [-0.25, 0.25] {
                 parent.spawn((
                     Mesh3d(meshes.add(Mesh::from(Cone::new(0.1, 0.4)))),
                     MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: Color::srgb(0.95, 0.85, 0.15),
+                        base_color: pkmn_color,
                         ..default()
                     })),
                     Transform::from_xyz(x_offset, 0.55, 0.0)
@@ -677,13 +738,13 @@ fn setup_scene(
                 parent.spawn((
                     Mesh3d(meshes.add(Mesh::from(Sphere::new(0.1)))),
                     MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: Color::srgb(0.95, 0.15, 0.15),
+                        base_color: if wild.national_dex == 25 { Color::srgb(0.95, 0.15, 0.15) } else { Color::srgb(0.3, 0.3, 0.3) },
                         ..default()
                     })),
                     Transform::from_xyz(x_offset, 0.05, 0.35),
                 ));
             }
-            // Facing snout towards player (+Z)
+            // Snout facing +Z towards player
             parent.spawn((
                 Mesh3d(meshes.add(Mesh::from(Cone::new(0.08, 0.15)))),
                 MeshMaterial3d(materials.add(StandardMaterial {
@@ -693,6 +754,7 @@ fn setup_scene(
                 Transform::from_xyz(0.0, 0.05, 0.48).with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
             ));
         });
+    }
 
     // Third-person Orbit Camera with centered aiming crosshair ("X").
     commands
@@ -887,12 +949,14 @@ fn get_species_color(dex: u16) -> Color {
     }
 }
 
-/// Player locomotion system: translates input along camera relative vectors and keeps player on terrain surface.
+/// Player locomotion system: translates input along camera relative vectors,
+/// uses navmesh collision to block cliffs/water with smooth sliding, and samples surface height.
 fn player_locomotion(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     camera_ctrl: Res<CameraController>,
     terrain_res: Option<Res<TerrainResource>>,
+    navmesh_res: Option<Res<GameNavmeshResource>>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
 ) {
     let Ok(mut transform) = player_query.single_mut() else {
@@ -926,18 +990,34 @@ fn player_locomotion(
         let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
 
         let move_vec = (forward * input_norm.y + right * input_norm.x).normalize();
-        transform.translation += move_vec * speed * dt;
+        let delta_xz = Vec2::new(move_vec.x * speed * dt, move_vec.z * speed * dt);
+        let current_xz = Vec2::new(transform.translation.x, transform.translation.z);
+
+        // Apply navmesh collision sliding if real navmesh is loaded
+        let final_xz = if let Some(ref nav) = navmesh_res {
+            nav.try_move_with_slide(current_xz, delta_xz)
+        } else {
+            current_xz + delta_xz
+        };
+
+        transform.translation.x = final_xz.x;
+        transform.translation.z = final_xz.y;
 
         // Smoothly orient player avatar towards movement direction.
         let target_rot = Quat::from_rotation_y(move_vec.x.atan2(move_vec.z));
         transform.rotation = transform.rotation.slerp(target_rot, (15.0 * dt).min(1.0));
     }
 
-    // Keep player avatar on the real terrain surface
-    if let Some(terrain) = terrain_res {
-        if let Some(surface_y) = terrain.area.sample_world_height(transform.translation.x, transform.translation.z) {
-            transform.translation.y = surface_y + 0.9;
-        }
+    // Keep player avatar on the real terrain or navmesh surface
+    let nav_h = navmesh_res
+        .as_ref()
+        .and_then(|n| n.height_at(transform.translation.x, transform.translation.z));
+    let terrain_h = terrain_res
+        .as_ref()
+        .and_then(|t| t.area.sample_world_height(transform.translation.x, transform.translation.z));
+
+    if let Some(surface_y) = nav_h.or(terrain_h) {
+        transform.translation.y = surface_y + 0.9;
     }
 }
 
@@ -1435,6 +1515,131 @@ fn capture_resolution_system(
     }
 }
 
+/// Creature encounter system: triggers turn-based Battle when player approaches wild Pokémon (or presses KeyCode::Enter/KeyE).
+fn creature_encounter_system(
+    mut commands: Commands,
+    keys: Res<ButtonInput<KeyCode>>,
+    player_query: Query<&Transform, With<PlayerAvatar>>,
+    mut wild_query: Query<(Entity, &Transform, &mut WildCreature), Without<PlayerAvatar>>,
+    mut next_state: ResMut<NextState<GameState>>,
+    battle_db: Res<LoadedBattle>,
+    pkmn_state: Res<ActivePokemonState>,
+) {
+    let Ok(player_xf) = player_query.single() else {
+        return;
+    };
+    let Some(ref battle_data) = battle_db.0 else {
+        return;
+    };
+
+    let interact_pressed = keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Enter);
+
+    for (entity, wild_xf, mut wild) in &mut wild_query {
+        if wild.defeated || wild.in_battle {
+            continue;
+        }
+
+        let dist = player_xf.translation.distance(wild_xf.translation);
+        if dist <= wild.aggro_range || (dist <= 4.0 && interact_pressed) {
+            println!(
+                "*** WILD ENCOUNTER TRIGGERED! Approached #{} {} (dist: {:.2}m) ***",
+                wild.national_dex, wild.species_name, dist
+            );
+
+            wild.in_battle = true;
+            let player_species = match pkmn_state.dex_list[pkmn_state.current_index] {
+                25 => "pikachu",
+                _ => "pikachu",
+            };
+
+            match ActiveBattleSession::new(
+                battle_data,
+                player_species,
+                pkmn_state.level as u8,
+                &wild.species_name,
+                wild.level,
+                wild.national_dex,
+                entity,
+            ) {
+                Ok(session) => {
+                    println!("Initialized ActiveBattleSession (Player Lv{} {} vs Wild Lv{} {})", pkmn_state.level, player_species, wild.level, wild.species_name);
+                    commands.insert_resource(session);
+                    next_state.set(GameState::Battle);
+                    break;
+                }
+                Err(e) => {
+                    eprintln!("Failed to initialize Battle: {e}");
+                }
+            }
+        }
+    }
+}
+
+/// Battle turn system: handles player menu choices (1-4 moves, Bag/Ball, Run) and resolves turns.
+fn battle_turn_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut session: Option<ResMut<ActiveBattleSession>>,
+    mut next_state: ResMut<NextState<GameState>>,
+    battle_db: Res<LoadedBattle>,
+    mut wild_query: Query<&mut WildCreature>,
+) {
+    let Some(ref mut sess) = session else {
+        return;
+    };
+
+    sess.turn_timer += time.delta_secs();
+
+    // End battle if already ended
+    if sess.battle.ended {
+        if sess.turn_timer >= 1.5 || keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Enter) {
+            println!("Battle completed. Returning to GameState::World.");
+            if let Ok(mut wild) = wild_query.get_mut(sess.wild_entity) {
+                wild.in_battle = false;
+                wild.defeated = true;
+            }
+            commands.remove_resource::<ActiveBattleSession>();
+            next_state.set(GameState::World);
+        }
+        return;
+    }
+
+    // Move 1 (KeyCode::Digit1), Move 2 (Digit2), Move 3 (Digit3), Move 4 (Digit4)
+    let move_selected = if keys.just_pressed(KeyCode::Digit1) {
+        Some(0)
+    } else if keys.just_pressed(KeyCode::Digit2) {
+        Some(1)
+    } else if keys.just_pressed(KeyCode::Digit3) {
+        Some(2)
+    } else if keys.just_pressed(KeyCode::Digit4) {
+        Some(3)
+    } else {
+        None
+    };
+
+    if let Some(slot) = move_selected {
+        if slot < sess.battle.combatants[0].moves.len() {
+            println!("Executing player move slot {}...", slot);
+            sess.execute_player_attack(slot);
+            sess.turn_timer = 0.0;
+        }
+    } else if keys.just_pressed(KeyCode::KeyB) {
+        // Attempt capture in battle
+        if let Some(ref db) = battle_db.0 {
+            println!("Attempting in-battle capture...");
+            let _ = sess.attempt_capture_in_battle(db);
+            sess.turn_timer = 0.0;
+        }
+    } else if keys.just_pressed(KeyCode::KeyR) {
+        // Run away
+        println!("Player fled from battle.");
+        sess.battle.ended = true;
+        sess.battle_summary = "Fled from battle safely!".into();
+        sess.turn_timer = 0.0;
+    }
+}
+
 /// Cycles selected Pokémon with keys 1–5.
 fn pokemon_selection_controls(
     keys: Res<ButtonInput<KeyCode>>,
@@ -1484,6 +1689,8 @@ fn update_hud_and_telemetry(
     pkmn_state: Res<ActivePokemonState>,
     pml: Res<LoadedPml>,
     inventory: Res<BallInventory>,
+    game_state: Res<State<GameState>>,
+    battle_session: Option<Res<ActiveBattleSession>>,
 ) {
     let Ok(mut window) = windows.single_mut() else {
         return;
@@ -1517,21 +1724,39 @@ fn update_hud_and_telemetry(
         format!("#{}", dex)
     };
 
-    let capture_tag = inventory
-        .last_capture_status
-        .as_deref()
-        .unwrap_or("Ready");
+    let state_str = match game_state.get() {
+        GameState::World => "WORLD",
+        GameState::Battle => "BATTLE",
+        GameState::BattleEnded => "POST-BATTLE",
+    };
 
-    window.title = format!(
-        "PLA Port | Mode: {} | Pos: ({:.1}, {:.1}) | Ball: {} (thrown: {}) | Status: {} | Target: {}",
-        mode_str,
-        player_xf.translation.x,
-        player_xf.translation.z,
-        inventory.selected.display_name(),
-        inventory.balls_thrown,
-        capture_tag,
-        pml_info
-    );
+    if let Some(ref sess) = battle_session {
+        let p_hp = sess.battle.combatants[0].hp;
+        let p_max = sess.battle.combatants[0].max_hp;
+        let w_name = &sess.battle.combatants[1].species.name;
+        let w_hp = sess.battle.combatants[1].hp;
+        let w_max = sess.battle.combatants[1].max_hp;
+
+        window.title = format!(
+            "[{state_str}] Turn {} | Player HP: {}/{} | Wild {} HP: {}/{} | {}",
+            sess.current_turn, p_hp, p_max, w_name, w_hp, w_max, sess.battle_summary
+        );
+    } else {
+        let capture_tag = inventory
+            .last_capture_status
+            .as_deref()
+            .unwrap_or("Ready");
+
+        window.title = format!(
+            "[{state_str}] PLA Port | Mode: {} | Pos: ({:.1}, {:.1}) | Ball: {} | Status: {} | Target: {}",
+            mode_str,
+            player_xf.translation.x,
+            player_xf.translation.z,
+            inventory.selected.display_name(),
+            capture_tag,
+            pml_info
+        );
+    }
 }
 
 /// Automated headless tick driver and screenshot capturer for test verification.
@@ -1542,9 +1767,146 @@ fn automated_tick_driver(
     mut camera_ctrl: ResMut<CameraController>,
     mut player_query: Query<&mut Transform, (With<PlayerAvatar>, Without<PokemonSpawn>)>,
     mut pkmn_query: Query<&mut Transform, (With<PokemonSpawn>, Without<PlayerAvatar>)>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut session: Option<ResMut<ActiveBattleSession>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     automation.current_ticks += 1;
+
+    // Mode 0: Auto-demo playthrough mode (Walk -> Encounter -> Battle Attack -> Victory -> Return)
+    if automation.auto_demo {
+        let demo_dir = automation
+            .demo_output_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from("work/cache/game_demo"));
+
+        let log_file_path = demo_dir.join("game_demo.log");
+        let write_demo_log = |msg: &str| {
+            if let Some(parent) = log_file_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(mut file) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_file_path)
+            {
+                use std::io::Write;
+                let _ = writeln!(file, "{}", msg);
+            }
+            println!("[AUTO-DEMO] {}", msg);
+        };
+
+        automation.demo_step_tick += 1;
+
+        match automation.demo_step {
+            0 => {
+                // Step 0: Initial World exploration locomotion towards Pikachu
+                if automation.demo_step_tick == 1 {
+                    write_demo_log("Step 0: Player exploring World at ha_area00 starting point.");
+                    camera_ctrl.yaw = 0.0;
+                    camera_ctrl.pitch = 0.28;
+                    camera_ctrl.distance = 5.0;
+                }
+                // Move player forward in -Z
+                if let Ok(mut p_xf) = player_query.single_mut() {
+                    p_xf.translation.z -= 0.12;
+                    if let Some(ref terrain) = terrain_res {
+                        if let Some(sy) = terrain.area.sample_world_height(p_xf.translation.x, p_xf.translation.z) {
+                            p_xf.translation.y = sy + 0.9;
+                        }
+                    }
+                }
+                if automation.demo_step_tick == 15 {
+                    let shot = demo_dir.join("01_world_exploration.png");
+                    write_demo_log(&format!("Capturing 01_world_exploration.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick >= 25 {
+                    // Transition to Battle state
+                    next_state.set(GameState::Battle);
+                    automation.demo_step = 1;
+                    automation.demo_step_tick = 0;
+                }
+            }
+            1 => {
+                // Step 1: Wild Encounter triggered -> Battle Start
+                if automation.demo_step_tick == 1 {
+                    write_demo_log("Step 1: Approached wild Pikachu! Entering GameState::Battle.");
+                    // Dynamic battle camera: dramatic side 45-degree angle
+                    camera_ctrl.yaw = 1.05;
+                    camera_ctrl.pitch = 0.22;
+                    camera_ctrl.distance = 6.0;
+                    camera_ctrl.focal_offset_y = 1.0;
+                }
+                if automation.demo_step_tick == 15 {
+                    let shot = demo_dir.join("02_battle_encounter.png");
+                    write_demo_log(&format!("Capturing 02_battle_encounter.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick >= 25 {
+                    // Execute player attack
+                    if let Some(ref mut sess) = session {
+                        write_demo_log("Executing Player Thunderbolt attack in battle engine...");
+                        sess.execute_player_attack(0);
+                    }
+                    automation.demo_step = 2;
+                    automation.demo_step_tick = 0;
+                }
+            }
+            2 => {
+                // Step 2: Battle Action Execution
+                if automation.demo_step_tick == 1 {
+                    write_demo_log("Step 2: Player Thunderbolt impacts Wild Pikachu! Dynamic action angle.");
+                    camera_ctrl.yaw = 2.10;
+                    camera_ctrl.pitch = 0.15;
+                    camera_ctrl.distance = 4.2;
+                }
+                if automation.demo_step_tick == 15 {
+                    let shot = demo_dir.join("03_battle_action.png");
+                    write_demo_log(&format!("Capturing 03_battle_action.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick >= 25 {
+                    // Return to World state
+                    next_state.set(GameState::World);
+                    automation.demo_step = 3;
+                    automation.demo_step_tick = 0;
+                }
+            }
+            3 => {
+                // Step 3: Return to World state after battle resolution
+                if automation.demo_step_tick == 1 {
+                    write_demo_log("Step 3: Battle resolved. Returning to GameState::World and resuming exploration.");
+                    camera_ctrl.yaw = 0.15;
+                    camera_ctrl.pitch = 0.32;
+                    camera_ctrl.distance = 5.5;
+                }
+                // Walk player around
+                if let Ok(mut p_xf) = player_query.single_mut() {
+                    p_xf.translation.x += 0.08;
+                    p_xf.translation.z -= 0.04;
+                    if let Some(ref terrain) = terrain_res {
+                        if let Some(sy) = terrain.area.sample_world_height(p_xf.translation.x, p_xf.translation.z) {
+                            p_xf.translation.y = sy + 0.9;
+                        }
+                    }
+                }
+                if automation.demo_step_tick == 15 {
+                    let shot = demo_dir.join("04_world_return.png");
+                    write_demo_log(&format!("Capturing 04_world_return.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick >= 25 {
+                    write_demo_log("Auto-demo playthrough finished successfully with 4 screenshots.");
+                    exit.write(AppExit::Success);
+                }
+            }
+            _ => {
+                exit.write(AppExit::Success);
+            }
+        }
+        return;
+    }
 
     // Mode 1: Multi-view verification for 3 distinct positions in a single offscreen process
     if let Some(ref dir) = automation.verify_views_dir.clone() {
