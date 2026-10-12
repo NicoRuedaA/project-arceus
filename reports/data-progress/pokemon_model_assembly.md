@@ -8,8 +8,12 @@ Pikachu (`pm0025_00_00.gfpak`) still fails visual acceptance. The experimental
 `base_rgb_overlays` channel mapping passes its unit test, but its offscreen
 render makes most of the head and body black and leaves the ears brown; it is
 not a solution. Do not infer the native shader from the current mask/layer
-samples. The Pikachu tail also remains visually too large and detached-looking,
-with no supported cause yet. The 10-pack batch was not run because the gates
+samples. The Pikachu tail looked too large in the contact sheet; the later tail
+re-investigation (below) found no exporter defect: thin-sheet geometry, skinning
+verified in numpy, idle clip holds `tail_01` ~43 degrees from rest (InitData not
+applied, idle-pose authenticity unproven); it looks fine in side/three-quarter
+renders and in the in-game screenshot
+`work/cache/game_demo/03_battle_move_selection.png`. The 10-pack batch was not run because the gates
 remain unmet.
 
 ## Observed evidence

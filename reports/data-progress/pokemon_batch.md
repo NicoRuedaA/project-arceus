@@ -22,7 +22,7 @@ Fixed with evidence: 67 packs failed with "animation track name absent from sele
 Pikachu, Clefairy, Vulpix, Snorlax, Gyarados, Gengar (static), Munchlax, Rhyperior, Sneasel-like pm0215, Magikarp, pm0442, pm0468.
 
 - Right: silhouettes and proportions are recognisable across sizes (Snorlax, Gengar, Rhyperior, Vulpix tail fan, Magikarp). Skeleton/skin at frame 0 does not explode.
-- Wrong / unproven: (historical, first run) every model was plain white because albedo textures are near-white. Superseded: the re-run with `--force` bakes the layer-mask colours and the same 12 models now show recognisable real colours; see [pokemon_color.md](pokemon_color.md). Pikachu tail still looks like a flat oversized slab. Gyarados looks fragmentary/thin (suspect, not investigated). Vertex bounds of unfiltered skinned meshes include outliers (framing needed 1-99 percentile bounds).
+- Wrong / unproven: (historical, first run) every model was plain white because albedo textures are near-white. Superseded: the re-run with `--force` bakes the layer-mask colours and the same 12 models now show recognisable real colours; see [pokemon_color.md](pokemon_color.md). Pikachu tail geometry is a thin sheet; the apparent slab is the idle pose plus framing, not an exporter defect (see the tail re-investigation in pokemon_model_assembly.md; idle-pose authenticity unproven). Gyarados looks fragmentary/thin (suspect, not investigated). Vertex bounds of unfiltered skinned meshes include outliers (framing needed 1-99 percentile bounds).
 - Animation over time was not rendered; only frame 0.
 
 ## Next
