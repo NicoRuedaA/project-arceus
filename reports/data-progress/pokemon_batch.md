@@ -2,7 +2,7 @@
 
 Tool: `crates/pla/examples/pokemon_batch_export.rs` (resumable: one `.status` file per pack, one pack in memory at a time, panics caught per pack). Output (git-ignored): `work/cache/pokemon_batch/<pack stem>/`. Index: [`data/pokemon_model_export_index.tsv`](../../data/pokemon_model_export_index.tsv) (356 rows, `sheetty check data` = 0 errors). Full run takes about 3 minutes.
 
-Export per pack: LOD0 meshes, skeleton, idle (`defaultwait*`) and walk (`walk*`) clips as separate skinned glTFs, and a static glTF when no clip can be mapped. Material is a SAFE baseline: plain `alb` base-colour texture plus `nrm`; no layer-mask, AO or colour-layer mixing.
+Export per pack: LOD0 meshes, skeleton, idle (`defaultwait*`) and walk (`walk*`) clips as separate skinned glTFs, and a static glTF when no clip can be mapped. Material: base colour baked from the TRMTR layer masks (see [pokemon_color.md](pokemon_color.md)) plus `nrm`; no AO, emission or roughness. A sub-mesh without a usable layer mask keeps the plain albedo.
 
 ## Results
 
@@ -22,9 +22,9 @@ Fixed with evidence: 67 packs failed with "animation track name absent from sele
 Pikachu, Clefairy, Vulpix, Snorlax, Gyarados, Gengar (static), Munchlax, Rhyperior, Sneasel-like pm0215, Magikarp, pm0442, pm0468.
 
 - Right: silhouettes and proportions are recognisable across sizes (Snorlax, Gengar, Rhyperior, Vulpix tail fan, Magikarp). Skeleton/skin at frame 0 does not explode.
-- Wrong / unproven: every model is plain white with dark-red eyes/mouth. Albedo textures are near-white (e.g. Pikachu `body_a_alb` is a 1 KB PNG), so the real colour lives in the layer masks that are not understood; the baseline is neutral, not darker than the old bake, but it is colourless and NOT visual fidelity. Pikachu tail still looks like a flat oversized slab. Gyarados looks fragmentary/thin (suspect, not investigated). Vertex bounds of unfiltered skinned meshes include outliers (framing needed 1-99 percentile bounds).
+- Wrong / unproven: (historical, first run) every model was plain white because albedo textures are near-white. Superseded: the re-run with `--force` bakes the layer-mask colours and the same 12 models now show recognisable real colours; see [pokemon_color.md](pokemon_color.md). Pikachu tail still looks like a flat oversized slab. Gyarados looks fragmentary/thin (suspect, not investigated). Vertex bounds of unfiltered skinned meshes include outliers (framing needed 1-99 percentile bounds).
 - Animation over time was not rendered; only frame 0.
 
 ## Next
 
-Understand the layer-colour/mask combination (shared by all packs), then re-run the exporter (`--force`) so every pack gets colour. Investigate the two skin-layout blocks and the rest-pose disagreements.
+Colour is done as a flat base colour (see [pokemon_color.md](pokemon_color.md)). Investigate the two skin-layout blocks and the rest-pose disagreements.

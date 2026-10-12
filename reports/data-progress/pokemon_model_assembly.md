@@ -1,5 +1,7 @@
 # Pokémon model-pack assembly
 
+> Update: the colour problem described below is resolved by the layer-mask bake and the V flip, see [pokemon_color.md](pokemon_color.md). The mask/colour observations and the `base_rgb_overlays` rejection stay as history; the tail-size question remains open.
+
 ## Outcome
 
 Pikachu (`pm0025_00_00.gfpak`) still fails visual acceptance. The experimental
