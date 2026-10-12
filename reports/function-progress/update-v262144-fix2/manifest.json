@@ -73,7 +73,7 @@
     "port.png": "ce2ee67b5cef89051213a395735c8979a4d11df2c99c2117882f9eeed6bae0a4"
   },
   "rust_source_fingerprint": {
-    "file_count": 76,
+    "file_count": 77,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -118,6 +118,10 @@
       {
         "path": "crates/pla/examples/pokemon_assemble.rs",
         "sha256": "0594b6bdc15a0d3769092a76e7621a97492721bfe728408b6f214cc6859d6b8a"
+      },
+      {
+        "path": "crates/pla/examples/pokemon_batch_export.rs",
+        "sha256": "2a53fc01546edfaf22025f8c89c63bf79f67a0d47b3f779c27e0fea40bd7382b"
       },
       {
         "path": "crates/pla/examples/pokemon_gfpak_census.rs",
@@ -181,7 +185,7 @@
       },
       {
         "path": "crates/pla/src/assets/gltf_export.rs",
-        "sha256": "df4c4883db72e600653020e44250e32b23daae3b6e9e7643c43b7dece6206fbc"
+        "sha256": "a619fda748a90a260a9679f3ecca9b6eaee866e699c5a616155cfe5bdb36f0dd"
       },
       {
         "path": "crates/pla/src/assets/havok_tag.rs",
@@ -381,7 +385,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "cddb87e880cd5ecb326172c846733713d7423c9bd674a24acfc1a06e8f4061cd"
+    "sha256": "1c7771d35f4d8c74a3a5db5046e62fa27236db278cd575bdac5de146a3e642aa"
   },
   "state_partitions": {
     "analysis_documentation_status": {
