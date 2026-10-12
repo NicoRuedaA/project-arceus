@@ -55,8 +55,8 @@
     "indexed_files_without_parsed_functions": 837,
     "module_id": "ns.update.v262144.main",
     "parsed_function_row_count": 152634,
-    "snapshot_fingerprint_sha256": "735385746a17bac061b8376020b3bd8b1f50b8ed49a23f12f2463c766da2e333",
-    "wal_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    "snapshot_fingerprint_sha256": "e38259eee8a2c73c71bd5513f6034d2db6adac64c3ff341ecbdb1c187eb8c13e",
+    "wal_sha256": null
   },
   "inventory": {
     "bytes_outside_inventoried_function_bodies": 1830644,
@@ -101,7 +101,7 @@
       },
       {
         "path": "crates/pla/examples/pokemon_assemble.rs",
-        "sha256": "f24c14da073e33a25a7e826cd1a8c570f31201e5ab28ad94d7e0ef67e3416fa0"
+        "sha256": "0594b6bdc15a0d3769092a76e7621a97492721bfe728408b6f214cc6859d6b8a"
       },
       {
         "path": "crates/pla/examples/pokemon_gfpak_census.rs",
@@ -169,7 +169,7 @@
       },
       {
         "path": "crates/pla/src/assets/pokemon_model.rs",
-        "sha256": "9621ce95a4c9eda11503bd52c55c8d8d53b58ce4167a81afd4a2b461a4ada3fb"
+        "sha256": "e02af8cf559ba47ac8a8e4d958ed002c8d2380592c50b34587677c8a8aeac6f7"
       },
       {
         "path": "crates/pla/src/assets/sarc.rs",
@@ -181,11 +181,11 @@
       },
       {
         "path": "crates/pla/src/assets/tr/animation.rs",
-        "sha256": "6a622137cfb4b476161c69000411870e107349ea2e7ca6c22134b52b539e0636"
+        "sha256": "24dc79de5ad8b1c756c986132c78e139ac98d489d6e27101aa1443aa6d27ee66"
       },
       {
         "path": "crates/pla/src/assets/tr/bevy.rs",
-        "sha256": "35fa589c6ca9c6c4205c66f0983500c48be99c63d2fe3dab265d9ab94dc0247a"
+        "sha256": "0acf2e8f1f68d2441632ccddec3ead5f5cf07a4093bf522301b9670df66ecbe0"
       },
       {
         "path": "crates/pla/src/assets/tr/matrices.rs",
@@ -345,7 +345,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "7d53ea467695552c02691fdf78a2ad9ac2a298cf940f422d38e4392ebff80f4d"
+    "sha256": "7d83b8fa76c9ee3d8f7f6301a3c51c5b08f6226be4d54667f39919ef5528256c"
   },
   "state_partitions": {
     "analysis_documentation_status": {

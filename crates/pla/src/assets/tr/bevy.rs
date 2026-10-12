@@ -53,7 +53,7 @@ impl BevyTrSkeleton {
             local_transforms.push(Transform {
                 translation: Vec3::from_array(srt.translation),
                 rotation: Quat::from_euler(
-                    bevy::math::EulerRot::XYZ,
+                    bevy::math::EulerRot::XYZEx,
                     srt.rotation[0],
                     srt.rotation[1],
                     srt.rotation[2],
@@ -318,6 +318,32 @@ mod tests {
             }],
             bind_count: 1,
             root_flag: 0,
+        }
+    }
+
+    #[test]
+    fn local_quaternions_match_the_reference_xyz_extrinsic_matrices() {
+        let source = TrSklTransform {
+            scale: [0.8, 1.2, 0.9],
+            rotation: [0.37, -0.61, 1.13],
+            translation: [0.4, -0.2, 0.7],
+        };
+        let rotation = Quat::from_euler(
+            bevy::math::EulerRot::XYZEx,
+            source.rotation[0],
+            source.rotation[1],
+            source.rotation[2],
+        );
+        let actual = Mat4::from_scale_rotation_translation(
+            Vec3::from_array(source.scale),
+            rotation,
+            Vec3::from_array(source.translation),
+        );
+        let expected = source.reference_matrix().unwrap();
+        for (row, expected_row) in expected.rows.iter().enumerate() {
+            for (column, expected_value) in expected_row.iter().enumerate() {
+                assert!((f64::from(actual.to_cols_array_2d()[column][row]) - expected_value).abs() < 1e-6);
+            }
         }
     }
 

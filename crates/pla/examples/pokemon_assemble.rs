@@ -4,6 +4,36 @@ use pla::assets::pokemon_model::{
 };
 use std::{env, fs, path::PathBuf};
 
+fn named_vector4_values(bytes: &[u8], name: &str) -> Option<Vec<[f32; 4]>> {
+    let needle = name.as_bytes();
+    let mut values = Vec::new();
+    let mut from = 0;
+    while from < bytes.len() {
+        let Some(relative) = bytes.get(from..)?.windows(needle.len()).position(|w| w == needle)
+        else {
+            break;
+        };
+        let at = from + relative;
+        if at < 24
+            || u32::from_le_bytes(bytes.get(at - 24..at - 20)?.try_into().ok()?) != 20
+            || u32::from_le_bytes(bytes.get(at - 4..at)?.try_into().ok()?) as usize != needle.len()
+        {
+            return None;
+        }
+        let mut value = [0.0; 4];
+        for (index, component) in value.iter_mut().enumerate() {
+            let start = at - 20 + index * 4;
+            *component = f32::from_le_bytes(bytes.get(start..start + 4)?.try_into().ok()?);
+        }
+        if value.iter().any(|component| !component.is_finite()) {
+            return None;
+        }
+        values.push(value);
+        from = at + needle.len();
+    }
+    Some(values)
+}
+
 fn main() -> Result<(), String> {
     let mut args = env::args_os().skip(1);
     let pack = PathBuf::from(
@@ -33,6 +63,15 @@ fn main() -> Result<(), String> {
             skeleton.bind_count,
             model.bind_record_error.as_deref().unwrap_or("none")
         ));
+        for (index, node) in skeleton.nodes.iter().enumerate().filter(|(_, node)| {
+            node.name.to_ascii_lowercase().contains("tail")
+                || node.name.to_ascii_lowercase().contains("sippo")
+        }) {
+            report.push_str(&format!(
+                "skeleton_tail_node={index} name={} parent={:?} rig={:?} scale={:?} rotation={:?} translation={:?}\n",
+                node.name, node.parent, node.rig_index, node.local.scale, node.local.rotation, node.local.translation
+            ));
+        }
     }
     if let Some(error) = &model.skeleton_parse_error {
         report.push_str(&format!("skeleton_parse_error={error}\n"));
@@ -82,6 +121,39 @@ fn main() -> Result<(), String> {
             "shape_uv={} count={} min={uv_min:?} max={uv_max:?}\n",
             mesh.name, uv_count
         ));
+        if mesh.name.to_ascii_lowercase().contains("sippo") {
+            let mut min = [f32::INFINITY; 3];
+            let mut max = [f32::NEG_INFINITY; 3];
+            for vertex in 0..mesh.mesh.vertex_count {
+                if let Some(position) = mesh.mesh.position(&mesh.buffer_bytes, vertex) {
+                    for axis in 0..3 {
+                        min[axis] = min[axis].min(position[axis]);
+                        max[axis] = max[axis].max(position[axis]);
+                    }
+                }
+            }
+            let mut rig_weights = std::collections::BTreeMap::<usize, u64>::new();
+            if let Some(skeleton) = &model.skeleton {
+                for vertex in 0..mesh.mesh.vertex_count {
+                    if let Ok(influences) =
+                        mesh.mesh
+                            .skin_influences(&mesh.buffer_bytes, vertex, skeleton)
+                    {
+                        for lane in 0..4 {
+                            if influences.weights_u16[lane] > 0 {
+                                *rig_weights
+                                    .entry(usize::from(influences.rig_indices[lane]))
+                                    .or_default() += u64::from(influences.weights_u16[lane]);
+                            }
+                        }
+                    }
+                }
+            }
+            report.push_str(&format!(
+                "tail_mesh={} position_bounds={min:?}..{max:?} rig_weight_sums={rig_weights:?}\n",
+                mesh.name
+            ));
+        }
     }
     for lod in 0..=2 {
         match write_static_lod_level(&model, lod, out.join(format!("pikachu_lod{lod}.gltf"))) {
@@ -127,6 +199,13 @@ fn main() -> Result<(), String> {
             "material_links={links} flags={:?}\n",
             material.parsed.flags
         ));
+        for layer in 1..=4 {
+            let property = format!("BaseColorLayer{layer}");
+            report.push_str(&format!(
+                "material_property={property} values={:?}\n",
+                named_vector4_values(&material.raw_bytes, &property)
+            ));
+        }
     }
     for clip in &model.clips {
         report.push_str(&format!(
