@@ -66,3 +66,18 @@ Conclusions, bounded:
 ## Corrections to earlier statements in this report
 - The three 16,777,288-byte entries of ha_area00 are named by the descriptor as `area00_0_0_detailmap_0..2.trtbf` (4096 x 4096 byte maps); the descriptor also lists the `plants_*` models they drive (grass01/02/05, flowers, shrubs, stones). That they gate vegetation placement is still an inference.
 - The `FlatBuffer-like` entries rich in floats (for example ha_area00 entry 149) are `.trmbf` mesh buffers (a 36-byte-stride vertex blob and a u16 triangle index blob), not instance lists. The `.trins` instance files named in the descriptor (for example `area00_0_0_plants_tree01_X8Z9_d0.trins`, a grid of cells X/Z) have not been located yet: their names appear only in the descriptor.
+
+## GFLXPACK entry hash solved (2026-10-12)
+The per-entry `u64` array that follows the header offsets is the **FNV-1a 64-bit hash (basis 0xcbf29ce484222645, prime 0x100000001b3) of the file's full relative path**. Verified:
+- Terrain packs: `bin/field/terrain/ha_areaNN/terrain/<name>`. In ha_area00 this identifies the three 16 MiB maps as `area00_0_0_detailmap_0/1/2.trtbf` (entries 6, 7, 8), `area00_0_0.trmtr` (entry 4) and all 25 `.trins` files (entries 12 onward).
+- Pokémon packs: `bin/pokemon/pm0025/pm0025_00_00/mdl/<name>` for `.trmdl .trmsh .trmbf .trmtr .trskl .bntx` and `.../anm/<name>` for `.tranm .tracm`. In pm0025_00_00 this resolves 134 of the 180 entries (trmdl entry for the model descriptor, 3 trmsh + 3 trmbf for LOD0/1/2, 2 trmtr, 1 trskl, 16 bntx, 54 + 54 clips); the other 46 are small configuration/event tables.
+This supersedes the earlier statement in this report that the hash function was unknown and that pairing had to be done by content. Tool: `.tools/gfpack_hash.py`.
+
+## Terrain instances (`.trins`) and independent scale verification
+A `.trins` entry is a small FlatBuffer (it contains the string `StrInstanceBuffer`) whose instance records are **4x4 float matrices, 64 bytes each, row-vector convention: rows 0-2 rotation and scale, row 3 = translation (x, y, z, 1)**. Example (ha_area00, `area00_0_0_plants_area02_tree01_X6Z5_d0.trins`): translation (445.17, 60.78, 650.67), y-axis scale 1.065. The file name carries the grid cell `XnZm` and a distance bucket `d0`.
+Check: for every instance found (60 in ha_area00; 1,430 / 2,204 / 788 / 901 / 828 in areas 01 to 05), sample the normalised heightmap at (x, z) with column = x, row = z, extent 1025 units over the N-1 sample intervals, multiply by the per-area height H, and compare with y:
+- Extent 1025: median |dy| = 0.00-0.01 m and **100 % of instances within 2 m in every area 00-05 (6,211 instances)**, including the 2049-sample areas 02, 03 and 05.
+- Extent 2050: median |dy| = 21 to 112 m (0-4 % within 2 m): rejected. The row/column swapped and mirrored variants also fail (ha_area00: median 2.2-4.0 m).
+This verifies, independently of the descriptor and of the navmesh: **area width 1025 units, vertical scale H per area, x along columns and z along rows without flips, local origin at the corner**. The unit being metres remains inferred. Area 06 could not be checked (its heightmap entry is not found under the same name). Tool: `.tools/terrain_scale_check.py`.
+
+Still unknown: lighting, which splat channel selects which ground texture, grass/detail placement (the `detailmap_*.trtbf` masks drive the `plants_*` detail models; mechanism not decoded), the format of the remaining `.trins` fields (the model each instance refers to is encoded by the file name, not inside the matrix), and area 06.
