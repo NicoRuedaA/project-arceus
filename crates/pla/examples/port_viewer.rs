@@ -60,6 +60,27 @@ struct PokemonCatalogResource {
     spawned: HashSet<Entity>,
 }
 
+/// Resolves relative asset path for a Pokémon's glTF model (checking both _idle.gltf and _static.gltf).
+fn resolve_pokemon_gltf_rel(dex: u16) -> Option<String> {
+    let variants = ["idle", "static"];
+    let roots = [
+        std::env::var("PLA_CACHE_DIR").map(PathBuf::from).ok(),
+        Some(PathBuf::from("work/cache")),
+        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
+    ];
+    for root in roots.into_iter().flatten() {
+        for v in &variants {
+            let rel = format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_{v}.gltf");
+            let disk_candidate = root.join(format!("pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_{v}.gltf"));
+            let rel_candidate = PathBuf::from("work").join(&rel);
+            if disk_candidate.exists() || rel_candidate.exists() {
+                return Some(rel);
+            }
+        }
+    }
+    None
+}
+
 #[derive(Resource)]
 struct PlayerSpawnConfig {
     pos: Vec2,
@@ -75,6 +96,9 @@ struct PokemonSpawn {
     #[allow(dead_code)]
     national_dex: u16,
 }
+
+#[derive(Component)]
+struct BattleArenaMarker;
 
 #[derive(Component)]
 struct Reticle;
@@ -645,6 +669,8 @@ fn main() -> ExitCode {
         )
             .chain(),
     );
+    app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
+    app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
 
     app.run();
     ExitCode::SUCCESS
@@ -673,10 +699,8 @@ fn setup_scene(
     let player_y = surface_y + 0.9;
 
     // Register all known batch Pokemon glTF models for asynchronous loading
-    for dex in [25, 41, 74, 155, 396, 399, 401, 403, 448, 501, 722] {
-        let rel_path = format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_idle.gltf");
-        let full_path = PathBuf::from("work").join(&rel_path);
-        if full_path.exists() {
+    for dex in [25, 41, 74, 155, 396, 397, 399, 401, 403, 448, 501, 722] {
+        if let Some(rel_path) = resolve_pokemon_gltf_rel(dex) {
             let handle: Handle<Gltf> = asset_server.load(rel_path);
             pokemon_catalog.handles.insert(dex, handle);
         }
@@ -1054,9 +1078,7 @@ fn stream_wild_spawners(
 
         // Ensure glTF is loading
         if !pokemon_catalog.handles.contains_key(&dex) {
-            let rel_path = format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_idle.gltf");
-            let full_path = PathBuf::from("work").join(&rel_path);
-            if full_path.exists() {
+            if let Some(rel_path) = resolve_pokemon_gltf_rel(dex) {
                 let handle: Handle<Gltf> = asset_server.load(rel_path);
                 pokemon_catalog.handles.insert(dex, handle);
             }
@@ -1116,6 +1138,21 @@ fn spawn_pokemon_models(
         let Some(gltf) = gltf_assets.get(handle) else {
             continue;
         };
+
+        // Ensure all meshes and primitive materials are loaded in Assets before replacing geometry
+        let all_ready = gltf.meshes.iter().all(|mesh_h| {
+            if let Some(gm) = gltf_meshes.get(mesh_h) {
+                gm.primitives.iter().all(|prim| {
+                    meshes.contains(&prim.mesh)
+                        && prim.material.as_ref().map_or(true, |mat_h| gltf_materials.contains(mat_h))
+                })
+            } else {
+                false
+            }
+        });
+        if !all_ready {
+            continue;
+        }
 
         // glTF ready: despawn placeholder geometric children
         for child in children.iter() {
@@ -1180,6 +1217,117 @@ fn spawn_pokemon_models(
             "Loaded real glTF model for #{:04} with baked color textures",
             pkmn_spawn.national_dex
         );
+    }
+}
+
+/// Spawns the 3D battle arena combatants (Player Pikachu + Wild Pokemon) grounded on the terrain surface.
+fn setup_battle_arena(
+    mut commands: Commands,
+    player_query: Query<&Transform, With<PlayerAvatar>>,
+    terrain_res: Option<Res<TerrainResource>>,
+    battle_session: Option<Res<ActiveBattleSession>>,
+    mut pokemon_catalog: ResMut<PokemonCatalogResource>,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Ok(player_xf) = player_query.single() else {
+        return;
+    };
+    let center_x = player_xf.translation.x;
+    let center_z = player_xf.translation.z;
+
+    let sample_y = |x: f32, z: f32| -> f32 {
+        terrain_res
+            .as_ref()
+            .and_then(|t| t.area.sample_world_height(x, z))
+            .unwrap_or(player_xf.translation.y - 0.9)
+    };
+
+    let wild_dex = battle_session.as_ref().map_or(397, |s| s.wild_dex);
+    let player_dex: u16 = 25; // Pikachu
+
+    // Ensure glTF models are requested
+    for dex in [player_dex, wild_dex] {
+        if !pokemon_catalog.handles.contains_key(&dex) {
+            if let Some(rel) = resolve_pokemon_gltf_rel(dex) {
+                let handle: Handle<Gltf> = asset_server.load(rel);
+                pokemon_catalog.handles.insert(dex, handle);
+            }
+        }
+    }
+
+    // Positions in arena:
+    // Player Pokemon (Pikachu) at (center_x + 1.2, center_z - 1.8), facing towards Wild Pokemon (+X, -Z)
+    let p_pkmn_x = center_x + 1.2;
+    let p_pkmn_z = center_z - 1.8;
+    let p_pkmn_y = sample_y(p_pkmn_x, p_pkmn_z);
+
+    // Wild Pokemon (Staravia / wild encounter) at (center_x + 2.8, center_z - 5.5), facing towards Player Pokemon (-X, +Z)
+    let w_pkmn_x = center_x + 2.8;
+    let w_pkmn_z = center_z - 5.5;
+    let w_pkmn_y = sample_y(w_pkmn_x, w_pkmn_z);
+
+    // Face each other on the XZ plane:
+    // Vector from player pokemon to wild pokemon
+    let p_to_w = Vec2::new(w_pkmn_x - p_pkmn_x, w_pkmn_z - p_pkmn_z).normalize();
+    // In Bevy / standard coordinates, looking towards (dx, dz): rotation = Quat::from_rotation_y(dx.atan2(dz))
+    // Model default facing is +Z forward:
+    let p_rot = Quat::from_rotation_y(p_to_w.x.atan2(p_to_w.y));
+    let w_rot = Quat::from_rotation_y((-p_to_w.x).atan2(-p_to_w.y));
+
+    // Spawn Player Pokemon entity
+    let _p_entity = commands
+        .spawn((
+            BattleArenaMarker,
+            PokemonSpawn { national_dex: player_dex },
+            Transform::from_xyz(p_pkmn_x, p_pkmn_y, p_pkmn_z).with_rotation(p_rot),
+            Visibility::default(),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Mesh3d(meshes.add(Mesh::from(Sphere::new(0.35)))),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: Color::srgb(0.95, 0.85, 0.15),
+                    ..default()
+                })),
+            ));
+        })
+        .id();
+
+    // Spawn Wild Pokemon entity
+    let _w_entity = commands
+        .spawn((
+            BattleArenaMarker,
+            PokemonSpawn { national_dex: wild_dex },
+            Transform::from_xyz(w_pkmn_x, w_pkmn_y, w_pkmn_z).with_rotation(w_rot),
+            Visibility::default(),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Mesh3d(meshes.add(Mesh::from(Sphere::new(0.4)))),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: Color::srgb(0.55, 0.50, 0.45),
+                    ..default()
+                })),
+            ));
+        })
+        .id();
+
+    println!(
+        "Spawned Battle Arena 3D combatants: Player #{player_dex} at ({p_pkmn_x:.1}, {p_pkmn_y:.1}, {p_pkmn_z:.1}) vs Wild #{wild_dex} at ({w_pkmn_x:.1}, {w_pkmn_y:.1}, {w_pkmn_z:.1})",
+    );
+}
+
+/// Despawns the 3D battle arena combatants when exiting GameState::Battle.
+fn cleanup_battle_arena(
+    mut commands: Commands,
+    arena_query: Query<Entity, With<BattleArenaMarker>>,
+    mut catalog: ResMut<PokemonCatalogResource>,
+) {
+    for entity in &arena_query {
+        catalog.spawned.remove(&entity);
+        commands.entity(entity).despawn();
     }
 }
 
@@ -2003,8 +2151,8 @@ fn automated_tick_driver(
                 if automation.demo_step_tick == 1 {
                     write_demo_log("Step 0: Player exploring World with active World HUD and real spawns.");
                     camera_ctrl.yaw = 0.0;
-                    camera_ctrl.pitch = 0.28;
-                    camera_ctrl.distance = 5.0;
+                    camera_ctrl.pitch = 0.22;
+                    camera_ctrl.distance = 5.2;
                 }
                 // Move player forward towards nearby spawner
                 if let Ok(mut p_xf) = player_query.single_mut() {
@@ -2016,12 +2164,17 @@ fn automated_tick_driver(
                         }
                     }
                 }
+                if automation.demo_step_tick == 15 {
+                    let shot = demo_dir.join("00_world_exploration.png");
+                    write_demo_log(&format!("Capturing 00_world_exploration.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
                 if automation.demo_step_tick >= 25 {
                     // Transition to Battle state with real wild spawner species and level
                     let (wild_sp, wild_lvl, wild_dex) = if let Some(w) = wild_query.iter().next() {
                         (w.species_name.clone(), w.level, w.national_dex)
                     } else {
-                        ("geodude".to_string(), 8, 74)
+                        ("staravia".to_string(), 17, 397)
                     };
 
                     write_demo_log(&format!(
@@ -2061,13 +2214,18 @@ fn automated_tick_driver(
                 }
             }
             1 => {
-                // Step 1: Wild Encounter triggered -> Battle Start (no frame; frames come from the beats)
+                // Step 1: Wild Encounter triggered -> Battle Start
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 1: Wild Pikachu encounter! Party of 3, bag, move effects and engine AI are active.");
-                    camera_ctrl.yaw = 0.55;
-                    camera_ctrl.pitch = 0.18;
-                    camera_ctrl.distance = 5.2;
-                    camera_ctrl.focal_offset_y = 0.6;
+                    write_demo_log("Step 1: Wild encounter! Party of 3, bag, move effects and engine AI are active.");
+                    camera_ctrl.yaw = 0.52;
+                    camera_ctrl.pitch = 0.16;
+                    camera_ctrl.distance = 6.2;
+                    camera_ctrl.focal_offset_y = 0.5;
+                }
+                if automation.demo_step_tick == 20 {
+                    let shot = demo_dir.join("01_battle_encounter.png");
+                    write_demo_log(&format!("Capturing 01_battle_encounter.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
                     automation.demo_step = 2;
@@ -2079,7 +2237,10 @@ fn automated_tick_driver(
                 let beat = &pla::game::battle_demo::BEATS[step - 2];
                 if automation.demo_step_tick == 1 {
                     write_demo_log(&format!("Step {step}: {}", beat.note));
-                    camera_ctrl.yaw = 0.55 + 0.1 * (step as f32 - 2.0);
+                    camera_ctrl.yaw = 0.52 + 0.04 * (step as f32 - 2.0);
+                    camera_ctrl.pitch = 0.16;
+                    camera_ctrl.distance = 6.2;
+                    camera_ctrl.focal_offset_y = 0.5;
                     if let Some(ref mut sess) = session {
                         for line in pla::game::battle_demo::run_beat(sess, beat) {
                             write_demo_log(&format!("  log: {line}"));
