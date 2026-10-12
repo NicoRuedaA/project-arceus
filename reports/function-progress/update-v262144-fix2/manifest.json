@@ -73,7 +73,7 @@
     "port.png": "ce2ee67b5cef89051213a395735c8979a4d11df2c99c2117882f9eeed6bae0a4"
   },
   "rust_source_fingerprint": {
-    "file_count": 63,
+    "file_count": 65,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -88,8 +88,12 @@
         "sha256": "037c7edbc6b5a0817e55ec7f89a67297842038cb02ed385c3da76bffbc33bfdf"
       },
       {
+        "path": "crates/pla/examples/export_and_verify_skinned.rs",
+        "sha256": "d416e3b976df95e86df75c3112bc9bf268adcbf6c848cfa62b93bafa21a98d56"
+      },
+      {
         "path": "crates/pla/examples/export_tr_gltf_batch.rs",
-        "sha256": "dd6c2c128f5150a7f342bb0f71ed6feb90b9d3444f397378f0bd90334860a172"
+        "sha256": "3eb8cc3a5265988f7bbae0685b95a82532c36260259eaf6d9d6e21bf2784c86e"
       },
       {
         "path": "crates/pla/examples/mesh_spike.rs",
@@ -120,6 +124,10 @@
         "sha256": "ed2cfe1c68e4373510f77d882dfd02038b4c4ae12d925fadfee9bdef2cd28d89"
       },
       {
+        "path": "crates/pla/examples/verify_gltf_headless.rs",
+        "sha256": "042199cfd35a07fa410997454d22dbe2d1d38b9b3b2b4c1015ed5191f65dc6ca"
+      },
+      {
         "path": "crates/pla/examples/window_spike.rs",
         "sha256": "4f6557d0bd712e9de2e4ae146b4d45fd1398e4c54d25ce31aa1255cbb922ee05"
       },
@@ -145,7 +153,7 @@
       },
       {
         "path": "crates/pla/src/assets/gltf_export.rs",
-        "sha256": "01ba9a948b9afac52598adfeb3124249b2191f951dea12f6727fd9c494b6ecc2"
+        "sha256": "df4c4883db72e600653020e44250e32b23daae3b6e9e7643c43b7dece6206fbc"
       },
       {
         "path": "crates/pla/src/assets/message.rs",
@@ -329,7 +337,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "172d08814b5064717bbb5c489630d68014331fc1462016157412156d7bcd58e3"
+    "sha256": "b9b750f4e532ad8bb90837d0c342054516bc786fb3bd0c8e1b773dbde6995ae5"
   },
   "state_partitions": {
     "analysis_documentation_status": {
