@@ -104,3 +104,6 @@ systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
   env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target \
   cargo run -p pla --example port_viewer -- --area 1 --headless --screenshot work/cache/species_verify/species_geodude_facing.png --ticks 40
 ```
+
+## Post-merge integration run (main, feat/port-anim merged)
+- One offscreen `--script` run (`--area 1 --new-game`, temp save dir) panicked within seconds: `world contains the unregistered type Transform` in `bevy_world_serialization` `world_instance_spawner_system`, at the first Pokémon glTF scene spawn (`game::pokemon_anim`, the only scene spawner). The headless test avoids it by calling `register_derived_types()` by hand; the viewer does not. No frames were produced, so terrain, camera, HUD, save and animation are NOT verified on the merged build. Not fixed.
