@@ -183,6 +183,12 @@ impl TerrainArea {
             rgba,
         })
     }
+
+    /// Sample the terrain surface elevation in world units (metres inferred) at (x, z).
+    pub fn sample_world_height(&self, x: f32, z: f32) -> Option<f32> {
+        let norm = sample_height(&self.heightmap, self.world_extent, x, z)?;
+        Some(norm * self.world_height)
+    }
 }
 
 impl TerrainArea {
@@ -531,8 +537,8 @@ fn find_instance_matrices(
     found
 }
 
-#[cfg(test)]
-fn sample_height(heightmap: &FloatTextureData, extent: [f32; 2], x: f32, z: f32) -> Option<f32> {
+/// Sample normalized height at world coordinates (x, z) using bilinear interpolation.
+pub fn sample_height(heightmap: &FloatTextureData, extent: [f32; 2], x: f32, z: f32) -> Option<f32> {
     if heightmap.width < 2
         || heightmap.height < 2
         || heightmap.samples.len() != heightmap.width as usize * heightmap.height as usize
