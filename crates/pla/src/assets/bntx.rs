@@ -661,16 +661,12 @@ mod tests {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&8u64.to_le_bytes());
         bytes.extend_from_slice(&0x3c00u16.to_le_bytes());
-        let r16 = texture(BntxFormat::R16Float)
-            .decode_f32(&bytes)
-            .unwrap();
+        let r16 = texture(BntxFormat::R16Float).decode_f32(&bytes).unwrap();
         assert_eq!(r16.samples, [1.0]);
 
         bytes.truncate(8);
         bytes.extend_from_slice(&0.75f32.to_le_bytes());
-        let r32 = texture(BntxFormat::R32Float)
-            .decode_f32(&bytes)
-            .unwrap();
+        let r32 = texture(BntxFormat::R32Float).decode_f32(&bytes).unwrap();
         assert_eq!(r32.samples, [0.75]);
         assert_eq!(r32.width, 1);
         assert_eq!(r32.height, 1);

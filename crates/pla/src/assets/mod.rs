@@ -6,5 +6,6 @@ pub mod event_list;
 pub mod gfpak;
 pub mod message;
 pub mod sarc;
+pub mod terrain;
 pub mod tr;
 pub mod vfxb;
