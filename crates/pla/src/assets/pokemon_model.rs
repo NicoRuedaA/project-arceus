@@ -1119,7 +1119,7 @@ fn romfs_path(base: &str, directory: &str, filename: &str) -> String {
     format!("{base}/{directory}/{filename}")
 }
 
-fn root_vector_count(bytes: &[u8], field_index: usize) -> Option<usize> {
+pub(crate) fn root_vector_count(bytes: &[u8], field_index: usize) -> Option<usize> {
     let root_offset = u32::from_le_bytes(bytes.get(0..4)?.try_into().ok()?) as usize;
     let vtable = table_vtable_offset(bytes, root_offset)?;
     let vtable_size =
@@ -1227,7 +1227,7 @@ fn shape_submeshes(bytes: &[u8], shape_index: usize) -> Option<Vec<PokemonSubMes
         .collect()
 }
 
-fn flatbuffer_table_vector(bytes: &[u8], table: usize, field_index: usize) -> Option<Vec<usize>> {
+pub(crate) fn flatbuffer_table_vector(bytes: &[u8], table: usize, field_index: usize) -> Option<Vec<usize>> {
     let vtable = table_vtable_offset(bytes, table)?;
     let vsize =
         u16::from_le_bytes(bytes.get(vtable..vtable.checked_add(2)?)?.try_into().ok()?) as usize;
@@ -1261,7 +1261,7 @@ fn flatbuffer_table_vector(bytes: &[u8], table: usize, field_index: usize) -> Op
         .collect()
 }
 
-fn flatbuffer_u32_field(bytes: &[u8], table: usize, field_index: usize) -> Option<u32> {
+pub(crate) fn flatbuffer_u32_field(bytes: &[u8], table: usize, field_index: usize) -> Option<u32> {
     let vtable = table_vtable_offset(bytes, table)?;
     let vsize =
         u16::from_le_bytes(bytes.get(vtable..vtable.checked_add(2)?)?.try_into().ok()?) as usize;
@@ -1279,7 +1279,7 @@ fn flatbuffer_u32_field(bytes: &[u8], table: usize, field_index: usize) -> Optio
     ))
 }
 
-fn flatbuffer_vector_element(bytes: &[u8], root_field: usize, index: usize) -> Option<usize> {
+pub(crate) fn flatbuffer_vector_element(bytes: &[u8], root_field: usize, index: usize) -> Option<usize> {
     let root = u32::from_le_bytes(bytes.get(0..4)?.try_into().ok()?) as usize;
     let vtable = table_vtable_offset(bytes, root)?;
     let vsize =
@@ -1311,7 +1311,7 @@ fn flatbuffer_vector_element(bytes: &[u8], root_field: usize, index: usize) -> O
     (target < bytes.len()).then_some(target)
 }
 
-fn flatbuffer_string_field(bytes: &[u8], table: usize, field_index: usize) -> Option<String> {
+pub(crate) fn flatbuffer_string_field(bytes: &[u8], table: usize, field_index: usize) -> Option<String> {
     let vtable = table_vtable_offset(bytes, table)?;
     let vsize =
         u16::from_le_bytes(bytes.get(vtable..vtable.checked_add(2)?)?.try_into().ok()?) as usize;

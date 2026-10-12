@@ -4,6 +4,7 @@ pub mod ahtb;
 pub mod bntx;
 pub mod collision;
 pub mod event_list;
+pub mod field_material;
 pub mod gfpak;
 pub mod gltf_export;
 pub mod havok_tag;
