@@ -73,7 +73,7 @@
     "port.png": "171c21e73b75893738344b373a2e7ea2c8909240f5279fc13dc18b3663d77e32"
   },
   "rust_source_fingerprint": {
-    "file_count": 88,
+    "file_count": 90,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -108,12 +108,20 @@
         "sha256": "3eb8cc3a5265988f7bbae0685b95a82532c36260259eaf6d9d6e21bf2784c86e"
       },
       {
+        "path": "crates/pla/examples/lighting_preview.rs",
+        "sha256": "5914c76a599e031a7ffb1584f3b115fd765e168d34c88821cbec02f17ab0295b"
+      },
+      {
         "path": "crates/pla/examples/mesh_spike.rs",
         "sha256": "2e519636cbc28d013849a2b1aee0de680789527b850292c019f32213630d7e9f"
       },
       {
         "path": "crates/pla/examples/navmesh_report.rs",
         "sha256": "4cd118320b4c1b2e621ab440cc194daa9dd10e3ede7a5bc0e8eabfe29261991d"
+      },
+      {
+        "path": "crates/pla/examples/placement_terrain_check.rs",
+        "sha256": "b2de788ad77c0c5f3fc4fb23442ef82bbfe28adc2c5053a38dab8d8adc18c9ae"
       },
       {
         "path": "crates/pla/examples/pokemon_assemble.rs",
@@ -429,7 +437,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "677d3ace3b3c6c4c18e1e30ddd2d1fb35ec9b58b33189ff8bb26d73dea776287"
+    "sha256": "6ce92a222d0d35588d9aedd83c3a8183da77f057747ca1ffcc7c6a53c0a57664"
   },
   "state_partitions": {
     "analysis_documentation_status": {
