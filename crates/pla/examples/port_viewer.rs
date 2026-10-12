@@ -30,6 +30,7 @@ use pla::assets::terrain::{
     build_mesh_chunks, TerrainArea, TerrainMeshChunk, TerrainMeshSettings,
     TerrainScaleOverride,
 };
+use pla::assets::terrain_albedo::{albedo_cache_path, bake_albedo, load_baked_albedo};
 use pla::battle::BattleData;
 use pla::game::{
     battle_input_system, load_spawners_for_area, roll_spawner, setup_game_ui,
@@ -38,6 +39,12 @@ use pla::game::{
     WildCreature,
 };
 use pla::pml::{calculate_hp, PmlDatabase};
+
+#[derive(Component)]
+struct TerrainChunkMarker;
+
+#[derive(Resource, Clone)]
+struct BinRootResource(PathBuf);
 
 #[derive(Resource)]
 struct TerrainResource {
@@ -79,6 +86,51 @@ fn resolve_pokemon_gltf_rel(dex: u16) -> Option<String> {
         }
     }
     None
+}
+
+/// Resolves baked terrain albedo texture for the given area from cache or bakes at startup.
+fn resolve_terrain_albedo(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
+    let candidate_dirs = [
+        std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
+        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
+        Some(PathBuf::from("work/cache")),
+        Some(PathBuf::from("/home/nico/work/decompilacion/work")),
+        Some(PathBuf::from("work")),
+    ];
+    for dir in candidate_dirs.into_iter().flatten() {
+        let p1 = dir.join("terrain_albedo").join(format!("area{area_idx:02}.png"));
+        if p1.is_file() {
+            match load_baked_albedo(&p1) {
+                Ok(tex) => {
+                    println!("Loaded baked terrain albedo from {}", p1.display());
+                    return Some(tex);
+                }
+                Err(e) => eprintln!("Failed to load baked albedo from {}: {e}", p1.display()),
+            }
+        }
+        let p2 = albedo_cache_path(&dir, area_idx);
+        if p2.is_file() {
+            match load_baked_albedo(&p2) {
+                Ok(tex) => {
+                    println!("Loaded baked terrain albedo from {}", p2.display());
+                    return Some(tex);
+                }
+                Err(e) => eprintln!("Failed to load baked albedo from {}: {e}", p2.display()),
+            }
+        }
+    }
+
+    println!("Baked terrain albedo not found in cache for area {:02}, baking at startup...", area_idx);
+    match bake_albedo(area_data, 2048, true) {
+        Ok(tex) => {
+            println!("Successfully baked terrain albedo for area {:02} (2048x2048)", area_idx);
+            Some(tex)
+        }
+        Err(e) => {
+            eprintln!("Failed to bake terrain albedo: {e}. Falling back to slot order hypothesis.");
+            area_data.blend_splat_by_slot_order_hypothesis().ok()
+        }
+    }
 }
 
 #[derive(Resource)]
@@ -413,7 +465,7 @@ fn main() -> ExitCode {
                 Ok(settings) => match build_mesh_chunks(&area_data.heightmap, settings) {
                     Ok(chunks) => {
                         println!("Built {} terrain mesh chunks (cell size {:.3}m)", chunks.len(), settings.horizontal_cell_size);
-                        let blended_albedo = area_data.blend_splat_by_slot_order_hypothesis().ok();
+                        let blended_albedo = resolve_terrain_albedo(area_idx, &area_data);
                         Some(TerrainResource {
                             area: Arc::new(area_data),
                             chunks,
@@ -630,6 +682,7 @@ fn main() -> ExitCode {
     if let Some(assets) = battle_assets {
         app.insert_resource(assets);
     }
+    app.insert_resource(BinRootResource(bin_root.clone()));
     app.insert_resource(AutomationOptions {
         screenshot_path,
         max_ticks,
@@ -734,6 +787,7 @@ fn setup_scene(
 
         for chunk in &terrain.chunks {
             commands.spawn((
+                TerrainChunkMarker,
                 Mesh3d(meshes.add(chunk.mesh.clone())),
                 MeshMaterial3d(terrain_material.clone()),
                 Transform::IDENTITY,
@@ -1224,6 +1278,7 @@ fn spawn_pokemon_models(
 fn setup_battle_arena(
     mut commands: Commands,
     player_query: Query<&Transform, With<PlayerAvatar>>,
+    mut player_vis_query: Query<&mut Visibility, With<PlayerAvatar>>,
     terrain_res: Option<Res<TerrainResource>>,
     battle_session: Option<Res<ActiveBattleSession>>,
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
@@ -1234,6 +1289,9 @@ fn setup_battle_arena(
     let Ok(player_xf) = player_query.single() else {
         return;
     };
+    for mut vis in &mut player_vis_query {
+        *vis = Visibility::Hidden;
+    }
     let center_x = player_xf.translation.x;
     let center_z = player_xf.translation.z;
 
@@ -1258,21 +1316,17 @@ fn setup_battle_arena(
     }
 
     // Positions in arena:
-    // Player Pokemon (Pikachu) at (center_x + 1.2, center_z - 1.8), facing towards Wild Pokemon (+X, -Z)
-    let p_pkmn_x = center_x + 1.2;
+    // Place combatants facing each other across ~3.0m span
+    let p_pkmn_x = center_x - 0.7;
     let p_pkmn_z = center_z - 1.8;
     let p_pkmn_y = sample_y(p_pkmn_x, p_pkmn_z);
 
-    // Wild Pokemon (Staravia / wild encounter) at (center_x + 2.8, center_z - 5.5), facing towards Player Pokemon (-X, +Z)
-    let w_pkmn_x = center_x + 2.8;
-    let w_pkmn_z = center_z - 5.5;
+    let w_pkmn_x = center_x + 0.9;
+    let w_pkmn_z = center_z - 4.4;
     let w_pkmn_y = sample_y(w_pkmn_x, w_pkmn_z);
 
     // Face each other on the XZ plane:
-    // Vector from player pokemon to wild pokemon
     let p_to_w = Vec2::new(w_pkmn_x - p_pkmn_x, w_pkmn_z - p_pkmn_z).normalize();
-    // In Bevy / standard coordinates, looking towards (dx, dz): rotation = Quat::from_rotation_y(dx.atan2(dz))
-    // Model default facing is +Z forward:
     let p_rot = Quat::from_rotation_y(p_to_w.x.atan2(p_to_w.y));
     let w_rot = Quat::from_rotation_y((-p_to_w.x).atan2(-p_to_w.y));
 
@@ -1324,10 +1378,14 @@ fn cleanup_battle_arena(
     mut commands: Commands,
     arena_query: Query<Entity, With<BattleArenaMarker>>,
     mut catalog: ResMut<PokemonCatalogResource>,
+    mut player_vis_query: Query<&mut Visibility, With<PlayerAvatar>>,
 ) {
     for entity in &arena_query {
         catalog.spawned.remove(&entity);
         commands.entity(entity).despawn();
+    }
+    for mut vis in &mut player_vis_query {
+        *vis = Visibility::Visible;
     }
 }
 
@@ -1492,8 +1550,10 @@ fn camera_controls(
 /// ΔZ = dist * cos(pitch) * cos(yaw)
 /// cameraPos = lookAtPos + Δ
 fn update_camera_transform(
+    game_state: Res<State<GameState>>,
     camera_ctrl: Res<CameraController>,
     player_query: Query<&Transform, (With<PlayerAvatar>, Without<Camera3d>)>,
+    arena_query: Query<(&PokemonSpawn, &Transform), (With<BattleArenaMarker>, Without<Camera3d>, Without<PlayerAvatar>)>,
     mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
 ) {
     let Ok(player_xf) = player_query.single() else {
@@ -1502,6 +1562,29 @@ fn update_camera_transform(
     let Ok(mut cam_xf) = camera_query.single_mut() else {
         return;
     };
+
+    // Dedicated combat camera framing when in battle
+    if *game_state.get() == GameState::Battle {
+        let mut p_pos = None;
+        let mut w_pos = None;
+        for (spawn, xf) in &arena_query {
+            if spawn.national_dex == 25 {
+                p_pos = Some(xf.translation);
+            } else {
+                w_pos = Some(xf.translation);
+            }
+        }
+        if let (Some(p), Some(w)) = (p_pos, w_pos) {
+            let to_wild = (w - p).normalize();
+            let right_side = Vec3::new(to_wild.z, 0.0, -to_wild.x).normalize();
+            // Camera placed 2.3m behind Pikachu, offset 1.0m to the side, elevated 1.35m
+            let cam_pos = p - to_wild * 2.3 - right_side * 1.0 + Vec3::new(0.0, 1.35, 0.0);
+            let look_target = (p + w) * 0.5 + Vec3::new(0.0, 0.35, 0.0) + right_side * 0.2;
+            cam_xf.translation = cam_pos;
+            cam_xf.look_at(look_target, Vec3::Y);
+            return;
+        }
+    }
 
     let right = Vec3::new(camera_ctrl.yaw.cos(), 0.0, -camera_ctrl.yaw.sin());
     let mut focal_target = player_xf.translation + Vec3::new(0.0, camera_ctrl.focal_offset_y, 0.0);
@@ -2103,11 +2186,90 @@ fn update_hud_and_telemetry(
     }
 }
 
+fn switch_terrain_area(
+    area_idx: u8,
+    bin_root: &std::path::Path,
+    commands: &mut Commands,
+    terrain_res: &mut ResMut<TerrainResource>,
+    chunk_query: &Query<Entity, With<TerrainChunkMarker>>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    images: &mut ResMut<Assets<Image>>,
+    zone_info: &mut ResMut<pla::game::ActiveZoneInfo>,
+) -> bool {
+    println!("Switching active terrain to Area {:02}...", area_idx);
+    for entity in chunk_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    let Ok(area_data) = TerrainArea::load(bin_root, area_idx) else {
+        eprintln!("Failed to load TerrainArea for area {:02}", area_idx);
+        return false;
+    };
+    let Ok(settings) = area_data.mesh_settings(TerrainScaleOverride::default(), 64) else {
+        eprintln!("Failed to resolve mesh settings for area {:02}", area_idx);
+        return false;
+    };
+    let Ok(chunks) = build_mesh_chunks(&area_data.heightmap, settings) else {
+        eprintln!("Failed to build mesh chunks for area {:02}", area_idx);
+        return false;
+    };
+    let albedo_tex = resolve_terrain_albedo(area_idx, &area_data);
+    let albedo_handle = albedo_tex.as_ref().map(|texture| {
+        images.add(Image::new(
+            Extent3d {
+                width: texture.width,
+                height: texture.height,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            texture.rgba.clone(),
+            TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::default(),
+        ))
+    });
+    let terrain_material = materials.add(StandardMaterial {
+        base_color: if albedo_handle.is_some() {
+            Color::WHITE
+        } else {
+            Color::srgb(0.28, 0.42, 0.22)
+        },
+        base_color_texture: albedo_handle,
+        perceptual_roughness: 0.95,
+        ..default()
+    });
+    for chunk in &chunks {
+        commands.spawn((
+            TerrainChunkMarker,
+            Mesh3d(meshes.add(chunk.mesh.clone())),
+            MeshMaterial3d(terrain_material.clone()),
+            Transform::IDENTITY,
+        ));
+    }
+    terrain_res.area = Arc::new(area_data);
+    terrain_res.chunks = chunks;
+    terrain_res.blended_albedo = albedo_tex;
+    terrain_res.settings = settings;
+
+    zone_info.area_idx = area_idx;
+    zone_info.name = match area_idx {
+        0 => "Jubilife Village (ha_area00)".to_string(),
+        1 => "Obsidian Fieldlands (ha_area01)".to_string(),
+        2 => "Crimson Mirelands (ha_area02)".to_string(),
+        3 => "Cobalt Coastlands (ha_area03)".to_string(),
+        4 => "Coronet Highlands (ha_area04)".to_string(),
+        5 => "Alabaster Icelands (ha_area05)".to_string(),
+        _ => format!("Hisui Sector (ha_area{:02})", area_idx),
+    };
+    println!("Successfully switched terrain to Area {:02} ({})", area_idx, zone_info.name);
+    true
+}
+
 /// Automated headless tick driver and screenshot capturer for test verification.
 fn automated_tick_driver(
     mut commands: Commands,
     mut automation: ResMut<AutomationOptions>,
-    terrain_res: Option<Res<TerrainResource>>,
+    mut terrain_res: Option<ResMut<TerrainResource>>,
+    chunk_query: Query<Entity, With<TerrainChunkMarker>>,
     mut camera_ctrl: ResMut<CameraController>,
     mut player_query: Query<&mut Transform, (With<PlayerAvatar>, Without<PokemonSpawn>)>,
     mut pkmn_query: Query<&mut Transform, (With<PokemonSpawn>, Without<PlayerAvatar>)>,
@@ -2116,11 +2278,18 @@ fn automated_tick_driver(
     mut session: Option<ResMut<ActiveBattleSession>>,
     battle_db: Res<LoadedBattle>,
     battle_assets: Option<Res<BattleAssets>>,
+    bin_root_res: Option<Res<BinRootResource>>,
+    mut zone_info: Option<ResMut<pla::game::ActiveZoneInfo>>,
+    (mut meshes, mut materials, mut images): (
+        ResMut<Assets<Mesh>>,
+        ResMut<Assets<StandardMaterial>>,
+        ResMut<Assets<Image>>,
+    ),
     mut exit: MessageWriter<AppExit>,
 ) {
     automation.current_ticks += 1;
 
-    // Mode 0: Auto-demo playthrough mode (Walk -> Encounter -> Move Menu -> Attack -> Capture -> Return)
+    // Mode 0: Auto-demo playthrough mode (Walk -> Encounter -> Move Menu -> Attack -> Capture -> Return -> Multi-area)
     if automation.auto_demo {
         let demo_dir = automation
             .demo_output_dir
@@ -2217,10 +2386,6 @@ fn automated_tick_driver(
                 // Step 1: Wild Encounter triggered -> Battle Start
                 if automation.demo_step_tick == 1 {
                     write_demo_log("Step 1: Wild encounter! Party of 3, bag, move effects and engine AI are active.");
-                    camera_ctrl.yaw = 0.52;
-                    camera_ctrl.pitch = 0.16;
-                    camera_ctrl.distance = 6.2;
-                    camera_ctrl.focal_offset_y = 0.5;
                 }
                 if automation.demo_step_tick == 20 {
                     let shot = demo_dir.join("01_battle_encounter.png");
@@ -2237,10 +2402,6 @@ fn automated_tick_driver(
                 let beat = &pla::game::battle_demo::BEATS[step - 2];
                 if automation.demo_step_tick == 1 {
                     write_demo_log(&format!("Step {step}: {}", beat.note));
-                    camera_ctrl.yaw = 0.52 + 0.04 * (step as f32 - 2.0);
-                    camera_ctrl.pitch = 0.16;
-                    camera_ctrl.distance = 6.2;
-                    camera_ctrl.focal_offset_y = 0.5;
                     if let Some(ref mut sess) = session {
                         for line in pla::game::battle_demo::run_beat(sess, beat) {
                             write_demo_log(&format!("  log: {line}"));
@@ -2285,7 +2446,95 @@ fn automated_tick_driver(
                     }
                 }
                 if automation.demo_step_tick >= 25 {
-                    write_demo_log("Auto-demo playthrough finished successfully with 4 battle screenshots.");
+                    automation.demo_step = 7;
+                    automation.demo_step_tick = 0;
+                }
+            }
+            7 => {
+                // Step 7: Area 00 (Jubilife Village) verification (gravel streets, sand coast, grass)
+                if automation.demo_step_tick == 1 {
+                    write_demo_log("Step 7: Switching to Area 00 (Jubilife Village) for terrain albedo verification.");
+                    let bin_root = bin_root_res.as_ref().map(|b| b.0.clone()).unwrap_or_else(|| {
+                        PathBuf::from("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
+                    });
+                    if let (Some(ref mut tr), Some(ref mut zi)) = (terrain_res.as_mut(), zone_info.as_mut()) {
+                        switch_terrain_area(0, &bin_root, &mut commands, tr, &chunk_query, &mut meshes, &mut materials, &mut images, zi);
+                    }
+                    if let Ok(mut p_xf) = player_query.single_mut() {
+                        let sy = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(445.0, 650.0)).unwrap_or(60.8);
+                        p_xf.translation = Vec3::new(445.0, sy + 0.9, 650.0);
+                    }
+                    camera_ctrl.yaw = 0.85;
+                    camera_ctrl.pitch = 0.18;
+                    camera_ctrl.distance = 7.0;
+                    camera_ctrl.focal_offset_y = 0.0;
+                }
+                if automation.demo_step_tick == 8 {
+                    let shot = demo_dir.join("06_area00_gravel_streets.png");
+                    write_demo_log(&format!("Capturing 06_area00_gravel_streets.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick == 9 {
+                    // Reposition to Area 00 sandy coast / shore
+                    if let Ok(mut p_xf) = player_query.single_mut() {
+                        let sy = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(320.0, 780.0)).unwrap_or(10.0);
+                        p_xf.translation = Vec3::new(320.0, sy + 0.9, 780.0);
+                    }
+                    camera_ctrl.yaw = 2.3;
+                    camera_ctrl.pitch = 0.20;
+                    camera_ctrl.distance = 8.0;
+                }
+                if automation.demo_step_tick == 16 {
+                    let shot = demo_dir.join("07_area00_sand_coast.png");
+                    write_demo_log(&format!("Capturing 07_area00_sand_coast.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick == 17 {
+                    // Reposition to Area 00 green meadows / grass
+                    if let Ok(mut p_xf) = player_query.single_mut() {
+                        let sy = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(550.0, 520.0)).unwrap_or(30.0);
+                        p_xf.translation = Vec3::new(550.0, sy + 0.9, 520.0);
+                    }
+                    camera_ctrl.yaw = 0.40;
+                    camera_ctrl.pitch = 0.20;
+                    camera_ctrl.distance = 8.0;
+                }
+                if automation.demo_step_tick == 24 {
+                    let shot = demo_dir.join("08_area00_grass.png");
+                    write_demo_log(&format!("Capturing 08_area00_grass.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick >= 25 {
+                    automation.demo_step = 8;
+                    automation.demo_step_tick = 0;
+                }
+            }
+            8 => {
+                // Step 8: Area 05 (Alabaster Icelands) verification (snow and ice)
+                if automation.demo_step_tick == 1 {
+                    write_demo_log("Step 8: Switching to Area 05 (Alabaster Icelands) for snow albedo verification.");
+                    let bin_root = bin_root_res.as_ref().map(|b| b.0.clone()).unwrap_or_else(|| {
+                        PathBuf::from("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
+                    });
+                    if let (Some(ref mut tr), Some(ref mut zi)) = (terrain_res.as_mut(), zone_info.as_mut()) {
+                        switch_terrain_area(5, &bin_root, &mut commands, tr, &chunk_query, &mut meshes, &mut materials, &mut images, zi);
+                    }
+                    if let Ok(mut p_xf) = player_query.single_mut() {
+                        let sy = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(512.0, 512.0)).unwrap_or(50.0);
+                        p_xf.translation = Vec3::new(512.0, sy + 0.9, 512.0);
+                    }
+                    camera_ctrl.yaw = 1.10;
+                    camera_ctrl.pitch = 0.22;
+                    camera_ctrl.distance = 9.0;
+                    camera_ctrl.focal_offset_y = 0.0;
+                }
+                if automation.demo_step_tick == 10 {
+                    let shot = demo_dir.join("09_area05_snow.png");
+                    write_demo_log(&format!("Capturing 09_area05_snow.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick >= 15 {
+                    write_demo_log("Auto-demo playthrough and multi-area terrain verification finished successfully!");
                     exit.write(AppExit::Success);
                 }
             }
