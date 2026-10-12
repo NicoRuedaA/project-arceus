@@ -172,7 +172,7 @@ fn spawn_menu(mut commands: Commands) {
                             Button,
                             PauseButton(i),
                             Node {
-                                width: Val::Px(340.0),
+                                width: Val::Px(420.0),
                                 padding: UiRect::axes(Val::Px(16.0), Val::Px(9.0)),
                                 justify_content: JustifyContent::Center,
                                 ..default()

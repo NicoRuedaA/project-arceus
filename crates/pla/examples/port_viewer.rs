@@ -1611,8 +1611,8 @@ fn spawn_aim_hint(mut commands: Commands) {
             position_type: PositionType::Absolute,
             left: Val::Percent(50.0),
             bottom: Val::Px(90.0),
-            margin: UiRect::left(Val::Px(-130.0)),
-            width: Val::Px(260.0),
+            margin: UiRect::left(Val::Px(-150.0)),
+            width: Val::Px(300.0),
             padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
             justify_content: JustifyContent::Center,
             ..default()
