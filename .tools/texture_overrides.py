@@ -45,7 +45,7 @@ def main() -> int:
         print(f"missing {cache}", file=sys.stderr)
         return 1
     replaced_files = sorted(
-        str(p.relative_to(ovr)) for p in ovr.rglob("*") if p.is_file() and p.name != "LEEME.txt"
+        str(p.relative_to(ovr)) for p in ovr.rglob("*") if p.is_file() and not p.name.startswith("LEEME")
     ) if ovr.is_dir() else []
     if "--list" in args:
         print(f"{len(replaced_files)} texturas mejoradas en {ovr}")

@@ -8,7 +8,7 @@
 # note: coverage_m2_total = sum over areas 00-05 of coverage x walkable m2 (albedo only). priority_rank (albedo only) = 0.5 share of
 # note: total m2 + 0.5 share of near-start weight. Normal rows reuse the albedo slot of the same index. tiling = SplatST x (period 32/tiling m is a guess).
 unique_name:string*	texture_name:string	kind:string	width:u32	height:u32	format:string	used_in_areas:string	slots:string	tiling:string	coverage_pct:string	all_pct:string	near_start_pct:string	coverage_m2_total:f32	priority_rank:u32?	plain_name:string	png_rel:string
-ha_area00_cliff01_alb	ha_area00_cliff01_alb	alb	256	256	BC7_UNORM	00	00:0	00:4	00:24.8	00:49.5	00:18.6	159846	7	roca de acantilado 01 de Aldea Joya	work/cache/terrain_layers/ha_area00_cliff01_alb.png
+ha_area00_cliff01_alb	ha_area00_cliff01_alb	alb	256	256	BC7_UNORM	00	00:0	00:4	00:24.8	00:49.5	00:18.6	159846	8	roca de acantilado 01 de Aldea Joya	work/cache/terrain_layers/ha_area00_cliff01_alb.png
 ha_area00_cliff01_nrm	ha_area00_cliff01_nrm	nrm	256	256	BC5_UNORM	00	00:0	00:4	00:24.8	00:49.5	00:18.6	0		roca de acantilado 01 de Aldea Joya (relieve)	work/cache/terrain_layers/ha_area00_cliff01_nrm.png
 ha_area00_gravel01_alb	ha_area00_gravel01_alb	alb	256	256	BC7_UNORM	00	00:6	00:2.5	00:1.2	00:0.9	00:17.4	7901	21	grava 01 de Aldea Joya	work/cache/terrain_layers/ha_area00_gravel01_alb.png
 ha_area00_gravel01_nrm	ha_area00_gravel01_nrm	nrm	256	256	BC5_UNORM	00	00:6	00:2.5	00:1.2	00:0.9	00:17.4	0		grava 01 de Aldea Joya (relieve)	work/cache/terrain_layers/ha_area00_gravel01_nrm.png
@@ -23,7 +23,7 @@ ha_area01_cliff02_alb	ha_area01_cliff02_alb	alb	256	256	BC7_UNORM	01	01:1	01:5	0
 ha_area01_cliff02_nrm	ha_area01_cliff02_nrm	nrm	256	256	BC5_UNORM	01	01:1	01:5	01:1.0	01:1.7	01:0.0	0		roca de acantilado 02 de Campos Obsidiana (relieve)	work/cache/terrain_layers/ha_area01_cliff02_nrm.png
 ha_area01_grass01_alb	ha_area01_grass01_alb	alb	256	256	BC7_UNORM	00;01	00:1;01:2	00:2.5;01:2.5	00:62.6;01:35.9	00:39.7;01:23.9	00:46.5;01:70.8	628755	1	hierba 01 de Campos Obsidiana	work/cache/terrain_layers/ha_area01_grass01_alb.png
 ha_area01_grass01_nrm	ha_area01_grass01_nrm	nrm	256	256	BC5_UNORM	00;01	00:1;01:2	00:2.5;01:2.5	00:62.6;01:35.9	00:39.7;01:23.9	00:46.5;01:70.8	0		hierba 01 de Campos Obsidiana (relieve)	work/cache/terrain_layers/ha_area01_grass01_nrm.png
-ha_area01_grass02_alb	ha_area01_grass02_alb	alb	256	256	BC7_UNORM	00;01	00:2;01:3	00:2.5;01:2.5	00:10.0;01:36.7	00:6.3;01:27.6	00:5.3;01:3.4	294891	6	hierba 02 de Campos Obsidiana	work/cache/terrain_layers/ha_area01_grass02_alb.png
+ha_area01_grass02_alb	ha_area01_grass02_alb	alb	256	256	BC7_UNORM	00;01	00:2;01:3	00:2.5;01:2.5	00:10.0;01:36.7	00:6.3;01:27.6	00:5.3;01:3.4	294891	7	hierba 02 de Campos Obsidiana	work/cache/terrain_layers/ha_area01_grass02_alb.png
 ha_area01_grass02_nrm	ha_area01_grass02_nrm	nrm	256	256	BC5_UNORM	00;01	00:2;01:3	00:2.5;01:2.5	00:10.0;01:36.7	00:6.3;01:27.6	00:5.3;01:3.4	0		hierba 02 de Campos Obsidiana (relieve)	work/cache/terrain_layers/ha_area01_grass02_nrm.png
 ha_area01_gravel01_alb	ha_area01_gravel01_alb	alb	256	256	BC7_UNORM	01	01:6	01:2.5	01:7.6	01:9.5	01:3.5	47900	28	grava 01 de Campos Obsidiana	work/cache/terrain_layers/ha_area01_gravel01_alb.png
 ha_area01_gravel01_nrm	ha_area01_gravel01_nrm	nrm	256	256	BC5_UNORM	01	01:6	01:2.5	01:7.6	01:9.5	01:3.5	0		grava 01 de Campos Obsidiana (relieve)	work/cache/terrain_layers/ha_area01_gravel01_nrm.png
@@ -81,8 +81,8 @@ ha_area05_mountain02_alb	ha_area05_mountain02_alb	alb	256	256	BC7_UNORM	05	05:0	
 ha_area05_mountain02_nrm	ha_area05_mountain02_nrm	nrm	256	256	BC5_UNORM	05	05:0	05:10	05:18.0	05:30.7	05:4.4	0		roca de montaña 02 de Tierras Heladas Alabastro (relieve)	work/cache/terrain_layers/ha_area05_mountain02_nrm.png
 ha_area05_snow01_alb	ha_area05_snow01_alb	alb	256	256	BC7_UNORM	05	05:5	05:5	05:33.7	05:25.5	05:37.4	241773	4	nieve 01 de Tierras Heladas Alabastro	work/cache/terrain_layers/ha_area05_snow01_alb.png
 ha_area05_snow01_nrm	ha_area05_snow01_nrm	nrm	256	256	BC5_UNORM	05	05:5	05:5	05:33.7	05:25.5	05:37.4	0		nieve 01 de Tierras Heladas Alabastro (relieve)	work/cache/terrain_layers/ha_area05_snow01_nrm.png
-ha_area05_snow02_alb	ha_area05_snow02_alb	alb	256	256	BC7_UNORM	05	05:3	05:8	05:1.1	05:2.4	05:0.6	256446	8	nieve 02 de Tierras Heladas Alabastro	work/cache/terrain_layers/ha_area05_snow02_alb.png
-ha_area05_snow02_nrm	ha_area05_snow02_nrm	nrm	256	256	BC5_UNORM	05	05:3	05:8	05:1.1	05:2.4	05:0.6	0		nieve 02 de Tierras Heladas Alabastro (relieve)	work/cache/terrain_layers/ha_area05_snow02_nrm.png
+ha_area05_snow02_alb	ha_area05_snow02_alb	alb	256	256	BC7_UNORM	05	05:6+3	05:8	05:35.7	05:29.2	05:30.5	256446	5	nieve 02 de Tierras Heladas Alabastro	work/cache/terrain_layers/ha_area05_snow02_alb.png
+ha_area05_snow02_nrm	ha_area05_snow02_nrm	nrm	256	256	BC5_UNORM	05	05:6+3	05:8	05:35.7	05:29.2	05:30.5	0		nieve 02 de Tierras Heladas Alabastro (relieve)	work/cache/terrain_layers/ha_area05_snow02_nrm.png
 ha_c_area02_grass01_alb	ha_c_area02_grass01_alb	alb	256	256	BC7_UNORM	02;06	02:4;06:2	02:2;06:2	02:47.6;06:1.2	02:36.0;06:1.2	02:33.3;06:0.0	339680	2	hierba 01 de Pantanal Carmesí	work/cache/terrain_layers/ha_c_area02_grass01_alb.png
 ha_c_area02_grass01_nrm	ha_c_area02_grass01_nrm	nrm	256	256	BC5_UNORM	02;06	02:4;06:2	02:2;06:2	02:47.6;06:1.2	02:36.0;06:1.2	02:33.3;06:0.0	0		hierba 01 de Pantanal Carmesí (relieve)	work/cache/terrain_layers/ha_c_area02_grass01_nrm.png
 ha_c_area02_grass02_alb	ha_c_area02_grass02_alb	alb	256	256	BC7_UNORM	02	02:3	02:2	02:1.1	02:0.8	02:0.5	7521	38	hierba 02 de Pantanal Carmesí	work/cache/terrain_layers/ha_c_area02_grass02_alb.png
@@ -91,7 +91,7 @@ ha_c_area02_mud01_alb	ha_c_area02_mud01_alb	alb	256	256	BC7_UNORM	02	02:6	02:2.5
 ha_c_area02_mud01_nrm	ha_c_area02_mud01_nrm	nrm	256	256	BC5_UNORM	02	02:6	02:2.5	02:9.4	02:13.2	02:19.5	0		barro 01 de Pantanal Carmesí (relieve)	work/cache/terrain_layers/ha_c_area02_mud01_nrm.png
 ha_c_area03_gravel01_alb	ha_c_area03_gravel01_alb	alb	256	256	BC7_UNORM	03	03:3	03:3	03:21.5	03:8.9	03:2.2	79452	24	grava 01 de Costa Cobalto	work/cache/terrain_layers/ha_c_area03_gravel01_alb.png
 ha_c_area03_gravel01_nrm	ha_c_area03_gravel01_nrm	nrm	256	256	BC5_UNORM	03	03:3	03:3	03:21.5	03:8.9	03:2.2	0		grava 01 de Costa Cobalto (relieve)	work/cache/terrain_layers/ha_c_area03_gravel01_nrm.png
-ha_c_area04_glass02_alb	ha_c_area04_glass02_alb	alb	256	256	BC7_UNORM	04	04:4	04:2.5	04:43.9	04:34.4	04:33.5	233653	5	hierba 02 de Cordillera Corona	work/cache/terrain_layers/ha_c_area04_glass02_alb.png
+ha_c_area04_glass02_alb	ha_c_area04_glass02_alb	alb	256	256	BC7_UNORM	04	04:4	04:2.5	04:43.9	04:34.4	04:33.5	233653	6	hierba 02 de Cordillera Corona	work/cache/terrain_layers/ha_c_area04_glass02_alb.png
 ha_c_area04_glass02_nrm	ha_c_area04_glass02_nrm	nrm	256	256	BC5_UNORM	04	04:4	04:2.5	04:43.9	04:34.4	04:33.5	0		hierba 02 de Cordillera Corona (relieve)	work/cache/terrain_layers/ha_c_area04_glass02_nrm.png
 ha_c_area04_gravel01_alb	ha_c_area04_gravel01_alb	alb	256	256	BC7_UNORM	04	04:3	04:2.5	04:12.5	04:12.4	04:9.6	66483	19	grava 01 de Cordillera Corona	work/cache/terrain_layers/ha_c_area04_gravel01_alb.png
 ha_c_area04_gravel01_nrm	ha_c_area04_gravel01_nrm	nrm	256	256	BC5_UNORM	04	04:3	04:2.5	04:12.5	04:12.4	04:9.6	0		grava 01 de Cordillera Corona (relieve)	work/cache/terrain_layers/ha_c_area04_gravel01_nrm.png

@@ -38,8 +38,8 @@ struct Row {
     width: u32,
     height: u32,
     format: String,
-    /// area -> (slot, tiling, coverage %, whole-area %, near-start %)
-    areas: BTreeMap<u8, (usize, f32, f32, f32, f32)>,
+    /// area -> (slots joined by `+` (a texture can fill several slots), first tiling, coverage %, whole-area %, near-start %)
+    areas: BTreeMap<u8, (String, f32, f32, f32, f32)>,
     m2: f32,
 }
 
@@ -178,7 +178,14 @@ fn main() {
             if kind == "alb" && area <= 5 {
                 row.m2 += cov / 100.0 * land_m2;
             }
-            row.areas.insert(area, (k, tiling, cov, all, near));
+            let e = row.areas.entry(area).or_insert((String::new(), tiling, 0.0, 0.0, 0.0));
+            if !e.0.is_empty() {
+                e.0.push('+');
+            }
+            e.0 += &k.to_string();
+            e.2 += cov;
+            e.3 += all;
+            e.4 += near;
         }
         eprintln!("area{area:02}: land {:.0} m2, start {:?}", land_m2, start);
     }
@@ -201,7 +208,7 @@ fn main() {
     score.sort_by(|x, y| y.0.partial_cmp(&x.0).unwrap().then(x.1.cmp(y.1)));
     let rank: BTreeMap<&String, usize> = score.iter().enumerate().map(|(i, (_, k))| (*k, i + 1)).collect();
 
-    let fmt_map = |r: &Row, f: &dyn Fn(&(usize, f32, f32, f32, f32)) -> String| -> String {
+    let fmt_map = |r: &Row, f: &dyn Fn(&(String, f32, f32, f32, f32)) -> String| -> String {
         r.areas.iter().map(|(a, v)| format!("{a:02}:{}", f(v))).collect::<Vec<_>>().join(";")
     };
     let mut tsv = String::new();
@@ -222,7 +229,7 @@ fn main() {
             r.width,
             r.height,
             r.format,
-            fmt_map(r, &|v| v.0.to_string()),
+            fmt_map(r, &|v| v.0.clone()),
             fmt_map(r, &|v| format!("{}", v.1)),
             fmt_map(r, &|v| format!("{:.1}", v.2)),
             fmt_map(r, &|v| format!("{:.1}", v.3)),
