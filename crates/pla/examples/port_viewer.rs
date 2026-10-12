@@ -19,6 +19,7 @@ use bevy::prelude::*;
 use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy::window::WindowResolution;
 
+use pla::battle::BattleData;
 use pla::pml::{calculate_hp, PmlDatabase};
 
 #[derive(Component)]
@@ -28,13 +29,100 @@ struct PlayerAvatar;
 struct DirectionIndicator;
 
 #[derive(Component)]
-#[allow(dead_code)]
 struct PokemonSpawn {
+    #[allow(dead_code)]
     national_dex: u16,
 }
 
 #[derive(Component)]
 struct Reticle;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BallKind {
+    PokeBall,
+    GreatBall,
+    UltraBall,
+    FeatherBall,
+    HeavyBall,
+}
+
+impl BallKind {
+    fn display_name(&self) -> &'static str {
+        match self {
+            Self::PokeBall => "Poké Ball",
+            Self::GreatBall => "Great Ball",
+            Self::UltraBall => "Ultra Ball",
+            Self::FeatherBall => "Feather Ball",
+            Self::HeavyBall => "Heavy Ball",
+        }
+    }
+
+    fn ball_multiplier(&self) -> f64 {
+        match self {
+            Self::PokeBall => 0.75,
+            Self::GreatBall => 1.5,
+            Self::UltraBall => 2.25,
+            Self::FeatherBall => 1.25,
+            Self::HeavyBall => 1.25,
+        }
+    }
+
+    fn initial_velocity(&self) -> f32 {
+        match self {
+            Self::FeatherBall => 42.0,
+            Self::HeavyBall => 18.0,
+            _ => 30.0,
+        }
+    }
+
+    fn gravity(&self) -> f32 {
+        match self {
+            Self::FeatherBall => -8.0,
+            Self::HeavyBall => -24.0,
+            _ => -16.0,
+        }
+    }
+
+    fn top_color(&self) -> Color {
+        match self {
+            Self::PokeBall => Color::srgb(0.85, 0.15, 0.15),
+            Self::GreatBall => Color::srgb(0.15, 0.35, 0.85),
+            Self::UltraBall => Color::srgb(0.2, 0.2, 0.2),
+            Self::FeatherBall => Color::srgb(0.3, 0.75, 0.85),
+            Self::HeavyBall => Color::srgb(0.35, 0.35, 0.38),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum BallState {
+    InFlight,
+    Shaking {
+        shake_count: u8,
+        timer: f32,
+        max_shakes: u8,
+        will_capture: bool,
+    },
+    Captured,
+    Breakout,
+}
+
+#[derive(Component)]
+struct PokeBall {
+    velocity: Vec3,
+    gravity: f32,
+    lifetime: f32,
+    bounces: u8,
+    state: BallState,
+    kind: BallKind,
+}
+
+#[derive(Resource)]
+struct BallInventory {
+    selected: BallKind,
+    balls_thrown: u32,
+    last_capture_status: Option<String>,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CameraMode {
@@ -77,10 +165,14 @@ struct ActivePokemonState {
 struct LoadedPml(Option<PmlDatabase>);
 
 #[derive(Resource)]
+struct LoadedBattle(Option<BattleData>);
+
+#[derive(Resource)]
 struct AutomationOptions {
     screenshot_path: Option<PathBuf>,
     max_ticks: Option<u32>,
     current_ticks: u32,
+    auto_throw_tick: Option<u32>,
 }
 
 fn main() -> ExitCode {
@@ -89,6 +181,7 @@ fn main() -> ExitCode {
     let mut max_ticks = None;
     let mut initial_mode = CameraMode::OrbitDefault;
     let mut initial_dex: Option<u16> = None;
+    let mut auto_throw_tick: Option<u32> = None;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -115,6 +208,9 @@ fn main() -> ExitCode {
                     initial_dex = Some(s);
                 }
             }
+            "--throw" => {
+                auto_throw_tick = Some(20);
+            }
             "--help" | "-h" => {
                 println!("Usage: cargo run -p pla --example port_viewer -- [OPTIONS]");
                 println!("Options:");
@@ -122,6 +218,7 @@ fn main() -> ExitCode {
                 println!("  --ticks <COUNT>       Run for COUNT frames and exit");
                 println!("  --mode <orbit|aim>    Initial camera mode (default: orbit)");
                 println!("  --species <DEX>       National dex species ID to spawn (default: 25 Pikachu)");
+                println!("  --throw               Automatically throw Poké Ball on tick 20");
                 return ExitCode::SUCCESS;
             }
             _ => {}
@@ -132,8 +229,8 @@ fn main() -> ExitCode {
         max_ticks = Some(70);
     }
 
-    // Attempt to locate PML data directory.
-    let pml_dir = [
+    // Locate PML and Battle data directory.
+    let data_dir = [
         PathBuf::from("data"),
         PathBuf::from("../../data"),
         PathBuf::from("/home/nico/work/decompilacion/data"),
@@ -141,7 +238,8 @@ fn main() -> ExitCode {
     .into_iter()
     .find(|p| p.join("pml_personal.tsv").exists());
 
-    let pml_db = pml_dir.and_then(|dir| PmlDatabase::load_from_dir(dir).ok());
+    let pml_db = data_dir.as_ref().and_then(|dir| PmlDatabase::load_from_dir(dir).ok());
+    let battle_db = data_dir.as_ref().and_then(|dir| BattleData::load(dir).ok());
 
     let mut app = App::new();
     app.add_plugins(
@@ -182,10 +280,17 @@ fn main() -> ExitCode {
         ganba: 3,
     });
     app.insert_resource(LoadedPml(pml_db));
+    app.insert_resource(LoadedBattle(battle_db));
+    app.insert_resource(BallInventory {
+        selected: BallKind::PokeBall,
+        balls_thrown: 0,
+        last_capture_status: None,
+    });
     app.insert_resource(AutomationOptions {
         screenshot_path,
         max_ticks,
         current_ticks: 0,
+        auto_throw_tick,
     });
 
     app.add_systems(Startup, setup_scene);
@@ -195,6 +300,10 @@ fn main() -> ExitCode {
             player_locomotion,
             camera_controls,
             update_camera_transform,
+            ball_selection_controls,
+            ball_throw_input,
+            ball_ballistics_and_physics,
+            capture_resolution_system,
             pokemon_selection_controls,
             update_hud_and_telemetry,
             automated_tick_driver,
@@ -538,11 +647,11 @@ fn update_camera_transform(
         return;
     };
 
+    let right = Vec3::new(camera_ctrl.yaw.cos(), 0.0, -camera_ctrl.yaw.sin());
     let mut focal_target = player_xf.translation + Vec3::new(0.0, camera_ctrl.focal_offset_y, 0.0);
 
     // If in over-the-shoulder Aim mode, shift focal point to right shoulder.
     if camera_ctrl.mode == CameraMode::AimOverShoulder {
-        let right = Vec3::new(camera_ctrl.yaw.cos(), 0.0, -camera_ctrl.yaw.sin());
         focal_target += right * 0.45 + Vec3::new(0.0, 0.15, 0.0);
     }
 
@@ -553,17 +662,348 @@ fn update_camera_transform(
     let delta_x = dist * pitch.cos() * yaw.sin();
     let delta_y = dist * pitch.sin();
     let delta_z = dist * pitch.cos() * yaw.cos();
+    let forward_dir = Vec3::new(-pitch.cos() * yaw.sin(), -pitch.sin(), -pitch.cos() * yaw.cos()).normalize();
 
-    let eye_pos = focal_target + Vec3::new(delta_x, delta_y, delta_z);
+    let (eye_pos, look_target) = match camera_ctrl.mode {
+        CameraMode::OrbitDefault => {
+            let eye = focal_target + Vec3::new(delta_x, delta_y, delta_z);
+            (eye, focal_target)
+        }
+        CameraMode::AimOverShoulder => {
+            let shoulder_pos = player_xf.translation + right * 0.45 + Vec3::new(0.0, 1.35, 0.0);
+            let eye = shoulder_pos + Vec3::new(delta_x, delta_y, delta_z);
+            let target = eye + forward_dir * 10.0;
+            (eye, target)
+        }
+    };
 
     cam_xf.translation = eye_pos;
-    cam_xf.look_at(focal_target, Vec3::Y);
+    cam_xf.look_at(look_target, Vec3::Y);
 
     // Position aiming reticle in front of camera along forward ray.
     if let Ok(mut ret_xf) = reticle_query.single_mut() {
-        let forward = (focal_target - eye_pos).normalize();
-        ret_xf.translation = eye_pos + forward * 2.5;
+        ret_xf.translation = eye_pos + forward_dir * 3.0;
         ret_xf.look_at(eye_pos, Vec3::Y);
+    }
+}
+
+/// Selects active Poké Ball type using keyboard shortcuts:
+/// B: Standard Poké Ball | G: Great Ball | U: Ultra Ball | F: Feather Ball | H: Heavy Ball
+fn ball_selection_controls(keys: Res<ButtonInput<KeyCode>>, mut inventory: ResMut<BallInventory>) {
+    if keys.just_pressed(KeyCode::KeyB) {
+        inventory.selected = BallKind::PokeBall;
+        println!("Selected Ball: {}", inventory.selected.display_name());
+    } else if keys.just_pressed(KeyCode::KeyG) {
+        inventory.selected = BallKind::GreatBall;
+        println!("Selected Ball: {}", inventory.selected.display_name());
+    } else if keys.just_pressed(KeyCode::KeyU) {
+        inventory.selected = BallKind::UltraBall;
+        println!("Selected Ball: {}", inventory.selected.display_name());
+    } else if keys.just_pressed(KeyCode::KeyF) {
+        inventory.selected = BallKind::FeatherBall;
+        println!("Selected Ball: {}", inventory.selected.display_name());
+    } else if keys.just_pressed(KeyCode::KeyH) {
+        inventory.selected = BallKind::HeavyBall;
+        println!("Selected Ball: {}", inventory.selected.display_name());
+    }
+}
+
+/// Spawns a thrown Poké Ball along the aim vector towards the reticle focal point.
+fn ball_throw_input(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    mut inventory: ResMut<BallInventory>,
+    player_query: Query<&Transform, With<PlayerAvatar>>,
+    camera_ctrl: Res<CameraController>,
+    automation: Res<AutomationOptions>,
+) {
+    let mut should_throw = mouse_buttons.just_pressed(MouseButton::Left)
+        || keys.just_pressed(KeyCode::Space);
+
+    if let Some(throw_tick) = automation.auto_throw_tick {
+        if automation.current_ticks == throw_tick {
+            should_throw = true;
+        }
+    }
+
+    if !should_throw {
+        return;
+    }
+
+    let Ok(player_xf) = player_query.single() else {
+        return;
+    };
+
+    inventory.balls_thrown += 1;
+    let ball_kind = inventory.selected;
+
+    let pitch = camera_ctrl.pitch;
+    let yaw = camera_ctrl.yaw;
+    let forward_dir = Vec3::new(-pitch.cos() * yaw.sin(), -pitch.sin(), -pitch.cos() * yaw.cos()).normalize();
+    let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
+
+    // Spawn origin: right hand of player
+    let spawn_pos = player_xf.translation + right * 0.4 + Vec3::new(0.0, 0.9, 0.0);
+
+    // Aim convergence point: intersection at target range (approx 4.5m ahead)
+    let eye_pos = player_xf.translation + right * 0.45 + Vec3::new(0.0, 1.35, 0.0)
+        + Vec3::new(camera_ctrl.distance * pitch.cos() * yaw.sin(), camera_ctrl.distance * pitch.sin(), camera_ctrl.distance * pitch.cos() * yaw.cos());
+    let target_aim_point = eye_pos + forward_dir * 5.0;
+    let aim_dir = (target_aim_point - spawn_pos).normalize();
+
+    let init_speed = ball_kind.initial_velocity();
+    let velocity = aim_dir * init_speed;
+    let gravity = ball_kind.gravity();
+
+    println!(
+        "Throwing {} #{}: Speed: {:.1} m/s, Gravity: {:.1} m/s²",
+        ball_kind.display_name(),
+        inventory.balls_thrown,
+        init_speed,
+        gravity
+    );
+
+    let top_color = ball_kind.top_color();
+    let bottom_color = Color::srgb(0.9, 0.88, 0.82); // Hisui wood/cream lower hemisphere
+
+    commands
+        .spawn((
+            PokeBall {
+                velocity,
+                gravity,
+                lifetime: 0.0,
+                bounces: 0,
+                state: BallState::InFlight,
+                kind: ball_kind,
+            },
+            Transform::from_translation(spawn_pos),
+            Visibility::default(),
+        ))
+        .with_children(|parent| {
+            // Ball upper hemisphere
+            parent.spawn((
+                Mesh3d(meshes.add(Mesh::from(Sphere::new(0.12)))),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: top_color,
+                    perceptual_roughness: 0.4,
+                    ..default()
+                })),
+                Transform::from_xyz(0.0, 0.04, 0.0),
+            ));
+            // Ball lower hemisphere
+            parent.spawn((
+                Mesh3d(meshes.add(Mesh::from(Sphere::new(0.115)))),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: bottom_color,
+                    perceptual_roughness: 0.7,
+                    ..default()
+                })),
+                Transform::from_xyz(0.0, -0.04, 0.0),
+            ));
+            // Center latch / button
+            parent.spawn((
+                Mesh3d(meshes.add(Mesh::from(Cylinder::new(0.03, 0.02)))),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: Color::srgb(0.7, 0.6, 0.3), // Bronze latch
+                    metallic: 0.8,
+                    perceptual_roughness: 0.3,
+                    ..default()
+                })),
+                Transform::from_xyz(0.0, 0.0, 0.11).with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
+            ));
+        });
+}
+
+/// Physical ballistics integration and contact raycast/sphere queries.
+fn ball_ballistics_and_physics(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut ball_query: Query<(Entity, &mut Transform, &mut PokeBall), Without<PokemonSpawn>>,
+    mut pkmn_query: Query<(Entity, &Transform, &mut Visibility), (With<PokemonSpawn>, Without<PokeBall>)>,
+    pml: Res<LoadedPml>,
+    battle: Res<LoadedBattle>,
+    pkmn_state: Res<ActivePokemonState>,
+) {
+    let dt = time.delta_secs();
+
+    for (ball_entity, mut ball_xf, mut ball) in &mut ball_query {
+        ball.lifetime += dt;
+
+        match ball.state {
+            BallState::InFlight => {
+                let prev_pos = ball_xf.translation;
+                let next_pos = prev_pos + ball.velocity * dt;
+                let seg = next_pos - prev_pos;
+                let seg_len_sq = seg.length_squared();
+
+                // Ballistic motion integration
+                ball_xf.translation = next_pos;
+                ball.velocity.y += ball.gravity * dt;
+
+                // Subtle spin in flight
+                ball_xf.rotate_local_x(12.0 * dt);
+
+                // Ground plane collision (Y <= 0.12)
+                if ball_xf.translation.y <= 0.12 {
+                    ball_xf.translation.y = 0.12;
+                    if ball.velocity.y.abs() > 2.0 && ball.bounces < 3 {
+                        ball.velocity.y = -ball.velocity.y * 0.42;
+                        ball.velocity.x *= 0.75;
+                        ball.velocity.z *= 0.75;
+                        ball.bounces += 1;
+                    } else {
+                        ball.velocity = Vec3::ZERO;
+                    }
+                }
+
+                // Continuous collision detection against wild Pokémon
+                for (_pkmn_entity, pkmn_xf, mut pkmn_vis) in &mut pkmn_query {
+                    let to_pkmn = pkmn_xf.translation - prev_pos;
+                    let t = if seg_len_sq > 1e-6 {
+                        (to_pkmn.dot(seg) / seg_len_sq).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    };
+                    let closest = prev_pos + seg * t;
+                    let hit_dist = closest.distance(pkmn_xf.translation);
+
+                    if hit_dist < 0.95 {
+                        println!("Target Hit! Poke Ball connected with Pokemon (CCD dist: {:.2}m)", hit_dist);
+
+                        // Contain Pokémon inside ball
+                        *pkmn_vis = Visibility::Hidden;
+
+                        // Place ball at Pokémon base on ground
+                        ball_xf.translation = Vec3::new(pkmn_xf.translation.x, 0.15, pkmn_xf.translation.z);
+                        ball.velocity = Vec3::ZERO;
+
+                        // Evaluate capture roll using PLA formula & tables
+                        let dex = pkmn_state.dex_list[pkmn_state.current_index];
+                        let ball_mod = ball.kind.ball_multiplier();
+
+                        let base_catch_rate = if let Some(db) = &pml.0 {
+                            if let Some(entry) = db.personal.iter().find(|p| p.national_dex == dex) {
+                                // Typical catch rate proxy
+                                match entry.national_dex {
+                                    25 => 190.0,
+                                    501 => 45.0,
+                                    722 => 45.0,
+                                    155 => 45.0,
+                                    448 => 45.0,
+                                    _ => 100.0,
+                                }
+                            } else {
+                                100.0
+                            }
+                        } else {
+                            100.0
+                        };
+
+                        let level_factor = (100.0 - pkmn_state.level as f64).max(10.0) / 100.0;
+                        let basic_coef = battle
+                            .0
+                            .as_ref()
+                            .and_then(|b| b.capture_constant("capture_index_basic_coef").ok().flatten())
+                            .unwrap_or(30.0);
+
+                        let final_rate = (base_catch_rate * ball_mod * level_factor + basic_coef) / 255.0;
+                        let will_capture = final_rate >= 0.45;
+
+                        println!(
+                            "Capture Roll Evaluated: BaseRate={:.0}, BallMod={:.2}, FinalOdds={:.1}%, Outcome={}",
+                            base_catch_rate,
+                            ball_mod,
+                            (final_rate * 100.0).min(100.0),
+                            if will_capture { "SUCCESS" } else { "BREAKOUT" }
+                        );
+
+                        ball.state = BallState::Shaking {
+                            shake_count: 0,
+                            timer: 0.0,
+                            max_shakes: 3,
+                            will_capture,
+                        };
+                        break;
+                    }
+                }
+
+                // Despawn stray balls after 8 seconds
+                if ball.lifetime > 8.0 {
+                    commands.entity(ball_entity).despawn();
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Capture sequence evaluator: handles 3-shake wiggle, capture sparks, or breakout.
+fn capture_resolution_system(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut ball_query: Query<(Entity, &mut Transform, &mut PokeBall)>,
+    mut pkmn_query: Query<&mut Visibility, With<PokemonSpawn>>,
+    mut inventory: ResMut<BallInventory>,
+) {
+    let dt = time.delta_secs();
+
+    for (ball_entity, mut ball_xf, mut ball) in &mut ball_query {
+        if let BallState::Shaking {
+            ref mut shake_count,
+            ref mut timer,
+            max_shakes,
+            will_capture,
+        } = ball.state
+        {
+            *timer += dt;
+
+            // Wiggle rotation animation
+            let wiggle_angle = (*timer * 14.0).sin() * 0.22;
+            ball_xf.rotation = Quat::from_rotation_z(wiggle_angle);
+
+            // Advance shake every 0.65 seconds
+            if *timer >= 0.65 {
+                *timer = 0.0;
+                *shake_count += 1;
+                println!("Ball Shake {} / {}...", shake_count, max_shakes);
+
+                if *shake_count >= max_shakes {
+                    if will_capture {
+                        println!("*** CAPTURED! The wild Pokémon was caught! ***");
+                        ball.state = BallState::Captured;
+                        inventory.last_capture_status = Some("Captured! ⭐".into());
+
+                        // Spawn victory capture aura rings/stars above ball
+                        commands.spawn((
+                            Mesh3d(meshes.add(Mesh::from(Torus::new(0.3, 0.02)))),
+                            MeshMaterial3d(materials.add(StandardMaterial {
+                                base_color: Color::srgb(1.0, 0.85, 0.2), // Gold stars aura
+                                unlit: true,
+                                ..default()
+                            })),
+                            Transform::from_translation(ball_xf.translation + Vec3::new(0.0, 0.35, 0.0)),
+                        ));
+                    } else {
+                        println!("*** BREAKOUT! The Pokémon broke free! ***");
+                        ball.state = BallState::Breakout;
+                        inventory.last_capture_status = Some("Broke out!".into());
+
+                        // Restore Pokémon visibility
+                        for mut vis in &mut pkmn_query {
+                            *vis = Visibility::Visible;
+                        }
+
+                        // Remove broken ball
+                        commands.entity(ball_entity).despawn();
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -608,13 +1048,14 @@ fn pokemon_selection_controls(
     }
 }
 
-/// Updates window title and telemetry with real PML statistics.
+/// Updates window title and telemetry with real PML statistics and ball status.
 fn update_hud_and_telemetry(
     mut windows: Query<&mut Window>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
     camera_ctrl: Res<CameraController>,
     pkmn_state: Res<ActivePokemonState>,
     pml: Res<LoadedPml>,
+    inventory: Res<BallInventory>,
 ) {
     let Ok(mut window) = windows.single_mut() else {
         return;
@@ -625,8 +1066,8 @@ fn update_hud_and_telemetry(
 
     let dex = pkmn_state.dex_list[pkmn_state.current_index];
     let mode_str = match camera_ctrl.mode {
-        CameraMode::OrbitDefault => "Orbit (Default 3rd Person)",
-        CameraMode::AimOverShoulder => "Aim (ZL Over-the-Shoulder)",
+        CameraMode::OrbitDefault => "Orbit",
+        CameraMode::AimOverShoulder => "Aim (ZL)",
     };
 
     let pml_info = if let Some(db) = &pml.0 {
@@ -635,30 +1076,32 @@ fn update_hud_and_telemetry(
             let hp = calculate_hp(base_hp, pkmn_state.level, pkmn_state.ganba, Some(false))
                 .unwrap_or(0);
             format!(
-                "Pkmn: #{} {} [Type: {}/{}, Base BST: {}, HP@Lv{}(G{}): {}]",
+                "#{} {} [HP@Lv{}: {}]",
                 entry.national_dex,
                 entry.species_name,
-                entry.type1_name,
-                if entry.type2_name.is_empty() { "None" } else { &entry.type2_name },
-                entry.base_stat_total,
                 pkmn_state.level,
-                pkmn_state.ganba,
                 hp
             )
         } else {
-            format!("Pkmn: #{} (not found in table)", dex)
+            format!("#{}", dex)
         }
     } else {
-        format!("Pkmn: #{} (PML fallback)", dex)
+        format!("#{}", dex)
     };
 
+    let capture_tag = inventory
+        .last_capture_status
+        .as_deref()
+        .unwrap_or("Ready");
+
     window.title = format!(
-        "PLA Port | Mode: {} | Pos: ({:.1}, {:.1}, {:.1}) | Dist: {:.1}m | {}",
+        "PLA Port | Mode: {} | Pos: ({:.1}, {:.1}) | Ball: {} (thrown: {}) | Status: {} | Target: {}",
         mode_str,
         player_xf.translation.x,
-        player_xf.translation.y,
         player_xf.translation.z,
-        camera_ctrl.distance,
+        inventory.selected.display_name(),
+        inventory.balls_thrown,
+        capture_tag,
         pml_info
     );
 }

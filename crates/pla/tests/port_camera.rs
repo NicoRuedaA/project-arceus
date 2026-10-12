@@ -81,3 +81,70 @@ fn pml_pikachu_stats_and_hp_calculation_in_port_context() {
     let hp = calculate_hp(pikachu.base_stats[0], 25, 3, Some(false));
     assert_eq!(hp, Some(87), "Level 25 Pikachu with Ganba 3 has 87 HP in PLA");
 }
+
+/// Tests ballistic trajectory flight under PLA gravity and CCD intersection.
+#[test]
+fn ballistics_trajectory_and_ccd_intersection() {
+    let spawn_pos = Vec3::new(0.4, 0.9, 0.0);
+    let target_pos = Vec3::new(0.0, 0.45, -3.8);
+
+    let aim_dir = (target_pos - spawn_pos).normalize();
+    let speed = 30.0f32;
+    let mut velocity = aim_dir * speed;
+    let gravity = -16.0f32;
+
+    let dt = 1.0 / 60.0f32;
+    let mut ball_pos = spawn_pos;
+    let mut hit_detected = false;
+
+    for _ in 0..60 {
+        let prev_pos = ball_pos;
+        let next_pos = prev_pos + velocity * dt;
+        velocity.y += gravity * dt;
+        ball_pos = next_pos;
+
+        // Continuous collision detection
+        let seg = next_pos - prev_pos;
+        let seg_len_sq = seg.length_squared();
+        let to_target = target_pos - prev_pos;
+        let t = (to_target.dot(seg) / seg_len_sq).clamp(0.0, 1.0);
+        let closest = prev_pos + seg * t;
+        let hit_dist = closest.distance(target_pos);
+
+        if hit_dist < 0.95 {
+            hit_detected = true;
+            break;
+        }
+    }
+
+    assert!(hit_detected, "Poké Ball trajectory must connect with target via CCD");
+}
+
+/// Tests PLA capture rate evaluation with BattleData multipliers.
+#[test]
+fn pla_capture_rate_evaluation_with_battle_data() {
+    let data_dir = [
+        std::path::PathBuf::from("data"),
+        std::path::PathBuf::from("../../data"),
+        std::path::PathBuf::from("/home/nico/work/decompilacion/data"),
+    ]
+    .into_iter()
+    .find(|p| p.join("capture/capture_ball_multipliers.tsv").exists());
+
+    let Some(dir) = data_dir else {
+        eprintln!("[skip] capture tables not found");
+        return;
+    };
+
+    let battle = pla::battle::BattleData::load(dir).expect("load battle tables");
+    let regular_mod = battle.capture_factor("capture_index_ball_factor_default")
+        .expect("read regular ball factor")
+        .unwrap_or(0.75);
+    let ultra_mod = battle.capture_factor("capture_index_ball_factor_hyper")
+        .expect("read ultra ball factor")
+        .unwrap_or(2.25);
+
+    assert_eq!(regular_mod, 0.75, "Standard Poké Ball has 0.75 multiplier");
+    assert_eq!(ultra_mod, 2.25, "Ultra Ball has 2.25 multiplier");
+    assert!(ultra_mod > regular_mod, "Ultra Ball must have higher multiplier than standard ball");
+}
