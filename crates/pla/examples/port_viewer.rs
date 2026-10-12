@@ -545,6 +545,29 @@ fn main() -> ExitCode {
         handles: HashMap::new(),
         spawned: HashSet::new(),
     });
+    // Placed scenery objects + decoded zone lighting (crates/pla/src/game/{world_objects,lighting}.rs)
+    {
+        let cli: Vec<String> = std::env::args().collect();
+        let tree_models: HashSet<String> = terrain_res
+            .as_ref()
+            .map(|t| t.area.instances.iter().map(|i| i.model_name.clone()).collect())
+            .unwrap_or_default();
+        let cache_root = std::env::var_os("PLA_CACHE_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
+        app.add_plugins((
+            pla::game::world_objects::WorldObjectsPlugin {
+                area: area_idx,
+                cache_root,
+                exclude_models: tree_models,
+                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
+            },
+            pla::game::lighting::ZoneLightingPlugin {
+                area: area_idx,
+                slot: pla::game::lighting::time_slot_from_args(&cli),
+            },
+        ));
+    }
     if let Some(tr) = terrain_res {
         app.insert_resource(tr);
     }

@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 pub mod battle_ai;
 pub mod battle_controller;
+pub mod lighting;
 pub mod battle_demo;
 pub mod battle_input;
 pub mod battle_items;
@@ -15,6 +16,7 @@ pub mod catch_rate;
 pub mod navigation;
 pub mod state;
 pub mod ui;
+pub mod world_objects;
 pub mod wild;
 
 pub use battle_controller::{ActiveBattleSession, BattleAssets, BattleInput, BattleMenuState};
