@@ -33,22 +33,15 @@ All export statuses are recorded in `data/field_model_export_index.tsv` (validat
 
 ## Headless Offscreen Verification
 
-Verified 10 representative scenery models spanning trees, shrubs, grass, flowers, rocks, buildings, and props using headless offscreen Bevy rendering (`crates/pla/examples/verify_field_gltf_headless.rs`):
+10 models (trees, shrubs, grass, a flower, rocks, a building, a construction and a log) were rendered offscreen with headless Bevy (`crates/pla/examples/verify_field_gltf_headless.rs`) and looked at. A render that produced a file is not proof of correct content, and textures are NOT confirmed:
 
-| Model | Category | Output glTF | Render Capture | Visual Observation |
-|---|---|---|---|---|
-| `plants_tree01` | Tree | `ha_area00_terrain/plants_tree01.gltf` | `plants_tree01.png` | Trunk geometry, branches, layered leaf cards textured in green. Centered, no missing faces. |
-| `plants_area02_tree01` | Tree (Area 02) | `ha_area00_terrain/plants_area02_tree01.gltf` | `plants_area02_tree01.png` | Tall tree with mossy bark texture and autumn foliage cards. Fully framed, textured. |
-| `plants_shrub02` | Shrub | `ha_area00_terrain/plants_shrub02.gltf` | `plants_shrub02.png` | Clustered shrub leaves with alpha/cutout card texture. Well-framed, textured. |
-| `plants_area00_grass01_alb` | Grass | `ha_area00_terrain/plants_area00_grass01_alb.gltf` | `plants_area00_grass01_alb.png` | Low ground grass tuft mesh with green albedo. Low profile, centered. |
-| `plants_flower04` | Flower | `ha_area00_terrain/plants_flower04.gltf` | `plants_flower04.png` | Multi-tiered field flower stalk with horizontal petals and stem. Crisp geometry. |
-| `ground_rock03_gray` | Rock | `ha_area00/ground_rock03_gray.gltf` | `ground_rock03_gray.png` | Large vertical boulder, stone surface texture cleanly mapped. Proper lighting. |
-| `ground_rock10_gray` | Rock | `ha_area00/ground_rock10_gray.gltf` | `ground_rock10_gray.png` | Twin river rock cluster with gray stone albedo. Fully visible. |
-| `objects_area00_house02` | Building | `ha_area00/objects_area00_house02.gltf` | `objects_area00_house02.png` | Full village longhouse with barrels, entrance porches, tiled roofs. Albedo mapped; wide framing captures whole facade. |
-| `objects_area00_const01` | Construction | `ha_area00/objects_area00_const01.gltf` | `objects_area00_const01.png` | Fenced wooden plank storage site, rope posts and lumber stacks textured with wood grain. |
-| `ground_area00_fallentree01` | Prop / Log | `ha_area00/ground_area00_fallentree01.gltf` | `ground_area00_fallentree01.png` | Hollowed fallen tree log with bark texture and moss gradient. |
+- `objects_area00_house02.png` renders essentially grey/white with no visible albedo colours, so albedo mapping is not shown for that model.
+- `plants_tree01.png` is cropped at the top, so the framing is not complete.
+- The other 8 renders were not re-checked in this review; their earlier observations are not relied on and no texture, framing or lighting claim is made for them.
+
+Models rendered: `plants_tree01`, `plants_area02_tree01`, `plants_shrub02`, `plants_area00_grass01_alb`, `plants_flower04`, `ground_rock03_gray`, `ground_rock10_gray`, `objects_area00_house02`, `objects_area00_const01`, `ground_area00_fallentree01`. No lighting or shader fidelity is claimed.
 
 ## Material & Shading Policy
 As per engine specifications:
-- Only flat `baseColor` from albedo BNTX is exported and mapped to glTF `pbrMetallicRoughness.baseColorTexture`.
+- The exporter writes the albedo BNTX as glTF `pbrMetallicRoughness.baseColorTexture` where it resolves, but the result is not confirmed visually (see above).
 - Normal maps and multi-layer splat maps are skipped from the glTF material definition until shader graph bindings are proven.
