@@ -16,3 +16,10 @@ The viewer now spawns the glTF scene (`WorldAssetRoot`), so Bevy builds skin, jo
 
 ## Not proven
 One offscreen auto-demo run was made, but in that worktree the Pokémon cache was not under `work/`, so the frames still showed placeholder spheres: no visual proof of animated Pokémon in the viewer yet. Wild creatures only walk if world code moves them.
+
+## Viewer panic fix (2026-10-12)
+
+- Failure: `port_viewer` panicked when spawning a Pokémon glTF scene: `world contains the unregistered type bevy_transform::...::Transform`.
+- Root cause: `pla` does not enable Bevy's `reflect_auto_register`, so the reflection registry was empty. The headless test hid this by calling `register_derived_types()` by hand; the viewer never did.
+- Fix: `PokemonAnimPlugin::build` registers all derived types itself (idempotent). The test no longer does it manually and a new test checks the registry.
+- Visually checked (one hidden-window `--script` run, no panic): the wild Staravia and the player Pikachu render with baked colour textures (Pikachu looks dark/under-lit). Animation was NOT verified visually: only one frame per scene was inspected.
