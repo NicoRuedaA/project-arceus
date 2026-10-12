@@ -195,7 +195,18 @@ pub fn skeleton_from_tr(
     mesh_index: usize,
     skin_index: usize,
 ) -> Result<(Vec<GltfNode>, GltfSkin), String> {
-    let adapter = super::tr::BevyTrSkeleton::from_tr(skeleton, bind_records, 1.0e-4)?;
+    skeleton_from_tr_with_epsilon(skeleton, bind_records, mesh_index, skin_index, 1.0e-4)
+}
+
+/// [`skeleton_from_tr`] with an explicit bind/rest-pose residual tolerance.
+pub fn skeleton_from_tr_with_epsilon(
+    skeleton: &super::tr::TrSkl,
+    bind_records: &[super::tr::TrSklBindRecord],
+    mesh_index: usize,
+    skin_index: usize,
+    epsilon: f64,
+) -> Result<(Vec<GltfNode>, GltfSkin), String> {
+    let adapter = super::tr::BevyTrSkeleton::from_tr(skeleton, bind_records, epsilon)?;
     let mut nodes = Vec::with_capacity(skeleton.nodes.len() + 1);
     for (index, source) in skeleton.nodes.iter().enumerate() {
         let transform = adapter.local_transforms[index];

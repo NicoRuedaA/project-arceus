@@ -117,8 +117,18 @@ impl TrSklTransform {
 impl TrSkl {
     /// Checked bind-matrix read, independent of the reference-pose hypothesis.
     pub fn read_bind_records(bytes: &[u8]) -> Result<Vec<TrSklBindRecord>, String> {
+        Self::read_bind_records_with_ik(bytes, false)
+    }
+
+    /// [`TrSkl::read_bind_records`] for skeletons that carry IK records (see
+    /// [`TrSkl::parse_ignoring_ik`]).
+    pub fn read_bind_records_ignoring_ik(bytes: &[u8]) -> Result<Vec<TrSklBindRecord>, String> {
+        Self::read_bind_records_with_ik(bytes, true)
+    }
+
+    pub(crate) fn read_bind_records_with_ik(bytes: &[u8], allow_ik: bool) -> Result<Vec<TrSklBindRecord>, String> {
         // Reuse the demonstrated root/hierarchy gate, not a blind vector scan.
-        let skeleton = Self::parse(bytes)?;
+        let skeleton = Self::parse_with(bytes, allow_ik)?;
         let buffer = SklBuffer(bytes);
         let root = buffer.table(buffer.target(0)?, 5)?;
         let mut records = Vec::with_capacity(skeleton.bind_count);

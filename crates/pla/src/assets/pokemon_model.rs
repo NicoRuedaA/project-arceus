@@ -263,10 +263,41 @@ struct DecodedEntry {
 /// resolved only from exact in-band filenames plus the verified RomFS layout.
 pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
     let path = path.as_ref();
+    let layout = PackLayout {
+        base: model_base(path)?,
+        mdl_dir: "mdl",
+        anm_dir: "anm",
+        skeleton: None,
+        allow_ik: false,
+    };
+    assemble_pack_with(path, &layout)
+}
+
+/// Where the named entries of a pack live and where its skeleton comes from.
+/// Pokémon packs use `<base>/mdl/<file>` and `<base>/anm/<file>`; player
+/// part packs keep every file flat in `<base>/<file>` (empty directory name)
+/// and may borrow a skeleton from another pack (`skeleton`).
+pub struct PackLayout<'a> {
+    /// Exact RomFS directory of the pack, without trailing slash.
+    pub base: String,
+    pub mdl_dir: &'a str,
+    pub anm_dir: &'a str,
+    /// Raw `.trskl` bytes to use instead of the pack's own skeleton entry.
+    pub skeleton: Option<&'a [u8]>,
+    /// Accept a skeleton that carries (unused) IK/twist records.
+    pub allow_ik: bool,
+}
+
+/// [`assemble_pack`] with an explicit path layout (see [`PackLayout`]).
+pub fn assemble_pack_with(
+    path: impl AsRef<Path>,
+    layout: &PackLayout<'_>,
+) -> Result<PokemonModel, String> {
+    let path = path.as_ref();
     let pack_bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let pack = GfPak::parse(&pack_bytes)?;
     let names = PackPaths(&pack);
-    let base = model_base(path)?;
+    let base = layout.base.clone();
     let mut decoded = Vec::with_capacity(pack.entries.len());
     let mut diagnostics = Vec::new();
     for (index, entry) in pack.entries.iter().enumerate() {
@@ -285,13 +316,13 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
         .map(|entry| (entry.index, entry))
         .collect::<BTreeMap<_, _>>();
     let descriptor_name = format!("{}.trmdl", pack_stem(path)?);
-    let descriptor_index = names.entry_index(&romfs_path(&base, "mdl", &descriptor_name))?;
+    let descriptor_index = names.entry_index(&romfs_path(&base, layout.mdl_dir, &descriptor_name))?;
     let descriptor = by_index
         .get(&descriptor_index)
         .ok_or("model descriptor entry did not decode")?;
     let mut materials = Vec::new();
     for file in files_by_extension(&descriptor.references, "trmtr") {
-        let entry_index = names.entry_index(&romfs_path(&base, "mdl", &file))?;
+        let entry_index = names.entry_index(&romfs_path(&base, layout.mdl_dir, &file))?;
         let entry = by_index
             .get(&entry_index)
             .ok_or_else(|| format!("material entry {entry_index} did not decode"))?;
@@ -312,7 +343,7 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
     let mut texture_entries = BTreeMap::<usize, (Vec<u8>, bntx::Bntx)>::new();
     for material in &materials {
         for (file, _) in &material.parsed.textures {
-            let entry_index = names.entry_index(&romfs_path(&base, "mdl", file))?;
+            let entry_index = names.entry_index(&romfs_path(&base, layout.mdl_dir, file))?;
             if texture_entries.contains_key(&entry_index) {
                 continue;
             }
@@ -356,25 +387,30 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
         }
     }
 
-    let skeleton_name = descriptor
-        .references
-        .iter()
-        .find(|name| name.to_ascii_lowercase().ends_with(".trskl"))
-        .ok_or("descriptor has no skeleton filename")?;
-    let skeleton_entry_index = names.entry_index(&romfs_path(&base, "mdl", skeleton_name))?;
-    let skeleton_bytes = &by_index
-        .get(&skeleton_entry_index)
-        .ok_or("skeleton entry did not decode")?
-        .bytes;
+    let (skeleton_entry_index, skeleton_bytes) = if let Some(external) = layout.skeleton {
+        (None, external)
+    } else {
+        let skeleton_name = descriptor
+            .references
+            .iter()
+            .find(|name| name.to_ascii_lowercase().ends_with(".trskl"))
+            .ok_or("descriptor has no skeleton filename")?;
+        let index = names.entry_index(&romfs_path(&base, layout.mdl_dir, skeleton_name))?;
+        let bytes = &by_index
+            .get(&index)
+            .ok_or("skeleton entry did not decode")?
+            .bytes;
+        (Some(index), bytes.as_slice())
+    };
     let bind_record_count = root_vector_count(skeleton_bytes, 2);
     let skeleton_node_count = root_vector_count(skeleton_bytes, 1);
     let skeleton_node_type_counts = skeleton_node_types(skeleton_bytes).unwrap_or_default();
-    let (skeleton, skeleton_parse_error) = match tr::TrSkl::parse(skeleton_bytes) {
+    let (skeleton, skeleton_parse_error) = match tr::TrSkl::parse_with(skeleton_bytes, layout.allow_ik) {
         Ok(skeleton) => (Some(skeleton), None),
         Err(error) => (None, Some(error)),
     };
     let (bind_records, bind_record_error) = if skeleton.is_some() {
-        match tr::TrSkl::read_bind_records(skeleton_bytes) {
+        match tr::TrSkl::read_bind_records_with_ik(skeleton_bytes, layout.allow_ik) {
             Ok(records) if records.is_empty() => (records, Some("parsed skeleton contains zero bind records; rest transforms are not inverse binds".into())),
             Ok(records) => (records, None),
             Err(error) => (Vec::new(), Some(error)),
@@ -394,7 +430,7 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
         .map(|material| material.entry_index);
     let mut meshes = Vec::new();
     for mesh_file in files_by_extension(&descriptor.references, "trmsh") {
-        let entry_index = names.entry_index(&romfs_path(&base, "mdl", &mesh_file))?;
+        let entry_index = names.entry_index(&romfs_path(&base, layout.mdl_dir, &mesh_file))?;
         let entry = by_index
             .get(&entry_index)
             .ok_or_else(|| format!("mesh entry {entry_index} did not decode"))?;
@@ -403,7 +439,7 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
             .iter()
             .find(|name| name.to_ascii_lowercase().ends_with(".trmbf"))
             .ok_or_else(|| format!("mesh entry {entry_index} does not declare a .trmbf name"))?;
-        let buffer_entry_index = names.entry_index(&romfs_path(&base, "mdl", buffer_file))?;
+        let buffer_entry_index = names.entry_index(&romfs_path(&base, layout.mdl_dir, buffer_file))?;
         let buffer = by_index
             .get(&buffer_entry_index)
             .ok_or_else(|| format!("buffer entry {buffer_entry_index} did not decode"))?;
@@ -484,13 +520,13 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
     }
     let mut clips = Vec::new();
     for file in animation_files {
-        let animation_entry_index = names.entry_index(&romfs_path(&base, "anm", &file))?;
+        let animation_entry_index = names.entry_index(&romfs_path(&base, layout.anm_dir, &file))?;
         let animation = by_index
             .get(&animation_entry_index)
             .ok_or_else(|| format!("animation entry {animation_entry_index} did not decode"))?;
         let companion_name = format!("{}.tracm", stem(&file));
         let companion_entry_index = names
-            .entry_index(&romfs_path(&base, "anm", &companion_name))
+            .entry_index(&romfs_path(&base, layout.anm_dir, &companion_name))
             .ok();
         let parsed = tr::TrAnm::parse_tracks(&animation.bytes);
         if let Ok(Some(init_data)) = tr::TrAnm::init_data_summary(&animation.bytes) {
@@ -511,7 +547,7 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
         entry_count: pack.entries.len(),
         meshes,
         skeleton,
-        skeleton_entry_index: Some(skeleton_entry_index),
+        skeleton_entry_index,
         skeleton_parse_error,
         skeleton_node_count,
         skeleton_node_type_counts,
@@ -739,6 +775,17 @@ pub fn write_skinned_lod_level(
     let root = export.skins.first().and_then(|skin| skin.skeleton);
     add_mesh_nodes(&mut export, Some(0), root)?;
     export.write(gltf_path)
+}
+
+/// Material export for one mesh of a part model (used by the merged player exporter).
+pub(crate) fn add_static_material_for_player(
+    model: &PokemonModel,
+    mesh: &PokemonLodMesh,
+    export: &mut gltf_export::GltfExport,
+    gltf_path: &Path,
+    formula: Option<LayerBlendFormula>,
+) -> Result<Option<usize>, String> {
+    add_static_material(model, mesh, export, gltf_path, formula)
 }
 
 fn add_mesh_nodes(
@@ -1066,6 +1113,9 @@ fn model_base(path: &Path) -> Result<String, String> {
 }
 
 fn romfs_path(base: &str, directory: &str, filename: &str) -> String {
+    if directory.is_empty() {
+        return format!("{base}/{filename}");
+    }
     format!("{base}/{directory}/{filename}")
 }
 

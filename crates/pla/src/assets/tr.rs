@@ -1536,6 +1536,17 @@ impl SklBuffer<'_> {
 
 impl TrSkl {
     pub fn parse(bytes: &[u8]) -> Result<TrSkl, String> {
+        Self::parse_with(bytes, false)
+    }
+
+    /// Like [`TrSkl::parse`] but tolerates a non-empty root IK/twist record vector
+    /// (player biped skeleton). The IK records are not decoded or applied; they
+    /// do not affect the node hierarchy, rig mapping or bind matrices.
+    pub fn parse_ignoring_ik(bytes: &[u8]) -> Result<TrSkl, String> {
+        Self::parse_with(bytes, true)
+    }
+
+    pub(crate) fn parse_with(bytes: &[u8], allow_ik: bool) -> Result<TrSkl, String> {
         if bytes.len() > 32 * 1024 * 1024 {
             return Err("trskl exceeds size limit".into());
         }
@@ -1554,7 +1565,7 @@ impl TrSkl {
                 return Err("unsupported trskl rig offset".into());
             }
         }
-        if !buffer.vector(&root, 3)?.is_empty() {
+        if !allow_ik && !buffer.vector(&root, 3)?.is_empty() {
             return Err("trskl IK records unsupported".into());
         }
         let offsets = buffer.vector(&root, 1)?;
