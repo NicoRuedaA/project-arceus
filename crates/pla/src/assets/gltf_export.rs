@@ -738,7 +738,8 @@ impl GltfExport {
                 .into_iter()
                 .flatten()
             {
-                if uri.is_empty() || uri.starts_with('/') || uri.contains("..") {
+                if uri.is_empty() || uri.starts_with('/') || uri.contains('\\') || uri.contains(':')
+                {
                     return Err("glTF image URI must be a non-empty safe relative path".into());
                 }
             }
@@ -823,7 +824,12 @@ mod tests {
                 indices: vec![0, 1, 2],
                 joints: None,
                 weights: None,
-                material: None,
+                material: Some(0),
+            }],
+            materials: vec![GltfMaterial {
+                name: "test".into(),
+                base_color_uri: Some("../../png/color.png".into()),
+                normal_uri: Some("../../png/normal.png".into()),
             }],
             ..Default::default()
         };
@@ -835,6 +841,8 @@ mod tests {
             root["buffers"][0]["byteLength"].as_u64(),
             Some(bin.len() as u64)
         );
+        assert_eq!(root["images"].as_array().unwrap().len(), 2);
+        assert_eq!(root["materials"][0]["normalTexture"]["index"], 1);
         assert_eq!(
             root["meshes"][0]["primitives"][0]["attributes"]["POSITION"],
             0
