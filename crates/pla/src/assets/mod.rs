@@ -2,6 +2,7 @@
 
 pub mod ahtb;
 pub mod bntx;
+pub mod collision;
 pub mod event_list;
 pub mod gfpak;
 pub mod gltf_export;

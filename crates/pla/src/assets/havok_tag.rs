@@ -15,9 +15,9 @@
 //! - `TBDY`: per type `index, parent, flags` then optional parts in this order:
 //!   `format` (flag 1), `subtype` (2), `version` (4), `size, align` (8),
 //!   `abstract` (0x10), `members` (0x20: `count, (name, flags, offset, type)*`),
-//!   `interfaces` (0x40). One quirk is handled by resynchronising on the next
-//!   plausible type header: three bytes `c2 00 00` follow `hkReferencedObject`
-//!   in every file and their meaning is unknown.
+//!   `interfaces` (0x40). Quirk: before the member count some types carry an
+//!   extra 2-byte value starting with 0xc1/0xc2 (meaning unknown); it is
+//!   skipped. Parsing also resynchronises on the next plausible type header.
 //! - `DATA` is the item payload; `ITEM` is an array of 12-byte little-endian
 //!   records `(type | kind << 28, offset, count)`: kind 0x1 = object,
 //!   0x2 = array of `count` elements. Pointers and arrays inside an object are
@@ -228,20 +228,22 @@ impl TagFile {
                 r.packed()?; // abstract value
             }
             if flags & 0x20 != 0 {
+                // Some types carry an unexplained 2-byte packed value (first byte
+                // 0xc1/0xc2, e.g. `hkReferencedObject`: `c2 00`) before the member
+                // count; no real count starts with a byte >= 0xc0, so skip it.
+                if r.bytes.get(r.pos).is_some_and(|b| *b >= 0xc0) {
+                    r.pos += 2;
+                }
                 let n = r.packed()?;
-                // `hkReferencedObject` is followed by 3 unexplained bytes where a
-                // member count is expected; a huge count means "no members".
-                if n < 0x1000 {
-                    for _ in 0..n {
-                        let name = member_names
-                            .get(r.packed()? as usize)
-                            .cloned()
-                            .ok_or("tagfile: member name index out of range")?;
-                        let flags = r.packed()?;
-                        let offset = r.packed()?;
-                        let type_index = r.packed()?;
-                        t.fields.push(TagField { name, flags, offset, type_index });
-                    }
+                for _ in 0..n {
+                    let name = member_names
+                        .get(r.packed()? as usize)
+                        .cloned()
+                        .ok_or("tagfile: member name index out of range")?;
+                    let flags = r.packed()?;
+                    let offset = r.packed()?;
+                    let type_index = r.packed()?;
+                    t.fields.push(TagField { name, flags, offset, type_index });
                 }
             }
             if flags & 0x40 != 0 {
