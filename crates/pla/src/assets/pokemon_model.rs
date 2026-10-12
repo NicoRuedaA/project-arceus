@@ -421,6 +421,9 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
             .entry_index(&romfs_path(&base, "anm", &companion_name))
             .ok();
         let parsed = tr::TrAnm::parse_tracks(&animation.bytes);
+        if let Ok(Some(init_data)) = tr::TrAnm::init_data_summary(&animation.bytes) {
+            diagnostics.push(format!("animation {file} InitData: {init_data}"));
+        }
         clips.push(PokemonClip {
             name: stem(&file),
             animation_entry_index,

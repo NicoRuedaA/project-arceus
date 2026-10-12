@@ -335,6 +335,53 @@ impl SklBuffer<'_> {
 }
 
 impl TrAnm {
+    fn init_data_description(
+        buffer: &SklBuffer<'_>,
+        skeleton: &SklTable,
+    ) -> Result<Option<String>, String> {
+        let Some(at) = buffer.field(skeleton, 1, 4)? else {
+            return Ok(None);
+        };
+        let init = buffer.table(buffer.target(at)?, 2)?;
+        let is_init = buffer
+            .field(&init, 0, 4)?
+            .map(|at| buffer.u32(at))
+            .transpose()?
+            .unwrap_or(0);
+        if is_init > 1 {
+            return Err("unsupported animation InitData flag".into());
+        }
+        let transform_at = buffer
+            .field(&init, 1, 40)?
+            .ok_or("animation InitData has no Transform struct")?;
+        let transform = buffer.range(transform_at, 40)?;
+        let values = transform
+            .chunks_exact(4)
+            .map(|value| f32::from_le_bytes(value.try_into().unwrap()))
+            .collect::<Vec<_>>();
+        if values.len() != 10 || values.iter().any(|value| !value.is_finite()) {
+            return Err("animation InitData contains invalid Transform values".into());
+        }
+        let scale = [values[0], values[1], values[2]];
+        let rotation = [values[3], values[4], values[5], values[6]];
+        let translation = [values[7], values[8], values[9]];
+        Ok(Some(format!(
+            "is_init={is_init} scale={scale:?} rotation={rotation:?} translation={translation:?}"
+        )))
+    }
+
+    /// Return checked metadata for the optional generated-schema BoneInit lane.
+    /// The value is descriptive only; it is not applied to named animation tracks.
+    pub fn init_data_summary(bytes: &[u8]) -> Result<Option<String>, String> {
+        if bytes.len() > 32 * 1024 * 1024 {
+            return Err("animation exceeds supported input cap".into());
+        }
+        let buffer = SklBuffer(bytes);
+        let root = buffer.table(buffer.target(0)?, 5)?;
+        let skeleton = buffer.table(buffer.target(buffer.required(&root, 1, 4)?)?, 2)?;
+        Self::init_data_description(&buffer, &skeleton)
+    }
+
     /// Decode observed skeletal FlatBuffer record encodings, never scanning for
     /// plausible floats. Packed rotations and duplicate frame records remain
     /// lossless; interpolation, looping evaluation and playback are not supplied.
@@ -366,9 +413,7 @@ impl TrAnm {
             return Err("unsupported animation timing".into());
         }
         let skeleton = buffer.table(buffer.target(buffer.required(&root, 1, 4)?)?, 2)?;
-        if buffer.field(&skeleton, 1, 4)?.is_some() {
-            return Err("unsupported animation InitData".into());
-        }
+        let _init_data = Self::init_data_description(&buffer, &skeleton)?;
         let mut tracks = Vec::new();
         let mut names = HashSet::new();
         let mut budget = 0;
