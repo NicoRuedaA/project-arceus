@@ -728,6 +728,19 @@ pub fn write_skinned_lod_level(
     gltf_path: impl AsRef<Path>,
     formula: Option<LayerBlendFormula>,
 ) -> Result<(), String> {
+    write_skinned_lod_level_clips(model, lod, &[clip_name.to_owned()], gltf_path, formula).map(|_| ())
+}
+
+/// Like [`write_skinned_lod_level`] but writes several clips as separate glTF animations
+/// of one file (same mesh, skeleton and skin). A clip that cannot be converted is skipped;
+/// the error is returned only when no clip could be written. Returns the written names.
+pub fn write_skinned_lod_level_clips(
+    model: &PokemonModel,
+    lod: u32,
+    clip_names: &[String],
+    gltf_path: impl AsRef<Path>,
+    formula: Option<LayerBlendFormula>,
+) -> Result<Vec<String>, String> {
     let skeleton = model.skeleton.as_ref().ok_or_else(|| {
         format!(
             "pack has no supported parsed skeleton: {}",
@@ -740,15 +753,28 @@ pub fn write_skinned_lod_level(
     if skeleton.bind_count == 0 || model.bind_records.is_empty() {
         return Err("skinned export requires authored bind records".into());
     }
-    let clip = model
-        .clips
-        .iter()
-        .find(|clip| clip.name == clip_name)
-        .ok_or("clip name is not assembled")?;
-    let clip = clip
-        .parsed
-        .as_ref()
-        .map_err(|error| format!("clip {clip_name}: {error}"))?;
+    let mut animations = Vec::new();
+    let mut errors = Vec::new();
+    for clip_name in clip_names {
+        let converted = model
+            .clips
+            .iter()
+            .find(|clip| &clip.name == clip_name)
+            .ok_or_else(|| "clip name is not assembled".to_string())
+            .and_then(|clip| {
+                clip.parsed
+                    .as_ref()
+                    .map_err(|error| format!("clip {clip_name}: {error}"))
+            })
+            .and_then(|clip| gltf_export::animation_tracks_from_tr(skeleton, clip));
+        match converted {
+            Ok(tracks) => animations.push((clip_name.clone(), tracks)),
+            Err(e) => errors.push(format!("{clip_name}: {e}")),
+        }
+    }
+    if animations.is_empty() {
+        return Err(errors.join("; "));
+    }
     let mut export = gltf_export::GltfExport::default();
     let mut primitive_count = 0;
     for mesh in model.meshes.iter().filter(|mesh| mesh.lod == Some(lod)) {
@@ -768,13 +794,98 @@ pub fn write_skinned_lod_level(
     let (nodes, skin) = gltf_export::skeleton_from_tr(skeleton, &model.bind_records, 0, 0)?;
     export.nodes = nodes;
     export.skins.push(skin);
-    export.animations.push((
-        clip_name.to_owned(),
-        gltf_export::animation_tracks_from_tr(skeleton, clip)?,
-    ));
+    let written = animations.iter().map(|(n, _)| n.clone()).collect();
+    export.animations = animations;
     let root = export.skins.first().and_then(|skin| skin.skeleton);
     add_mesh_nodes(&mut export, Some(0), root)?;
-    export.write(gltf_path)
+    export.write(gltf_path)?;
+    Ok(written)
+}
+
+/// Battle animation slots, shared by the exporter (what to write into `*_battle.gltf`)
+/// and the game (which clip plays for which request).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BattleClipSlot {
+    /// Battle stance (`battlewait01_loop`, else the normal `defaultwait01_loop`).
+    BattleIdle,
+    /// Physical attack (`attack01`).
+    Attack,
+    /// Special / ranged attack, wind-up and release (`rangeattack01_start`, `_end`).
+    RangedStart,
+    RangedEnd,
+    /// Taking damage (`damage01_start`, `_end`).
+    DamageStart,
+    DamageEnd,
+    /// Fainting (`down01_start`; the last frame is held).
+    Down,
+    /// Entering the fight (`notice01`).
+    Appear,
+}
+
+impl BattleClipSlot {
+    pub const ALL: [BattleClipSlot; 8] = [
+        BattleClipSlot::BattleIdle,
+        BattleClipSlot::Attack,
+        BattleClipSlot::RangedStart,
+        BattleClipSlot::RangedEnd,
+        BattleClipSlot::DamageStart,
+        BattleClipSlot::DamageEnd,
+        BattleClipSlot::Down,
+        BattleClipSlot::Appear,
+    ];
+
+    /// Clip-name suffixes (after the `pmNNNN_FF_VV_NNNNN_` prefix) tried in order.
+    pub fn suffixes(self) -> &'static [&'static str] {
+        match self {
+            BattleClipSlot::BattleIdle => &["battlewait01_loop", "defaultwait01_loop"],
+            BattleClipSlot::Attack => &["attack01"],
+            BattleClipSlot::RangedStart => &["rangeattack01_start"],
+            BattleClipSlot::RangedEnd => &["rangeattack01_end"],
+            BattleClipSlot::DamageStart => &["damage01_start"],
+            BattleClipSlot::DamageEnd => &["damage01_end"],
+            BattleClipSlot::Down => &["down01_start"],
+            BattleClipSlot::Appear => &["notice01"],
+        }
+    }
+}
+
+/// Clip name without the `pmNNNN_FF_VV_NNNNN_` prefix (`pm0025_00_00_00400_attack01` -> `attack01`).
+/// Names that do not have the prefix are returned unchanged.
+pub fn clip_suffix(name: &str) -> &str {
+    let mut parts = name.splitn(5, '_');
+    let ok = parts.next().is_some_and(|p| p.starts_with("pm"))
+        && parts.next().is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
+        && parts.next().is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
+        && parts.next().is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()));
+    match (ok, parts.next()) {
+        (true, Some(rest)) => rest,
+        _ => name,
+    }
+}
+
+/// Picks, for `slot`, the clip with the exact suffix (first suffix that exists; among several
+/// numbered variants the lowest name, i.e. the default form of the pack).
+pub fn pick_battle_clip<'a>(names: &[&'a str], slot: BattleClipSlot) -> Option<&'a str> {
+    slot.suffixes().iter().find_map(|suffix| {
+        names
+            .iter()
+            .copied()
+            .filter(|n| clip_suffix(n) == *suffix)
+            .min()
+    })
+}
+
+/// Distinct battle clip names to export for a pack (at most [`BattleClipSlot::ALL`] long).
+pub fn battle_clip_names(names: &[&str]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for slot in BattleClipSlot::ALL {
+        if let Some(n) = pick_battle_clip(names, slot) {
+            if !out.iter().any(|o| o == n) {
+                out.push(n.to_owned());
+            }
+        }
+    }
+    out
 }
 
 /// Material export for one mesh of a part model (used by the merged player exporter).
@@ -1428,6 +1539,62 @@ fn lod_number(name: &str) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
+    const PIKA: [&str; 12] = [
+        "pm0025_00_00_00000_defaultwait01_loop",
+        "pm0025_00_00_00030_walk01_loop",
+        "pm0025_00_00_00400_attack01",
+        "pm0025_00_00_00410_attack02",
+        "pm0025_00_00_00450_rangeattack01_start",
+        "pm0025_00_00_00451_rangeattack01_loop",
+        "pm0025_00_00_00452_rangeattack01_end",
+        "pm0025_00_00_00500_damage01_start",
+        "pm0025_00_00_00502_damage01_end",
+        "pm0025_00_00_00520_down01_start",
+        "pm0025_00_00_00521_down01_loop",
+        "pm0025_00_00_00560_notice01",
+    ];
+
+    #[test]
+    fn clip_suffix_strips_the_numbered_prefix() {
+        assert_eq!(clip_suffix("pm0025_00_00_00400_attack01"), "attack01");
+        assert_eq!(clip_suffix("pm0396_00_00_00001_battlewait01_loop"), "battlewait01_loop");
+        assert_eq!(clip_suffix("attack01"), "attack01");
+        assert_eq!(clip_suffix("walk"), "walk");
+    }
+
+    #[test]
+    fn battle_clips_are_matched_exactly_not_by_substring() {
+        // `attack01` must not match `rangeattack01_*`.
+        assert_eq!(pick_battle_clip(&PIKA, BattleClipSlot::Attack), Some("pm0025_00_00_00400_attack01"));
+        assert_eq!(pick_battle_clip(&PIKA, BattleClipSlot::RangedStart), Some("pm0025_00_00_00450_rangeattack01_start"));
+        assert_eq!(pick_battle_clip(&PIKA, BattleClipSlot::Down), Some("pm0025_00_00_00520_down01_start"));
+        assert_eq!(pick_battle_clip(&["pm0025_00_00_00450_rangeattack01_start"], BattleClipSlot::Attack), None);
+    }
+
+    #[test]
+    fn battle_idle_prefers_battlewait_and_falls_back_to_defaultwait() {
+        assert_eq!(pick_battle_clip(&PIKA, BattleClipSlot::BattleIdle), Some("pm0025_00_00_00000_defaultwait01_loop"));
+        let starly = ["pm0396_00_00_00000_defaultwait01_loop", "pm0396_00_00_00001_battlewait01_loop"];
+        assert_eq!(pick_battle_clip(&starly, BattleClipSlot::BattleIdle), Some("pm0396_00_00_00001_battlewait01_loop"));
+    }
+
+    #[test]
+    fn lowest_numbered_variant_wins() {
+        let names = ["pm0399_00_00_10400_attack01", "pm0399_00_00_00400_attack01"];
+        assert_eq!(pick_battle_clip(&names, BattleClipSlot::Attack), Some("pm0399_00_00_00400_attack01"));
+    }
+
+    #[test]
+    fn battle_clip_list_is_small_and_unique() {
+        let v = battle_clip_names(&PIKA);
+        assert_eq!(v.len(), 8, "{v:?}"); // no ranged/down loops, no walk, no attack02
+        assert!(v.len() <= 10);
+        let mut d = v.clone();
+        d.sort();
+        d.dedup();
+        assert_eq!(d.len(), v.len());
+    }
+
     use super::*;
 
     #[test]

@@ -284,3 +284,158 @@ fn walk_root_motion_is_pinned_and_speed_is_matched() {
         assert!(st.walk_speed >= 0.5 && st.walk_speed <= 2.0);
     }
 }
+
+use pla::assets::pokemon_model::BattleClipSlot;
+use pla::game::pokemon_anim::{AttackKind, PokemonAnimMessage, PokemonAnimRequest, PokemonBattleSlot};
+
+fn battle_app(work: &PathBuf, dex: u16) -> (App, Entity) {
+    let mut app = app_for(work);
+    app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(Duration::from_millis(16)));
+    let src = {
+        let server = app.world().resource::<AssetServer>().clone();
+        PokemonAnimSource::from_idle_path_with_battle(&server, &format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_idle.gltf"))
+    };
+    let root = app
+        .world_mut()
+        .spawn((src, PokemonBattleSlot(1), Transform::default(), Visibility::default()))
+        .id();
+    for _ in 0..3000 {
+        app.update();
+        std::thread::sleep(Duration::from_millis(2));
+        if app.world().get::<PokemonAnimState>(root).is_some_and(|s| s.player != Entity::PLACEHOLDER) {
+            break;
+        }
+    }
+    (app, root)
+}
+
+fn send(app: &mut App, entity: Entity, request: PokemonAnimRequest) {
+    app.world_mut()
+        .resource_mut::<Messages<PokemonAnimMessage>>()
+        .write(PokemonAnimMessage { entity, request, delay: 0.0 });
+}
+
+fn oneshot(app: &App, root: Entity) -> Option<bevy::animation::graph::AnimationNodeIndex> {
+    app.world().get::<PokemonAnimState>(root).unwrap().oneshot
+}
+
+fn run_until_idle(app: &mut App, root: Entity, max: usize) -> usize {
+    for i in 0..max {
+        app.update();
+        if oneshot(app, root).is_none() {
+            return i;
+        }
+    }
+    panic!("one-shot never ended");
+}
+
+/// The extra battle clips exist, have a duration and cover every slot for four species.
+#[test]
+fn battle_clips_exist_with_duration_for_four_species() {
+    let Some(work) = work_dir() else {
+        eprintln!("SKIP: work/cache/pokemon_batch not present");
+        return;
+    };
+    for dex in [25u16, 74, 399, 41] {
+        let (app, root) = battle_app(&work, dex);
+        let st = app.world().get::<PokemonAnimState>(root).expect("wired");
+        assert_eq!(st.battle_nodes.len(), BattleClipSlot::ALL.len(), "pm{dex:04}: missing battle slots {:?}", st.battle_nodes.keys());
+        let h = app.world().get::<bevy::animation::graph::AnimationGraphHandle>(st.player).unwrap();
+        let graph = app.world().resource::<Assets<bevy::animation::graph::AnimationGraph>>().get(&h.0).unwrap();
+        let clips = app.world().resource::<Assets<AnimationClip>>();
+        for (slot, node) in &st.battle_nodes {
+            let n = graph.get(*node).unwrap();
+            let bevy::animation::graph::AnimationNodeType::Clip(ch) = &n.node_type else { panic!("not a clip") };
+            let clip = clips.get(ch).unwrap();
+            assert!(clip.duration() > 0.0, "pm{dex:04} {slot:?}: zero duration");
+            assert!(!clip.curves().is_empty(), "pm{dex:04} {slot:?}: no targets");
+            println!("pm{dex:04} {slot:?}: {:.2}s, {} targets", clip.duration(), clip.curves().len());
+        }
+    }
+}
+
+/// Requests play the right one-shot, root motion stays pinned, the creature returns to
+/// the battle idle, and Faint holds the last frame and ignores further attacks.
+#[test]
+fn battle_requests_play_one_shots_and_faint_holds() {
+    let Some(work) = work_dir() else {
+        eprintln!("SKIP: work/cache/pokemon_batch not present");
+        return;
+    };
+    let (mut app, root) = battle_app(&work, 25);
+    let nodes = app.world().get::<PokemonAnimState>(root).unwrap().battle_nodes.clone();
+    let rest = app.world().get::<PokemonAnimState>(root).unwrap().rest;
+    let player = app.world().get::<PokemonAnimState>(root).unwrap().player;
+    // Appear plays on wiring and then ends.
+    run_until_idle(&mut app, root, 600);
+
+    // Physical attack: attack clip plays, pose changes, origin stays pinned, then battle idle.
+    send(&mut app, root, PokemonAnimRequest::Attack(AttackKind::Physical));
+    app.update();
+    assert_eq!(oneshot(&app, root), Some(nodes[&BattleClipSlot::Attack]));
+    let before = joints(&mut app);
+    let mut moved = false;
+    for _ in 0..30 {
+        app.update();
+        let o = bone_translation(&mut app, "origin").unwrap();
+        assert!((o.x - rest.x).abs() < 1e-5 && (o.z - rest.z).abs() < 1e-5, "origin slid during attack: {o:?}");
+        moved |= joints(&mut app).iter().zip(before.iter()).any(|(a, b)| a.1.rotation.angle_between(b.1.rotation) > 1e-3);
+    }
+    assert!(moved, "attack did not move any joint");
+    run_until_idle(&mut app, root, 600);
+    let rest_node = nodes[&BattleClipSlot::BattleIdle];
+    for _ in 0..30 {
+        app.update();
+    }
+    assert!(app.world().get::<AnimationPlayer>(player).unwrap().is_playing_animation(rest_node), "should be back in battle idle");
+
+    // Special attack: wind-up then release, in order.
+    send(&mut app, root, PokemonAnimRequest::Attack(AttackKind::Special));
+    app.update();
+    assert_eq!(oneshot(&app, root), Some(nodes[&BattleClipSlot::RangedStart]));
+    let mut saw_end = false;
+    for _ in 0..600 {
+        app.update();
+        saw_end |= oneshot(&app, root) == Some(nodes[&BattleClipSlot::RangedEnd]);
+        if oneshot(&app, root).is_none() {
+            break;
+        }
+    }
+    assert!(saw_end, "special attack never reached its release clip");
+
+    // Hit: damage start then end.
+    send(&mut app, root, PokemonAnimRequest::Hit);
+    app.update();
+    assert_eq!(oneshot(&app, root), Some(nodes[&BattleClipSlot::DamageStart]));
+    run_until_idle(&mut app, root, 600);
+
+    // Faint: holds the last frame; later attacks are ignored.
+    send(&mut app, root, PokemonAnimRequest::Faint);
+    app.update();
+    assert_eq!(oneshot(&app, root), Some(nodes[&BattleClipSlot::Down]));
+    run_until_idle(&mut app, root, 900);
+    assert!(app.world().get::<PokemonAnimState>(root).unwrap().fainted);
+    let down = nodes[&BattleClipSlot::Down];
+    assert!(app.world().get::<AnimationPlayer>(player).unwrap().animation(down).is_some_and(|a| a.is_finished()));
+    for _ in 0..20 {
+        app.update();
+    }
+    let held_a = joints(&mut app);
+    send(&mut app, root, PokemonAnimRequest::Attack(AttackKind::Physical));
+    for _ in 0..40 {
+        app.update();
+    }
+    let held_b = joints(&mut app);
+    assert_eq!(oneshot(&app, root), None, "a fainted creature ignores attacks");
+    let worst = held_a.iter().zip(held_b.iter()).map(|(a, b)| a.1.rotation.angle_between(b.1.rotation)).fold(0.0_f32, f32::max);
+    let worst_t = held_a.iter().zip(held_b.iter()).map(|(a, b)| a.1.translation.distance(b.1.translation)).fold(0.0_f32, f32::max);
+    println!("held-pose drift: rot {worst}, trans {worst_t}");
+    assert!(
+        held_a.iter().zip(held_b.iter()).all(|(a, b)| a.1.rotation.angle_between(b.1.rotation) < 2e-3),
+        "last frame must be held"
+    );
+    // Appear brings it back.
+    send(&mut app, root, PokemonAnimRequest::Appear);
+    app.update();
+    assert!(!app.world().get::<PokemonAnimState>(root).unwrap().fainted);
+}

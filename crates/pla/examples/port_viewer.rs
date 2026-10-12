@@ -812,6 +812,7 @@ fn main() -> ExitCode {
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
+    app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
@@ -1385,10 +1386,10 @@ fn spawn_pokemon_models(
     gltf_meshes: Res<Assets<GltfMesh>>,
     gltf_materials: Res<Assets<GltfMaterial>>,
     meshes: Res<Assets<Mesh>>,
-    pkmn_query: Query<(Entity, &PokemonSpawn, &Children)>,
+    pkmn_query: Query<(Entity, &PokemonSpawn, &Children, Option<&pla::game::pokemon_anim::PokemonBattleSlot>)>,
     asset_server: Res<AssetServer>,
 ) {
-    for (entity, pkmn_spawn, children) in &pkmn_query {
+    for (entity, pkmn_spawn, children, battle_slot) in &pkmn_query {
         if catalog.spawned.contains(&entity) {
             continue;
         }
@@ -1421,7 +1422,13 @@ fn spawn_pokemon_models(
 
         // Real glTF scene with skeleton + idle/walk clips (see game::pokemon_anim).
         if let Some(idle_rel) = handle.path().map(|pth| pth.path().to_string_lossy().into_owned()) {
-            commands.entity(entity).insert(pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel));
+            // Arena creatures also load the battle clips (attack / hit / faint).
+            let source = if battle_slot.is_some() {
+                pla::game::pokemon_anim::PokemonAnimSource::from_idle_path_with_battle(&asset_server, &idle_rel)
+            } else {
+                pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel)
+            };
+            commands.entity(entity).insert(source);
         }
 
         catalog.spawned.insert(entity);
@@ -1493,6 +1500,7 @@ fn setup_battle_arena(
         .spawn((
             BattleArenaMarker,
             PokemonSpawn { national_dex: player_dex },
+            pla::game::pokemon_anim::PokemonBattleSlot(0),
             Transform::from_xyz(p_pkmn_x, p_pkmn_y, p_pkmn_z).with_rotation(p_rot),
             Visibility::default(),
         ))
@@ -1512,6 +1520,7 @@ fn setup_battle_arena(
         .spawn((
             BattleArenaMarker,
             PokemonSpawn { national_dex: wild_dex },
+            pla::game::pokemon_anim::PokemonBattleSlot(1),
             Transform::from_xyz(w_pkmn_x, w_pkmn_y, w_pkmn_z).with_rotation(w_rot),
             Visibility::default(),
         ))
