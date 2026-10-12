@@ -198,6 +198,32 @@ mod tests {
             0x6ceec3b41b224870
         );
     }
+
+    #[test]
+    fn observed_seed_matches_verified_pikachu_romfs_paths() {
+        assert_eq!(
+            fnv1a64(b"bin/pokemon/pm0025/pm0025_00_00/mdl/pm0025_00_00.trmdl"),
+            0x0d20abddc2acecfa
+        );
+        assert_eq!(
+            fnv1a64(b"bin/pokemon/pm0025/pm0025_00_00/mdl/pm0025_00_00.trmsh"),
+            0x0d4689ddc2cd8271
+        );
+        assert_eq!(
+            fnv1a64(b"bin/pokemon/pm0025/pm0025_00_00/mdl/pm0025_00_00.trmbf"),
+            0x0d0c81ddc29bfc92
+        );
+        assert_eq!(
+            fnv1a64(b"bin/pokemon/pm0025/pm0025_00_00/mdl/pm0025_00_00_body_a_alb.bntx"),
+            0x41a14b2c78c758fa
+        );
+        assert_eq!(
+            fnv1a64(
+                b"bin/pokemon/pm0025/pm0025_00_00/anm/pm0025_00_00_00000_defaultwait01_loop.tranm"
+            ),
+            0xe6ad332ffcc01da2
+        );
+    }
 }
 
 /// The Pokémon model corpus observed so far uses Oodle Kraken frames. `0x8c`

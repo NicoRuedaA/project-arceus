@@ -2,7 +2,19 @@
 //! RomFS-relative FNV-1a name index. Hashes resolve entry identity; native
 //! readers still validate each decoded payload and linked mesh/buffer pair.
 
-use super::{bntx, gfpak::GfPak, gfpak_hash::GfPakNameIndex, gltf_export, tr};
+use super::{bntx, gfpak::GfPak, gltf_export, tr};
+
+/// Exact full-path lookup over the pack's verified path-hash table
+/// (the shared [`GfPak::entry_index_by_path`] implementation).
+struct PackPaths<'a>(&'a GfPak);
+
+impl PackPaths<'_> {
+    fn entry_index(&self, path: &str) -> Result<usize, String> {
+        self.0
+            .entry_index_by_path(path)?
+            .ok_or_else(|| format!("GFLXPACK path hash not found: {path}"))
+    }
+}
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -181,7 +193,7 @@ pub fn assemble_pack(path: impl AsRef<Path>) -> Result<PokemonModel, String> {
     let path = path.as_ref();
     let pack_bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let pack = GfPak::parse(&pack_bytes)?;
-    let names = GfPakNameIndex::parse(&pack_bytes, &pack)?;
+    let names = PackPaths(&pack);
     let base = model_base(path)?;
     let mut decoded = Vec::with_capacity(pack.entries.len());
     let mut diagnostics = Vec::new();
