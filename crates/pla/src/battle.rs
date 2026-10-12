@@ -86,6 +86,8 @@ pub struct BattleData {
     capture_level_ranks: Table,
     capture_status: Table,
     throwable_parameters: Table,
+    move_data: Table,
+    personal_data: Table,
 }
 
 impl BattleData {
@@ -125,7 +127,69 @@ impl BattleData {
                 &capture.join("throwable_parameters.tsv"),
                 Some("f00_raw_u32:u32*"),
             )?,
+            // This source has a known duplicate move ID (ID 1); keep all rows
+            // and resolve battle moves by their canonical names instead.
+            move_data: Table::load(&root.join("pml_moves.tsv"), None)?,
+            personal_data: Table::load(&root.join("pml_personal.tsv"), None)?,
         })
+    }
+
+    /// Find an active base-form species row in the checked-in personal table.
+    pub fn species_row(&self, name: &str) -> Result<Option<BattleSpecies>, String> {
+        let Some(row) = self.personal_data.rows.iter().find(|row| {
+            row.get("species_name:string").is_some_and(|v| v == name)
+                && row.get("form:u8").is_some_and(|v| v == "0")
+                && row.get("is_active:bool").is_some_and(|v| v == "1")
+        }) else {
+            return Ok(None);
+        };
+        let number = |field: &str| -> Result<u16, String> {
+            Table::value(row, field)?
+                .parse()
+                .map_err(|_| format!("invalid {field} for {name}"))
+        };
+        Ok(Some(BattleSpecies {
+            dex: number("dex_index_national:u16")?,
+            name: name.to_owned(),
+            hp: number("stat_hp:u8")?,
+            attack: number("stat_atk:u8")?,
+            defense: number("stat_def:u8")?,
+            special_attack: number("stat_spa:u8")?,
+            special_defense: number("stat_spd:u8")?,
+            speed: number("stat_spe:u8")?,
+            types: [
+                Table::value(row, "type_1:string")?.to_owned(),
+                Table::value(row, "type_2:string")?.to_owned(),
+            ],
+        }))
+    }
+
+    /// Find a move by its canonical lower-kebab name in the checked-in move table.
+    pub fn move_row(&self, name: &str) -> Result<Option<BattleMove>, String> {
+        let Some(row) = self
+            .move_data
+            .rows
+            .iter()
+            .find(|row| row.get("move_name:string").is_some_and(|v| v == name))
+        else {
+            return Ok(None);
+        };
+        let number = |field: &str| -> Result<u16, String> {
+            Table::value(row, field)?
+                .parse()
+                .map_err(|_| format!("invalid {field} for {name}"))
+        };
+        let text =
+            |field: &str| -> Result<String, String> { Ok(Table::value(row, field)?.to_owned()) };
+        Ok(Some(BattleMove {
+            id: number("move:u16")?,
+            name: name.to_owned(),
+            move_type: text("type_name:string")?,
+            category: text("category_name:string")?,
+            power: number("power:u8")?,
+            accuracy: number("accuracy:u8")?.min(100) as u8,
+            pp: number("pp:u8")?.min(u8::MAX as u16) as u8,
+        }))
     }
 
     pub fn score_rule_count(&self) -> usize {
@@ -253,7 +317,7 @@ impl BattleData {
             row,
             &format!(
                 "pokemon_rank_{pokemon_rank}:{}",
-                if pokemon_rank == 1 { "u8*" } else { "i32" }
+                if pokemon_rank == 1 { "u8" } else { "i32" }
             ),
         )?
         .parse()
@@ -330,6 +394,32 @@ impl BattleData {
             .map(|v| v as f64)
             .map_err(|_| format!("invalid status multiplier for {status}"))
     }
+}
+
+/// Base battle stats and types recovered from `data/pml_personal.tsv`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BattleSpecies {
+    pub dex: u16,
+    pub name: String,
+    pub hp: u16,
+    pub attack: u16,
+    pub defense: u16,
+    pub special_attack: u16,
+    pub special_defense: u16,
+    pub speed: u16,
+    pub types: [String; 2],
+}
+
+/// Move power, type, accuracy and PP recovered from `data/pml_moves.tsv`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BattleMove {
+    pub id: u16,
+    pub name: String,
+    pub move_type: String,
+    pub category: String,
+    pub power: u16,
+    pub accuracy: u8,
+    pub pp: u8,
 }
 
 #[derive(Debug, Clone, Copy, Default)]

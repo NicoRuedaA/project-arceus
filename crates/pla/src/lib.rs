@@ -6,6 +6,7 @@
 pub mod app;
 pub mod assets;
 pub mod battle;
+pub mod battle_engine;
 pub mod dispatch;
 pub mod event;
 pub mod host;
