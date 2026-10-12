@@ -1339,6 +1339,8 @@ pub struct TrSklTransform {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrSklNode {
     pub name: String,
+    /// Opaque locator attachment name. Its native consumer semantics are unknown.
+    pub locator: Option<String>,
     pub local: TrSklTransform,
     pub scale_pivot: [f32; 3],
     pub rotate_pivot: [f32; 3],
@@ -1550,15 +1552,36 @@ impl TrSkl {
                     return Err("unsupported trskl node type".into());
                 }
             }
-            // Locator strings exist but are empty in the demonstrated references;
-            // attached/external skeleton semantics are deliberately unsupported.
             let locator = buffer.target(buffer.required(&table, 6, 4)?)?;
-            if buffer.u32(locator)? != 0 || buffer.range(locator + 4, 1)?[0] != 0 {
-                return Err("unsupported trskl locator attachment".into());
+            let locator_size = buffer.u32(locator)? as usize;
+            if locator_size > 1024 {
+                return Err("trskl locator exceeds supported size limit".into());
             }
+            let locator_start = locator
+                .checked_add(4)
+                .ok_or("trskl locator offset overflow")?;
+            let locator_text = buffer.range(
+                locator_start,
+                locator_size
+                    .checked_add(1)
+                    .ok_or("trskl locator size overflow")?,
+            )?;
+            if locator_text[locator_size] != 0 || locator_text[..locator_size].contains(&0) {
+                return Err("invalid trskl locator termination".into());
+            }
+            let locator = if locator_size == 0 {
+                None
+            } else {
+                Some(
+                    std::str::from_utf8(&locator_text[..locator_size])
+                        .map_err(|_| "invalid UTF-8 trskl locator")?
+                        .to_owned(),
+                )
+            };
             let transform = buffer.table(buffer.target(buffer.required(&table, 1, 4)?)?, 3)?;
             nodes.push(TrSklNode {
                 name: buffer.string(&table, 0)?,
+                locator,
                 local: TrSklTransform {
                     scale: buffer.vec3(&transform, 0)?,
                     rotation: buffer.vec3(&transform, 1)?,
@@ -1590,8 +1613,12 @@ impl TrSkl {
                 *slot = true;
             }
         }
-        if roots != 1 || rig_nodes.iter().any(|present| !present) {
-            return Err("unsupported trskl root/rig mapping".into());
+        let unmapped_rigs = rig_nodes.iter().filter(|present| !**present).count();
+        if roots != 1 || unmapped_rigs > 0 {
+            return Err(format!(
+                "unsupported trskl root/rig mapping (roots={roots}, bind_count={}, unmapped_rigs={unmapped_rigs})",
+                binds.len()
+            ));
         }
         Ok(TrSkl {
             bones: nodes.iter().map(|node| node.name.clone()).collect(),

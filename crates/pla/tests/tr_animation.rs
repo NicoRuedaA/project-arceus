@@ -319,6 +319,7 @@ fn animation_rejects_extra_chunks_init_data_name_errors_and_budget_exhaustion() 
 fn sk_node(name: &str) -> TrSklNode {
     TrSklNode {
         name: name.into(),
+        locator: None,
         local: TrSklTransform {
             scale: [1.0; 3],
             rotation: [0.0; 3],

@@ -92,6 +92,7 @@ fn synthetic_buffer() -> Vec<u8> {
 fn node(local: TrSklTransform, parent: Option<usize>, rig_index: Option<usize>) -> TrSklNode {
     TrSklNode {
         name: "synthetic".into(),
+        locator: None,
         local,
         parent,
         rig_index,
