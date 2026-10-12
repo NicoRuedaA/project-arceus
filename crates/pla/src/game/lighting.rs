@@ -17,9 +17,9 @@ use bevy::prelude::*;
 /// Default slot: "day" (s1, bright white-yellow sun, sky cyan at the zenith).
 pub const DEFAULT_TIME_SLOT: usize = 1;
 /// Sheet sun intensity -> Bevy lux (interpretation; the game's tone mapping is not known).
-pub const LUX_PER_INTENSITY: f32 = 4000.0;
+pub const LUX_PER_INTENSITY: f32 = 2400.0;
 /// Sheet ambient (SubColor) -> Bevy ambient brightness (cd/m2), multiplied by SubColor alpha.
-pub const AMBIENT_BRIGHTNESS: f32 = 450.0;
+pub const AMBIENT_BRIGHTNESS: f32 = 250.0;
 const SKY_RADIUS: f32 = 900.0;
 
 /// Decoded environment of one zone and one time slot.
