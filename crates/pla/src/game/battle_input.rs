@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use super::battle_controller::{ActiveBattleSession, BattleInput};
 use super::state::GameState;
-use super::wild::WildCreature;
+use super::wild::{wild_fate, ActiveAreaSpawners, ConsumedSpawners, FleeCooldown, WildCreature, FLEE_COOLDOWN_S};
 
 /// Map the keys pressed this frame to a battle input, if any.
 /// Digits pick a move or list entry; S / I / C / R open the switch, item, capture and run
@@ -48,6 +48,8 @@ pub fn battle_input_system(
     mut session: Option<ResMut<ActiveBattleSession>>,
     mut next_state: ResMut<NextState<GameState>>,
     mut wild_query: Query<&mut WildCreature>,
+    mut consumed: Option<ResMut<ConsumedSpawners>>,
+    mut spawners: Option<ResMut<ActiveAreaSpawners>>,
 ) {
     let Some(ref mut sess) = session else {
         return;
@@ -60,9 +62,26 @@ pub fn battle_input_system(
             || keys.just_pressed(KeyCode::Enter)
         {
             println!("Battle completed. Returning to GameState::World.");
+            let wild_state = &sess.battle.combatants[super::battle_controller::WILD];
+            let fate = wild_fate(wild_state.hp as u32, wild_state.caught);
             if let Ok(mut wild) = wild_query.get_mut(sess.wild_entity) {
                 wild.in_battle = false;
-                wild.defeated = true;
+                if fate.removes_creature() {
+                    // Defeated or caught: leave the world and keep the spawner empty
+                    // for a while so streaming does not refill it at once.
+                    wild.defeated = true;
+                    if let Some(c) = consumed.as_deref_mut() {
+                        c.consume(&wild.spawner_id, time.elapsed_secs_f64());
+                    }
+                    if let Some(s) = spawners.as_deref_mut() {
+                        s.spawned_entities.remove(&wild.spawner_id);
+                    }
+                    println!("Wild #{} {:?}: removed from the world (spawner {})", wild.national_dex, fate, wild.spawner_id);
+                    commands.entity(sess.wild_entity).despawn();
+                } else {
+                    // Fled: the creature stays alive; no new encounter for a few seconds.
+                    commands.entity(sess.wild_entity).insert(FleeCooldown(FLEE_COOLDOWN_S));
+                }
             }
             commands.remove_resource::<ActiveBattleSession>();
             next_state.set(GameState::World);

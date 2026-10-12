@@ -24,6 +24,116 @@ pub struct WildCreature {
     pub spawner_id: String,
 }
 
+/// How a battle with a wild creature ended, from the wild creature's side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WildFate {
+    /// The wild creature fainted: it leaves the world.
+    Defeated,
+    /// The wild creature was caught: it leaves the world.
+    Captured,
+    /// The player ran away (or lost): the wild creature stays where it was.
+    Fled,
+}
+
+/// Classifies the end of a battle from the wild combatant's final state.
+pub fn wild_fate(wild_hp: u32, wild_caught: bool) -> WildFate {
+    if wild_caught {
+        WildFate::Captured
+    } else if wild_hp == 0 {
+        WildFate::Defeated
+    } else {
+        WildFate::Fled
+    }
+}
+
+impl WildFate {
+    /// True when the creature must be removed from the world.
+    pub fn removes_creature(self) -> bool {
+        !matches!(self, WildFate::Fled)
+    }
+}
+
+/// How long (in game seconds) a defeated / captured spawner stays empty before it may
+/// spawn a new creature again. Leaving and re-entering the zone also clears the set
+/// (see [`ConsumedSpawners::clear`]).
+pub const RESPAWN_AFTER_S: f64 = 600.0;
+
+/// Seconds a creature that the player fled from will not start another encounter.
+pub const FLEE_COOLDOWN_S: f32 = 6.0;
+
+/// Spawner ids whose creature was defeated or captured, with the time they may respawn.
+#[derive(Resource, Debug, Default, Clone)]
+pub struct ConsumedSpawners {
+    respawn_at: HashMap<String, f64>,
+}
+
+impl ConsumedSpawners {
+    /// Marks `spawner_id` as consumed at game time `now_s`.
+    pub fn consume(&mut self, spawner_id: &str, now_s: f64) {
+        self.respawn_at.insert(spawner_id.to_string(), now_s + RESPAWN_AFTER_S);
+    }
+
+    /// True while the spawner must stay empty.
+    pub fn is_consumed(&self, spawner_id: &str, now_s: f64) -> bool {
+        self.respawn_at.get(spawner_id).is_some_and(|t| now_s < *t)
+    }
+
+    /// Forgets spawners whose waiting time is over.
+    pub fn purge_expired(&mut self, now_s: f64) {
+        self.respawn_at.retain(|_, t| now_s < *t);
+    }
+
+    /// Forgets everything (zone reload).
+    pub fn clear(&mut self) {
+        self.respawn_at.clear();
+    }
+
+    pub fn len(&self) -> usize {
+        self.respawn_at.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.respawn_at.is_empty()
+    }
+}
+
+/// Encounters are suppressed while this component is present (fled battle).
+#[derive(Component, Debug, Clone, Copy)]
+pub struct FleeCooldown(pub f32);
+
+/// One cooldown step: remaining seconds after `dt`, or `None` when it has expired.
+pub fn flee_cooldown_step(remaining: f32, dt: f32) -> Option<f32> {
+    let left = remaining - dt;
+    (left > 0.0).then_some(left)
+}
+
+fn tick_flee_cooldown(time: Res<Time>, mut commands: Commands, mut q: Query<(Entity, &mut FleeCooldown)>) {
+    for (e, mut c) in &mut q {
+        match flee_cooldown_step(c.0, time.delta_secs()) {
+            Some(left) => c.0 = left,
+            None => {
+                commands.entity(e).remove::<FleeCooldown>();
+            }
+        }
+    }
+}
+
+fn purge_consumed(time: Res<Time>, mut consumed: ResMut<ConsumedSpawners>) {
+    if !consumed.is_empty() {
+        consumed.purge_expired(time.elapsed_secs_f64());
+    }
+}
+
+/// Registers the bookkeeping of defeated / captured / fled wild creatures.
+pub struct WildLifecyclePlugin;
+
+impl Plugin for WildLifecyclePlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<ConsumedSpawners>()
+            .add_systems(Update, (tick_flee_cooldown, purge_consumed));
+    }
+}
+
 /// A possible species entry within an encounter group.
 #[derive(Debug, Clone)]
 pub struct SpawnSpeciesEntry {
@@ -253,4 +363,50 @@ pub fn get_wild_spawns_for_area(area: u8, player_spawn: Vec2) -> Vec<WildCreatur
             spawner_id: "fallback_pika".into(),
         },
     ]
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+
+    #[test]
+    fn fate_from_final_state() {
+        assert_eq!(wild_fate(0, false), WildFate::Defeated);
+        assert_eq!(wild_fate(0, true), WildFate::Captured);
+        assert_eq!(wild_fate(7, true), WildFate::Captured);
+        assert_eq!(wild_fate(7, false), WildFate::Fled);
+        assert!(WildFate::Defeated.removes_creature());
+        assert!(WildFate::Captured.removes_creature());
+        assert!(!WildFate::Fled.removes_creature());
+    }
+
+    #[test]
+    fn consumed_spawner_blocks_until_respawn_time() {
+        let mut c = ConsumedSpawners::default();
+        assert!(!c.is_consumed("a", 0.0));
+        c.consume("a", 100.0);
+        assert!(c.is_consumed("a", 100.0));
+        assert!(c.is_consumed("a", 100.0 + RESPAWN_AFTER_S - 1.0));
+        assert!(!c.is_consumed("a", 100.0 + RESPAWN_AFTER_S));
+        assert!(!c.is_consumed("b", 100.0), "other spawners are unaffected");
+    }
+
+    #[test]
+    fn purge_and_clear_forget_spawners() {
+        let mut c = ConsumedSpawners::default();
+        c.consume("a", 0.0);
+        c.consume("b", 500.0);
+        c.purge_expired(RESPAWN_AFTER_S + 1.0);
+        assert_eq!(c.len(), 1);
+        assert!(c.is_consumed("b", RESPAWN_AFTER_S + 1.0));
+        c.clear();
+        assert!(c.is_empty());
+    }
+
+    #[test]
+    fn flee_cooldown_counts_down_then_ends() {
+        assert_eq!(flee_cooldown_step(1.0, 0.25), Some(0.75));
+        assert_eq!(flee_cooldown_step(0.2, 0.25), None);
+        assert_eq!(flee_cooldown_step(FLEE_COOLDOWN_S, 0.0), Some(FLEE_COOLDOWN_S));
+    }
 }

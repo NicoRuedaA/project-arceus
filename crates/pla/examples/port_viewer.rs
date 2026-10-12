@@ -813,6 +813,7 @@ fn main() -> ExitCode {
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
+    app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
@@ -1275,10 +1276,13 @@ fn stream_wild_spawners(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
+    consumed: Res<pla::game::wild::ConsumedSpawners>,
+    time: Res<Time>,
 ) {
     let Ok(p_xf) = player_query.single() else {
         return;
     };
+    let now_s = time.elapsed_secs_f64();
 
     let p_pos = Vec2::new(p_xf.translation.x, p_xf.translation.z);
     let radius = active_spawners.streaming_radius;
@@ -1308,6 +1312,10 @@ fn stream_wild_spawners(
 
     for spawner in &active_spawners.spawners {
         if active_spawners.spawned_entities.contains_key(&spawner.spawner_id) {
+            continue;
+        }
+        // Defeated / captured creature: keep the spawner empty until its respawn time.
+        if consumed.is_consumed(&spawner.spawner_id, now_s) {
             continue;
         }
 
@@ -2184,7 +2192,7 @@ fn creature_encounter_system(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
-    mut wild_query: Query<(Entity, &Transform, &mut WildCreature), Without<PlayerAvatar>>,
+    mut wild_query: Query<(Entity, &Transform, &mut WildCreature), (Without<PlayerAvatar>, Without<pla::game::wild::FleeCooldown>)>,
     mut next_state: ResMut<NextState<GameState>>,
     battle_db: Res<LoadedBattle>,
     pkmn_state: Res<ActivePokemonState>,
