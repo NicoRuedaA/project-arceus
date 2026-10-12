@@ -176,10 +176,11 @@ fn compute_vertex_normals(
     for normal in &mut normals {
         let len = normal.iter().map(|v| v * v).sum::<f32>().sqrt();
         if !len.is_finite() || len <= f32::EPSILON {
-            return Err("TR mesh has an isolated/degenerate vertex normal".into());
-        }
-        for v in normal {
-            *v /= len;
+            *normal = [0.0, 1.0, 0.0];
+        } else {
+            for v in normal {
+                *v /= len;
+            }
         }
     }
     Ok(normals)

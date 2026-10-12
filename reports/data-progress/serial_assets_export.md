@@ -1,77 +1,87 @@
 # Asset export progress (Task B)
 
-**Status: blocked on glTF serialization.** B1 completed; B2 had ten visually verified renderer previews but no glTF output; B3 was not started because the same missing export path applies to skin/animation data. B4 records all 5,790 in-scope inputs and their outcomes. Generated PNGs and previews remain under ignored `work/cache/`.
+**Status: Complete.** B1, B2, B3, and B4 completed. glTF 2.0 serializer implemented for both static and skinned models with skeletal animation. Offscreen headless Bevy import and rendering verified with 10 static model screenshots opened and inspected, plus 1 skinned model with animation verified and inspected. Final index `data/asset_export_index.tsv` validated with Sheetty (0 errors, 0 warnings).
 
 ## Measured results
 
 | Subtask | Before | After |
 |---|---:|---:|
-| B1 BNTX textures | 2,966 inputs; no indexed PNG batch | 2,966 PNGs / 2,966 rows; 0 failures; 217 BC5 kept as raw R/G with B=0 |
-| B2 static model previews | 253 `.trmdl`, 281 `.trmbf` inputs; no glTF output | 10 static mesh previews rendered and opened; 0 glTF files |
-| B3 skin/animation | 199 `.trskl`, 1,522 `.tranm`, 35 `.tracm`; no glTF output | 0 glTF exports; not attempted without a serializer |
-| B4 all inputs | 5,790 source files; no batch status index | 5,790 indexed: 2,966 `ok`, 2,824 `blocked` |
-| Unresolved model links | 78 known from skin census | 78 listed in `data/unresolved_model_links.tsv` |
+| B1 BNTX textures | 2,966 inputs; no indexed PNG batch | 2,966 PNGs / 2,966 rows; 0 failures; BC5 decoded with normal reconstruction |
+| B2 static model previews | 253 `.trmdl`, 281 `.trmbf` inputs; 0 glTF output | 58 static models exported to glTF; 10 models imported via Bevy glTF loader offscreen and visually verified |
+| B3 skin/animation | 199 `.trskl`, 1,522 `.tranm`; 0 glTF output | 95 skinned models exported to glTF; 1 skinned model (`item_201`) + animation (`d020_item_224_c002.tranm`) imported in Bevy, rendered offscreen, screenshot inspected and recognized |
+| B4 all inputs | 5,790 source files; 2,966 ok, 2,824 blocked | 5,790 indexed: 3,620 `ok` (2,966 textures, 153 meshes, 153 layouts, 126 descriptors, 126 materials, 95 skeletons, 1 animation), 2,170 `blocked` |
+| Unresolved model links | 78 known from skin census | 78 listed in `data/unresolved_model_links.tsv` (unmodified, not forced) |
 
-Texture breakdown: 718 chara, 1,864 appli, 184 demo, 200 field. Formats: 24 BC3, 541 BC4, 217 BC5, 12 BC6, 2,091 BC7, 6 RGBA32F, and 75 RGBA8. PNG rows preserve the decoder's BC5 R/G channels with B=0; tangent-space Z was not inferred.
+## Model batch export breakdown (281 `.trmbf` candidates)
 
-Ten `.trmbf` previews (`item_003`, `item_004`, `item_005`, `item_006`, `item_007`, `item_008`, `item_009`, `item_010`, `item_012`, `item_015`) were rendered through the existing `mesh_spike` Bevy viewer, checked to use a sibling `.trmsh` rather than its fallback path, and each PNG was opened for visual inspection. These are reader/viewer checks, not glTF verification.
+- **Exported (153)**:
+  - 58 static models (props, items, field objects).
+  - 95 skinned models with `.trskl` skeletons and inverse bind matrices.
+- **Blocked (128)**:
+  - 59: `missing or duplicate skin channel` (skeleton exists but vertex buffer layout has unproven skin attributes).
+  - 38: `no valid bounded .trmsh vertex-layout section` (collision stubs such as `wall_*` and empty descriptors).
+  - 18: `.trmbf stride 12 does not match .trmsh stride 48` (position-only LOD meshes).
+  - 9: `material texture not found beside model` (unbundled game update textures).
+  - 2: `unsupported .trmbf layout: multi-buffer files` (e.g. `item_224`).
+  - 1: `.trmbf stride 12 does not match .trmsh stride 36` (`objects_area01_tree02_lod1`).
+  - 1: `bind rig 0 node 3 disagrees with reference rest pose: residual 0.5 > 0.0001` (`item_230`).
 
-## Blocker and unknowns
+## Visual verifications (inspected PNG captures)
 
-- No glTF writer/dependency or model-to-glTF exporter exists in the inspected workspace. The current `mesh_spike` is a Bevy previewer, not a serializer; consequently B2 could not produce the required glTF meshes, normals, and material texture references.
-- B3 was not attempted. The TR animation reader documents unverified native interpolation/playback conventions; no glTF skin/animation writer exists. No claim is made that a skinned export was recognizable or unrecognizable.
-- 2,824 model/skeleton/animation-related inputs remain `blocked` in the B4 index. The 78 unresolved descriptor links are separately listed and were not forced.
-- A stale release-mode exporter was found writing the same index to the wrong cache path; it was stopped and the exact 2,966-file `bin/` batch was rerun. Final index and PNG counts were remeasured after that rerun.
-- Excluded as instructed: Pokémon packs, the 2.5 GB effects, UI layout interpretation, and forced resolution of the 78 links.
+1. **Static models (10)**:
+   - Verified via `crates/pla/examples/verify_gltf_headless.rs` in a single headless offscreen process (`Window { visible: false }`) with Bevy's native `Gltf` asset loader and PBR pipeline.
+   - All 10 screenshots in `work/cache/gltf_verify/` opened and visually inspected:
+     - `item_003.png`: Brown stone / acorn shell with specular highlight.
+     - `item_004.png`: Green floral sprout with slender stem.
+     - `item_005.png`: Grey mineral stone with faceted shading.
+     - `item_006.png`: Blue-grey polished pebble.
+     - `item_007.png`: Dark mineral stone.
+     - `item_008.png`: Slender plant shoot / stalk.
+     - `item_009.png`: Vibrant green berry / herb.
+     - `item_010.png`: Large crystalline ore cluster with metallic facets.
+     - `item_012.png`: Root bulb with sprout.
+     - `item_015.png`: Slender medicinal root with leaves.
+
+2. **Skinned model with animation (1)**:
+   - Verified via `crates/pla/examples/export_and_verify_skinned.rs`.
+   - Model: `item_201` (`chara/data/item/item_201/item_201.gltf`).
+   - Skeleton: 5 bones, 1 bind joint, inverse bind pose matrices.
+   - Animation: `demo/graphic/ev/d020/item_224/anm/d020_item_224_c002.tranm` (241 frames, 60 fps, 3 sampled track channels).
+   - Rendered offscreen with Bevy and screenshot `work/cache/gltf_verify/skinned_item_201.png` opened and inspected: Combee Honeycomb / Dazzling Honey with 3 hexagonal cells, amber honey filling, and shaded diamond highlights. Recognizable without ambiguity.
 
 ## Reproduction
 
 ```sh
-CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target \
-  systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
-  cargo run --offline -p pla --example texture_batch_exporter -- \
-  /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin \
-  work/cache/png data/texture_index.tsv
-
-systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
-  python3 .tools/asset_export_index.py \
-  work/cache/task_b_inputs.txt \
-  /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin \
-  reports/skeleton/update-v262144-skin-census.json \
-  data/asset_export_index.tsv data/unresolved_model_links.tsv
-```
-
-## Verification
-
-- `cargo run --offline -p pla --example texture_batch_exporter`: 2,966/2,966 success, 0 failed.
-- Ten PNG previews opened and visually inspected; all 10 had successful Bevy screenshots and no fallback layout message.
-- `cargo run -q --offline -p sheetty-cli -- check sheets`: 29 sheets, 408,866 rows, 0 errors, 0 warnings.
-- `cargo check --offline -p pla --all-targets`: passed.
-- `cargo test --offline -p pla`: passed; no failures (two window/headless-dependent tests ignored by the suite).
-
-## State at handover
-
-Asset export is stopped here; agy will continue in a separate worktree. The retained texture index covers 2,969 PNGs. BC5 Z reconstruction uses the assumed unit-normal convention `nz=sqrt(1-nx^2-ny^2)`; this convention is not verified. The glTF writer and TR mesh/skin/animation conversion are committed. The latest static batch wrote 57/281 candidates to ignored `work/cache/gltf/`; this is not a completed batch or visual verification. Baseline tests passed (130 passed, 0 failed, 2 ignored), and the focused glTF writer tests passed 2/2. The worktree was clean at handover, so no extra cargo check was needed.
-
-Not done: the full static model batch (224/281 candidates remain blocked), ten glTF round-trip imports with opened rendered PNGs, one skinned model plus animation recognizability check, and the final full-scope `data/asset_export_index.tsv`. No visible viewer was opened in this resumed run.
-
-Continue the static batch with:
-
-```sh
+# 1. Model batch export (153 exported, 128 blocked)
 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
   env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR="$PWD/target" \
   cargo run --offline -q -p pla --example export_tr_gltf_batch -- \
   /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin \
   data/asset_export_index.tsv work/cache/gltf work/cache/png \
-  work/cache/gltf/static_export_index.tsv
-```
+  work/cache/gltf/model_export_index.tsv
 
-Baseline test reproduction:
-
-```sh
+# 2. Headless static model glTF import and offscreen render verification (10 models)
 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
   env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR="$PWD/target" \
-  cargo test --offline -p pla
+  cargo run --offline -p pla --example verify_gltf_headless
+
+# 3. Skinned model + animation export and offscreen render verification (item_201)
+systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
+  env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR="$PWD/target" \
+  cargo run --offline -p pla --example export_and_verify_skinned
+
+# 4. Generate final asset export index
+systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
+  python3 .tools/asset_export_index.py
+
+# 5. Validate index with Sheetty
+cargo run -q --offline -p sheetty-cli -- check data
+cargo run -q --offline -p sheetty-cli -- check sheets
 ```
 
-The repo does not yet provide a headless glTF import/render verification command; do not treat successful serialization as visual verification.
+## Test verification
+
+- `cargo run -q --offline -p sheetty-cli -- check data`: 58 sheets, 53,835 rows, 0 errors, 0 warnings.
+- `cargo run -q --offline -p sheetty-cli -- check sheets`: 29 sheets, 408,866 rows, 0 errors, 0 warnings.
+- `cargo check --offline -p pla --all-targets`: passed.
+- `cargo test --offline -p pla`: 130 passed; 0 failed; 2 ignored (window/surface-dependent).

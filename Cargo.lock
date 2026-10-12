@@ -390,6 +390,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "bcdec_rs"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -439,6 +445,7 @@ dependencies = [
  "bevy_derive",
  "bevy_ecs",
  "bevy_math",
+ "bevy_mesh",
  "bevy_platform",
  "bevy_reflect",
  "bevy_time",
@@ -788,6 +795,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_gltf"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d17df73b26adfb8be89f0716b8667c60660bdd2d589863b8901caca58c99841"
+dependencies = [
+ "async-lock",
+ "base64",
+ "bevy_animation",
+ "bevy_app",
+ "bevy_asset",
+ "bevy_camera",
+ "bevy_color",
+ "bevy_ecs",
+ "bevy_image",
+ "bevy_light",
+ "bevy_material",
+ "bevy_math",
+ "bevy_mesh",
+ "bevy_platform",
+ "bevy_reflect",
+ "bevy_tasks",
+ "bevy_transform",
+ "bevy_world_serialization",
+ "fixedbitset",
+ "gltf",
+ "itertools",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "thiserror 2.0.21",
+ "tracing",
+ "wgpu-types",
+]
+
+[[package]]
 name = "bevy_image"
 version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -869,6 +912,7 @@ dependencies = [
  "bevy_ecs",
  "bevy_gizmos",
  "bevy_gizmos_render",
+ "bevy_gltf",
  "bevy_image",
  "bevy_input",
  "bevy_input_focus",
@@ -882,6 +926,7 @@ dependencies = [
  "bevy_ptr",
  "bevy_reflect",
  "bevy_render",
+ "bevy_scene",
  "bevy_shader",
  "bevy_sprite",
  "bevy_sprite_render",
@@ -892,6 +937,7 @@ dependencies = [
  "bevy_utils",
  "bevy_window",
  "bevy_winit",
+ "bevy_world_serialization",
 ]
 
 [[package]]
@@ -1052,6 +1098,7 @@ dependencies = [
  "bevy_derive",
  "bevy_diagnostic",
  "bevy_ecs",
+ "bevy_gltf",
  "bevy_image",
  "bevy_light",
  "bevy_log",
@@ -1210,6 +1257,40 @@ version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6be6eba0ce9770ae4576693804d6c605f8afd9c4769787414254efcf92196a90"
 dependencies = [
+ "bevy_macro_utils",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "bevy_scene"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33f6f4f24cd771c6fd67286a8f264a45a644dc798a36614252db220d4fbbd63b"
+dependencies = [
+ "bevy_app",
+ "bevy_asset",
+ "bevy_derive",
+ "bevy_ecs",
+ "bevy_log",
+ "bevy_platform",
+ "bevy_reflect",
+ "bevy_scene_macros",
+ "bevy_utils",
+ "smallvec",
+ "thiserror 2.0.21",
+ "tracing",
+ "variadics_please",
+]
+
+[[package]]
+name = "bevy_scene_macros"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fc7844c3410e228581200f73be123467c424f62fc40499c3e869b641b582748"
+dependencies = [
+ "bevy_ecs_macro_logic",
  "bevy_macro_utils",
  "proc-macro2",
  "quote",
@@ -1423,6 +1504,28 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "winit",
+]
+
+[[package]]
+name = "bevy_world_serialization"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36855264b9b5d229bde74f01730eb6251c72dc052404ae144a9295cc0abdefc1"
+dependencies = [
+ "bevy_app",
+ "bevy_asset",
+ "bevy_camera",
+ "bevy_derive",
+ "bevy_ecs",
+ "bevy_platform",
+ "bevy_reflect",
+ "bevy_transform",
+ "bevy_utils",
+ "derive_more",
+ "ron",
+ "serde",
+ "thiserror 2.0.21",
+ "uuid",
 ]
 
 [[package]]
@@ -2262,6 +2365,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "gltf"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3ce1918195723ce6ac74e80542c5a96a40c2b26162c1957a5cd70799b8cacf7"
+dependencies = [
+ "byteorder",
+ "gltf-json",
+ "lazy_static",
+ "serde_json",
+]
+
+[[package]]
+name = "gltf-derive"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14070e711538afba5d6c807edb74bcb84e5dbb9211a3bf5dea0dfab5b24f4c51"
+dependencies = [
+ "inflections",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "gltf-json"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6176f9d60a7eab0a877e8e96548605dedbde9190a7ae1e80bbcc1c9af03ab14"
+dependencies = [
+ "gltf-derive",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "gpu-allocator"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2410,7 +2549,15 @@ checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
+ "serde",
+ "serde_core",
 ]
+
+[[package]]
+name = "inflections"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a257582fdcde896fd96463bf2d40eefea0580021c0712a0e2b028b60b47a837a"
 
 [[package]]
 name = "inventory"
@@ -3351,6 +3498,7 @@ version = "0.1.0"
 dependencies = [
  "bcdec_rs",
  "bevy",
+ "bevy_gltf",
  "mlua",
  "oozextract",
  "phf",
