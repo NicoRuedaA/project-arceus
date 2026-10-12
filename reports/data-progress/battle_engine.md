@@ -7,7 +7,8 @@
 | Input | Source | Evidence status |
 |---|---|---|
 | Species base stats and types | `data/pml_personal.tsv` | Table values are game-derived; this file contains base stats only. Nature, IV, and EV inputs are absent. |
-| Move type, category, power, accuracy, and PP | `data/pml_moves.tsv` | Values are game-derived. Move priority is not included. |
+| Move type, category, power, accuracy, and PP | `data/pml_moves.tsv` | Values are game-derived. Move priority is not included there; see the effects sheet below. |
+| Move effects | `data/pml_move_effects.tsv` | Decoded from the same `waza*.wazabin` records by `.tools/decode_waza_effects.py`; confidence per column in the section below. |
 | Type matchups | `data/type_chart.tsv` | **type chart: verified against game data.** The typed 18×18 sheet stores 324 raw values (0/2/4/8) from the main ELF at offset `0x3985908` (324 bytes). All 324 cells match the independently decoded chart; 15 known matchups were checked. This is data-table provenance only; no executable code was extracted or copied. |
 | AI/capture lookup tables | `data/ai/*.tsv`, `data/capture/*.tsv` | Existing recovered table inputs. Their full formulas/behavior are not established by table presence. |
 
@@ -32,6 +33,23 @@ This remains a partial simulation; no Nintendo engine/SDK code was ported. Recov
 The formulas were transcribed from the user's static-analysis notes, which identify update-main entry points: damage `FUN_0286a628`, base damage `FUN_028ce294`, chart category `FUN_0283eb50`, stat formulas `FUN_02b5e31c` / `FUN_02b5e59c`, turn ordering `FUN_028d176c` / `FUN_028f7504`, agility `FUN_02877520`, critical `FUN_02869f80`, capture `FUN_01805800`, accuracy `FUN_0287eb68`. The verified raw chart is at virtual address `0x03984908`. No pseudocode or native function names were copied into Rust sources. This is static evidence only; no emulator behavior was tested.
 
 The example remains interactive and deterministic by default. It reports partial evidence-backed rules, not a complete battle implementation. Unit tests include hand calculations for L100/B45/G10 HP=297, base damage 12, Bidoof/Poké Ball ≈78%, and injected critical, accuracy and capture outcomes.
+
+## Move effects sheet (`data/pml_move_effects.tsv`)
+
+851 records, 85 columns, absent FlatBuffers slot = 0. `.tools/check_waza_effects.py` runs 36 checks against well-known move facts; all pass. Column confidence:
+
+- **VERIFIED (12):** `priority` (signed; quick-attack +1, extreme-speed +2, fake-out +3, protect +4, counter -5, trick-room -7, vital-throw -1), `crit_rank` (karate-chop/slash 1, storm-throw 6), `flinch_chance` (fake-out 100, bite 30, waterfall 20), `min_hits`/`max_hits` (double-kick 2/2, fury-swipes 2/5, triple-kick 3/3), `drain_pct` (signed; giga-drain +50, double-edge -33, head-smash -50), `heal_pct` (signed; recover +50, swallow 25, steel-beam -50 HP cost), `ailment_chance`, `flag_contact`, `flag_punch`, `flag_sound`, `flag_dance`.
+- **LIKELY (21):** `meta_category`, `ailment_id`/`ailment_name` (1 paralysis, 4 burn, 5 poison, 7 frostbite, 2 and 6 sleep-like with unknown difference, 8 confusion, 9 infatuation, 10 trap), `target_raw` (7 user, 5 all foes, 4 all others, 10 field, 12 own side, 13 reactive), stat slots `stat1..3_id` (1 Atk, 2 Def, 3 SpA, 4 SpD, 5 Spe, 6 Acc, 7 Eva, 8 all) with signed `stat1..3_stage` and `stat1..3_chance` (0 = always on status moves), `style_flag`, and the flags charge, recharge, protectable, reflectable, snatchable, defrost, heal.
+- **RAW (49):** `effect_id` and 48 `raw_fNN` slots (the PLA agile/strong style values, several per-move bytes and four-byte values). Their meaning is not established and they are not used by the engine.
+- Stat stage deltas are small in the data (Swords Dance +1, Agility +2, Growl -1). This is consistent with the notes' finding that PLA keeps only three rank states (down, neutral, up).
+
+## Engine support for move effects (`pla::battle_engine::effects`)
+
+Additive: all new state is private or in new types; a `Battle` without `set_move_effects(MoveEffectsTable)` behaves as before, and no existing public signature changed. Extra results are in `Battle::take_effect_events()` instead of new `Event` variants.
+
+- Supported (hand-built unit tests): real move priority and crit rank copied into move slots (turn order already sorts on priority); secondary and status ailments with chance (paralysis, burn, poison, frostbite, sleep-like); 3-state stat stages (-1/0/+1, Atk/SpA, Def/SpD, Speed, plus accuracy and evasion) with limit reporting; drain and recoil as a share of damage dealt; healing and HP cost as a share of max HP; fixed and ranged multi-hit; flinch skipping a slower target's action.
+- Stage damage multipliers (x1.5 up, x0.66 down) exist behind `set_stage_multipliers_enabled`, off by default because the notes could not show where the game applies them (UNKNOWN). Speed stages are tracked but not applied to turn order.
+- Not modeled: confusion, trapping, freeze-like and special ailments; type immunities to statuses; charge and recharge turns; targets other than the opposing active combatant or the user; Protect/Counter-style reactive moves; sleep duration. The multi-hit count distribution is UNKNOWN (a uniform roll between min and max is a placeholder).
 
 ## Verification
 

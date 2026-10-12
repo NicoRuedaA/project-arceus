@@ -3,6 +3,9 @@
 
 use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 
+pub mod effects;
+use effects::{EffectEvent, MoveEffectsTable, Stages};
+
 pub trait BattleRng {
     fn next_u32(&mut self) -> u32;
     fn below(&mut self, upper: u32) -> u32 {
@@ -229,6 +232,11 @@ pub struct Battle {
     type_chart: TypeChart,
     pub trick_room: bool,
     pub weather: BattleWeather,
+    effects: Option<MoveEffectsTable>,
+    stages: Vec<Stages>,
+    effect_events: Vec<EffectEvent>,
+    pending_status: Vec<(usize, MajorStatus)>,
+    stage_multipliers: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -278,6 +286,11 @@ impl Battle {
             type_chart,
             trick_room: false,
             weather: BattleWeather::Unknown,
+            effects: None,
+            stages: Vec::new(),
+            effect_events: Vec::new(),
+            pending_status: Vec::new(),
+            stage_multipliers: false,
         })
     }
 
@@ -414,6 +427,7 @@ impl Battle {
             .into_iter()
             .map(|(action, _)| action)
             .collect::<Vec<_>>();
+        let mut flinched: Vec<usize> = Vec::new();
         if let Some(first) = order.first() {
             events.push(Event::ActedFirst(first.actor));
         }
@@ -422,6 +436,12 @@ impl Battle {
                 break;
             }
             if !self.combatants[action.actor].is_alive() {
+                continue;
+            }
+            if flinched.contains(&action.actor) {
+                self.effect_events.push(EffectEvent::FlinchedAndSkipped {
+                    actor: action.actor,
+                });
                 continue;
             }
             let Some(target) = self.target_for(action.actor) else {
@@ -466,7 +486,31 @@ impl Battle {
                 });
                 continue;
             }
+            let fx = self
+                .effects
+                .as_ref()
+                .and_then(|t| t.get(&move_name))
+                .cloned();
             if power == 0 {
+                if let Some(fx) = &fx {
+                    let ko = self.apply_move_effects(
+                        action.actor,
+                        target,
+                        fx,
+                        false,
+                        0,
+                        &mut flinched,
+                        rng,
+                    );
+                    for (t, status) in std::mem::take(&mut self.pending_status) {
+                        events.push(Event::StatusApplied { target: t, status });
+                    }
+                    for k in ko {
+                        events.push(Event::KnockedOut(k));
+                        self.advance_active_for(k);
+                    }
+                    continue;
+                }
                 if let Some(status) = status_move(&move_name) {
                     if self.combatants[target].status.is_none() {
                         self.combatants[target].status = Some(status);
@@ -475,18 +519,58 @@ impl Battle {
                 }
                 continue;
             }
-            let (damage, critical, multiplier) = calculate_damage(
-                &self.combatants[action.actor],
-                &self.combatants[target],
-                &move_type,
-                &category,
-                power,
-                &self.type_chart,
-                self.weather,
-                critical_rank,
-                rng,
+            let hits = fx.as_ref().map_or(1, |f| Self::roll_hits(f, rng));
+            let (atk_mod, def_mod) = if self.stage_multipliers {
+                self.stage_modifiers(action.actor, target)
+            } else {
+                (4096, 4096)
+            };
+            // Stage multipliers scale the attacker's Atk and defender's Def stat (3-state, LIKELY).
+            let saved = (
+                self.combatants[action.actor].attack_modifier_q12,
+                self.combatants[target].defense_modifier_q12,
             );
-            self.combatants[target].hp = self.combatants[target].hp.saturating_sub(damage);
+            if self.stage_multipliers {
+                let a = &mut self.combatants[action.actor];
+                a.attack_modifier_q12 = q12_mul(u32::from(a.attack_modifier_q12), atk_mod) as u16;
+                let d = &mut self.combatants[target];
+                d.defense_modifier_q12 = q12_mul(u32::from(d.defense_modifier_q12), def_mod) as u16;
+            }
+            let mut damage = 0;
+            let mut dealt = 0;
+            let mut critical = false;
+            let mut multiplier = 1.0;
+            let mut landed = 0;
+            for _ in 0..hits {
+                let (d, c, m) = calculate_damage(
+                    &self.combatants[action.actor],
+                    &self.combatants[target],
+                    &move_type,
+                    &category,
+                    power,
+                    &self.type_chart,
+                    self.weather,
+                    critical_rank,
+                    rng,
+                );
+                dealt += d.min(self.combatants[target].hp);
+                self.combatants[target].hp = self.combatants[target].hp.saturating_sub(d);
+                damage += d;
+                critical |= c;
+                multiplier = m;
+                landed += 1;
+                if self.combatants[target].hp == 0 {
+                    break;
+                }
+            }
+            self.combatants[action.actor].attack_modifier_q12 = saved.0;
+            self.combatants[target].defense_modifier_q12 = saved.1;
+            if hits > 1 {
+                self.effect_events.push(EffectEvent::Hits {
+                    actor: action.actor,
+                    count: landed,
+                });
+            }
             events.push(Event::UsedMove {
                 actor: action.actor,
                 target,
@@ -498,6 +582,24 @@ impl Battle {
             if self.combatants[target].hp == 0 {
                 events.push(Event::KnockedOut(target));
                 self.advance_active_for(target);
+            }
+            if let Some(fx) = &fx {
+                let ko = self.apply_move_effects(
+                    action.actor,
+                    target,
+                    fx,
+                    true,
+                    dealt,
+                    &mut flinched,
+                    rng,
+                );
+                for (t, status) in std::mem::take(&mut self.pending_status) {
+                    events.push(Event::StatusApplied { target: t, status });
+                }
+                for k in ko {
+                    events.push(Event::KnockedOut(k));
+                    self.advance_active_for(k);
+                }
             }
         }
         // End-of-round status damage and status timing are conventional-series assumptions.
@@ -1160,8 +1262,8 @@ mod tests {
         .unwrap();
         b.combatants[1].hp = 1;
         b.combatants[1].status = Some(MajorStatus::Paralysis);
-        assert!(
-            b.attempt_capture(
+        assert!(b
+            .attempt_capture(
                 &d,
                 1,
                 "Gigaton",
@@ -1173,8 +1275,7 @@ mod tests {
                 CaptureModifiers::default(),
                 &mut Fixed(vec![0, 0])
             )
-            .unwrap()
-        );
+            .unwrap());
         assert!(b.combatants[1].caught);
     }
 }
