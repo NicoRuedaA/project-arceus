@@ -643,12 +643,23 @@ pub fn update_battle_ui_system(
         return;
     }
 
-    let p_com = &sess.battle.combatants[0];
+    let p_idx = sess.active_player();
+    let p_com = &sess.battle.combatants[p_idx];
     let w_com = &sess.battle.combatants[1];
+    let with_tags = |base: String, tags: String| {
+        if tags.is_empty() {
+            base
+        } else {
+            format!("{base}  {tags}")
+        }
+    };
 
-    // 1. Wild Pokémon Card
+    // 1. Wild Pokémon Card (name, level, status tag; HP line also shows stat stages)
     for mut text in &mut texts.p0() {
-        text.0 = format!("WILD {}  Lv. {}", w_com.species.name.to_uppercase(), w_com.level);
+        text.0 = with_tags(
+            format!("WILD {}  Lv. {}", w_com.species.name.to_uppercase(), w_com.level),
+            sess.card_tags(1),
+        );
     }
     for mut text in &mut texts.p1() {
         text.0 = format!("HP: {} / {}", w_com.hp, w_com.max_hp);
@@ -658,9 +669,12 @@ pub fn update_battle_ui_system(
         node.width = Val::Percent(w_ratio * 100.0);
     }
 
-    // 2. Player Pokémon Card
+    // 2. Player Pokémon Card (active party member)
     for mut text in &mut texts.p2() {
-        text.0 = format!("PLAYER {}  Lv. {}", p_com.species.name.to_uppercase(), p_com.level);
+        text.0 = with_tags(
+            format!("PLAYER {}  Lv. {}", p_com.species.name.to_uppercase(), p_com.level),
+            sess.card_tags(p_idx),
+        );
     }
     for mut text in &mut texts.p3() {
         text.0 = format!("HP: {} / {}", p_com.hp, p_com.max_hp);
@@ -675,27 +689,18 @@ pub fn update_battle_ui_system(
         text.0 = sess.battle_summary.clone();
     }
 
-    // 4. Move slots (Names, Type, PP)
+    // 4. Grid slots: moves, bag items or party members depending on the open menu
+    let slots = sess.slot_texts();
     for (m_title, mut text) in &mut texts.p5() {
-        if m_title.slot < p_com.moves.len() {
-            let m = &p_com.moves[m_title.slot];
-            text.0 = format!("[{}] {}", m_title.slot + 1, m.data.name);
-        } else {
-            text.0 = format!("[{}] ---", m_title.slot + 1);
-        }
+        text.0 = slots[m_title.slot.min(3)].0.clone();
     }
     for (m_detail, mut text) in &mut texts.p6() {
-        if m_detail.slot < p_com.moves.len() {
-            let m = &p_com.moves[m_detail.slot];
-            text.0 = format!("Type: {} | PP {}/{}", m.data.move_type, m.pp, m.data.pp);
-        } else {
-            text.0 = "Empty Slot".into();
-        }
+        text.0 = slots[m_detail.slot.min(3)].1.clone();
     }
 
     // 5. Move highlighting
     for (m_box, mut bg, mut border) in &mut move_boxes {
-        if m_box.slot == sess.selected_move_idx {
+        if m_box.slot == sess.highlight_slot() {
             *bg = BackgroundColor(Color::srgba(0.25, 0.45, 0.65, 0.95));
             *border = BorderColor::all(Color::srgb(0.95, 0.85, 0.30));
         } else {
@@ -706,7 +711,7 @@ pub fn update_battle_ui_system(
 
     // 6. Action Menu tab highlighting
     for (menu_box, mut bg) in &mut menu_boxes {
-        if menu_box.index == sess.selected_menu_idx {
+        if menu_box.index == sess.highlighted_tab() {
             *bg = BackgroundColor(Color::srgba(0.85, 0.65, 0.15, 0.95));
         } else {
             *bg = BackgroundColor(Color::srgba(0.15, 0.20, 0.28, 0.80));

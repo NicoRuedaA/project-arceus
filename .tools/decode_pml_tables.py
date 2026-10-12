@@ -3,6 +3,7 @@
 
 Decodes raw FlatBuffers and structured binary tables from RomFS:
   - bin/pml/personal/personal_data_total.perbin -> data/pml_personal.tsv
+  - bin/pml/personal/personal_data_total.perbin (field 17) -> data/pml_personal_extra.tsv
   - bin/pml/grow_table/grow_*.bin              -> data/pml_grow_table.tsv
   - bin/pml/evolution/evolution_data_total.evobin -> data/pml_evolution.tsv
   - bin/pml/waza/waza*.wazabin                 -> data/pml_moves.tsv
@@ -251,6 +252,29 @@ def decode_personal_table(species_names: dict[int, str]) -> List[dict[str, Any]]
             "growth_group": gg_name,
         })
 
+    return records
+
+
+def decode_personal_extra(species_names: dict[int, str]) -> List[dict[str, Any]]:
+    """Personal-table fields not exported in pml_personal.tsv (kept in a separate sheet so
+    that sheet's columns never change). Field 17 is the capture (catch) rate: Bidoof 255,
+    Arceus 3 (checked against the same records)."""
+    path = ROMFS_BIN_PML / "personal" / "personal_data_total.perbin"
+    data = path.read_bytes()
+    vec_pos, vec_len = get_root_vector(data)
+    records: List[dict[str, Any]] = []
+    for i in range(vec_len):
+        elem_offset_pos = vec_pos + 4 + i * 4
+        elem_pos = elem_offset_pos + struct.unpack_from("<I", data, elem_offset_pos)[0]
+        table_size, field_offsets = parse_vtable(data, elem_pos)
+        species_id = get_field_u16(data, elem_pos, field_offsets, 0, table_size, default=0)
+        form_id = get_field_u16(data, elem_pos, field_offsets, 1, table_size, default=0)
+        records.append({
+            "dex_index_national": species_id,
+            "form": form_id,
+            "species_name": species_names.get(species_id, f"species_{species_id}"),
+            "catch_rate": get_field_u8(data, elem_pos, field_offsets, 17, default=0),
+        })
     return records
 
 
@@ -508,6 +532,7 @@ def main() -> int:
     print("\n1. Decoding Personal Table...")
     personal_records = decode_personal_table(species_names)
     write_tsv(OUTPUT_DIR / "pml_personal.tsv", personal_records)
+    write_tsv(OUTPUT_DIR / "pml_personal_extra.tsv", decode_personal_extra(species_names))
 
     print("\n2. Decoding Grow Tables...")
     grow_records = decode_grow_tables()

@@ -32,8 +32,8 @@ use pla::assets::terrain::{
 };
 use pla::battle::BattleData;
 use pla::game::{
-    get_wild_spawns_for_area, setup_game_ui, sync_ui_visibility, update_battle_ui_system,
-    update_world_hud_system, ActiveBattleSession, GameNavmeshResource, GameState, PlayerAvatar,
+    battle_input_system, get_wild_spawns_for_area, setup_game_ui, sync_ui_visibility, update_battle_ui_system,
+    update_world_hud_system, ActiveBattleSession, BattleAssets, GameNavmeshResource, GameState, PlayerAvatar,
     WildCreature,
 };
 use pla::pml::{calculate_hp, PmlDatabase};
@@ -420,6 +420,13 @@ fn main() -> ExitCode {
 
     let pml_db = data_dir.as_ref().and_then(|dir| PmlDatabase::load_from_dir(dir).ok());
     let battle_db = data_dir.as_ref().and_then(|dir| BattleData::load(dir).ok());
+    let battle_assets = data_dir.as_ref().and_then(|dir| match BattleAssets::load(dir) {
+        Ok(a) => Some(a),
+        Err(e) => {
+            eprintln!("Battle assets (move effects / items / catch rates) not loaded: {e}");
+            None
+        }
+    });
 
     let work_root = PathBuf::from("work");
     let work_abs = work_root.canonicalize().unwrap_or(work_root);
@@ -567,6 +574,9 @@ fn main() -> ExitCode {
     if let Some(nr) = navmesh_res {
         app.insert_resource(nr);
     }
+    if let Some(assets) = battle_assets {
+        app.insert_resource(assets);
+    }
     app.insert_resource(AutomationOptions {
         screenshot_path,
         max_ticks,
@@ -589,7 +599,7 @@ fn main() -> ExitCode {
             spawn_pokemon_models,
             player_locomotion.run_if(in_state(GameState::World)),
             creature_encounter_system.run_if(in_state(GameState::World)),
-            battle_turn_system.run_if(in_state(GameState::Battle)),
+            battle_input_system.run_if(in_state(GameState::Battle)),
             camera_controls,
             update_camera_transform,
             ball_selection_controls.run_if(in_state(GameState::World)),
@@ -1668,6 +1678,7 @@ fn creature_encounter_system(
     mut next_state: ResMut<NextState<GameState>>,
     battle_db: Res<LoadedBattle>,
     pkmn_state: Res<ActivePokemonState>,
+    battle_assets: Option<Res<BattleAssets>>,
 ) {
     let Ok(player_xf) = player_query.single() else {
         return;
@@ -1696,15 +1707,27 @@ fn creature_encounter_system(
                 _ => "pikachu",
             };
 
-            match ActiveBattleSession::new(
-                battle_data,
-                player_species,
-                pkmn_state.level as u8,
-                &wild.species_name,
-                wild.level,
-                wild.national_dex,
-                entity,
-            ) {
+            let started = match battle_assets.as_deref() {
+                Some(assets) => ActiveBattleSession::start(
+                    assets,
+                    player_species,
+                    pkmn_state.level as u8,
+                    &wild.species_name,
+                    wild.level,
+                    wild.national_dex,
+                    entity,
+                ),
+                None => ActiveBattleSession::new(
+                    battle_data,
+                    player_species,
+                    pkmn_state.level as u8,
+                    &wild.species_name,
+                    wild.level,
+                    wild.national_dex,
+                    entity,
+                ),
+            };
+            match started {
                 Ok(session) => {
                     println!("Initialized ActiveBattleSession (Player Lv{} {} vs Wild Lv{} {})", pkmn_state.level, player_species, wild.level, wild.species_name);
                     commands.insert_resource(session);
@@ -1716,91 +1739,6 @@ fn creature_encounter_system(
                 }
             }
         }
-    }
-}
-
-/// Battle turn system: handles player menu choices (1-4 moves, Bag/Ball, Run) and resolves turns.
-fn battle_turn_system(
-    mut commands: Commands,
-    time: Res<Time>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mut session: Option<ResMut<ActiveBattleSession>>,
-    mut next_state: ResMut<NextState<GameState>>,
-    battle_db: Res<LoadedBattle>,
-    mut wild_query: Query<&mut WildCreature>,
-) {
-    let Some(ref mut sess) = session else {
-        return;
-    };
-
-    sess.turn_timer += time.delta_secs();
-
-    // End battle if already ended
-    if sess.battle.ended {
-        if sess.turn_timer >= 1.5 || keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Enter) {
-            println!("Battle completed. Returning to GameState::World.");
-            if let Ok(mut wild) = wild_query.get_mut(sess.wild_entity) {
-                wild.in_battle = false;
-                wild.defeated = true;
-            }
-            commands.remove_resource::<ActiveBattleSession>();
-            next_state.set(GameState::World);
-        }
-        return;
-    }
-
-    // Menu navigation & shortcuts
-    if keys.just_pressed(KeyCode::ArrowLeft) || keys.just_pressed(KeyCode::KeyA) {
-        sess.selected_move_idx = sess.selected_move_idx.saturating_sub(1);
-    }
-    if keys.just_pressed(KeyCode::ArrowRight) || keys.just_pressed(KeyCode::KeyD) {
-        sess.selected_move_idx = (sess.selected_move_idx + 1).min(3);
-    }
-
-    // Move selection via digits or Enter
-    let move_selected = if keys.just_pressed(KeyCode::Digit1) {
-        Some(0)
-    } else if keys.just_pressed(KeyCode::Digit2) {
-        Some(1)
-    } else if keys.just_pressed(KeyCode::Digit3) {
-        Some(2)
-    } else if keys.just_pressed(KeyCode::Digit4) {
-        Some(3)
-    } else if keys.just_pressed(KeyCode::Enter) && sess.selected_menu_idx == 0 {
-        Some(sess.selected_move_idx)
-    } else {
-        None
-    };
-
-    if let Some(slot) = move_selected {
-        sess.selected_menu_idx = 0;
-        sess.selected_move_idx = slot;
-        if slot < sess.battle.combatants[0].moves.len() {
-            println!("Executing player move slot {}...", slot);
-            sess.execute_player_attack(slot);
-            sess.turn_timer = 0.0;
-        }
-    } else if keys.just_pressed(KeyCode::KeyC) || keys.just_pressed(KeyCode::KeyB) {
-        // Attempt capture in battle
-        sess.selected_menu_idx = 3;
-        if let Some(ref db) = battle_db.0 {
-            println!("Attempting in-battle capture with Poké Ball...");
-            let outcome = sess.attempt_capture_in_battle(db);
-            println!("Capture attempt outcome: {:?}", outcome);
-            sess.turn_timer = 0.0;
-        }
-    } else if keys.just_pressed(KeyCode::KeyS) {
-        sess.selected_menu_idx = 1;
-        sess.battle_summary = "Switch: No alternate Pokémon available in party!".into();
-    } else if keys.just_pressed(KeyCode::KeyI) {
-        sess.selected_menu_idx = 2;
-        sess.battle_summary = "Bag: 5x Poké Ball, 3x Potion in inventory.".into();
-    } else if keys.just_pressed(KeyCode::KeyR) {
-        sess.selected_menu_idx = 4;
-        println!("Player fled from battle.");
-        sess.battle.ended = true;
-        sess.battle_summary = "Fled from battle safely!".into();
-        sess.turn_timer = 0.0;
     }
 }
 
@@ -1935,6 +1873,7 @@ fn automated_tick_driver(
     mut next_state: ResMut<NextState<GameState>>,
     mut session: Option<ResMut<ActiveBattleSession>>,
     battle_db: Res<LoadedBattle>,
+    battle_assets: Option<Res<BattleAssets>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     automation.current_ticks += 1;
@@ -1982,14 +1921,22 @@ fn automated_tick_driver(
                         }
                     }
                 }
-                if automation.demo_step_tick == 15 {
-                    let shot = demo_dir.join("01_world_exploration.png");
-                    write_demo_log(&format!("Capturing 01_world_exploration.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
-                }
                 if automation.demo_step_tick >= 25 {
                     // Transition to Battle state with initialized ActiveBattleSession
-                    if let Some(ref db) = battle_db.0 {
+                    if let Some(ref assets) = battle_assets {
+                        match ActiveBattleSession::start(
+                            assets,
+                            "pikachu",
+                            25,
+                            "pikachu",
+                            5,
+                            25,
+                            Entity::PLACEHOLDER,
+                        ) {
+                            Ok(sess) => commands.insert_resource(sess),
+                            Err(e) => write_demo_log(&format!("Battle start failed: {e}")),
+                        }
+                    } else if let Some(ref db) = battle_db.0 {
                         if let Ok(sess) = ActiveBattleSession::new(
                             db,
                             "pikachu",
@@ -2008,100 +1955,53 @@ fn automated_tick_driver(
                 }
             }
             1 => {
-                // Step 1: Wild Encounter triggered -> Battle Start
+                // Step 1: Wild Encounter triggered -> Battle Start (no frame; frames come from the beats)
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 1: Wild Pikachu encounter! Battle UI shows HP bars, cards, moves and actions.");
+                    write_demo_log("Step 1: Wild Pikachu encounter! Party of 3, bag, move effects and engine AI are active.");
                     camera_ctrl.yaw = 0.55;
                     camera_ctrl.pitch = 0.18;
                     camera_ctrl.distance = 5.2;
                     camera_ctrl.focal_offset_y = 0.6;
-                }
-                if automation.demo_step_tick == 15 {
-                    let shot = demo_dir.join("02_battle_encounter.png");
-                    write_demo_log(&format!("Capturing 02_battle_encounter.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
                     automation.demo_step = 2;
                     automation.demo_step_tick = 0;
                 }
             }
-            2 => {
-                // Step 2: 4 Moves Menu Selection
+            step @ 2..=5 => {
+                // Steps 2-5: scripted battle beats (status move, item menu, medicine, capture)
+                let beat = &pla::game::battle_demo::BEATS[step - 2];
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 2: Inspecting 4-move menu grid with types, PP, and selection highlight.");
+                    write_demo_log(&format!("Step {step}: {}", beat.note));
+                    camera_ctrl.yaw = 0.55 + 0.1 * (step as f32 - 2.0);
                     if let Some(ref mut sess) = session {
-                        sess.selected_menu_idx = 0;
-                        sess.selected_move_idx = 0;
-                        sess.battle_summary = "Select a move: [1] Thunderbolt  [2] Quick Attack  [3] Iron Tail  [4] Spark".into();
-                    }
-                }
-                if automation.demo_step_tick == 15 {
-                    let shot = demo_dir.join("03_battle_move_selection.png");
-                    write_demo_log(&format!("Capturing 03_battle_move_selection.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
-                }
-                if automation.demo_step_tick >= 25 {
-                    // Execute Thunderbolt attack in battle engine
-                    if let Some(ref mut sess) = session {
-                        write_demo_log("Executing Player Thunderbolt attack in battle engine...");
-                        sess.execute_player_attack(0);
-                    }
-                    automation.demo_step = 3;
-                    automation.demo_step_tick = 0;
-                }
-            }
-            3 => {
-                // Step 3: Battle Action Execution (Attack damage)
-                if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 3: Thunderbolt impacts Wild Pikachu! Dynamic action angle.");
-                    camera_ctrl.yaw = 0.85;
-                    camera_ctrl.pitch = 0.15;
-                    camera_ctrl.distance = 4.2;
-                }
-                if automation.demo_step_tick == 15 {
-                    let shot = demo_dir.join("04_battle_attack_action.png");
-                    write_demo_log(&format!("Capturing 04_battle_attack_action.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
-                }
-                if automation.demo_step_tick >= 25 {
-                    // Attempt Poke Ball capture
-                    if let Some(ref mut sess) = session {
-                        sess.selected_menu_idx = 3;
-                        if let Some(ref db) = battle_db.0 {
-                            write_demo_log("Executing in-battle capture attempt with Poke Ball...");
-                            let _ = sess.attempt_capture_in_battle(db);
+                        for line in pla::game::battle_demo::run_beat(sess, beat) {
+                            write_demo_log(&format!("  log: {line}"));
                         }
                     }
-                    automation.demo_step = 4;
-                    automation.demo_step_tick = 0;
-                }
-            }
-            4 => {
-                // Step 4: Battle Capture Attempt Outcome
-                if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 4: Poke Ball thrown at Wild Pikachu! Evaluating capture roll.");
                 }
                 if automation.demo_step_tick == 15 {
-                    let shot = demo_dir.join("05_battle_capture_attempt.png");
-                    write_demo_log(&format!("Capturing 05_battle_capture_attempt.png to {}", shot.display()));
+                    let shot = demo_dir.join(beat.frame);
+                    write_demo_log(&format!("Capturing {} to {}", beat.frame, shot.display()));
                     commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
-                    // End battle and return to World
-                    for mut wild in &mut wild_query {
-                        wild.defeated = true;
+                    if step == 5 {
+                        // End battle and return to World
+                        for mut wild in &mut wild_query {
+                            wild.defeated = true;
+                        }
+                        commands.remove_resource::<ActiveBattleSession>();
+                        next_state.set(GameState::World);
                     }
-                    commands.remove_resource::<ActiveBattleSession>();
-                    next_state.set(GameState::World);
-                    automation.demo_step = 5;
+                    automation.demo_step = step + 1;
                     automation.demo_step_tick = 0;
                 }
             }
-            5 => {
-                // Step 5: Return to World state after battle resolution
+            6 => {
+                // Step 6: Return to World state after battle resolution
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 5: Returning to GameState::World with active World HUD.");
+                    write_demo_log("Step 6: Returning to GameState::World with active World HUD.");
                     camera_ctrl.yaw = 0.15;
                     camera_ctrl.pitch = 0.28;
                     camera_ctrl.distance = 5.5;
@@ -2117,13 +2017,8 @@ fn automated_tick_driver(
                         }
                     }
                 }
-                if automation.demo_step_tick == 15 {
-                    let shot = demo_dir.join("06_world_return.png");
-                    write_demo_log(&format!("Capturing 06_world_return.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
-                }
                 if automation.demo_step_tick >= 25 {
-                    write_demo_log("Auto-demo playthrough finished successfully with 6 screenshots.");
+                    write_demo_log("Auto-demo playthrough finished successfully with 4 battle screenshots.");
                     exit.write(AppExit::Success);
                 }
             }
