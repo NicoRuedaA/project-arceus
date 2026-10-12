@@ -3,7 +3,7 @@
 //! The module emits JSON plus one binary buffer. It does not infer missing
 //! TR attributes, material bindings, skeleton associations, or animation data.
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::path::Path;
 
 const ARRAY_BUFFER: u32 = 34_962;
@@ -77,6 +77,286 @@ pub struct GltfExport {
     pub nodes: Vec<GltfNode>,
     pub skins: Vec<GltfSkin>,
     pub animations: Vec<(String, Vec<GltfAnimationTrack>)>,
+}
+
+/// Decode a validated TR mesh to a glTF primitive. Normals are generated from
+/// its triangle list; UV0 is accepted only from the proven TRMSH ID 6 layout.
+pub fn primitive_from_tr(
+    name: impl Into<String>,
+    mesh: &super::tr::TrMbf,
+    bytes: &[u8],
+    skeleton: Option<&super::tr::TrSkl>,
+    material: Option<usize>,
+) -> Result<GltfPrimitive, String> {
+    let layout = mesh
+        .layout
+        .as_ref()
+        .ok_or("glTF export requires a validated TRMSH layout")?;
+    let position = layout
+        .attributes
+        .iter()
+        .find(|a| a.id == 1)
+        .ok_or("TRMSH has no proven position attribute")?;
+    if position.format_code != 51 || position.byte_size != 12 {
+        return Err("unsupported TR position encoding for glTF".into());
+    }
+    let uv = layout
+        .attributes
+        .iter()
+        .find(|a| a.id == 6)
+        .ok_or("TRMSH has no proven UV0 attribute")?;
+    if uv.format_code != 48 || uv.offset != 28 || uv.byte_size != 8 {
+        return Err("unsupported TR UV0 encoding for glTF".into());
+    }
+    let mut positions = Vec::with_capacity(mesh.vertex_count);
+    let mut texcoords = Vec::with_capacity(mesh.vertex_count);
+    for vertex in 0..mesh.vertex_count {
+        positions.push(
+            mesh.position(bytes, vertex)
+                .ok_or("TR vertex position unavailable")?,
+        );
+        texcoords.push(mesh.uv(bytes, vertex).ok_or("TR UV0 unavailable")?);
+    }
+    let normals = compute_vertex_normals(&positions, &mesh.indices)?;
+    let (joints, weights) = if let Some(skeleton) = skeleton {
+        let mut joints = Vec::with_capacity(mesh.vertex_count);
+        let mut weights = Vec::with_capacity(mesh.vertex_count);
+        for vertex in 0..mesh.vertex_count {
+            let influence = mesh.skin_influences(bytes, vertex, skeleton)?;
+            joints.push(influence.rig_indices.map(u16::from));
+            weights.push(influence.unorm_weights());
+        }
+        (Some(joints), Some(weights))
+    } else {
+        (None, None)
+    };
+    Ok(GltfPrimitive {
+        name: name.into(),
+        positions,
+        normals,
+        texcoords,
+        indices: mesh.indices.iter().copied().map(u32::from).collect(),
+        joints,
+        weights,
+        material,
+    })
+}
+
+fn compute_vertex_normals(
+    positions: &[[f32; 3]],
+    indices: &[u16],
+) -> Result<Vec<[f32; 3]>, String> {
+    if indices.is_empty() || !indices.len().is_multiple_of(3) {
+        return Err("TR normal generation requires triangle-list indices".into());
+    }
+    let mut normals = vec![[0.0; 3]; positions.len()];
+    for tri in indices.chunks_exact(3) {
+        let a = *positions
+            .get(tri[0] as usize)
+            .ok_or("TR normal index outside vertex array")?;
+        let b = *positions
+            .get(tri[1] as usize)
+            .ok_or("TR normal index outside vertex array")?;
+        let c = *positions
+            .get(tri[2] as usize)
+            .ok_or("TR normal index outside vertex array")?;
+        let u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+        let v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+        let n = [
+            u[1] * v[2] - u[2] * v[1],
+            u[2] * v[0] - u[0] * v[2],
+            u[0] * v[1] - u[1] * v[0],
+        ];
+        for index in tri {
+            for axis in 0..3 {
+                normals[*index as usize][axis] += n[axis];
+            }
+        }
+    }
+    for normal in &mut normals {
+        let len = normal.iter().map(|v| v * v).sum::<f32>().sqrt();
+        if !len.is_finite() || len <= f32::EPSILON {
+            return Err("TR mesh has an isolated/degenerate vertex normal".into());
+        }
+        for v in normal {
+            *v /= len;
+        }
+    }
+    Ok(normals)
+}
+
+/// Build the proven zero-pivot reference node hierarchy and authored inverse
+/// bind records. The adapter rejects unsupported residuals rather than
+/// substituting computed inverse rest matrices.
+pub fn skeleton_from_tr(
+    skeleton: &super::tr::TrSkl,
+    bind_records: &[super::tr::TrSklBindRecord],
+    mesh_index: usize,
+    skin_index: usize,
+) -> Result<(Vec<GltfNode>, GltfSkin), String> {
+    let adapter = super::tr::BevyTrSkeleton::from_tr(skeleton, bind_records, 1.0e-4)?;
+    let mut nodes = Vec::with_capacity(skeleton.nodes.len() + 1);
+    for (index, source) in skeleton.nodes.iter().enumerate() {
+        let transform = adapter.local_transforms[index];
+        let children = skeleton
+            .nodes
+            .iter()
+            .enumerate()
+            .filter_map(|(child, node)| (node.parent == Some(index)).then_some(child))
+            .collect();
+        nodes.push(GltfNode {
+            name: source.name.clone(),
+            children,
+            mesh: None,
+            skin: None,
+            translation: transform.translation.to_array(),
+            rotation: transform.rotation.to_array(),
+            scale: transform.scale.to_array(),
+        });
+    }
+    let root = skeleton
+        .nodes
+        .iter()
+        .position(|node| node.parent.is_none())
+        .ok_or("TR skeleton has no root")?;
+    nodes.push(GltfNode {
+        name: "skinned_mesh".into(),
+        children: Vec::new(),
+        mesh: Some(mesh_index),
+        skin: Some(skin_index),
+        translation: [0.0; 3],
+        rotation: [0.0, 0.0, 0.0, 1.0],
+        scale: [1.0; 3],
+    });
+    let matrices = adapter
+        .inverse_bindposes
+        .iter()
+        .map(|m| m.to_cols_array())
+        .collect();
+    Ok((
+        nodes,
+        GltfSkin {
+            name: "tr_skin".into(),
+            joints: adapter.rig_to_node,
+            inverse_bind_matrices: matrices,
+            skeleton: Some(root),
+        },
+    ))
+}
+
+/// Convert discrete TR records using the same first-duplicate and packed-
+/// quaternion reference policy as the Bevy adapter. No missing-frame
+/// interpolation is invented: glTF linearly interpolates the written keys.
+pub fn animation_tracks_from_tr(
+    skeleton: &super::tr::TrSkl,
+    clip: &super::tr::TrAnmClip,
+) -> Result<Vec<GltfAnimationTrack>, String> {
+    if clip.frame_rate == 0 || clip.frame_count == 0 {
+        return Err("TR animation has invalid timing".into());
+    }
+    let nodes = clip.skeleton_nodes(skeleton)?;
+    let mut out = Vec::new();
+    for (track, &node) in clip.tracks.iter().zip(&nodes) {
+        append_vec_channel(
+            &mut out,
+            node,
+            AnimationPath::Translation,
+            &track.translation,
+            clip.frame_count,
+            clip.frame_rate,
+        )?;
+        append_vec_channel(
+            &mut out,
+            node,
+            AnimationPath::Scale,
+            &track.scale,
+            clip.frame_count,
+            clip.frame_rate,
+        )?;
+        track.rotation.reference_records(clip.frame_count)?;
+        let values = first_frame_values(&track.rotation.keys, |key| {
+            super::tr::reference_unpack_rotation(key.value).to_vec()
+        });
+        append_animation_channel(
+            &mut out,
+            node,
+            AnimationPath::Rotation,
+            values,
+            track.rotation.encoding == super::tr::TrAnmEncoding::Fixed,
+            clip.frame_count,
+            clip.frame_rate,
+        )?;
+    }
+    Ok(out)
+}
+
+fn append_vec_channel(
+    out: &mut Vec<GltfAnimationTrack>,
+    node: usize,
+    path: AnimationPath,
+    channel: &super::tr::TrAnmChannel<[f32; 3]>,
+    frame_count: u32,
+    frame_rate: u32,
+) -> Result<(), String> {
+    channel.reference_records(frame_count)?;
+    let values = first_frame_values(&channel.keys, |key| key.value.to_vec());
+    append_animation_channel(
+        out,
+        node,
+        path,
+        values,
+        channel.encoding == super::tr::TrAnmEncoding::Fixed,
+        frame_count,
+        frame_rate,
+    )
+}
+
+fn first_frame_values<T>(
+    keys: &[super::tr::TrAnmKey<T>],
+    map: impl Fn(&super::tr::TrAnmKey<T>) -> Vec<f32>,
+) -> Vec<(u32, Vec<f32>)> {
+    let mut result = Vec::new();
+    for key in keys {
+        if result
+            .last()
+            .is_none_or(|(frame, _): &(u32, Vec<f32>)| *frame != key.frame)
+        {
+            result.push((key.frame, map(key)));
+        }
+    }
+    result
+}
+
+fn append_animation_channel(
+    out: &mut Vec<GltfAnimationTrack>,
+    node: usize,
+    path: AnimationPath,
+    mut frame_values: Vec<(u32, Vec<f32>)>,
+    fixed: bool,
+    frame_count: u32,
+    frame_rate: u32,
+) -> Result<(), String> {
+    if frame_values.is_empty() {
+        return Err("empty TR animation channel".into());
+    }
+    if fixed && frame_values.len() == 1 {
+        frame_values.push((frame_count, frame_values[0].1.clone()));
+    }
+    if frame_values.len() < 2 {
+        return Err("single-sample non-fixed TR channel cannot form glTF animation".into());
+    }
+    let times = frame_values
+        .iter()
+        .map(|(frame, _)| *frame as f32 / frame_rate as f32)
+        .collect();
+    let values = frame_values.into_iter().map(|(_, value)| value).collect();
+    out.push(GltfAnimationTrack {
+        node,
+        path,
+        times,
+        values,
+    });
+    Ok(())
 }
 
 #[derive(Default)]
@@ -188,7 +468,8 @@ impl GltfExport {
                 None,
                 None,
             );
-            let mut attributes = json!({"POSITION": position, "NORMAL": normal, "TEXCOORD_0": texcoord});
+            let mut attributes =
+                json!({"POSITION": position, "NORMAL": normal, "TEXCOORD_0": texcoord});
             if let (Some(joints), Some(weights)) = (&primitive.joints, &primitive.weights) {
                 let joint_data = joints
                     .iter()
@@ -283,7 +564,11 @@ impl GltfExport {
                     AnimationPath::Rotation => "rotation",
                     AnimationPath::Scale => "scale",
                 };
-                let width = if track.path == AnimationPath::Rotation { 4 } else { 3 };
+                let width = if track.path == AnimationPath::Rotation {
+                    4
+                } else {
+                    3
+                };
                 let values = track
                     .values
                     .iter()
@@ -308,7 +593,9 @@ impl GltfExport {
                 );
                 let sampler = samplers.len();
                 samplers.push(json!({"input": input, "output": output, "interpolation": "LINEAR"}));
-                channels.push(json!({"sampler": sampler, "target": {"node": track.node, "path": path}}));
+                channels.push(
+                    json!({"sampler": sampler, "target": {"node": track.node, "path": path}}),
+                );
             }
             animations.push(json!({"name": name, "samplers": samplers, "channels": channels}));
         }
@@ -352,20 +639,37 @@ impl GltfExport {
             "bufferViews": binary.views,
             "accessors": binary.accessors,
         });
-        if !meshes.is_empty() { root["meshes"] = json!(meshes); }
-        if !gltf_materials.is_empty() { root["materials"] = json!(gltf_materials); }
-        if !unique_images.is_empty() {
-            root["images"] = json!(unique_images.iter().map(|uri| json!({"uri": uri})).collect::<Vec<_>>());
-            root["textures"] = json!(unique_images.iter().enumerate().map(|(i, _)| json!({"source": i, "sampler": 0})).collect::<Vec<_>>());
-            root["samplers"] = json!([{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}]);
+        if !meshes.is_empty() {
+            root["meshes"] = json!(meshes);
         }
-        if !skins.is_empty() { root["skins"] = json!(skins); }
-        if !animations.is_empty() { root["animations"] = json!(animations); }
+        if !gltf_materials.is_empty() {
+            root["materials"] = json!(gltf_materials);
+        }
+        if !unique_images.is_empty() {
+            root["images"] = json!(unique_images
+                .iter()
+                .map(|uri| json!({"uri": uri}))
+                .collect::<Vec<_>>());
+            root["textures"] = json!(unique_images
+                .iter()
+                .enumerate()
+                .map(|(i, _)| json!({"source": i, "sampler": 0}))
+                .collect::<Vec<_>>());
+            root["samplers"] =
+                json!([{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}]);
+        }
+        if !skins.is_empty() {
+            root["skins"] = json!(skins);
+        }
+        if !animations.is_empty() {
+            root["animations"] = json!(animations);
+        }
 
         let parent = gltf_path.parent().unwrap_or_else(|| Path::new("."));
         std::fs::create_dir_all(parent).map_err(|e| format!("create glTF directory: {e}"))?;
         std::fs::write(&bin_path, &binary.bytes).map_err(|e| format!("write glTF buffer: {e}"))?;
-        let json_bytes = serde_json::to_vec_pretty(&root).map_err(|e| format!("serialize glTF JSON: {e}"))?;
+        let json_bytes =
+            serde_json::to_vec_pretty(&root).map_err(|e| format!("serialize glTF JSON: {e}"))?;
         std::fs::write(gltf_path, json_bytes).map_err(|e| format!("write glTF JSON: {e}"))?;
         Ok(())
     }
@@ -374,53 +678,122 @@ impl GltfExport {
         let mut child = vec![false; self.nodes.len()];
         for node in &self.nodes {
             for &i in &node.children {
-                if let Some(value) = child.get_mut(i) { *value = true; }
+                if let Some(value) = child.get_mut(i) {
+                    *value = true;
+                }
             }
         }
-        child.iter().enumerate().filter_map(|(i, is_child)| (!is_child).then_some(i)).collect()
+        child
+            .iter()
+            .enumerate()
+            .filter_map(|(i, is_child)| (!is_child).then_some(i))
+            .collect()
     }
 
     fn validate(&self) -> Result<(), String> {
         for primitive in &self.primitives {
             let n = primitive.positions.len();
             if n == 0 || primitive.normals.len() != n || primitive.texcoords.len() != n {
-                return Err("glTF primitive requires matching non-empty position, normal, and UV arrays".into());
+                return Err(
+                    "glTF primitive requires matching non-empty position, normal, and UV arrays"
+                        .into(),
+                );
             }
-            if primitive.indices.is_empty() || !primitive.indices.len().is_multiple_of(3) || primitive.indices.iter().any(|&i| i as usize >= n) {
+            if primitive.indices.is_empty()
+                || !primitive.indices.len().is_multiple_of(3)
+                || primitive.indices.iter().any(|&i| i as usize >= n)
+            {
                 return Err("glTF primitive indices must be an in-range triangle list".into());
             }
-            if primitive.positions.iter().flatten().chain(primitive.normals.iter().flatten()).chain(primitive.texcoords.iter().flatten()).any(|v| !v.is_finite()) {
+            if primitive
+                .positions
+                .iter()
+                .flatten()
+                .chain(primitive.normals.iter().flatten())
+                .chain(primitive.texcoords.iter().flatten())
+                .any(|v| !v.is_finite())
+            {
                 return Err("glTF primitive contains non-finite vertex values".into());
             }
             match (&primitive.joints, &primitive.weights) {
                 (Some(j), Some(w)) if j.len() == n && w.len() == n => {
-                    if w.iter().flatten().any(|v| !v.is_finite() || *v < 0.0) { return Err("invalid glTF joint weights".into()); }
+                    if w.iter().flatten().any(|v| !v.is_finite() || *v < 0.0) {
+                        return Err("invalid glTF joint weights".into());
+                    }
                 }
                 (None, None) => {}
-                _ => return Err("glTF skin attributes must be paired and match vertex count".into()),
+                _ => {
+                    return Err("glTF skin attributes must be paired and match vertex count".into())
+                }
             }
-            if primitive.material.is_some_and(|m| m >= self.materials.len()) { return Err("glTF primitive material index out of range".into()); }
+            if primitive
+                .material
+                .is_some_and(|m| m >= self.materials.len())
+            {
+                return Err("glTF primitive material index out of range".into());
+            }
         }
         for material in &self.materials {
-            for uri in [&material.base_color_uri, &material.normal_uri].into_iter().flatten() {
-                if uri.is_empty() || uri.starts_with('/') || uri.contains("..") { return Err("glTF image URI must be a non-empty safe relative path".into()); }
+            for uri in [&material.base_color_uri, &material.normal_uri]
+                .into_iter()
+                .flatten()
+            {
+                if uri.is_empty() || uri.starts_with('/') || uri.contains("..") {
+                    return Err("glTF image URI must be a non-empty safe relative path".into());
+                }
             }
         }
         for (i, node) in self.nodes.iter().enumerate() {
-            if node.children.iter().any(|&c| c >= self.nodes.len() || c == i) || node.mesh.is_some_and(|m| m >= self.primitives.len()) || node.skin.is_some_and(|s| s >= self.skins.len()) {
+            if node
+                .children
+                .iter()
+                .any(|&c| c >= self.nodes.len() || c == i)
+                || node.mesh.is_some_and(|m| m >= self.primitives.len())
+                || node.skin.is_some_and(|s| s >= self.skins.len())
+            {
                 return Err("glTF node reference out of range".into());
             }
-            if node.translation.iter().chain(node.rotation.iter()).chain(node.scale.iter()).any(|v| !v.is_finite()) { return Err("non-finite glTF node transform".into()); }
+            if node
+                .translation
+                .iter()
+                .chain(node.rotation.iter())
+                .chain(node.scale.iter())
+                .any(|v| !v.is_finite())
+            {
+                return Err("non-finite glTF node transform".into());
+            }
         }
         for skin in &self.skins {
-            if skin.joints.is_empty() || skin.joints.len() != skin.inverse_bind_matrices.len() || skin.joints.iter().any(|&n| n >= self.nodes.len()) || skin.skeleton.is_some_and(|n| n >= self.nodes.len()) || skin.inverse_bind_matrices.iter().flatten().any(|v| !v.is_finite()) {
+            if skin.joints.is_empty()
+                || skin.joints.len() != skin.inverse_bind_matrices.len()
+                || skin.joints.iter().any(|&n| n >= self.nodes.len())
+                || skin.skeleton.is_some_and(|n| n >= self.nodes.len())
+                || skin
+                    .inverse_bind_matrices
+                    .iter()
+                    .flatten()
+                    .any(|v| !v.is_finite())
+            {
                 return Err("invalid glTF skin nodes or inverse bind matrices".into());
             }
         }
         for (_, tracks) in &self.animations {
             for track in tracks {
-                let width = if track.path == AnimationPath::Rotation { 4 } else { 3 };
-                if track.node >= self.nodes.len() || track.times.len() < 2 || track.times.len() != track.values.len() || track.times.iter().any(|v| !v.is_finite()) || track.times.windows(2).any(|v| v[0] >= v[1]) || track.values.iter().any(|v| v.len() != width || v.iter().any(|x| !x.is_finite())) {
+                let width = if track.path == AnimationPath::Rotation {
+                    4
+                } else {
+                    3
+                };
+                if track.node >= self.nodes.len()
+                    || track.times.len() < 2
+                    || track.times.len() != track.values.len()
+                    || track.times.iter().any(|v| !v.is_finite())
+                    || track.times.windows(2).any(|v| v[0] >= v[1])
+                    || track
+                        .values
+                        .iter()
+                        .any(|v| v.len() != width || v.iter().any(|x| !x.is_finite()))
+                {
                     return Err("invalid glTF animation track".into());
                 }
             }
@@ -432,6 +805,10 @@ impl GltfExport {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::assets::tr::{
+        TrAnmBoneTrack, TrAnmChannel, TrAnmClip, TrAnmEncoding, TrAnmKey, TrSkl, TrSklNode,
+        TrSklTransform,
+    };
 
     #[test]
     fn writes_valid_minimal_triangle_gltf_and_binary() {
@@ -454,9 +831,85 @@ mod tests {
         let root: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         let bin = std::fs::read(dir.join("triangle.bin")).unwrap();
         assert_eq!(root["asset"]["version"], "2.0");
-        assert_eq!(root["buffers"][0]["byteLength"].as_u64(), Some(bin.len() as u64));
-        assert_eq!(root["meshes"][0]["primitives"][0]["attributes"]["POSITION"], 0);
+        assert_eq!(
+            root["buffers"][0]["byteLength"].as_u64(),
+            Some(bin.len() as u64)
+        );
+        assert_eq!(
+            root["meshes"][0]["primitives"][0]["attributes"]["POSITION"],
+            0
+        );
         assert!(bin.len() > 3 * 3 * 4);
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn converts_discrete_tr_animation_records_to_glb_times_and_paths() {
+        let skeleton = TrSkl {
+            bones: vec!["root".into()],
+            offsets: vec![0],
+            nodes: vec![TrSklNode {
+                name: "root".into(),
+                locator: None,
+                local: TrSklTransform {
+                    scale: [1.0; 3],
+                    rotation: [0.0; 3],
+                    translation: [0.0; 3],
+                },
+                scale_pivot: [0.0; 3],
+                rotate_pivot: [0.0; 3],
+                parent: None,
+                rig_index: Some(0),
+            }],
+            bind_count: 1,
+            root_flag: 0,
+        };
+        let vec_channel = |a, b| TrAnmChannel {
+            encoding: TrAnmEncoding::Dense,
+            keys: vec![
+                TrAnmKey { frame: 0, value: a },
+                TrAnmKey { frame: 1, value: b },
+            ],
+        };
+        let clip = TrAnmClip {
+            loops: false,
+            frame_count: 2,
+            frame_rate: 20,
+            tracks: vec![TrAnmBoneTrack {
+                name: "root".into(),
+                scale: vec_channel([1.0; 3], [2.0; 3]),
+                rotation: TrAnmChannel {
+                    encoding: TrAnmEncoding::Dense,
+                    keys: vec![
+                        TrAnmKey {
+                            frame: 0,
+                            value: [0; 3],
+                        },
+                        TrAnmKey {
+                            frame: 1,
+                            value: [0; 3],
+                        },
+                    ],
+                },
+                translation: vec_channel([0.0; 3], [1.0, 2.0, 3.0]),
+            }],
+        };
+        let tracks = animation_tracks_from_tr(&skeleton, &clip).unwrap();
+        assert_eq!(tracks.len(), 3);
+        let translation = tracks
+            .iter()
+            .find(|t| t.path == AnimationPath::Translation)
+            .unwrap();
+        assert_eq!(translation.times, vec![0.0, 0.05]);
+        assert_eq!(translation.values[1], vec![1.0, 2.0, 3.0]);
+        assert_eq!(
+            tracks
+                .iter()
+                .find(|t| t.path == AnimationPath::Rotation)
+                .unwrap()
+                .values[0]
+                .len(),
+            4
+        );
     }
 }
