@@ -11,6 +11,7 @@
 //!
 //! Usage: player_export <archive/chara/data dir> <out dir> [--variant p1|p2] [--parts stem,stem,..]
 //!        [--name <output stem>] [--index <tsv>]
+//!        [--hair-color R,G,B|name] [--eye-color R,G,B|name] [--skin-tone N] [--no-hair-eye-color]
 
 use pla::assets::{
     gfpak::GfPak,
@@ -55,6 +56,54 @@ fn category_dir(stem: &str) -> Result<&'static str, String> {
         "eyew" => "eyewear",
         other => return Err(format!("unknown part category code {other}")),
     })
+}
+
+/// The 15 hair colour names of `appli/table/hair/hair_color_table.bin` (ids hair_color_01..15,
+/// names only: the RGB values are NOT in the game data found). RGB below is ASSUMED, picked to
+/// match the names; used by `--hair-color <name>`.
+const HAIR_PALETTE: &[(&str, [u8; 3])] = &[
+    ("darkbrown", [72, 48, 34]),
+    ("darknavy", [28, 34, 62]),
+    ("platinumbrown", [150, 112, 82]),
+    ("black", [30, 28, 30]),
+    ("white", [235, 232, 226]),
+    ("red", [170, 48, 40]),
+    ("navy", [48, 70, 130]),
+    ("turquoise", [60, 170, 170]),
+    ("violet", [130, 80, 160]),
+    ("orange", [220, 130, 50]),
+    ("peach", [240, 170, 150]),
+    ("milk", [220, 190, 160]),
+    ("skyblue", [120, 180, 230]),
+    ("gray", [150, 150, 155]),
+    ("blond", [225, 190, 100]),
+];
+
+/// Eye colour names seen in the dressup table face variants (`p?_face0001_00_default_<name>`),
+/// RGB ASSUMED. The first listed variant after the plain one is `white`; the plain default has no colour name.
+const EYE_PALETTE: &[(&str, [u8; 3])] = &[
+    ("brown", [90, 58, 36]),
+    ("hazel", [130, 95, 50]),
+    ("black", [30, 26, 26]),
+    ("gray", [130, 135, 140]),
+    ("blue", [60, 100, 190]),
+    ("ultramarine", [40, 60, 170]),
+    ("green", [60, 150, 80]),
+    ("yellowgreen", [150, 185, 60]),
+    ("yellow", [225, 200, 60]),
+    ("red", [190, 50, 50]),
+    ("poppyred", [215, 70, 60]),
+    ("purple", [130, 70, 160]),
+    ("lavender", [175, 150, 215]),
+    ("white", [235, 235, 235]),
+];
+
+fn parse_color(spec: &str, palette: &[(&str, [u8; 3])]) -> Result<[u8; 3], String> {
+    if let Some((_, rgb)) = palette.iter().find(|(n, _)| *n == spec) {
+        return Ok(*rgb);
+    }
+    let v: Vec<u8> = spec.split(',').map(|c| c.trim().parse::<u8>()).collect::<Result<_, _>>().map_err(|_| format!("bad colour {spec:?}: use R,G,B (0-255) or a palette name"))?;
+    <[u8; 3]>::try_from(v).map_err(|_| format!("bad colour {spec:?}: need exactly 3 components"))
 }
 
 fn default_parts(v: &str) -> Vec<String> {
@@ -120,8 +169,17 @@ fn export_variant(
     skeleton_bytes: &[u8],
     verbose: bool,
     options: PlayerExportOptions,
+    no_colors: bool,
     clips: &[(String, tr::TrAnmClip)],
 ) -> Result<Row, String> {
+    let mut options = options;
+    // ASSUMED defaults (no RGB in the data): franchise protagonists, dark brown (p1) / light brown (p2).
+    if options.hair_rgb.is_none() && !no_colors {
+        options.hair_rgb = Some(if v == "p1" { HAIR_PALETTE[0].1 } else { HAIR_PALETTE[2].1 });
+    }
+    if options.eye_rgb.is_none() && !no_colors {
+        options.eye_rgb = Some(EYE_PALETTE[0].1);
+    }
     let stems = parts_override.cloned().unwrap_or_else(|| default_parts(v));
     let out_name = name.map_or_else(|| format!("{v}_default"), str::to_owned);
     let mut models = Vec::new();
@@ -239,10 +297,15 @@ fn main() -> Result<(), String> {
         .map(|(_, rgb)| rgb)
         .collect();
     println!("skin_color_table rows: {skin_rows:?}");
-    let skin_index = opt("--skin").map_or(Some(0), |s| s.parse::<usize>().ok());
+    let no_colors = args.iter().any(|a| a == "--no-hair-eye-color");
+    let hair_rgb = opt("--hair-color").map(|c| parse_color(&c, HAIR_PALETTE)).transpose()?;
+    let eye_rgb = opt("--eye-color").map(|c| parse_color(&c, EYE_PALETTE)).transpose()?;
+    let skin_index = opt("--skin-tone").or_else(|| opt("--skin")).map_or(Some(0), |s| s.parse::<usize>().ok());
     let options = PlayerExportOptions {
         skip_hidden: args.iter().any(|a| a == "--skip-hide"),
         skin_rgb: if args.iter().any(|a| a == "--no-skin-tone") { None } else { skin_index.and_then(|i| skin_rows.get(i).copied()) },
+        hair_rgb,
+        eye_rgb,
     };
 
     // Shared skeleton: the p2 base pack is the only one that carries a trskl.
@@ -283,7 +346,7 @@ fn main() -> Result<(), String> {
 
     let mut rows = Vec::new();
     for v in &variants {
-        match export_variant(&chara, &out_root, v, parts_override.as_ref(), name.as_deref(), &skeleton_bytes, verbose, options, &clips) {
+        match export_variant(&chara, &out_root, v, parts_override.as_ref(), name.as_deref(), &skeleton_bytes, verbose, options, no_colors, &clips) {
             Ok(row) => rows.push(row),
             Err(e) => {
                 println!("{v}: BLOCKED {e}");
