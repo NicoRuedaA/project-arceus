@@ -4,6 +4,7 @@ pub mod ahtb;
 pub mod bntx;
 pub mod event_list;
 pub mod gfpak;
+pub mod gfpak_paths;
 pub mod gltf_export;
 pub mod message;
 pub mod pokemon_model;
