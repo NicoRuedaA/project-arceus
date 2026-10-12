@@ -1,5 +1,7 @@
 # Plan para tener el juego «completo»
 
+> Briefs detallados para agentes de IA (un brief por cada punto numerado de la lista de abajo, con la misma numeración 1 a 43): [`briefs-agentes.md`](briefs-agentes.md).
+
 Documento escrito el 2026-10-12. Está en español porque lo pidió el usuario para su propio uso.
 
 **Qué significa «completo» aquí:** el juego jugable en el motor propio (Bevy), con mapas, criaturas, reglas, objetos y gráficos. **No incluye** la historia, las misiones ni los textos, ni nada del motor, el SDK o las librerías de Nintendo (decisión del usuario).
