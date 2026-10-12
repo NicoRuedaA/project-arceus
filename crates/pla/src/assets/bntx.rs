@@ -33,7 +33,7 @@
 //! the port deswizzles with `tegra_swizzle` before decoding blocks. Tile mode 1
 //! is linear.
 
-use tegra_swizzle::surface::{deswizzle_surface, BlockDim};
+use tegra_swizzle::surface::{BlockDim, deswizzle_surface};
 
 /// The texture formats the port decodes, plus a catch-all for the rest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,6 +47,8 @@ pub enum BntxFormat {
     Bc7,
     R8,
     R8G8,
+    /// 0x0e01: one unsigned normalized 16-bit channel.
+    R16Unorm,
     Rgba8,
     Rgba8Srgb,
     /// 0x0a05: one IEEE-754 binary16 float per pixel (terrain heightmaps).
@@ -73,6 +75,7 @@ impl BntxFormat {
             0x2001 | 0x2006 => BntxFormat::Bc7,
             0x0201 => BntxFormat::R8,
             0x0901 => BntxFormat::R8G8,
+            0x0e01 => BntxFormat::R16Unorm,
             0x0b01 => BntxFormat::Rgba8,
             0x0b06 => BntxFormat::Rgba8Srgb,
             0x0a05 => BntxFormat::R16Float,
@@ -94,6 +97,7 @@ impl BntxFormat {
             BntxFormat::Bc7 => 0x2001,
             BntxFormat::R8 => 0x0201,
             BntxFormat::R8G8 => 0x0901,
+            BntxFormat::R16Unorm => 0x0e01,
             BntxFormat::Rgba8 => 0x0b01,
             BntxFormat::Rgba8Srgb => 0x0b06,
             BntxFormat::R16Float => 0x0a05,
@@ -115,6 +119,7 @@ impl BntxFormat {
             BntxFormat::Bc7 => "BC7_UNORM",
             BntxFormat::R8 => "R8_UNORM",
             BntxFormat::R8G8 => "R8_G8_UNORM",
+            BntxFormat::R16Unorm => "R16_UNORM",
             BntxFormat::Rgba8 => "R8_G8_B8_A8_UNORM",
             BntxFormat::Rgba8Srgb => "R8_G8_B8_A8_SRGB",
             BntxFormat::R16Float => "R16_FLOAT",
@@ -135,7 +140,7 @@ impl BntxFormat {
             | BntxFormat::Bc6
             | BntxFormat::Bc7 => (4, 4, 16),
             BntxFormat::R8 => (1, 1, 1),
-            BntxFormat::R8G8 => (1, 1, 2),
+            BntxFormat::R8G8 | BntxFormat::R16Unorm => (1, 1, 2),
             BntxFormat::Rgba8 | BntxFormat::Rgba8Srgb => (1, 1, 4),
             BntxFormat::R16Float => (1, 1, 2),
             BntxFormat::R32Float => (1, 1, 4),
@@ -365,7 +370,7 @@ impl BntxTexture {
                 return Err(format!(
                     "not a supported float height format: {:#x}",
                     self.format.code()
-                ))
+                ));
             }
         };
         let mip0 = self
@@ -551,6 +556,18 @@ impl BntxTexture {
                             rgba[o + 1] = linear[s + 1];
                             rgba[o + 2] = 0;
                             rgba[o + 3] = 255;
+                        }
+                        BntxFormat::R16Float => {
+                            let value = float_to_u8(half_to_f32(u16le(&linear, s)));
+                            rgba[o..o + 4].copy_from_slice(&[value, value, value, 255]);
+                        }
+                        BntxFormat::R16Unorm => {
+                            let value = (u16le(&linear, s) >> 8) as u8;
+                            rgba[o..o + 4].copy_from_slice(&[value, value, value, 255]);
+                        }
+                        BntxFormat::R32Float => {
+                            let value = float_to_u8(f32_at(&linear, s));
+                            rgba[o..o + 4].copy_from_slice(&[value, value, value, 255]);
                         }
                         BntxFormat::Rg32Float => {
                             rgba[o] = float_to_u8(f32_at(&linear, s));

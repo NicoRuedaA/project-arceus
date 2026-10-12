@@ -140,14 +140,14 @@ impl TerrainArea {
 }
 
 impl TerrainArea {
-    /// Load `field/terrain/ha_areaNN.gfpak` from the extracted game `bin/` root.
+    /// Load `archive/field/terrain/ha_areaNN.gfpak` from the extracted game `bin/` root.
     pub fn load(bin_root: impl AsRef<Path>, area: u8) -> Result<Self, String> {
         if area > 6 {
             return Err(format!("area must be in 0..=6, got {area}"));
         }
         let source_path = bin_root
             .as_ref()
-            .join("field/terrain")
+            .join("archive/field/terrain")
             .join(format!("ha_area{area:02}.gfpak"));
         Self::load_pack(&source_path, area)
     }
@@ -161,9 +161,15 @@ impl TerrainArea {
         let bytes = std::fs::read(&source_path)
             .map_err(|e| format!("read terrain pack {}: {e}", source_path.display()))?;
         let pack = GfPak::parse(&bytes)?;
-        let tile_prefix = format!("area{area:02}_0_0");
+        // The seventh pack names its one terrain cell `terrain_1_1`; areas
+        // 00–05 use `areaNN_0_0` in their BNTX names.
+        let tile_prefix = if area == 6 {
+            "terrain_1_1".to_owned()
+        } else {
+            format!("area{area:02}_0_0")
+        };
         let expected_height = format!("{tile_prefix}_heightmap");
-        let expected_normal = format!("{tile_prefix}_normalmap");
+        let expected_normal = format!("{tile_prefix}_normal");
         let expected_splat = format!("{tile_prefix}_splat_alpha0");
 
         let mut heightmap = None;
@@ -228,7 +234,7 @@ impl TerrainArea {
             }
         }
 
-        let material = choose_material(material_candidates, &tile_prefix)?;
+        let material = choose_material(material_candidates)?;
         let mut ground_textures = HashMap::new();
         let mut unresolved_ground_textures = Vec::new();
         if let Some(material) = &material {
@@ -276,21 +282,41 @@ impl TerrainArea {
 }
 
 fn choose_material(
-    mut candidates: Vec<(Vec<u8>, TrMtr, usize)>,
-    tile_prefix: &str,
+    candidates: Vec<(Vec<u8>, TrMtr, usize)>,
 ) -> Result<Option<TerrainMaterial>, String> {
     if candidates.is_empty() {
         return Ok(None);
     }
-    candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.2));
-    let best_score = candidates[0].2;
-    if best_score == 0 && candidates.len() != 1 {
+    let best_score = candidates
+        .iter()
+        .map(|candidate| candidate.2)
+        .max()
+        .unwrap_or(0);
+    let mut best: Vec<_> = candidates
+        .into_iter()
+        .filter(|candidate| candidate.2 == best_score)
+        .collect();
+    // Main field packs can include duplicate material variants whose opaque
+    // bytes differ but whose parsed texture bindings and parameter candidates
+    // are identical. Coalesce only when all currently exposed facts agree.
+    let mut unique = Vec::new();
+    for candidate in best.drain(..) {
+        let parameters = material_parameter_candidates(&candidate.0);
+        if !unique.iter().any(|existing: &(Vec<u8>, TrMtr, usize)| {
+            existing.1 == candidate.1 && material_parameter_candidates(&existing.0) == parameters
+        }) {
+            unique.push(candidate);
+        }
+    }
+    if best_score == 0 && unique.len() != 1 {
         return Ok(None);
     }
-    if candidates.len() > 1 && candidates[1].2 == best_score {
-        return Err(format!("ambiguous TRMTR candidates for {tile_prefix}"));
+    if unique.len() > 1 {
+        // Do not bind one of several different top-scoring materials by entry
+        // order; callers still get the terrain maps and can report the gap.
+        return Ok(None);
     }
-    let (bytes, slots, _) = candidates.remove(0);
+    let (bytes, slots, _) = unique.remove(0);
     Ok(Some(TerrainMaterial {
         parameter_candidates: material_parameter_candidates(&bytes),
         slots,
@@ -554,15 +580,54 @@ mod tests {
             .unwrap_or_else(|| {
                 PathBuf::from("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
             });
-        if !bin_root.join("field/terrain/ha_area00.gfpak").is_file() {
+        if !(0..=6).all(|area| {
+            bin_root
+                .join("archive/field/terrain")
+                .join(format!("ha_area{area:02}.gfpak"))
+                .is_file()
+        }) {
             eprintln!(
-                "[skip] PLA ha_area00.gfpak unavailable under {}",
+                "[skip] one or more terrain packs unavailable under {}/archive/field/terrain",
                 bin_root.display()
             );
             return;
         }
-        let area = TerrainArea::load(&bin_root, 0).expect("load area 00 terrain assets");
-        assert_eq!(area.heightmap.width, 1025);
-        assert_eq!(area.heightmap.height, 1025);
+        for area_number in 0..=6 {
+            let area = TerrainArea::load(&bin_root, area_number)
+                .unwrap_or_else(|error| panic!("load area {area_number:02}: {error}"));
+            assert!(area.heightmap.width >= 1025);
+            assert_eq!(area.heightmap.width, area.heightmap.height);
+            assert_eq!(
+                area.heightmap.samples.len(),
+                (area.heightmap.width * area.heightmap.height) as usize
+            );
+            assert!(area.normal_map.width > 0 && area.normal_map.height > 0);
+            assert!(area.splat_alpha.width > 0 && area.splat_alpha.height > 0);
+            assert!(
+                area.material.is_some() || area_number == 6,
+                "area {area_number:02} has no uniquely identified material"
+            );
+            assert!(
+                area.masks.is_empty()
+                    || area
+                        .masks
+                        .iter()
+                        .all(|mask| mask.bytes.len() == 4096 * 4096)
+            );
+            eprintln!(
+                "area{area_number:02}: {}x{} heights, {}x{} normals, {}x{} splat, {} material slots, {} unresolved textures, {} masks",
+                area.heightmap.width,
+                area.heightmap.height,
+                area.normal_map.width,
+                area.normal_map.height,
+                area.splat_alpha.width,
+                area.splat_alpha.height,
+                area.material
+                    .as_ref()
+                    .map_or(0, |material| material.slots.textures.len()),
+                area.unresolved_ground_textures.len(),
+                area.masks.len(),
+            );
+        }
     }
 }
