@@ -276,10 +276,10 @@ pub fn calculate_non_hp_stat(
     Some((intermediate * nature_modifier).floor().max(0.0) as u32 + ganba_term as u32)
 }
 
-fn read_table<T>(
-    path: impl AsRef<Path>,
-    parse: fn(&[(&str, &str)]) -> Result<T, String>,
-) -> Result<Vec<T>, String> {
+pub(crate) fn read_table<T, F>(path: impl AsRef<Path>, parse: F) -> Result<Vec<T>, String>
+where
+    F: Fn(&[(&str, &str)]) -> Result<T, String>,
+{
     let path = path.as_ref();
     let text = fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
     let mut lines = text
