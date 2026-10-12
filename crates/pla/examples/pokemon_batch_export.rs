@@ -141,7 +141,7 @@ fn main() -> Result<(), String> {
     }
     // Rebuild the index from per-pack status files.
     let mut tsv = String::from(
-        "# sheet: data/pokemon_model_export_index\n# version: 1\n# generator: crates/pla/examples/pokemon_batch_export.rs\n# target: Pokémon Legends: Arceus v262144 Pokémon model packs (baseline plain-albedo glTF export)\npack:string*\tform:string\tstatus:enum\treason:string?\tclip_count:u8\ttexture_count:u8\n",
+        "# sheet: data/pokemon_model_export_index\n# version: 1\n# generator: crates/pla/examples/pokemon_batch_export.rs\n# target: Pokémon Legends: Arceus v262144 Pokémon model packs (glTF export with colours baked from TRMTR layer masks)\npack:string*\tform:string\tstatus:enum\treason:string?\tclip_count:u8\ttexture_count:u8\n",
     );
     for pack in &packs {
         let stem = pack.file_stem().unwrap().to_string_lossy().to_string();

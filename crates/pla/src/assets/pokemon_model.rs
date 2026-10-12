@@ -844,9 +844,14 @@ fn add_static_material(
             .any(|texture| &texture.internal_name == *name)
     });
     let base_uri = match (material, base_name, formula) {
-        (Some(material), Some(_), Some(LayerBlendFormula::MaskLerp)) => Some(
-            save_mask_lerp_base_color(model, material, &mesh.material_binding, gltf_path)?,
-        ),
+        // A block without a layer mask (or an unknown shader layout) keeps the
+        // plain albedo instead of failing the whole export.
+        (Some(material), name, Some(LayerBlendFormula::MaskLerp)) => {
+            match save_mask_lerp_base_color(model, material, &mesh.material_binding, gltf_path) {
+                Ok(uri) => Some(uri),
+                Err(_) => save_texture(model, name, gltf_path)?,
+            }
+        }
         (Some(material), Some(name), Some(formula)) => Some(save_baked_base_color(
             model, material, name, formula, gltf_path,
         )?),

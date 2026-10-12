@@ -1,7 +1,7 @@
 import bpy, sys, os
 from mathutils import Vector
 from pathlib import Path
-root = Path('work/cache/color/batch').resolve()
+root = Path(os.environ.get('ROOT','work/cache/color/batch')).resolve()
 ids = sys.argv[sys.argv.index('--')+1:]
 sc = bpy.context.scene
 sc.render.engine = 'BLENDER_EEVEE'

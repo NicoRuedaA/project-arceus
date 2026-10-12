@@ -127,3 +127,49 @@ pub fn parse_blocks(bytes: &[u8]) -> Vec<MaterialBlock> {
     }
     blocks
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn name(out: &mut Vec<u8>, text: &str) {
+        out.extend((text.len() as u32).to_le_bytes());
+        out.extend(text.as_bytes());
+        out.push(0);
+    }
+
+    fn vec4(out: &mut Vec<u8>, key: &str, v: [f32; 4]) {
+        out.extend(20u32.to_le_bytes());
+        for c in v {
+            out.extend(c.to_le_bytes());
+        }
+        name(out, key);
+    }
+
+    fn block(out: &mut Vec<u8>, mat: &str, first: f32) {
+        for i in 1..=4 {
+            vec4(out, &format!("BaseColorLayer{i}"), [first * i as f32, 0.0, 0.0, 1.0]);
+        }
+        name(out, &format!("{mat}_lym.bntx"));
+        name(out, "LayerMaskMap");
+        name(out, &format!("{mat}_alb.bntx"));
+        name(out, "BaseColorMap");
+        name(out, "EnableNormalMap");
+        name(out, "Standard");
+        name(out, mat);
+    }
+
+    #[test]
+    fn splits_blocks_and_reads_each_blocks_own_layers() {
+        let mut bytes = vec![0u8; 8];
+        block(&mut bytes, "body_a", 0.1);
+        block(&mut bytes, "body_b", 0.2);
+        let blocks = parse_blocks(&bytes);
+        assert_eq!(blocks.len(), 2);
+        assert_eq!(blocks[0].name, "body_a");
+        assert_eq!(blocks[1].name, "body_b");
+        assert_eq!(blocks[0].base_color_layers().unwrap()[1][0], 0.2);
+        assert_eq!(blocks[1].base_color_layers().unwrap()[1][0], 0.4);
+        assert_eq!(blocks[1].texture("LayerMaskMap"), Some("body_b_lym.bntx"));
+    }
+}
