@@ -22,7 +22,7 @@ Left panel is the old placeholder (dark-grey sky, fixed light, no fog); right us
 Water, grass/detail, wind, cloud/star textures binding, probe cubemap IBL, per-weather selection, hour boundaries of slots.
 
 ## Viewer look (render settings, `crates/pla/src/game/render_look.rs`)
-Feedback: the first viewer mapping looked flat next to real game footage (grey haze, no shadows, plain sky, dull foliage). Switch: `--look classic|vivid` (default vivid), `--no-shadows`. DATA stays the source (sun colour/intensity/direction, SubColor, SkyColor0..3, DepthGrad near/far/colour); every number below is ASSUMED/INTERPRETATION chosen by eye against the footage, not decoded.
+Feedback: the first viewer mapping looked flat next to real game footage (grey haze, no shadows, plain sky, dull foliage). Switch: `--look classic|vivid` (default vivid), `--no-shadows`. DATA stays the source (sun colour/intensity/direction, SubColor, SkyColor0..3, DepthGrad near/far/colour); every number below is ASSUMED/INTERPRETATION assumed values tuned against one reference screenshot (decoded data unchanged), not decoded. The night slot is still fairly bright.
 - Sun: vivid 4200 lux per sheet intensity (day 2.8 -> 11.8k lux; classic 2400 -> 6.7k). Default Bevy exposure kept.
 - Ambient: sky-coloured (mid-gradient mixed 35% with white), 1100 cd/m2 x daylight (sun/2.8, floor 0.08), so shadows are soft and bluish. Classic: SubColor x 250.
 - Shadows (vivid): directional shadow map, 4 cascades, 0.3-250 m (first bound 12 m, 20% overlap), 2048 px, depth bias 0.05, normal bias 1.4. Every mesh casts/receives by default; sky and cloud domes are excluded. `--no-shadows` turns them off.
