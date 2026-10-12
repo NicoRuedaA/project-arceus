@@ -445,6 +445,7 @@ dependencies = [
  "bevy_derive",
  "bevy_ecs",
  "bevy_math",
+ "bevy_mesh",
  "bevy_platform",
  "bevy_reflect",
  "bevy_time",
@@ -801,6 +802,7 @@ checksum = "0d17df73b26adfb8be89f0716b8667c60660bdd2d589863b8901caca58c99841"
 dependencies = [
  "async-lock",
  "base64",
+ "bevy_animation",
  "bevy_app",
  "bevy_asset",
  "bevy_camera",
@@ -3496,6 +3498,7 @@ version = "0.1.0"
 dependencies = [
  "bcdec_rs",
  "bevy",
+ "bevy_gltf",
  "mlua",
  "oozextract",
  "phf",
