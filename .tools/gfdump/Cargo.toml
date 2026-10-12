@@ -1,0 +1,12 @@
+[package]
+name = "gfdump"
+version = "0.1.0"
+edition = "2021"
+description = "Dump every entry of a GFLXPACK (Oodle-decoded) to a directory plus an index.tsv; research tool, not part of the port"
+license = "MIT"
+
+# Detach from the repository workspace: this is a standalone research tool.
+[workspace]
+
+[dependencies]
+oozextract = "=0.5.5"
