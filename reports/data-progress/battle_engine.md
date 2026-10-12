@@ -51,6 +51,10 @@ Additive: all new state is private or in new types; a `Battle` without `set_move
 - Stage damage multipliers (x1.5 up, x0.66 down) exist behind `set_stage_multipliers_enabled`, off by default because the notes could not show where the game applies them (UNKNOWN). Speed stages are tracked but not applied to turn order.
 - Not modeled: confusion, trapping, freeze-like and special ailments; type immunities to statuses; charge and recharge turns; targets other than the opposing active combatant or the user; Protect/Counter-style reactive moves; sleep duration. The multi-hit count distribution is UNKNOWN (a uniform roll between min and max is a placeholder).
 
+## Items
+
+Item data and the additive `pla::battle_engine::items` module (healing, cures, revive, PP restore, ball items) are documented in [items.md](items.md).
+
 ## Verification
 
 From the repository root (all cargo commands are memory-scoped):
