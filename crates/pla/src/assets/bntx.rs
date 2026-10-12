@@ -49,6 +49,10 @@ pub enum BntxFormat {
     R8G8,
     Rgba8,
     Rgba8Srgb,
+    /// 0x0a05: one IEEE-754 binary16 float per pixel (terrain heightmaps).
+    R16Float,
+    /// 0x1405: one IEEE-754 binary32 float per pixel (terrain heightmaps).
+    R32Float,
     /// 0x1505: two 32-bit floats per pixel (HDR probe cubemaps).
     Rg32Float,
     /// 0x1905: four 32-bit floats per pixel (HDR probe cubemaps).
@@ -71,6 +75,8 @@ impl BntxFormat {
             0x0901 => BntxFormat::R8G8,
             0x0b01 => BntxFormat::Rgba8,
             0x0b06 => BntxFormat::Rgba8Srgb,
+            0x0a05 => BntxFormat::R16Float,
+            0x1405 => BntxFormat::R32Float,
             0x1505 => BntxFormat::Rg32Float,
             0x1905 => BntxFormat::Rgba32Float,
             other => BntxFormat::Unknown(other),
@@ -90,6 +96,8 @@ impl BntxFormat {
             BntxFormat::R8G8 => 0x0901,
             BntxFormat::Rgba8 => 0x0b01,
             BntxFormat::Rgba8Srgb => 0x0b06,
+            BntxFormat::R16Float => 0x0a05,
+            BntxFormat::R32Float => 0x1405,
             BntxFormat::Rg32Float => 0x1505,
             BntxFormat::Rgba32Float => 0x1905,
             BntxFormat::Unknown(c) => *c,
@@ -109,6 +117,8 @@ impl BntxFormat {
             BntxFormat::R8G8 => "R8_G8_UNORM",
             BntxFormat::Rgba8 => "R8_G8_B8_A8_UNORM",
             BntxFormat::Rgba8Srgb => "R8_G8_B8_A8_SRGB",
+            BntxFormat::R16Float => "R16_FLOAT",
+            BntxFormat::R32Float => "R32_FLOAT",
             BntxFormat::Rg32Float => "R32_G32_FLOAT",
             BntxFormat::Rgba32Float => "R32_G32_B32_A32_FLOAT",
             BntxFormat::Unknown(_) => "unknown",
@@ -127,6 +137,8 @@ impl BntxFormat {
             BntxFormat::R8 => (1, 1, 1),
             BntxFormat::R8G8 => (1, 1, 2),
             BntxFormat::Rgba8 | BntxFormat::Rgba8Srgb => (1, 1, 4),
+            BntxFormat::R16Float => (1, 1, 2),
+            BntxFormat::R32Float => (1, 1, 4),
             BntxFormat::Rg32Float => (1, 1, 8),
             BntxFormat::Rgba32Float => (1, 1, 16),
             BntxFormat::Unknown(_) => (1, 1, 0),
@@ -314,6 +326,24 @@ impl Bntx {
             .ok_or_else(|| format!("texture {index} out of range"))?;
         t.decode(bytes)
     }
+
+    /// Decode mip 0 of a single-channel R16_FLOAT or R32_FLOAT texture without
+    /// quantizing samples through the display-oriented RGBA8 decoder.
+    pub fn decode_f32(&self, bytes: &[u8], index: usize) -> Result<FloatTextureData, String> {
+        let texture = self
+            .textures
+            .get(index)
+            .ok_or_else(|| format!("texture {index} out of range"))?;
+        texture.decode_f32(bytes)
+    }
+}
+
+/// Decoded mip 0 of a single-channel floating-point texture.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FloatTextureData {
+    pub width: u32,
+    pub height: u32,
+    pub samples: Vec<f32>,
 }
 
 impl BntxTexture {
@@ -324,6 +354,76 @@ impl BntxTexture {
             return None;
         }
         Some(u64le(bytes, table + 8 * level))
+    }
+
+    /// Decode mip 0 of a single-channel R16_FLOAT or R32_FLOAT texture.
+    pub fn decode_f32(&self, bytes: &[u8]) -> Result<FloatTextureData, String> {
+        let bytes_per_pixel = match self.format {
+            BntxFormat::R16Float => 2usize,
+            BntxFormat::R32Float => 4usize,
+            _ => {
+                return Err(format!(
+                    "not a supported float height format: {:#x}",
+                    self.format.code()
+                ))
+            }
+        };
+        let mip0 = self
+            .mip_offset(bytes, 0)
+            .ok_or_else(|| "no mip table".to_string())? as usize;
+        if mip0 >= bytes.len() {
+            return Err("mip 0 out of range".into());
+        }
+        let (bw, bh, bpb) = self.format.block();
+        let linear = if self.tile_mode == 1 {
+            bytes[mip0..].to_vec()
+        } else {
+            let block = BlockDim {
+                width: std::num::NonZeroU32::new(bw).unwrap(),
+                height: std::num::NonZeroU32::new(bh).unwrap(),
+                depth: std::num::NonZeroU32::new(1).unwrap(),
+            };
+            deswizzle_surface(
+                self.width,
+                self.height,
+                self.depth.max(1),
+                &bytes[mip0..],
+                block,
+                None,
+                bpb,
+                self.mip_count.max(1) as u32,
+                self.array_count.max(1),
+            )
+            .map_err(|e| format!("deswizzle: {e:?}"))?
+        };
+        let sample_count = (self.width as usize)
+            .checked_mul(self.height as usize)
+            .ok_or("heightmap dimensions overflow")?;
+        let required = sample_count
+            .checked_mul(bytes_per_pixel)
+            .ok_or("heightmap byte size overflow")?;
+        if linear.len() < required {
+            return Err(format!(
+                "heightmap data truncated: need {required}, got {}",
+                linear.len()
+            ));
+        }
+        let samples = match self.format {
+            BntxFormat::R16Float => linear[..required]
+                .chunks_exact(2)
+                .map(|raw| half_to_f32(u16::from_le_bytes([raw[0], raw[1]])))
+                .collect(),
+            BntxFormat::R32Float => linear[..required]
+                .chunks_exact(4)
+                .map(|raw| f32::from_le_bytes(raw.try_into().unwrap()))
+                .collect(),
+            _ => unreachable!(),
+        };
+        Ok(FloatTextureData {
+            width: self.width,
+            height: self.height,
+            samples,
+        })
     }
 
     /// Decode mip 0 to tightly packed RGBA8.
@@ -479,6 +579,27 @@ impl BntxTexture {
     }
 }
 
+fn half_to_f32(bits: u16) -> f32 {
+    let sign = ((bits & 0x8000) as u32) << 16;
+    let exponent = (bits >> 10) & 0x1f;
+    let fraction = (bits & 0x03ff) as u32;
+    let out = match exponent {
+        0 if fraction == 0 => sign,
+        0 => {
+            let mut significand = fraction;
+            let mut shift = 0;
+            while significand & 0x0400 == 0 {
+                significand <<= 1;
+                shift += 1;
+            }
+            sign | (((127 - 14 - shift) as u32) << 23) | ((significand & 0x03ff) << 13)
+        }
+        0x1f => sign | 0x7f80_0000 | (fraction << 13),
+        _ => sign | (((exponent as u32 + 127 - 15) & 0xff) << 23) | (fraction << 13),
+    };
+    f32::from_bits(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -495,6 +616,10 @@ mod tests {
         assert_eq!(BntxFormat::from_code(0x0201), BntxFormat::R8);
         assert_eq!(BntxFormat::from_code(0x1905), BntxFormat::Rgba32Float);
         assert_eq!(BntxFormat::from_code(0x1505), BntxFormat::Rg32Float);
+        assert_eq!(BntxFormat::from_code(0x0a05), BntxFormat::R16Float);
+        assert_eq!(BntxFormat::from_code(0x1405), BntxFormat::R32Float);
+        assert_eq!(BntxFormat::R16Float.block(), (1, 1, 2));
+        assert_eq!(BntxFormat::R32Float.block(), (1, 1, 4));
         assert_eq!(BntxFormat::Rgba32Float.block(), (1, 1, 16));
         assert_eq!(BntxFormat::Rg32Float.block(), (1, 1, 8));
         assert_eq!(BntxFormat::Bc1.block(), (4, 4, 8));
@@ -502,6 +627,54 @@ mod tests {
         assert_eq!(BntxFormat::Rgba8.block(), (1, 1, 4));
         assert!(BntxFormat::Bc7.is_compressed());
         assert!(!BntxFormat::Rgba8.is_compressed());
+    }
+
+    #[test]
+    fn half_float_conversion_handles_normal_subnormal_and_special_values() {
+        assert_eq!(half_to_f32(0x0000), 0.0);
+        assert_eq!(half_to_f32(0x3c00), 1.0);
+        assert_eq!(half_to_f32(0x3800), 0.5);
+        assert_eq!(half_to_f32(0x0001), 2.0f32.powi(-24));
+        assert_eq!(half_to_f32(0x8000), -0.0);
+        assert!(half_to_f32(0x7c00).is_infinite());
+        assert!(half_to_f32(0x7e00).is_nan());
+    }
+
+    #[test]
+    fn float_texture_decoder_preserves_samples_without_rgba_quantization() {
+        let texture = |format| BntxTexture {
+            name: "heightmap".into(),
+            width: 1,
+            height: 1,
+            depth: 1,
+            mip_count: 1,
+            array_count: 1,
+            format,
+            image_size: 0,
+            alignment: 1,
+            tile_mode: 1,
+            swizzle: 0,
+            texture_layout: 0,
+            channels: [0; 4],
+            image_table_offset: 0,
+        };
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&8u64.to_le_bytes());
+        bytes.extend_from_slice(&0x3c00u16.to_le_bytes());
+        let r16 = texture(BntxFormat::R16Float)
+            .decode_f32(&bytes)
+            .unwrap();
+        assert_eq!(r16.samples, [1.0]);
+
+        bytes.truncate(8);
+        bytes.extend_from_slice(&0.75f32.to_le_bytes());
+        let r32 = texture(BntxFormat::R32Float)
+            .decode_f32(&bytes)
+            .unwrap();
+        assert_eq!(r32.samples, [0.75]);
+        assert_eq!(r32.width, 1);
+        assert_eq!(r32.height, 1);
+        assert!(texture(BntxFormat::R8).decode_f32(&bytes).is_err());
     }
 
     #[test]
