@@ -187,6 +187,22 @@ pub struct TextureData {
     pub rgba: Vec<u8>,
 }
 
+impl TextureData {
+    /// Encodes the RGBA8 buffer to a PNG file on disk.
+    pub fn save_png(&self, path: &std::path::Path) -> std::io::Result<()> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let file = std::fs::File::create(path)?;
+        let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), self.width, self.height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header()?;
+        writer.write_image_data(&self.rgba)?;
+        Ok(())
+    }
+}
+
 fn f32_at(b: &[u8], o: usize) -> f32 {
     f32::from_le_bytes(b[o..o + 4].try_into().unwrap())
 }

@@ -458,6 +458,26 @@ fn bntx_decodes_an_hdr_probe_cubemap() {
 }
 
 #[test]
+fn bntx_save_png_writes_valid_png_stream() {
+    let data = pla::assets::bntx::TextureData {
+        width: 2,
+        height: 2,
+        rgba: vec![
+            255, 0, 0, 255, 0, 255, 0, 255,
+            0, 0, 255, 255, 255, 255, 255, 255,
+        ],
+    };
+    let dir = std::env::temp_dir().join("pla_bntx_test");
+    let path = dir.join("test_sample.png");
+    data.save_png(&path).expect("save png");
+    assert!(path.exists());
+    let bytes = std::fs::read(&path).expect("read png");
+    assert_eq!(&bytes[0..8], b"\x89PNG\r\n\x1a\n");
+    let _ = std::fs::remove_file(path);
+    let _ = std::fs::remove_dir(dir);
+}
+
+#[test]
 fn decodes_real_message_text_through_the_host() {
     let (Some(tbl), Some(dat), Some(ks)) = (
         fixture("bag_pocket.tbl"),

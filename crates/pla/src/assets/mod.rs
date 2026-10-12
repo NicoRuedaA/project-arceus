@@ -4,6 +4,7 @@ pub mod ahtb;
 pub mod bntx;
 pub mod event_list;
 pub mod gfpak;
+pub mod gltf_export;
 pub mod message;
 pub mod sarc;
 pub mod tr;

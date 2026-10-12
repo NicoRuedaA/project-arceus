@@ -13,6 +13,7 @@ pub mod pml;
 pub mod render;
 pub mod save;
 pub mod script;
+pub mod tables;
 
 pub mod generated {
     include!(concat!(env!("OUT_DIR"), "/sheets/index.rs"));
