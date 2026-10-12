@@ -39,6 +39,8 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
 
 ## Visual Verification Observations (Inspected PNGs)
 
+Caveat: the captured frames show NO battle menu and NO HP bars; the player and creatures are placeholder shapes, not real game models. Only area 00 is covered.
+
 All four generated screenshots under `work/cache/game_demo/` were directly opened and visually inspected:
 
 - **`01_world_exploration.png` (World State, Step 0)**:
@@ -66,7 +68,7 @@ All four generated screenshots under `work/cache/game_demo/` were directly opene
 3. **Sound and particle VFX**:
    - Move impacts (Thunderbolt sparks, tackle screen shake) are tracked via text logs and state transitions without audio or particle emitters.
 4. **Full Bag / Items inventory UI**:
-   - In-battle menu processes attack moves (slots 0–3) and direct capture (`KeyB`); full GUI menu widgets with mouse click picking remain basic console telemetry / window title HUD.
+   - The in-battle menu logic (attack slots 0–3, direct capture with `KeyB`) is keyboard-driven state; no on-screen battle menu or HP bars are drawn (no UI text or node code exists under `crates/pla/src/game/`), and none appear in the captured frames. Menu state is only reported as console telemetry / window title text.
 
 ## Reproduction Commands
 

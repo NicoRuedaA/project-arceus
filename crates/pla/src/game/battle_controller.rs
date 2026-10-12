@@ -80,6 +80,7 @@ impl ActiveBattleSession {
         let battle = Battle::new(
             vec![player_combatant, wild_combatant],
             vec![vec![0], vec![1]],
+            battle_data.type_chart().clone(),
         )?;
 
         Ok(Self {
