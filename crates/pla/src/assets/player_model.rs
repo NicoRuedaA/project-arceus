@@ -284,6 +284,22 @@ pub struct PlayerExportOptions {
     /// sRGB skin tone multiplied into the albedo of skin-bound materials
     /// (`face_skin`, `body_skin`, `face`). Hypothesis, not a proven shader step.
     pub skin_rgb: Option<[u8; 3]>,
+    /// sRGB hair colour. The hair/eyebrow albedo is a grey tile: it is multiplied (in linear
+    /// light) by this colour after normalising its mean grey to 1, so the shading detail is kept.
+    /// Hair colour is a runtime choice in the game; the exact RGB is not in the data (ASSUMED).
+    pub hair_rgb: Option<[u8; 3]>,
+    /// sRGB eye colour, applied the same way to the (grey) iris albedo, normalised on its
+    /// brightest pixels. ASSUMED, as above.
+    pub eye_rgb: Option<[u8; 3]>,
+}
+
+/// How a grey albedo is normalised before the colour multiply.
+#[derive(Clone, Copy)]
+enum GreyRef {
+    /// Mean of the opaque pixels maps to the target colour (hair, eyebrows).
+    Mean,
+    /// The 95th percentile grey maps to the target colour (iris ring).
+    P95,
 }
 
 fn is_skin_binding(binding: &str) -> bool {
@@ -299,7 +315,7 @@ fn linear_to_srgb(v: f32) -> f32 {
 }
 
 /// Multiply an RGB(A)8 PNG by an sRGB colour in linear light and save it under a new name.
-fn tint_png(dir: &Path, name: &str, rgb: [u8; 3]) -> Result<String, String> {
+fn tint_png(dir: &Path, name: &str, rgb: [u8; 3], grey_ref: Option<GreyRef>, suffix: &str) -> Result<String, String> {
     let src = dir.join(name);
     let decoder = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(&src).map_err(|e| e.to_string())?));
     let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
@@ -313,14 +329,31 @@ fn tint_png(dir: &Path, name: &str, rgb: [u8; 3]) -> Result<String, String> {
         png::ColorType::Rgb => 3,
         _ => return Err("tint expects RGB or RGBA PNG".into()),
     };
-    let tone: [f32; 3] = std::array::from_fn(|i| srgb_to_linear(f32::from(rgb[i]) / 255.0));
+    let mut tone: [f32; 3] = std::array::from_fn(|i| srgb_to_linear(f32::from(rgb[i]) / 255.0));
+    if let Some(r) = grey_ref {
+        let mut greys: Vec<f32> = buf[..info.buffer_size()]
+            .chunks_exact(channels)
+            .map(|px| srgb_to_linear(f32::from(px[0]) / 255.0))
+            .collect();
+        let reference = match r {
+            GreyRef::Mean => greys.iter().sum::<f32>() / greys.len().max(1) as f32,
+            GreyRef::P95 => {
+                greys.sort_by(f32::total_cmp);
+                greys.get(greys.len() * 95 / 100).copied().unwrap_or(1.0)
+            }
+        };
+        let k = 1.0 / reference.max(1e-3);
+        for t in &mut tone {
+            *t *= k;
+        }
+    }
     for px in buf[..info.buffer_size()].chunks_exact_mut(channels) {
         for c in 0..3 {
             let lin = srgb_to_linear(f32::from(px[c]) / 255.0) * tone[c];
-            px[c] = (linear_to_srgb(lin).clamp(0.0, 1.0) * 255.0).round() as u8;
+            px[c] = (linear_to_srgb(lin.min(1.0)).clamp(0.0, 1.0) * 255.0).round() as u8;
         }
     }
-    let out_name = format!("{}_skintone.png", name.trim_end_matches(".png"));
+    let out_name = format!("{}_{suffix}.png", name.trim_end_matches(".png"));
     let file = std::fs::File::create(dir.join(&out_name)).map_err(|e| e.to_string())?;
     let mut enc = png::Encoder::new(std::io::BufWriter::new(file), info.width, info.height);
     enc.set_color(info.color_type);
@@ -347,10 +380,20 @@ pub fn write_player_gltf(
                 continue;
             }
             let material = add_static_material_for_player(part, mesh, &mut export, gltf_path.as_ref(), formula)?;
-            if let (Some(rgb), Some(index)) = (options.skin_rgb, material) {
-                if is_skin_binding(&mesh.material_binding) {
-                    if let Some(uri) = export.materials[index].base_color_uri.clone() {
-                        export.materials[index].base_color_uri = Some(tint_png(out_dir, &uri, rgb)?);
+            if let Some(index) = material {
+                let uri = export.materials[index].base_color_uri.clone();
+                if let Some(uri) = uri {
+                    let tinted = if let (Some(rgb), true) = (options.skin_rgb, is_skin_binding(&mesh.material_binding)) {
+                        Some(tint_png(out_dir, &uri, rgb, None, "skintone")?)
+                    } else if let (Some(rgb), true) = (options.hair_rgb, uri.contains("_hairstyle_alb") || uri.contains("_eyebrow_alb")) {
+                        Some(tint_png(out_dir, &uri, rgb, Some(GreyRef::Mean), "haircolor")?)
+                    } else if let (Some(rgb), true) = (options.eye_rgb, uri.contains("_eye_alb")) {
+                        Some(tint_png(out_dir, &uri, rgb, Some(GreyRef::P95), "eyecolor")?)
+                    } else {
+                        None
+                    };
+                    if tinted.is_some() {
+                        export.materials[index].base_color_uri = tinted;
                     }
                 }
             }
