@@ -73,7 +73,7 @@
     "port.png": "171c21e73b75893738344b373a2e7ea2c8909240f5279fc13dc18b3663d77e32"
   },
   "rust_source_fingerprint": {
-    "file_count": 84,
+    "file_count": 85,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -142,6 +142,10 @@
       {
         "path": "crates/pla/examples/run_script.rs",
         "sha256": "8985704e6ccd193d788438ea0a7384568b61c71460bcf3f94052efbb71f6c443"
+      },
+      {
+        "path": "crates/pla/examples/spawn_terrain_check.rs",
+        "sha256": "d5dd0ed9c1160f997a4386f3309a9a4a86556b84df2af5de04f635889429dc63"
       },
       {
         "path": "crates/pla/examples/terrain_viewer.rs",
@@ -413,7 +417,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "6cb0ea7265d69f097af37545871bdb945d3c05099f5314ce1d8fca1ba27abc09"
+    "sha256": "1e04409893c403ffd4ad8f5fc63b81958c54c0c66c53fbd7350f87ba9544a7bf"
   },
   "state_partitions": {
     "analysis_documentation_status": {
