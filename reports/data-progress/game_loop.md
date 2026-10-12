@@ -71,7 +71,9 @@ Zone naming: the game data numbers areas `ha_area00` = Jubilife Village, `ha_are
    - Not modelled by the engine (so absent in game): confusion and trapping, charge/recharge turns, Protect/Counter reactions, speed stages in turn order, stat-boost items, vitamins, level-up and evolution items. Item names do not exist in the sheet (labels describe the effect plus the id). The bag is a fixed starter bag, not the player's save. The AI uses only two recovered rules plus local tie-breaks; the party is a fixed 3-member party, not a save.
    - If `BattleAssets` fails to load (data dir missing) the viewer falls back to the plain `ActiveBattleSession::new` path: no effects, no bag, no switching, placeholder catch rate.
    - The windowed layout is only checked at the sizes the compositor gave (2560x1414 earlier, 529x1894 now); narrow windows clip the bottom of the log and the move grid.
-6. **`--area N` loads terrain and trees only**:
+6. **Not yet wired in the viewer on `main`**:
+   - Real spawn tables, baked colours, buildings and lighting are NOT wired into the viewer on `main` (other branches are in progress); do not read the viewer as showing them.
+7. **`--area N` loads terrain and trees only**:
    - Spawns and other area objects are not decoded per area. The battle UI (HP bars, move menu, log) exists; the game is unfinished and not complete.
 
 ## Reproduction Commands
