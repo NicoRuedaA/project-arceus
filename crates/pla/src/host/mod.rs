@@ -55,6 +55,18 @@ pub const COMMANDS: &[&str] = &[
 const PRELUDE: &str = r#"
 -- Recording log shared with Rust.
 __host_calls = {}
+__host_call_count = 0
+__host_call_dropped = 0
+__host_call_limit = 2048
+__record_host_call = function(name)
+  __host_call_count = __host_call_count + 1
+  name = string.sub(tostring(name), 1, 256)
+  if #__host_calls < __host_call_limit then
+    table.insert(__host_calls, name)
+  else
+    __host_call_dropped = __host_call_dropped + 1
+  end
+end
 
 -- LuaJIT-style `bit` library, required by the Haxe Lua runtime.
 if not bit then
@@ -124,7 +136,7 @@ local function make_stub(name)
   stub = setmetatable({}, {
     __index = function(_, k) return make_stub(name .. "." .. tostring(k)) end,
     __call = function(_, ...)
-      table.insert(__host_calls, name)
+      __record_host_call(name)
       -- Return another stub so chained field access keeps working while the
       -- port has no real implementation yet.
       return make_stub(name .. "()")
@@ -142,7 +154,7 @@ __make_stub = make_stub
 -- same contract for any script that reaches for the engine global instead.
 ScriptObjectHandle = {}
 ScriptObjectHandle.new = function(target)
-  table.insert(__host_calls, "ScriptObjectHandle.new")
+  __record_host_call("ScriptObjectHandle.new")
   local h = { target = target }
   h.GetTargetID = function()
     if target and target.GetTargetID then return target.GetTargetID() end

@@ -6,18 +6,37 @@
 //! event to completion (or the frame budget), printing the host-call trace.
 
 use std::process::ExitCode;
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
 
 use mlua::{Table, Value};
 use pla::script::{load_chunk, new_state};
 
 /// Installs a metatable on _G so any unknown global becomes a recording stub.
 const HOST_PROBE: &str = r#"
-__host_calls = {}
+    __host_calls = {}
+    __host_call_count = 0
+    __host_call_dropped = 0
+    __host_call_limit = 2048
+    __record_host_call = function(name)
+      __host_call_count = __host_call_count + 1
+      name = string.sub(tostring(name), 1, 256)
+      if #__host_calls < __host_call_limit then
+        table.insert(__host_calls, name)
+      else
+        __host_call_dropped = __host_call_dropped + 1
+      end
+    end
 local function make_stub(name)
   local stub
   stub = setmetatable({}, {
     __index = function(_, k) return make_stub(name .. "." .. tostring(k)) end,
-    __call = function(_, ...) table.insert(__host_calls, name); return nil end,
+    __call = function(_, ...)
+      __record_host_call(name)
+      return nil
+    end,
     __tostring = function() return name end,
   })
   return stub
@@ -67,6 +86,48 @@ fn describe(_lua: &mlua::Lua, v: &Value) -> String {
     }
 }
 
+fn write_trace(lua: &mlua::Lua, path: Option<&String>, max_lines: usize) -> Result<(), String> {
+    let calls = lua
+        .globals()
+        .get::<Table>("__host_calls")
+        .map_err(|e| format!("read host trace: {e}"))?;
+    let count = usize::try_from(calls.len().unwrap_or(0))
+        .unwrap_or(0)
+        .min(max_lines);
+    if let Some(path) = path {
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create trace directory {}: {e}", parent.display()))?;
+        }
+        let file = File::create(path).map_err(|e| format!("create trace {path}: {e}"))?;
+        let mut out = BufWriter::new(file);
+        for value in calls.sequence_values::<String>().take(count) {
+            writeln!(
+                out,
+                "{}",
+                value.map_err(|e| format!("decode host trace: {e}"))?
+            )
+            .map_err(|e| format!("write trace {path}: {e}"))?;
+        }
+        out.flush()
+            .map_err(|e| format!("flush trace {path}: {e}"))?;
+    } else {
+        for (i, value) in calls.sequence_values::<String>().take(count).enumerate() {
+            println!(
+                "{i:4} {}",
+                value.map_err(|e| format!("decode host trace: {e}"))?
+            );
+        }
+    }
+    let total = lua
+        .globals()
+        .get::<u64>("__host_call_count")
+        .unwrap_or(count as u64);
+    let dropped = lua.globals().get::<u64>("__host_call_dropped").unwrap_or(0);
+    println!("TRACE lines={count} total={total} dropped={dropped} cap={max_lines}");
+    Ok(())
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
@@ -85,6 +146,18 @@ fn main() -> ExitCode {
         }
     };
     let lua = new_state();
+    if let Some(limit) = args
+        .iter()
+        .position(|a| a == "--lua-memory-limit-mib")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|s| s.parse::<usize>().ok())
+    {
+        let bytes = limit.saturating_mul(1024 * 1024);
+        if let Err(e) = lua.set_memory_limit(bytes) {
+            eprintln!("set Lua memory limit to {bytes} bytes: {e}");
+            return ExitCode::from(1);
+        }
+    }
     if args.iter().any(|a| a == "--host" || a == "--run") {
         pla::host::install(&lua).expect("host install");
     }
@@ -95,9 +168,13 @@ fn main() -> ExitCode {
         lua.load(
             r#"
 local real_pcall = pcall
+local first_error = nil
 pcall = function(f, ...)
   local ok, err = real_pcall(f, ...)
-  if not ok then print("PCALL-ERR: " .. tostring(err)) end
+  if not ok and first_error == nil then
+    first_error = string.sub(tostring(err), 1, 512)
+    print("PCALL-ERR: " .. first_error)
+  end
   return ok, err
 end
 "#,
@@ -148,11 +225,20 @@ end
             run.frames,
             describe(&lua, &run.result)
         );
-        if let Ok(calls) = lua.globals().get::<Table>("__host_calls") {
-            for (i, v) in calls.sequence_values::<String>().enumerate() {
-                if let Ok(name) = v {
-                    println!("{i:4} {name}");
-                }
+        if args.iter().any(|a| a == "--trace" || a == "--trace-file") {
+            let trace_file = args
+                .iter()
+                .position(|a| a == "--trace-file")
+                .and_then(|i| args.get(i + 1));
+            let max_lines = args
+                .iter()
+                .position(|a| a == "--trace-max-lines")
+                .and_then(|i| args.get(i + 1))
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(2048);
+            if let Err(e) = write_trace(&lua, trace_file, max_lines) {
+                eprintln!("{e}");
+                return ExitCode::from(1);
             }
         }
         return ExitCode::SUCCESS;
@@ -269,12 +355,19 @@ end
         }
     }
     if args.iter().any(|a| a == "--trace") {
-        if let Ok(calls) = lua.globals().get::<Table>("__host_calls") {
-            for (i, v) in calls.sequence_values::<String>().enumerate() {
-                if let Ok(name) = v {
-                    println!("{i:4} {name}");
-                }
-            }
+        let trace_file = args
+            .iter()
+            .position(|a| a == "--trace-file")
+            .and_then(|i| args.get(i + 1));
+        let max_lines = args
+            .iter()
+            .position(|a| a == "--trace-max-lines")
+            .and_then(|i| args.get(i + 1))
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(2048);
+        if let Err(e) = write_trace(&lua, trace_file, max_lines) {
+            eprintln!("{e}");
+            return ExitCode::from(1);
         }
         return ExitCode::SUCCESS;
     }

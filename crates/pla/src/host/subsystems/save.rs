@@ -64,6 +64,9 @@ pub fn install(lua: &Lua, save: &SaveHandle) -> Result<()> {
     let event_work = lua.create_table()?;
     event_work.set("SetEventFlag", set_flag)?;
     event_work.set("GetEventFlag", get_flag)?;
+    // N2 proves the save-chunk registry, but not these Lua method semantics.
+    // Keep observed calls executable and traceable without guessing behavior.
+    stub_fallback(lua, &event_work, "EventWork")?;
 
     let event_work_fn = {
         let event_work = event_work.clone();
@@ -71,6 +74,10 @@ pub fn install(lua: &Lua, save: &SaveHandle) -> Result<()> {
     };
     let save_system = lua.create_table()?;
     save_system.set("EventWork", event_work_fn)?;
+    // The save system exposes more chunks than the port has modeled. Unknown
+    // accessors such as MyStatus remain recording stubs until their semantics
+    // are supported by direct evidence.
+    stub_fallback(lua, &save_system, "SaveSystem")?;
 
     let get_save_system = {
         let save_system = save_system.clone();
@@ -80,4 +87,40 @@ pub fn install(lua: &Lua, save: &SaveHandle) -> Result<()> {
     global.set("GetSaveSystem", get_save_system)?;
     stub_fallback(lua, &global, "Global")?;
     lua.globals().set("Global", global)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unknown_save_chunk_and_event_work_methods_are_recording_stubs() {
+        let lua = Lua::new();
+        crate::host::install(&lua).unwrap();
+        lua.load(
+            r#"
+            local save = Global.GetSaveSystem()
+            save:MyStatus():GetSex()
+            save:EventWork():CheckEventFlag("story_flag")
+            save:EventWork():ResetEventFlag("story_flag")
+            save:EventWork():GetEventWork("story_work")
+            "#,
+        )
+        .exec()
+        .unwrap();
+
+        let calls = crate::host::take_calls(&lua).unwrap();
+        for expected in [
+            "SaveSystem.MyStatus",
+            "SaveSystem.MyStatus().GetSex",
+            "EventWork.CheckEventFlag",
+            "EventWork.ResetEventFlag",
+            "EventWork.GetEventWork",
+        ] {
+            assert!(
+                calls.iter().any(|call| call == expected),
+                "missing {expected}: {calls:?}"
+            );
+        }
+    }
 }
