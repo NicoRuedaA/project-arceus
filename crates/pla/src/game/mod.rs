@@ -6,9 +6,11 @@
 use bevy::prelude::*;
 
 pub mod battle_controller;
+pub mod lighting;
 pub mod navigation;
 pub mod state;
 pub mod ui;
+pub mod world_objects;
 pub mod wild;
 
 pub use battle_controller::{ActiveBattleSession, BattleMenuState};
