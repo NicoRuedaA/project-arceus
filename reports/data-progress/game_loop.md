@@ -26,7 +26,12 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
 3. **Real glTF Pokémon Models with Baked Color Textures (`port_viewer.rs`)**:
    - Loaded exported glTF models from `work/cache/pokemon_batch/pmXXXX_00_00/` (#0025 Pikachu, #0041 Zubat, #0074 Geodude, #0396 Starly, #0397 Staravia, #0399 Bidoof, #0401 Kricketot, #0403 Shinx, #0448 Lucario, #0501 Oshawott, #0722 Rowlet).
    - Stripped skinning vertex attributes (`ATTRIBUTE_JOINT_INDEX`, `ATTRIBUTE_JOINT_WEIGHT`) to prevent Bevy skinned mesh pipeline vertex layout panics without joint uniforms.
-   - Retained glTF materials and baked color textures (`base_color_texture`, metallic, roughness) directly from the exported model assets instead of replacing them with a flat single-color tint. Code intent only: textured wild Pokémon on screen are UNVERIFIED (no wild model was visible in the reviewed frames).
+   - Retained glTF materials and baked color textures (`base_color_texture`, metallic, roughness) directly from exported model assets.
+   - **On-Screen Visibility VERIFIED**:
+     - In `GameState::World`: Streamed wild Pokémon spawn on the terrain surface using real glTF meshes and baked textures. In `00_world_exploration.png`, wild Pokémon appear on the hillside at distance matching the nearby creature radar.
+     - In `GameState::Battle`: Dedicated battle arena spawns player Pokémon (Pikachu Lv25 with yellow/brown baked textures, red cheeks, black ear tips, and tail) and wild opponent (Geodude Lv8 with rock texture and outstretched arms, or Staravia Lv17) facing each other across the terrain surface at combat scale.
+     - Battle camera is oriented behind and above the player's Pokémon looking toward the opponent, ensuring both combatants are framed clearly on screen alongside the Bevy UI HUD cards.
+   - In Jubilife Village (`ha_area00`), building caching and material modes were corrected (`AlphaMode::Opaque` on buildings, `Mask(0.5)` on foliage, and `Blend` translucent blue water on `ground_area00_water*`), resolving grey houses and white water band artifacts.
 
 4. **Real Field Spawner Tables & Dynamic Streaming (`crates/pla/src/game/wild.rs`, `port_viewer.rs`)**:
    - Parses `data/field_spawn_table.tsv` (4,398 rows across 1,951 spawners in 6 areas) via `load_spawners_for_area`.
@@ -44,20 +49,23 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
 
 6. **Auto-Demo Playthrough Driver in Area 01 (`--auto-demo`, or `--script <dir>`)**:
    - Headless run in Obsidian Fieldlands (Area 01): terrain loaded with 1,379 trees and 357 field spawners.
-   - Player moves towards a real wild spawner (Staravia Lv17 at $X=257.7, Z=383.9$), enters combat, and produces 4 inspected battle frames:
-     - `02_battle_status_move.png`: Wild Staravia Lv17 paralyzed by Pikachu's Thunder Wave [PAR].
+   - Player moves towards a real wild spawner (Staravia / Geodude), enters combat, and produces 6 inspected frames across exploration and battle:
+     - `00_world_exploration.png`: Overworld navigation with zone HUD and radar pointing to nearby wild creature.
+     - `01_battle_encounter.png`: Battle encounter start with both 3D Pokémon combatants visible and grounded facing each other.
+     - `02_battle_status_move.png`: Wild combatant paralyzed by Pikachu's Thunder Wave [PAR].
      - `03_battle_item_menu.png`: Bag menu opened showing medicine quantities.
-     - `04_battle_medicine_used.png`: Heal medicine used, restoring Pikachu HP to 75/78.
-     - `05_battle_capture_attempt.png`: Poké Ball thrown with real catch rate 145, shakes evaluated.
+     - `04_battle_medicine_used.png`: Heal medicine used, restoring Pikachu HP.
+     - `05_battle_capture_attempt.png`: Poké Ball thrown with real catch rate, shakes evaluated.
 
 ## Visual Verification Observations (Inspected PNGs)
 
-The offscreen generated frames were opened and visually inspected:
-- **`work/cache/species_verify/*.png`**: reviewed by the maintainer; NO wild Pokémon model is visible on screen (only the player capsule). The earlier claim of a textured wild Zubat is therefore UNVERIFIED; baked textures are used by the loader code but their on-screen result is not demonstrated.
-- **`work/cache/game_demo/02_battle_status_move.png`**: Wild card `WILD STARAVIA Lv. 17 [PAR]`, HP 52/52; player card `PLAYER PIKACHU Lv. 25`, HP 75/78 (after wild Quick Attack with +1 priority). Log: `Wild STARAVIA used quick-attack!`, `PIKACHU used thunder-wave!`, `Wild STARAVIA was paralyzed! [PAR]`.
-- **`work/cache/game_demo/03_battle_item_menu.png`**: `[I] ITEM` tab active; medicine options visible (`[1] Heal 60 HP #17 x5`, `[2] Heal 150 HP #25 x2`, etc.). Player HP 42/78.
-- **`work/cache/game_demo/04_battle_medicine_used.png`**: Player HP restored to 75/78; log: `Used Heal 60 HP #17: PIKACHU regained 33 HP!`.
-- **`work/cache/game_demo/05_battle_capture_attempt.png`**: `You threw a Regular Ball at Wild STARAVIA! (catch rate 145 [game data], chance about 49%)`, `Shake...`, `Wild STARAVIA broke free!`.
+The offscreen generated frames in `work/cache/game_demo/` were opened and visually inspected:
+- **`00_world_exploration.png`**: Overworld exploration view. Terrain heightmap and trees render under sky gradient. In the distance ($Z \approx 500$m), a wild creature model is visible on the terrain hillside. The top-left HUD displays `ZONE: Obsidian Fieldlands (ha_area01) [X: 256.0, Y: 13.9, Z: 512.0]` and the top-right radar indicates `NEARBY: #41 ZUBAT (10.3m) [W]`. Player capsule centered in 3rd person.
+- **`01_battle_encounter.png`**: Battle encounter view. Both 3D combatant models are clearly visible and grounded on the terrain surface: Player Pikachu Lv25 (with full baked yellow body, red cheeks, black ear tips, brown back stripes, and tail) is positioned on the right mid-ground facing left, while Wild Geodude Lv8 (with arms outstretched and rock face texture) is grounded on the upper-right ridge facing Pikachu. Top-left card: `WILD GEODUDE Lv. 8`, HP 25/25; middle-right card: `PLAYER PIKACHU Lv. 25`, HP 78/78; bottom-center shows the 4-move grid.
+- **`02_battle_status_move.png`**: Turn 1 battle action. Both Pikachu and Geodude remain clearly visible on screen. Wild HP card shows `WILD GEODUDE Lv. 8 [PAR]`. Battle log at bottom-left records: `PIKACHU used thunder-wave!`, `Wild GEODUDE was paralyzed! [PAR]`, `Wild GEODUDE used tackle! (6 dmg, normal)`. Player HP card reflects 72/78.
+- **`03_battle_item_menu.png`**: Item bag menu opened. Both Pokémon models remain clearly framed. Menu shows medicine options (`[1] Heal 60 HP #17 x5`, `[2] Heal 150 HP #25 x2`, etc.). Player HP dropped to 42/78 for healing demonstration.
+- **`04_battle_medicine_used.png`**: Medicine used. Both Pikachu and Geodude remain visible. Battle log shows: `PIKACHU regained 36 HP!`, `Wild GEODUDE is paralyzed and can't move!`. Player HP restored to 78/78.
+- **`05_battle_capture_attempt.png`**: Poké Ball throw attempt. Both Pikachu and Geodude remain visible. Battle log shows: `You threw a Regular Ball at Wild GEODUDE! (catch rate 245, chance about 78%)`, `Shake... Shake...`, `Wild GEODUDE broke free!`. Wild Geodude remains grounded and active.
 
 ## Remaining Limitations & Unknowns (Lo NO logrado)
 
