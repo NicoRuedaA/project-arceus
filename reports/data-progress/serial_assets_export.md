@@ -48,3 +48,30 @@ systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
 - `cargo run -q --offline -p sheetty-cli -- check sheets`: 29 sheets, 408,866 rows, 0 errors, 0 warnings.
 - `cargo check --offline -p pla --all-targets`: passed.
 - `cargo test --offline -p pla`: passed; no failures (two window/headless-dependent tests ignored by the suite).
+
+## State at handover
+
+Asset export is stopped here; agy will continue in a separate worktree. The retained texture index covers 2,969 PNGs. BC5 Z reconstruction uses the assumed unit-normal convention `nz=sqrt(1-nx^2-ny^2)`; this convention is not verified. The glTF writer and TR mesh/skin/animation conversion are committed. The latest static batch wrote 57/281 candidates to ignored `work/cache/gltf/`; this is not a completed batch or visual verification. Baseline tests passed (130 passed, 0 failed, 2 ignored), and the focused glTF writer tests passed 2/2. The worktree was clean at handover, so no extra cargo check was needed.
+
+Not done: the full static model batch (224/281 candidates remain blocked), ten glTF round-trip imports with opened rendered PNGs, one skinned model plus animation recognizability check, and the final full-scope `data/asset_export_index.tsv`. No visible viewer was opened in this resumed run.
+
+Continue the static batch with:
+
+```sh
+systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
+  env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR="$PWD/target" \
+  cargo run --offline -q -p pla --example export_tr_gltf_batch -- \
+  /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin \
+  data/asset_export_index.tsv work/cache/gltf work/cache/png \
+  work/cache/gltf/static_export_index.tsv
+```
+
+Baseline test reproduction:
+
+```sh
+systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
+  env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR="$PWD/target" \
+  cargo test --offline -p pla
+```
+
+The repo does not yet provide a headless glTF import/render verification command; do not treat successful serialization as visual verification.
