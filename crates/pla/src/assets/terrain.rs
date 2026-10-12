@@ -1019,6 +1019,7 @@ mod tests {
     #[test]
     fn game_area_loader_skips_when_game_pack_is_absent() {
         const EXPECTED_HEIGHTS: [f32; 7] = [185.0, 121.756, 200.240, 127.079, 302.0, 168.0, 36.67];
+        const EXPECTED_INSTANCE_COUNTS: [usize; 6] = [60, 1430, 2204, 788, 901, 828];
         let bin_root = std::env::var_os("PLA_BIN_ROOT")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
@@ -1049,11 +1050,49 @@ mod tests {
             assert!((area.world_extent[1] - 1025.0).abs() < 0.01);
             assert!((area.world_height - EXPECTED_HEIGHTS[area_number as usize]).abs() < 0.01);
             if area_number == 6 {
-                eprintln!(
-                    "area06 BRTI names in path-resolved heightmap entry: {:?}",
-                    area.heightmap_brti_name
+                let pack_path = bin_root
+                    .join("archive/field/terrain")
+                    .join("ha_area06.gfpak");
+                let bytes = std::fs::read(&pack_path).expect("read area06 GFLXPACK");
+                let pack = GfPak::parse(&bytes).expect("parse area06 GFLXPACK");
+                let mut bntx_inventory = Vec::new();
+                for (entry_index, entry) in pack.entries.iter().enumerate() {
+                    let payload = pack.decoded_data(&bytes, entry).unwrap_or_else(|error| {
+                        panic!("decode area06 entry {entry_index}: {error}")
+                    });
+                    if payload.starts_with(b"BNTX") {
+                        let bntx = Bntx::parse(&payload).unwrap_or_else(|error| {
+                            panic!("parse area06 BNTX entry {entry_index}: {error}")
+                        });
+                        let names: Vec<_> = bntx
+                            .textures
+                            .iter()
+                            .map(|texture| texture.name.clone())
+                            .collect();
+                        eprintln!("area06 BNTX entry {entry_index} BRTI names: {names:?}");
+                        bntx_inventory.push((entry_index, names));
+                    }
+                }
+                assert!(!bntx_inventory.is_empty(), "area06 BNTX inventory is empty");
+                let heightmap_names: Vec<_> = bntx_inventory
+                    .iter()
+                    .flat_map(|(_, names)| names.iter())
+                    .filter(|name| name.ends_with("_heightmap"))
+                    .cloned()
+                    .collect();
+                assert_eq!(
+                    heightmap_names.len(),
+                    1,
+                    "expected one heightmap BRTI name across all area06 BNTX entries, found {heightmap_names:?}"
                 );
-                assert_eq!(area.heightmap_brti_name, "terrain_1_1_heightmap");
+                let identified_heightmap = &heightmap_names[0];
+                eprintln!(
+                    "area06 unique heightmap identified from full BNTX inventory: {identified_heightmap}"
+                );
+                assert_eq!(
+                    &area.heightmap_brti_name, identified_heightmap,
+                    "loader-selected area06 heightmap differs from BNTX inventory evidence"
+                );
             }
             if area_number <= 5 {
                 assert!(
@@ -1084,6 +1123,11 @@ mod tests {
                 eprintln!(
                     "area{area_number:02}: {} instance matrices checked against normalized heightmap x/y/z; all within 2 descriptor units (metres inferred)",
                     area.instances.len()
+                );
+                assert_eq!(
+                    area.instances.len(),
+                    EXPECTED_INSTANCE_COUNTS[area_number as usize],
+                    "area {area_number:02} instance count differs from the verified census"
                 );
             }
             let height_max = area
