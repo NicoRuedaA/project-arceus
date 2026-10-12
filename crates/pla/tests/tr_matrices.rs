@@ -47,10 +47,11 @@ fn synthetic_buffer() -> Vec<u8> {
     let iks = vector(&mut bytes, 0);
     offset(&mut bytes, root + 12, iks);
     for i in 0..2 {
-        let node = table(&mut bytes, 48, &[4, 8, 12, 24, 36, 40, 44]);
+        let node = table(&mut bytes, 52, &[4, 8, 12, 24, 36, 40, 44, 48]);
         offset(&mut bytes, nodes + 4 + 4 * i, node);
         word(&mut bytes, node + 36, if i == 0 { u32::MAX } else { 0 });
         word(&mut bytes, node + 40, if i == 0 { u32::MAX } else { 0 });
+        word(&mut bytes, node + 48, (i + 1) as u32);
         let transform = table(&mut bytes, 40, &[4, 16, 28]);
         offset(&mut bytes, node + 8, transform);
         for (j, value) in if i == 0 {
@@ -181,13 +182,21 @@ fn reference_srt_matches_independent_axis_product_and_parent_order() {
 fn bind_reader_checks_affine_columns_and_malformed_buffers() {
     let source = synthetic_buffer();
     let sk = TrSkl::parse(&source).unwrap();
+    assert_eq!(sk.nodes.len(), 2);
+    assert_eq!(sk.nodes[0].rig_index, None);
+    assert_eq!(sk.nodes[1].rig_index, Some(0));
     let records = TrSkl::read_bind_records(&source).unwrap();
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].flags, [1, 1]);
     assert_eq!(records[0].matrix.rows[0], [1.0, 0.0, 0.0, -2.0]);
     assert_eq!(records[0].matrix.rows[3], [0.0, 0.0, 0.0, 1.0]);
     sk.validate_bind_rest_pose(&records, 1e-12).unwrap();
-    let root = u32::from_le_bytes(source[..4].try_into().unwrap()) as usize;
+    let mut unsupported_type = source.clone();
+    let root = u32::from_le_bytes(unsupported_type[..4].try_into().unwrap()) as usize;
+    let vector = root + u32::from_le_bytes(unsupported_type[root + 4..root + 8].try_into().unwrap()) as usize;
+    let node = vector + 4 + u32::from_le_bytes(unsupported_type[vector + 8..vector + 12].try_into().unwrap()) as usize;
+    word(&mut unsupported_type, node + 48, 3);
+    assert!(TrSkl::parse(&unsupported_type).is_err());
     let target = |at| at + u32::from_le_bytes(source[at..at + 4].try_into().unwrap()) as usize;
     let bind = target(target(root + 8) + 4);
     let matrix = target(bind + 8);
