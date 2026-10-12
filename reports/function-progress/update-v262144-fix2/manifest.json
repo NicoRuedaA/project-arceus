@@ -129,7 +129,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "fdefc2e3f94b4338943100b0b0723a665a91225a7e657d9933db57b3a7b956ab"
+        "sha256": "445b40a73d1ae04114659313a25eb851ded40b5fc936e4c4b59a47a51d7779ec"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
@@ -209,7 +209,7 @@
       },
       {
         "path": "crates/pla/src/assets/terrain.rs",
-        "sha256": "24a125ae1d1f1597ad1a39728219b4db6a39822b050c57ccf85d2b4674de0e76"
+        "sha256": "d25046f89a32eaabb2976375557a846820cf03da3d39f112aebed2ce47f1bc14"
       },
       {
         "path": "crates/pla/src/assets/tr/animation.rs",
@@ -381,7 +381,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "5d5714867a2cbfb22fd7c365f75f1666b24965d2154bfb62a66040342a91dc30"
+    "sha256": "cddb87e880cd5ecb326172c846733713d7423c9bd674a24acfc1a06e8f4061cd"
   },
   "state_partitions": {
     "analysis_documentation_status": {
