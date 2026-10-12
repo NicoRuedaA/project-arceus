@@ -9,7 +9,7 @@
 - **unverified**: plausible public candidate, but the source-to-file binding or one or more required checks are missing.
 - **contradicted**: an observed local value, index, count, or width conflicts with the candidate or expected uniqueness/integrity rule.
 
-Across 22 mapping TSVs (164 field rows), the final tally is **89 verified, 70 unverified, and 5 contradicted**. The separate rename proposal contains 3 eligible candidate rows plus 1 contradicted do-not-apply row and is excluded from this count.
+Across 22 mapping TSVs (164 field rows), the final tally is **91 verified, 68 unverified, and 5 contradicted**. This includes two new independent-data checks: the 27/27 quest-name key join and the 322/322 active-species ID join. The separate rename proposal contains 5 eligible candidate rows plus 1 contradicted do-not-apply row and is excluded from this count.
 - No upstream implementation code is copied into this repository. Mapping TSVs retain field names/types, source URLs, commit IDs, and verification notes only.
 - pkNX at commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` is **GPL-3.0**; PKHeX at commit `66ef5983a5d349efa2dd615f2926a1b1ee97306e` is **GPL-3.0**. Only field labels, primitive types, source links, and commit identifiers are recorded here.
 
@@ -103,9 +103,9 @@ Detailed map: [`data/schemas/shop_data_fields.tsv`](../../data/schemas/shop_data
 
 ### Quest lists (`quest_list_main`, `quest_list_sub`)
 
-**No community field schema found** for the main/side quest list binaries in pinned pkNX or PKHeX. Public inventory checks: [Gamepedia's main-quest list](https://gamepedia.jp/pokemon-legends-arceus/quests?quest_type=%E3%83%A1%E3%82%A4%E3%83%B3%E4%BB%BB%E5%8B%99) lists 27 main missions, including 1 *In an Unfamiliar Land* and 2 *The Galaxy Team's Entry Trial*; [Serebii's request list](https://www.serebii.net/legendsarceus/requests.shtml) and [Game8](https://game8.co/games/Pokemon-Legends-Arceus/archives/353893) list requests 1 *Wurmple Can Evolve* and 2 *Adorable Starly* through Request 122. Local counts are 27 main and 122 side rows, but local quest IDs and order remain UNKNOWN, so those public names cannot be joined to local records.
+**No community field schema found** for the main/side quest list binaries in pinned pkNX or PKHeX. New local message-table cross-check: all 27 main-list rows' raw field 04 values (offset +60, little-endian u64) match distinct stored AHTB IDs for `msg_questlist_main_questname_*` keys in `English/common/questlist_main.tbl`; this establishes a quest-name message-key ID, not a community-schema or native-reader binding. The other 12 main raw fields and opaque side targets remain unknown. Public inventory checks: [Gamepedia's main-quest list](https://gamepedia.jp/pokemon-legends-arceus/quests?quest_type=%E3%83%A1%E3%82%A4%E3%83%B3%E4%BB%BB%E5%8B%99) lists 27 main missions; [Serebii's request list](https://www.serebii.net/legendsarceus/requests.shtml) and [Game8](https://game8.co/games/Pokemon-Legends-Arceus/archives/353893) list requests 1 through 122. These public lists are not row-level evidence for the opaque side vector.
 
-**Contradiction:** an earlier N2 summary's 28 main + 94 side count is not the count in these decoded lists; 27 + 122 agrees with the public inventories. No native source-to-file/schema binding was found. The main raw fields 00–12 remain unnamed; side-list record targets remain opaque. No rename proposals were made.
+**Count reconciliation remains partial:** 27 main rows are directly joined to 27 distinct title keys. The main message table contains 31 `questname` keys; four are unreferenced by the list, including the decoded title *Seeking the Red Chain*, which is a candidate 28th main mission but not a row in this list. The side message table contains 149 `questname_sub` keys; 28 of their stored IDs occur somewhere in the side binary, but none occur at the 122 vector targets. The numerical difference `122 - 94 = 28` and those 28 embedded keys are suggestive only: they do not identify 94 real requests or map any title to a side row. Therefore `28 + 94` is not validated, and the only proven row-level identities here are the 27 main title-key joins.
 
 Detailed maps: [main list](../../data/schemas/quest_list_main_fields.tsv), [side list](../../data/schemas/quest_list_sub_fields.tsv).
 
@@ -131,7 +131,7 @@ Detailed map: [`data/schemas/poke_event_encount_fields.tsv`](../../data/schemas/
 
 Candidate analogue: pkNX [`EncounterMultiplerArchive.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Field/Slots/EncounterMultiplerArchive.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0). pkNX separately maps this filename to an encounter-rate table, but does **not** establish that this multiplier schema belongs to this file.
 
-**Observed:** 322 local records; F00 is u32 in range 25–905, F01 is absent, and F02–F13 are sparse floats in observed range −1.0 to 1.5. The 14-field shape resembles the candidate schema's Species/Form plus time/weather multipliers, but the missing form field and lack of asset-to-schema binding block all semantic assignments. The maps retain every candidate name as **unverified**.
+**Observed:** 322 local records; F00 is u32 in range 25–905, F01 is absent, and F02–F13 are sparse floats in observed range −1.0 to 1.5. Every F00 matches an active species ID in `pml_personal.tsv` (322/322, 242 distinct IDs), supporting the `Species` meaning; this is falsifiable by any non-match. F01 and the exact F02–F13 multiplier order/meaning remain unverified. The schema-to-asset binding is still unproven.
 
 Detailed map: [`data/schemas/poke_encount_fields.tsv`](../../data/schemas/poke_encount_fields.tsv).
 
