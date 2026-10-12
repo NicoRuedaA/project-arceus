@@ -206,6 +206,13 @@ pub struct PokemonAnimPlugin;
 
 impl Plugin for PokemonAnimPlugin {
     fn build(&self, app: &mut App) {
+        // glTF scenes are spawned through the reflection registry. Bevy only fills it
+        // automatically with the `reflect_auto_register` feature, which `pla` does not
+        // enable, so register every derived type here (idempotent) to stay self-sufficient.
+        app.world()
+            .resource::<AppTypeRegistry>()
+            .write()
+            .register_derived_types();
         app.add_systems(Update, (spawn_scene, wire_players, track_motion, switch_clips).chain());
     }
 }
