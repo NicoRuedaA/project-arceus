@@ -117,7 +117,7 @@
       },
       {
         "path": "crates/pla/examples/terrain_viewer.rs",
-        "sha256": "dbca74e5767a97773d61ee951beb8bea6a451537abd6e9f52789fe585666e0ff"
+        "sha256": "74d7055fc522ccaac4e4c2959b23309053235818ae67035a7cf5963faae08602"
       },
       {
         "path": "crates/pla/examples/texture_batch_exporter.rs",
@@ -149,7 +149,7 @@
       },
       {
         "path": "crates/pla/src/assets/gfpak.rs",
-        "sha256": "eb0a1b102981332d7aa493abd1b5e5fb9d498ff199798316dc60776d3aef5ebe"
+        "sha256": "76de6ac8d094815ad6c50ed8be4c097796ae12c789a0bc272152d042a8d16250"
       },
       {
         "path": "crates/pla/src/assets/gltf_export.rs",
@@ -169,7 +169,7 @@
       },
       {
         "path": "crates/pla/src/assets/terrain.rs",
-        "sha256": "d7910a0cce6216304d78fdf3d25e846f28bc18fcdd78f01134bf04ebf17d979a"
+        "sha256": "24a125ae1d1f1597ad1a39728219b4db6a39822b050c57ccf85d2b4674de0e76"
       },
       {
         "path": "crates/pla/src/assets/tr/animation.rs",
@@ -337,7 +337,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "b9b750f4e532ad8bb90837d0c342054516bc786fb3bd0c8e1b773dbde6995ae5"
+    "sha256": "1f508a38b0151e0b58c45043c40e808053b8526991ace8aac227f8d31fb655fe"
   },
   "state_partitions": {
     "analysis_documentation_status": {
