@@ -3,4 +3,4 @@
 # generator: manually curated; Python TSV writer
 # target: Pokémon Legends: Arceus update v262144 local-to-community field mapping for `quest_list_sub`
 worktree_artifact:string	local_raw_field:string	local_object_offset:string	local_observed_width:string	community_field:string	community_type:string	source_url:string	upstream_commit:string	check_used:string	status:string	notes:string
-n2-battle:data/quest/quest_catalog.tsv	opaque side-list targets	UNKNOWN	UNKNOWN	UNKNOWN	UNKNOWN	none	none	122 side rows; public request inventory contains IDs 1..122, but local quest_id/quest_order are UNKNOWN	unverified	Side list target records are opaque; no row-field schema or source binding was found.
+n2-battle:data/quest/quest_catalog.tsv	opaque side-list targets	UNKNOWN	UNKNOWN	UNKNOWN	UNKNOWN	none	none	149 side quest-name keys (115 IDs 1..122, 34 higher); 28 IDs occur at target +60 for vector indices 94..121, none at +60 for 0..93	unverified	Locator does not validate side target layouts or identify row IDs; repeat the byte scan to falsify, and require a decoded title/key at a validated target before promoting.
