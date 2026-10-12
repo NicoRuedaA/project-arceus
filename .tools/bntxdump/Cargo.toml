@@ -1,0 +1,9 @@
+[package]
+name = "bntxdump"
+version = "0.1.0"
+edition = "2021"
+# Detached from the repository workspace: standalone research tool.
+[workspace]
+[dependencies]
+tegra_swizzle = "0.4"
+half = "2.7"
