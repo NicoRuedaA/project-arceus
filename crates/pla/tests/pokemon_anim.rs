@@ -43,7 +43,8 @@ fn app_for(work: &PathBuf) -> App {
     );
     app.add_plugins(PokemonAnimPlugin);
     // Loaders (image, glTF) register in finish(); App::run is not used here.
-    app.world().resource::<AppTypeRegistry>().write().register_derived_types();
+    // No manual registry setup here on purpose: PokemonAnimPlugin must be self-sufficient,
+    // exactly as in the viewer (regression: viewer panicked on unregistered Transform).
     app.finish();
     app.cleanup();
     app
@@ -198,4 +199,17 @@ fn moving_root_switches_to_walk() {
         std::thread::sleep(Duration::from_millis(5));
     }
     assert!(!app.world().get::<PokemonAnimState>(root).unwrap().walking, "should idle when still");
+}
+
+/// Regression: a bare app with only the viewer-style plugins must have the glTF-scene
+/// components in the reflection registry once PokemonAnimPlugin is added.
+#[test]
+fn anim_plugin_registers_scene_types() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(PokemonAnimPlugin);
+    let reg = app.world().resource::<AppTypeRegistry>().read();
+    assert!(reg.contains(std::any::TypeId::of::<Transform>()));
+    assert!(reg.contains(std::any::TypeId::of::<Visibility>()));
+    assert!(reg.contains(std::any::TypeId::of::<Name>()));
 }
