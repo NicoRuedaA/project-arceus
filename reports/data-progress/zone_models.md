@@ -43,7 +43,7 @@ Census (`crates/pla/examples/field_material_census.rs`, run over the 626 ok mode
 | Referenced albedo missing from the pack / not decodable | 0 / 956 | all resolve in the same pack with the same prefix; no other pack is needed |
 | Blocks with `BaseColorLayer1..4` or a `LayerMaskMap` | 0 / 956 | the Pokémon layered bake does not apply to field models |
 | Models with no `BaseColorMap` at all | 13 | `Water` shader planes (`ground_area0N_waterNN`) |
-| First albedo near-white (min channel >= 200) / near-grey (chroma < 12) | 8 / 83 | white ones: 5 `Water` planes, 2 cave floors, 1 temple floor; grey ones are mostly real grey rocks |
+| First albedo near-white (min channel >= 200) / near-grey (chroma < 12) | 8 / 83 | white ones are mainly `Water` planes (5 Water-shader models have a pure white albedo) plus a few cave/ice/temple floors; the grey ones are mostly real grey rocks |
 | Index buffer = sum of submesh index counts | 613/613 | so slicing by submesh is exact |
 
 Cause: single material for a whole multi-material mesh (179 models; dominant for buildings). Not causes: missing/undecodable textures, wrong pack, BC format support, layer colours. Vertex layout `s40` (62 models) has an extra attribute id 5 at offset 36 (format code 20) whose meaning is not proven; it is NOT exported as COLOR_0.
