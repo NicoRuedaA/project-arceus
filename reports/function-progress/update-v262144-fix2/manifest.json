@@ -73,7 +73,7 @@
     "port.png": "171c21e73b75893738344b373a2e7ea2c8909240f5279fc13dc18b3663d77e32"
   },
   "rust_source_fingerprint": {
-    "file_count": 100,
+    "file_count": 101,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -333,11 +333,15 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "809b9fe0f5d23d6430b0fc84e875d370751c056eb1cf8bf8fef440f316792629"
+        "sha256": "de6942a9f0376006c8e5bb8a2d829285f26f7d0b616e4d196bdc6d853bb1ac09"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
         "sha256": "8a8254ce6df7014a9cf845fb7ea8033662409616015b35466aeb7feba2f4291b"
+      },
+      {
+        "path": "crates/pla/src/game/save_game.rs",
+        "sha256": "14df711d0a2be1a5d93ce5d5651ba2a92dd851ba669b94e36ecce7d2ff1aaf14"
       },
       {
         "path": "crates/pla/src/game/state.rs",
@@ -477,7 +481,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "fe5c28cbf3f1534b7bf400dc34b98a21d83ddbf92a9ce8a3974b652116176631"
+    "sha256": "509d4d5501302260ffcc9fa38d0c59882e996fdcd18f5c897ba8768d788471ee"
   },
   "state_partitions": {
     "analysis_documentation_status": {
