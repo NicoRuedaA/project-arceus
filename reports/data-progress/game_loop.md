@@ -4,7 +4,7 @@
 Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate modules `crates/pla/src/game/`) into a complete playable loop in Bevy with:
 1. Visible Combat Interface rendered with Bevy UI (combatant status cards, HP bars, 4-move menu with type/PP, action tabs, turn log).
 2. Overworld HUD with Bevy UI (zone title, coordinates, nearby creature radar with distance and compass direction).
-3. Real glTF Pokémon meshes loaded from cache with **baked color textures** preserved from `work/cache/pokemon_batch/pmXXXX_00_00/` (skinning attributes stripped; on-screen texturing UNVERIFIED).
+3. Real glTF Pokémon meshes loaded from cache with **baked color textures** preserved from `work/cache/pokemon_batch/pmXXXX_00_00/` (skinning attributes stripped; battle-frame result in the section below).
 4. Real field spawner tables (`data/field_spawn_table.tsv`, 4,398 rows) loaded per area (`--area 0` to `--area 5`) and dynamically streamed within 120 m of the player with deterministic `splitmix64` weighted species/level rolls.
 5. Turn-based battle loop driven by the engine: move effects, 3-member party, item bag, real catch rate, engine-AI opponent, in-battle capture (`[C]`), and state transitions using the real encountered wild species and level.
 6. Offscreen auto-demo verification driver (`--auto-demo` / `--script <dir>`): world walk in Area 01, approaching a real wild Staravia Lv17 spawner, and running a scripted battle (status move, item medicine, capture) with 4 frames.
@@ -26,7 +26,10 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
 3. **Real glTF Pokémon Models with Baked Color Textures (`port_viewer.rs`)**:
    - Loaded exported glTF models from `work/cache/pokemon_batch/pmXXXX_00_00/` (#0025 Pikachu, #0041 Zubat, #0074 Geodude, #0396 Starly, #0397 Staravia, #0399 Bidoof, #0401 Kricketot, #0403 Shinx, #0448 Lucario, #0501 Oshawott, #0722 Rowlet).
    - Stripped skinning vertex attributes (`ATTRIBUTE_JOINT_INDEX`, `ATTRIBUTE_JOINT_WEIGHT`) to prevent Bevy skinned mesh pipeline vertex layout panics without joint uniforms.
-   - Retained glTF materials and baked color textures (`base_color_texture`, metallic, roughness) directly from the exported model assets instead of replacing them with a flat single-color tint. Code intent only: textured wild Pokémon on screen are UNVERIFIED (no wild model was visible in the reviewed frames).
+   - Retained glTF materials and baked color textures (`base_color_texture`, metallic, roughness) directly from exported model assets.
+   - **On-screen status**: only `01_battle_encounter.png` was reviewed by the maintainer. It shows the player's Pikachu model (yellow, black ear tips, brown back stripes: baked colours) and a wild Geodude Lv 8 model in a static rest pose (arms spread). The player character is still a capsule. The battle camera frames the combatants small and far (Pikachu small at the right, Geodude near the top-right edge). World-exploration visibility of wild models and the other four frames are not claimed as reviewed.
+   - Terrain in the viewer still uses the old colouring: the baked splat albedo is NOT wired in yet. The save module is NOT wired in. There is no sound.
+   - In Jubilife Village (`ha_area00`), building caching and material modes were corrected (`AlphaMode::Opaque` on buildings, `Mask(0.5)` on foliage, and `Blend` translucent blue water on `ground_area00_water*`), intended to fix grey houses and white water band artifacts (UNVERIFIED on screen).
 
 4. **Real Field Spawner Tables & Dynamic Streaming (`crates/pla/src/game/wild.rs`, `port_viewer.rs`)**:
    - Parses `data/field_spawn_table.tsv` (4,398 rows across 1,951 spawners in 6 areas) via `load_spawners_for_area`.
@@ -44,20 +47,19 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
 
 6. **Auto-Demo Playthrough Driver in Area 01 (`--auto-demo`, or `--script <dir>`)**:
    - Headless run in Obsidian Fieldlands (Area 01): terrain loaded with 1,379 trees and 357 field spawners.
-   - Player moves towards a real wild spawner (Staravia Lv17 at $X=257.7, Z=383.9$), enters combat, and produces 4 inspected battle frames:
-     - `02_battle_status_move.png`: Wild Staravia Lv17 paralyzed by Pikachu's Thunder Wave [PAR].
+   - Player moves towards a real wild spawner (Staravia / Geodude), enters combat, and the driver writes 6 frames; only the encounter frame was reviewed:
+     - `00_world_exploration.png`: Overworld navigation with zone HUD and radar pointing to nearby wild creature.
+     - `01_battle_encounter.png`: battle encounter start with both Pokémon models present (reviewed, see below).
+     - `02_battle_status_move.png`: Wild combatant paralyzed by Pikachu's Thunder Wave [PAR].
      - `03_battle_item_menu.png`: Bag menu opened showing medicine quantities.
-     - `04_battle_medicine_used.png`: Heal medicine used, restoring Pikachu HP to 75/78.
-     - `05_battle_capture_attempt.png`: Poké Ball thrown with real catch rate 145, shakes evaluated.
+     - `04_battle_medicine_used.png`: Heal medicine used, restoring Pikachu HP.
+     - `05_battle_capture_attempt.png`: Poké Ball thrown with real catch rate, shakes evaluated.
 
 ## Visual Verification Observations (Inspected PNGs)
 
-The offscreen generated frames were opened and visually inspected:
-- **`work/cache/species_verify/*.png`**: reviewed by the maintainer; NO wild Pokémon model is visible on screen (only the player capsule). The earlier claim of a textured wild Zubat is therefore UNVERIFIED; baked textures are used by the loader code but their on-screen result is not demonstrated.
-- **`work/cache/game_demo/02_battle_status_move.png`**: Wild card `WILD STARAVIA Lv. 17 [PAR]`, HP 52/52; player card `PLAYER PIKACHU Lv. 25`, HP 75/78 (after wild Quick Attack with +1 priority). Log: `Wild STARAVIA used quick-attack!`, `PIKACHU used thunder-wave!`, `Wild STARAVIA was paralyzed! [PAR]`.
-- **`work/cache/game_demo/03_battle_item_menu.png`**: `[I] ITEM` tab active; medicine options visible (`[1] Heal 60 HP #17 x5`, `[2] Heal 150 HP #25 x2`, etc.). Player HP 42/78.
-- **`work/cache/game_demo/04_battle_medicine_used.png`**: Player HP restored to 75/78; log: `Used Heal 60 HP #17: PIKACHU regained 33 HP!`.
-- **`work/cache/game_demo/05_battle_capture_attempt.png`**: `You threw a Regular Ball at Wild STARAVIA! (catch rate 145 [game data], chance about 49%)`, `Shake...`, `Wild STARAVIA broke free!`.
+Only one offscreen frame in `work/cache/game_demo/` was opened and reviewed by the maintainer:
+- **`01_battle_encounter.png`**: player Pikachu model (yellow, black ear tips, brown back stripes from baked colours, small at the right) and wild Geodude Lv 8 model in static rest pose with arms spread (near the top-right edge); HP cards and the move menu are visible; the player is still a capsule; the camera frames the combatants small and far.
+- `00_world_exploration.png`, `02_battle_status_move.png`, `03_battle_item_menu.png`, `04_battle_medicine_used.png`, `05_battle_capture_attempt.png`: generated by the driver, NOT reviewed; no claim about their content is made here. The earlier `work/cache/species_verify/*.png` review found no wild model on screen.
 
 ## Remaining Limitations & Unknowns (Lo NO logrado)
 
@@ -71,7 +73,9 @@ The offscreen generated frames were opened and visually inspected:
    - Confusion, trapping, multi-turn charge moves, Protect/Counter, speed stages in turn order, stat-boost items, and party save serialization are not yet implemented.
 5. **Audio & Save System**:
    - No audio playback (Wwise banks not decoded).
-   - No persistent game save state; party and bag are fixed demo presets.
+   - No persistent game save state in the game: the own-format save module exists but is NOT wired into the viewer; party and bag are fixed demo presets.
+5b. **Terrain colouring and camera**:
+   - Terrain in the viewer still uses the old colouring (baked splat albedo NOT wired in yet). The battle camera frames the combatants small and far; the player is still a capsule.
 6. **Props & Buildings Placement**:
    - Field scenery buildings and props (`bg_parts`) are decoded in separate tools/branches but not all placed in the main interactive world viewer loop.
 
