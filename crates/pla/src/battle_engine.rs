@@ -1,7 +1,7 @@
 //! Headless, data-backed battle loop. This is a playable approximation, not a
 //! claim that the listed mechanics reproduce Pokémon Legends: Arceus exactly.
 
-use crate::battle::{BattleData, BattleMove, BattleSpecies};
+use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 
 pub trait BattleRng {
     fn next_u32(&mut self) -> u32;
@@ -98,6 +98,12 @@ pub struct Action {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HealingItem {
+    pub name: String,
+    pub healing: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     TurnStarted(u32),
     ActedFirst(usize),
@@ -128,6 +134,16 @@ pub enum Event {
         damage: u32,
     },
     KnockedOut(usize),
+    Switched {
+        side: usize,
+        from: usize,
+        to: usize,
+    },
+    UsedHealingItem {
+        combatant: usize,
+        item: String,
+        healed: u32,
+    },
     BattleEnded {
         winner_side: Option<usize>,
     },
@@ -139,10 +155,16 @@ pub struct Battle {
     pub sides: Vec<Vec<usize>>,
     pub turn: u32,
     pub ended: bool,
+    active: Vec<usize>,
+    type_chart: TypeChart,
 }
 
 impl Battle {
-    pub fn new(combatants: Vec<Combatant>, sides: Vec<Vec<usize>>) -> Result<Self, String> {
+    pub fn new(
+        combatants: Vec<Combatant>,
+        sides: Vec<Vec<usize>>,
+        type_chart: TypeChart,
+    ) -> Result<Self, String> {
         if sides.len() < 2 || sides.iter().any(Vec::is_empty) {
             return Err("battle needs at least two non-empty sides".into());
         }
@@ -152,13 +174,92 @@ impl Battle {
                     return Err(format!("combatant index {index} out of range"));
                 }
             }
+            if !side.iter().any(|&index| combatants[index].is_alive()) {
+                return Err("each battle side needs a living combatant".into());
+            }
         }
+        let active = sides
+            .iter()
+            .map(|side| {
+                side.iter()
+                    .copied()
+                    .find(|&index| combatants[index].is_alive())
+                    .unwrap()
+            })
+            .collect();
         Ok(Self {
             combatants,
             sides,
             turn: 0,
             ended: false,
+            active,
+            type_chart,
         })
+    }
+
+    pub fn active_combatant(&self, side: usize) -> Option<usize> {
+        self.active.get(side).copied()
+    }
+
+    /// Switch the active team member. Switch order and action cost are assumed.
+    pub fn switch(&mut self, side: usize, replacement: usize) -> Result<Event, String> {
+        let roster = self.sides.get(side).ok_or("battle side out of range")?;
+        if !roster.contains(&replacement) {
+            return Err("replacement is not on this side".into());
+        }
+        if !self.combatants[replacement].is_alive() {
+            return Err("replacement is not able to battle".into());
+        }
+        let from = self.active[side];
+        self.active[side] = replacement;
+        Ok(Event::Switched {
+            side,
+            from,
+            to: replacement,
+        })
+    }
+
+    /// Use a caller-supplied healing item; inventory and exact game effects are unknown.
+    pub fn use_healing_item(&mut self, side: usize, item: &HealingItem) -> Result<Event, String> {
+        let combatant = *self.active.get(side).ok_or("battle side out of range")?;
+        if !self.combatants[combatant].is_alive() {
+            return Err("active Pokémon is unable to battle".into());
+        }
+        let before = self.combatants[combatant].hp;
+        self.combatants[combatant].hp = before
+            .saturating_add(item.healing)
+            .min(self.combatants[combatant].max_hp);
+        Ok(Event::UsedHealingItem {
+            combatant,
+            item: item.name.clone(),
+            healed: self.combatants[combatant].hp - before,
+        })
+    }
+
+    /// Choose the move with the highest estimated expected damage (no critical chance).
+    pub fn best_damage_action(&self, actor: usize) -> Option<Action> {
+        let target = self.target_for(actor)?;
+        self.combatants
+            .get(actor)?
+            .moves
+            .iter()
+            .enumerate()
+            .filter(|(_, slot)| slot.pp > 0 && slot.data.power > 0)
+            .max_by(|(_, a), (_, b)| {
+                expected_damage(
+                    &self.combatants[actor],
+                    &self.combatants[target],
+                    &a.data,
+                    &self.type_chart,
+                )
+                .total_cmp(&expected_damage(
+                    &self.combatants[actor],
+                    &self.combatants[target],
+                    &b.data,
+                    &self.type_chart,
+                ))
+            })
+            .map(|(move_slot, _)| Action { actor, move_slot })
     }
 
     pub fn winner_side(&self) -> Option<Option<usize>> {
@@ -188,7 +289,13 @@ impl Battle {
         let mut order = actions
             .iter()
             .copied()
-            .filter(|a| a.actor < self.combatants.len() && self.combatants[a.actor].is_alive())
+            .filter(|a| {
+                a.actor < self.combatants.len()
+                    && self.combatants[a.actor].is_alive()
+                    && self.active.iter().enumerate().any(|(side, active)| {
+                        *active == a.actor && self.sides[side].contains(&a.actor)
+                    })
+            })
             .collect::<Vec<_>>();
         order.sort_by(|a, b| {
             let am = self.combatants[a.actor].moves.get(a.move_slot);
@@ -262,6 +369,7 @@ impl Battle {
                 &move_type,
                 &category,
                 power,
+                &self.type_chart,
                 rng,
             );
             self.combatants[target].hp = self.combatants[target].hp.saturating_sub(damage);
@@ -275,9 +383,11 @@ impl Battle {
             });
             if self.combatants[target].hp == 0 {
                 events.push(Event::KnockedOut(target));
+                self.advance_active_for(target);
             }
         }
         // End-of-round status damage and status timing are conventional-series assumptions.
+        let mut status_knockouts = Vec::new();
         for side in &self.sides {
             for &i in side {
                 if !self.combatants[i].is_alive() {
@@ -298,8 +408,12 @@ impl Battle {
                 });
                 if self.combatants[i].hp == 0 {
                     events.push(Event::KnockedOut(i));
+                    status_knockouts.push(i);
                 }
             }
+        }
+        for index in status_knockouts {
+            self.advance_active_for(index);
         }
         if let Some(winner) = self.winner_side() {
             self.ended = true;
@@ -319,9 +433,26 @@ impl Battle {
             .iter()
             .enumerate()
             .filter(|(i, _)| *i != side)
-            .flat_map(|(_, ids)| ids)
-            .copied()
+            .filter_map(|(enemy_side, _)| self.active.get(enemy_side).copied())
             .find(|&i| self.combatants[i].is_alive())
+    }
+
+    fn advance_active_for(&mut self, knocked_out: usize) {
+        if let Some(side) = self
+            .sides
+            .iter()
+            .position(|roster| roster.contains(&knocked_out))
+        {
+            if self.active[side] == knocked_out {
+                if let Some(next) = self.sides[side]
+                    .iter()
+                    .copied()
+                    .find(|&index| self.combatants[index].is_alive())
+                {
+                    self.active[side] = next;
+                }
+            }
+        }
     }
 
     /// Capture rate and combination order are not recovered. This playable
@@ -379,6 +510,7 @@ impl Battle {
         let caught = f64::from(rng.below(10_000)) / 100.0 < chance;
         if caught {
             self.combatants[target].caught = true;
+            self.advance_active_for(target);
         }
         if self.winner_side().is_some() {
             self.ended = true;
@@ -387,10 +519,8 @@ impl Battle {
     }
 }
 
-/// The chart is the conventional 18-type series chart, used as a fallback
-/// because no PLA type-effectiveness table was found in checked-in/extracted data.
-/// It is explicitly assumed, unverified for PLA.
-pub fn type_effectiveness(attack: &str, defenses: &[String]) -> f32 {
+/// Read the executable-derived chart. Unknown names remain neutral as in the prior fallback.
+pub fn type_effectiveness(chart: &TypeChart, attack: &str, defenses: &[String]) -> f32 {
     let mut seen: Vec<&String> = Vec::new();
     defenses
         .iter()
@@ -402,95 +532,41 @@ pub fn type_effectiveness(attack: &str, defenses: &[String]) -> f32 {
                 true
             }
         })
-        .fold(1.0, |acc, defense| acc * type_pair(attack, defense))
+        .fold(1.0, |acc, defense| {
+            acc * chart.multiplier(attack, defense).unwrap_or(1.0)
+        })
 }
-fn type_pair(attack: &str, defense: &str) -> f32 {
-    let (strong, weak, immune): (&[&str], &[&str], &[&str]) = match attack {
-        "Normal" => (&[], &["Rock", "Steel"], &["Ghost"]),
-        "Fire" => (
-            &["Grass", "Ice", "Bug", "Steel"],
-            &["Fire", "Water", "Rock", "Dragon"],
-            &[],
-        ),
-        "Water" => (
-            &["Fire", "Ground", "Rock"],
-            &["Water", "Grass", "Dragon"],
-            &[],
-        ),
-        "Electric" => (
-            &["Water", "Flying"],
-            &["Electric", "Grass", "Dragon"],
-            &["Ground"],
-        ),
-        "Grass" => (
-            &["Water", "Ground", "Rock"],
-            &[
-                "Fire", "Grass", "Poison", "Flying", "Bug", "Dragon", "Steel",
-            ],
-            &[],
-        ),
-        "Ice" => (
-            &["Grass", "Ground", "Flying", "Dragon"],
-            &["Fire", "Water", "Ice", "Steel"],
-            &[],
-        ),
-        "Fighting" => (
-            &["Normal", "Ice", "Rock", "Dark", "Steel"],
-            &["Poison", "Flying", "Psychic", "Bug", "Fairy"],
-            &["Ghost"],
-        ),
-        "Poison" => (
-            &["Grass", "Fairy"],
-            &["Poison", "Ground", "Rock", "Ghost"],
-            &["Steel"],
-        ),
-        "Ground" => (
-            &["Fire", "Electric", "Poison", "Rock", "Steel"],
-            &["Grass", "Bug"],
-            &["Flying"],
-        ),
-        "Flying" => (
-            &["Grass", "Fighting", "Bug"],
-            &["Electric", "Rock", "Steel"],
-            &[],
-        ),
-        "Psychic" => (&["Fighting", "Poison"], &["Psychic", "Steel"], &["Dark"]),
-        "Bug" => (
-            &["Grass", "Psychic", "Dark"],
-            &[
-                "Fire", "Fighting", "Poison", "Flying", "Ghost", "Steel", "Fairy",
-            ],
-            &[],
-        ),
-        "Rock" => (
-            &["Fire", "Ice", "Flying", "Bug"],
-            &["Fighting", "Ground", "Steel"],
-            &[],
-        ),
-        "Ghost" => (&["Psychic", "Ghost"], &["Dark"], &["Normal"]),
-        "Dragon" => (&["Dragon"], &["Steel"], &["Fairy"]),
-        "Dark" => (&["Psychic", "Ghost"], &["Fighting", "Dark", "Fairy"], &[]),
-        "Steel" => (
-            &["Ice", "Rock", "Fairy"],
-            &["Fire", "Water", "Electric", "Steel"],
-            &[],
-        ),
-        "Fairy" => (
-            &["Fighting", "Dragon", "Dark"],
-            &["Fire", "Poison", "Steel"],
-            &[],
-        ),
-        _ => return 1.0,
+
+fn expected_damage(
+    attacker: &Combatant,
+    target: &Combatant,
+    movement: &BattleMove,
+    chart: &TypeChart,
+) -> f32 {
+    let (attack, defense) = if movement.category == "Physical" {
+        (attacker.attack, target.defense)
+    } else {
+        (attacker.special_attack, target.special_defense)
     };
-    if immune.contains(&defense) {
-        0.0
-    } else if strong.contains(&defense) {
-        2.0
-    } else if weak.contains(&defense) {
-        0.5
+    let level_term = (2 * u32::from(attacker.level) / 5) + 2;
+    let core = (level_term * u32::from(movement.power) * attack / defense.max(1) / 50 + 2).max(1);
+    let stab = if attacker
+        .species
+        .types
+        .iter()
+        .any(|t| t == &movement.move_type)
+    {
+        1.5
     } else {
         1.0
-    }
+    };
+    let effectiveness = type_effectiveness(chart, &movement.move_type, &target.species.types);
+    let accuracy = if movement.accuracy == 0 || movement.accuracy >= 100 {
+        1.0
+    } else {
+        f32::from(movement.accuracy) / 100.0
+    };
+    core as f32 * stab * effectiveness * 0.925 * accuracy
 }
 
 fn calculate_damage(
@@ -499,6 +575,7 @@ fn calculate_damage(
     attack_type: &str,
     category: &str,
     power: u16,
+    chart: &TypeChart,
     rng: &mut impl BattleRng,
 ) -> (u32, bool, f32) {
     // Conventional-series damage, crit chance and random range: assumed, unverified for PLA.
@@ -514,7 +591,7 @@ fn calculate_damage(
     } else {
         1.0
     };
-    let effectiveness = type_effectiveness(attack_type, &target.species.types);
+    let effectiveness = type_effectiveness(chart, attack_type, &target.species.types);
     let critical = rng.below(16) == 0;
     let random = 85 + rng.below(16);
     let crit = if critical { 1.5 } else { 1.0 };
@@ -600,11 +677,63 @@ mod tests {
     }
     #[test]
     fn type_chart_supports_dual_types_and_immunity() {
+        let d = data();
+        assert_eq!(d.type_chart().cell_count(), 324);
         assert_eq!(
-            type_effectiveness("Electric", &["Water".into(), "Flying".into()]),
+            type_effectiveness(
+                d.type_chart(),
+                "Electric",
+                &["Water".into(), "Flying".into()]
+            ),
             4.0
         );
-        assert_eq!(type_effectiveness("Electric", &["Ground".into()]), 0.0);
+        assert_eq!(
+            type_effectiveness(d.type_chart(), "Electric", &["Ground".into()]),
+            0.0
+        );
+        assert_eq!(d.type_chart().multiplier("Fire", "Grass").unwrap(), 2.0);
+        assert_eq!(d.type_chart().multiplier("Normal", "Rock").unwrap(), 0.5);
+    }
+
+    #[test]
+    fn player_can_switch_and_use_healing_item_while_ai_picks_best_damage() {
+        let d = data();
+        let mut b = Battle::new(
+            vec![
+                combatant(&d, "pikachu", &["thunder-shock", "quick-attack"], 20),
+                combatant(&d, "eevee", &["tackle"], 20),
+                combatant(&d, "staraptor", &["wing-attack"], 20),
+            ],
+            vec![vec![0, 1], vec![2]],
+            d.type_chart().clone(),
+        )
+        .unwrap();
+        let action = b.best_damage_action(2).unwrap();
+        assert_eq!(action.move_slot, 0);
+        b.combatants[0].hp -= 10;
+        let item = HealingItem {
+            name: "Potion".into(),
+            healing: 20,
+        };
+        assert_eq!(
+            b.use_healing_item(0, &item).unwrap(),
+            Event::UsedHealingItem {
+                combatant: 0,
+                item: "Potion".into(),
+                healed: 10,
+            }
+        );
+        assert_eq!(b.combatants[0].hp, b.combatants[0].max_hp);
+        assert_eq!(
+            b.switch(0, 1).unwrap(),
+            Event::Switched {
+                side: 0,
+                from: 0,
+                to: 1
+            }
+        );
+        assert_eq!(b.active_combatant(0), Some(1));
+        assert!(b.switch(0, 2).is_err());
     }
     #[test]
     fn damage_includes_stab_effectiveness_critical_and_roll() {
@@ -617,6 +746,7 @@ mod tests {
             "Electric",
             "Special",
             40,
+            d.type_chart(),
             &mut Fixed(vec![0, 0]),
         );
         assert!(critical);
@@ -627,6 +757,7 @@ mod tests {
             "Electric",
             "Special",
             40,
+            d.type_chart(),
             &mut Fixed(vec![1, 15]),
         );
         assert!(!critical);
@@ -638,6 +769,7 @@ mod tests {
             "Electric",
             "Special",
             40,
+            d.type_chart(),
             &mut Fixed(vec![1, 15]),
         );
         assert_eq!(multiplier, 0.0);
@@ -652,6 +784,7 @@ mod tests {
                 combatant(&d, "starly", &["tackle"], 5),
             ],
             vec![vec![0], vec![1]],
+            d.type_chart().clone(),
         )
         .unwrap();
         b.combatants[1].hp = 1;
@@ -682,6 +815,7 @@ mod tests {
                 combatant(&d, "starly", &["tackle"], 5),
             ],
             vec![vec![0], vec![1]],
+            d.type_chart().clone(),
         )
         .unwrap();
         b.combatants[0].moves[0].priority = -1;
@@ -712,6 +846,7 @@ mod tests {
                 combatant(&d, "starly", &["tackle"], 5),
             ],
             vec![vec![0], vec![1]],
+            d.type_chart().clone(),
         )
         .unwrap();
         b.combatants[0].moves[0].data.accuracy = 1;
@@ -752,13 +887,15 @@ mod tests {
                 combatant(&d, "starly", &["tackle"], 5),
             ],
             vec![vec![0], vec![1]],
+            d.type_chart().clone(),
         )
         .unwrap();
         b.combatants[1].hp = 1;
         b.combatants[1].status = Some(MajorStatus::Paralysis);
-        assert!(b
-            .attempt_capture(&d, 1, "Gigaton", true, 0, 1, true, &mut Fixed(vec![0]))
-            .unwrap());
+        assert!(
+            b.attempt_capture(&d, 1, "Gigaton", true, 0, 1, true, &mut Fixed(vec![0]))
+                .unwrap()
+        );
         assert!(b.combatants[1].caught);
     }
 }

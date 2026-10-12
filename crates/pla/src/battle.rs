@@ -88,6 +88,75 @@ pub struct BattleData {
     throwable_parameters: Table,
     move_data: Table,
     personal_data: Table,
+    type_chart: TypeChart,
+}
+
+/// Verified raw type-effectiveness values extracted from the game executable.
+/// The byte encoding is 0/2/4/8 for multipliers 0/0.5/1/2 respectively.
+#[derive(Debug, Clone)]
+pub struct TypeChart {
+    cells: BTreeMap<(String, String), u8>,
+}
+
+impl TypeChart {
+    fn load(path: &Path) -> Result<Self, String> {
+        const TYPES: [&str; 18] = [
+            "Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel",
+            "Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark", "Fairy",
+        ];
+        let table = Table::load(path, None)?;
+        let mut cells = BTreeMap::new();
+        for row in table.rows {
+            let attacker = Table::value(&row, "attacker_type:string")?.to_owned();
+            let defender = Table::value(&row, "defender_type:string")?.to_owned();
+            let raw = Table::value(&row, "raw_effectiveness:u8")?
+                .parse::<u8>()
+                .map_err(|_| format!("invalid type-chart value for {attacker}/{defender}"))?;
+            if !matches!(raw, 0 | 2 | 4 | 8) {
+                return Err(format!(
+                    "unsupported type-chart value {raw} for {attacker}/{defender}"
+                ));
+            }
+            if cells
+                .insert((attacker.clone(), defender.clone()), raw)
+                .is_some()
+            {
+                return Err(format!("duplicate type-chart cell {attacker}/{defender}"));
+            }
+        }
+        if cells.len() != 18 * 18 {
+            return Err(format!(
+                "expected 324 type-chart cells, found {}",
+                cells.len()
+            ));
+        }
+        if TYPES.iter().any(|attacker| {
+            TYPES
+                .iter()
+                .any(|defender| !cells.contains_key(&(attacker.to_string(), defender.to_string())))
+        }) {
+            return Err("type chart is missing one or more canonical matchups".into());
+        }
+        Ok(Self { cells })
+    }
+
+    pub fn multiplier(&self, attacker: &str, defender: &str) -> Result<f32, String> {
+        let raw = self
+            .cells
+            .get(&(attacker.to_owned(), defender.to_owned()))
+            .ok_or_else(|| format!("unknown type matchup {attacker}/{defender}"))?;
+        Ok(match raw {
+            0 => 0.0,
+            2 => 0.5,
+            4 => 1.0,
+            8 => 2.0,
+            _ => unreachable!(),
+        })
+    }
+
+    pub fn cell_count(&self) -> usize {
+        self.cells.len()
+    }
 }
 
 impl BattleData {
@@ -131,7 +200,12 @@ impl BattleData {
             // and resolve battle moves by their canonical names instead.
             move_data: Table::load(&root.join("pml_moves.tsv"), None)?,
             personal_data: Table::load(&root.join("pml_personal.tsv"), None)?,
+            type_chart: TypeChart::load(&root.join("type_chart.tsv"))?,
         })
+    }
+
+    pub fn type_chart(&self) -> &TypeChart {
+        &self.type_chart
     }
 
     /// Find an active base-form species row in the checked-in personal table.

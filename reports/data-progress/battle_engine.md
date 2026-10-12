@@ -1,34 +1,38 @@
 # Headless battle engine: current scope and evidence
 
-A pure Rust, headless battle loop now reads Pokémon and move records from checked-in PML TSVs. It supports team containers (one active attacker per side in the demo), priority/speed ordering, accuracy, damage, PP, major statuses, knockout/victory, and a capture attempt. `pla::battle_engine` has no Bevy imports; the crate as a whole still depends on Bevy.
+`pla::battle_engine` is a Bevy-owned Rust simulation layer with no Nintendo-library dependency and no Bevy imports in the headless engine module. It loads extracted-game-derived PML records and the verified type chart, then runs a playable turn-based battle. This is an implementation scaffold, not a claim of full Pokémon Legends: Arceus behavioral parity.
 
 ## Data-backed inputs
 
 | Input | Source | Evidence status |
 |---|---|---|
-| Species base HP/attack/defense/special attack/special defense/speed and types | `data/pml_personal.tsv` | Values are read directly from the extracted-game-derived checked-in table; active base forms are selected. |
-| Move type/category/power/accuracy/PP | `data/pml_moves.tsv` | Values are read directly from the extracted-game-derived checked-in table. A known duplicate move ID prevents treating IDs as unique; this implementation resolves by move name. |
-| Capture ball, status, context, rank factors and constants | `data/capture/*.tsv` through `BattleData` | Reuses the existing table accessors. Their composition into final probability is not documented as recovered behavior. |
-| Type matchup | No type-effectiveness chart was found under checked-in `data/` or extracted `bin/pml/`. | Conventional 18-type series chart is **assumed, unverified** for PLA. |
+| Species base stats and types | `data/pml_personal.tsv` | Table values are game-derived; this file contains base stats only. Nature, IV, and EV inputs are absent. |
+| Move type, category, power, accuracy, and PP | `data/pml_moves.tsv` | Values are game-derived. Move priority is not included. |
+| Type matchups | `data/type_chart.tsv` | **type chart: verified against game data.** The typed 18×18 sheet stores 324 raw values (0/2/4/8) from the main ELF at offset `0x3985908` (324 bytes). All 324 cells match the independently decoded chart; 15 known matchups were checked. This is data-table provenance only; no executable code was extracted or copied. |
+| AI/capture lookup tables | `data/ai/*.tsv`, `data/capture/*.tsv` | Existing recovered table inputs. Their full formulas/behavior are not established by table presence. |
 
-## Explicitly assumed, unverified formulas and behavior
+The game-data table remains distinct from the damage model: verified type matchups do **not** verify STAB, damage, critical, rounding, turn-order, or capture behavior.
 
-These are scaffolding for a playable simulation, not verified PLA mechanics:
+## Playable mechanics and assumptions
 
-- Conventional-series stat construction with fixed IV 15 and zero EV; PLA individual stat generation is not modeled.
-- Conventional level/power/attack/defense damage core, 1.5 STAB, type multipliers, 1/16 critical chance with 1.5 multiplier, and an 85–100 damage roll. Rounding/order are also assumed.
-- Accuracy is treated as a percentage; values 0/101 are treated as guaranteed hit.
-- Action order sorts by move priority then speed; equal priority/speed preserves supplied action order. The move TSV omits priority, so a few conventional priority moves (including Quick Attack) are hard-coded as an **assumed, unverified** fallback and callers can override `MoveSlot.priority`. PLA turn-queue timing, Agile/Strong style timing, speed changes, and other action-order effects are not represented.
-- The handful of status move names mapped in code, drowsy/paralysis action failure, and poison/burn/frostbite end-of-turn damage are conventional approximations. Durations, status interactions, style modifiers, and most secondary effects remain unimplemented.
-- Capture probability uses recovered ball/status/context/rank values in a guessed composition: `basic_coef * pokepara_coef * (1 - HP/maxHP)^hp_coef * ball * status * context * rank_scale`, clipped to 0–100%. This is **assumed, unverified**; the recovered tables do not prove HP curve composition, rank units/order, final-rate formula, or shake thresholds. The capture result is a useful local simulation control, not a PLA rate claim.
+- **Implemented:** switch among living party members, apply a caller-supplied healing item to the active Pokémon, and let the opponent choose the damaging move with the highest estimated expected damage. These are minimal simulation controls, not recovered PLA rules.
+- **Damage:** the conventional integer core, STAB, type multiplier application, critical chance/multiplier, random range, and rounding/order remain assumptions. The type multiplier itself now comes from the verified table.
+- **Stats:** the conventional stat constructor uses fixed IV 15 and zero EV as scaffolding. PLA nature/IV/EV inputs are not represented in `pml_personal.tsv`; `docs/pml-data-and-stats.md` also records the nature formula/mapping as unresolved. Do not treat the generated battle stats as verified.
+- **Turn order:** priority/speed ordering and the few hard-coded priority exceptions are assumptions. The move table has no priority field, and PLA queue/style timing is not modeled.
+- **Critical hits:** their implemented chance and multiplier are assumptions; no PLA critical chance has been recovered here.
+- **Accuracy/status:** the demo interprets move accuracy as a percentage and uses conventional status behavior; these rules are not verified here.
+- **Healing item:** item name/effect is supplied by the caller; the console example's Potion amount is a demo assumption, not a recovered item record or inventory system.
+- **Opponent AI:** highest expected damage is a local deterministic policy, not the recovered game AI. `battle.blua` is absent, so the game's move scoring policy is not established. Native tactical-AI findings do not prove the specific opponent decision rule implemented here.
+- **Capture:** uses recovered table factors in a guessed composition; the final rate and combination order remain assumed and unverified.
 
-All randomness is supplied through `BattleRng`; tests use fixed values and the console example uses a seeded xorshift generator. No binary matching, AI opponent policy, switching, items, multi-action PLA queue, or full party switching is claimed.
+All randomness is supplied via `BattleRng`. Tests cover chart loading/matchups, move selection, switching, healing, and the existing battle scaffold. The console example is interactive (`move <slot>`, `switch <party slot>`, `heal`, `quit`) and uses deterministic seeded randomness.
 
 ## Verification
 
-Focused unit tests cover real table rows, dual-type effectiveness/immunity, STAB/type/critical/random damage, priority/speed, status application, PP/KO/end state, and a capture success path. The console example runs Pikachu versus Staraptor from the real PML tables and prints a turn-by-turn log. Run both with:
+From the repository root (all cargo commands are memory-scoped):
 
 ```sh
+CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- cargo run -q --offline -p sheetty-cli -- check data
 CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- cargo test --offline -p pla battle_engine::tests
-CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- cargo run --offline -p pla --example battle_demo
+printf 'move 1\nheal\nswitch 2\nquit\n' | CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- cargo run --offline -p pla --example battle_demo
 ```
