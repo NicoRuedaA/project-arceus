@@ -38,6 +38,10 @@ use pla::game::{
     ActiveBattleSession, BattleAssets, GameNavmeshResource, GameState, PlayerAvatar,
     WildCreature,
 };
+use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleState, BallSimulation};
+use pla::game::pause_menu::PauseMenuPlugin;
+use pla::game::settings::UserSettings;
+use pla::game::state::{not_paused, Paused};
 use pla::pml::{calculate_hp, PmlDatabase};
 
 #[derive(Component)]
@@ -212,28 +216,69 @@ impl BallKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum BallState {
-    InFlight,
-    Shaking {
-        shake_count: u8,
-        timer: f32,
-        max_shakes: u8,
-        will_capture: bool,
-    },
-    Captured,
-    Breakout,
-}
-
+/// Viewer-side data of a thrown ball. The motion and lifecycle live in `BallBody`
+/// (`pla::game::ball_lifecycle`), which `ball_ballistics_and_physics` steps every frame.
 #[derive(Component)]
 struct PokeBall {
-    velocity: Vec3,
-    gravity: f32,
-    lifetime: f32,
-    bounces: u8,
-    state: BallState,
     kind: BallKind,
+    /// Wild Pokémon entity the ball is holding (hidden while it shakes).
+    target: Option<Entity>,
 }
+
+/// Mesh and material handles shared by every thrown ball (built once, never per throw).
+struct BallVisuals {
+    upper: Handle<Mesh>,
+    lower: Handle<Mesh>,
+    latch: Handle<Mesh>,
+    tops: Vec<Handle<StandardMaterial>>,
+    bottom: Handle<StandardMaterial>,
+    latch_mat: Handle<StandardMaterial>,
+}
+
+const ALL_BALL_KINDS: [BallKind; 5] = [
+    BallKind::PokeBall,
+    BallKind::GreatBall,
+    BallKind::UltraBall,
+    BallKind::FeatherBall,
+    BallKind::HeavyBall,
+];
+
+impl BallVisuals {
+    fn new(meshes: &mut Assets<Mesh>, materials: &mut Assets<StandardMaterial>) -> Self {
+        Self {
+            upper: meshes.add(Mesh::from(Sphere::new(0.12))),
+            lower: meshes.add(Mesh::from(Sphere::new(0.115))),
+            latch: meshes.add(Mesh::from(Cylinder::new(0.03, 0.02))),
+            tops: ALL_BALL_KINDS
+                .iter()
+                .map(|k| {
+                    materials.add(StandardMaterial {
+                        base_color: k.top_color(),
+                        perceptual_roughness: 0.4,
+                        ..default()
+                    })
+                })
+                .collect(),
+            // Hisui wood/cream lower hemisphere
+            bottom: materials.add(StandardMaterial {
+                base_color: Color::srgb(0.9, 0.88, 0.82),
+                perceptual_roughness: 0.7,
+                ..default()
+            }),
+            // Bronze latch
+            latch_mat: materials.add(StandardMaterial {
+                base_color: Color::srgb(0.7, 0.6, 0.3),
+                metallic: 0.8,
+                perceptual_roughness: 0.3,
+                ..default()
+            }),
+        }
+    }
+}
+
+/// Screen-space hint shown only while aiming.
+#[derive(Component)]
+struct AimHint;
 
 #[derive(Resource)]
 struct BallInventory {
@@ -298,6 +343,7 @@ struct AutomationOptions {
     demo_output_dir: Option<PathBuf>,
     demo_step: usize,
     demo_step_tick: u32,
+    controls_demo_dir: Option<PathBuf>,
 }
 
 fn main() -> ExitCode {
@@ -319,6 +365,7 @@ fn main() -> ExitCode {
     let mut verify_views_dir = None;
     let mut auto_demo = false;
     let mut demo_output_dir = None;
+    let mut controls_demo_dir: Option<PathBuf> = None;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -369,6 +416,13 @@ fn main() -> ExitCode {
                     demo_output_dir = Some(PathBuf::from("work/cache/game_demo"));
                 }
             }
+            "--script-controls" => {
+                // Hidden-window demo: world, pause menu open, aim mode with reticle (3 PNGs).
+                headless = true;
+                controls_demo_dir = Some(PathBuf::from(
+                    args.next().unwrap_or_else(|| "work/cache/controls_demo".into()),
+                ));
+            }
             "--verify-views" => {
                 headless = true;
                 verify_views_dir = Some(PathBuf::from("work/cache/world_verify"));
@@ -417,6 +471,7 @@ fn main() -> ExitCode {
                 println!("  --headless            Run offscreen with hidden window (no display window)");
                 println!("  --auto-demo           Run deterministic game loop test offscreen (Walk -> Battle -> Return)");
                 println!("  --script <DIR>        Run deterministic test and write screenshots to DIR");
+                println!("  --script-controls <DIR>  Hidden-window demo: world / pause menu / aim reticle PNGs in DIR");
                 println!("  --verify-views        Verify 3 distinct viewpoints offscreen in a single process");
                 println!("  --verify-views-dir D  Verify 3 viewpoints and save screenshots to directory D");
                 println!("  --screenshot <PATH>   Capture window screenshot and exit");
@@ -597,6 +652,8 @@ fn main() -> ExitCode {
         camera_ctrl.target_distance = 2.2;
     }
     app.insert_resource(camera_ctrl);
+    let settings_dir = UserSettings::default_dir();
+    PauseMenuPlugin::install(&mut app, UserSettings::load_from_dir(&settings_dir), settings_dir);
 
     let mut dex_list = vec![25, 501, 722, 155, 448]; // Pikachu, Oshawott, Rowlet, Cyndaquil, Lucario
     let mut current_index = 0;
@@ -719,31 +776,33 @@ fn main() -> ExitCode {
         demo_output_dir,
         demo_step: 0,
         demo_step_tick: 0,
+        controls_demo_dir,
     });
 
     pla::game::save_wire::SaveWirePlugin::install(&mut app, save_game, wire_start, &wire_cli);
-    app.add_systems(Startup, (setup_scene, setup_game_ui));
+    app.add_systems(Startup, (setup_scene, setup_game_ui, spawn_aim_hint));
     app.add_systems(
         Update,
         (
             spawn_tree_instances,
-            stream_wild_spawners.run_if(in_state(GameState::World)),
+            stream_wild_spawners.run_if(in_state(GameState::World)).run_if(not_paused),
             spawn_pokemon_models,
-            player_locomotion.run_if(in_state(GameState::World)),
-            creature_encounter_system.run_if(in_state(GameState::World)),
-            battle_input_system.run_if(in_state(GameState::Battle)),
+            player_locomotion.run_if(in_state(GameState::World)).run_if(not_paused),
+            creature_encounter_system.run_if(in_state(GameState::World)).run_if(not_paused),
+            battle_input_system.run_if(in_state(GameState::Battle)).run_if(not_paused),
             camera_controls,
             update_camera_transform,
-            ball_selection_controls.run_if(in_state(GameState::World)),
-            ball_throw_input.run_if(in_state(GameState::World)),
-            ball_ballistics_and_physics.run_if(in_state(GameState::World)),
-            capture_resolution_system.run_if(in_state(GameState::World)),
-            pokemon_selection_controls.run_if(in_state(GameState::World)),
+            ball_selection_controls.run_if(in_state(GameState::World)).run_if(not_paused),
+            ball_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
+            ball_ballistics_and_physics.run_if(in_state(GameState::World)).run_if(not_paused),
+            pokemon_selection_controls.run_if(in_state(GameState::World)).run_if(not_paused),
+            update_aim_hud,
             sync_ui_visibility,
             update_world_hud_system.run_if(in_state(GameState::World)),
             update_battle_ui_system.run_if(in_state(GameState::Battle)),
             update_hud_and_telemetry,
             automated_tick_driver,
+            controls_demo_driver,
         )
             .chain(),
     );
@@ -1454,6 +1513,7 @@ fn player_locomotion(
 
 
 /// Camera input and state updates (implements PLA dec319 kinematics).
+/// While paused it only drains the mouse events, so nothing accumulates behind the menu.
 fn camera_controls(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -1461,8 +1521,14 @@ fn camera_controls(
     mut mouse_motion: MessageReader<bevy::input::mouse::MouseMotion>,
     mut mouse_wheel: MessageReader<bevy::input::mouse::MouseWheel>,
     mut camera_ctrl: ResMut<CameraController>,
-    mut reticle_query: Query<&mut Visibility, With<Reticle>>,
+    settings: Res<UserSettings>,
+    paused: Res<Paused>,
 ) {
+    if paused.0 {
+        mouse_motion.clear();
+        mouse_wheel.clear();
+        return;
+    }
     let dt = time.delta_secs();
 
     // Toggle camera mode between Orbit (0) and Aim (2).
@@ -1494,9 +1560,11 @@ fn camera_controls(
         mouse_delta.x += 120.0 * dt;
     }
 
+    // Settings: invert the horizontal (yaw: mouse X, Q/E) and vertical (pitch) axes separately.
+    let (yaw_input, pitch_input) = settings.apply_invert(mouse_delta.x, mouse_delta.y);
     let sensitivity = 0.0035;
-    camera_ctrl.yaw += mouse_delta.x * sensitivity;
-    camera_ctrl.pitch = (camera_ctrl.pitch + mouse_delta.y * sensitivity).clamp(-0.25, 1.35);
+    camera_ctrl.yaw += yaw_input * sensitivity;
+    camera_ctrl.pitch = (camera_ctrl.pitch + pitch_input * sensitivity).clamp(-0.25, 1.35);
 
     // Zoom adjustments.
     for ev in mouse_wheel.read() {
@@ -1515,10 +1583,48 @@ fn camera_controls(
         CameraMode::AimOverShoulder => 2.2,
     };
     camera_ctrl.distance += (desired_dist - camera_ctrl.distance) * (10.0 * dt).min(1.0);
+}
 
-    if let Ok(mut ret_vis) = reticle_query.single_mut() {
-        *ret_vis = Visibility::Visible;
+/// Reticle and "AIM" hint are visible only while aiming in the World (not paused).
+fn update_aim_hud(
+    camera_ctrl: Res<CameraController>,
+    paused: Res<Paused>,
+    game_state: Res<State<GameState>>,
+    mut reticle_query: Query<&mut Visibility, (With<Reticle>, Without<AimHint>)>,
+    mut hint_query: Query<&mut Visibility, (With<AimHint>, Without<Reticle>)>,
+) {
+    let show = camera_ctrl.mode == CameraMode::AimOverShoulder
+        && !paused.0
+        && *game_state.get() == GameState::World;
+    let want = if show { Visibility::Visible } else { Visibility::Hidden };
+    for mut v in reticle_query.iter_mut().chain(hint_query.iter_mut()) {
+        if *v != want {
+            *v = want;
+        }
     }
+}
+
+fn spawn_aim_hint(mut commands: Commands) {
+    commands.spawn((
+        AimHint,
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Percent(50.0),
+            bottom: Val::Px(90.0),
+            margin: UiRect::left(Val::Px(-130.0)),
+            width: Val::Px(260.0),
+            padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.05, 0.08, 0.12, 0.8)),
+        Visibility::Hidden,
+        children![(
+            Text::new("AIM: left click to throw"),
+            TextFont::from_font_size(18.0),
+            TextColor(Color::srgb(1.0, 0.9, 0.5)),
+        )],
+    ));
 }
 
 /// Transform solver using canonical PLA spherical coordinates:
@@ -1619,10 +1725,13 @@ fn ball_selection_controls(keys: Res<ButtonInput<KeyCode>>, mut inventory: ResMu
 }
 
 /// Spawns a thrown Poké Ball along the aim vector towards the reticle focal point.
+/// Left click (or Space) throws ONLY while the camera is in `AimOverShoulder`; the scripted
+/// `--throw` demo keeps its explicit path and works in any mode.
 fn ball_throw_input(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut visuals: Local<Option<BallVisuals>>,
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut inventory: ResMut<BallInventory>,
@@ -1632,8 +1741,9 @@ fn ball_throw_input(
     camera_ctrl: Res<CameraController>,
     automation: Res<AutomationOptions>,
 ) {
-    let mut should_throw = mouse_buttons.just_pressed(MouseButton::Left)
-        || keys.just_pressed(KeyCode::Space);
+    let aiming = camera_ctrl.mode == CameraMode::AimOverShoulder;
+    let mut should_throw =
+        aiming && (mouse_buttons.just_pressed(MouseButton::Left) || keys.just_pressed(KeyCode::Space));
 
     if let Some(throw_tick) = automation.auto_throw_tick {
         if automation.current_ticks == throw_tick {
@@ -1723,250 +1833,189 @@ fn ball_throw_input(
         gravity
     );
 
-    let top_color = ball_kind.top_color();
-    let bottom_color = Color::srgb(0.9, 0.88, 0.82); // Hisui wood/cream lower hemisphere
+    let vis = visuals.get_or_insert_with(|| BallVisuals::new(&mut meshes, &mut materials));
+    let top_mat = vis.tops[ALL_BALL_KINDS.iter().position(|k| *k == ball_kind).unwrap_or(0)].clone();
 
     commands
         .spawn((
-            PokeBall {
-                velocity,
-                gravity,
-                lifetime: 0.0,
-                bounces: 0,
-                state: BallState::InFlight,
-                kind: ball_kind,
-            },
+            PokeBall { kind: ball_kind, target: None },
+            BallBody(BallSimulation::new(spawn_pos, velocity, gravity)),
             Transform::from_translation(spawn_pos),
             Visibility::default(),
         ))
         .with_children(|parent| {
             // Ball upper hemisphere
             parent.spawn((
-                Mesh3d(meshes.add(Mesh::from(Sphere::new(0.12)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: top_color,
-                    perceptual_roughness: 0.4,
-                    ..default()
-                })),
+                Mesh3d(vis.upper.clone()),
+                MeshMaterial3d(top_mat),
                 Transform::from_xyz(0.0, 0.04, 0.0),
             ));
             // Ball lower hemisphere
             parent.spawn((
-                Mesh3d(meshes.add(Mesh::from(Sphere::new(0.115)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: bottom_color,
-                    perceptual_roughness: 0.7,
-                    ..default()
-                })),
+                Mesh3d(vis.lower.clone()),
+                MeshMaterial3d(vis.bottom.clone()),
                 Transform::from_xyz(0.0, -0.04, 0.0),
             ));
             // Center latch / button
             parent.spawn((
-                Mesh3d(meshes.add(Mesh::from(Cylinder::new(0.03, 0.02)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.7, 0.6, 0.3), // Bronze latch
-                    metallic: 0.8,
-                    perceptual_roughness: 0.3,
-                    ..default()
-                })),
+                Mesh3d(vis.latch.clone()),
+                MeshMaterial3d(vis.latch_mat.clone()),
                 Transform::from_xyz(0.0, 0.0, 0.11).with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
             ));
         });
 }
 
-/// Physical ballistics integration and contact raycast/sphere queries.
+/// Steps every thrown ball through its lifecycle (`pla::game::ball_lifecycle`): flight, ground
+/// roll, shaking, capture result. Every end of the lifecycle despawns the ball entity.
+#[allow(clippy::too_many_arguments)]
 fn ball_ballistics_and_physics(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut ball_query: Query<(Entity, &mut Transform, &mut PokeBall), Without<PokemonSpawn>>,
-    mut pkmn_query: Query<(Entity, &Transform, &mut Visibility), (With<PokemonSpawn>, Without<PokeBall>)>,
-    pml: Res<LoadedPml>,
-    battle: Res<LoadedBattle>,
-    pkmn_state: Res<ActivePokemonState>,
-    terrain_res: Option<Res<TerrainResource>>,
-) {
-    let dt = time.delta_secs();
-
-    for (ball_entity, mut ball_xf, mut ball) in &mut ball_query {
-        ball.lifetime += dt;
-
-        match ball.state {
-            BallState::InFlight => {
-                let prev_pos = ball_xf.translation;
-                let next_pos = prev_pos + ball.velocity * dt;
-                let seg = next_pos - prev_pos;
-                let seg_len_sq = seg.length_squared();
-
-                // Ballistic motion integration
-                ball_xf.translation = next_pos;
-                ball.velocity.y += ball.gravity * dt;
-
-                // Subtle spin in flight
-                ball_xf.rotate_local_x(12.0 * dt);
-
-                // Ground surface collision (sampled from real terrain if available)
-                let ground_y = terrain_res
-                    .as_ref()
-                    .and_then(|t| t.area.sample_world_height(ball_xf.translation.x, ball_xf.translation.z))
-                    .unwrap_or(0.0)
-                    + 0.12;
-
-                if ball_xf.translation.y <= ground_y {
-                    ball_xf.translation.y = ground_y;
-                    if ball.velocity.y.abs() > 2.0 && ball.bounces < 3 {
-                        ball.velocity.y = -ball.velocity.y * 0.42;
-                        ball.velocity.x *= 0.75;
-                        ball.velocity.z *= 0.75;
-                        ball.bounces += 1;
-                    } else {
-                        ball.velocity = Vec3::ZERO;
-                    }
-                }
-
-                // Continuous collision detection against wild Pokémon
-                for (_pkmn_entity, pkmn_xf, mut pkmn_vis) in &mut pkmn_query {
-                    let to_pkmn = pkmn_xf.translation - prev_pos;
-                    let t = if seg_len_sq > 1e-6 {
-                        (to_pkmn.dot(seg) / seg_len_sq).clamp(0.0, 1.0)
-                    } else {
-                        0.0
-                    };
-                    let closest = prev_pos + seg * t;
-                    let hit_dist = closest.distance(pkmn_xf.translation);
-
-                    if hit_dist < 0.95 {
-                        println!("Target Hit! Poke Ball connected with Pokemon (CCD dist: {:.2}m)", hit_dist);
-
-                        // Contain Pokémon inside ball
-                        *pkmn_vis = Visibility::Hidden;
-
-                        // Place ball at Pokémon base on ground
-                        ball_xf.translation = Vec3::new(pkmn_xf.translation.x, 0.15, pkmn_xf.translation.z);
-                        ball.velocity = Vec3::ZERO;
-
-                        // Evaluate capture roll using PLA formula & tables
-                        let dex = pkmn_state.dex_list[pkmn_state.current_index];
-                        let ball_mod = ball.kind.ball_multiplier();
-
-                        let base_catch_rate = if let Some(db) = &pml.0 {
-                            if let Some(entry) = db.personal.iter().find(|p| p.national_dex == dex) {
-                                // Typical catch rate proxy
-                                match entry.national_dex {
-                                    25 => 190.0,
-                                    501 => 45.0,
-                                    722 => 45.0,
-                                    155 => 45.0,
-                                    448 => 45.0,
-                                    _ => 100.0,
-                                }
-                            } else {
-                                100.0
-                            }
-                        } else {
-                            100.0
-                        };
-
-                        let level_factor = (100.0 - pkmn_state.level as f64).max(10.0) / 100.0;
-                        let basic_coef = battle
-                            .0
-                            .as_ref()
-                            .and_then(|b| b.capture_constant("capture_index_basic_coef").ok().flatten())
-                            .unwrap_or(30.0);
-
-                        let final_rate = (base_catch_rate * ball_mod * level_factor + basic_coef) / 255.0;
-                        let will_capture = final_rate >= 0.45;
-
-                        println!(
-                            "Capture Roll Evaluated: BaseRate={:.0}, BallMod={:.2}, FinalOdds={:.1}%, Outcome={}",
-                            base_catch_rate,
-                            ball_mod,
-                            (final_rate * 100.0).min(100.0),
-                            if will_capture { "SUCCESS" } else { "BREAKOUT" }
-                        );
-
-                        ball.state = BallState::Shaking {
-                            shake_count: 0,
-                            timer: 0.0,
-                            max_shakes: 3,
-                            will_capture,
-                        };
-                        break;
-                    }
-                }
-
-                // Despawn stray balls after 8 seconds
-                if ball.lifetime > 8.0 {
-                    commands.entity(ball_entity).despawn();
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Capture sequence evaluator: handles 3-shake wiggle, capture sparks, or breakout.
-fn capture_resolution_system(
     time: Res<Time>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut ball_query: Query<(Entity, &mut Transform, &mut PokeBall)>,
-    mut pkmn_query: Query<&mut Visibility, With<PokemonSpawn>>,
+    mut aura: Local<Option<(Handle<Mesh>, Handle<StandardMaterial>)>>,
+    mut ball_query: Query<(Entity, &mut Transform, &mut BallBody, &mut PokeBall), Without<PokemonSpawn>>,
+    mut pkmn_query: Query<(Entity, &Transform, &mut Visibility), (With<PokemonSpawn>, Without<PokeBall>)>,
+    player_query: Query<&Transform, (With<PlayerAvatar>, Without<PokeBall>, Without<PokemonSpawn>)>,
+    pml: Res<LoadedPml>,
+    battle: Res<LoadedBattle>,
+    pkmn_state: Res<ActivePokemonState>,
+    terrain_res: Option<Res<TerrainResource>>,
     mut inventory: ResMut<BallInventory>,
 ) {
     let dt = time.delta_secs();
+    let player_pos = player_query.single().map(|t| t.translation).unwrap_or(Vec3::ZERO);
 
-    for (ball_entity, mut ball_xf, mut ball) in &mut ball_query {
-        if let BallState::Shaking {
-            ref mut shake_count,
-            ref mut timer,
-            max_shakes,
-            will_capture,
-        } = ball.state
-        {
-            *timer += dt;
+    for (ball_entity, mut ball_xf, mut body, mut ball) in &mut ball_query {
+        let was_in_flight = body.0.in_flight();
+        let prev_pos = body.0.position;
+        let ground_y = terrain_res
+            .as_ref()
+            .and_then(|t| t.area.sample_world_height(prev_pos.x, prev_pos.z))
+            .unwrap_or(0.0);
 
-            // Wiggle rotation animation
-            let wiggle_angle = (*timer * 14.0).sin() * 0.22;
-            ball_xf.rotation = Quat::from_rotation_z(wiggle_angle);
+        let out = step_ball(&mut commands, ball_entity, &mut ball_xf, &mut body, dt, ground_y, player_pos);
 
-            // Advance shake every 0.65 seconds
-            if *timer >= 0.65 {
-                *timer = 0.0;
-                *shake_count += 1;
-                println!("Ball Shake {} / {}...", shake_count, max_shakes);
-
-                if *shake_count >= max_shakes {
-                    if will_capture {
-                        println!("*** CAPTURED! The wild Pokémon was caught! ***");
-                        ball.state = BallState::Captured;
-                        inventory.last_capture_status = Some("Captured! ⭐".into());
-
-                        // Spawn victory capture aura rings/stars above ball
-                        commands.spawn((
-                            Mesh3d(meshes.add(Mesh::from(Torus::new(0.3, 0.02)))),
-                            MeshMaterial3d(materials.add(StandardMaterial {
-                                base_color: Color::srgb(1.0, 0.85, 0.2), // Gold stars aura
+        if let Some(reason) = out.despawn {
+            println!("Ball despawned: {reason:?}");
+        }
+        match out.event {
+            Some(BallEvent::Shake(n)) => println!("Ball Shake {n} / 3..."),
+            Some(BallEvent::Captured) => {
+                println!("*** CAPTURED! The wild Pokémon was caught! ***");
+                inventory.last_capture_status = Some("Captured! ⭐".into());
+                // Victory aura ring above the ball (child: it despawns with the ball)
+                let (mesh, mat) = aura
+                    .get_or_insert_with(|| {
+                        (
+                            meshes.add(Mesh::from(Torus::new(0.3, 0.02))),
+                            materials.add(StandardMaterial {
+                                base_color: Color::srgb(1.0, 0.85, 0.2),
                                 unlit: true,
                                 ..default()
-                            })),
-                            Transform::from_translation(ball_xf.translation + Vec3::new(0.0, 0.35, 0.0)),
-                        ));
-                    } else {
-                        println!("*** BREAKOUT! The Pokémon broke free! ***");
-                        ball.state = BallState::Breakout;
-                        inventory.last_capture_status = Some("Broke out!".into());
-
-                        // Restore Pokémon visibility
-                        for mut vis in &mut pkmn_query {
-                            *vis = Visibility::Visible;
-                        }
-
-                        // Remove broken ball
-                        commands.entity(ball_entity).despawn();
+                            }),
+                        )
+                    })
+                    .clone();
+                commands.entity(ball_entity).with_children(|p| {
+                    p.spawn((Mesh3d(mesh), MeshMaterial3d(mat), Transform::from_xyz(0.0, 0.35, 0.0)));
+                });
+            }
+            Some(BallEvent::BrokeFree) => {
+                println!("*** BREAKOUT! The Pokémon broke free! ***");
+                inventory.last_capture_status = Some("Broke out!".into());
+                if let Some(target) = ball.target.take() {
+                    if let Ok((_, _, mut vis)) = pkmn_query.get_mut(target) {
+                        *vis = Visibility::Visible;
                     }
                 }
             }
+            None => {}
+        }
+
+        if body.0.in_flight() {
+            // Subtle spin in flight
+            ball_xf.rotate_local_x(12.0 * dt);
+        } else if let BallLifecycleState::Shaking { timer, .. } = body.0.state {
+            // Wiggle animation while the capture result is pending
+            ball_xf.rotation = Quat::from_rotation_z((timer * 14.0).sin() * 0.22);
+        }
+
+        if !was_in_flight || out.despawn.is_some() {
+            continue;
+        }
+
+        // Continuous collision detection against wild Pokémon along this frame's segment
+        let next_pos = body.0.position;
+        let seg = next_pos - prev_pos;
+        let seg_len_sq = seg.length_squared();
+        for (pkmn_entity, pkmn_xf, mut pkmn_vis) in &mut pkmn_query {
+            let to_pkmn = pkmn_xf.translation - prev_pos;
+            let t = if seg_len_sq > 1e-6 {
+                (to_pkmn.dot(seg) / seg_len_sq).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let closest = prev_pos + seg * t;
+            let hit_dist = closest.distance(pkmn_xf.translation);
+            if hit_dist >= 0.95 {
+                continue;
+            }
+            println!("Target Hit! Poke Ball connected with Pokemon (CCD dist: {:.2}m)", hit_dist);
+
+            // Contain Pokémon inside ball
+            *pkmn_vis = Visibility::Hidden;
+            ball.target = Some(pkmn_entity);
+
+            // Evaluate capture roll using PLA formula & tables
+            let dex = pkmn_state.dex_list[pkmn_state.current_index];
+            let ball_mod = ball.kind.ball_multiplier();
+
+            let base_catch_rate = if let Some(db) = &pml.0 {
+                if let Some(entry) = db.personal.iter().find(|p| p.national_dex == dex) {
+                    // Typical catch rate proxy
+                    match entry.national_dex {
+                        25 => 190.0,
+                        501 => 45.0,
+                        722 => 45.0,
+                        155 => 45.0,
+                        448 => 45.0,
+                        _ => 100.0,
+                    }
+                } else {
+                    100.0
+                }
+            } else {
+                100.0
+            };
+
+            let level_factor = (100.0 - pkmn_state.level as f64).max(10.0) / 100.0;
+            let basic_coef = battle
+                .0
+                .as_ref()
+                .and_then(|b| b.capture_constant("capture_index_basic_coef").ok().flatten())
+                .unwrap_or(30.0);
+
+            let final_rate = (base_catch_rate * ball_mod * level_factor + basic_coef) / 255.0;
+            let will_capture = final_rate >= 0.45;
+
+            println!(
+                "Capture Roll Evaluated: BaseRate={:.0}, BallMod={:.2}, FinalOdds={:.1}%, Outcome={}",
+                base_catch_rate,
+                ball_mod,
+                (final_rate * 100.0).min(100.0),
+                if will_capture { "SUCCESS" } else { "BREAKOUT" }
+            );
+
+            // Place ball at Pokémon base on ground and start the shake sequence
+            let base_y = terrain_res
+                .as_ref()
+                .and_then(|t| t.area.sample_world_height(pkmn_xf.translation.x, pkmn_xf.translation.z))
+                .unwrap_or(0.0)
+                + 0.15;
+            body.0.hit_pokemon(Vec3::new(pkmn_xf.translation.x, base_y, pkmn_xf.translation.z), will_capture);
+            ball_xf.translation = body.0.position;
+            break;
         }
     }
 }
@@ -2615,3 +2664,54 @@ fn automated_tick_driver(
     }
 }
 
+
+/// `--script-controls <DIR>`: world, pause menu open and aim mode with reticle, in one process.
+/// Combine with `--throw` to also prove that the thrown ball is frozen by the pause and gone
+/// from the world afterwards.
+fn controls_demo_driver(
+    mut commands: Commands,
+    automation: Res<AutomationOptions>,
+    mut paused: ResMut<Paused>,
+    mut camera_ctrl: ResMut<CameraController>,
+    balls: Query<&Transform, With<PokeBall>>,
+    mut frozen_at: Local<Option<Vec3>>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    let Some(dir) = automation.controls_demo_dir.clone() else {
+        return;
+    };
+    let t = automation.current_ticks;
+    let shot = |commands: &mut Commands, name: &str| {
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join(name);
+        println!("[CONTROLS-DEMO] tick {t}: capturing {}", path.display());
+        commands.spawn(Screenshot::primary_window()).observe(save_to_disk(path));
+    };
+    match t {
+        25 => shot(&mut commands, "00_world.png"),
+        30 => {
+            println!("[CONTROLS-DEMO] tick 30: Esc -> paused, balls in world: {}", balls.iter().count());
+            paused.0 = true;
+            *frozen_at = balls.iter().next().map(|b| b.translation);
+        }
+        40 => {
+            shot(&mut commands, "01_pause_menu.png");
+            let now = balls.iter().next().map(|b| b.translation);
+            println!("[CONTROLS-DEMO] ball position while paused: before={:?} after={:?} (equal = frozen)", *frozen_at, now);
+        }
+        45 => {
+            println!("[CONTROLS-DEMO] tick 45: resumed, switching to aim mode");
+            paused.0 = false;
+            camera_ctrl.mode = CameraMode::AimOverShoulder;
+        }
+        70 => shot(&mut commands, "02_aim_reticle.png"),
+        _ => {}
+    }
+    if t > 70 && t % 30 == 0 {
+        println!("[CONTROLS-DEMO] tick {t}: balls in world: {}", balls.iter().count());
+    }
+    if t >= 100 && balls.iter().count() == 0 || t >= 1800 {
+        println!("[CONTROLS-DEMO] done at tick {t}: balls in world: {}", balls.iter().count());
+        exit.write(AppExit::Success);
+    }
+}
