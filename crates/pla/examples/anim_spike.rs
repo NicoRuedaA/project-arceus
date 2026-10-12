@@ -60,33 +60,45 @@ fn setup(
         .expect("bind matrices must validate against the reference rest pose");
     let mesh_bytes = std::fs::read(&mesh_path).expect("read .trmbf");
     let layout_bytes = std::fs::read(&layout_path).expect("read .trmsh");
-    let mesh_data = TrMbf::parse_skin_shape(&mesh_bytes, &layout_bytes, 0)
-        .or_else(|_| TrMbf::parse_with_layout(&mesh_bytes, &layout_bytes))
-        .expect("decode a declared skinned mesh shape");
-    let positions = (0..mesh_data.vertex_count)
-        .map(|i| {
-            mesh_data
-                .position(&mesh_bytes, i)
-                .ok_or("missing declared position")
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .expect("read positions");
-    let uvs = (0..mesh_data.vertex_count)
-        .map(|i| mesh_data.uv(&mesh_bytes, i).unwrap_or([0.0, 0.0]))
-        .collect::<Vec<_>>();
-    let mut mesh = Mesh::new(
-        PrimitiveTopology::TriangleList,
-        RenderAssetUsages::default(),
-    );
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-    mesh.insert_indices(Indices::U32(
-        mesh_data.indices.iter().map(|&i| u32::from(i)).collect(),
-    ));
-    mesh.compute_normals();
-    insert_skin_attributes(&mut mesh, &mesh_data, &mesh_bytes, &skeleton)
-        .expect("decode demonstrated skin influences");
-    let mesh_handle = meshes.add(mesh);
+    let mut mesh_handles = Vec::new();
+    let mut all_positions = Vec::new();
+    for shape_index in 0..64 {
+        let mesh_data = match TrMbf::parse_skin_shape(&mesh_bytes, &layout_bytes, shape_index) {
+            Ok(mesh_data) => mesh_data,
+            Err(error) if shape_index == 0 => TrMbf::parse_with_layout(&mesh_bytes, &layout_bytes)
+                .unwrap_or_else(|fallback| {
+                    panic!("decode a declared skinned mesh shape: {error}; {fallback}")
+                }),
+            Err(error) if error == "skin shape index out of range" => break,
+            Err(error) => panic!("decode skinned mesh shape {shape_index}: {error}"),
+        };
+        let positions = (0..mesh_data.vertex_count)
+            .map(|i| {
+                mesh_data
+                    .position(&mesh_bytes, i)
+                    .ok_or("missing declared position")
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .expect("read positions");
+        let uvs = (0..mesh_data.vertex_count)
+            .map(|i| mesh_data.uv(&mesh_bytes, i).unwrap_or([0.0, 0.0]))
+            .collect::<Vec<_>>();
+        let mut mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        );
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+        mesh.insert_indices(Indices::U32(
+            mesh_data.indices.iter().map(|&i| u32::from(i)).collect(),
+        ));
+        mesh.compute_normals();
+        insert_skin_attributes(&mut mesh, &mesh_data, &mesh_bytes, &skeleton)
+            .expect("decode demonstrated skin influences");
+        mesh_handles.push(meshes.add(mesh));
+        all_positions.extend(positions);
+    }
+    assert!(!mesh_handles.is_empty(), "model has no supported mesh shapes");
 
     let mut node_entities = Vec::with_capacity(skeleton.nodes.len());
     for (node, transform) in skeleton.nodes.iter().zip(&bevy_skeleton.local_transforms) {
@@ -114,18 +126,21 @@ fn setup(
         .map(|&node| node_entities[node])
         .collect::<Vec<_>>();
     let inverse_bindposes = inverse_bindposes_assets.add(bevy_skeleton.inverse_bindposes_asset());
-    commands.spawn((
-        Mesh3d(mesh_handle),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.72, 0.78, 0.92),
-            perceptual_roughness: 0.8,
-            ..default()
-        })),
-        SkinnedMesh {
-            inverse_bindposes,
-            joints,
-        },
-    ));
+    let material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.72, 0.78, 0.92),
+        perceptual_roughness: 0.8,
+        ..default()
+    });
+    for mesh_handle in mesh_handles {
+        commands.spawn((
+            Mesh3d(mesh_handle),
+            MeshMaterial3d(material.clone()),
+            SkinnedMesh {
+                inverse_bindposes: inverse_bindposes.clone(),
+                joints: joints.clone(),
+            },
+        ));
+    }
 
     let animation_bytes = std::fs::read(&animation_path).expect("read .tranm");
     let clip_data = TrAnm::parse_tracks(&animation_bytes).expect("decode skeletal animation");
@@ -161,9 +176,9 @@ fn setup(
         output_dir,
     });
 
-    let (minimum, maximum) = bounds(&positions);
+    let (minimum, maximum) = bounds(&all_positions);
     let centre = (minimum + maximum) * 0.5;
-    let radius = positions
+    let radius = all_positions
         .iter()
         .map(|p| Vec3::from_array(*p).distance(centre))
         .fold(0.0f32, f32::max)
