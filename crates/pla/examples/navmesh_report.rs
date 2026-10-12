@@ -114,6 +114,26 @@ fn main() {
                 }
                 let hm = &t.heightmap;
                 let (w, h) = (hm.width as usize, hm.height as usize);
+                {
+                    // Query check: height_at on a 7-unit grid vs the heightmap.
+                    let m = &meshes[0];
+                    let (mut dy, mut total) = (Vec::new(), 0usize);
+                    let mut x = 3.0f32;
+                    while x < 1025.0 {
+                        let mut z = 3.0f32;
+                        while z < 1025.0 {
+                            total += 1;
+                            if let Some(y) = m.height_at(x, z) {
+                                dy.push((y - bilinear(&t.heightmap.samples, t.heightmap.width as usize, t.heightmap.height as usize, t.world_extent[0], x, z) * t.world_height).abs());
+                            }
+                            z += 7.0;
+                        }
+                        x += 7.0;
+                    }
+                    let within = dy.iter().filter(|d| **d <= 2.0).count() as f32 / dy.len().max(1) as f32;
+                    println!("area {area} query: {} of {total} grid points walkable ({:.1} %), median|dy|={:.3}, within 2 m {:.4}",
+                        dy.len(), 100.0 * dy.len() as f32 / total as f32, pct(&mut dy, 0.5), within);
+                }
                 write_preview(&out.join(format!("ha_area{area:02}_preview.png")), &t, meshes);
                 for (mi, m) in meshes.iter().enumerate() {
                     let mut d: Vec<f32> = m
