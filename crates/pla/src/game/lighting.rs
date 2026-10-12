@@ -2,6 +2,7 @@
 //!
 //! Replaces the viewer's placeholder lights/sky with: one directional light, ambient light, a sky
 //! gradient dome, a clear colour and distance fog taken from the sheet for a chosen time slot.
+//! The Bevy-side look (shadows, grading, clouds, `--look classic|vivid`) lives in `render_look.rs`.
 //! Slot meaning (s0 morning, s1 day, s2 evening, s3 night) is INFERRED from colours, not proven.
 //! The mapping of the sheet numbers to Bevy units (lux, cd/m2) is this module's own interpretation.
 //! If the sheet or the zone is missing, nothing is changed (the old placeholder stays).
@@ -9,10 +10,19 @@
 use std::path::{Path, PathBuf};
 
 use bevy::asset::RenderAssetUsages;
-use bevy::light::{DirectionalLight, GlobalAmbientLight};
+use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::light::{
+    CascadeShadowConfigBuilder, DirectionalLight, DirectionalLightShadowMap, GlobalAmbientLight, NotShadowCaster,
+    NotShadowReceiver,
+};
+use bevy::render::view::{ColorGrading, ColorGradingGlobal, ColorGradingSection};
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
+
+use super::render_look::{
+    cloud_dome_mesh, cloud_image, cloud_scroll, look_params, FogSpec, LookParams, LookSettings,
+};
 
 /// Default slot: "day" (s1, bright white-yellow sun, sky cyan at the zenith).
 pub const DEFAULT_TIME_SLOT: usize = 1;
@@ -138,8 +148,17 @@ pub struct ZoneLightingPlugin {
 #[derive(Resource)]
 struct LoadedZoneEnv(ZoneEnv);
 
+#[derive(Resource)]
+struct LoadedLook(LookParams);
+
 #[derive(Component)]
 struct SkyDome;
+
+#[derive(Component)]
+struct CloudDome;
+
+#[derive(Resource)]
+struct CloudMaterial(Handle<StandardMaterial>);
 
 impl Plugin for ZoneLightingPlugin {
     fn build(&self, app: &mut App) {
@@ -151,19 +170,29 @@ impl Plugin for ZoneLightingPlugin {
             println!("Lighting: no decoded environment for {area}; keeping the placeholder lights.");
             return;
         };
+        let settings = app.world().get_resource::<LookSettings>().copied().unwrap_or_else(|| {
+            LookSettings::from_args(&std::env::args().collect::<Vec<_>>())
+        });
+        let params = look_params(&env, settings);
         println!(
-            "Lighting: decoded environment {area} slot {} (sun {:.2}, fog {:.0}-{:.0} m)",
-            self.slot, env.sun_intensity, env.fog_near, env.fog_far
+            "Lighting: decoded environment {area} slot {} (sun {:.2}, fog {:.0}-{:.0} m); look {:?}, shadows {}, sun {:.0} lux",
+            self.slot, env.sun_intensity, env.fog_near, env.fog_far, settings.look, params.shadows, params.sun_lux
         );
         let sky0 = env.sky[0].0;
         app.insert_resource(ClearColor(Color::linear_rgb(sky0[0], sky0[1], sky0[2])));
         app.insert_resource(GlobalAmbientLight {
-            color: Color::linear_rgb(env.ambient[0], env.ambient[1], env.ambient[2]),
-            brightness: env.ambient[3].max(0.2) * AMBIENT_BRIGHTNESS,
+            color: Color::linear_rgb(params.ambient_color[0], params.ambient_color[1], params.ambient_color[2]),
+            brightness: params.ambient_brightness,
             ..default()
         });
+        if params.shadows {
+            // ASSUMED: 2048 per cascade x 4 cascades is the cost/quality compromise.
+            app.insert_resource(DirectionalLightShadowMap { size: 2048 });
+        }
         app.insert_resource(LoadedZoneEnv(env));
+        app.insert_resource(LoadedLook(params));
         app.add_systems(PostStartup, apply_environment);
+        app.add_systems(Update, scroll_clouds);
         app.add_systems(
             PostUpdate,
             follow_camera.before(TransformSystems::Propagate),
@@ -171,40 +200,77 @@ impl Plugin for ZoneLightingPlugin {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_environment(
     mut commands: Commands,
     env: Res<LoadedZoneEnv>,
+    look: Res<LoadedLook>,
     old_lights: Query<Entity, With<DirectionalLight>>,
     cameras: Query<Entity, With<Camera3d>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     let env = &env.0;
+    let p = &look.0;
     for e in &old_lights {
         commands.entity(e).despawn();
     }
     let d = Vec3::from(env.sun_dir);
-    commands.spawn((
+    let mut sun = commands.spawn((
         DirectionalLight {
             color: Color::linear_rgb(env.sun_color[0], env.sun_color[1], env.sun_color[2]),
-            illuminance: env.sun_intensity * LUX_PER_INTENSITY,
-            shadow_maps_enabled: false,
+            illuminance: p.sun_lux,
+            shadow_maps_enabled: p.shadows,
+            shadow_depth_bias: p.shadow_depth_bias,
+            shadow_normal_bias: p.shadow_normal_bias,
             ..default()
         },
         Transform::IDENTITY.looking_to(d, Vec3::Y),
     ));
-    let far = env.fog_far;
-    let near = env.fog_near.min(far * 0.5);
+    if p.shadows {
+        sun.insert(
+            CascadeShadowConfigBuilder {
+                num_cascades: p.cascades,
+                minimum_distance: 0.3,
+                first_cascade_far_bound: p.shadow_first_cascade,
+                maximum_distance: p.shadow_max_distance,
+                overlap_proportion: 0.2,
+            }
+            .build(),
+        );
+    }
+    let falloff = match p.fog {
+        FogSpec::Linear { start, end } => FogFalloff::Linear { start, end },
+        FogSpec::ExpSquared { density } => FogFalloff::ExponentialSquared { density },
+    };
+    let vivid = p.clouds;
     for cam in &cameras {
-        commands.entity(cam).insert(DistanceFog {
-            color: Color::linear_rgba(env.fog_color[0], env.fog_color[1], env.fog_color[2], env.fog_color[3].clamp(0.0, 1.0)),
+        let mut c = commands.entity(cam);
+        c.insert(DistanceFog {
+            color: Color::linear_rgba(p.fog_color[0], p.fog_color[1], p.fog_color[2], p.fog_color[3]),
             directional_light_color: Color::NONE,
             directional_light_exponent: 8.0,
-            falloff: FogFalloff::Linear { start: near, end: far },
+            falloff: falloff.clone(),
         });
+        if vivid {
+            // ASSUMED filmic grade: TonyMcMapface keeps hues (good for greens), then saturation/contrast.
+            let section = ColorGradingSection { contrast: p.contrast, ..default() };
+            c.insert((
+                Tonemapping::TonyMcMapface,
+                ColorGrading {
+                    global: ColorGradingGlobal { post_saturation: p.post_saturation, ..default() },
+                    shadows: section,
+                    midtones: section,
+                    highlights: section,
+                },
+            ));
+        }
     }
     commands.spawn((
         SkyDome,
+        NotShadowCaster,
+        NotShadowReceiver,
         Mesh3d(meshes.add(sky_dome_mesh(env))),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::WHITE,
@@ -215,14 +281,49 @@ fn apply_environment(
         })),
         Transform::IDENTITY,
     ));
+    if p.clouds {
+        let mat = materials.add(StandardMaterial {
+            base_color: Color::linear_rgba(p.cloud_color[0], p.cloud_color[1], p.cloud_color[2], p.cloud_opacity),
+            base_color_texture: Some(images.add(cloud_image(1337))),
+            unlit: true,
+            fog_enabled: false,
+            cull_mode: None,
+            alpha_mode: AlphaMode::Blend,
+            ..default()
+        });
+        commands.insert_resource(CloudMaterial(mat.clone()));
+        commands.spawn((
+            SkyDome,
+            CloudDome,
+            NotShadowCaster,
+            NotShadowReceiver,
+            Mesh3d(meshes.add(cloud_dome_mesh(SKY_RADIUS * 0.97))),
+            MeshMaterial3d(mat),
+            Transform::IDENTITY,
+        ));
+    }
+}
+
+fn scroll_clouds(
+    time: Res<Time>,
+    cloud: Option<Res<CloudMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Some(cloud) = cloud else { return };
+    if let Some(mut m) = materials.get_mut(&cloud.0) {
+        let o = cloud_scroll(time.elapsed_secs());
+        m.uv_transform = bevy::math::Affine2::from_translation(o);
+    }
 }
 
 fn follow_camera(
     cam: Query<&Transform, (With<Camera3d>, Without<SkyDome>)>,
     mut dome: Query<&mut Transform, With<SkyDome>>,
 ) {
-    if let (Some(c), Ok(mut d)) = (cam.iter().next(), dome.single_mut()) {
-        d.translation = c.translation;
+    if let Some(c) = cam.iter().next() {
+        for mut d in &mut dome {
+            d.translation = c.translation;
+        }
     }
 }
 
