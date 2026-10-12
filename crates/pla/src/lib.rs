@@ -9,6 +9,7 @@ pub mod battle;
 pub mod battle_engine;
 pub mod dispatch;
 pub mod event;
+pub mod game;
 pub mod host;
 pub mod pml;
 pub mod render;
