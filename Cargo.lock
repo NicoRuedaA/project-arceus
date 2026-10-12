@@ -3349,6 +3349,7 @@ dependencies = [
  "oozextract",
  "phf",
  "phf_codegen",
+ "png",
  "sheetty",
  "tegra_swizzle",
 ]

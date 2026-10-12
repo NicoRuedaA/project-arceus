@@ -410,21 +410,9 @@ impl BntxTexture {
                         BntxFormat::Bc5 => {
                             bcdec_rs::bc5(block, &mut channels[..32], 8, false);
                             for i in 0..16 {
-                                let r = channels[i * 2];
-                                let g = channels[i * 2 + 1];
-                                // Reconstruct tangent space normal Z channel:
-                                // nx = (r / 255.0) * 2.0 - 1.0
-                                // ny = (g / 255.0) * 2.0 - 1.0
-                                // nz = sqrt(max(0.0, 1.0 - nx^2 - ny^2))
-                                let nx = (r as f32 / 255.0) * 2.0 - 1.0;
-                                let ny = (g as f32 / 255.0) * 2.0 - 1.0;
-                                let nz_sq = (1.0 - nx * nx - ny * ny).max(0.0);
-                                let nz = nz_sq.sqrt();
-                                let b = ((nz * 0.5 + 0.5) * 255.0).round().clamp(0.0, 255.0) as u8;
-
-                                tile[i * 4] = r;
-                                tile[i * 4 + 1] = g;
-                                tile[i * 4 + 2] = b;
+                                tile[i * 4] = channels[i * 2];
+                                tile[i * 4 + 1] = channels[i * 2 + 1];
+                                tile[i * 4 + 2] = 0;
                                 tile[i * 4 + 3] = 255;
                             }
                         }
