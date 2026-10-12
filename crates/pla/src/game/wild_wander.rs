@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 
 use super::navigation::GameNavmeshResource;
-use super::state::GameState;
+use super::state::{GameState, Paused};
 use super::wild::{hash_str, splitmix64, ActiveAreaSpawners, WildCreature};
 use super::PlayerAvatar;
 
@@ -220,10 +220,22 @@ pub fn step(
     }
 }
 
-/// Run condition: wander only in the overworld and when enabled.
-/// Extend here (e.g. a future pause state or resource) to stop wandering.
-pub fn wander_active(config: Res<WanderConfig>, state: Option<Res<State<GameState>>>) -> bool {
-    config.enabled && state.map_or(true, |s| *s.get() == GameState::World)
+/// Pure gating rule: wander only when enabled, in the overworld and not paused.
+pub fn wander_allowed(enabled: bool, in_world: bool, paused: bool) -> bool {
+    enabled && in_world && !paused
+}
+
+/// Run condition: wander only in the overworld, when enabled and while the pause menu is closed.
+pub fn wander_active(
+    config: Res<WanderConfig>,
+    state: Option<Res<State<GameState>>>,
+    paused: Option<Res<Paused>>,
+) -> bool {
+    wander_allowed(
+        config.enabled,
+        state.map_or(true, |s| *s.get() == GameState::World),
+        paused.is_some_and(|p| p.0),
+    )
 }
 
 fn attach_wander(
@@ -301,6 +313,14 @@ mod tests {
     }
     fn fresh(id: &str) -> WanderState {
         WanderState::new(wander_seed(id, 25), (100.0, 200.0))
+    }
+
+    #[test]
+    fn wander_is_gated_by_config_state_and_pause() {
+        assert!(wander_allowed(true, true, false));
+        assert!(!wander_allowed(false, true, false), "disabled by config");
+        assert!(!wander_allowed(true, false, false), "not in the overworld");
+        assert!(!wander_allowed(true, true, true), "paused");
     }
 
     #[test]

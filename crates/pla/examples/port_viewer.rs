@@ -754,6 +754,11 @@ fn main() -> ExitCode {
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
+    app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
+    // Scripted / automated runs need static wild positions (deterministic frames).
+    if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
+        app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });
+    }
     if let Some(tr) = terrain_res {
         app.insert_resource(tr);
     }
