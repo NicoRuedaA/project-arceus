@@ -4,7 +4,9 @@
 use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 
 pub mod effects;
+pub mod items;
 use effects::{EffectEvent, MoveEffectsTable, Stages};
+use items::ItemTable;
 
 pub trait BattleRng {
     fn next_u32(&mut self) -> u32;
@@ -233,6 +235,7 @@ pub struct Battle {
     pub trick_room: bool,
     pub weather: BattleWeather,
     effects: Option<MoveEffectsTable>,
+    items: Option<ItemTable>,
     stages: Vec<Stages>,
     effect_events: Vec<EffectEvent>,
     pending_status: Vec<(usize, MajorStatus)>,
@@ -287,6 +290,7 @@ impl Battle {
             trick_room: false,
             weather: BattleWeather::Unknown,
             effects: None,
+            items: None,
             stages: Vec::new(),
             effect_events: Vec::new(),
             pending_status: Vec::new(),
