@@ -20,32 +20,32 @@ Index every `pmXXXX_YY_ZZ.gfpak` under `bin/archive/pokemon`, count entry classe
   | `turn_l090` | 383 |
   | `walk01_loop` | 382 |
   | `rangeattack01_start` | 382 |
-  | `stun01_end` | 381 |
+  | `rangeattack01_loop` | 381 |
+  | `damage01_start` | 381 |
   | `down01_loop` | 381 |
-  | `turn_r090` | 381 |
+  | `rangeattack02_end` | 381 |
+  | `stepout01_end` | 381 |
+  | `jumpup01_start` | 381 |
+  | `sleep01_end` | 381 |
+  | `roar01` | 381 |
+  | `damage01_end` | 381 |
   | `strife_r180_loop` | 381 |
-  | `stepout01_start` | 381 |
   | `down01_end` | 381 |
-  | `down01_start` | 381 |
+  | `rangeattack01_end` | 381 |
+  | `jumpdown01_start` | 381 |
+  | `sleep01_start` | 381 |
+  | `rangeattack02_loop` | 381 |
   | `rangeattack02_start` | 381 |
-  | `attack02` | 381 |
-  | `land02` | 381 |
   | `sleep01_loop` | 381 |
   | `jumpdown01_loop` | 381 |
-  | `rangeattack02_end` | 381 |
-  | `damage01_end` | 381 |
-  | `attack01` | 381 |
-  | `jumpdown01_start` | 381 |
-  | `jumpup01_loop` | 381 |
-  | `run01_loop` | 381 |
   | `stun01_start` | 381 |
-  | `sleep01_end` | 381 |
-  | `stepout01_end` | 381 |
-  | `rangeattack01_loop` | 381 |
-  | `jumpup01_start` | 381 |
-  | `rangeattack02_loop` | 381 |
+  | `turn_r090` | 381 |
+  | `stun01_end` | 381 |
   | `damage01_loop` | 381 |
+  | `stepout01_loop` | 381 |
+  | `attack02` | 381 |
   | `stun01_loop` | 381 |
+  | `run01_loop` | 381 |
 
 - `YY` equals an active PML form value in 222 packs; `ZZ` does so in 317 packs. This overlap does **not** establish which field encodes form or what the other field means. Both remain raw/unknown.
 
