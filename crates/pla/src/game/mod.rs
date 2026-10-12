@@ -14,6 +14,7 @@ pub mod battle_items;
 pub mod battle_log;
 pub mod catch_rate;
 pub mod navigation;
+pub mod save_game;
 pub mod state;
 pub mod ui;
 pub mod world_objects;
