@@ -127,3 +127,10 @@ systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
 ## Player model in the viewer (wired, not visually verified)
 
 The capsule avatar is replaced by the real player glTF (`work/cache/player/p1_default/player.gltf`, `--player-variant p1|p2`) with idle/walk/run/dash clips chosen by player speed, walk/run/dash root motion pinned so locomotion alone moves the entity, and camera focus / aim shoulder heights recomputed for a ~1.5 m model (`game::player_anim`). The capsule remains as fallback when the file is missing or fails to load. Verified by unit tests and compilation only; NOT visually verified by the maintainer (no viewer run during this merge). Details: [player_model.md](player_model.md).
+
+## Safe start, anti-stuck and "Back to safe spawn" (not run in the viewer)
+
+User report: in zones 1-5 the player spawned on a mountain and could not get down. Cause found by numbers (see [collision_navmesh](collision_navmesh.md)): the fixed start (terrain centre) was in a tiny disconnected island in area 03 and in a plateau island in area 04.
+- `game::spawn_point` (pure, unit tested): connected components, `choose_safe_spawn` (largest island, slope <= 15 deg, 10 m clearance), `choose_start` (`--player-pos` honoured > valid saved position > safe start; an invalid saved position shows a HUD toast), `escape_step` (off-mesh: walk to the nearest walkable point), `boxed_in` + `StuckTracker` (boxed in 8 directions with input held > 1 s: back to the safe spawn), `slide_move` (angled slide fallback).
+- Pause menu: new row "Back to safe spawn" (`SafeSpawnRequested`).
+- Evidence: unit tests and the `spawn_report` example on the real navmeshes of areas 00-05; the viewer was NOT run (operating rule 7).

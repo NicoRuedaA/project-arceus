@@ -19,6 +19,7 @@ pub mod pokemon_anim;
 pub mod pause_menu;
 pub mod save_game;
 pub mod save_wire;
+pub mod spawn_point;
 pub mod ball_lifecycle;
 pub mod settings;
 pub mod state;

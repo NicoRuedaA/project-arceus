@@ -1,7 +1,7 @@
 //! Pause menu (Esc): a Bevy UI overlay navigable with the keyboard (arrows or W/S + Enter) and
 //! the mouse (hover + click).
 //!
-//! Options: Resume, Invert camera X axis, Invert camera Y axis, Save game, Quit.
+//! Options: Resume, Invert camera X axis, Invert camera Y axis, Back to safe spawn, Save game, Quit.
 //!
 //! While [`Paused`] is `true` the plugin freezes the world by contract: every gameplay system must
 //! carry `.run_if(pla::game::state::not_paused)` (the opposite condition is
@@ -22,15 +22,17 @@ pub enum MenuOption {
     Resume,
     InvertX,
     InvertY,
+    SafeSpawn,
     Save,
     Quit,
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 5] = [
+pub const OPTIONS: [MenuOption; 6] = [
     MenuOption::Resume,
     MenuOption::InvertX,
     MenuOption::InvertY,
+    MenuOption::SafeSpawn,
     MenuOption::Save,
     MenuOption::Quit,
 ];
@@ -42,6 +44,8 @@ pub enum MenuAction {
     Resume,
     /// A setting flipped: persist `settings.txt`.
     SettingsChanged,
+    /// Teleport the player to the safe spawn of the current area.
+    SafeSpawn,
     /// Save the game exactly like F5.
     Save,
     /// Leave the program.
@@ -66,6 +70,7 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
             settings.invert_camera_y = !settings.invert_camera_y;
             MenuAction::SettingsChanged
         }
+        MenuOption::SafeSpawn => MenuAction::SafeSpawn,
         MenuOption::Save => MenuAction::Save,
         MenuOption::Quit => MenuAction::Quit,
     }
@@ -85,6 +90,7 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
         MenuOption::Resume => "Resume".into(),
         MenuOption::InvertX => format!("Invert camera X axis: {}", on_off(settings.invert_camera_x)),
         MenuOption::InvertY => format!("Invert camera Y axis: {}", on_off(settings.invert_camera_y)),
+        MenuOption::SafeSpawn => "Back to safe spawn".into(),
         MenuOption::Save => "Save game".into(),
         MenuOption::Quit => "Quit".into(),
     }
@@ -96,6 +102,10 @@ pub fn toggle_paused(paused: bool) -> bool {
 }
 
 // ---------------------------------------------------------------- bevy glue
+
+/// Set to `true` by the pause menu; the game teleports the player to the safe spawn and clears it.
+#[derive(Resource, Debug, Default)]
+pub struct SafeSpawnRequested(pub bool);
 
 /// Highlighted row.
 #[derive(Resource, Debug, Default)]
@@ -124,7 +134,8 @@ impl PauseMenuPlugin {
             .init_resource::<Paused>()
             .init_resource::<PauseMenu>()
             .init_resource::<SaveToast>()
-            .init_resource::<SaveRequested>();
+            .init_resource::<SaveRequested>()
+            .init_resource::<SafeSpawnRequested>();
         app.add_systems(Startup, spawn_menu)
             // After the input systems so Esc is seen this frame, before every gameplay system
             // of `Update` so they already observe the new paused flag.
@@ -206,6 +217,7 @@ fn pause_input(
     mut settings: ResMut<UserSettings>,
     dir: Res<SettingsDir>,
     mut save_request: ResMut<SaveRequested>,
+    mut safe_request: ResMut<SafeSpawnRequested>,
     mut toast: ResMut<SaveToast>,
     buttons: Query<(&PauseButton, &Interaction), Changed<Interaction>>,
     mut exit: MessageWriter<AppExit>,
@@ -266,6 +278,10 @@ fn pause_input(
             if let Err(e) = settings.save_to_dir(&dir.0) {
                 toast.show(format!("Could not save settings: {e}"));
             }
+        }
+        MenuAction::SafeSpawn => {
+            safe_request.0 = true;
+            paused.0 = false;
         }
         MenuAction::Save => save_request.0 = true,
         MenuAction::Quit => {
@@ -337,8 +353,18 @@ mod tests {
         let mut s = UserSettings::default();
         assert_eq!(activate(MenuOption::Resume, &mut s), MenuAction::Resume);
         assert_eq!(activate(MenuOption::Save, &mut s), MenuAction::Save);
+        assert_eq!(activate(MenuOption::SafeSpawn, &mut s), MenuAction::SafeSpawn);
+        assert_eq!(option_label(MenuOption::SafeSpawn, &s), "Back to safe spawn");
         assert_eq!(activate(MenuOption::Quit, &mut s), MenuAction::Quit);
         assert_eq!(s, UserSettings::default());
+    }
+
+    #[test]
+    fn safe_spawn_row_is_reachable_by_navigation() {
+        let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
+        assert_eq!(OPTIONS.len(), 6);
+        assert_eq!(move_selection(i - 1, 1), i);
+        assert_eq!(move_selection(i, 1), i + 1);
     }
 
     #[test]

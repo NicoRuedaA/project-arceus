@@ -51,3 +51,20 @@ Per-pack summary (committed): [`data/field/navmesh_summary.tsv`](../../data/fiel
 - `pla::assets::navmesh::{NavMesh, AreaNavigation, load_pack_navmeshes}`: `AreaNavigation::load(bin_root, area)`, `is_walkable(x, z)`, `height_at(x, z)`, `nearest(x, z, max_distance)`.
 - `pla::assets::collision::{CollisionMesh, load_collision_pack}`: vertices, triangles, material names, `height_at`.
 - Tests read the real game files and skip when they are absent.
+
+## Walkable components and safe start (2026-10-12)
+Adjacency comes from `NavEdge::opposite_face` (the format stores it), so components are faces joined across shared edges (`game::spawn_point::components`). Numbers from `cargo run -p pla --example spawn_report` (headless):
+
+| Area | Faces | Components | Largest (faces / m2) | OLD start: component, slope | NEW start (x,z), slope |
+|---|---|---|---|---|---|
+| 00 | 24,177 | 147 | 23,291 / 638,372 | #0, 17.0 deg (above 15) | (445.2, 493.4), 3.4 deg |
+| 01 | 47,076 | 304 | 27,990 / 403,454 | #0, 12.1 deg | (496.5, 353.7), 1.8 deg |
+| 02 | 57,978 | 449 | 30,161 / 341,806 | #0, 13.4 deg | (492.2, 516.8), 11.0 deg |
+| 03 | 32,037 | 248 | 10,720 / 167,121 | #16 (138 faces, 872 m2), 36.3 deg; (512.5,512.5) was off the mesh and was snapped there | (257.6, 617.6), 4.5 deg |
+| 04 | 94,759 | 925 | 46,796 / 282,849 | #3 (2,641 faces, 19,872 m2) plateau at y=129.5 | (668.6, 732.0), 7.3 deg |
+| 05 | 48,494 | 661 | 14,853 / 262,306 | #0, 5.5 deg | (533.7, 663.5), 15.0 deg |
+
+- Findings: hypothesis (a) confirmed for areas 03 and 04 (start on a small disconnected island / plateau). Areas 01, 02, 05 started in the largest component, so the island trap does not explain them; the remaining suspect is the point-wise collision (axis-only slide cannot follow a diagonal trail), addressed by the angled-slide fallback (`slide_move`: +-30/60/90 deg). Hypothesis (b) does not occur at the old defaults except area 03 (off-mesh fixed point, then snapped); hypothesis (c) is handled by requiring the chosen face to be the highest one at its centre.
+- New start rules: largest component by m2, face slope <= 15 deg, five 24-point rings out to 10 m all walkable, in the largest component and within 5 m of the start height, closest to the anchor (area 00: placed `house` objects; others: first spawners of `ha_areaNN`; both snapped to the mesh within 15 m; fallback component centroid).
+- Audit for all six areas: start walkable, in component #0, 10 m radial walkable, and BFS over face adjacency reaches 24 of 24 anchor landmarks.
+- Not proven: edge flags (a non-traversable edge type would invalidate adjacency), and no viewer run was made (rule 7); verification is numeric plus unit tests.
