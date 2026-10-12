@@ -13,6 +13,8 @@
 
 The game-data table remains distinct from the damage model: verified type matchups do **not** verify STAB, damage, critical, rounding, turn-order, or capture behavior.
 
+<a id="implemented-rules-and-evidence-confidence"></a>
+
 ## Implemented rules and evidence confidence
 
 This remains a partial simulation; no Nintendo engine/SDK code was ported. Recovered rules are implemented as new idiomatic Rust functions in `crates/pla/src/battle_engine.rs` and retain the notes' confidence levels.
