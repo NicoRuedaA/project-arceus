@@ -122,15 +122,15 @@ fn find_data_file(name: &str) -> Option<PathBuf> {
         .find(|p| p.exists())
 }
 
-/// Map model name -> absolute glTF path using the export index; falls back to the area directory guess.
-fn model_paths(cache_root: &Path, area: u8) -> HashMap<String, PathBuf> {
+/// Map model name -> (filesystem PathBuf, relative asset path String) using the export index.
+fn model_paths(cache_root: &Path, area: u8) -> HashMap<String, (PathBuf, String)> {
     let mut m = HashMap::new();
     if let Some(text) = find_data_file("field_model_export_index.tsv").and_then(|p| std::fs::read_to_string(p).ok()) {
         for line in text.lines().filter(|l| !l.starts_with('#')) {
             let c: Vec<&str> = line.split('\t').collect();
             if c.len() >= 4 && c[3] == "ok" {
                 if let Some(rel) = c[2].strip_prefix("work/cache/") {
-                    m.insert(c[1].to_string(), cache_root.join(rel));
+                    m.insert(c[1].to_string(), (cache_root.join(rel), format!("cache/{rel}")));
                 }
             }
         }
@@ -151,7 +151,7 @@ pub struct WorldObjectsPlugin {
 #[derive(Resource)]
 struct WorldObjects {
     placements: Vec<Placement>,
-    paths: HashMap<String, PathBuf>,
+    paths: HashMap<String, (PathBuf, String)>,
     alive: HashMap<usize, Entity>,
     handles: HashMap<String, Handle<Gltf>>,
     prims: HashMap<String, Prims>,
@@ -176,7 +176,7 @@ impl Plugin for WorldObjectsPlugin {
         let overlap = all.iter().filter(|p| self.exclude_models.contains(&p.model)).count();
         let placements: Vec<Placement> = all
             .into_iter()
-            .filter(|p| !self.exclude_models.contains(&p.model) && paths.get(&p.model).is_some_and(|f| f.exists()))
+            .filter(|p| !self.exclude_models.contains(&p.model) && paths.get(&p.model).is_some_and(|(f, _)| f.exists()))
             .collect();
         println!(
             "World objects {area}: {total} ok placements, {overlap} overlap .trins models (skipped), {} with an exported glTF on disk.",
@@ -234,32 +234,73 @@ fn stream_objects(
         if !should_be_alive(pxz, Vec2::new(p.pos[0], p.pos[2]), false, LOAD_RADIUS, UNLOAD_RADIUS) {
             continue;
         }
-        let Some(path) = wo.paths.get(&p.model).cloned() else { continue };
+        let Some((_, rel_path)) = wo.paths.get(&p.model).cloned() else { continue };
         let handle = wo
             .handles
             .entry(p.model.clone())
-            .or_insert_with(|| asset_server.load(path.to_string_lossy().to_string()))
+            .or_insert_with(|| asset_server.load(rel_path))
             .clone();
-        // Build the shared mesh/material list once the glTF has finished loading.
+        // Build the shared mesh/material list once the glTF and all child materials have finished loading.
         if !wo.prims.contains_key(&p.model) {
             pending.insert(p.model.clone());
             let Some(gltf) = gltfs.get(&handle) else { continue };
+
+            // Ensure all primitive materials are ready before caching to avoid transient grey fallback.
+            let all_mats_ready = gltf.meshes.iter().all(|mh| {
+                if let Some(gm) = gltf_meshes.get(mh) {
+                    gm.primitives.iter().all(|prim| {
+                        if let Some(ref mh) = prim.material {
+                            gltf_materials.contains(mh)
+                        } else {
+                            true
+                        }
+                    })
+                } else {
+                    false
+                }
+            });
+            if !all_mats_ready {
+                continue;
+            }
+
             let mut prims = Vec::new();
             for mh in &gltf.meshes {
                 let Some(gm) = gltf_meshes.get(mh) else { continue };
                 for prim in &gm.primitives {
-                    let mat = prim.material.as_ref().and_then(|h| gltf_materials.get(h));
-                    let sm = match mat {
-                        Some(m) => StandardMaterial {
-                            base_color: m.base_color,
-                            base_color_texture: m.base_color_texture.clone(),
-                            perceptual_roughness: m.perceptual_roughness,
-                            metallic: m.metallic,
+                    let is_water = p.model.contains("water");
+                    let is_plant = p.model.starts_with("plants_");
+                    let sm = if is_water {
+                        // Canal/river water plane: styled as transparent water rather than flat white foam
+                        StandardMaterial {
+                            base_color: Color::srgba(0.12, 0.32, 0.50, 0.72),
+                            perceptual_roughness: 0.15,
+                            metallic: 0.1,
+                            alpha_mode: AlphaMode::Blend,
                             cull_mode: None,
-                            alpha_mode: AlphaMode::Mask(0.5),
                             ..default()
-                        },
-                        None => StandardMaterial { base_color: Color::srgb(0.6, 0.6, 0.6), ..default() },
+                        }
+                    } else {
+                        let mat = prim.material.as_ref().and_then(|h| gltf_materials.get(h));
+                        match mat {
+                            Some(m) => StandardMaterial {
+                                base_color: m.base_color,
+                                base_color_texture: m.base_color_texture.clone(),
+                                perceptual_roughness: m.perceptual_roughness,
+                                metallic: m.metallic,
+                                cull_mode: None,
+                                alpha_mode: if is_plant {
+                                    AlphaMode::Mask(0.5)
+                                } else {
+                                    AlphaMode::Opaque
+                                },
+                                ..default()
+                            },
+                            None => StandardMaterial {
+                                base_color: Color::srgb(0.6, 0.6, 0.6),
+                                cull_mode: None,
+                                ..default()
+                            },
+                        }
                     };
                     prims.push((prim.mesh.clone(), standard_materials.add(sm)));
                 }
