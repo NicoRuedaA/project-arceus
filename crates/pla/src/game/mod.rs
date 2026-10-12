@@ -11,6 +11,7 @@ pub mod battle_controller;
 pub mod lighting;
 pub mod battle_demo;
 pub mod battle_input;
+pub mod battle_visibility;
 pub mod battle_items;
 pub mod battle_log;
 pub mod catch_rate;
