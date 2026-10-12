@@ -1,97 +1,66 @@
-# Pokémon model-pack assembly investigation
+# Pokémon model-pack assembly
 
-## Scope and result
+## Outcome
 
-This report records a bounded inspection of
-`bin/archive/pokemon/pm0025_00_00.gfpak` (Pikachu, form 00, variation 00) from
-the local Pokémon Legends: Arceus v262144 RomFS. The pack is 180 entries and
-every Oodle-framed entry decoded to its declared size. The metadata probe kept
-at most 16 mesh candidates / 512 MiB and only ran against this one pack.
+This work adds a library assembler and CLI exporter, then tests them against the
+local Pikachu pack `pm0025_00_00.gfpak`. Static exports were generated for all
+three LODs, but visual acceptance **failed**: the corrected frontal headless
+render has a recognizable Pikachu silhouette but no clearly yellow body or red
+cheeks. The required 20-pack batch was not started. The inspected result is
+`work/cache/pokemon/pm0025/pikachu_lod0_front_render.png` (ignored output).
 
-The pack's base and two LOD mesh-buffer/descriptor associations are still
-ambiguous. The descriptor payloads name expected `.trmbf` files, but those
-filenames were not found in the candidate mesh-buffer payloads; all nine
-cross-pairs pass the current parser. Sixteen BNTX entries contain one
-internally named texture each. A complete Bevy render is **not yet proven**: the candidate
-skeleton entry has 14 roots but no bind records or rig mappings, and material
-parameter-to-texture semantics are not parsed. `pokemon_spike` is currently a
-bounded metadata probe, not a model renderer.
+A concrete output limitation is established: the TRMTR has layer colors and
+layer-mask texture inputs, while the existing glTF material writer exposes only
+base-color and normal texture URIs and no vertex-color or material-factor
+field. The static exporter also chooses albedo textures using shape-name hints
+and does not parse per-shape material/submaterial assignment. These omissions
+prevent a faithful representation of observed material data. They are consistent
+with the failed colors, but the exact game shader blend and yellow/red palette
+semantics remain unproven.
 
-## Observed
+## Observed facts
 
 | Evidence | Observation |
 | --- | --- |
-| Pack table | 180 entries; all 180 decoded; no bounds failures or decode failures. |
-| Entry 153 strings | Contains `pm0025_00_00.trmtr`, `pm0025_00_00.trskl`, and base/LOD1/LOD2 `.trmsh` names. This is a model-level reference candidate; the exact container schema is not yet parsed. |
-| Entry 155 strings | Names `pm0025_00_00.trmbf`, five shape names, and `body_a`, `body_b`, and `body_c` material labels. |
-| Entries 152, 174, and 176 | All three pass `TrMbf::parse`; each has five parser-compatible shapes with each of the three candidate descriptors. The mesh-buffer payloads have no observed embedded filenames to identify their LOD. |
-| Entries 155, 175, and 177 | These descriptor candidates contain strings naming the base, LOD1, and LOD2 `.trmbf` assets respectively. Their archive indices are known, but the association from those names to the three anonymous mesh-buffer entries is not decoded. |
-| Candidate cross-product | Trying every `TrMbf` candidate against every descriptor yields nine parser-compatible pairs. This is a parser compatibility result, not proof of the corresponding mesh-buffer/descriptor identity. |
-| Entries 158–173 | Sixteen BNTX containers, each with one texture. Names group as `body_a`, `body_b`, `body_c`, and `eye`, with suffixes including `_alb`, `_ao`, `_lym`, `_nrm`, and `_msk`. |
-| Entry 156 strings | Contains material-like parameter names such as `BaseColorLayer*`, `EmissionColorLayer*`, `UVScaleOffset*`, `Opaque`, and `CastShadow`. No parser currently establishes how these fields select BNTX entries or material layers. |
-| Entry 151 strings | Contains `origin`, effect/attachment names, and eye-joint names. After locator strings were made representable, skeleton parsing still rejects it with `roots=14`, `bind_count=0`, and `unmapped_rigs=0`. |
+| Pack | `pm0025_00_00.gfpak` contains 180 entries; the assembler decodes the pack and identifies the model descriptor, three mesh descriptors, their three buffers, one regular material set, one skeleton, 16 textures, and 54 named animation clip pairs. |
+| Path hashes | Verified full RomFS paths map to known archive entries using the observed FNV-1a64 variant (offset basis `0xcbf29ce484222645`, prime `0x100000001b3`). Examples: model `.trmdl`→153, base `.trmsh`→155, base `.trmbf`→152, `.trmtr`→156, `.trskl`→157; `body_a_alb.bntx`→158; `defaultwait01_loop.tranm/.tracm`→3/2; `walk01_loop.tranm/.tracm`→12/10. This is a verified path-index relation, not a semantic shader/material mapping. |
+| Meshes | The three descriptor-declared buffer links resolve by their exact filenames and hashes. Five shapes parse per LOD (15 total); LOD0 shape counts include body 2,218 vertices/10,932 indices, two eyes 33/168 each, tongue 74/288, and tail 124/294. |
+| Skeleton | Exact path identifies entry 157. Structural FlatBuffer inspection finds 79 nodes, 55 bind records, and node-type counts `{0: 50, 1: 18, 2: 11}`. The root representation is not established. The existing `TrSkl::parse` rejects node types 1 and 2. The earlier `bind_count=0` observation came from a wrong-entry classification and is superseded; no semantics for types 1/2 are inferred here. |
+| Materials and textures | The regular material entry 156 yields 20 exact texture-role links: eye mask/normal/layer-mask/albedo sets repeated twice, then body_c, body_a, and body_b AO/normal/layer-mask/albedo sets. The TRMTR bytes also contain repeated `BaseColorLayer*`, `LayerMaskMap`, and other material parameters. Mesh shape names include body, left/right eye, sippo, and tongue, but no parsed shape-to-submaterial relation links those names to the repeated material groups. Current material hints are provisional inference. Decoded body_a albedo is 64×128 with mean RGB ~0.953/0.933/0.933; body_b, body_c, and eye albedos are uniform white 32×32 images. The LYM files are masks, not substitute albedos. Exact shader blend/palette semantics are unknown. |
+| Animation | The pack names 54 `.tranm`/`.tracm` pairs. The library successfully parses 50 `.tranm` tracks; four clip parse attempts fail. `defaultwait01_loop` parses; `walk01_loop` is among those that fails. No clip was exported skinned because the exact skeleton currently fails to parse. |
+| Static output | The CLI wrote `pikachu_lod0.gltf`, `pikachu_lod1.gltf`, `pikachu_lod2.gltf`, buffers, and decoded PNGs. The LOD0 mesh layouts contain attributes `{1,2,3,6,7,8}`; the existing parser identifies position (1), UV0 (6), and skin lanes (7/8), with no vertex-color channel in the current export. The front render was opened: the silhouette is recognizable, but it is nearly white with no red cheeks; acceptance failed. Existing glTF material support carries only base-color/normal texture URIs, not TRMTR layer colors or layer masks. |
 
-## Pairing conclusions
+## Inferences and unknowns
 
-- **Observed:** descriptor candidates contain distinct expected `.trmbf`
-  filenames, while the candidate mesh-buffer payloads do not expose those
-  filenames. Nine descriptor/buffer pairs pass the parser, so exact pairings
-  remain unknown.
-- **Inferred:** the pack's entry ordering may correspond to base/LOD1/LOD2
-  groups, but adjacency has not been validated against container metadata or
-  reference output and must not be treated as an established pairing.
-- **Inferred:** entry 153 is the model-level descriptor because it references
-  the `.trmtr`, `.trskl`, and three `.trmsh` assets by name. The string evidence
-  supports this role, but the FlatBuffer table structure and archive-entry
-  index linkage have not yet been decoded into typed records.
-- **Observed:** BNTX texture names carry body/eye grouping and suffix labels.
-- **Unknown:** the exact meanings and shader bindings for `lym`, `msk`, and the
-  `trmtr` parameter fields. Do not equate suffixes to renderer material inputs
-  without parsing the material descriptor or matching a reference render.
-- **Unresolved:** no valid bone-to-rig or inverse-bind mapping was found for
-  this pack. The entry-151 error is not evidence that the file has no skeleton;
-  it means the currently supported hierarchy/bind contract does not cover it.
-
-## Out-of-bounds archive entries
-
-The separate archive census identified one out-of-bounds final row in each of
-`pm1006_11_41.gfpak` and `pm1006_12_41.gfpak`. Both are row 174 of 175, type 9,
-kind 3, flags 204, with a 78-byte payload declaration and the same observed
-`CC 06 20 00 00 00 1C 00 2C 00 07 00 08 00 0C 00` prefix. The first points at
-offset 1,572,848 with 64 bytes remaining (14-byte overrun); the second points
-at 1,635,984 with 32 bytes remaining (46-byte overrun). Both declare decoded
-size 76. The other rows in each pack are in bounds. This confirms the payload
-range extends past EOF, but does not distinguish a truncated source archive
-from an alternate entry-size convention; the final frame could not be decoded
-through the current bounds-checked parser. Do not treat these as validly
-decoded entries.
+- **Inferred:** descriptor references plus exact path-hash matches identify each
+  `.trmsh` to its named `.trmbf`; this association is directly supported by
+  in-band names and archive path hashes, rather than archive adjacency.
+- **Unknown:** node types 1 and 2 semantics, rig mapping, and whether the
+  existing inverse-bind adapter can consume these 55 records. Rest transforms
+  are not substituted for inverse binds.
+- **Proven limitation:** the current glTF material/primitive contract cannot
+  carry the TRMTR layer colors and layer-mask inputs; the export therefore omits
+  material data present in the game pack. This is a specific fidelity blocker,
+  not proof of the exact render mismatch cause or color palette.
+- **Unknown:** exact role of each BaseColorLayer constant, LYM channel, and
+  material group in the game shader; texture color-space behavior and native
+  blend equations are not established.
+- **Not attempted:** 20 additional packs. The task's visual gate requires a
+  verified Pikachu render first, so no multi-pack success count is claimed.
 
 ## Reproduction
 
-The following probes were run only on the named pack, inside the required
-memory-limited scope, with build output directed to the worktree target dir:
+Assembler and focused test commands were run in the required memory-limited
+systemd scope, with Cargo jobs capped and target output under this worktree:
 
 ```sh
 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
-  env CARGO_TARGET_DIR="$PWD/target" CARGO_BUILD_JOBS=3 \
-  cargo run --offline -q -p pla --example pokemon_spike -- \
-  /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/archive/pokemon/pm0025_00_00.gfpak
+  env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR="$PWD/target" \
+  cargo run -p pla --example pokemon_assemble -- \
+  /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/archive/pokemon/pm0025_00_00.gfpak \
+  work/cache/pokemon/pm0025
 ```
 
-The probe writes no decoded assets. Its bounded log is
-`work/progress/model-pm0025-spike.log` (ignored by Git).
-
-## Related animation spike
-
-The Mysterygift clip is
-`sd9150_misterygift_anim.tranm` (481 frames at 60 fps, ten name-mapped tracks).
-Its first translation key on `sd9150_mysterygift_joint1` is
-`[-1.2342589, 0.14076617, 3.3655112]`; the final key is `[0, 0, 0]`. The
-`anim_spike` example now computes per-frame skinned bounds with a 100,000-vertex
-and 50,000,000 frame-vertex-evaluation cap and reframes its camera. Under the
-6 GiB / zero-swap scope, frames 50, 100, and 200 were opened and show the
-animated, untextured box. Frames 0–40 remain clear-color; the exact cause is
-not yet established. The colorless appearance is explained by the example's
-constant `StandardMaterial`; its loose-file BNTX assets are not loaded there.
-This run used the host display (`DISPLAY=:0`), so headless rendering has not
-been verified.
+The offscreen render used `/usr/bin/blender --background` in the same memory
+scope, with the source model treated as Z-up and a front-facing camera. Render
+script and outputs live under ignored `work/cache/pokemon/pm0025/`.
