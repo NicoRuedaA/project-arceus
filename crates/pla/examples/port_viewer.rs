@@ -32,7 +32,8 @@ use pla::assets::terrain::{
 };
 use pla::battle::BattleData;
 use pla::game::{
-    get_area00_wild_spawns, ActiveBattleSession, GameNavmeshResource, GameState,
+    get_wild_spawns_for_area, setup_game_ui, sync_ui_visibility, update_battle_ui_system,
+    update_world_hud_system, ActiveBattleSession, GameNavmeshResource, GameState, PlayerAvatar,
     WildCreature,
 };
 use pla::pml::{calculate_hp, PmlDatabase};
@@ -53,14 +54,17 @@ struct TreeCatalogResource {
 }
 
 #[derive(Resource)]
+struct PokemonCatalogResource {
+    handles: HashMap<u16, Handle<Gltf>>,
+    spawned: HashSet<Entity>,
+}
+
+#[derive(Resource)]
 struct PlayerSpawnConfig {
     pos: Vec2,
     #[allow(dead_code)]
     area_idx: u8,
 }
-
-#[derive(Component)]
-struct PlayerAvatar;
 
 #[derive(Component)]
 struct DirectionIndicator;
@@ -440,6 +444,24 @@ fn main() -> ExitCode {
         }
     };
 
+    // Ensure initial spawn position is on a validated walkable navmesh face
+    let player_spawn_pos = if let Some(ref nr) = navmesh_res {
+        let nav = nr.nav.primary();
+        if nav.is_walkable(player_spawn_pos.x, player_spawn_pos.y) {
+            player_spawn_pos
+        } else if let Some(hit) = nav.nearest(player_spawn_pos.x, player_spawn_pos.y, 400.0) {
+            let vs = nav.face_vertices(hit.face);
+            let cx = vs.iter().map(|v| v[0]).sum::<f32>() / vs.len() as f32;
+            let cz = vs.iter().map(|v| v[2]).sum::<f32>() / vs.len() as f32;
+            println!("Adjusted initial spawn position to walkable navmesh face: ({:.1}, {:.1})", cx, cz);
+            Vec2::new(cx, cz)
+        } else {
+            player_spawn_pos
+        }
+    } else {
+        player_spawn_pos
+    };
+
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -495,9 +517,26 @@ fn main() -> ExitCode {
         pos: player_spawn_pos,
         area_idx,
     });
+    let zone_name = match area_idx {
+        0 => "Obsidian Fieldlands (ha_area00)".to_string(),
+        1 => "Crimson Mirelands (ha_area01)".to_string(),
+        2 => "Cobalt Coastlands (ha_area02)".to_string(),
+        3 => "Coronet Highlands (ha_area03)".to_string(),
+        4 => "Alabaster Icelands (ha_area04)".to_string(),
+        5 => "Ancient Settlement (ha_area05)".to_string(),
+        _ => format!("Hisui Sector (ha_area{:02})", area_idx),
+    };
+    app.insert_resource(pla::game::ActiveZoneInfo {
+        area_idx,
+        name: zone_name,
+    });
     app.insert_resource(TreeCatalogResource {
         handles: HashMap::new(),
         spawned: false,
+    });
+    app.insert_resource(PokemonCatalogResource {
+        handles: HashMap::new(),
+        spawned: HashSet::new(),
     });
     if let Some(tr) = terrain_res {
         app.insert_resource(tr);
@@ -519,11 +558,12 @@ fn main() -> ExitCode {
         demo_step_tick: 0,
     });
 
-    app.add_systems(Startup, setup_scene);
+    app.add_systems(Startup, (setup_scene, setup_game_ui));
     app.add_systems(
         Update,
         (
             spawn_tree_instances,
+            spawn_pokemon_models,
             player_locomotion.run_if(in_state(GameState::World)),
             creature_encounter_system.run_if(in_state(GameState::World)),
             battle_turn_system.run_if(in_state(GameState::Battle)),
@@ -534,6 +574,9 @@ fn main() -> ExitCode {
             ball_ballistics_and_physics.run_if(in_state(GameState::World)),
             capture_resolution_system.run_if(in_state(GameState::World)),
             pokemon_selection_controls.run_if(in_state(GameState::World)),
+            sync_ui_visibility,
+            update_world_hud_system.run_if(in_state(GameState::World)),
+            update_battle_ui_system.run_if(in_state(GameState::Battle)),
             update_hud_and_telemetry,
             automated_tick_driver,
         )
@@ -555,6 +598,7 @@ fn setup_scene(
     spawn_cfg: Res<PlayerSpawnConfig>,
     terrain_res: Option<Res<TerrainResource>>,
     mut tree_catalog: ResMut<TreeCatalogResource>,
+    mut pokemon_catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
 ) {
     let spawn_x = spawn_cfg.pos.x;
@@ -564,6 +608,16 @@ fn setup_scene(
         .and_then(|t| t.area.sample_world_height(spawn_x, spawn_z))
         .unwrap_or(0.0);
     let player_y = surface_y + 0.9;
+
+    // Register Pokemon glTF models for asynchronous loading
+    for dex in [25, 396, 399, 403] {
+        let rel_path = format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_idle.gltf");
+        let full_path = PathBuf::from("work").join(&rel_path);
+        if full_path.exists() {
+            let handle: Handle<Gltf> = asset_server.load(rel_path);
+            pokemon_catalog.handles.insert(dex, handle);
+        }
+    }
 
     if let Some(ref terrain) = terrain_res {
         // Spawn real terrain mesh chunks
@@ -690,8 +744,8 @@ fn setup_scene(
         })
         .id();
 
-    // Spawn deterministic wild creatures in Area 00 starting meadow
-    let wild_spawns = get_area00_wild_spawns();
+    // Spawn deterministic wild creatures in current area
+    let wild_spawns = get_wild_spawns_for_area(spawn_cfg.area_idx, Vec2::new(spawn_x, spawn_z));
     for wild in wild_spawns {
         let pkmn_color = get_species_color(wild.national_dex);
         let pkmn_x = wild.spawn_pos.x;
@@ -938,9 +992,76 @@ fn spawn_tree_instances(
     catalog.spawned = true;
 }
 
+fn spawn_pokemon_models(
+    mut commands: Commands,
+    mut catalog: ResMut<PokemonCatalogResource>,
+    gltf_assets: Res<Assets<Gltf>>,
+    gltf_meshes: Res<Assets<GltfMesh>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
+    pkmn_query: Query<(Entity, &PokemonSpawn, &Children)>,
+) {
+    for (entity, pkmn_spawn, children) in &pkmn_query {
+        if catalog.spawned.contains(&entity) {
+            continue;
+        }
+        let Some(handle) = catalog.handles.get(&pkmn_spawn.national_dex) else {
+            continue;
+        };
+        let Some(gltf) = gltf_assets.get(handle) else {
+            continue;
+        };
+
+        // glTF ready: despawn placeholder geometric children
+        for child in children.iter() {
+            commands.entity(child).despawn();
+        }
+
+        // Attach real glTF mesh primitives with provisional species tint
+        let tint = get_species_color(pkmn_spawn.national_dex);
+        commands.entity(entity).with_children(|parent| {
+            for mesh_h in &gltf.meshes {
+                if let Some(gltf_mesh) = gltf_meshes.get(mesh_h) {
+                    for prim in &gltf_mesh.primitives {
+                        let mesh_to_spawn = if let Some(mesh) = meshes.get(&prim.mesh) {
+                            let mut static_mesh = mesh.clone();
+                            static_mesh.remove_attribute(Mesh::ATTRIBUTE_JOINT_INDEX);
+                            static_mesh.remove_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT);
+                            meshes.add(static_mesh)
+                        } else {
+                            prim.mesh.clone()
+                        };
+                        let mat_h = standard_materials.add(StandardMaterial {
+                            base_color: tint,
+                            perceptual_roughness: 0.65,
+                            metallic: 0.05,
+                            cull_mode: None,
+                            ..default()
+                        });
+                        parent.spawn((
+                            Mesh3d(mesh_to_spawn),
+                            MeshMaterial3d(mat_h),
+                            Transform::from_scale(Vec3::splat(1.0)),
+                        ));
+                    }
+                }
+            }
+        });
+
+        catalog.spawned.insert(entity);
+        println!(
+            "Loaded real glTF model for #{:04} with provisional species tint {:?}",
+            pkmn_spawn.national_dex, tint
+        );
+    }
+}
+
 fn get_species_color(dex: u16) -> Color {
     match dex {
         25 => Color::srgb(0.95, 0.85, 0.15),  // Pikachu (Electric Yellow)
+        399 => Color::srgb(0.65, 0.42, 0.22), // Bidoof (Normal Brown)
+        396 => Color::srgb(0.55, 0.50, 0.45), // Starly (Flying Slate)
+        403 => Color::srgb(0.25, 0.55, 0.85), // Shinx (Electric Blue)
         501 => Color::srgb(0.25, 0.65, 0.95), // Oshawott (Water Blue)
         722 => Color::srgb(0.55, 0.82, 0.35), // Rowlet (Grass Green)
         155 => Color::srgb(0.95, 0.45, 0.15), // Cyndaquil (Fire Orange)
@@ -1605,7 +1726,15 @@ fn battle_turn_system(
         return;
     }
 
-    // Move 1 (KeyCode::Digit1), Move 2 (Digit2), Move 3 (Digit3), Move 4 (Digit4)
+    // Menu navigation & shortcuts
+    if keys.just_pressed(KeyCode::ArrowLeft) || keys.just_pressed(KeyCode::KeyA) {
+        sess.selected_move_idx = sess.selected_move_idx.saturating_sub(1);
+    }
+    if keys.just_pressed(KeyCode::ArrowRight) || keys.just_pressed(KeyCode::KeyD) {
+        sess.selected_move_idx = (sess.selected_move_idx + 1).min(3);
+    }
+
+    // Move selection via digits or Enter
     let move_selected = if keys.just_pressed(KeyCode::Digit1) {
         Some(0)
     } else if keys.just_pressed(KeyCode::Digit2) {
@@ -1614,25 +1743,37 @@ fn battle_turn_system(
         Some(2)
     } else if keys.just_pressed(KeyCode::Digit4) {
         Some(3)
+    } else if keys.just_pressed(KeyCode::Enter) && sess.selected_menu_idx == 0 {
+        Some(sess.selected_move_idx)
     } else {
         None
     };
 
     if let Some(slot) = move_selected {
+        sess.selected_menu_idx = 0;
+        sess.selected_move_idx = slot;
         if slot < sess.battle.combatants[0].moves.len() {
             println!("Executing player move slot {}...", slot);
             sess.execute_player_attack(slot);
             sess.turn_timer = 0.0;
         }
-    } else if keys.just_pressed(KeyCode::KeyB) {
+    } else if keys.just_pressed(KeyCode::KeyC) || keys.just_pressed(KeyCode::KeyB) {
         // Attempt capture in battle
+        sess.selected_menu_idx = 3;
         if let Some(ref db) = battle_db.0 {
-            println!("Attempting in-battle capture...");
-            let _ = sess.attempt_capture_in_battle(db);
+            println!("Attempting in-battle capture with Poké Ball...");
+            let outcome = sess.attempt_capture_in_battle(db);
+            println!("Capture attempt outcome: {:?}", outcome);
             sess.turn_timer = 0.0;
         }
+    } else if keys.just_pressed(KeyCode::KeyS) {
+        sess.selected_menu_idx = 1;
+        sess.battle_summary = "Switch: No alternate Pokémon available in party!".into();
+    } else if keys.just_pressed(KeyCode::KeyI) {
+        sess.selected_menu_idx = 2;
+        sess.battle_summary = "Bag: 5x Poké Ball, 3x Potion in inventory.".into();
     } else if keys.just_pressed(KeyCode::KeyR) {
-        // Run away
+        sess.selected_menu_idx = 4;
         println!("Player fled from battle.");
         sess.battle.ended = true;
         sess.battle_summary = "Fled from battle safely!".into();
@@ -1767,13 +1908,15 @@ fn automated_tick_driver(
     mut camera_ctrl: ResMut<CameraController>,
     mut player_query: Query<&mut Transform, (With<PlayerAvatar>, Without<PokemonSpawn>)>,
     mut pkmn_query: Query<&mut Transform, (With<PokemonSpawn>, Without<PlayerAvatar>)>,
+    mut wild_query: Query<&mut WildCreature>,
     mut next_state: ResMut<NextState<GameState>>,
     mut session: Option<ResMut<ActiveBattleSession>>,
+    battle_db: Res<LoadedBattle>,
     mut exit: MessageWriter<AppExit>,
 ) {
     automation.current_ticks += 1;
 
-    // Mode 0: Auto-demo playthrough mode (Walk -> Encounter -> Battle Attack -> Victory -> Return)
+    // Mode 0: Auto-demo playthrough mode (Walk -> Encounter -> Move Menu -> Attack -> Capture -> Return)
     if automation.auto_demo {
         let demo_dir = automation
             .demo_output_dir
@@ -1802,7 +1945,7 @@ fn automated_tick_driver(
             0 => {
                 // Step 0: Initial World exploration locomotion towards Pikachu
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 0: Player exploring World at ha_area00 starting point.");
+                    write_demo_log("Step 0: Player exploring World with active World HUD.");
                     camera_ctrl.yaw = 0.0;
                     camera_ctrl.pitch = 0.28;
                     camera_ctrl.distance = 5.0;
@@ -1822,7 +1965,20 @@ fn automated_tick_driver(
                     commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
-                    // Transition to Battle state
+                    // Transition to Battle state with initialized ActiveBattleSession
+                    if let Some(ref db) = battle_db.0 {
+                        if let Ok(sess) = ActiveBattleSession::new(
+                            db,
+                            "pikachu",
+                            25,
+                            "pikachu",
+                            5,
+                            25,
+                            Entity::PLACEHOLDER,
+                        ) {
+                            commands.insert_resource(sess);
+                        }
+                    }
                     next_state.set(GameState::Battle);
                     automation.demo_step = 1;
                     automation.demo_step_tick = 0;
@@ -1831,12 +1987,11 @@ fn automated_tick_driver(
             1 => {
                 // Step 1: Wild Encounter triggered -> Battle Start
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 1: Approached wild Pikachu! Entering GameState::Battle.");
-                    // Dynamic battle camera: dramatic side 45-degree angle
-                    camera_ctrl.yaw = 1.05;
-                    camera_ctrl.pitch = 0.22;
-                    camera_ctrl.distance = 6.0;
-                    camera_ctrl.focal_offset_y = 1.0;
+                    write_demo_log("Step 1: Wild Pikachu encounter! Battle UI shows HP bars, cards, moves and actions.");
+                    camera_ctrl.yaw = 0.55;
+                    camera_ctrl.pitch = 0.18;
+                    camera_ctrl.distance = 5.2;
+                    camera_ctrl.focal_offset_y = 0.6;
                 }
                 if automation.demo_step_tick == 15 {
                     let shot = demo_dir.join("02_battle_encounter.png");
@@ -1844,44 +1999,92 @@ fn automated_tick_driver(
                     commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
-                    // Execute player attack
-                    if let Some(ref mut sess) = session {
-                        write_demo_log("Executing Player Thunderbolt attack in battle engine...");
-                        sess.execute_player_attack(0);
-                    }
                     automation.demo_step = 2;
                     automation.demo_step_tick = 0;
                 }
             }
             2 => {
-                // Step 2: Battle Action Execution
+                // Step 2: 4 Moves Menu Selection
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 2: Player Thunderbolt impacts Wild Pikachu! Dynamic action angle.");
-                    camera_ctrl.yaw = 2.10;
-                    camera_ctrl.pitch = 0.15;
-                    camera_ctrl.distance = 4.2;
+                    write_demo_log("Step 2: Inspecting 4-move menu grid with types, PP, and selection highlight.");
+                    if let Some(ref mut sess) = session {
+                        sess.selected_menu_idx = 0;
+                        sess.selected_move_idx = 0;
+                        sess.battle_summary = "Select a move: [1] Thunderbolt  [2] Quick Attack  [3] Iron Tail  [4] Spark".into();
+                    }
                 }
                 if automation.demo_step_tick == 15 {
-                    let shot = demo_dir.join("03_battle_action.png");
-                    write_demo_log(&format!("Capturing 03_battle_action.png to {}", shot.display()));
+                    let shot = demo_dir.join("03_battle_move_selection.png");
+                    write_demo_log(&format!("Capturing 03_battle_move_selection.png to {}", shot.display()));
                     commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
-                    // Return to World state
-                    next_state.set(GameState::World);
+                    // Execute Thunderbolt attack in battle engine
+                    if let Some(ref mut sess) = session {
+                        write_demo_log("Executing Player Thunderbolt attack in battle engine...");
+                        sess.execute_player_attack(0);
+                    }
                     automation.demo_step = 3;
                     automation.demo_step_tick = 0;
                 }
             }
             3 => {
-                // Step 3: Return to World state after battle resolution
+                // Step 3: Battle Action Execution (Attack damage)
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 3: Battle resolved. Returning to GameState::World and resuming exploration.");
-                    camera_ctrl.yaw = 0.15;
-                    camera_ctrl.pitch = 0.32;
-                    camera_ctrl.distance = 5.5;
+                    write_demo_log("Step 3: Thunderbolt impacts Wild Pikachu! Dynamic action angle.");
+                    camera_ctrl.yaw = 0.85;
+                    camera_ctrl.pitch = 0.15;
+                    camera_ctrl.distance = 4.2;
                 }
-                // Walk player around
+                if automation.demo_step_tick == 15 {
+                    let shot = demo_dir.join("04_battle_attack_action.png");
+                    write_demo_log(&format!("Capturing 04_battle_attack_action.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick >= 25 {
+                    // Attempt Poke Ball capture
+                    if let Some(ref mut sess) = session {
+                        sess.selected_menu_idx = 3;
+                        if let Some(ref db) = battle_db.0 {
+                            write_demo_log("Executing in-battle capture attempt with Poke Ball...");
+                            let _ = sess.attempt_capture_in_battle(db);
+                        }
+                    }
+                    automation.demo_step = 4;
+                    automation.demo_step_tick = 0;
+                }
+            }
+            4 => {
+                // Step 4: Battle Capture Attempt Outcome
+                if automation.demo_step_tick == 1 {
+                    write_demo_log("Step 4: Poke Ball thrown at Wild Pikachu! Evaluating capture roll.");
+                }
+                if automation.demo_step_tick == 15 {
+                    let shot = demo_dir.join("05_battle_capture_attempt.png");
+                    write_demo_log(&format!("Capturing 05_battle_capture_attempt.png to {}", shot.display()));
+                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                }
+                if automation.demo_step_tick >= 25 {
+                    // End battle and return to World
+                    for mut wild in &mut wild_query {
+                        wild.defeated = true;
+                    }
+                    commands.remove_resource::<ActiveBattleSession>();
+                    next_state.set(GameState::World);
+                    automation.demo_step = 5;
+                    automation.demo_step_tick = 0;
+                }
+            }
+            5 => {
+                // Step 5: Return to World state after battle resolution
+                if automation.demo_step_tick == 1 {
+                    write_demo_log("Step 5: Returning to GameState::World with active World HUD.");
+                    camera_ctrl.yaw = 0.15;
+                    camera_ctrl.pitch = 0.28;
+                    camera_ctrl.distance = 5.5;
+                    camera_ctrl.focal_offset_y = 0.0;
+                }
+                // Walk player forward
                 if let Ok(mut p_xf) = player_query.single_mut() {
                     p_xf.translation.x += 0.08;
                     p_xf.translation.z -= 0.04;
@@ -1892,12 +2095,12 @@ fn automated_tick_driver(
                     }
                 }
                 if automation.demo_step_tick == 15 {
-                    let shot = demo_dir.join("04_world_return.png");
-                    write_demo_log(&format!("Capturing 04_world_return.png to {}", shot.display()));
+                    let shot = demo_dir.join("06_world_return.png");
+                    write_demo_log(&format!("Capturing 06_world_return.png to {}", shot.display()));
                     commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
-                    write_demo_log("Auto-demo playthrough finished successfully with 4 screenshots.");
+                    write_demo_log("Auto-demo playthrough finished successfully with 6 screenshots.");
                     exit.write(AppExit::Success);
                 }
             }
