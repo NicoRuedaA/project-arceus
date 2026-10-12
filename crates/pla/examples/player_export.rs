@@ -81,6 +81,9 @@ const HAIR_PALETTE: &[(&str, [u8; 3])] = &[
 
 /// Eye colour names seen in the dressup table face variants (`p?_face0001_00_default_<name>`),
 /// RGB ASSUMED. The first listed variant after the plain one is `white`; the plain default has no colour name.
+/// Default iris colour: blue-grey like the real-game reference screenshot (ASSUMED RGB; the data has names only).
+const DEFAULT_EYE_RGB: [u8; 3] = [88, 118, 150];
+
 const EYE_PALETTE: &[(&str, [u8; 3])] = &[
     ("brown", [90, 58, 36]),
     ("hazel", [130, 95, 50]),
@@ -178,7 +181,7 @@ fn export_variant(
         options.hair_rgb = Some(if v == "p1" { HAIR_PALETTE[0].1 } else { HAIR_PALETTE[2].1 });
     }
     if options.eye_rgb.is_none() && !no_colors {
-        options.eye_rgb = Some(EYE_PALETTE[0].1);
+        options.eye_rgb = Some(DEFAULT_EYE_RGB);
     }
     let stems = parts_override.cloned().unwrap_or_else(|| default_parts(v));
     let out_name = name.map_or_else(|| format!("{v}_default"), str::to_owned);

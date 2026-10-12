@@ -13,7 +13,7 @@
 
 use super::{
     gltf_export,
-    pokemon_model::{add_static_material_for_player, LayerBlendFormula, PokemonModel},
+    pokemon_model::{add_static_material_for_player, save_player_eye_texture, LayerBlendFormula, PokemonModel},
     tr::{TrAnmClip, TrSkl, TrSklBindRecord, TrSklMatrix, TrSklNode, TrSklTransform},
 };
 use std::path::Path;
@@ -288,8 +288,9 @@ pub struct PlayerExportOptions {
     /// light) by this colour after normalising its mean grey to 1, so the shading detail is kept.
     /// Hair colour is a runtime choice in the game; the exact RGB is not in the data (ASSUMED).
     pub hair_rgb: Option<[u8; 3]>,
-    /// sRGB eye colour, applied the same way to the (grey) iris albedo, normalised on its
-    /// brightest pixels. ASSUMED, as above.
+    /// sRGB eye colour, applied ONLY to the iris (layer-mask G of the eye material) of the grey
+    /// albedo, normalised on its brightest iris pixels. Sclera and highlight stay albedo + emission.
+    /// ASSUMED RGB, as above.
     pub eye_rgb: Option<[u8; 3]>,
 }
 
@@ -298,8 +299,6 @@ pub struct PlayerExportOptions {
 enum GreyRef {
     /// Mean of the opaque pixels maps to the target colour (hair, eyebrows).
     Mean,
-    /// The 95th percentile grey maps to the target colour (iris ring).
-    P95,
 }
 
 fn is_skin_binding(binding: &str) -> bool {
@@ -331,16 +330,12 @@ fn tint_png(dir: &Path, name: &str, rgb: [u8; 3], grey_ref: Option<GreyRef>, suf
     };
     let mut tone: [f32; 3] = std::array::from_fn(|i| srgb_to_linear(f32::from(rgb[i]) / 255.0));
     if let Some(r) = grey_ref {
-        let mut greys: Vec<f32> = buf[..info.buffer_size()]
+        let greys: Vec<f32> = buf[..info.buffer_size()]
             .chunks_exact(channels)
             .map(|px| srgb_to_linear(f32::from(px[0]) / 255.0))
             .collect();
         let reference = match r {
             GreyRef::Mean => greys.iter().sum::<f32>() / greys.len().max(1) as f32,
-            GreyRef::P95 => {
-                greys.sort_by(f32::total_cmp);
-                greys.get(greys.len() * 95 / 100).copied().unwrap_or(1.0)
-            }
         };
         let k = 1.0 / reference.max(1e-3);
         for t in &mut tone {
@@ -388,7 +383,7 @@ pub fn write_player_gltf(
                     } else if let (Some(rgb), true) = (options.hair_rgb, uri.contains("_hairstyle_alb") || uri.contains("_eyebrow_alb")) {
                         Some(tint_png(out_dir, &uri, rgb, Some(GreyRef::Mean), "haircolor")?)
                     } else if let (Some(rgb), true) = (options.eye_rgb, uri.contains("_eye_alb")) {
-                        Some(tint_png(out_dir, &uri, rgb, Some(GreyRef::P95), "eyecolor")?)
+                        Some(save_player_eye_texture(part, mesh, rgb, gltf_path.as_ref())?)
                     } else {
                         None
                     };

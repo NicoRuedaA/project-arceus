@@ -1030,6 +1030,73 @@ fn add_static_material(
     Ok(material_index)
 }
 
+/// Player eye texture bake. Evidence (p1 `eye` material): `LayerMaskMap` G marks the iris disc
+/// (pupil included), B/A are vertical gradients inside it; the sclera patch and the highlight
+/// patch have mask 0 and a mid-grey albedo that the `EmissionColorMap` lifts towards white.
+/// So the eye colour tints ONLY the masked iris; the rest keeps albedo + emission.
+/// The emission scale and the iris emission share are ASSUMED (not in the data).
+pub(crate) fn save_player_eye_texture(
+    model: &PokemonModel,
+    mesh: &PokemonLodMesh,
+    eye_rgb: [u8; 3],
+    gltf_path: &Path,
+) -> Result<String, String> {
+    const EMISSION_GAIN: f32 = 1.0;
+    const IRIS_EMISSION_SHARE: f32 = 0.5;
+    let material = mesh
+        .material_entry_index
+        .and_then(|index| model.materials.iter().find(|m| m.entry_index == index))
+        .ok_or("eye mesh has no material")?;
+    let blocks = super::pokemon_material::parse_blocks(&material.raw_bytes);
+    let block = blocks
+        .iter()
+        .find(|block| block.name.eq_ignore_ascii_case(&mesh.material_binding))
+        .ok_or_else(|| format!("no material block named {}", mesh.material_binding))?;
+    let albedo_file = block.texture("BaseColorMap").ok_or("eye block has no BaseColorMap")?;
+    let albedo = decoded_texture_by_file(model, albedo_file)?;
+    let mask = decoded_texture_by_file(model, block.texture("LayerMaskMap").ok_or("eye block has no LayerMaskMap")?)?;
+    let emission = block.texture("EmissionColorMap").map(|f| decoded_texture_by_file(model, f)).transpose()?;
+    let (w, h) = (albedo.width as usize, albedo.height as usize);
+    let sample = |t: &bntx::TextureData, x: usize, y: usize, c: usize| -> f32 {
+        let sx = x * t.width as usize / w;
+        let sy = y * t.height as usize / h;
+        f32::from(t.rgba[(sy * t.width as usize + sx) * 4 + c]) / 255.0
+    };
+    // Normalise the grey albedo on its brightest iris pixels so the eye colour is reached there.
+    let mut greys = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            if sample(mask, x, y, 1) > 0.5 {
+                greys.push(srgb_to_linear(sample(albedo, x, y, 0)));
+            }
+        }
+    }
+    greys.sort_by(f32::total_cmp);
+    let reference = greys.get(greys.len() * 95 / 100).copied().unwrap_or(1.0).max(1e-3);
+    let tone: [f32; 3] = std::array::from_fn(|c| srgb_to_linear(f32::from(eye_rgb[c]) / 255.0) / reference);
+    let mut rgba = Vec::with_capacity(w * h * 4);
+    for y in 0..h {
+        for x in 0..w {
+            let iris = sample(mask, x, y, 1);
+            for c in 0..3 {
+                let a = srgb_to_linear(sample(albedo, x, y, c));
+                let e = emission.map_or(0.0, |t| srgb_to_linear(sample(t, x, y, c))) * EMISSION_GAIN;
+                let plain = a + e;
+                let tinted = a * tone[c] + e * IRIS_EMISSION_SHARE;
+                let lin = plain + (tinted - plain) * iris;
+                rgba.push((linear_to_srgb(lin.clamp(0.0, 1.0)) * 255.0).round() as u8);
+            }
+            rgba.push(255);
+        }
+    }
+    let baked = bntx::TextureData { width: albedo.width, height: albedo.height, rgba };
+    let safe = |s: &str| s.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect::<String>();
+    let filename = format!("{}_eyecolor.png", safe(albedo_file.trim_end_matches(".bntx")));
+    let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));
+    flip_rows(&baked).save_png(&output.join(&filename)).map_err(|e| e.to_string())?;
+    Ok(filename)
+}
+
 fn save_mask_lerp_base_color(
     model: &PokemonModel,
     material: &PokemonMaterial,
