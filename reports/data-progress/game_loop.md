@@ -4,7 +4,7 @@
 Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate modules `crates/pla/src/game/`) into a complete playable loop in Bevy with:
 1. Visible Combat Interface rendered with Bevy UI (combatant status cards, HP bars, 4-move menu with type/PP, action tabs, turn log).
 2. Overworld HUD with Bevy UI (zone title, coordinates, nearby creature radar with distance and compass direction).
-3. Real glTF Pokémon meshes loaded from cache with **baked color textures** preserved from `work/cache/pokemon_batch/pmXXXX_00_00/` (skinning attributes stripped; battle-frame result in the section below).
+3. Real glTF Pokémon meshes loaded from cache with **baked color textures** preserved from `work/cache/pokemon_batch/pmXXXX_00_00/` (the viewer now spawns the glTF scene so Bevy builds skin and `AnimationPlayer`, see `pokemon_animation.md`; battle-frame result in the section below).
 4. Real field spawner tables (`data/field_spawn_table.tsv`, 4,398 rows) loaded per area (`--area 0` to `--area 5`) and dynamically streamed within 120 m of the player with deterministic `splitmix64` weighted species/level rolls.
 5. Turn-based battle loop driven by the engine: move effects, 3-member party, item bag, real catch rate, engine-AI opponent, in-battle capture (`[C]`), and state transitions using the real encountered wild species and level.
 6. Offscreen auto-demo verification driver (`--auto-demo` / `--script <dir>`): world walk in Area 01, approaching a real wild Staravia Lv17 spawner, and running a scripted battle (status move, item medicine, capture) with 4 frames.
@@ -25,13 +25,13 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
 
 3. **Real glTF Pokémon Models with Baked Color Textures (`port_viewer.rs`)**:
    - Loaded exported glTF models from `work/cache/pokemon_batch/pmXXXX_00_00/` (#0025 Pikachu, #0041 Zubat, #0074 Geodude, #0396 Starly, #0397 Staravia, #0399 Bidoof, #0401 Kricketot, #0403 Shinx, #0448 Lucario, #0501 Oshawott, #0722 Rowlet).
-   - Stripped skinning vertex attributes (`ATTRIBUTE_JOINT_INDEX`, `ATTRIBUTE_JOINT_WEIGHT`) to prevent Bevy skinned mesh pipeline vertex layout panics without joint uniforms.
+   - Earlier versions stripped the skinning vertex attributes; superseded by `game::pokemon_anim`, which spawns the glTF scene (see `pokemon_animation.md`).
    - Retained glTF materials and baked color textures (`base_color_texture`, metallic, roughness) directly from exported model assets.
    - **On-screen status**:
      - In the multi-area auto-demo run (`work/cache/game_demo/`), terrain albedo was verified connected across multiple zones: `06_area00_gravel_streets.png` shows Jubilife Village gravel streets and grassy hills; `07_area00_sand_coast.png` shows sandy coastal banks; `08_area00_grass.png` shows green pastures; `09_area05_snow.png` shows snow-covered Alabaster Icelands (distinct blue-white hue).
      - In the combat framing scenes (`01_battle_encounter.png`, `02_battle_status_move.png`, `05_battle_capture_attempt.png`), the combatants are positioned facing each other (~3.05 m apart) and the player avatar capsule is hidden during battle (`Visibility::Hidden`), preventing occlusion. The camera sits behind and to the left of Pikachu looking at the battle midpoint, framing Pikachu in the lower-left and the wild Pokémon across on the ridge without blocking HUD cards.
      - **Note on glTF asynchronous loading in auto-demo**: Because the auto-demo driver captured combat frames at early ticks (ticks 2-6) before Bevy's background asset loader finished loading and decoding the glTF meshes and textures, placeholder colored spheres were captured for Pikachu (yellow sphere) and Staravia/Geodude (grey sphere) in this automated run.
-   - Terrain in the viewer is now wired to real baked albedo textures (`work/cache/terrain_albedo/areaNN.png`) via `resolve_terrain_albedo` and `switch_terrain_area`. The save module is NOT wired into the in-game loop. There is no sound.
+   - Terrain in the viewer is now wired to real baked albedo textures (`work/cache/terrain_albedo/areaNN.png`) via `resolve_terrain_albedo` and `switch_terrain_area`. The save is wired into the loop (F5, autosave after battle and zone change, load at start; see `save_game.md`). There is no sound.
    - In Jubilife Village (`ha_area00`), building caching and material modes were corrected (`AlphaMode::Opaque` on buildings, `Mask(0.5)` on foliage, and `Blend` translucent blue water on `ground_area00_water*`), intended to fix grey houses and white water band artifacts (UNVERIFIED on screen).
 
 4. **Real Field Spawner Tables & Dynamic Streaming (`crates/pla/src/game/wild.rs`, `port_viewer.rs`)**:
@@ -76,7 +76,7 @@ All 10 offscreen frames in `work/cache/game_demo/` were inspected:
 ## Remaining Limitations & Unknowns (Lo NO logrado)
 
 1. **Static Pokémon Meshes / Asynchronous Load Timing in Auto-Demo**:
-   - Pokémon models are static meshes with skinning attributes stripped. When entering combat within the first few ticks in automated headless scripts, glTF handles may still be resolving in the asset server, causing temporary fallback spheres.
+   - Pokémon idle/walk animation works in headless tests (Pikachu, Geodude, Bidoof, Zubat; Staravia exports static) but is not visually confirmed in the viewer. When entering combat within the first few ticks in automated headless scripts, glTF handles may still be resolving in the asset server, causing temporary fallback spheres.
 2. **Catch Rate Formula is LIKELY**:
    - The base catch rate is the real personal-table field 17 (`data/pml_personal_extra.tsv`), but the capture formula combining HP, status, and ball modifier is the engine's LIKELY model, not verified against the disassembled native routine.
 3. **Time/Weather/Alpha Spawner Modifiers Not Decoded**:
@@ -85,7 +85,7 @@ All 10 offscreen frames in `work/cache/game_demo/` were inspected:
    - Confusion, trapping, multi-turn charge moves, Protect/Counter, speed stages in turn order, stat-boost items, and party save serialization are not yet implemented.
 5. **Audio & Save System**:
    - No audio playback (Wwise banks not decoded).
-   - No persistent game save state in the game: the own-format save module exists but is NOT wired into the viewer; party and bag are fixed demo presets.
+   - Save is wired (unit tests plus one run reading back the same party); caught Pokémon beyond 6 are not saved and money is not paid; a fresh game uses fixed demo presets.
 6. **Props & Buildings Placement**:
    - Field scenery buildings and props (`bg_parts`) are decoded in separate tools/branches but not all placed in the main interactive world viewer loop.
 

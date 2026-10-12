@@ -696,6 +696,7 @@ fn main() -> ExitCode {
             },
         ));
     }
+    app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
     if let Some(tr) = terrain_res {
         app.insert_resource(tr);
     }
@@ -1202,9 +1203,9 @@ fn spawn_pokemon_models(
     gltf_assets: Res<Assets<Gltf>>,
     gltf_meshes: Res<Assets<GltfMesh>>,
     gltf_materials: Res<Assets<GltfMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut standard_materials: ResMut<Assets<StandardMaterial>>,
+    meshes: Res<Assets<Mesh>>,
     pkmn_query: Query<(Entity, &PokemonSpawn, &Children)>,
+    asset_server: Res<AssetServer>,
 ) {
     for (entity, pkmn_spawn, children) in &pkmn_query {
         if catalog.spawned.contains(&entity) {
@@ -1237,58 +1238,10 @@ fn spawn_pokemon_models(
             commands.entity(child).despawn();
         }
 
-        // Attach real glTF mesh primitives preserving baked textures and material parameters
-        commands.entity(entity).with_children(|parent| {
-            for mesh_h in &gltf.meshes {
-                if let Some(gltf_mesh) = gltf_meshes.get(mesh_h) {
-                    for prim in &gltf_mesh.primitives {
-                        let mesh_to_spawn = if let Some(mesh) = meshes.get(&prim.mesh) {
-                            let mut static_mesh = mesh.clone();
-                            static_mesh.remove_attribute(Mesh::ATTRIBUTE_JOINT_INDEX);
-                            static_mesh.remove_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT);
-                            meshes.add(static_mesh)
-                        } else {
-                            prim.mesh.clone()
-                        };
-
-                        let mat_h = if let Some(ref prim_mat_h) = prim.material {
-                            if let Some(gm) = gltf_materials.get(prim_mat_h) {
-                                standard_materials.add(StandardMaterial {
-                                    base_color: gm.base_color,
-                                    base_color_texture: gm.base_color_texture.clone(),
-                                    perceptual_roughness: gm.perceptual_roughness,
-                                    metallic: gm.metallic,
-                                    cull_mode: None,
-                                    ..default()
-                                })
-                            } else {
-                                standard_materials.add(StandardMaterial {
-                                    base_color: Color::WHITE,
-                                    perceptual_roughness: 0.65,
-                                    metallic: 0.05,
-                                    cull_mode: None,
-                                    ..default()
-                                })
-                            }
-                        } else {
-                            standard_materials.add(StandardMaterial {
-                                base_color: Color::WHITE,
-                                perceptual_roughness: 0.65,
-                                metallic: 0.05,
-                                cull_mode: None,
-                                ..default()
-                            })
-                        };
-
-                        parent.spawn((
-                            Mesh3d(mesh_to_spawn),
-                            MeshMaterial3d(mat_h),
-                            Transform::from_scale(Vec3::splat(1.0)),
-                        ));
-                    }
-                }
-            }
-        });
+        // Real glTF scene with skeleton + idle/walk clips (see game::pokemon_anim).
+        if let Some(idle_rel) = handle.path().map(|pth| pth.path().to_string_lossy().into_owned()) {
+            commands.entity(entity).insert(pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel));
+        }
 
         catalog.spawned.insert(entity);
         println!(
