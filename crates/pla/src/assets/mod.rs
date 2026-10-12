@@ -7,5 +7,6 @@ pub mod gfpak;
 pub mod gltf_export;
 pub mod message;
 pub mod sarc;
+pub mod terrain;
 pub mod tr;
 pub mod vfxb;
