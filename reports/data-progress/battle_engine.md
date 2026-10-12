@@ -49,7 +49,26 @@ Additive: all new state is private or in new types; a `Battle` without `set_move
 
 - Supported (hand-built unit tests): real move priority and crit rank copied into move slots (turn order already sorts on priority); secondary and status ailments with chance (paralysis, burn, poison, frostbite, sleep-like); 3-state stat stages (-1/0/+1, Atk/SpA, Def/SpD, Speed, plus accuracy and evasion) with limit reporting; drain and recoil as a share of damage dealt; healing and HP cost as a share of max HP; fixed and ranged multi-hit; flinch skipping a slower target's action.
 - Stage damage multipliers (x1.5 up, x0.66 down) exist behind `set_stage_multipliers_enabled`, off by default because the notes could not show where the game applies them (UNKNOWN). Speed stages are tracked but not applied to turn order.
-- Not modeled: confusion, trapping, freeze-like and special ailments; type immunities to statuses; charge and recharge turns; targets other than the opposing active combatant or the user; Protect/Counter-style reactive moves; sleep duration. The multi-hit count distribution is UNKNOWN (a uniform roll between min and max is a placeholder).
+- Not modeled: freeze-like and special ailments; type immunities to statuses; targets other than the opposing active combatant or the user; Counter-style reactive moves, Endure, semi-invulnerable states. The multi-hit count distribution is UNKNOWN (a uniform roll between min and max is a placeholder).
+
+## Status rules (`pla::battle_engine::statuses`)
+
+Opt-in through `Battle::set_status_rules(StatusRules)`; `StatusRules::default()` (all off) changes nothing, `StatusRules::game_rules()` turns everything on. New events go to `Battle::take_status_events()` (`StatusEvent`) because `Event` and `EffectEvent` are matched exhaustively elsewhere. Hand-built unit tests cover each rule (`cargo test -p pla statuses`).
+
+| Rule | Switch | Source of the behaviour | Confidence |
+|---|---|---|---|
+| Which move confuses / traps | `volatile_statuses` | table `ailment_id` 8 / 10 | LIKELY |
+| Confusion: 1-4 confused actions, 33% self-hit, typeless 40-power physical hit on own Atk/Def, 85-100% roll | `volatile_statuses` | franchise convention | ASSUMED |
+| Trapping: 4-5 rounds, 1/8 max HP per round, no switching while the trapper is active | `volatile_statuses` | franchise convention | ASSUMED |
+| Charge moves (`flag_charge`): turn 1 spends PP and skips, turn 2 attacks with the stored move | `volatile_statuses` | flag LIKELY, flow ASSUMED | LIKELY/ASSUMED |
+| Recharge moves (`flag_recharge`): the next action after a hit is skipped | `volatile_statuses` | flag LIKELY, flow ASSUMED | LIKELY/ASSUMED |
+| Protect-style moves: priority +4, meta 13, target user, `effect_id` 111/355/361/383/441 (protect, detect, max-guard, king's shield, spiky shield, baneful bunker, obstruct); blocks `flag_protectable` moves; chain success 1/3^n | `volatile_statuses` | columns VERIFIED/LIKELY, chain ASSUMED | ASSUMED chain |
+| Sleep: 1-3 skipped actions, then wakes and acts | `sleep_duration` | franchise convention | ASSUMED |
+| Paralysis action failure 33%; slip damage poison 1/6, burn 1/12, frostbite 1/12 of max HP | `notes_rates` | notes sections 6 and 7 | LIKELY |
+| Speed stage x1.5 up / x0.66 down in turn order | `speed_stages` | notes config coefficients; application to turn order not shown | LIKELY coefficients |
+| Atk/SpA and Def/SpD stage multipliers x1.5 / x0.66 | `stage_multipliers` | same coefficients | LIKELY coefficients |
+
+Unsupported: semi-invulnerable charge turns (Fly/Dig have no flag in the table), Endure, Counter/Mirror Coat, Magic Coat/Snatch, the game's real confusion/sleep/trap values, and stage behaviour beyond three states.
 
 ## Items
 
