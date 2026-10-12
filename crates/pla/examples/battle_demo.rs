@@ -1,5 +1,6 @@
 use pla::battle::BattleData;
-use pla::battle_engine::{Action, Battle, Combatant, Event, XorShift32};
+use pla::battle_engine::{Action, Battle, Combatant, Event, HealingItem, XorShift32};
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 fn main() -> Result<(), String> {
@@ -17,39 +18,125 @@ fn main() -> Result<(), String> {
         12,
         vec![get_move("thunder-shock")?, get_move("quick-attack")?],
     );
+    let eevee = Combatant::from_base(
+        get_species("eevee")?,
+        12,
+        vec![get_move("quick-attack")?, get_move("tackle")?],
+    );
     let staraptor = Combatant::from_base(
         get_species("staraptor")?,
         12,
         vec![get_move("wing-attack")?, get_move("quick-attack")?],
     );
-    let mut battle = Battle::new(vec![pikachu, staraptor], vec![vec![0], vec![1]])?;
+    let mut battle = Battle::new(
+        vec![pikachu, eevee, staraptor],
+        vec![vec![0, 1], vec![2]],
+        data.type_chart().clone(),
+    )?;
     let mut rng = XorShift32(0x504c_4126);
+    let potion = HealingItem {
+        name: "Potion (demo)".into(),
+        healing: 20,
+    };
+    println!("Battle demo. Commands: move <slot>, switch <party slot>, heal, quit.");
     println!(
-        "{} ({} HP) vs {} ({} HP)",
-        battle.combatants[0].species.name,
-        battle.combatants[0].hp,
-        battle.combatants[1].species.name,
-        battle.combatants[1].hp
+        "Move slots and party slots are numbered from 1. Healing amount is a demo assumption."
     );
+
     while !battle.ended {
-        let log = battle.play_turn(
-            &[
-                Action {
-                    actor: 0,
-                    move_slot: 0,
-                },
-                Action {
-                    actor: 1,
-                    move_slot: 0,
-                },
-            ],
-            &mut rng,
+        let active = battle
+            .active_combatant(0)
+            .ok_or("missing player combatant")?;
+        let enemy = battle
+            .active_combatant(1)
+            .ok_or("missing opponent combatant")?;
+        println!(
+            "\n{} {}/{} HP vs {} {}/{} HP",
+            battle.combatants[active].species.name,
+            battle.combatants[active].hp,
+            battle.combatants[active].max_hp,
+            battle.combatants[enemy].species.name,
+            battle.combatants[enemy].hp,
+            battle.combatants[enemy].max_hp
         );
-        println!("Turn {}", battle.turn);
-        for event in log {
+        print!(
+            "Your action [{}]: ",
+            battle.combatants[active]
+                .moves
+                .iter()
+                .enumerate()
+                .map(|(i, slot)| format!(
+                    "{}:{} ({}/{})",
+                    i + 1,
+                    slot.data.name,
+                    slot.pp,
+                    slot.data.pp
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        io::stdout().flush().map_err(|error| error.to_string())?;
+        let mut command = String::new();
+        if io::stdin()
+            .read_line(&mut command)
+            .map_err(|error| error.to_string())?
+            == 0
+        {
+            break;
+        }
+        let words: Vec<_> = command.split_whitespace().collect();
+        let player_action: Option<Action> = match words.first().copied() {
+            Some("quit") => break,
+            Some("move") => {
+                let slot = words
+                    .get(1)
+                    .and_then(|n| n.parse::<usize>().ok())
+                    .unwrap_or(1)
+                    .saturating_sub(1);
+                if slot >= battle.combatants[active].moves.len() {
+                    println!("No such move slot.");
+                    continue;
+                }
+                Some(Action {
+                    actor: active,
+                    move_slot: slot,
+                })
+            }
+            Some("switch") => {
+                let party_slot = words
+                    .get(1)
+                    .and_then(|n| n.parse::<usize>().ok())
+                    .unwrap_or(0)
+                    .saturating_sub(1);
+                let replacement = *battle.sides[0]
+                    .get(party_slot)
+                    .ok_or("no such party slot")?;
+                println!("{:?}", battle.switch(0, replacement)?);
+                None
+            }
+            Some("heal") => {
+                println!("{:?}", battle.use_healing_item(0, &potion)?);
+                None
+            }
+            _ => {
+                println!("Use move <slot>, switch <party slot>, heal, or quit.");
+                continue;
+            }
+        };
+        let mut actions = Vec::new();
+        if let Some(action) = player_action {
+            actions.push(action);
+        }
+        let enemy_actor = battle
+            .active_combatant(1)
+            .ok_or("missing opponent combatant")?;
+        if let Some(ai_action) = battle.best_damage_action(enemy_actor) {
+            actions.push(ai_action);
+        }
+        for event in battle.play_turn(&actions, &mut rng) {
             match event {
                 Event::ActedFirst(actor) => {
-                    println!("  {} acts first", battle.combatants[actor].species.name)
+                    println!("{} acts first", battle.combatants[actor].species.name)
                 }
                 Event::UsedMove {
                     actor,
@@ -59,7 +146,7 @@ fn main() -> Result<(), String> {
                     critical,
                     effectiveness,
                 } => println!(
-                    "  {} used {} on {}: {} damage{} ({}) — HP {}/{}",
+                    "{} used {} on {}: {} damage{} ({}) — HP {}/{}",
                     battle.combatants[actor].species.name,
                     name,
                     battle.combatants[target].species.name,
@@ -74,20 +161,16 @@ fn main() -> Result<(), String> {
                     target,
                     name,
                 } => println!(
-                    "  {} missed {} with {}",
+                    "{} missed {} with {}",
                     battle.combatants[actor].species.name,
                     battle.combatants[target].species.name,
                     name
                 ),
-                Event::KnockedOut(index) => println!(
-                    "  {} was knocked out",
-                    battle.combatants[index].species.name
-                ),
+                Event::KnockedOut(index) => {
+                    println!("{} was knocked out", battle.combatants[index].species.name)
+                }
                 Event::BattleEnded { winner_side } => match winner_side {
-                    Some(side) => println!(
-                        "Winner: side {side} ({})",
-                        battle.combatants[battle.sides[side][0]].species.name
-                    ),
+                    Some(side) => println!("Winner: side {side}"),
                     None => println!("Draw"),
                 },
                 _ => {}
