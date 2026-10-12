@@ -5,6 +5,7 @@ use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 
 pub mod effects;
 pub mod items;
+pub mod statuses;
 use effects::{EffectEvent, MoveEffectsTable, Stages};
 use items::ItemTable;
 
@@ -240,6 +241,7 @@ pub struct Battle {
     effect_events: Vec<EffectEvent>,
     pending_status: Vec<(usize, MajorStatus)>,
     stage_multipliers: bool,
+    status: statuses::StatusState,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -295,6 +297,7 @@ impl Battle {
             effect_events: Vec::new(),
             pending_status: Vec::new(),
             stage_multipliers: false,
+            status: statuses::StatusState::default(),
         })
     }
 
@@ -312,6 +315,10 @@ impl Battle {
             return Err("replacement is not able to battle".into());
         }
         let from = self.active[side];
+        if !self.switch_allowed(side, from) {
+            return Err("trapped: cannot switch out".into());
+        }
+        self.clear_volatile_on_leave(from);
         self.active[side] = replacement;
         Ok(Event::Switched {
             side,
@@ -410,6 +417,7 @@ impl Battle {
                         priority,
                         self.weather,
                         self.trick_room,
+                        self.speed_stage_q12(action.actor),
                     ),
                 )
             })
@@ -435,7 +443,7 @@ impl Battle {
         if let Some(first) = order.first() {
             events.push(Event::ActedFirst(first.actor));
         }
-        for action in order {
+        for mut action in order {
             if self.winner_side().is_some() {
                 break;
             }
@@ -448,13 +456,25 @@ impl Battle {
                 });
                 continue;
             }
+            let mut releasing = false;
+            match self.status_pre_action(action.actor, rng, &mut events) {
+                statuses::PreAction::Skip => continue,
+                statuses::PreAction::Act(Some(slot)) => {
+                    action.move_slot = slot;
+                    releasing = true;
+                }
+                statuses::PreAction::Act(None) => {}
+            }
+            if !self.combatants[action.actor].is_alive() {
+                continue;
+            }
             let Some(target) = self.target_for(action.actor) else {
                 continue;
             };
             let Some(movement) = self.combatants[action.actor].moves.get(action.move_slot) else {
                 continue;
             };
-            if movement.pp == 0 {
+            if movement.pp == 0 && !releasing {
                 continue;
             }
             let move_name = movement.data.name.clone();
@@ -463,10 +483,13 @@ impl Battle {
             let accuracy = movement.data.accuracy;
             let critical_rank = movement.critical_rank;
             let move_type = movement.data.move_type.clone();
-            self.combatants[action.actor].moves[action.move_slot].pp -= 1;
+            if !releasing {
+                self.combatants[action.actor].moves[action.move_slot].pp -= 1;
+            }
+            let rules = self.status_rules();
             if let Some(status) = self.combatants[action.actor].status {
-                if (status == MajorStatus::Drowsy && rng.below(2) == 0)
-                    || (status == MajorStatus::Paralysis && rng.below(4) == 0)
+                if (status == MajorStatus::Drowsy && !rules.sleep_duration && rng.below(2) == 0)
+                    || (status == MajorStatus::Paralysis && !rules.notes_rates && rng.below(4) == 0)
                 {
                     events.push(Event::UnableToAct {
                         actor: action.actor,
@@ -474,6 +497,16 @@ impl Battle {
                     });
                     continue;
                 }
+            }
+            if self.status_pre_move(
+                action.actor,
+                target,
+                action.move_slot,
+                &move_name,
+                releasing,
+                rng,
+            ) {
+                continue;
             }
             let actor = &self.combatants[action.actor];
             if !accuracy_hits(
@@ -506,6 +539,7 @@ impl Battle {
                         &mut flinched,
                         rng,
                     );
+                    self.status_post_effects(action.actor, target, fx, false, rng);
                     for (t, status) in std::mem::take(&mut self.pending_status) {
                         events.push(Event::StatusApplied { target: t, status });
                     }
@@ -575,6 +609,7 @@ impl Battle {
                     count: landed,
                 });
             }
+            let move_name_for_hook = move_name.clone();
             events.push(Event::UsedMove {
                 actor: action.actor,
                 target,
@@ -587,6 +622,7 @@ impl Battle {
                 events.push(Event::KnockedOut(target));
                 self.advance_active_for(target);
             }
+            self.status_post_hit(action.actor, &move_name_for_hook);
             if let Some(fx) = &fx {
                 let ko = self.apply_move_effects(
                     action.actor,
@@ -597,6 +633,7 @@ impl Battle {
                     &mut flinched,
                     rng,
                 );
+                self.status_post_effects(action.actor, target, fx, true, rng);
                 for (t, status) in std::mem::take(&mut self.pending_status) {
                     events.push(Event::StatusApplied { target: t, status });
                 }
@@ -619,7 +656,7 @@ impl Battle {
                 else {
                     continue;
                 };
-                let damage = (self.combatants[i].max_hp / 8).max(1);
+                let damage = (self.combatants[i].max_hp / self.residual_divisor(status)).max(1);
                 self.combatants[i].hp = self.combatants[i].hp.saturating_sub(damage);
                 events.push(Event::Recoil {
                     target: i,
@@ -635,6 +672,7 @@ impl Battle {
         for index in status_knockouts {
             self.advance_active_for(index);
         }
+        self.status_end_of_turn(&mut events);
         if let Some(winner) = self.winner_side() {
             self.ended = true;
             events.push(Event::BattleEnded {
@@ -862,8 +900,10 @@ fn turn_order_key(
     priority: i8,
     weather: BattleWeather,
     trick_room: bool,
+    stage_q12: u32,
 ) -> (u8, i8, u32) {
     let mut speed = q12_mul(actor.speed, u32::from(actor.speed_modifier_q12));
+    speed = q12_mul(speed, stage_q12);
     if (weather == BattleWeather::Sun && actor.species.types.iter().any(|t| t == "Grass"))
         || (weather == BattleWeather::Snow && actor.species.types.iter().any(|t| t == "Ice"))
     {

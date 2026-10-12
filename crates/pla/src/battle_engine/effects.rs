@@ -76,6 +76,11 @@ pub struct MoveEffects {
     pub target_raw: u8,
     pub stat_changes: Vec<StatChange>,
     pub contact: bool,
+    /// Raw `effect_id` column (RAW, used only to recognise Protect-style moves).
+    pub effect_id: u16,
+    pub charge: bool,
+    pub recharge: bool,
+    pub protectable: bool,
 }
 
 impl MoveEffects {
@@ -137,6 +142,12 @@ impl MoveEffectsTable {
             col("target_raw")?,
             col("flag_contact")?,
         );
+        let (c_eid, c_charge, c_recharge, c_protectable) = (
+            col("effect_id")?,
+            col("flag_charge")?,
+            col("flag_recharge")?,
+            col("flag_protectable")?,
+        );
         let stat_cols = [
             (col("stat1_id")?, col("stat1_stage")?, col("stat1_chance")?),
             (col("stat2_id")?, col("stat2_stage")?, col("stat2_chance")?),
@@ -182,6 +193,10 @@ impl MoveEffectsTable {
                 target_raw: num(c_tgt)? as u8,
                 stat_changes,
                 contact: num(c_contact)? != 0,
+                effect_id: num(c_eid)? as u16,
+                charge: num(c_charge)? != 0,
+                recharge: num(c_recharge)? != 0,
+                protectable: num(c_protectable)? != 0,
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);
@@ -305,7 +320,7 @@ impl Battle {
         std::mem::take(&mut self.effect_events)
     }
 
-    fn stages_mut(&mut self, combatant: usize) -> &mut Stages {
+    pub(super) fn stages_mut(&mut self, combatant: usize) -> &mut Stages {
         if self.stages.len() <= combatant {
             self.stages.resize(combatant + 1, Stages::default());
         }
