@@ -73,7 +73,7 @@
     "port.png": "ce2ee67b5cef89051213a395735c8979a4d11df2c99c2117882f9eeed6bae0a4"
   },
   "rust_source_fingerprint": {
-    "file_count": 57,
+    "file_count": 61,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -86,6 +86,10 @@
       {
         "path": "crates/pla/examples/dump_bntx.rs",
         "sha256": "037c7edbc6b5a0817e55ec7f89a67297842038cb02ed385c3da76bffbc33bfdf"
+      },
+      {
+        "path": "crates/pla/examples/export_tr_gltf_batch.rs",
+        "sha256": "dd6c2c128f5150a7f342bb0f71ed6feb90b9d3444f397378f0bd90334860a172"
       },
       {
         "path": "crates/pla/examples/mesh_spike.rs",
@@ -101,11 +105,15 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "943b60a0115526c1aca56a8f6e3a2b0d214a94903026d4c4b8d8ab52e6476088"
+        "sha256": "fdefc2e3f94b4338943100b0b0723a665a91225a7e657d9933db57b3a7b956ab"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
         "sha256": "8985704e6ccd193d788438ea0a7384568b61c71460bcf3f94052efbb71f6c443"
+      },
+      {
+        "path": "crates/pla/examples/texture_batch_exporter.rs",
+        "sha256": "ed2cfe1c68e4373510f77d882dfd02038b4c4ae12d925fadfee9bdef2cd28d89"
       },
       {
         "path": "crates/pla/examples/window_spike.rs",
@@ -121,7 +129,7 @@
       },
       {
         "path": "crates/pla/src/assets/bntx.rs",
-        "sha256": "63eeb972748e4d7ab9353cd33118da2fd7da6a447dc9dc3c9bafabd5bc74b4d4"
+        "sha256": "0318004369f717979715d3dc1f7d1919d3ca6126d8b8a1c2742a9ca41f407c37"
       },
       {
         "path": "crates/pla/src/assets/event_list.rs",
@@ -132,12 +140,16 @@
         "sha256": "eb0a1b102981332d7aa493abd1b5e5fb9d498ff199798316dc60776d3aef5ebe"
       },
       {
+        "path": "crates/pla/src/assets/gltf_export.rs",
+        "sha256": "01ba9a948b9afac52598adfeb3124249b2191f951dea12f6727fd9c494b6ecc2"
+      },
+      {
         "path": "crates/pla/src/assets/message.rs",
         "sha256": "fff54052070996cc9e3a970431a3f5b46633490f5d8e86cee30fc1f3e0951e49"
       },
       {
         "path": "crates/pla/src/assets/mod.rs",
-        "sha256": "e2380c99e9229755ba9bf852e65d1048a2c125941ee35f17117796cebc53bc71"
+        "sha256": "d7c88d20a95cbbd212e2fa5279ccada22e3b9304438676450e2a708c7a98c6bb"
       },
       {
         "path": "crates/pla/src/assets/sarc.rs",
@@ -213,11 +225,11 @@
       },
       {
         "path": "crates/pla/src/lib.rs",
-        "sha256": "b9f3ed45bfa5068d2e471abfb61f78fdb89a7721ca1dd78032d91ee4cb64bda8"
+        "sha256": "02edb8a3d5ad04c045e6d42b21bf7fac5ac9b1a8a22d429d674907da190bacf9"
       },
       {
         "path": "crates/pla/src/pml.rs",
-        "sha256": "28b1b7d71c85017ad229ef45b88e7ced1ab03343b9ee1f7c82054c110c7adcc8"
+        "sha256": "009d6a424693c4f033829830b8f93ba46f0907d087680de37ac96de33c5a8e6c"
       },
       {
         "path": "crates/pla/src/render.rs",
@@ -232,8 +244,12 @@
         "sha256": "44eff2ca91f47730f9619409a0043ccebccd579119532b7479f35906bb76f1de"
       },
       {
+        "path": "crates/pla/src/tables.rs",
+        "sha256": "4f18a2b571aad8bde618edbd4478d445bf8443a3072aeba16c0a6f189be55359"
+      },
+      {
         "path": "crates/pla/tests/assets.rs",
-        "sha256": "eaabdb098ccd482f1f2914f45d3c80a83f8d97b24ebd88069ffe7b5ec726ad98"
+        "sha256": "67a7bb9805e007c56dcc1cf8cfa06b2d680e1b44b73fcf18960b5362892553ab"
       },
       {
         "path": "crates/pla/tests/common/mod.rs",
@@ -245,7 +261,7 @@
       },
       {
         "path": "crates/pla/tests/port_camera.rs",
-        "sha256": "c8e3d56374bb670d6e9e0def595ebb33df6ab473023dfd87179df1e1471b8631"
+        "sha256": "18a79f627d3e5eaa453cf688e1f73b3e17748cd9c8a910177a995b8bcd3fa4a7"
       },
       {
         "path": "crates/pla/tests/script.rs",
@@ -305,7 +321,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "905049367dd00c48da28c901a2c2afba38903031b8be0741b3c8c7f62b736a74"
+    "sha256": "90ce67e716f24c201932de1c17d623dd1b6be2f33f417fa1a2ba1520a20ffca3"
   },
   "state_partitions": {
     "analysis_documentation_status": {
