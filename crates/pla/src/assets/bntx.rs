@@ -33,7 +33,7 @@
 //! the port deswizzles with `tegra_swizzle` before decoding blocks. Tile mode 1
 //! is linear.
 
-use tegra_swizzle::surface::{BlockDim, deswizzle_surface};
+use tegra_swizzle::surface::{deswizzle_surface, BlockDim};
 
 /// The texture formats the port decodes, plus a catch-all for the rest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

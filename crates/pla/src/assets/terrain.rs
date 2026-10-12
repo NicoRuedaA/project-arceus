@@ -61,20 +61,22 @@ pub struct TerrainArea {
 }
 
 impl TerrainArea {
-    /// Compose albedo using BaseColorMap slot order as the provisional R/G/B/A
-    /// to layer mapping. The game channel binding is a hypothesis, not a
-    /// verified material fact.
+    /// Compose albedo using `SplatColor0..3` and RGBA splat channels as a
+    /// provisional channel-to-layer mapping. The game binding is a hypothesis.
     pub fn blend_splat_by_slot_order_hypothesis(&self) -> Result<TextureData, String> {
         let material = self
             .material
             .as_ref()
             .ok_or("terrain material was not uniquely identified")?;
-        let layers = material
-            .slots
-            .textures
-            .iter()
-            .filter(|(_, role)| role == "BaseColorMap")
-            .take(4)
+        let layers = (0..4)
+            .filter_map(|layer_index| {
+                let role = format!("SplatColor{layer_index}");
+                material
+                    .slots
+                    .textures
+                    .iter()
+                    .find(|(_, slot_role)| slot_role == &role)
+            })
             .map(|(name, _)| {
                 self.ground_textures
                     .get(name)
@@ -238,7 +240,10 @@ impl TerrainArea {
         let mut ground_textures = HashMap::new();
         let mut unresolved_ground_textures = Vec::new();
         if let Some(material) = &material {
-            for (file_name, _) in &material.slots.textures {
+            for (file_name, role) in &material.slots.textures {
+                if !role.starts_with("SplatColor") {
+                    continue;
+                }
                 let stem = file_name
                     .strip_suffix(".bntx")
                     .or_else(|| file_name.strip_suffix(".BNTX"))
@@ -558,8 +563,8 @@ mod tests {
             material: Some(TerrainMaterial {
                 slots: TrMtr {
                     textures: vec![
-                        ("first.bntx".into(), "BaseColorMap".into()),
-                        ("second.bntx".into(), "BaseColorMap".into()),
+                        ("first.bntx".into(), "SplatColor0".into()),
+                        ("second.bntx".into(), "SplatColor1".into()),
                     ],
                     flags: Vec::new(),
                 },
