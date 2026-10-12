@@ -255,6 +255,13 @@ pub fn animation_tracks_from_tr(
     if clip.frame_rate == 0 || clip.frame_count == 0 {
         return Err("TR animation has invalid timing".into());
     }
+    // Observed in 65+ packs: `exp_ops_root` / `exp_op_NNN` tracks are expression-operator
+    // helper tracks that never name a skeleton node. Only those exact prefixes are skipped;
+    // any other unmapped track still fails the whole clip.
+    let mut clip = clip.clone();
+    clip.tracks
+        .retain(|t| t.name != "exp_ops_root" && !t.name.starts_with("exp_op_"));
+    let clip = &clip;
     let nodes = clip.skeleton_nodes(skeleton)?;
     let mut out = Vec::new();
     for (track, &node) in clip.tracks.iter().zip(&nodes) {
