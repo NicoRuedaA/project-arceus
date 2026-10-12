@@ -38,9 +38,14 @@ fn main() -> Result<(), String> {
         name: "Potion (demo)".into(),
         healing: 20,
     };
-    println!("Battle demo. Commands: move <slot>, switch <party slot>, heal, quit.");
     println!(
-        "Move slots and party slots are numbered from 1. Healing amount is a demo assumption."
+        "Partial PLA battle-rules demo (not complete). Commands: move <slot>, switch <party slot>, heal, quit."
+    );
+    println!(
+        "Verified formulas: damage core/order, effort stats, critical probabilities, type categories. Likely: weather/status damage, accuracy, capture, agility."
+    );
+    println!(
+        "Nature mapping, native action classes/AI, and catch rates are unknown inputs; defaults are neutral. Healing amount and party controls are demo-only."
     );
 
     while !battle.ended {
