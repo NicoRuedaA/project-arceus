@@ -329,10 +329,10 @@ pm0548_00_00.gfpak	00_00	ok		2	4
 pm0549_00_41.gfpak	00_41	ok		2	2
 pm0549_71_41.gfpak	71_41	ok		2	2
 pm0550_13_41.gfpak	13_41	ok		2	2
-pm0570_00_41.gfpak	00_41	blocked	no LOD0 mesh parsed	0	0
+pm0570_00_41.gfpak	00_41	blocked	no LOD0 mesh parsed (mesh pm0570_00_41.trmsh shape 0 entry 158 / buffer entry 155: unsupported skin shape stride)	0	0
 pm0571_00_41.gfpak	00_41	ok		2	2
 pm0627_00_00.gfpak	00_00	ok		2	4
-pm0628_00_41.gfpak	00_41	blocked	no LOD0 mesh parsed	0	0
+pm0628_00_41.gfpak	00_41	blocked	no LOD0 mesh parsed (mesh pm0628_00_41.trmsh shape 0 entry 137 / buffer entry 134: unsupported skin slot/layer)	0	0
 pm0641_11_00.gfpak	11_00	ok		2	6
 pm0641_12_00.gfpak	12_00	ok		2	4
 pm0642_11_00.gfpak	11_00	ok		2	6

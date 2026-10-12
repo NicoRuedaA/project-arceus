@@ -36,7 +36,8 @@ fn export_pack(pack: &Path, out: &Path, stem: &str) -> Outcome {
         Err(e) => return blocked(format!("assemble: {e}")),
     };
     if !model.meshes.iter().any(|m| m.lod == Some(0)) {
-        return blocked("no LOD0 mesh parsed".into());
+        let first = model.diagnostics.iter().find(|d| d.starts_with("mesh ")).cloned().unwrap_or_default();
+        return blocked(format!("no LOD0 mesh parsed ({first})"));
     }
     if let Err(e) = fs::create_dir_all(out) {
         return blocked(format!("mkdir: {e}"));
