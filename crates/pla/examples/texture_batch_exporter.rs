@@ -30,15 +30,16 @@ fn collect_bntx_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()>
 }
 
 fn determine_category(rel_path: &str) -> &'static str {
-    if rel_path.starts_with("chara/") {
+    let p = rel_path.strip_prefix("bin/").unwrap_or(rel_path);
+    if p.starts_with("chara/") {
         "chara"
-    } else if rel_path.starts_with("field/") {
+    } else if p.starts_with("field/") {
         "field"
-    } else if rel_path.starts_with("demo/") {
+    } else if p.starts_with("demo/") {
         "demo"
-    } else if rel_path.starts_with("appli/") {
+    } else if p.starts_with("appli/") {
         "appli"
-    } else if rel_path.starts_with("system_resource") {
+    } else if p.starts_with("system_resource") || rel_path.starts_with("system_resource") {
         "system"
     } else {
         "other"
