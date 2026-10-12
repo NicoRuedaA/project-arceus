@@ -1,13 +1,13 @@
 # Asset export progress (Task B)
 
-**Status: Complete.** B1, B2, B3, and B4 completed. glTF 2.0 serializer implemented for both static and skinned models with skeletal animation. Offscreen headless Bevy import and rendering verified with 10 static model screenshots opened and inspected, plus 1 skinned model with animation verified and inspected. Final index `data/asset_export_index.tsv` validated with Sheetty (0 errors, 0 warnings).
+**Status: partial.** Textures, a glTF 2.0 batch (153 models exported, 128 blocked) and an index are produced. Visual checks are limited to 10 static models and 1 skinned model with 1 animation rendered offscreen; the other exported models and animation fidelity over time are not verified, and the whole-RomFS denominator is unknown. `data/asset_export_index.tsv` passes Sheetty (0 errors, 0 warnings).
 
 ## Measured results
 
 | Subtask | Before | After |
 |---|---:|---:|
 | B1 BNTX textures | 2,966 inputs; no indexed PNG batch | 2,966 PNGs / 2,966 rows; 0 failures; BC5 decoded with normal reconstruction |
-| B2 static model previews | 253 `.trmdl`, 281 `.trmbf` inputs; 0 glTF output | 58 static models exported to glTF; 10 models imported via Bevy glTF loader offscreen and visually verified |
+| B2 static model previews | 253 `.trmdl`, 281 `.trmbf` inputs; 0 glTF output | 58 static models exported to glTF; 10 models imported via Bevy glTF loader offscreen and rendered and looked at |
 | B3 skin/animation | 199 `.trskl`, 1,522 `.tranm`; 0 glTF output | 95 skinned models exported to glTF; 1 skinned model (`item_201`) + animation (`d020_item_224_c002.tranm`) imported in Bevy, rendered offscreen, screenshot inspected and recognized |
 | B4 all inputs | 5,790 source files; 2,966 ok, 2,824 blocked | 5,790 indexed: 3,620 `ok` (2,966 textures, 153 meshes, 153 layouts, 126 descriptors, 126 materials, 95 skeletons, 1 animation), 2,170 `blocked` |
 | Unresolved model links | 78 known from skin census | 78 listed in `data/unresolved_model_links.tsv` (unmodified, not forced) |
@@ -47,7 +47,7 @@
    - Model: `item_201` (`chara/data/item/item_201/item_201.gltf`).
    - Skeleton: 5 bones, 1 bind joint, inverse bind pose matrices.
    - Animation: `demo/graphic/ev/d020/item_224/anm/d020_item_224_c002.tranm` (241 frames, 60 fps, 3 sampled track channels).
-   - Rendered offscreen with Bevy and screenshot `work/cache/gltf_verify/skinned_item_201.png` opened and inspected: Combee Honeycomb / Dazzling Honey with 3 hexagonal cells, amber honey filling, and shaded diamond highlights. Recognizable without ambiguity.
+   - Rendered offscreen with Bevy and screenshot `work/cache/gltf_verify/skinned_item_201.png` opened and inspected: Combee Honeycomb / Dazzling Honey with 3 hexagonal cells, amber honey filling, and shaded diamond highlights. The sample frame is cropped/too close and the animation over time is not demonstrated.
 
 ## Reproduction
 
