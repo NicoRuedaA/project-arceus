@@ -12,15 +12,47 @@
 //! 4. HUD telemetry in window title & console logs.
 //! 5. Optional automated headless capture (`--screenshot <path>` / `--ticks <N>`).
 
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
+use bevy::asset::RenderAssetUsages;
+use bevy::gltf::{Gltf, GltfMaterial, GltfMesh};
 use bevy::prelude::*;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy::window::WindowResolution;
 
+use pla::assets::bntx::TextureData;
+use pla::assets::terrain::{
+    build_mesh_chunks, TerrainArea, TerrainMeshChunk, TerrainMeshSettings,
+    TerrainScaleOverride,
+};
 use pla::battle::BattleData;
 use pla::pml::{calculate_hp, PmlDatabase};
+
+#[derive(Resource)]
+struct TerrainResource {
+    area: Arc<TerrainArea>,
+    chunks: Vec<TerrainMeshChunk>,
+    blended_albedo: Option<TextureData>,
+    #[allow(dead_code)]
+    settings: TerrainMeshSettings,
+}
+
+#[derive(Resource)]
+struct TreeCatalogResource {
+    handles: HashMap<String, Handle<Gltf>>,
+    spawned: bool,
+}
+
+#[derive(Resource)]
+struct PlayerSpawnConfig {
+    pos: Vec2,
+    #[allow(dead_code)]
+    area_idx: u8,
+}
 
 #[derive(Component)]
 struct PlayerAvatar;
@@ -173,21 +205,78 @@ struct AutomationOptions {
     max_ticks: Option<u32>,
     current_ticks: u32,
     auto_throw_tick: Option<u32>,
+    verify_views_dir: Option<PathBuf>,
+    verify_step: usize,
+    verify_step_tick: u32,
 }
 
 fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);
+    let mut bin_root = std::env::var_os("PLA_BIN_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
+        });
+    let mut area_idx = 0u8;
+    let mut initial_player_pos = None;
+    let mut overrides = TerrainScaleOverride::default();
     let mut screenshot_path = None;
     let mut max_ticks = None;
     let mut initial_mode = CameraMode::OrbitDefault;
     let mut initial_dex: Option<u16> = None;
     let mut auto_throw_tick: Option<u32> = None;
+    let mut headless = false;
+    let mut verify_views_dir = None;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--bin-root" => {
+                if let Some(path) = args.next() {
+                    bin_root = PathBuf::from(path);
+                }
+            }
+            "--area" => {
+                if let Some(a) = args.next().and_then(|s| s.parse().ok()) {
+                    area_idx = a;
+                }
+            }
+            "--player-pos" => {
+                if let Some(pos_str) = args.next() {
+                    let parts: Vec<&str> = pos_str.split(',').collect();
+                    if parts.len() == 2 {
+                        if let (Ok(x), Ok(z)) = (parts[0].trim().parse::<f32>(), parts[1].trim().parse::<f32>()) {
+                            initial_player_pos = Some(Vec2::new(x, z));
+                        }
+                    }
+                }
+            }
+            "--cell-size" => {
+                if let Some(s) = args.next().and_then(|s| s.parse().ok()) {
+                    overrides.horizontal_cell_size = Some(s);
+                }
+            }
+            "--vertical-scale" => {
+                if let Some(s) = args.next().and_then(|s| s.parse().ok()) {
+                    overrides.vertical_scale = Some(s);
+                }
+            }
+            "--headless" => {
+                headless = true;
+            }
+            "--verify-views" => {
+                headless = true;
+                verify_views_dir = Some(PathBuf::from("work/cache/world_verify"));
+            }
+            "--verify-views-dir" => {
+                headless = true;
+                if let Some(dir) = args.next() {
+                    verify_views_dir = Some(PathBuf::from(dir));
+                }
+            }
             "--screenshot" => {
                 if let Some(path) = args.next() {
                     screenshot_path = Some(PathBuf::from(path));
+                    headless = true;
                 }
             }
             "--ticks" => {
@@ -214,6 +303,14 @@ fn main() -> ExitCode {
             "--help" | "-h" => {
                 println!("Usage: cargo run -p pla --example port_viewer -- [OPTIONS]");
                 println!("Options:");
+                println!("  --bin-root <PATH>     Extracted game bin root (default: .../romfs_patched/bin)");
+                println!("  --area <N>            Field area index 0..6 (default: 0)");
+                println!("  --player-pos <X,Z>    Initial player spawn coordinates (default: 445.0,650.0 for area 0)");
+                println!("  --cell-size <N>       Override horizontal cell scale (metres)");
+                println!("  --vertical-scale <N>  Override vertical height scale (metres)");
+                println!("  --headless            Run offscreen with hidden window (no display window)");
+                println!("  --verify-views        Verify 3 distinct viewpoints offscreen in a single process");
+                println!("  --verify-views-dir D  Verify 3 viewpoints and save screenshots to directory D");
                 println!("  --screenshot <PATH>   Capture window screenshot and exit");
                 println!("  --ticks <COUNT>       Run for COUNT frames and exit");
                 println!("  --mode <orbit|aim>    Initial camera mode (default: orbit)");
@@ -225,9 +322,59 @@ fn main() -> ExitCode {
         }
     }
 
-    if screenshot_path.is_some() && max_ticks.is_none() {
+    if verify_views_dir.is_some() {
+        headless = true;
+    } else if screenshot_path.is_some() && max_ticks.is_none() {
         max_ticks = Some(70);
     }
+
+    // Default spawn position: near the tree cluster in ha_area00
+    let default_spawn = if area_idx == 0 {
+        Vec2::new(448.0, 652.0)
+    } else {
+        Vec2::new(512.5, 512.5)
+    };
+    let player_spawn_pos = initial_player_pos.unwrap_or(default_spawn);
+
+    // Attempt loading real terrain from game pack
+    let terrain_res = match TerrainArea::load(&bin_root, area_idx) {
+        Ok(area_data) => {
+            println!(
+                "Loaded real terrain ha_area{:02}.gfpak: extent=({:.1}, {:.1}), H={:.1}m, {} instances",
+                area_idx,
+                area_data.world_extent[0],
+                area_data.world_extent[1],
+                area_data.world_height,
+                area_data.instances.len()
+            );
+            match area_data.mesh_settings(overrides, 64) {
+                Ok(settings) => match build_mesh_chunks(&area_data.heightmap, settings) {
+                    Ok(chunks) => {
+                        println!("Built {} terrain mesh chunks (cell size {:.3}m)", chunks.len(), settings.horizontal_cell_size);
+                        let blended_albedo = area_data.blend_splat_by_slot_order_hypothesis().ok();
+                        Some(TerrainResource {
+                            area: Arc::new(area_data),
+                            chunks,
+                            blended_albedo,
+                            settings,
+                        })
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to build terrain chunks: {e}");
+                        None
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Failed to resolve terrain mesh settings: {e}");
+                    None
+                }
+            }
+        }
+        Err(e) => {
+            println!("Terrain pack not loaded from {}: {e}. Running with fallback ground plane.", bin_root.display());
+            None
+        }
+    };
 
     // Locate PML and Battle data directory.
     let data_dir = [
@@ -241,6 +388,9 @@ fn main() -> ExitCode {
     let pml_db = data_dir.as_ref().and_then(|dir| PmlDatabase::load_from_dir(dir).ok());
     let battle_db = data_dir.as_ref().and_then(|dir| BattleData::load(dir).ok());
 
+    let work_root = PathBuf::from("work");
+    let work_abs = work_root.canonicalize().unwrap_or(work_root);
+
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -248,11 +398,16 @@ fn main() -> ExitCode {
                 primary_window: Some(Window {
                     title: "Pokémon Legends: Arceus — Bevy Port Interactive Viewer".into(),
                     resolution: WindowResolution::new(1280, 720),
+                    visible: !headless,
                     ..default()
                 }),
                 ..default()
             })
-            .set(AssetPlugin::default()),
+            .set(AssetPlugin {
+                file_path: work_abs.to_string_lossy().to_string(),
+                unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+                ..default()
+            }),
     );
 
     let mut camera_ctrl = CameraController::default();
@@ -286,17 +441,32 @@ fn main() -> ExitCode {
         balls_thrown: 0,
         last_capture_status: None,
     });
+    app.insert_resource(PlayerSpawnConfig {
+        pos: player_spawn_pos,
+        area_idx,
+    });
+    app.insert_resource(TreeCatalogResource {
+        handles: HashMap::new(),
+        spawned: false,
+    });
+    if let Some(tr) = terrain_res {
+        app.insert_resource(tr);
+    }
     app.insert_resource(AutomationOptions {
         screenshot_path,
         max_ticks,
         current_ticks: 0,
         auto_throw_tick,
+        verify_views_dir,
+        verify_step: 0,
+        verify_step_tick: 0,
     });
 
     app.add_systems(Startup, setup_scene);
     app.add_systems(
         Update,
         (
+            spawn_tree_instances,
             player_locomotion,
             camera_controls,
             update_camera_transform,
@@ -315,39 +485,109 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
+
 fn setup_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
     pml: Res<LoadedPml>,
     pkmn_state: Res<ActivePokemonState>,
+    spawn_cfg: Res<PlayerSpawnConfig>,
+    terrain_res: Option<Res<TerrainResource>>,
+    mut tree_catalog: ResMut<TreeCatalogResource>,
+    asset_server: Res<AssetServer>,
 ) {
-    // Ground plane (grid checkered field).
-    let ground_size = 40.0;
-    commands.spawn((
-        Mesh3d(meshes.add(Mesh::from(Plane3d::default().mesh().size(ground_size, ground_size)))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.28, 0.42, 0.22), // Hisui meadow green
-            perceptual_roughness: 0.9,
-            ..default()
-        })),
-        Transform::from_xyz(0.0, 0.0, 0.0),
-    ));
+    let spawn_x = spawn_cfg.pos.x;
+    let spawn_z = spawn_cfg.pos.y;
+    let surface_y = terrain_res
+        .as_ref()
+        .and_then(|t| t.area.sample_world_height(spawn_x, spawn_z))
+        .unwrap_or(0.0);
+    let player_y = surface_y + 0.9;
 
-    // Field markers / waypoints for spatial orientation.
-    for x in [-10.0, 0.0, 10.0] {
-        for z in [-10.0, 0.0, 10.0] {
-            if x == 0.0 && z == 0.0 {
-                continue;
-            }
+    if let Some(ref terrain) = terrain_res {
+        // Spawn real terrain mesh chunks
+        let albedo = terrain.blended_albedo.as_ref().map(|texture| {
+            images.add(Image::new(
+                Extent3d {
+                    width: texture.width,
+                    height: texture.height,
+                    depth_or_array_layers: 1,
+                },
+                TextureDimension::D2,
+                texture.rgba.clone(),
+                TextureFormat::Rgba8UnormSrgb,
+                RenderAssetUsages::default(),
+            ))
+        });
+        let terrain_material = materials.add(StandardMaterial {
+            base_color: if albedo.is_some() {
+                Color::WHITE
+            } else {
+                Color::srgb(0.28, 0.42, 0.22)
+            },
+            base_color_texture: albedo,
+            perceptual_roughness: 0.95,
+            ..default()
+        });
+
+        for chunk in &terrain.chunks {
             commands.spawn((
-                Mesh3d(meshes.add(Mesh::from(Cylinder::new(0.15, 0.6)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.65, 0.55, 0.45),
-                    ..default()
-                })),
-                Transform::from_xyz(x, 0.3, z),
+                Mesh3d(meshes.add(chunk.mesh.clone())),
+                MeshMaterial3d(terrain_material.clone()),
+                Transform::IDENTITY,
             ));
+        }
+
+        // Register tree models for asynchronous glTF loading
+        let unique_models: HashSet<String> = terrain
+            .area
+            .instances
+            .iter()
+            .map(|inst| inst.model_name.clone())
+            .collect();
+        for model_name in unique_models {
+            let possible_paths = [
+                format!("cache/gltf_field/ha_area{:02}_terrain/{}.gltf", terrain.area.area, model_name),
+                format!("cache/gltf_field/ha_area{:02}/{}.gltf", terrain.area.area, model_name),
+            ];
+            for rel_path in &possible_paths {
+                let full_path = PathBuf::from("work").join(rel_path);
+                if full_path.exists() {
+                    let handle: Handle<Gltf> = asset_server.load(rel_path.clone());
+                    tree_catalog.handles.insert(model_name.clone(), handle);
+                    break;
+                }
+            }
+        }
+    } else {
+        // Fallback: ground plane and field markers
+        let ground_size = 40.0;
+        commands.spawn((
+            Mesh3d(meshes.add(Mesh::from(Plane3d::default().mesh().size(ground_size, ground_size)))),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgb(0.28, 0.42, 0.22),
+                perceptual_roughness: 0.9,
+                ..default()
+            })),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        ));
+
+        for x in [-10.0, 0.0, 10.0] {
+            for z in [-10.0, 0.0, 10.0] {
+                if x == 0.0 && z == 0.0 {
+                    continue;
+                }
+                commands.spawn((
+                    Mesh3d(meshes.add(Mesh::from(Cylinder::new(0.15, 0.6)))),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: Color::srgb(0.65, 0.55, 0.45),
+                        ..default()
+                    })),
+                    Transform::from_xyz(x, 0.3, z),
+                ));
+            }
         }
     }
 
@@ -355,7 +595,7 @@ fn setup_scene(
     let _player_body = commands
         .spawn((
             PlayerAvatar,
-            Transform::from_xyz(0.0, 0.9, 0.0),
+            Transform::from_xyz(spawn_x, player_y, spawn_z),
             Visibility::default(),
         ))
         .with_children(|parent| {
@@ -394,13 +634,20 @@ fn setup_scene(
     // Spawn wild Pokémon in front of the player (in -Z).
     let active_dex = pkmn_state.dex_list[pkmn_state.current_index];
     let pkmn_color = get_species_color(active_dex);
+    let pkmn_x = spawn_x;
+    let pkmn_z = spawn_z - 3.8;
+    let pkmn_surface_y = terrain_res
+        .as_ref()
+        .and_then(|t| t.area.sample_world_height(pkmn_x, pkmn_z))
+        .unwrap_or(surface_y);
+    let pkmn_y = pkmn_surface_y + 0.45;
 
     commands
         .spawn((
             PokemonSpawn {
                 national_dex: active_dex,
             },
-            Transform::from_xyz(0.0, 0.45, -3.8),
+            Transform::from_xyz(pkmn_x, pkmn_y, pkmn_z),
             Visibility::default(),
         ))
         .with_children(|parent| {
@@ -451,11 +698,11 @@ fn setup_scene(
     commands
         .spawn((
             Camera3d::default(),
-            Transform::from_xyz(0.0, 3.0, 5.0).looking_at(Vec3::new(0.0, 1.2, 0.0), Vec3::Y),
+            Transform::from_xyz(spawn_x, player_y + 2.0, spawn_z + 4.5)
+                .looking_at(Vec3::new(spawn_x, player_y + 0.3, spawn_z), Vec3::Y),
         ))
         .with_children(|cam| {
-            // Screen-centered aiming reticle with prominent "X" crosshair,
-            // center dot, and circular frame positioned in camera local space.
+            // Screen-centered aiming reticle with prominent "X" crosshair
             cam.spawn((
                 Reticle,
                 Transform::from_xyz(0.0, 0.0, -1.8),
@@ -463,31 +710,26 @@ fn setup_scene(
             ))
             .with_children(|reticle| {
                 let x_bar_mat = materials.add(StandardMaterial {
-                    base_color: Color::srgb(1.0, 1.0, 1.0), // Crisp white
+                    base_color: Color::srgb(1.0, 1.0, 1.0),
                     unlit: true,
                     ..default()
                 });
                 let center_dot_mat = materials.add(StandardMaterial {
-                    base_color: Color::srgb(1.0, 0.2, 0.2), // Bright red center pip
+                    base_color: Color::srgb(1.0, 0.2, 0.2),
                     unlit: true,
                     ..default()
                 });
 
-                // Diagonal bar 1 of "X": +45 degrees in XY plane
                 reticle.spawn((
                     Mesh3d(meshes.add(Mesh::from(Cylinder::new(0.003, 0.10)))),
                     MeshMaterial3d(x_bar_mat.clone()),
                     Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_4)),
                 ));
-
-                // Diagonal bar 2 of "X": -45 degrees in XY plane
                 reticle.spawn((
                     Mesh3d(meshes.add(Mesh::from(Cylinder::new(0.003, 0.10)))),
                     MeshMaterial3d(x_bar_mat),
                     Transform::from_rotation(Quat::from_rotation_z(-std::f32::consts::FRAC_PI_4)),
                 ));
-
-                // Center dot / pip marking exact pixel center
                 reticle.spawn((
                     Mesh3d(meshes.add(Mesh::from(Sphere::new(0.005)))),
                     MeshMaterial3d(center_dot_mat),
@@ -496,20 +738,32 @@ fn setup_scene(
             });
         });
 
-    // Sun directional light & ambient illumination.
+    // Directional sun key light
     commands.spawn((
         DirectionalLight {
-            illuminance: 12_000.0,
-            shadow_maps_enabled: true,
+            illuminance: 16_000.0,
+            shadow_maps_enabled: false,
             ..default()
         },
-        Transform::from_xyz(8.0, 16.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(spawn_x + 60.0, player_y + 120.0, spawn_z + 80.0)
+            .looking_at(Vec3::new(spawn_x, player_y, spawn_z), Vec3::Y),
+    ));
+
+    // Directional sky fill light (avoids pitch-black shadowed faces)
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 8_000.0,
+            shadow_maps_enabled: false,
+            ..default()
+        },
+        Transform::from_xyz(spawn_x - 60.0, player_y + 80.0, spawn_z - 80.0)
+            .looking_at(Vec3::new(spawn_x, player_y, spawn_z), Vec3::Y),
     ));
 
     println!("============================================================");
     println!("Pokémon Legends: Arceus — Interactive Bevy Port Viewer");
     println!("Controls:");
-    println!("  WASD / Arrows : Walk / Run in world");
+    println!("  WASD / Arrows : Walk / Run in world (height sampled from terrain)");
     println!("  Left Shift    : Sprint (~8.0 m/s)");
     println!("  Mouse Drag    : Orbit camera (Yaw / Pitch)");
     println!("  Q / E         : Rotate camera yaw horizontally");
@@ -526,6 +780,102 @@ fn setup_scene(
     }
 }
 
+/// Spawns tree instances from real .trins transforms once their glTF models are loaded.
+fn spawn_tree_instances(
+    mut commands: Commands,
+    mut catalog: ResMut<TreeCatalogResource>,
+    terrain_res: Option<Res<TerrainResource>>,
+    gltf_assets: Res<Assets<Gltf>>,
+    gltf_meshes: Res<Assets<GltfMesh>>,
+    gltf_materials: Res<Assets<GltfMaterial>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if catalog.spawned {
+        return;
+    }
+    let Some(ref terrain) = terrain_res else {
+        return;
+    };
+    if catalog.handles.is_empty() {
+        catalog.spawned = true;
+        return;
+    }
+
+    // Check if all requested model handles are ready
+    let all_ready = catalog.handles.values().all(|h| gltf_assets.contains(h));
+    if !all_ready {
+        return;
+    }
+
+    let mut model_prims: HashMap<String, Vec<(Handle<Mesh>, Handle<StandardMaterial>)>> = HashMap::new();
+    for (name, handle) in &catalog.handles {
+        if let Some(gltf) = gltf_assets.get(handle) {
+            let mut prims = Vec::new();
+            for mesh_h in &gltf.meshes {
+                if let Some(gltf_mesh) = gltf_meshes.get(mesh_h) {
+                    for prim in &gltf_mesh.primitives {
+                        let std_mat = if let Some(ref mat_h) = prim.material {
+                            if let Some(gm) = gltf_materials.get(mat_h) {
+                                StandardMaterial {
+                                    base_color: gm.base_color,
+                                    base_color_texture: gm.base_color_texture.clone(),
+                                    perceptual_roughness: gm.perceptual_roughness,
+                                    metallic: gm.metallic,
+                                    cull_mode: None, // Foliage visible from both sides
+                                    alpha_mode: AlphaMode::Mask(0.5), // Mask out transparent foliage borders
+                                    ..default()
+                                }
+                            } else {
+                                StandardMaterial {
+                                    base_color: Color::srgb(0.3, 0.45, 0.2),
+                                    cull_mode: None,
+                                    ..default()
+                                }
+                            }
+                        } else {
+                            StandardMaterial {
+                                base_color: Color::srgb(0.3, 0.45, 0.2),
+                                cull_mode: None,
+                                ..default()
+                            }
+                        };
+                        let m_handle = standard_materials.add(std_mat);
+                        prims.push((prim.mesh.clone(), m_handle));
+                    }
+                }
+            }
+            model_prims.insert(name.clone(), prims);
+        }
+    }
+
+    let mut count = 0;
+    for inst in &terrain.area.instances {
+        if let Some(prims) = model_prims.get(&inst.model_name) {
+            let flat: [f32; 16] = [
+                inst.matrix[0][0], inst.matrix[0][1], inst.matrix[0][2], inst.matrix[0][3],
+                inst.matrix[1][0], inst.matrix[1][1], inst.matrix[1][2], inst.matrix[1][3],
+                inst.matrix[2][0], inst.matrix[2][1], inst.matrix[2][2], inst.matrix[2][3],
+                inst.matrix[3][0], inst.matrix[3][1], inst.matrix[3][2], inst.matrix[3][3],
+            ];
+            let transform = Transform::from_matrix(Mat4::from_cols_array(&flat));
+            for (mesh_h, mat_h) in prims {
+                commands.spawn((
+                    Mesh3d(mesh_h.clone()),
+                    MeshMaterial3d(mat_h.clone()),
+                    transform,
+                ));
+            }
+            count += 1;
+        }
+    }
+    println!(
+        "Spawned {} tree instances from real .trins matrices across {} unique models.",
+        count,
+        model_prims.len()
+    );
+    catalog.spawned = true;
+}
+
 fn get_species_color(dex: u16) -> Color {
     match dex {
         25 => Color::srgb(0.95, 0.85, 0.15),  // Pikachu (Electric Yellow)
@@ -537,11 +887,12 @@ fn get_species_color(dex: u16) -> Color {
     }
 }
 
-/// Player locomotion system: translates input along camera relative vectors.
+/// Player locomotion system: translates input along camera relative vectors and keeps player on terrain surface.
 fn player_locomotion(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     camera_ctrl: Res<CameraController>,
+    terrain_res: Option<Res<TerrainResource>>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
 ) {
     let Ok(mut transform) = player_query.single_mut() else {
@@ -581,7 +932,15 @@ fn player_locomotion(
         let target_rot = Quat::from_rotation_y(move_vec.x.atan2(move_vec.z));
         transform.rotation = transform.rotation.slerp(target_rot, (15.0 * dt).min(1.0));
     }
+
+    // Keep player avatar on the real terrain surface
+    if let Some(terrain) = terrain_res {
+        if let Some(surface_y) = terrain.area.sample_world_height(transform.translation.x, transform.translation.z) {
+            transform.translation.y = surface_y + 0.9;
+        }
+    }
 }
+
 
 /// Camera input and state updates (implements PLA dec319 kinematics).
 fn camera_controls(
@@ -888,6 +1247,7 @@ fn ball_ballistics_and_physics(
     pml: Res<LoadedPml>,
     battle: Res<LoadedBattle>,
     pkmn_state: Res<ActivePokemonState>,
+    terrain_res: Option<Res<TerrainResource>>,
 ) {
     let dt = time.delta_secs();
 
@@ -908,9 +1268,15 @@ fn ball_ballistics_and_physics(
                 // Subtle spin in flight
                 ball_xf.rotate_local_x(12.0 * dt);
 
-                // Ground plane collision (Y <= 0.12)
-                if ball_xf.translation.y <= 0.12 {
-                    ball_xf.translation.y = 0.12;
+                // Ground surface collision (sampled from real terrain if available)
+                let ground_y = terrain_res
+                    .as_ref()
+                    .and_then(|t| t.area.sample_world_height(ball_xf.translation.x, ball_xf.translation.z))
+                    .unwrap_or(0.0)
+                    + 0.12;
+
+                if ball_xf.translation.y <= ground_y {
+                    ball_xf.translation.y = ground_y;
                     if ball.velocity.y.abs() > 2.0 && ball.bounces < 3 {
                         ball.velocity.y = -ball.velocity.y * 0.42;
                         ball.velocity.x *= 0.75;
@@ -1172,10 +1538,84 @@ fn update_hud_and_telemetry(
 fn automated_tick_driver(
     mut commands: Commands,
     mut automation: ResMut<AutomationOptions>,
+    terrain_res: Option<Res<TerrainResource>>,
+    mut camera_ctrl: ResMut<CameraController>,
+    mut player_query: Query<&mut Transform, (With<PlayerAvatar>, Without<PokemonSpawn>)>,
+    mut pkmn_query: Query<&mut Transform, (With<PokemonSpawn>, Without<PlayerAvatar>)>,
     mut exit: MessageWriter<AppExit>,
 ) {
     automation.current_ticks += 1;
 
+    // Mode 1: Multi-view verification for 3 distinct positions in a single offscreen process
+    if let Some(ref dir) = automation.verify_views_dir.clone() {
+        let views: [(&str, Vec2, f32, f32); 3] = [
+            ("pos1", Vec2::new(448.0, 652.0), 0.75, 5.0), // Tree cluster in ha_area00
+            ("pos2", Vec2::new(512.5, 512.5), 1.20, 9.0), // Center of terrain (elevation ~60.6m)
+            ("pos3", Vec2::new(300.0, 400.0), 2.40, 7.0), // Northwestern slope
+        ];
+
+        if automation.verify_step < views.len() {
+            let (label, pos, yaw, dist) = views[automation.verify_step];
+            automation.verify_step_tick += 1;
+
+            if automation.verify_step_tick == 1 {
+                // Position player, pokemon, and camera for this viewpoint
+                let h = terrain_res
+                    .as_ref()
+                    .and_then(|t| t.area.sample_world_height(pos.x, pos.y))
+                    .unwrap_or(0.0);
+
+                if let Ok(mut p_xf) = player_query.single_mut() {
+                    p_xf.translation = Vec3::new(pos.x, h + 0.9, pos.y);
+                }
+                if let Ok(mut pk_xf) = pkmn_query.single_mut() {
+                    let pk_h = terrain_res
+                        .as_ref()
+                        .and_then(|t| t.area.sample_world_height(pos.x, pos.y - 3.8))
+                        .unwrap_or(h);
+                    pk_xf.translation = Vec3::new(pos.x, pk_h + 0.45, pos.y - 3.8);
+                }
+                camera_ctrl.yaw = yaw;
+                camera_ctrl.pitch = 0.22;
+                camera_ctrl.distance = dist;
+                camera_ctrl.target_distance = dist;
+                println!(
+                    "[{}/{}] Viewpoint '{}' at ({:.1}, {:.1}, h={:.1}m, yaw={:.2})",
+                    automation.verify_step + 1,
+                    views.len(),
+                    label,
+                    pos.x,
+                    pos.y,
+                    h,
+                    yaw
+                );
+            }
+
+            // Capture after 22 frames so geometry and gltf models settle
+            if automation.verify_step_tick == 22 {
+                let shot_path = dir.join(format!("{}.png", label));
+                println!("  Capturing screenshot for '{}' to: {}", label, shot_path.display());
+                if let Some(parent) = shot_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                commands
+                    .spawn(Screenshot::primary_window())
+                    .observe(save_to_disk(shot_path));
+            }
+
+            // Step to next viewpoint at tick 28
+            if automation.verify_step_tick >= 28 {
+                automation.verify_step += 1;
+                automation.verify_step_tick = 0;
+            }
+        } else {
+            println!("All {} viewpoints verified and captured cleanly in a single process. Exiting.", views.len());
+            exit.write(AppExit::Success);
+        }
+        return;
+    }
+
+    // Mode 2: Standard single-shot or tick limit automation
     let shot_tick = if let Some(max) = automation.max_ticks {
         (max / 2).max(15)
     } else {
@@ -1198,3 +1638,4 @@ fn automated_tick_driver(
         }
     }
 }
+
