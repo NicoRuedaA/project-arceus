@@ -18,7 +18,7 @@ pub struct WildCreatureCatalog {
     pub spawns: Vec<WildCreature>,
 }
 
-/// Returns deterministic initial wild spawns for Area 00 (Obsidian Fieldlands starting sector).
+/// Returns deterministic initial wild spawns for Area 00 (Jubilife Village).
 /// Positions are validated inside walkable meadow regions.
 pub fn get_area00_wild_spawns() -> Vec<WildCreature> {
     vec![

@@ -114,7 +114,7 @@ pub fn setup_game_ui(mut commands: Commands) {
                 ))
                 .with_children(|card| {
                     card.spawn((
-                        Text::new("ZONE: Obsidian Fieldlands (ha_area00)"),
+                        Text::new("ZONE: Jubilife Village (ha_area00)"),
                         TextFont::from_font_size(16.0),
                         TextColor(Color::srgb(0.95, 0.85, 0.30)),
                         WorldZoneText,

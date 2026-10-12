@@ -518,12 +518,12 @@ fn main() -> ExitCode {
         area_idx,
     });
     let zone_name = match area_idx {
-        0 => "Obsidian Fieldlands (ha_area00)".to_string(),
-        1 => "Crimson Mirelands (ha_area01)".to_string(),
-        2 => "Cobalt Coastlands (ha_area02)".to_string(),
-        3 => "Coronet Highlands (ha_area03)".to_string(),
-        4 => "Alabaster Icelands (ha_area04)".to_string(),
-        5 => "Ancient Settlement (ha_area05)".to_string(),
+        0 => "Jubilife Village (ha_area00)".to_string(),
+        1 => "Obsidian Fieldlands (ha_area01)".to_string(),
+        2 => "Crimson Mirelands (ha_area02)".to_string(),
+        3 => "Cobalt Coastlands (ha_area03)".to_string(),
+        4 => "Coronet Highlands (ha_area04)".to_string(),
+        5 => "Alabaster Icelands (ha_area05)".to_string(),
         _ => format!("Hisui Sector (ha_area{:02})", area_idx),
     };
     app.insert_resource(pla::game::ActiveZoneInfo {
