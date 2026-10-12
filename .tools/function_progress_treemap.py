@@ -137,6 +137,38 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+INPUTS_ROOT_ENV = "PLA_GAME_INPUTS_ROOT"
+
+
+def resolve_inputs_root(root: Path) -> Path:
+    """Return the checkout that holds the git-ignored game inputs.
+
+    Ignored inputs (``re/``, ``work/``, ``decompiled/``, ``pk2.nsz``) exist only in
+    the main checkout, never in a ``git worktree``. Precedence: the
+    ``PLA_GAME_INPUTS_ROOT`` environment variable, then the main checkout of a
+    linked worktree (read from ``.git`` / ``commondir``), then ``root`` itself.
+    Tracked inputs and the Rust sources are always read from ``root``.
+    """
+    override = os.environ.get(INPUTS_ROOT_ENV)
+    if override:
+        return Path(override).resolve(strict=True)
+    repository = root.resolve(strict=True)
+    dot_git = repository / ".git"
+    if dot_git.is_file():
+        try:
+            first = dot_git.read_text(encoding="utf-8").splitlines()[0]
+            gitdir = Path(first.split(":", 1)[1].strip())
+            if not gitdir.is_absolute():
+                gitdir = repository / gitdir
+            commondir = (gitdir / "commondir").read_text(encoding="utf-8").strip()
+            common = (gitdir / commondir).resolve(strict=True)
+            if common.name == ".git" and common.parent.is_dir():
+                return common.parent
+        except (OSError, IndexError, ValueError):
+            pass
+    return repository
+
+
 def verify_pinned_inputs(root: Path) -> None:
     repository = root.resolve(strict=True)
     for relative_path, expected_digest in PINNED_INPUT_SHA256.items():
@@ -516,7 +548,8 @@ def subsystem_id_for_prefix(prefix: str) -> str:
     return slug(name)
 
 
-def load_subsystem_groups(root: Path, inventory: Sequence[dict[str, str]], build: str = BUILD) -> tuple[dict[str, str], dict[str, object]]:
+def load_subsystem_groups(root: Path, inventory: Sequence[dict[str, str]], build: str = BUILD,
+                          inputs_root: Path | None = None) -> tuple[dict[str, str], dict[str, object]]:
     inventory_addresses = {row["id"] for row in inventory}
     if build == FIX2_BUILD:
         return ({address: "unknown" for address in inventory_addresses}, {
@@ -528,7 +561,7 @@ def load_subsystem_groups(root: Path, inventory: Sequence[dict[str, str]], build
             "strrefs_path": None,
             "strrefs_sha256": None,
         })
-    ref_path = root / "re" / "exports" / "update-main" / "strrefs.tsv"
+    ref_path = (inputs_root or root) / "re" / "exports" / "update-main" / "strrefs.tsv"
     strrefs_rows = load_strrefs(ref_path)
     counters: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
     membership_addresses: dict[str, set[str]] = collections.defaultdict(set)
@@ -1545,26 +1578,27 @@ def run_generation(root: Path, build: str = BUILD, output_dir: Path | None = Non
     try:
         _ensure_directory_tree(repository, destination)
         archive_existing_outputs(destination)
+        inputs = resolve_inputs_root(repository)
         if build == BUILD:
-            verify_pinned_inputs(repository)
+            verify_pinned_inputs(inputs)
             inventory, inventory_info = compare_inventories(
                 repository / "sheets" / "re" / "functions.tsv",
-                repository / "re" / "exports" / "update-main" / "functions.tsv",
+                inputs / "re" / "exports" / "update-main" / "functions.tsv",
             )
-            index_path = repository / "decompiled" / ".gamedb" / "index.sqlite"
+            index_path = inputs / "decompiled" / ".gamedb" / "index.sqlite"
         else:
-            inventory_path = repository / FIX2_INVENTORY_PATH
+            inventory_path = inputs / FIX2_INVENTORY_PATH
             if sha256_file(inventory_path) != FIX2_INVENTORY_SHA256:
                 raise GenerationError("The fix2 inventory hash changed")
             inventory, inventory_info = load_fix2_inventory(inventory_path)
-            index_path = repository / "work/p0-global-gamedb-corpus-20261006/.gamedb/index.sqlite"
-        archive_info = verify_archive(repository / "pk2.nsz", build)
-        c_export_addresses, c_export_info = collect_c_exports(repository, inventory, build)
+            index_path = inputs / "work/p0-global-gamedb-corpus-20261006/.gamedb/index.sqlite"
+        archive_info = verify_archive(inputs / "pk2.nsz", build)
+        c_export_addresses, c_export_info = collect_c_exports(inputs, inventory, build)
         asm_addresses = set(FIX2_ASM_ADDRESSES) if build == FIX2_BUILD else set()
         gamedb_file_status, gamedb_function_addresses, gamedb_info = load_gamedb(
             index_path, inventory, build
         )
-        subsystem_groups, subsystem_info = load_subsystem_groups(repository, inventory, build)
+        subsystem_groups, subsystem_info = load_subsystem_groups(repository, inventory, build, inputs_root=inputs)
         evidence_path = repository / "sheets" / "re" / "function_progress_evidence.tsv"
         _evidence_header, evidence_rows = load_tsv(evidence_path)
         rows = build_registry_rows(

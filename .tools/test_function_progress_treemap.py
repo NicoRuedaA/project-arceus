@@ -752,5 +752,27 @@ class FunctionProgressTreemapTests(unittest.TestCase):
             report.total_original_bytes(rows + [rows[0]])
 
 
+class InputsRootResolutionTests(unittest.TestCase):
+    def test_linked_worktree_resolves_to_main_checkout_and_env_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            main = base / "main"
+            gitdir = main / ".git" / "worktrees" / "wt"
+            gitdir.mkdir(parents=True)
+            (gitdir / "commondir").write_text("../..\n", encoding="utf-8")
+            worktree = base / "wt"
+            worktree.mkdir()
+            (worktree / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+            with unittest.mock.patch.dict("os.environ", {}, clear=False):
+                os_env = __import__("os").environ
+                os_env.pop(report.INPUTS_ROOT_ENV, None)
+                self.assertEqual(report.resolve_inputs_root(worktree), main.resolve())
+                self.assertEqual(report.resolve_inputs_root(main), main.resolve())
+            other = base / "other"
+            other.mkdir()
+            with unittest.mock.patch.dict("os.environ", {report.INPUTS_ROOT_ENV: str(other)}):
+                self.assertEqual(report.resolve_inputs_root(worktree), other.resolve())
+
+
 if __name__ == "__main__":
     unittest.main()
