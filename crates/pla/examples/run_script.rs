@@ -1,6 +1,6 @@
 //! Run a Haxe-compiled Lua 5.3 event script and probe its host API needs.
 //!
-//! Usage: cargo run -p pla --example run_script -- <file.blua> [--run] [--probe]
+//! Usage: cargo run -p pla --example run_script -- <file.blua> [--run] [--module <name>] [--class <name>] [--probe]
 //!
 //! `--run` installs the host layer, builds the engine target and drives the
 //! event to completion (or the frame budget), printing the host-call trace.
@@ -70,7 +70,9 @@ fn describe(_lua: &mlua::Lua, v: &Value) -> String {
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        eprintln!("usage: run_script <file.blua> [--probe]");
+        eprintln!(
+            "usage: run_script <file.blua> [--run] [--module <name>] [--class <name>] [--probe]"
+        );
         return ExitCode::from(2);
     }
     let path = &args[1];
@@ -125,6 +127,12 @@ end
             .and_then(|i| args.get(i + 1))
             .cloned()
             .unwrap_or_else(|| "BoutiqueMainEvent".to_string());
+        let module_name = args
+            .iter()
+            .position(|a| a == "--module")
+            .and_then(|i| args.get(i + 1))
+            .cloned()
+            .unwrap_or_else(|| "general".to_string());
         let target = pla::host::make_event_target(&lua, 4242).expect("engine target");
         let frames: usize = args
             .iter()
@@ -132,10 +140,10 @@ end
             .and_then(|i| args.get(i + 1))
             .and_then(|s| s.parse().ok())
             .unwrap_or(256);
-        let run =
-            pla::event::run(&lua, &module, &class, "general", target, frames).expect("event run");
+        let run = pla::event::run(&lua, &module, &class, &module_name, target, frames)
+            .expect("event run");
         println!(
-            "event {class}: {:?} after {} resume(s), result {}",
+            "event {module_name}.{class}: {:?} after {} resume(s), result {}",
             run.outcome,
             run.frames,
             describe(&lua, &run.result)

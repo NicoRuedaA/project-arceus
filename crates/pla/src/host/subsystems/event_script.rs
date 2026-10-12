@@ -20,12 +20,20 @@
 //! (`FnvHash64.new` passes an existing hash through, and `SetEventFlag` stores
 //! its `value`).
 //!
+//! `Global.GetQuestListManager():GetQuestList()` also exposes the N2-proven
+//! `GetProgress`/`SetProgress` pair. Progress is a `u8` keyed by the exact
+//! signed Lua integer bits of `FnvHash64.value`; a missing entry reports the
+//! proven `0xff` uninitialized sentinel. Quest status, inventory initialization,
+//! notifications, and persistence are not modeled. Other unknown methods retain
+//! the host's recording-stub behavior.
+//!
 //! The data fields the scripts read (`isFadeIn`, `isDemoSound`,
 //! `isResetPlayerLookAt`, `waitMotionType`, `statusReset`, `standUp`,
 //! `itemFadeOut`) are conservative defaults: `bin/event/event_progress/`
 //! carries the real records but their layout is not decoded yet (dec037).
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use mlua::{Lua, Result, Value};
@@ -126,6 +134,59 @@ pub fn install(lua: &Lua, _save: &SaveHandle) -> Result<()> {
         lua.create_function(move |_, _: mlua::MultiValue| Ok(manager.clone()))?
     };
 
+    // QuestList progress is a byte indexed by the exact FnvHash64 bits. N2
+    // evidence proves GetProgress/SetProgress but not quest initialization,
+    // status, notifications, or persistence; absent entries retain the proven
+    // uninitialized sentinel rather than being guessed as a valid state.
+    let quest_progress: Rc<RefCell<BTreeMap<i64, u8>>> = Rc::new(RefCell::new(BTreeMap::new()));
+    let quest_list = lua.create_table()?;
+    quest_list.set("GetProgress", {
+        let quest_progress = quest_progress.clone();
+        lua.create_function(move |_, args: mlua::MultiValue| {
+            let hash = hash_arg(&args).ok_or_else(|| {
+                mlua::Error::RuntimeError("QuestList.GetProgress requires FnvHash64".into())
+            })?;
+            let key: i64 = hash.get("value")?;
+            Ok(quest_progress
+                .borrow()
+                .get(&key)
+                .copied()
+                .unwrap_or(u8::MAX) as i64)
+        })?
+    })?;
+    quest_list.set("SetProgress", {
+        let quest_progress = quest_progress.clone();
+        lua.create_function(move |_, args: mlua::MultiValue| {
+            let hash = hash_arg(&args).ok_or_else(|| {
+                mlua::Error::RuntimeError("QuestList.SetProgress requires FnvHash64".into())
+            })?;
+            let key: i64 = hash.get("value")?;
+            let progress = args
+                .iter()
+                .rev()
+                .find_map(|value| match value {
+                    Value::Integer(value) => Some(*value),
+                    _ => None,
+                })
+                .and_then(|value| u8::try_from(value).ok())
+                .ok_or_else(|| {
+                    mlua::Error::RuntimeError(
+                        "QuestList.SetProgress requires a u8 progress value".into(),
+                    )
+                })?;
+            quest_progress.borrow_mut().insert(key, progress);
+            Ok(())
+        })?
+    })?;
+    stub_fallback(lua, &quest_list, "QuestList")?;
+    let quest_list_manager = lua.create_table()?;
+    let list_for_getter = quest_list.clone();
+    quest_list_manager.set(
+        "GetQuestList",
+        lua.create_function(move |_, _: mlua::MultiValue| Ok(list_for_getter.clone()))?,
+    )?;
+    stub_fallback(lua, &quest_list_manager, "QuestListManager")?;
+
     let global: mlua::Table = match lua.globals().get("Global") {
         Ok(t) => t,
         Err(_) => {
@@ -135,6 +196,10 @@ pub fn install(lua: &Lua, _save: &SaveHandle) -> Result<()> {
         }
     };
     global.set("GetEventScriptManager", get_manager)?;
+    global.set(
+        "GetQuestListManager",
+        lua.create_function(move |_, _: mlua::MultiValue| Ok(quest_list_manager.clone()))?,
+    )?;
     Ok(())
 }
 
@@ -158,6 +223,23 @@ mod tests {
             local flag = FnvHash64.new(data:__haxe_export_GetFlag())
             assert(flag ~= FnvHash64.GetEmptyString())
             assert(flag.value == id.value)
+            "#,
+        )
+        .exec()
+        .unwrap();
+    }
+
+    #[test]
+    fn quest_progress_round_trips_by_exact_fnv_hash_and_defaults_to_uninitialized() {
+        let lua = Lua::new();
+        crate::host::install(&lua).unwrap();
+        lua.load(
+            r#"
+            local list = Global.GetQuestListManager():GetQuestList()
+            local id = FnvHash64.new("sidequest_progress_round_trip")
+            assert(list:GetProgress(id) == 255)
+            list:SetProgress(id, 7)
+            assert(list:GetProgress(FnvHash64.new("sidequest_progress_round_trip")) == 7)
             "#,
         )
         .exec()
