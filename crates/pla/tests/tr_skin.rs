@@ -9,6 +9,7 @@ fn skeleton() -> TrSkl {
     let nodes: Vec<_> = (0..6)
         .map(|i| TrSklNode {
             name: format!("node_{i}"),
+            locator: None,
             local: TrSklTransform {
                 scale: [1.0; 3],
                 rotation: [0.0; 3],

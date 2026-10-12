@@ -305,6 +305,7 @@ mod tests {
             offsets: vec![0],
             nodes: vec![TrSklNode {
                 name: "root".into(),
+                locator: None,
                 local: TrSklTransform {
                     scale: [1.0; 3],
                     rotation: [0.0; 3],
