@@ -31,11 +31,34 @@ Batch export ran across all 53 field model packs (`ha_area*.gfpak`, excluding co
 
 All export statuses are recorded in `data/field_model_export_index.tsv` (validated with `sheetty-cli check data`: 0 errors, 0 warnings).
 
+## Grey / untextured field models: diagnosis and fix (worktree fix-greyhouses)
+
+Census (`crates/pla/examples/field_material_census.rs`, run over the 626 ok models; raw table kept out of git in `work/census/`):
+
+| Finding | Models | Notes |
+|---|--:|---|
+| TRMTR blocks per model: 1 / 2 / 3 / 4+ / none | 434 / 79 / 73 / 27 / 13 | 956 blocks in total |
+| Multi-block models (several `.trmtr` materials, several submeshes) | 179 | the old exporter wrote ONE primitive with the first block's albedo for everything |
+| ...of which blocks reference more than one distinct albedo | 124 | e.g. `objects_area00_house02` used `house03_04_alb` (grey) for all four parts |
+| Referenced albedo missing from the pack / not decodable | 0 / 956 | all resolve in the same pack with the same prefix; no other pack is needed |
+| Blocks with `BaseColorLayer1..4` or a `LayerMaskMap` | 0 / 956 | the Pokémon layered bake does not apply to field models |
+| Models with no `BaseColorMap` at all | 13 | `Water` shader planes (`ground_area0N_waterNN`) |
+| First albedo near-white (min channel >= 200) / near-grey (chroma < 12) | 8 / 83 | white ones are mainly `Water` planes (5 Water-shader models have a pure white albedo) plus a few cave/ice/temple floors; the grey ones are mostly real grey rocks |
+| Index buffer = sum of submesh index counts | 613/613 | so slicing by submesh is exact |
+
+Cause: single material for a whole multi-material mesh (179 models; dominant for buildings). Not causes: missing/undecodable textures, wrong pack, BC format support, layer colours. Vertex layout `s40` (62 models) has an extra attribute id 5 at offset 36 (format code 20) whose meaning is not proven; it is NOT exported as COLOR_0.
+
+Fix (`export_field_gltf_batch`): the `.trmsh` submesh table (`assets/field_material.rs`) gives index range + `AppliedMaterial`; each submesh becomes its own primitive with the block of that name (albedo only, shared images). The writer now lists one scene node per mesh when no skeleton nodes exist (single-primitive output is unchanged). After re-export: 179 models have several primitives, 168 reference more than one texture, 14 primitives still have no material (13 water planes plus one sea sub-mesh of `ground_area05_vista01`). The Pokémon exporter output for `pm0025_00_00` and `pm0026_00_00` is byte-identical to before. The export index is unchanged (626 ok / 215 blocked).
+
+Verification: one headless Blender run (Workbench, flat texture colour, no lighting) rendered 12 previously grey/dark multi-material models (houses 02, 03_a, 04_a, 06_a, 07, 09_a, 13, 16, 17_b, 08, gate02, 12) before and after, plus 4 single-material controls (house11, fence01, rock03_gray, obj10). After the fix the houses show coloured roofs (blue, red, purple, orange) and walls; the controls are unchanged. Colours are the albedo only; no claim that they match the game's lighting or shader. Textures with alpha < 1 (e.g. `house09_a_03`) are rendered opaque by the viewer.
+
+White band: Jubilife has three `Water`-shader planes (`ground_area00_water01..03`) whose albedo is pure white (255,255,255); rendered with that texture they are a plain white sheet. The viewer already draws any model with `water` in its name as blue alpha-blend (`695440f`), so a white band seen before that change is explained by these planes; a band that remains afterwards would need another candidate, which the census does not show (no other white-albedo model is placed in Jubilife). I could not reproduce the exact in-game frame, so this is an inference, not a confirmed match.
+
 ## Headless Offscreen Verification
 
 10 models (trees, shrubs, grass, a flower, rocks, a building, a construction and a log) were rendered offscreen with headless Bevy (`crates/pla/examples/verify_field_gltf_headless.rs`) and looked at. A render that produced a file is not proof of correct content, and textures are NOT confirmed:
 
-- `objects_area00_house02.png` renders essentially grey/white with no visible albedo colours, so albedo mapping is not shown for that model.
+- `objects_area00_house02.png` rendered essentially grey/white (superseded: caused by the single-material bug fixed above).
 - `plants_tree01.png` is cropped at the top, so the framing is not complete.
 - The other 8 renders were not re-checked in this review; their earlier observations are not relied on and no texture, framing or lighting claim is made for them.
 

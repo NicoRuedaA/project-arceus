@@ -142,6 +142,40 @@ pub fn primitive_from_tr(
     })
 }
 
+/// Copy of `source` restricted to `indices` (a sub-range of its triangle list), with the
+/// unused vertices dropped and the indices remapped.
+pub fn subset_primitive(
+    source: &GltfPrimitive,
+    indices: &[u32],
+    name: impl Into<String>,
+    material: Option<usize>,
+) -> Result<GltfPrimitive, String> {
+    let mut remap = std::collections::BTreeMap::new();
+    let mut order = Vec::new();
+    for &i in indices {
+        if i as usize >= source.positions.len() {
+            return Err("submesh index outside the vertex array".into());
+        }
+        remap.entry(i).or_insert_with(|| {
+            order.push(i as usize);
+            order.len() as u32 - 1
+        });
+    }
+    fn pick<T: Copy>(order: &[usize], v: &[T]) -> Vec<T> {
+        order.iter().map(|&i| v[i]).collect()
+    }
+    Ok(GltfPrimitive {
+        name: name.into(),
+        positions: pick(&order, &source.positions),
+        normals: pick(&order, &source.normals),
+        texcoords: pick(&order, &source.texcoords),
+        indices: indices.iter().map(|i| remap[i]).collect(),
+        joints: source.joints.as_ref().map(|v| pick(&order, v)),
+        weights: source.weights.as_ref().map(|v| pick(&order, v)),
+        material,
+    })
+}
+
 fn compute_vertex_normals(
     positions: &[[f32; 3]],
     indices: &[u16],
@@ -541,8 +575,11 @@ impl GltfExport {
                 value
             })
             .collect::<Vec<_>>();
-        if nodes.is_empty() && !self.primitives.is_empty() {
-            nodes.push(json!({"name": "mesh_0", "mesh": 0}));
+        if nodes.is_empty() {
+            // One node per mesh; a single primitive keeps the historical `mesh_0` node.
+            for (i, _) in self.primitives.iter().enumerate() {
+                nodes.push(json!({"name": format!("mesh_{i}"), "mesh": i}));
+            }
         }
 
         let skins = self
@@ -652,7 +689,7 @@ impl GltfExport {
         let mut root = json!({
             "asset": {"version": "2.0", "generator": "pla glTF exporter"},
             "scene": 0,
-            "scenes": [{"nodes": if roots.is_empty() && !nodes.is_empty() { vec![0] } else { roots }}],
+            "scenes": [{"nodes": if roots.is_empty() { (0..nodes.len()).collect() } else { roots }}],
             "nodes": nodes,
             "buffers": [{"uri": bin_name, "byteLength": binary.bytes.len()}],
             "bufferViews": binary.views,
@@ -825,6 +862,25 @@ impl GltfExport {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn subset_primitive_compacts_vertices_and_remaps_indices() {
+        let p = GltfPrimitive {
+            name: "m".into(),
+            positions: (0..5).map(|i| [i as f32, 0.0, 0.0]).collect(),
+            normals: vec![[0.0, 1.0, 0.0]; 5],
+            texcoords: vec![[0.0, 0.0]; 5],
+            indices: vec![0, 1, 2, 2, 3, 4],
+            joints: None,
+            weights: None,
+            material: None,
+        };
+        let s = subset_primitive(&p, &p.indices[3..], "s", Some(1)).unwrap();
+        assert_eq!(s.positions, vec![[2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [4.0, 0.0, 0.0]]);
+        assert_eq!(s.indices, vec![0, 1, 2]);
+        assert_eq!(s.material, Some(1));
+        assert!(subset_primitive(&p, &[9], "x", None).is_err());
+    }
     use crate::assets::tr::{
         TrAnmBoneTrack, TrAnmChannel, TrAnmClip, TrAnmEncoding, TrAnmKey, TrSkl, TrSklNode,
         TrSklTransform,

@@ -4,8 +4,12 @@
 
 use pla::assets::bntx::Bntx;
 use pla::assets::gfpak::GfPak;
-use pla::assets::gltf_export::{primitive_from_tr, skeleton_from_tr, GltfExport, GltfMaterial};
-use pla::assets::tr::{TrMbf, TrMtr, TrSkl};
+use pla::assets::field_material::trmsh_submeshes;
+use pla::assets::gltf_export::{
+    primitive_from_tr, skeleton_from_tr, subset_primitive, GltfExport, GltfMaterial,
+};
+use pla::assets::pokemon_material::parse_blocks;
+use pla::assets::tr::{TrMbf, TrSkl};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -285,51 +289,66 @@ fn export_model(
     // Mesh
     let mesh = TrMbf::parse_with_layout(&trmbf_bytes, &trmsh_bytes)?;
 
-    // Material & Textures
-    let mut material_index = None;
-    if let Some(trmtr_idx) = find_entry(ctx.gfpak, &trmtr_path) {
-        if let Ok(mtr_bytes) = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[trmtr_idx]) {
-            if let Ok(material) = TrMtr::parse(&mtr_bytes) {
-                let mut base_color_uri = None;
-                if let Some(tex_name) = material.base_color() {
-                    let tex_path = format!("{}{}", ctx.prefix, tex_name);
-                    if let Some(tex_idx) = find_entry(ctx.gfpak, &tex_path) {
-                        if let Ok(bntx_bytes) =
-                            ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[tex_idx])
-                        {
-                            if let Ok(bntx) = Bntx::parse(&bntx_bytes) {
-                                if !bntx.textures.is_empty() {
-                                    if let Ok(tex_data) = bntx.textures[0].decode(&bntx_bytes) {
-                                        let png_filename = format!("{}.png", tex_name);
-                                        let png_file = out_pack_dir.join(&png_filename);
-                                        let _ = tex_data.save_png(&png_file);
-                                        base_color_uri = Some(png_filename);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if base_color_uri.is_some() {
-                    export.materials.push(GltfMaterial {
-                        name: format!("{}_mat", model_name),
-                        base_color_uri,
-                        normal_uri: None, // Flat baseColor shading; normal map skipped as unproven shading
-                    });
-                    material_index = Some(0);
-                }
-            }
+    // Materials & textures: one TRMTR block per submesh (AppliedMaterial), matched by name.
+    let whole = primitive_from_tr(model_name, &mesh, &trmbf_bytes, skeleton.as_ref(), None)?;
+    let blocks = ctx
+        .gfpak
+        .entry_index_by_path(&trmtr_path)
+        .ok()
+        .flatten()
+        .and_then(|i| ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[i]).ok())
+        .map(|b| parse_blocks(&b))
+        .unwrap_or_default();
+    let submeshes = find_entry(ctx.gfpak, &trmsh_path)
+        .and_then(|_| Some(trmsh_submeshes(&trmsh_bytes)))
+        .unwrap_or_default();
+    let covered: usize = submeshes.iter().map(|s| s.index_count).sum();
+    let exact = !submeshes.is_empty()
+        && covered == whole.indices.len()
+        && submeshes.iter().all(|s| s.index_offset + s.index_count <= whole.indices.len());
+    let mut texture_cache: std::collections::HashMap<String, Option<String>> = Default::default();
+    let mut material_for = |export: &mut GltfExport, block_name: &str, tex: &str| -> Option<usize> {
+        let uri = texture_cache
+            .entry(tex.to_string())
+            .or_insert_with(|| decode_albedo(ctx, tex, out_pack_dir))
+            .clone()?;
+        if let Some(i) = export.materials.iter().position(|m| m.base_color_uri.as_deref() == Some(uri.as_str())) {
+            return Some(i);
         }
+        export.materials.push(GltfMaterial {
+            name: format!("{block_name}_mat"),
+            base_color_uri: Some(uri),
+            normal_uri: None, // Flat baseColor shading; normal map skipped as unproven shading
+        });
+        Some(export.materials.len() - 1)
+    };
+    if exact && submeshes.len() > 1 && !blocks.is_empty() {
+        for (n, sub) in submeshes.iter().enumerate() {
+            let block = blocks.iter().find(|b| b.name.eq_ignore_ascii_case(&sub.material));
+            let material = block
+                .and_then(|b| b.texture("BaseColorMap").map(|t| (b.name.clone(), t.to_string())))
+                .and_then(|(n, t)| material_for(&mut export, &n, &t));
+            let indices = &whole.indices[sub.index_offset..sub.index_offset + sub.index_count];
+            export.primitives.push(subset_primitive(
+                &whole,
+                indices,
+                format!("{model_name}#{n}_{}", sub.material),
+                material,
+            )?);
+        }
+    } else {
+        // Single submesh (or unparsable submesh table): the block named by the submesh, else the first.
+        let block = submeshes
+            .first()
+            .and_then(|s| blocks.iter().find(|b| b.name.eq_ignore_ascii_case(&s.material)))
+            .or_else(|| blocks.first());
+        let material = block
+            .and_then(|b| b.texture("BaseColorMap").map(|t| (b.name.clone(), t.to_string())))
+            .and_then(|(n, t)| material_for(&mut export, &n, &t));
+        let mut p = whole;
+        p.material = material;
+        export.primitives.push(p);
     }
-
-    export.primitives.push(primitive_from_tr(
-        model_name,
-        &mesh,
-        &trmbf_bytes,
-        skeleton.as_ref(),
-        material_index,
-    )?);
 
     let out_gltf = out_pack_dir.join(format!("{}.gltf", model_name));
     export.write(&out_gltf)?;
@@ -339,4 +358,15 @@ fn export_model(
 
 fn find_entry(gfpak: &GfPak, path: &str) -> Option<usize> {
     gfpak.entry_index_by_path(path).ok().flatten()
+}
+
+/// Decode the first texture of a BNTX entry of the pack to `<name>.png` next to the glTF.
+fn decode_albedo(ctx: &PackContext, tex_name: &str, out_pack_dir: &Path) -> Option<String> {
+    let idx = find_entry(ctx.gfpak, &format!("{}{}", ctx.prefix, tex_name))?;
+    let bytes = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[idx]).ok()?;
+    let bntx = Bntx::parse(&bytes).ok()?;
+    let data = bntx.textures.first()?.decode(&bytes).ok()?;
+    let png = format!("{tex_name}.png");
+    data.save_png(&out_pack_dir.join(&png)).ok()?;
+    Some(png)
 }
