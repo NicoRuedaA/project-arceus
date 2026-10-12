@@ -812,7 +812,9 @@ fn main() -> ExitCode {
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
+    app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
+    app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
@@ -1275,10 +1277,13 @@ fn stream_wild_spawners(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
+    consumed: Res<pla::game::wild::ConsumedSpawners>,
+    time: Res<Time>,
 ) {
     let Ok(p_xf) = player_query.single() else {
         return;
     };
+    let now_s = time.elapsed_secs_f64();
 
     let p_pos = Vec2::new(p_xf.translation.x, p_xf.translation.z);
     let radius = active_spawners.streaming_radius;
@@ -1308,6 +1313,10 @@ fn stream_wild_spawners(
 
     for spawner in &active_spawners.spawners {
         if active_spawners.spawned_entities.contains_key(&spawner.spawner_id) {
+            continue;
+        }
+        // Defeated / captured creature: keep the spawner empty until its respawn time.
+        if consumed.is_consumed(&spawner.spawner_id, now_s) {
             continue;
         }
 
@@ -1377,10 +1386,10 @@ fn spawn_pokemon_models(
     gltf_meshes: Res<Assets<GltfMesh>>,
     gltf_materials: Res<Assets<GltfMaterial>>,
     meshes: Res<Assets<Mesh>>,
-    pkmn_query: Query<(Entity, &PokemonSpawn, &Children)>,
+    pkmn_query: Query<(Entity, &PokemonSpawn, &Children, Option<&pla::game::pokemon_anim::PokemonBattleSlot>)>,
     asset_server: Res<AssetServer>,
 ) {
-    for (entity, pkmn_spawn, children) in &pkmn_query {
+    for (entity, pkmn_spawn, children, battle_slot) in &pkmn_query {
         if catalog.spawned.contains(&entity) {
             continue;
         }
@@ -1413,7 +1422,13 @@ fn spawn_pokemon_models(
 
         // Real glTF scene with skeleton + idle/walk clips (see game::pokemon_anim).
         if let Some(idle_rel) = handle.path().map(|pth| pth.path().to_string_lossy().into_owned()) {
-            commands.entity(entity).insert(pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel));
+            // Arena creatures also load the battle clips (attack / hit / faint).
+            let source = if battle_slot.is_some() {
+                pla::game::pokemon_anim::PokemonAnimSource::from_idle_path_with_battle(&asset_server, &idle_rel)
+            } else {
+                pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel)
+            };
+            commands.entity(entity).insert(source);
         }
 
         catalog.spawned.insert(entity);
@@ -1485,6 +1500,7 @@ fn setup_battle_arena(
         .spawn((
             BattleArenaMarker,
             PokemonSpawn { national_dex: player_dex },
+            pla::game::pokemon_anim::PokemonBattleSlot(0),
             Transform::from_xyz(p_pkmn_x, p_pkmn_y, p_pkmn_z).with_rotation(p_rot),
             Visibility::default(),
         ))
@@ -1504,6 +1520,7 @@ fn setup_battle_arena(
         .spawn((
             BattleArenaMarker,
             PokemonSpawn { national_dex: wild_dex },
+            pla::game::pokemon_anim::PokemonBattleSlot(1),
             Transform::from_xyz(w_pkmn_x, w_pkmn_y, w_pkmn_z).with_rotation(w_rot),
             Visibility::default(),
         ))
@@ -2184,7 +2201,7 @@ fn creature_encounter_system(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
-    mut wild_query: Query<(Entity, &Transform, &mut WildCreature), Without<PlayerAvatar>>,
+    mut wild_query: Query<(Entity, &Transform, &mut WildCreature), (Without<PlayerAvatar>, Without<pla::game::wild::FleeCooldown>)>,
     mut next_state: ResMut<NextState<GameState>>,
     battle_db: Res<LoadedBattle>,
     pkmn_state: Res<ActivePokemonState>,

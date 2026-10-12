@@ -3,10 +3,14 @@
 //! Safe baseline material: plain base `alb` texture + normal map only; the unproven
 //! layer-mask / AO mixing is deliberately skipped.
 //!
+//! Besides `*_idle.gltf` / `*_walk.gltf` it writes `*_battle.gltf` with the battle clips
+//! (see `BattleClipSlot`: battle idle, attack, ranged attack, damage, down, appear).
+//!
 //! Usage: pokemon_batch_export <archive/pokemon dir> <output-dir> <output-index.tsv> [--force] [--only <stem>]
 
 use pla::assets::pokemon_model::{
-    assemble_pack, write_skinned_lod_level, write_static_lod_level_baked, LayerBlendFormula,
+    assemble_pack, battle_clip_names, write_skinned_lod_level, write_skinned_lod_level_clips,
+    write_static_lod_level_baked, LayerBlendFormula,
 };
 use std::{
     env, fs,
@@ -62,6 +66,25 @@ fn export_pack(pack: &Path, out: &Path, stem: &str) -> Outcome {
             }
         } else {
             notes.push(format!("{label}: no parsed clip"));
+        }
+    }
+    if clips > 0 {
+        // Battle clips (attack, hit, faint, ...) of the same skeleton in one extra file.
+        let parsed: Vec<&str> = model.clips.iter().filter(|c| c.parsed.is_ok()).map(|c| c.name.as_str()).collect();
+        let wanted = battle_clip_names(&parsed);
+        if wanted.is_empty() {
+            notes.push("battle: no clips".into());
+        } else {
+            let file = out.join(format!("{stem}_battle.gltf"));
+            match write_skinned_lod_level_clips(&model, 0, &wanted, &file, Some(LayerBlendFormula::MaskLerp)) {
+                Ok(written) => {
+                    clips += written.len();
+                    if written.len() < wanted.len() {
+                        notes.push(format!("battle: {}/{} clips", written.len(), wanted.len()));
+                    }
+                }
+                Err(e) => notes.push(format!("battle: {e}")),
+            }
         }
     }
     if clips == 0 {

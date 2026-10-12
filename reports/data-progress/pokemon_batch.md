@@ -28,3 +28,7 @@ Pikachu, Clefairy, Vulpix, Snorlax, Gyarados, Gengar (static), Munchlax, Rhyperi
 ## Next
 
 Colour is done as a flat base colour (see [pokemon_color.md](pokemon_color.md)). Investigate the two skin-layout blocks and the rest-pose disagreements.
+
+## Battle clips (2026-10-12)
+
+`pokemon_batch_export --force` now writes `<stem>_battle.gltf` next to `_idle` / `_walk` (8 battle clips, see [pokemon_animation.md](pokemon_animation.md)). Re-export: 354 ok / 2 blocked as before; 343 packs with 10 clips, 2 with 8, 11 static-only. `clip_count` in the index counts clips (idle + walk + battle). Cache 841 MB.
