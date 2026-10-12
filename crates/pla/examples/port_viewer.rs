@@ -32,9 +32,9 @@ use pla::assets::terrain::{
 };
 use pla::battle::BattleData;
 use pla::game::{
-    get_wild_spawns_for_area, setup_game_ui, sync_ui_visibility, update_battle_ui_system,
-    update_world_hud_system, ActiveBattleSession, GameNavmeshResource, GameState, PlayerAvatar,
-    WildCreature,
+    load_spawners_for_area, roll_spawner, setup_game_ui, sync_ui_visibility,
+    update_battle_ui_system, update_world_hud_system, ActiveAreaSpawners, ActiveBattleSession,
+    GameNavmeshResource, GameState, PlayerAvatar, WildCreature,
 };
 use pla::pml::{calculate_hp, PmlDatabase};
 
@@ -355,13 +355,17 @@ fn main() -> ExitCode {
 
     if auto_demo {
         headless = true;
+        // The auto-demo contract requires approaching a real wild Pokemon in zone 01 (Obsidian Fieldlands)
+        if area_idx == 0 {
+            area_idx = 1;
+        }
     } else if verify_views_dir.is_some() {
         headless = true;
     } else if screenshot_path.is_some() && max_ticks.is_none() {
         max_ticks = Some(70);
     }
 
-    // Default spawn position: near the tree cluster in ha_area00
+    // Default spawn position: near the tree cluster in ha_area00 or center of ha_area01
     let default_spawn = if area_idx == 0 {
         Vec2::new(448.0, 652.0)
     } else {
@@ -538,6 +542,29 @@ fn main() -> ExitCode {
         handles: HashMap::new(),
         spawned: HashSet::new(),
     });
+
+    let spawn_table_path = "data/field_spawn_table.tsv";
+    let area_spawners = match load_spawners_for_area(spawn_table_path, area_idx) {
+        Ok(spawners) => {
+            println!(
+                "Loaded {} real spawner definitions from {} for area {:02}",
+                spawners.len(),
+                spawn_table_path,
+                area_idx
+            );
+            ActiveAreaSpawners {
+                spawners,
+                spawned_entities: HashMap::new(),
+                streaming_radius: 120.0,
+                seed: 0x5e1f_5eed_1234_5678,
+            }
+        }
+        Err(e) => {
+            println!("Warning: Could not load {spawn_table_path}: {e}");
+            ActiveAreaSpawners::default()
+        }
+    };
+    app.insert_resource(area_spawners);
     if let Some(tr) = terrain_res {
         app.insert_resource(tr);
     }
@@ -563,6 +590,7 @@ fn main() -> ExitCode {
         Update,
         (
             spawn_tree_instances,
+            stream_wild_spawners.run_if(in_state(GameState::World)),
             spawn_pokemon_models,
             player_locomotion.run_if(in_state(GameState::World)),
             creature_encounter_system.run_if(in_state(GameState::World)),
@@ -609,8 +637,8 @@ fn setup_scene(
         .unwrap_or(0.0);
     let player_y = surface_y + 0.9;
 
-    // Register Pokemon glTF models for asynchronous loading
-    for dex in [25, 396, 399, 403] {
+    // Register all known batch Pokemon glTF models for asynchronous loading
+    for dex in [25, 41, 74, 155, 396, 399, 401, 403, 448, 501, 722] {
         let rel_path = format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_idle.gltf");
         let full_path = PathBuf::from("work").join(&rel_path);
         if full_path.exists() {
@@ -743,72 +771,6 @@ fn setup_scene(
             ));
         })
         .id();
-
-    // Spawn deterministic wild creatures in current area
-    let wild_spawns = get_wild_spawns_for_area(spawn_cfg.area_idx, Vec2::new(spawn_x, spawn_z));
-    for wild in wild_spawns {
-        let pkmn_color = get_species_color(wild.national_dex);
-        let pkmn_x = wild.spawn_pos.x;
-        let pkmn_z = wild.spawn_pos.z;
-        let pkmn_surface_y = terrain_res
-            .as_ref()
-            .and_then(|t| t.area.sample_world_height(pkmn_x, pkmn_z))
-            .unwrap_or(surface_y);
-        let pkmn_y = pkmn_surface_y + 0.45;
-
-        let mut entity_cmds = commands.spawn((
-            wild.clone(),
-            PokemonSpawn {
-                national_dex: wild.national_dex,
-            },
-            Transform::from_xyz(pkmn_x, pkmn_y, pkmn_z),
-            Visibility::default(),
-        ));
-
-        entity_cmds.with_children(|parent| {
-            // Main body sphere
-            parent.spawn((
-                Mesh3d(meshes.add(Mesh::from(Sphere::new(0.5)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: pkmn_color,
-                    perceptual_roughness: 0.5,
-                    ..default()
-                })),
-            ));
-            // Distinctive ears/features
-            for x_offset in [-0.25, 0.25] {
-                parent.spawn((
-                    Mesh3d(meshes.add(Mesh::from(Cone::new(0.1, 0.4)))),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: pkmn_color,
-                        ..default()
-                    })),
-                    Transform::from_xyz(x_offset, 0.55, 0.0)
-                        .with_rotation(Quat::from_rotation_z(if x_offset > 0.0 { -0.3 } else { 0.3 })),
-                ));
-            }
-            // Cheeks
-            for x_offset in [-0.35, 0.35] {
-                parent.spawn((
-                    Mesh3d(meshes.add(Mesh::from(Sphere::new(0.1)))),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: if wild.national_dex == 25 { Color::srgb(0.95, 0.15, 0.15) } else { Color::srgb(0.3, 0.3, 0.3) },
-                        ..default()
-                    })),
-                    Transform::from_xyz(x_offset, 0.05, 0.35),
-                ));
-            }
-            // Snout facing +Z towards player
-            parent.spawn((
-                Mesh3d(meshes.add(Mesh::from(Cone::new(0.08, 0.15)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.2, 0.2, 0.2),
-                    ..default()
-                })),
-                Transform::from_xyz(0.0, 0.05, 0.48).with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
-            ));
-        });
-    }
 
     // Third-person Orbit Camera with centered aiming crosshair ("X").
     commands
@@ -992,11 +954,119 @@ fn spawn_tree_instances(
     catalog.spawned = true;
 }
 
+/// Dynamic streaming system: loads and unloads wild creatures around the player within streaming radius.
+fn stream_wild_spawners(
+    mut commands: Commands,
+    mut active_spawners: ResMut<ActiveAreaSpawners>,
+    player_query: Query<&Transform, With<PlayerAvatar>>,
+    terrain_res: Option<Res<TerrainResource>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut pokemon_catalog: ResMut<PokemonCatalogResource>,
+    asset_server: Res<AssetServer>,
+) {
+    let Ok(p_xf) = player_query.single() else {
+        return;
+    };
+
+    let p_pos = Vec2::new(p_xf.translation.x, p_xf.translation.z);
+    let radius = active_spawners.streaming_radius;
+    let radius_sq = radius * radius;
+    let unload_radius_sq = (radius + 25.0) * (radius + 25.0);
+
+    // 1. Unload entities that moved out of radius
+    let mut to_despawn = Vec::new();
+    for (spawner_id, entity) in &active_spawners.spawned_entities {
+        if let Some(spawner) = active_spawners.spawners.iter().find(|s| &s.spawner_id == spawner_id) {
+            let dist_sq = (spawner.pos.x - p_pos.x).powi(2) + (spawner.pos.z - p_pos.y).powi(2);
+            if dist_sq > unload_radius_sq {
+                to_despawn.push((spawner_id.clone(), *entity));
+            }
+        }
+    }
+
+    for (spawner_id, entity) in to_despawn {
+        commands.entity(entity).despawn();
+        pokemon_catalog.spawned.remove(&entity);
+        active_spawners.spawned_entities.remove(&spawner_id);
+    }
+
+    // 2. Load spawners inside streaming radius that aren't spawned yet
+    let seed = active_spawners.seed;
+    let mut to_spawn = Vec::new();
+
+    for spawner in &active_spawners.spawners {
+        if active_spawners.spawned_entities.contains_key(&spawner.spawner_id) {
+            continue;
+        }
+
+        let dist_sq = (spawner.pos.x - p_pos.x).powi(2) + (spawner.pos.z - p_pos.y).powi(2);
+        if dist_sq <= radius_sq {
+            if let Some((dex, name, lvl)) = roll_spawner(spawner, seed) {
+                to_spawn.push((spawner.clone(), dex, name, lvl));
+            }
+        }
+    }
+
+    for (spawner, dex, name, lvl) in to_spawn {
+        let spawn_x = spawner.pos.x;
+        let spawn_z = spawner.pos.z;
+        let surface_y = terrain_res
+            .as_ref()
+            .and_then(|t| t.area.sample_world_height(spawn_x, spawn_z))
+            .unwrap_or(spawner.pos.y);
+        let spawn_y = surface_y + 0.45;
+
+        // Ensure glTF is loading
+        if !pokemon_catalog.handles.contains_key(&dex) {
+            let rel_path = format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_idle.gltf");
+            let full_path = PathBuf::from("work").join(&rel_path);
+            if full_path.exists() {
+                let handle: Handle<Gltf> = asset_server.load(rel_path);
+                pokemon_catalog.handles.insert(dex, handle);
+            }
+        }
+
+        let wild = WildCreature {
+            species_name: name,
+            national_dex: dex,
+            level: lvl,
+            spawn_pos: Vec3::new(spawn_x, surface_y, spawn_z),
+            aggro_range: 2.8,
+            in_battle: false,
+            defeated: false,
+            spawner_id: spawner.spawner_id.clone(),
+        };
+
+        let entity = commands
+            .spawn((
+                wild,
+                PokemonSpawn { national_dex: dex },
+                Transform::from_xyz(spawn_x, spawn_y, spawn_z),
+                Visibility::default(),
+            ))
+            .with_children(|parent| {
+                parent.spawn((
+                    Mesh3d(meshes.add(Mesh::from(Sphere::new(0.5)))),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: Color::srgb(0.7, 0.7, 0.7),
+                        perceptual_roughness: 0.5,
+                        ..default()
+                    })),
+                ));
+            })
+            .id();
+
+        active_spawners.spawned_entities.insert(spawner.spawner_id.clone(), entity);
+    }
+}
+
 fn spawn_pokemon_models(
     mut commands: Commands,
     mut catalog: ResMut<PokemonCatalogResource>,
     gltf_assets: Res<Assets<Gltf>>,
     gltf_meshes: Res<Assets<GltfMesh>>,
+    gltf_materials: Res<Assets<GltfMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     pkmn_query: Query<(Entity, &PokemonSpawn, &Children)>,
@@ -1017,8 +1087,7 @@ fn spawn_pokemon_models(
             commands.entity(child).despawn();
         }
 
-        // Attach real glTF mesh primitives with provisional species tint
-        let tint = get_species_color(pkmn_spawn.national_dex);
+        // Attach real glTF mesh primitives preserving baked textures and material parameters
         commands.entity(entity).with_children(|parent| {
             for mesh_h in &gltf.meshes {
                 if let Some(gltf_mesh) = gltf_meshes.get(mesh_h) {
@@ -1031,13 +1100,36 @@ fn spawn_pokemon_models(
                         } else {
                             prim.mesh.clone()
                         };
-                        let mat_h = standard_materials.add(StandardMaterial {
-                            base_color: tint,
-                            perceptual_roughness: 0.65,
-                            metallic: 0.05,
-                            cull_mode: None,
-                            ..default()
-                        });
+
+                        let mat_h = if let Some(ref prim_mat_h) = prim.material {
+                            if let Some(gm) = gltf_materials.get(prim_mat_h) {
+                                standard_materials.add(StandardMaterial {
+                                    base_color: gm.base_color,
+                                    base_color_texture: gm.base_color_texture.clone(),
+                                    perceptual_roughness: gm.perceptual_roughness,
+                                    metallic: gm.metallic,
+                                    cull_mode: None,
+                                    ..default()
+                                })
+                            } else {
+                                standard_materials.add(StandardMaterial {
+                                    base_color: Color::WHITE,
+                                    perceptual_roughness: 0.65,
+                                    metallic: 0.05,
+                                    cull_mode: None,
+                                    ..default()
+                                })
+                            }
+                        } else {
+                            standard_materials.add(StandardMaterial {
+                                base_color: Color::WHITE,
+                                perceptual_roughness: 0.65,
+                                metallic: 0.05,
+                                cull_mode: None,
+                                ..default()
+                            })
+                        };
+
                         parent.spawn((
                             Mesh3d(mesh_to_spawn),
                             MeshMaterial3d(mat_h),
@@ -1050,8 +1142,8 @@ fn spawn_pokemon_models(
 
         catalog.spawned.insert(entity);
         println!(
-            "Loaded real glTF model for #{:04} with provisional species tint {:?}",
-            pkmn_spawn.national_dex, tint
+            "Loaded real glTF model for #{:04} with baked color textures",
+            pkmn_spawn.national_dex
         );
     }
 }
@@ -1943,16 +2035,17 @@ fn automated_tick_driver(
 
         match automation.demo_step {
             0 => {
-                // Step 0: Initial World exploration locomotion towards Pikachu
+                // Step 0: Initial World exploration locomotion towards real wild Pokemon
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 0: Player exploring World with active World HUD.");
+                    write_demo_log("Step 0: Player exploring World with active World HUD and real spawns.");
                     camera_ctrl.yaw = 0.0;
                     camera_ctrl.pitch = 0.28;
                     camera_ctrl.distance = 5.0;
                 }
-                // Move player forward in -Z
+                // Move player forward towards nearby spawner
                 if let Ok(mut p_xf) = player_query.single_mut() {
-                    p_xf.translation.z -= 0.12;
+                    p_xf.translation.x += 0.08;
+                    p_xf.translation.z -= 0.04;
                     if let Some(ref terrain) = terrain_res {
                         if let Some(sy) = terrain.area.sample_world_height(p_xf.translation.x, p_xf.translation.z) {
                             p_xf.translation.y = sy + 0.9;
@@ -1965,15 +2058,26 @@ fn automated_tick_driver(
                     commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
-                    // Transition to Battle state with initialized ActiveBattleSession
+                    // Transition to Battle state with real wild spawner species and level
+                    let (wild_sp, wild_lvl, wild_dex) = if let Some(w) = wild_query.iter().next() {
+                        (w.species_name.clone(), w.level, w.national_dex)
+                    } else {
+                        ("geodude".to_string(), 8, 74)
+                    };
+
+                    write_demo_log(&format!(
+                        "Approached real wild #{} {} (Lv{})! Initiating Battle.",
+                        wild_dex, wild_sp, wild_lvl
+                    ));
+
                     if let Some(ref db) = battle_db.0 {
                         if let Ok(sess) = ActiveBattleSession::new(
                             db,
                             "pikachu",
                             25,
-                            "pikachu",
-                            5,
-                            25,
+                            &wild_sp,
+                            wild_lvl,
+                            wild_dex,
                             Entity::PLACEHOLDER,
                         ) {
                             commands.insert_resource(sess);

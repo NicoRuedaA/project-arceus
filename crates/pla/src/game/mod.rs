@@ -21,7 +21,10 @@ pub use ui::{
     WildHpBarFill, WildHpText, WildNameText, WorldCoordinatesText, WorldHudRoot, WorldRadarText,
     WorldZoneText,
 };
-pub use wild::{get_area00_wild_spawns, get_wild_spawns_for_area, WildCreature};
+pub use wild::{
+    get_area00_wild_spawns, get_wild_spawns_for_area, load_spawners_for_area, roll_spawner,
+    ActiveAreaSpawners, SpawnerDefinition, WildCreature,
+};
 
 /// Component marker for the controllable player entity in overworld and HUD queries.
 #[derive(Component, Debug, Clone, Copy, Default)]
