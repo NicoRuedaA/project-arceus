@@ -293,6 +293,12 @@ enum CameraMode {
     AimOverShoulder = 2,
 }
 
+/// Real player glTF (asset path under the work root), or `None` for the capsule avatar.
+#[derive(Resource, Default)]
+struct PlayerModelConfig {
+    asset_rel: Option<String>,
+}
+
 #[derive(Resource)]
 struct CameraController {
     pitch: f32,
@@ -301,6 +307,8 @@ struct CameraController {
     mode: CameraMode,
     target_distance: f32,
     focal_offset_y: f32,
+    /// Height of the aim-mode shoulder camera above the avatar root.
+    shoulder_y: f32,
 }
 
 impl Default for CameraController {
@@ -312,6 +320,7 @@ impl Default for CameraController {
             mode: CameraMode::OrbitDefault,
             target_distance: 5.0,
             focal_offset_y: 1.2,
+            shoulder_y: 1.35,
         }
     }
 }
@@ -366,6 +375,7 @@ fn main() -> ExitCode {
     let mut auto_demo = false;
     let mut demo_output_dir = None;
     let mut controls_demo_dir: Option<PathBuf> = None;
+    let mut player_variant = String::from("p1");
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -439,6 +449,11 @@ fn main() -> ExitCode {
                     headless = true;
                 }
             }
+            "--player-variant" => {
+                if let Some(v) = args.next() {
+                    player_variant = v.to_lowercase();
+                }
+            }
             "--ticks" => {
                 if let Some(ticks) = args.next().and_then(|t| t.parse().ok()) {
                     max_ticks = Some(ticks);
@@ -476,6 +491,7 @@ fn main() -> ExitCode {
                 println!("  --verify-views-dir D  Verify 3 viewpoints and save screenshots to directory D");
                 println!("  --screenshot <PATH>   Capture window screenshot and exit");
                 println!("  --ticks <COUNT>       Run for COUNT frames and exit");
+                println!("  --player-variant <p1|p2>  Player glTF from $PLA_CACHE_ROOT/player (default p1; capsule if missing)");
                 println!("  --mode <orbit|aim>    Initial camera mode (default: orbit)");
                 println!("  --species <DEX>       National dex species ID to spawn (default: 25 Pikachu)");
                 println!("  --throw               Automatically throw Poké Ball on tick 20");
@@ -645,7 +661,29 @@ fn main() -> ExitCode {
     );
     app.init_state::<GameState>();
 
+    // Real player model from the exporter cache; capsule avatar if the file is missing.
+    let player_cache_root = std::env::var_os("PLA_CACHE_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
+    let player_model_file = pla::game::player_anim::resolve_player_model(&player_cache_root, &player_variant)
+        .map(|f| f.canonicalize().unwrap_or(f));
+    match &player_model_file {
+        Some(f) => println!("Player model: {}", f.display()),
+        None => println!(
+            "Player model '{player_variant}' not found under {}/player; using the capsule avatar",
+            player_cache_root.display()
+        ),
+    }
+    app.insert_resource(PlayerModelConfig {
+        asset_rel: player_model_file.map(|f| pla::game::player_anim::asset_path(&f, &work_abs)),
+    });
+
     let mut camera_ctrl = CameraController::default();
+    if app.world().resource::<PlayerModelConfig>().asset_rel.is_some() {
+        let (focal, shoulder) = pla::game::player_anim::camera_offsets(pla::game::player_anim::MODEL_HEIGHT);
+        camera_ctrl.focal_offset_y = focal;
+        camera_ctrl.shoulder_y = shoulder;
+    }
     camera_ctrl.mode = initial_mode;
     if initial_mode == CameraMode::AimOverShoulder {
         camera_ctrl.distance = 2.2;
@@ -754,6 +792,7 @@ fn main() -> ExitCode {
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
+    app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
@@ -793,6 +832,7 @@ fn main() -> ExitCode {
             stream_wild_spawners.run_if(in_state(GameState::World)).run_if(not_paused),
             spawn_pokemon_models,
             player_locomotion.run_if(in_state(GameState::World)).run_if(not_paused),
+            player_model_fallback,
             creature_encounter_system.run_if(in_state(GameState::World)).run_if(not_paused),
             battle_input_system.run_if(in_state(GameState::Battle)).run_if(not_paused),
             camera_controls,
@@ -819,6 +859,66 @@ fn main() -> ExitCode {
 }
 
 
+/// Capsule stand-in for the player (also the fallback when the glTF is missing or fails to load).
+fn spawn_capsule_avatar(
+    parent: &mut ChildSpawnerCommands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    // Main torso/capsule
+    parent.spawn((
+        Mesh3d(meshes.add(Mesh::from(Capsule3d::new(0.35, 1.1)))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgb(0.18, 0.28, 0.55), // Survey Corps blue coat
+            perceptual_roughness: 0.6,
+            ..default()
+        })),
+    ));
+    // Head/Scarf
+    parent.spawn((
+        Mesh3d(meshes.add(Mesh::from(Sphere::new(0.26)))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgb(0.85, 0.25, 0.22), // Red headscarf
+            perceptual_roughness: 0.7,
+            ..default()
+        })),
+        Transform::from_xyz(0.0, 0.75, 0.0),
+    ));
+    // Facing beak/visor (shows player orientation forward in -Z)
+    parent.spawn((
+        DirectionIndicator,
+        Mesh3d(meshes.add(Mesh::from(Cone::new(0.12, 0.35)))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgb(0.95, 0.85, 0.2),
+            ..default()
+        })),
+        Transform::from_xyz(0.0, 0.75, -0.3).with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+    ));
+}
+
+/// If the player glTF fails to load, fall back to the capsule avatar and its camera heights.
+fn player_model_fallback(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut camera_ctrl: ResMut<CameraController>,
+    q: Query<(Entity, &pla::game::player_anim::PlayerModelSource), (With<PlayerAvatar>, Without<pla::game::player_anim::PlayerSceneSpawned>)>,
+) {
+    for (e, src) in &q {
+        if matches!(asset_server.load_state(&src.gltf), bevy::asset::LoadState::Failed(_)) {
+            eprintln!("Player model failed to load; using the capsule avatar");
+            commands.entity(e).remove::<pla::game::player_anim::PlayerModelSource>();
+            commands.entity(e).with_children(|parent| {
+                spawn_capsule_avatar(parent, &mut meshes, &mut materials);
+            });
+            let d = CameraController::default();
+            camera_ctrl.focal_offset_y = d.focal_offset_y;
+            camera_ctrl.shoulder_y = d.shoulder_y;
+        }
+    }
+}
+
 fn setup_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -827,6 +927,7 @@ fn setup_scene(
     pml: Res<LoadedPml>,
     _pkmn_state: Res<ActivePokemonState>,
     spawn_cfg: Res<PlayerSpawnConfig>,
+    player_model: Res<PlayerModelConfig>,
     terrain_res: Option<Res<TerrainResource>>,
     mut tree_catalog: ResMut<TreeCatalogResource>,
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
@@ -934,45 +1035,26 @@ fn setup_scene(
         }
     }
 
-    // Player character avatar (capsule representation with facing indicator).
-    let _player_body = commands
+    // Player avatar: the real exported glTF when available, otherwise the capsule.
+    let player_body = commands
         .spawn((
             PlayerAvatar,
             Transform::from_xyz(spawn_x, player_y, spawn_z),
             Visibility::default(),
         ))
-        .with_children(|parent| {
-            // Main torso/capsule
-            parent.spawn((
-                Mesh3d(meshes.add(Mesh::from(Capsule3d::new(0.35, 1.1)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.18, 0.28, 0.55), // Survey Corps blue coat
-                    perceptual_roughness: 0.6,
-                    ..default()
-                })),
-            ));
-            // Head/Scarf
-            parent.spawn((
-                Mesh3d(meshes.add(Mesh::from(Sphere::new(0.26)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.85, 0.25, 0.22), // Red headscarf
-                    perceptual_roughness: 0.7,
-                    ..default()
-                })),
-                Transform::from_xyz(0.0, 0.75, 0.0),
-            ));
-            // Facing beak/visor (shows player orientation forward in -Z)
-            parent.spawn((
-                DirectionIndicator,
-                Mesh3d(meshes.add(Mesh::from(Cone::new(0.12, 0.35)))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.95, 0.85, 0.2),
-                    ..default()
-                })),
-                Transform::from_xyz(0.0, 0.75, -0.3).with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-            ));
-        })
         .id();
+    match &player_model.asset_rel {
+        Some(rel) => {
+            commands.entity(player_body).insert(pla::game::player_anim::PlayerModelSource {
+                gltf: asset_server.load(rel.clone()),
+            });
+        }
+        None => {
+            commands.entity(player_body).with_children(|parent| {
+                spawn_capsule_avatar(parent, &mut meshes, &mut materials);
+            });
+        }
+    }
 
     // Third-person Orbit Camera with centered aiming crosshair ("X").
     commands
@@ -1499,8 +1581,8 @@ fn player_locomotion(
         transform.translation.z = final_xz.y;
 
         // Smoothly orient player avatar towards movement direction.
-        let target_rot = Quat::from_rotation_y(move_vec.x.atan2(move_vec.z));
-        transform.rotation = transform.rotation.slerp(target_rot, (15.0 * dt).min(1.0));
+        transform.rotation =
+            pla::game::player_anim::step_facing(transform.rotation, Vec2::new(move_vec.x, move_vec.z), dt);
     }
 
     // Keep player avatar on the real terrain or navmesh surface
@@ -1697,7 +1779,7 @@ fn update_camera_transform(
             (eye, focal_target)
         }
         CameraMode::AimOverShoulder => {
-            let shoulder_pos = player_xf.translation + right * 0.45 + Vec3::new(0.0, 1.35, 0.0);
+            let shoulder_pos = player_xf.translation + right * 0.45 + Vec3::new(0.0, camera_ctrl.shoulder_y, 0.0);
             let eye = shoulder_pos + Vec3::new(delta_x, delta_y, delta_z);
             let target = eye + forward_dir * 10.0;
             (eye, target)
