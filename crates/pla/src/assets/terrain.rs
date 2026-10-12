@@ -30,6 +30,28 @@ pub struct MaterialParameterCandidate {
 pub struct TerrainMaterial {
     pub slots: TrMtr,
     pub parameter_candidates: Vec<MaterialParameterCandidate>,
+    /// `SplatST<k>` x/y scale per layer `k` (index = layer). Layout observed in
+    /// all inspected `.trmtr`: `[x, y, 0, 0][u32 len][name]`, the vec4 stored
+    /// immediately before the name's length. 0.0 if absent.
+    pub splat_tiling: Vec<[f32; 2]>,
+}
+
+/// Parse `SplatST<k>` (exact name, not `...Far`) vec4s from raw `.trmtr` bytes.
+pub fn splat_tiling_from_trmtr(bytes: &[u8]) -> Vec<[f32; 2]> {
+    let mut out = vec![[0.0f32; 2]; 8];
+    let tag = b"SplatST";
+    let mut i = 20;
+    while i + 9 < bytes.len() {
+        if &bytes[i..i + 7] == tag && bytes[i + 7].is_ascii_digit() && bytes[i + 8] == 0 {
+            let k = (bytes[i + 7] - b'0') as usize;
+            let f = |o: usize| f32::from_le_bytes(bytes[i - 20 + o..i - 16 + o].try_into().unwrap());
+            if k < 8 && f(0).is_finite() && f(4).is_finite() {
+                out[k] = [f(0), f(4)];
+            }
+        }
+        i += 1;
+    }
+    out
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +85,9 @@ pub struct TerrainArea {
     pub heightmap: FloatTextureData,
     pub normal_map: TextureData,
     pub splat_alpha: TextureData,
+    /// Array layer 1 of the same BNTX (the material declares two control
+    /// textures); `None` if the texture has a single layer.
+    pub splat_alpha1: Option<TextureData>,
     pub material: Option<TerrainMaterial>,
     pub ground_textures: HashMap<String, TextureData>,
     /// Material slots whose corresponding internal BNTX name was not uniquely
@@ -314,6 +339,11 @@ impl TerrainArea {
         let splat_bntx = Bntx::parse(&splat_bytes)?;
         let splat_index = find_texture_suffix(&splat_bntx, "_splat_alpha0")?;
         let splat_alpha = splat_bntx.decode(&splat_bytes, splat_index)?;
+        let splat_alpha1 = if splat_bntx.textures[splat_index].array_count > 1 {
+            Some(splat_bntx.textures[splat_index].decode_layer(&splat_bytes, 1)?)
+        } else {
+            None
+        };
 
         // FlatBuffer-like descriptor is found by its asset references and
         // scale, while every referenced payload is resolved by full path hash.
@@ -359,6 +389,7 @@ impl TerrainArea {
             slots: TrMtr::parse(&material_bytes)
                 .map_err(|error| format!("parse terrain material {material_path}: {error}"))?,
             parameter_candidates: material_parameter_candidates(&material_bytes),
+            splat_tiling: splat_tiling_from_trmtr(&material_bytes),
         });
         let mut ground_textures = HashMap::new();
         let mut unresolved_ground_textures = Vec::new();
@@ -397,6 +428,7 @@ impl TerrainArea {
             heightmap,
             normal_map,
             splat_alpha,
+            splat_alpha1,
             material,
             ground_textures,
             unresolved_ground_textures,
@@ -1003,6 +1035,7 @@ mod tests {
                 height: 1,
                 rgba: vec![128, 127, 0, 0],
             },
+            splat_alpha1: None,
             material: Some(TerrainMaterial {
                 slots: TrMtr {
                     textures: vec![
@@ -1012,6 +1045,7 @@ mod tests {
                     flags: Vec::new(),
                 },
                 parameter_candidates: Vec::new(),
+                splat_tiling: Vec::new(),
             }),
             ground_textures,
             unresolved_ground_textures: Vec::new(),

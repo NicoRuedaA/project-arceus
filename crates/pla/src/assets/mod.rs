@@ -13,5 +13,6 @@ pub mod pokemon_material;
 pub mod pokemon_model;
 pub mod sarc;
 pub mod terrain;
+pub mod terrain_albedo;
 pub mod tr;
 pub mod vfxb;
