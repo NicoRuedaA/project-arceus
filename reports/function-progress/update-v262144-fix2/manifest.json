@@ -73,7 +73,7 @@
     "port.png": "ce2ee67b5cef89051213a395735c8979a4d11df2c99c2117882f9eeed6bae0a4"
   },
   "rust_source_fingerprint": {
-    "file_count": 69,
+    "file_count": 71,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -82,6 +82,10 @@
       {
         "path": "crates/pla/examples/anim_spike.rs",
         "sha256": "acf199b805fc45a4ae4a5172f7788c2dbd1f318d3afa62258deef81c22645719"
+      },
+      {
+        "path": "crates/pla/examples/battle_demo.rs",
+        "sha256": "f3f7c77eb756ded92021b74050a667e90f1202a6ed6c1c13a65d94c4a7625fc1"
       },
       {
         "path": "crates/pla/examples/dump_bntx.rs",
@@ -221,7 +225,11 @@
       },
       {
         "path": "crates/pla/src/battle.rs",
-        "sha256": "658fbd236bc51a6dbe1f7428a8456374f95bb217ecb9172c40b671c9771de4c4"
+        "sha256": "a40bce66580ded1663622250eded5d0bcf39d2294899f572655e0f4ed1da5e4f"
+      },
+      {
+        "path": "crates/pla/src/battle_engine.rs",
+        "sha256": "5c44b841c52dbd8de0e76571c553ad2ff7dc4851ee181b07aa465024da8247c6"
       },
       {
         "path": "crates/pla/src/dispatch.rs",
@@ -257,7 +265,7 @@
       },
       {
         "path": "crates/pla/src/lib.rs",
-        "sha256": "02edb8a3d5ad04c045e6d42b21bf7fac5ac9b1a8a22d429d674907da190bacf9"
+        "sha256": "9d3f7fa0b0d3d75599e86ab7869ba278a69308274fbed7697e25038cd37029b9"
       },
       {
         "path": "crates/pla/src/pml.rs",
@@ -353,7 +361,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "5c33c5e926df8562dab33d35120ba53874764f05ae2b0022b0ef9adefd56a0b7"
+    "sha256": "3ce8bb8e4a2507b201be750a65be09d47da403993c7cb92b5112c380531979e4"
   },
   "state_partitions": {
     "analysis_documentation_status": {
