@@ -73,7 +73,7 @@
     "port.png": "171c21e73b75893738344b373a2e7ea2c8909240f5279fc13dc18b3663d77e32"
   },
   "rust_source_fingerprint": {
-    "file_count": 117,
+    "file_count": 118,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -173,7 +173,11 @@
       },
       {
         "path": "crates/pla/examples/terrain_albedo_bake.rs",
-        "sha256": "566e506d573dd94ffa549d1aec39a0992ec47990d6e5ba60a5c10c8d6787aa5f"
+        "sha256": "e8a5e4525955b4ad303570d2fe47af5e528235e887526bd164c48f6debd59956"
+      },
+      {
+        "path": "crates/pla/examples/terrain_layers_export.rs",
+        "sha256": "6ff7d249d8d9c9281bf21929162bb3c2a30f383c46aca954dd0918901342369c"
       },
       {
         "path": "crates/pla/examples/terrain_viewer.rs",
@@ -261,11 +265,11 @@
       },
       {
         "path": "crates/pla/src/assets/terrain.rs",
-        "sha256": "fa5ca947ce54cda5dc8ebbf319bfa8e1bef96a4e4092b7f165b5d0455e4c785a"
+        "sha256": "0f89d98de5c477c481230a221329c02b8dfbb51d0d78de94fb65d6ecf0c54f6b"
       },
       {
         "path": "crates/pla/src/assets/terrain_albedo.rs",
-        "sha256": "d04a640caacfd12c4b7c2bdc594f4b0cabd690aa7e77dad0d506ce77bf9c8a2f"
+        "sha256": "cb62050f11a959dac5bd5ffb00d68fadbb053250e1c2165771a450330ca1c42b"
       },
       {
         "path": "crates/pla/src/assets/tr/animation.rs",
@@ -545,7 +549,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "0f7469ebf1429fcd09bf5ff661d79c01f7d7b96c745ca68b3ee47412c2f2b7db"
+    "sha256": "3ae4de722131b7796b7806d420dfcab01b34d59a18227dd1661bb38e34a00c93"
   },
   "state_partitions": {
     "analysis_documentation_status": {
