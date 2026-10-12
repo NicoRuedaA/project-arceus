@@ -8,8 +8,12 @@ Pikachu (`pm0025_00_00.gfpak`) still fails visual acceptance. The experimental
 `base_rgb_overlays` channel mapping passes its unit test, but its offscreen
 render makes most of the head and body black and leaves the ears brown; it is
 not a solution. Do not infer the native shader from the current mask/layer
-samples. The Pikachu tail also remains visually too large and detached-looking,
-with no supported cause yet. The 10-pack batch was not run because the gates
+samples. The Pikachu tail looked too large in the contact sheet; the later tail
+re-investigation (below) found no exporter defect: thin-sheet geometry, skinning
+verified in numpy, idle clip holds `tail_01` ~43 degrees from rest (InitData not
+applied, idle-pose authenticity unproven); it looks fine in side/three-quarter
+renders and in the in-game screenshot
+`work/cache/game_demo/03_battle_move_selection.png`. The 10-pack batch was not run because the gates
 remain unmet.
 
 ## Observed evidence
@@ -38,3 +42,18 @@ remain unmet.
 - Do not apply InitData until its semantics are established from authoritative
   evidence.
 - No 10-pack batch was run; Pikachu visual/material and tail gates remain open.
+
+## Pikachu tail re-investigation (feat/port-tail)
+
+Outcome: no exporter defect found; nothing changed in the exporter and no pack was re-exported.
+
+Evidence (independent skinning of the exported glTF with plain matrix math, plus offscreen Blender renders from front, side and three-quarter views):
+
+- `sippo` mesh is a flat sheet in the sagittal (YZ) plane, x +-0.005 m, y 0.093..0.472, z -0.303..-0.072. Tail bones have unit scale and the tail is not under any scaled parent (the only non-unit animated scales are `spine_01/02` 0.8, shoulders 0.9, arms 0.95, none an ancestor of the tail).
+- Vertex weights sum to 1.0 for every mesh, 4 influences are enough, joint indices are global skin indices.
+- Rest skinning reproduces the source mesh; walk f0 tail bbox x -0.03..0.076, f15 -0.004..0.129 (small sway, tail within 4..11 degrees of the rest rotation all clip long).
+- Idle (`defaultwait01_loop`) holds `tail_01` a constant ~43 degrees away from the rest rotation (and `waist` 0.034 m lower, spine x-scale 0.8) for the whole clip, so frame 0 swings the tail to x=+0.26 m. This is what the contact sheet showed: the flat sheet turned toward the camera and cropped by the 1..99 percentile framing. The same data in a three-quarter view shows a normal Pikachu-proportioned lightning-bolt tail attached at the brown stem.
+- Raichu (pm0026) and Eevee (pm0133) tails render with plausible proportions; Gyarados (pm0130) was not conclusively judged (framing).
+- Blender's own bounding boxes for the animated models are unreliable (+-0.5..1 m outliers that plain skinning does not show), so the Blender import is not a trustworthy measuring tool for animated extents.
+
+Ruled out: missing inverse bind, parent scale inheritance, weights/palette indexing, LOD differences, skeleton node type. Not checked: whether the idle pose's 43 degree tail offset and crouch are authentic (InitData still not applied); exp_op helper tracks (never name a bone).

@@ -77,6 +77,7 @@ _add("data/field/spawner_config_values", PLA, "spawner app-config values (meanin
 
 # --- pml (decode_pml_tables.py) ---------------------------------------------------------
 _add("data/pml_personal", PML, "personal data (species stats, types, abilities)", requires="bin/pml/personal/personal_data_total.perbin")
+_add("data/pml_personal_extra", PML, "personal data extra fields (capture/catch rate)", requires="bin/pml/personal/personal_data_total.perbin")
 _add("data/pml_grow_table", PML, "experience growth tables", requires="bin/pml/grow_table/grow_*.bin")
 _add("data/pml_evolution", PML, "evolution data", requires="bin/pml/evolution/evolution_data_total.evobin")
 _add("data/pml_moves", PML, "move (waza) data", requires="bin/pml/waza/waza*.wazabin")
