@@ -2,8 +2,8 @@
 //!
 //! Usage: cargo run -p pla --example export_tr_gltf_batch --offline -- <bin-root> <asset-index.tsv> <gltf-root> <png-root> <index.tsv>
 
-use pla::assets::gltf_export::{primitive_from_tr, GltfExport, GltfMaterial};
-use pla::assets::tr::{TrMbf, TrMtr};
+use pla::assets::gltf_export::{primitive_from_tr, skeleton_from_tr, GltfExport, GltfMaterial};
+use pla::assets::tr::{TrMbf, TrMtr, TrSkl};
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -71,15 +71,23 @@ fn export_one(
     png_root: &Path,
     bin_root: &Path,
 ) -> Result<PathBuf, String> {
+    let mut export = GltfExport::default();
     let skeleton_path = input.with_extension("trskl");
-    if skeleton_path.exists() {
-        return Err("skinned model deferred to the B3 recognizability gate".into());
-    }
+    let skeleton = if skeleton_path.exists() {
+        let skl_bytes = read_capped(&skeleton_path)?;
+        let skl = TrSkl::parse(&skl_bytes)?;
+        let binds = TrSkl::read_bind_records(&skl_bytes)?;
+        let (nodes, skin) = skeleton_from_tr(&skl, &binds, 0, 0)?;
+        export.nodes = nodes;
+        export.skins.push(skin);
+        Some(skl)
+    } else {
+        None
+    };
     let layout_path = input.with_extension("trmsh");
     let bytes = read_capped(input)?;
     let layout = read_capped(&layout_path)?;
     let mesh = TrMbf::parse_with_layout(&bytes, &layout)?;
-    let mut export = GltfExport::default();
     let mut material_index = None;
     let material_path = input.with_extension("trmtr");
     if material_path.exists() {
@@ -117,7 +125,7 @@ fn export_one(
         input.file_stem().and_then(|v| v.to_str()).unwrap_or("mesh"),
         &mesh,
         &bytes,
-        None,
+        skeleton.as_ref(),
         material_index,
     )?);
     let output = output_root.join(source_relative).with_extension("gltf");
