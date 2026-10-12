@@ -11,6 +11,11 @@
 //!   stubs, so scripts keep running and show what is still missing.
 //! * [`take_calls`] — reads (and clears) the recorded host-call trace.
 //!
+//! The current stateful story surface includes event flags, event identity,
+//! message decoding/window state, and the N2-proven QuestList progress byte
+//! accessors. The ten command singletons and unsupported API members remain
+//! recording stubs; a recorded call is not evidence that an engine effect ran.
+//!
 //! ## Adding a subsystem (the only supported extension point)
 //!
 //! 1. Create `host/subsystems/<name>.rs` with
