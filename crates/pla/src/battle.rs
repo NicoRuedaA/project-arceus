@@ -261,7 +261,7 @@ impl BattleData {
             move_type: text("type_name:string")?,
             category: text("category_name:string")?,
             power: number("power:u8")?,
-            accuracy: number("accuracy:u8")?.min(100) as u8,
+            accuracy: number("accuracy:u8")? as u8,
             pp: number("pp:u8")?.min(u8::MAX as u16) as u8,
         }))
     }
@@ -639,10 +639,11 @@ mod tests {
             data.score_rules(&["strong_friendly_fire"], &facts).unwrap(),
             -100
         );
-        assert!(data
-            .score_rules(&["expert_sequence_dispatch"], &facts)
-            .unwrap_err()
-            .contains("evidence status is unknown"));
+        assert!(
+            data.score_rules(&["expert_sequence_dispatch"], &facts)
+                .unwrap_err()
+                .contains("evidence status is unknown")
+        );
         let partial = data
             .evaluate_rule(
                 "strong_high_affinity_bonus",

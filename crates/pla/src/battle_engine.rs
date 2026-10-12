@@ -1,5 +1,5 @@
-//! Headless, data-backed battle loop. This is a playable approximation, not a
-//! claim that the listed mechanics reproduce Pokémon Legends: Arceus exactly.
+//! Headless, data-backed battle rules. Recovered mechanics carry explicit
+//! confidence and unknown inputs stay caller-configurable.
 
 use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 
@@ -37,12 +37,19 @@ pub struct MoveSlot {
     pub data: BattleMove,
     pub pp: u8,
     pub priority: i8,
+    /// Critical rank is absent from the exported move table; supply it only
+    /// when recovered move data is available.
+    pub critical_rank: u8,
 }
 impl MoveSlot {
     pub fn new(data: BattleMove) -> Self {
         let pp = data.pp;
-        let priority = assumed_move_priority(&data.name);
-        Self { data, pp, priority }
+        Self {
+            data,
+            pp,
+            priority: 0,
+            critical_rank: 0,
+        }
     }
 }
 
@@ -60,23 +67,59 @@ pub struct Combatant {
     pub moves: Vec<MoveSlot>,
     pub status: Option<MajorStatus>,
     pub caught: bool,
+    pub effort: [u8; 6],
+    /// Nature percentages in HP/Atk/Def/SpA/SpD/Spe order. The nature table
+    /// mapping is not in the checked-in personal table, so callers provide it.
+    pub nature_percent: [u16; 6],
+    pub action_class: u8,
+    pub speed_modifier_q12: u16,
+    pub damage_modifier_q12: u16,
+    pub power_modifier_q12: u16,
+    pub attack_modifier_q12: u16,
+    pub defense_modifier_q12: u16,
+    pub crit_stage: u8,
+    pub accuracy_stage: i8,
+    pub evasion_stage: i8,
 }
 
 impl Combatant {
-    /// Standard-series level/stat construction with fixed IV=15 and EV=0;
-    /// individual PLA stat generation is not established here (assumed, unverified).
+    /// PLA stat formula, neutral nature and effort level zero unless explicitly configured.
     pub fn from_base(species: BattleSpecies, level: u8, moves: Vec<BattleMove>) -> Self {
+        Self::with_effort_nature(species, level, moves, [0; 6], [100; 6])
+    }
+    pub fn with_effort_nature(
+        species: BattleSpecies,
+        level: u8,
+        moves: Vec<BattleMove>,
+        effort: [u8; 6],
+        nature_percent: [u16; 6],
+    ) -> Self {
         let level = level.max(1);
-        let stat = |base: u16| ((2 * u32::from(base) + 15) * u32::from(level) / 100 + 5).max(1);
-        let max_hp =
-            ((2 * u32::from(species.hp) + 15) * u32::from(level) / 100 + u32::from(level) + 10)
-                .max(1);
+        let values = [
+            species.hp,
+            species.attack,
+            species.defense,
+            species.special_attack,
+            species.special_defense,
+            species.speed,
+        ];
+        let stats = std::array::from_fn::<_, 6, _>(|i| {
+            calculate_stat(
+                u32::from(values[i]),
+                level,
+                effort[i],
+                nature_percent[i],
+                i == 0,
+                species.dex == 292,
+            )
+        });
+        let max_hp = stats[0];
         Self {
-            attack: stat(species.attack),
-            defense: stat(species.defense),
-            special_attack: stat(species.special_attack),
-            special_defense: stat(species.special_defense),
-            speed: stat(species.speed),
+            attack: stats[1],
+            defense: stats[2],
+            special_attack: stats[3],
+            special_defense: stats[4],
+            speed: stats[5],
             species,
             level,
             max_hp,
@@ -84,6 +127,17 @@ impl Combatant {
             moves: moves.into_iter().map(MoveSlot::new).collect(),
             status: None,
             caught: false,
+            effort,
+            nature_percent,
+            action_class: 0,
+            speed_modifier_q12: 4096,
+            damage_modifier_q12: 4096,
+            power_modifier_q12: 4096,
+            attack_modifier_q12: 4096,
+            defense_modifier_q12: 4096,
+            crit_stage: 0,
+            accuracy_stage: 0,
+            evasion_stage: 0,
         }
     }
     pub fn is_alive(&self) -> bool {
@@ -101,6 +155,22 @@ pub struct Action {
 pub struct HealingItem {
     pub name: String,
     pub healing: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CaptureModifiers {
+    pub outbreak: bool,
+    pub ai: f64,
+    pub bait: f64,
+}
+impl Default for CaptureModifiers {
+    fn default() -> Self {
+        Self {
+            outbreak: false,
+            ai: 1.0,
+            bait: 1.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,6 +227,18 @@ pub struct Battle {
     pub ended: bool,
     active: Vec<usize>,
     type_chart: TypeChart,
+    pub trick_room: bool,
+    pub weather: BattleWeather,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum BattleWeather {
+    #[default]
+    Unknown,
+    Clear,
+    Rain,
+    Sun,
+    Snow,
 }
 
 impl Battle {
@@ -194,6 +276,8 @@ impl Battle {
             ended: false,
             active,
             type_chart,
+            trick_room: false,
+            weather: BattleWeather::Unknown,
         })
     }
 
@@ -286,7 +370,7 @@ impl Battle {
         }
         self.turn += 1;
         events.push(Event::TurnStarted(self.turn));
-        let mut order = actions
+        let order = actions
             .iter()
             .copied()
             .filter(|a| {
@@ -297,17 +381,39 @@ impl Battle {
                     })
             })
             .collect::<Vec<_>>();
-        order.sort_by(|a, b| {
-            let am = self.combatants[a.actor].moves.get(a.move_slot);
-            let bm = self.combatants[b.actor].moves.get(b.move_slot);
-            let ap = am.map_or(i8::MIN, |m| m.priority);
-            let bp = bm.map_or(i8::MIN, |m| m.priority);
-            bp.cmp(&ap).then_with(|| {
-                self.combatants[b.actor]
-                    .speed
-                    .cmp(&self.combatants[a.actor].speed)
+        let mut keyed = order
+            .into_iter()
+            .map(|action| {
+                let slot = self.combatants[action.actor].moves.get(action.move_slot);
+                let priority = slot.map_or(i8::MIN, |m| m.priority);
+                (
+                    action,
+                    turn_order_key(
+                        &self.combatants[action.actor],
+                        priority,
+                        self.weather,
+                        self.trick_room,
+                    ),
+                )
             })
-        });
+            .collect::<Vec<_>>();
+        keyed.sort_by(|(_, ka), (_, kb)| kb.cmp(ka));
+        let mut start = 0;
+        while start < keyed.len() {
+            let mut end = start + 1;
+            while end < keyed.len() && keyed[end].1 == keyed[start].1 {
+                end += 1;
+            }
+            for i in (start + 1..end).rev() {
+                let j = start + rng.below((i - start + 1) as u32) as usize;
+                keyed.swap(i, j);
+            }
+            start = end;
+        }
+        let order = keyed
+            .into_iter()
+            .map(|(action, _)| action)
+            .collect::<Vec<_>>();
         if let Some(first) = order.first() {
             events.push(Event::ActedFirst(first.actor));
         }
@@ -331,6 +437,7 @@ impl Battle {
             let category = movement.data.category.clone();
             let power = movement.data.power;
             let accuracy = movement.data.accuracy;
+            let critical_rank = movement.critical_rank;
             let move_type = movement.data.move_type.clone();
             self.combatants[action.actor].moves[action.move_slot].pp -= 1;
             if let Some(status) = self.combatants[action.actor].status {
@@ -344,9 +451,14 @@ impl Battle {
                     continue;
                 }
             }
-            // Table values 0/101 are treated as guaranteed hit for this demo;
-            // that convention is not established by the PLA evidence here.
-            if accuracy != 0 && accuracy < 100 && rng.below(100) >= u32::from(accuracy) {
+            let actor = &self.combatants[action.actor];
+            if !accuracy_hits(
+                accuracy,
+                actor.accuracy_stage,
+                self.combatants[target].evasion_stage,
+                4096,
+                rng,
+            ) {
                 events.push(Event::Missed {
                     actor: action.actor,
                     target,
@@ -370,6 +482,8 @@ impl Battle {
                 &category,
                 power,
                 &self.type_chart,
+                self.weather,
+                critical_rank,
                 rng,
             );
             self.combatants[target].hp = self.combatants[target].hp.saturating_sub(damage);
@@ -455,8 +569,8 @@ impl Battle {
         }
     }
 
-    /// Capture rate and combination order are not recovered. This playable
-    /// estimate reuses recovered factors but its formula is assumed, unverified.
+    /// Capture index and shake formula are LIKELY. Catch rate and AI/bait factors
+    /// are explicit inputs because the current typed species table omits them.
     pub fn attempt_capture(
         &mut self,
         data: &BattleData,
@@ -465,7 +579,9 @@ impl Battle {
         suitable_range: bool,
         player_rank: u8,
         pokemon_rank: u8,
+        catch_rate: u8,
         backstrike: bool,
+        modifiers: CaptureModifiers,
         rng: &mut impl BattleRng,
     ) -> Result<bool, String> {
         let c = self
@@ -475,17 +591,6 @@ impl Battle {
         if !c.is_alive() {
             return Ok(false);
         }
-        let hp_factor = (1.0 - c.hp as f64 / c.max_hp as f64).powf(
-            data.capture_constant("capture_index_hp_coef")?
-                .unwrap_or(0.66),
-        );
-        let base = data
-            .capture_constant("capture_index_basic_coef")?
-            .unwrap_or(30.0)
-            * data
-                .capture_constant("capture_index_pokepara_coef")?
-                .unwrap_or(0.75)
-            * hp_factor;
         let ball = data.capture_ball_multiplier(ball, suitable_range)?;
         let status = match c.status {
             None => data.capture_status_multiplier("None")?,
@@ -502,12 +607,11 @@ impl Battle {
                 "capture_index_backstrike_failure_factor"
             })?
             .unwrap_or(1.0);
-        let rank = data
-            .capture_level_rank_adjustment(player_rank, pokemon_rank)?
-            .max(-20);
-        let chance =
-            (base * ball * status * context * (1.0 + f64::from(rank) / 100.0)).clamp(0.0, 100.0);
-        let caught = f64::from(rng.below(10_000)) / 100.0 < chance;
+        let rank = data.capture_level_rank_adjustment(player_rank, pokemon_rank)?;
+        let ratio = c.hp as f64 / c.max_hp as f64;
+        let index = capture_index(catch_rate, ratio, rank, status, ball, context, modifiers);
+        let probability = capture_probability(index);
+        let caught = two_shake_capture(probability, rng);
         if caught {
             self.combatants[target].caught = true;
             self.advance_active_for(target);
@@ -521,20 +625,152 @@ impl Battle {
 
 /// Read the executable-derived chart. Unknown names remain neutral as in the prior fallback.
 pub fn type_effectiveness(chart: &TypeChart, attack: &str, defenses: &[String]) -> f32 {
+    let mut exponent = 0_i32;
     let mut seen: Vec<&String> = Vec::new();
-    defenses
-        .iter()
-        .filter(|defense| {
-            if seen.contains(defense) {
-                false
-            } else {
-                seen.push(defense);
-                true
-            }
-        })
-        .fold(1.0, |acc, defense| {
-            acc * chart.multiplier(attack, defense).unwrap_or(1.0)
-        })
+    for defense in defenses {
+        if seen.contains(&defense) {
+            continue;
+        }
+        seen.push(defense);
+        match chart.multiplier(attack, defense).unwrap_or(1.0) {
+            0.0 => return 0.0,
+            0.5 => exponent -= 1,
+            2.0 => exponent += 1,
+            _ => {}
+        }
+    }
+    effectiveness_from_exponent(exponent)
+}
+
+/// VERIFIED PLA type categories: 4x is capped to 2.5 and 0.25x to 0.4.
+fn effectiveness_from_exponent(exponent: i32) -> f32 {
+    match exponent {
+        i32::MIN..=-2 => 0.4,
+        -1 => 0.5,
+        0 => 1.0,
+        1 => 2.0,
+        _ => 2.5,
+    }
+}
+
+/// LIKELY capture-index reconstruction; inputs sourced from the recovered tables.
+pub fn capture_index(
+    catch_rate: u8,
+    current_hp_ratio: f64,
+    rank_adjustment: i32,
+    sick: f64,
+    ball: f64,
+    backstrike: f64,
+    modifiers: CaptureModifiers,
+) -> f64 {
+    let hp_term = 30.0
+        * (1.0 - 0.66 * current_hp_ratio.clamp(0.0, 1.0))
+        * sick
+        * ball
+        * modifiers.ai
+        * backstrike
+        * modifiers.bait;
+    0.75 * f64::from(catch_rate)
+        + if modifiers.outbreak { 10.0 } else { 0.0 }
+        + 30.0 * f64::from(rank_adjustment)
+        + hp_term
+}
+
+pub fn capture_probability(index: f64) -> f64 {
+    (index / 255.0).clamp(0.0, 1.0)
+}
+
+/// LIKELY two-check capture test: each check fails with sqrt(1-p).
+pub fn two_shake_capture(probability: f64, rng: &mut impl BattleRng) -> bool {
+    let failure = (1.0 - probability.clamp(0.0, 1.0)).sqrt();
+    let fail_1 = f64::from(rng.below(65_536)) / 65_536.0 < failure;
+    let fail_2 = f64::from(rng.below(65_536)) / 65_536.0 < failure;
+    !fail_1 && !fail_2
+}
+
+const EFFORT_K: [u32; 11] = [0, 2, 3, 4, 7, 8, 9, 14, 15, 16, 25];
+/// VERIFIED PLA stat formula; nature percentage is caller-supplied because its mapping is unknown.
+fn calculate_stat(
+    base: u32,
+    level: u8,
+    effort: u8,
+    nature_percent: u16,
+    hp: bool,
+    shedinja: bool,
+) -> u32 {
+    if hp && shedinja {
+        return 1;
+    }
+    let l = f64::from(level.max(1));
+    let b = f64::from(base);
+    let k = f64::from(EFFORT_K[usize::from(effort.min(10))]);
+    let effort_term = ((b.sqrt() * k + l) / 2.5).floor();
+    if hp {
+        (effort_term + (((l / 100.0 + 1.0) * b + l).floor())).max(1.0) as u32
+    } else {
+        let core = (((l / 50.0 + 1.0) * b / 1.5).floor() as u32 * u32::from(nature_percent)
+            & 0xfffe)
+            / 100;
+        (f64::from(core) + effort_term).max(1.0) as u32
+    }
+}
+
+/// Q12 multiply used by recovered damage modifiers; ties round down.
+fn q12_mul(value: u32, modifier: u32) -> u32 {
+    let product = u64::from(value) * u64::from(modifier);
+    let quotient = product / 4096;
+    let remainder = product % 4096;
+    (quotient + u64::from(remainder > 2048)).min(u64::from(u32::MAX)) as u32
+}
+
+/// VERIFIED critical-rank probabilities. The rank input is clamped to 3.
+pub fn critical_hit(move_rank: u8, stage: u8, rng: &mut impl BattleRng) -> bool {
+    if move_rank == 6 {
+        return true;
+    }
+    let rank = usize::from(move_rank.saturating_add(stage).min(3));
+    let denominators = [24, 8, 2, 1];
+    rng.below(denominators[rank]) == 0
+}
+
+/// LIKELY PLA accuracy stage mapping. Accuracy 101 is a guaranteed-hit sentinel.
+pub fn accuracy_hits(
+    accuracy: u8,
+    accuracy_stage: i8,
+    evasion_stage: i8,
+    event_q12: u32,
+    rng: &mut impl BattleRng,
+) -> bool {
+    if accuracy > 100 {
+        return true;
+    }
+    let index = (accuracy_stage + 1 - evasion_stage).clamp(0, 2) as usize;
+    let numerator = [70_u32, 100, 130][index];
+    let chance = ((u32::from(accuracy) * numerator / 100).min(100) * event_q12 / 4096).min(100);
+    rng.below(100) < chance
+}
+
+/// LIKELY speed modifiers plus UNKNOWN action-class encoding. Class and move priority are explicit inputs.
+fn turn_order_key(
+    actor: &Combatant,
+    priority: i8,
+    weather: BattleWeather,
+    trick_room: bool,
+) -> (u8, i8, u32) {
+    let mut speed = q12_mul(actor.speed, u32::from(actor.speed_modifier_q12));
+    if (weather == BattleWeather::Sun && actor.species.types.iter().any(|t| t == "Grass"))
+        || (weather == BattleWeather::Snow && actor.species.types.iter().any(|t| t == "Ice"))
+    {
+        speed = speed * 133 / 100;
+    }
+    if actor.status == Some(MajorStatus::Paralysis) {
+        speed /= 2;
+    }
+    speed = speed.min(10_000);
+    if trick_room {
+        speed = 10_000 - speed;
+    }
+    (actor.action_class, priority, speed)
 }
 
 fn expected_damage(
@@ -548,27 +784,26 @@ fn expected_damage(
     } else {
         (attacker.special_attack, target.special_defense)
     };
-    let level_term = (2 * u32::from(attacker.level) / 5) + 2;
-    let core = (level_term * u32::from(movement.power) * attack / defense.max(1) / 50 + 2).max(1);
-    let stab = if attacker
+    let base = integer_base_damage(
+        u32::from(movement.power),
+        attack,
+        u32::from(attacker.level),
+        defense,
+    );
+    let stab = attacker
         .species
         .types
         .iter()
-        .any(|t| t == &movement.move_type)
-    {
-        1.5
-    } else {
-        1.0
-    };
+        .any(|t| t == &movement.move_type);
     let effectiveness = type_effectiveness(chart, &movement.move_type, &target.species.types);
-    let accuracy = if movement.accuracy == 0 || movement.accuracy >= 100 {
-        1.0
-    } else {
-        f32::from(movement.accuracy) / 100.0
-    };
-    core as f32 * stab * effectiveness * 0.925 * accuracy
+    base as f32 * if stab { 1.25 } else { 1.0 } * effectiveness * 0.925
 }
 
+fn integer_base_damage(power: u32, attack: u32, level: u32, defense: u32) -> u32 {
+    (((power * attack * ((2 * level / 5) + 2)) / defense.max(1)) / 50) + 2
+}
+
+/// VERIFIED damage core/random/critical/type; rain and status class adjustments are LIKELY.
 fn calculate_damage(
     attacker: &Combatant,
     target: &Combatant,
@@ -576,26 +811,38 @@ fn calculate_damage(
     category: &str,
     power: u16,
     chart: &TypeChart,
+    weather: BattleWeather,
+    critical_rank: u8,
     rng: &mut impl BattleRng,
 ) -> (u32, bool, f32) {
-    // Conventional-series damage, crit chance and random range: assumed, unverified for PLA.
     let (attack, defense) = if category == "Physical" {
         (attacker.attack, target.defense)
     } else {
         (attacker.special_attack, target.special_defense)
     };
-    let level_term = (2 * u32::from(attacker.level) / 5) + 2;
-    let core = (level_term * u32::from(power) * attack / defense.max(1) / 50 + 2).max(1);
-    let stab = if attacker.species.types.iter().any(|t| t == attack_type) {
-        1.5
-    } else {
-        1.0
-    };
+    let power = q12_mul(u32::from(power), u32::from(attacker.power_modifier_q12));
+    let attack = q12_mul(attack, u32::from(attacker.attack_modifier_q12));
+    let defense = q12_mul(defense, u32::from(target.defense_modifier_q12));
+    let base = integer_base_damage(power, attack, u32::from(attacker.level), defense);
     let effectiveness = type_effectiveness(chart, attack_type, &target.species.types);
-    let critical = rng.below(16) == 0;
-    let random = 85 + rng.below(16);
-    let crit = if critical { 1.5 } else { 1.0 };
-    let damage = (core as f32 * stab * effectiveness * crit * random as f32 / 100.0).floor() as u32;
+    let mut damage = q12_mul(base, u32::from(attacker.damage_modifier_q12));
+    if weather == BattleWeather::Rain && attack_type == "Fire" {
+        damage = q12_mul(damage, 3072);
+    }
+    let critical = critical_hit(critical_rank, attacker.crit_stage, rng);
+    if critical {
+        damage = damage * 15 / 10;
+    }
+    damage = damage * (85 + rng.below(16)) / 100;
+    if attacker.species.types.iter().any(|t| t == attack_type) {
+        damage = q12_mul(damage, 0x1400);
+    }
+    damage = (f64::from(damage) * f64::from(effectiveness)).floor() as u32;
+    if (attacker.status == Some(MajorStatus::Burn) && category == "Physical")
+        || (attacker.status == Some(MajorStatus::Frostbite) && category == "Special")
+    {
+        damage = damage / 2;
+    }
     (
         if effectiveness == 0.0 {
             0
@@ -614,16 +861,6 @@ fn status_move(name: &str) -> Option<MajorStatus> {
         "sleep-powder" | "hypnosis" => Some(MajorStatus::Drowsy),
         "ice-beam" => None,
         _ => None,
-    }
-}
-/// Priority isn't included in the exported move TSV. These conventional-series
-/// exceptions are a small, explicitly unverified fallback; callers can override.
-fn assumed_move_priority(name: &str) -> i8 {
-    match name {
-        "extreme-speed" => 2,
-        "quick-attack" | "aqua-jet" | "bullet-punch" | "ice-shard" | "shadow-sneak"
-        | "mach-punch" | "vacuum-wave" | "water-shuriken" => 1,
-        _ => 0,
     }
 }
 fn effectiveness_label(multiplier: f32) -> &'static str {
@@ -685,7 +922,7 @@ mod tests {
                 "Electric",
                 &["Water".into(), "Flying".into()]
             ),
-            4.0
+            2.5
         );
         assert_eq!(
             type_effectiveness(d.type_chart(), "Electric", &["Ground".into()]),
@@ -693,6 +930,31 @@ mod tests {
         );
         assert_eq!(d.type_chart().multiplier("Fire", "Grass").unwrap(), 2.0);
         assert_eq!(d.type_chart().multiplier("Normal", "Rock").unwrap(), 0.5);
+        assert_eq!(effectiveness_from_exponent(2), 2.5);
+        assert_eq!(effectiveness_from_exponent(-2), 0.4);
+    }
+
+    #[test]
+    fn recovered_stat_and_integer_damage_examples_match_hand_calculation() {
+        assert_eq!(calculate_stat(45, 100, 10, 100, true, false), 297);
+        assert_eq!(calculate_stat(50, 100, 10, 110, false, false), 220);
+        assert_eq!(calculate_stat(1, 50, 10, 110, true, true), 1);
+        assert_eq!(integer_base_damage(40, 50, 20, 40), 12);
+        assert_eq!(q12_mul(100, 0x1400), 125);
+    }
+
+    #[test]
+    fn critical_accuracy_and_capture_formulas_use_injected_randomness() {
+        assert!(critical_hit(6, 0, &mut Fixed(vec![])));
+        assert!(critical_hit(2, 0, &mut Fixed(vec![0]))); // one of two
+        assert!(!critical_hit(1, 0, &mut Fixed(vec![1]))); // one of eight
+        assert!(accuracy_hits(50, -1, 0, 4096, &mut Fixed(vec![34]))); // 35%
+        assert!(!accuracy_hits(50, -1, 0, 4096, &mut Fixed(vec![35])));
+        let index = capture_index(255, 1.0, 0, 1.0, 0.75, 1.0, CaptureModifiers::default());
+        assert!((index - 198.9).abs() < 0.001);
+        assert!((capture_probability(index) - 0.78).abs() < 0.001);
+        assert!(two_shake_capture(0.78, &mut Fixed(vec![65_535, 65_535])));
+        assert!(!two_shake_capture(0.78, &mut Fixed(vec![0, 0])));
     }
 
     #[test]
@@ -747,6 +1009,8 @@ mod tests {
             "Special",
             40,
             d.type_chart(),
+            BattleWeather::Clear,
+            0,
             &mut Fixed(vec![0, 0]),
         );
         assert!(critical);
@@ -758,6 +1022,8 @@ mod tests {
             "Special",
             40,
             d.type_chart(),
+            BattleWeather::Clear,
+            0,
             &mut Fixed(vec![1, 15]),
         );
         assert!(!critical);
@@ -770,6 +1036,8 @@ mod tests {
             "Special",
             40,
             d.type_chart(),
+            BattleWeather::Clear,
+            0,
             &mut Fixed(vec![1, 15]),
         );
         assert_eq!(multiplier, 0.0);
@@ -831,7 +1099,7 @@ mod tests {
                     move_slot: 0,
                 },
             ],
-            &mut Fixed(vec![1, 99, 1, 99]),
+            &mut Fixed(vec![0, 99, 0, 0]),
         );
         assert_eq!(events[1], Event::ActedFirst(1));
         assert_eq!(b.combatants[1].status, Some(MajorStatus::Paralysis));
@@ -893,8 +1161,19 @@ mod tests {
         b.combatants[1].hp = 1;
         b.combatants[1].status = Some(MajorStatus::Paralysis);
         assert!(
-            b.attempt_capture(&d, 1, "Gigaton", true, 0, 1, true, &mut Fixed(vec![0]))
-                .unwrap()
+            b.attempt_capture(
+                &d,
+                1,
+                "Gigaton",
+                true,
+                0,
+                1,
+                255,
+                true,
+                CaptureModifiers::default(),
+                &mut Fixed(vec![0, 0])
+            )
+            .unwrap()
         );
         assert!(b.combatants[1].caught);
     }
