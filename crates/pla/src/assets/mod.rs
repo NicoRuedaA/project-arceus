@@ -9,6 +9,7 @@ pub mod gltf_export;
 pub mod havok_tag;
 pub mod message;
 pub mod navmesh;
+pub mod player_model;
 pub mod pokemon_material;
 pub mod pokemon_model;
 pub mod sarc;
