@@ -15,6 +15,7 @@ pub mod battle_log;
 pub mod catch_rate;
 pub mod navigation;
 pub mod pokemon_anim;
+pub mod pause_menu;
 pub mod save_game;
 pub mod save_wire;
 pub mod ball_lifecycle;

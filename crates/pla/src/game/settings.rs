@@ -8,8 +8,10 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use bevy::prelude::Resource;
+
 /// Camera and control user settings.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Resource, Debug, Clone, PartialEq, Eq, Default)]
 pub struct UserSettings {
     /// Invert horizontal camera movement (yaw).
     pub invert_camera_x: bool,
@@ -68,6 +70,17 @@ impl UserSettings {
         let content = self.serialize();
         fs::write(&tmp, content.as_bytes())?;
         fs::rename(&tmp, &path)
+    }
+
+    /// Directory holding `settings.txt`: the same one as the saves
+    /// (`PLA_SAVE_DIR`, else `$XDG_DATA_HOME/pla-port`, else `~/.local/share/pla-port`).
+    pub fn default_dir() -> PathBuf {
+        super::save_game::default_save_dir()
+    }
+
+    /// Apply the axis inversions to a camera input delta `(yaw_input, pitch_input)`.
+    pub fn apply_invert(&self, yaw_input: f32, pitch_input: f32) -> (f32, f32) {
+        (yaw_input * self.yaw_sign(), pitch_input * self.pitch_sign())
     }
 
     /// Multiplier for horizontal mouse movement given the settings.
@@ -140,5 +153,17 @@ mod tests {
         let missing = PathBuf::from("/non/existent/path/for/pla/test");
         let s = UserSettings::load_from_dir(&missing);
         assert_eq!(s, UserSettings::default());
+    }
+
+    #[test]
+    fn test_apply_invert_axes_are_independent() {
+        let mut s = UserSettings::default();
+        assert_eq!(s.apply_invert(3.0, 2.0), (3.0, 2.0));
+        s.invert_camera_x = true;
+        assert_eq!(s.apply_invert(3.0, 2.0), (-3.0, 2.0));
+        s.invert_camera_y = true;
+        assert_eq!(s.apply_invert(3.0, 2.0), (-3.0, -2.0));
+        s.invert_camera_x = false;
+        assert_eq!(s.apply_invert(3.0, 2.0), (3.0, -2.0));
     }
 }

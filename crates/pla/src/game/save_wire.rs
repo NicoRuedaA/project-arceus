@@ -448,6 +448,10 @@ impl SaveToast {
     }
 }
 
+/// Set to `true` by another system (the pause menu) to save exactly like F5 does.
+#[derive(Resource, Debug, Default)]
+pub struct SaveRequested(pub bool);
+
 #[derive(Component)]
 struct ToastRoot;
 #[derive(Component)]
@@ -467,7 +471,8 @@ impl SaveWirePlugin {
                 startup_message: start.message,
             })
             .init_resource::<BattleTracker>()
-            .init_resource::<SaveToast>();
+            .init_resource::<SaveToast>()
+            .init_resource::<SaveRequested>();
         app.add_systems(Startup, (seed_defaults, spawn_toast))
             .add_systems(PostStartup, apply_loaded_yaw)
             .add_systems(PreUpdate, battle_wire)
@@ -511,6 +516,8 @@ fn spawn_toast(mut commands: Commands) {
                 ..default()
             },
             BackgroundColor(Color::srgba(0.05, 0.08, 0.12, 0.88)),
+            // Above the pause menu overlay so "Game saved." stays readable while paused.
+            GlobalZIndex(200),
             Visibility::Hidden,
         ))
         .with_children(|p| {
@@ -565,6 +572,7 @@ fn do_save(
 
 fn save_hotkey(
     keys: Res<ButtonInput<KeyCode>>,
+    mut requested: ResMut<SaveRequested>,
     mut game: ResMut<SaveGame>,
     progress: Res<PlayerProgress>,
     zone: Res<ActiveZoneInfo>,
@@ -572,7 +580,8 @@ fn save_hotkey(
     mut toast: ResMut<SaveToast>,
     session: Option<Res<ActiveBattleSession>>,
 ) {
-    if !keys.just_pressed(KeyCode::F5) {
+    let asked = std::mem::take(&mut requested.0);
+    if !keys.just_pressed(KeyCode::F5) && !asked {
         return;
     }
     if session.is_some() {
