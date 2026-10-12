@@ -64,6 +64,14 @@ CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target \
 CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target \
   systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
   cargo run -q --offline -p sheetty-cli -- check sheets
+
+CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target \
+  systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
+  cargo check --offline -p pla --all-targets
+
+CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target \
+  systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
+  cargo test --offline -p pla
 ```
 
 The indexer calls the copied standalone `gfdump` once per pack, scans one pack's decoded entries at a time, and removes its temporary decoded payload directory before continuing. It refuses packs larger than 512 MiB. Entry names are counted as distinct string references found only in structurally validated FlatBuffer-like entries; no hash-based pairing or model assembly was attempted.
@@ -76,3 +84,4 @@ The indexer calls the copied standalone `gfdump` once per pack, scans one pack's
 - `FlatBuffer-like` means the root offset and vtable/object bounds pass a conservative structural check; it is a classifier, not semantic format identification. Counts are unique referenced names per pack, not hash joins. `rare`/`shiny` detection is literal name matching only.
 - `XXXX` is a strong species-ID candidate for the 336 matching packs, not a universal mapping: 20 packs do not match an active personal row. `YY`/`ZZ` semantics, all filename hash mappings, and actual model/entry pairing remain unknown.
 - A first ad-hoc aggregation attempt read typed sheet column names without stripping the type suffix and failed with `KeyError`; the aggregation was corrected and rerun. The final typed-sheet check passed with zero errors and warnings.
+- `cargo check --offline -p pla --all-targets` and `cargo test --offline -p pla` both passed. They emitted one unrelated unused-import warning (`fs`) from `crates/pla/examples/pokemon_pack_indexer.rs:12`; no Rust source in `pla` was changed for Task A.
