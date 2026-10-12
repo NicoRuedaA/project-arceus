@@ -200,6 +200,23 @@ mod tests {
     }
 
     #[test]
+    fn hashes_field_model_pack_paths() {
+        for (ext, hash) in [
+            ("trmdl", 0x6f08b10f0aaa275e_u64),
+            ("trmbf", 0x6f0fb70f0ab0503e),
+            ("trmsh", 0x6f49b70f0ae1c885),
+            ("trmtr", 0x6f3ebb0f0ad7c7cc),
+        ] {
+            let path = format!("bin/field/model/pack/ground_area00_fallentree01.{ext}");
+            assert_eq!(fnv1a64(path.as_bytes()), hash);
+        }
+        assert_eq!(
+            fnv1a64(b"bin/field/terrain/ha_area00/terrain/area00_0_0_detailmap_0.trtbf"),
+            0x270bd2d43e572d60
+        );
+    }
+
+    #[test]
     fn observed_seed_matches_verified_pikachu_romfs_paths() {
         assert_eq!(
             fnv1a64(b"bin/pokemon/pm0025/pm0025_00_00/mdl/pm0025_00_00.trmdl"),

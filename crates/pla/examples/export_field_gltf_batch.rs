@@ -4,7 +4,6 @@
 
 use pla::assets::bntx::Bntx;
 use pla::assets::gfpak::GfPak;
-use pla::assets::gfpak_paths::GfPakHashIndex;
 use pla::assets::gltf_export::{primitive_from_tr, skeleton_from_tr, GltfExport, GltfMaterial};
 use pla::assets::tr::{TrMbf, TrMtr, TrSkl};
 use std::collections::HashSet;
@@ -17,7 +16,6 @@ struct PackContext<'a> {
     prefix: &'a str,
     bytes: &'a [u8],
     gfpak: &'a GfPak,
-    index: &'a GfPakHashIndex,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -76,25 +74,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
         };
-        let index = match GfPakHashIndex::from_bytes(&bytes, gfpak.entry_count as usize) {
-            Ok(idx) => idx,
-            Err(e) => {
-                eprintln!("  Failed to build hash index {}: {}", pack_name, e);
-                continue;
-            }
-        };
-
         let prefix = "bin/field/model/pack/";
         let ctx = PackContext {
             pack_name,
             prefix,
             bytes: &bytes,
             gfpak: &gfpak,
-            index: &index,
         };
 
         // Discover models in pack
-        let models = discover_models(&bytes, prefix, &index);
+        let models = discover_models(&bytes, prefix, &gfpak);
         println!("  Found {} .trmdl candidates", models.len());
 
         for model in models {
@@ -158,23 +147,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
         };
-        let index = match GfPakHashIndex::from_bytes(&bytes, gfpak.entry_count as usize) {
-            Ok(idx) => idx,
-            Err(e) => {
-                eprintln!("  Failed to build hash index {}: {}", pack_name, e);
-                continue;
-            }
-        };
-
         let ctx = PackContext {
             pack_name,
             prefix: &prefix,
             bytes: &bytes,
             gfpak: &gfpak,
-            index: &index,
         };
 
-        let all_models = discover_models(&bytes, &prefix, &index);
+        let all_models = discover_models(&bytes, &prefix, &gfpak);
         let plant_models: Vec<String> = all_models
             .into_iter()
             .filter(|m| m.starts_with("plants_"))
@@ -219,7 +199,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn discover_models(bytes: &[u8], prefix: &str, index: &GfPakHashIndex) -> Vec<String> {
+fn discover_models(bytes: &[u8], prefix: &str, gfpak: &GfPak) -> Vec<String> {
     let mut names = HashSet::new();
     let mut pos = 0;
     while pos + 6 <= bytes.len() {
@@ -249,7 +229,7 @@ fn discover_models(bytes: &[u8], prefix: &str, index: &GfPakHashIndex) -> Vec<St
     let mut found_models = Vec::new();
     for name in names {
         let mdl_path = format!("{}{}.trmdl", prefix, name);
-        if index.find_path(&mdl_path).is_some() {
+        if matches!(gfpak.entry_index_by_path(&mdl_path), Ok(Some(_))) {
             found_models.push(name);
         }
     }
@@ -267,13 +247,9 @@ fn export_model(
     let trmtr_path = format!("{}{}.trmtr", ctx.prefix, model_name);
     let trskl_path = format!("{}{}.trskl", ctx.prefix, model_name);
 
-    let trmsh_idx = ctx
-        .index
-        .find_path(&trmsh_path)
+    let trmsh_idx = find_entry(ctx.gfpak, &trmsh_path)
         .ok_or_else(|| format!("missing {}", trmsh_path))?;
-    let trmbf_idx = ctx
-        .index
-        .find_path(&trmbf_path)
+    let trmbf_idx = find_entry(ctx.gfpak, &trmbf_path)
         .ok_or_else(|| format!("missing {}", trmbf_path))?;
 
     let trmsh_bytes = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[trmsh_idx])?;
@@ -282,7 +258,7 @@ fn export_model(
     let mut export = GltfExport::default();
 
     // Skeleton if present
-    let skeleton = if let Some(trskl_idx) = ctx.index.find_path(&trskl_path) {
+    let skeleton = if let Some(trskl_idx) = find_entry(ctx.gfpak, &trskl_path) {
         if let Ok(skl_bytes) = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[trskl_idx]) {
             if let Ok(skl) = TrSkl::parse(&skl_bytes) {
                 if let Ok(binds) = TrSkl::read_bind_records(&skl_bytes) {
@@ -311,13 +287,13 @@ fn export_model(
 
     // Material & Textures
     let mut material_index = None;
-    if let Some(trmtr_idx) = ctx.index.find_path(&trmtr_path) {
+    if let Some(trmtr_idx) = find_entry(ctx.gfpak, &trmtr_path) {
         if let Ok(mtr_bytes) = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[trmtr_idx]) {
             if let Ok(material) = TrMtr::parse(&mtr_bytes) {
                 let mut base_color_uri = None;
                 if let Some(tex_name) = material.base_color() {
                     let tex_path = format!("{}{}", ctx.prefix, tex_name);
-                    if let Some(tex_idx) = ctx.index.find_path(&tex_path) {
+                    if let Some(tex_idx) = find_entry(ctx.gfpak, &tex_path) {
                         if let Ok(bntx_bytes) =
                             ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[tex_idx])
                         {
@@ -359,4 +335,8 @@ fn export_model(
     export.write(&out_gltf)?;
 
     Ok(out_gltf)
+}
+
+fn find_entry(gfpak: &GfPak, path: &str) -> Option<usize> {
+    gfpak.entry_index_by_path(path).ok().flatten()
 }
