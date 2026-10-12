@@ -1,0 +1,837 @@
+//! Volatile battle conditions and turn-state rules: confusion, sleep duration, partial
+//! trapping, two-turn (charge) moves, recharge turns, Protect-style moves, speed stages.
+//!
+//! Everything is additive and opt-in through [`StatusRules`]; the default value changes
+//! nothing, so existing demos and tests behave exactly as before. Results are reported in a
+//! separate [`StatusEvent`] list (`Battle::take_status_events`) because the stable `Event`
+//! and `EffectEvent` enums are matched exhaustively by other code.
+//!
+//! Confidence tags (VERIFIED/LIKELY come from `work/scratch-battle/battle_formulas.md` or the
+//! decoded `data/pml_move_effects.tsv` columns; ASSUMED = franchise convention that no
+//! recovered data contradicts, to be replaced when the game's own value is found):
+//!
+//! * Which moves do what (data columns): confusion = `ailment_id` 8 (LIKELY), trapping =
+//!   `ailment_id` 10 (LIKELY), charge/recharge/protectable flags (LIKELY), Protect-style =
+//!   `meta_category` 13 + `target_raw` 7 + `priority` +4 (priority VERIFIED, rest LIKELY) with
+//!   `effect_id` in {111, 355, 361, 383, 441} (protect/detect/max-guard, king's-shield,
+//!   spiky-shield, baneful-bunker, obstruct); endure (116), magic-coat (183) and snatch (195)
+//!   share the +4 priority but are not blocking moves and are excluded.
+//! * Confusion: 2..=5 counter, so 1..=4 confused actions; 33 % self-hit; 40-power typeless
+//!   physical hit on own Atk/Def, no crit/STAB/type, 85-100 % roll (all ASSUMED).
+//! * Sleep: 1..=3 skipped actions then wakes and acts (ASSUMED). In PLA the notes only say
+//!   that drowsy fails 33 % (`nemuke_WazaFailPer`); the duration model replaces the engine's
+//!   old 50 % coin flip when enabled.
+//! * Paralysis action failure 33 % (`mahi_WazaFailPer`, LIKELY, notes section 6); poison 1/6,
+//!   burn 1/12, frostbite 1/12 of max HP per round (`*_SlipDamageDenom`, LIKELY, section 7).
+//!   Both are used when `notes_rates` is on; off keeps the old franchise-style 25 % / 1/8.
+//! * Trapping: 4..=5 rounds, 1/8 max HP per round, no switching while the trapper stays active
+//!   and alive (ASSUMED).
+//! * Charge: turn 1 only charges (PP is spent, no accuracy roll), turn 2 attacks with the
+//!   stored move (ASSUMED). The table has no semi-invulnerable flag, so Fly/Dig/Dive/Bounce
+//!   can be hit on the charge turn (UNKNOWN in the game).
+//! * Recharge: after a recharge-flag move connects, the user's next action is skipped (ASSUMED).
+//! * Protect: blocks protectable moves aimed at the protector for the round; success
+//!   chance 1/3^n after n consecutive successes, failure resets the chain (ASSUMED).
+//! * Speed stages: 3 states, x1.5 up / x0.66 down (LIKELY, config coefficients; the notes do
+//!   not show where the game applies them to turn order).
+
+use super::effects::{MoveEffects, STAGE_DOWN_Q12, STAGE_UP_Q12};
+use super::{Battle, BattleRng, Event, MajorStatus};
+use crate::battle::{integer_base_damage, BaseDamageInput};
+
+/// Opt-in switches. `Default` (everything off) leaves the engine unchanged.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct StatusRules {
+    /// Confusion, trapping, charge turns, recharge turns, Protect-style moves.
+    pub volatile_statuses: bool,
+    /// Sleep lasts 1..=3 skipped actions instead of a 50 % coin flip.
+    pub sleep_duration: bool,
+    /// Use the notes' paralysis failure rate (33 %) and slip denominators (6/12/12).
+    pub notes_rates: bool,
+    /// Speed stages (x1.5 / x0.66) modify turn order.
+    pub speed_stages: bool,
+    /// Atk/SpA and Def/SpD stages (x1.5 / x0.66) modify damage.
+    pub stage_multipliers: bool,
+}
+
+impl StatusRules {
+    /// Everything on: the engine's closest approximation of the game's rules.
+    pub fn game_rules() -> Self {
+        Self {
+            volatile_statuses: true,
+            sleep_duration: true,
+            notes_rates: true,
+            speed_stages: true,
+            stage_multipliers: true,
+        }
+    }
+}
+
+/// New events, kept apart from `Event`/`EffectEvent` (exhaustive matches elsewhere).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatusEvent {
+    Confused { target: usize },
+    SnappedOutOfConfusion { target: usize },
+    HurtByConfusion { actor: usize, damage: u32 },
+    WokeUp { target: usize },
+    Trapped { target: usize, by: usize },
+    HurtByTrap { target: usize, damage: u32 },
+    TrapEnded { target: usize },
+    CantSwitch { side: usize, combatant: usize },
+    Charging { actor: usize, move_name: String },
+    MustRecharge { actor: usize },
+    Recharging { actor: usize },
+    ProtectUp { actor: usize },
+    ProtectFailed { actor: usize },
+    ProtectedFrom { target: usize, attacker: usize, move_name: String },
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Trap {
+    by: usize,
+    turns: u8,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(super) struct Volatile {
+    confusion: u8,
+    sleep: Option<u8>,
+    trap: Option<Trap>,
+    charging: Option<usize>,
+    recharge: bool,
+    protecting: bool,
+    protect_used_now: bool,
+    protect_chain: u8,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(super) struct StatusState {
+    rules: StatusRules,
+    vol: Vec<Volatile>,
+    events: Vec<StatusEvent>,
+}
+
+pub(super) enum PreAction {
+    Skip,
+    /// Proceed; `Some(slot)` = release a stored charge using that move slot.
+    Act(Option<usize>),
+}
+
+const PROTECT_EFFECT_IDS: [u16; 5] = [111, 355, 361, 383, 441];
+pub const CONFUSION_SELF_HIT_PERCENT: u32 = 33;
+pub const CONFUSION_SELF_HIT_POWER: u64 = 40;
+pub const PARALYSIS_FAIL_PERCENT: u32 = 33;
+
+/// Does this move's data row describe a Protect-style blocking move?
+pub fn is_protect_move(fx: &MoveEffects) -> bool {
+    fx.priority == 4
+        && fx.meta_category == 13
+        && fx.target_raw == 7
+        && PROTECT_EFFECT_IDS.contains(&fx.effect_id)
+}
+
+impl Battle {
+    pub fn set_status_rules(&mut self, rules: StatusRules) {
+        self.status.rules = rules;
+        if rules.stage_multipliers {
+            self.stage_multipliers = true;
+        }
+    }
+
+    pub fn status_rules(&self) -> StatusRules {
+        self.status.rules
+    }
+
+    pub fn take_status_events(&mut self) -> Vec<StatusEvent> {
+        std::mem::take(&mut self.status.events)
+    }
+
+    fn vol(&mut self, i: usize) -> &mut Volatile {
+        if self.status.vol.len() <= i {
+            self.status.vol.resize(i + 1, Volatile::default());
+        }
+        &mut self.status.vol[i]
+    }
+
+    fn vol_ref(&self, i: usize) -> Option<&Volatile> {
+        self.status.vol.get(i)
+    }
+
+    pub fn is_confused(&self, i: usize) -> bool {
+        self.vol_ref(i).is_some_and(|v| v.confusion > 0)
+    }
+
+    pub fn is_charging(&self, i: usize) -> bool {
+        self.vol_ref(i).is_some_and(|v| v.charging.is_some())
+    }
+
+    pub fn must_recharge(&self, i: usize) -> bool {
+        self.vol_ref(i).is_some_and(|v| v.recharge)
+    }
+
+    /// Trapped = a living, still-active trapper holds the combatant.
+    pub fn is_trapped(&self, i: usize) -> bool {
+        let Some(trap) = self.vol_ref(i).and_then(|v| v.trap) else {
+            return false;
+        };
+        self.combatants[trap.by].is_alive() && self.active.contains(&trap.by)
+    }
+
+    pub(super) fn residual_divisor(&self, status: MajorStatus) -> u32 {
+        if !self.status.rules.notes_rates {
+            return 8;
+        }
+        match status {
+            MajorStatus::Poison => 6,
+            _ => 12,
+        }
+    }
+
+    /// Speed factor from the 3-state speed stage (Q12), 4096 when disabled.
+    pub(super) fn speed_stage_q12(&self, actor: usize) -> u32 {
+        if !self.status.rules.speed_stages {
+            return 4096;
+        }
+        match self.stages(actor).speed {
+            1 => STAGE_UP_Q12,
+            -1 => STAGE_DOWN_Q12,
+            _ => 4096,
+        }
+    }
+
+    /// Switch gate; returns false (and logs) when a trap forbids leaving.
+    pub(super) fn switch_allowed(&mut self, side: usize, current: usize) -> bool {
+        if self.status.rules.volatile_statuses && self.is_trapped(current) {
+            self.status.events.push(StatusEvent::CantSwitch {
+                side,
+                combatant: current,
+            });
+            return false;
+        }
+        true
+    }
+
+    /// Leaving the field drops volatile conditions and any trap involving the combatant.
+    pub(super) fn clear_volatile_on_leave(&mut self, i: usize) {
+        if self.status.vol.is_empty() {
+            return;
+        }
+        *self.vol(i) = Volatile::default();
+        for v in &mut self.status.vol {
+            if v.trap.is_some_and(|t| t.by == i) {
+                v.trap = None;
+            }
+        }
+    }
+
+    /// Checks that happen when a combatant is about to act (before PP is spent).
+    pub(super) fn status_pre_action(
+        &mut self,
+        actor: usize,
+        rng: &mut impl BattleRng,
+        events: &mut Vec<Event>,
+    ) -> PreAction {
+        let rules = self.status.rules;
+        if rules.volatile_statuses && self.vol(actor).recharge {
+            self.vol(actor).recharge = false;
+            self.status.events.push(StatusEvent::Recharging { actor });
+            return PreAction::Skip;
+        }
+        let status = self.combatants[actor].status;
+        if rules.sleep_duration && status == Some(MajorStatus::Drowsy) {
+            let left = match self.vol(actor).sleep {
+                Some(n) => n,
+                None => 1 + rng.below(3) as u8,
+            };
+            if left > 0 {
+                self.vol(actor).sleep = Some(left - 1);
+                events.push(Event::UnableToAct {
+                    actor,
+                    status: MajorStatus::Drowsy,
+                });
+                return PreAction::Skip;
+            }
+            self.vol(actor).sleep = None;
+            self.combatants[actor].status = None;
+            self.status
+                .events
+                .push(StatusEvent::WokeUp { target: actor });
+        } else if status != Some(MajorStatus::Drowsy) && !self.status.vol.is_empty() {
+            self.vol(actor).sleep = None;
+        }
+        if rules.notes_rates
+            && self.combatants[actor].status == Some(MajorStatus::Paralysis)
+            && rng.below(100) < PARALYSIS_FAIL_PERCENT
+        {
+            events.push(Event::UnableToAct {
+                actor,
+                status: MajorStatus::Paralysis,
+            });
+            return PreAction::Skip;
+        }
+        if rules.volatile_statuses && self.vol(actor).confusion > 0 {
+            self.vol(actor).confusion -= 1;
+            if self.vol(actor).confusion == 0 {
+                self.status
+                    .events
+                    .push(StatusEvent::SnappedOutOfConfusion { target: actor });
+            } else if rng.below(100) < CONFUSION_SELF_HIT_PERCENT {
+                let damage = self.confusion_damage(actor, rng);
+                let c = &mut self.combatants[actor];
+                let dealt = damage.min(c.hp);
+                c.hp -= dealt;
+                self.status
+                    .events
+                    .push(StatusEvent::HurtByConfusion { actor, damage: dealt });
+                if self.combatants[actor].hp == 0 {
+                    events.push(Event::KnockedOut(actor));
+                    self.advance_active_for(actor);
+                }
+                return PreAction::Skip;
+            }
+        }
+        if rules.volatile_statuses {
+            if let Some(slot) = self.vol(actor).charging.take() {
+                return PreAction::Act(Some(slot));
+            }
+        }
+        PreAction::Act(None)
+    }
+
+    /// Typeless 40-power physical hit on the user's own Atk/Def (ASSUMED franchise rule).
+    fn confusion_damage(&self, actor: usize, rng: &mut impl BattleRng) -> u32 {
+        let c = &self.combatants[actor];
+        let (mut atk, mut def) = (
+            u64::from(c.attack) * u64::from(c.attack_modifier_q12) / 4096,
+            u64::from(c.defense) * u64::from(c.defense_modifier_q12) / 4096,
+        );
+        if self.status.rules.stage_multipliers {
+            let (a, d) = self.stage_modifiers(actor, actor);
+            atk = atk * u64::from(a) / 4096;
+            def = def * u64::from(d) / 4096;
+        }
+        let base = integer_base_damage(BaseDamageInput {
+            power: CONFUSION_SELF_HIT_POWER,
+            level: u64::from(c.level),
+            attack: atk.max(1),
+            defense: def.max(1),
+        })
+        .unwrap_or(1) as u32;
+        (base * (85 + rng.below(16)) / 100).max(1)
+    }
+
+    /// Charge / Protect handling once the move is chosen. Returns true when the action ends here.
+    pub(super) fn status_pre_move(
+        &mut self,
+        actor: usize,
+        target: usize,
+        slot: usize,
+        move_name: &str,
+        releasing: bool,
+        rng: &mut impl BattleRng,
+    ) -> bool {
+        if !self.status.rules.volatile_statuses {
+            return false;
+        }
+        let Some(fx) = self.effects.as_ref().and_then(|t| t.get(move_name)).cloned() else {
+            return false;
+        };
+        if self.effects_flag(move_name, Flag::Charge) && !releasing {
+            self.vol(actor).charging = Some(slot);
+            self.status.events.push(StatusEvent::Charging {
+                actor,
+                move_name: move_name.to_owned(),
+            });
+            return true;
+        }
+        if is_protect_move(&fx) {
+            let chain = self.vol(actor).protect_chain.min(6);
+            let ok = chain == 0 || rng.below(3u32.pow(u32::from(chain))) == 0;
+            if ok {
+                let v = self.vol(actor);
+                v.protecting = true;
+                v.protect_used_now = true;
+                v.protect_chain = chain + 1;
+                self.status.events.push(StatusEvent::ProtectUp { actor });
+            } else {
+                self.vol(actor).protect_chain = 0;
+                self.status.events.push(StatusEvent::ProtectFailed { actor });
+            }
+            return true;
+        }
+        let aimed_at_target = !matches!(fx.target_raw, 7 | 10 | 12 | 13);
+        if aimed_at_target
+            && self.effects_flag(move_name, Flag::Protectable)
+            && self.vol_ref(target).is_some_and(|v| v.protecting)
+        {
+            self.status.events.push(StatusEvent::ProtectedFrom {
+                target,
+                attacker: actor,
+                move_name: move_name.to_owned(),
+            });
+            return true;
+        }
+        false
+    }
+
+    fn effects_flag(&self, move_name: &str, flag: Flag) -> bool {
+        self.effects
+            .as_ref()
+            .and_then(|t| t.get(move_name))
+            .is_some_and(|f| match flag {
+                Flag::Charge => f.charge,
+                Flag::Recharge => f.recharge,
+                Flag::Protectable => f.protectable,
+            })
+    }
+
+    /// After a damaging move connected: recharge-flag moves cost the user's next action.
+    pub(super) fn status_post_hit(&mut self, actor: usize, move_name: &str) {
+        if self.status.rules.volatile_statuses && self.effects_flag(move_name, Flag::Recharge) {
+            self.vol(actor).recharge = true;
+            self.status.events.push(StatusEvent::MustRecharge { actor });
+        }
+    }
+
+    /// Confusion (ailment 8) and trapping (ailment 10) from a move that connected.
+    pub(super) fn status_post_effects(
+        &mut self,
+        actor: usize,
+        target: usize,
+        fx: &MoveEffects,
+        damaging: bool,
+        rng: &mut impl BattleRng,
+    ) {
+        if !self.status.rules.volatile_statuses
+            || !matches!(fx.ailment_id, 8 | 10)
+            || !self.combatants[target].is_alive()
+        {
+            return;
+        }
+        let chance = if fx.ailment_chance == 0 && !damaging {
+            100
+        } else {
+            u32::from(fx.ailment_chance)
+        };
+        if chance == 0 || (chance < 100 && rng.below(100) >= chance) {
+            return;
+        }
+        if fx.ailment_id == 8 {
+            if self.vol(target).confusion == 0 {
+                self.vol(target).confusion = 2 + rng.below(4) as u8;
+                self.status
+                    .events
+                    .push(StatusEvent::Confused { target });
+            }
+        } else if !self.is_trapped(target) {
+            self.vol(target).trap = Some(Trap {
+                by: actor,
+                turns: 4 + rng.below(2) as u8,
+            });
+            self.status
+                .events
+                .push(StatusEvent::Trapped { target, by: actor });
+        }
+    }
+
+    /// End-of-round: trap damage, Protect bookkeeping, cleanup of fainted combatants.
+    pub(super) fn status_end_of_turn(&mut self, events: &mut Vec<Event>) {
+        if !self.status.rules.volatile_statuses {
+            return;
+        }
+        let mut knocked_out = Vec::new();
+        for i in 0..self.combatants.len() {
+            if !self.combatants[i].is_alive() {
+                if i < self.status.vol.len() {
+                    self.clear_volatile_on_leave(i);
+                }
+                continue;
+            }
+            let Some(trap) = self.vol_ref(i).and_then(|v| v.trap) else {
+                continue;
+            };
+            if !self.is_trapped(i) {
+                self.vol(i).trap = None;
+                self.status.events.push(StatusEvent::TrapEnded { target: i });
+                continue;
+            }
+            let damage = (self.combatants[i].max_hp / 8).max(1).min(self.combatants[i].hp);
+            self.combatants[i].hp -= damage;
+            self.status
+                .events
+                .push(StatusEvent::HurtByTrap { target: i, damage });
+            if self.combatants[i].hp == 0 {
+                events.push(Event::KnockedOut(i));
+                knocked_out.push(i);
+            }
+            let left = trap.turns.saturating_sub(1);
+            if left == 0 {
+                self.vol(i).trap = None;
+                self.status.events.push(StatusEvent::TrapEnded { target: i });
+            } else if let Some(t) = &mut self.vol(i).trap {
+                t.turns = left;
+            }
+        }
+        for v in &mut self.status.vol {
+            if !v.protect_used_now {
+                v.protect_chain = 0;
+            }
+            v.protect_used_now = false;
+            v.protecting = false;
+        }
+        for k in knocked_out {
+            self.advance_active_for(k);
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Flag {
+    Charge,
+    Recharge,
+    Protectable,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::battle::BattleData;
+    use crate::battle_engine::effects::MoveEffectsTable;
+    use crate::battle_engine::{Action, Combatant};
+    use std::path::PathBuf;
+
+    /// Returns the queued values, then `rest` forever.
+    struct Seq(Vec<u32>, u32);
+    impl BattleRng for Seq {
+        fn next_u32(&mut self) -> u32 {
+            if self.0.is_empty() {
+                self.1
+            } else {
+                self.0.remove(0)
+            }
+        }
+    }
+
+    fn root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+    }
+
+    fn duel(a: &[&str], b: &[&str], rules: StatusRules) -> Battle {
+        let d = BattleData::load(root()).unwrap();
+        let mon = |species: &str, moves: &[&str]| {
+            let sp = d.species_row(species).unwrap().unwrap();
+            let mv = moves.iter().map(|n| d.move_row(n).unwrap().unwrap()).collect();
+            Combatant::from_base(sp, 30, mv)
+        };
+        let mut battle = Battle::new(
+            vec![mon("bidoof", a), mon("pikachu", b)],
+            vec![vec![0], vec![1]],
+            d.type_chart().clone(),
+        )
+        .unwrap();
+        battle.set_move_effects(MoveEffectsTable::load(root()).unwrap());
+        battle.set_status_rules(rules);
+        battle
+    }
+
+    fn vol_rules() -> StatusRules {
+        StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        }
+    }
+
+    fn act(actor: usize) -> Action {
+        Action { actor, move_slot: 0 }
+    }
+
+    fn pass(b: &mut Battle, a0: bool, a1: bool, rng: &mut impl BattleRng) -> Vec<Event> {
+        let mut acts = vec![];
+        if a0 {
+            acts.push(act(0));
+        }
+        if a1 {
+            acts.push(act(1));
+        }
+        b.play_turn(&acts, rng)
+    }
+
+    #[test]
+    fn data_columns_identify_protect_moves() {
+        let t = MoveEffectsTable::load(root()).unwrap();
+        for n in ["protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker", "obstruct", "max-guard"] {
+            assert!(is_protect_move(t.get(n).unwrap()), "{n}");
+        }
+        for n in ["endure", "magic-coat", "snatch", "tackle", "counter"] {
+            assert!(!is_protect_move(t.get(n).unwrap()), "{n}");
+        }
+    }
+
+    #[test]
+    fn default_rules_change_nothing() {
+        let mut b = duel(&["confuse-ray"], &["tackle"], StatusRules::default());
+        let mut rng = Seq(vec![], 0);
+        pass(&mut b, true, false, &mut rng);
+        assert!(!b.is_confused(1));
+        assert!(b.take_status_events().is_empty());
+    }
+
+    #[test]
+    fn confusion_is_applied_lasts_and_self_hits() {
+        let mut b = duel(&["confuse-ray"], &["tackle"], vol_rules());
+        // accuracy roll 0 hits; status move chance 0 = always; duration 2 + 3 = 5.
+        let mut rng = Seq(vec![0, 3], 50);
+        pass(&mut b, true, false, &mut rng);
+        assert!(b.is_confused(1));
+        assert!(b.take_status_events().contains(&StatusEvent::Confused { target: 1 }));
+        // Victim acts: counter 5 -> 4, roll 10 < 33 -> hits itself and loses the action.
+        let hp = b.combatants[1].hp;
+        let mut rng = Seq(vec![10, 0], 50);
+        pass(&mut b, false, true, &mut rng);
+        let ev = b.take_status_events();
+        assert!(ev.iter().any(|e| matches!(e, StatusEvent::HurtByConfusion { actor: 1, damage } if *damage > 0)));
+        assert!(b.combatants[1].hp < hp);
+        assert_eq!(b.combatants[0].hp, b.combatants[0].max_hp, "no damage to the foe");
+        // Roll 90 >= 33: acts normally (tackle lands on bidoof).
+        let mut rng = Seq(vec![90, 0], 50);
+        pass(&mut b, false, true, &mut rng);
+        assert!(b.combatants[0].hp < b.combatants[0].max_hp);
+        // Two more attempts bring the counter 3 -> 2 -> 1, then 1 -> 0 snaps out.
+        let mut rng = Seq(vec![], 99);
+        for _ in 0..3 {
+            pass(&mut b, false, true, &mut rng);
+        }
+        assert!(!b.is_confused(1));
+        assert!(b.take_status_events().contains(&StatusEvent::SnappedOutOfConfusion { target: 1 }));
+    }
+
+    #[test]
+    fn confusion_damage_formula_is_typeless_forty_power() {
+        let b = duel(&["tackle"], &["tackle"], vol_rules());
+        let c = &b.combatants[1];
+        let base = integer_base_damage(BaseDamageInput {
+            power: 40,
+            level: u64::from(c.level),
+            attack: u64::from(c.attack),
+            defense: u64::from(c.defense),
+        })
+        .unwrap() as u32;
+        let mut rng = Seq(vec![15], 0); // roll 100 %
+        assert_eq!(b.confusion_damage(1, &mut rng), base);
+        let mut rng = Seq(vec![0], 0); // roll 85 %
+        assert_eq!(b.confusion_damage(1, &mut rng), (base * 85 / 100).max(1));
+    }
+
+    #[test]
+    fn sleep_lasts_a_rolled_number_of_actions_then_wakes() {
+        let rules = StatusRules {
+            sleep_duration: true,
+            ..StatusRules::default()
+        };
+        let mut b = duel(&["tackle"], &["tackle"], rules);
+        b.combatants[1].status = Some(MajorStatus::Drowsy);
+        // rng 1 -> sleeps 1 + 1 = 2 actions.
+        let mut rng = Seq(vec![1], 0);
+        let mut unable = 0;
+        for _ in 0..4 {
+            let ev = pass(&mut b, false, true, &mut rng);
+            if ev.iter().any(|e| matches!(e, Event::UnableToAct { actor: 1, .. })) {
+                unable += 1;
+            }
+        }
+        assert_eq!(unable, 2);
+        assert_eq!(b.combatants[1].status, None);
+        assert!(b.take_status_events().contains(&StatusEvent::WokeUp { target: 1 }));
+    }
+
+    #[test]
+    fn trapping_blocks_switch_hurts_each_round_and_expires() {
+        let d = BattleData::load(root()).unwrap();
+        let mon = |s: &str, m: &[&str]| {
+            let sp = d.species_row(s).unwrap().unwrap();
+            let mv = m.iter().map(|n| d.move_row(n).unwrap().unwrap()).collect();
+            Combatant::from_base(sp, 30, mv)
+        };
+        let mut b = Battle::new(
+            vec![mon("bidoof", &["bind"]), mon("pikachu", &["tackle"]), mon("bidoof", &["tackle"])],
+            vec![vec![0], vec![1, 2]],
+            d.type_chart().clone(),
+        )
+        .unwrap();
+        b.set_move_effects(MoveEffectsTable::load(root()).unwrap());
+        b.set_status_rules(vol_rules());
+        for c in &mut b.combatants {
+            c.max_hp = 400;
+            c.hp = 400;
+        }
+        // accuracy roll 0, chance 100 %, duration 4 + 0.
+        let mut rng = Seq(vec![0, 0, 0], 0);
+        b.play_turn(&[act(0)], &mut rng);
+        assert!(b.is_trapped(1));
+        let hp_after_hit = b.combatants[1].hp;
+        assert!(b.switch(1, 2).is_err(), "cannot leave while trapped");
+        assert!(b.take_status_events().iter().any(|e| matches!(e, StatusEvent::CantSwitch { .. })));
+        // Residual damage is 1/8 of 400 = 50 per round; bind itself also damages on its own turn.
+        let mut rng = Seq(vec![], 99); // bidoof's later binds miss, only trap damage happens
+        let mut total = 0;
+        let mut rounds = 0;
+        while b.is_trapped(1) && rounds < 10 {
+            let before = b.combatants[1].hp;
+            b.play_turn(&[], &mut rng);
+            total += before - b.combatants[1].hp;
+            rounds += 1;
+        }
+        assert!(hp_after_hit > 0);
+        assert_eq!(rounds, 3, "4 rounds of trap in total, one already spent at the first end of turn");
+        assert_eq!(total, 3 * 50);
+        assert!(b.switch(1, 2).is_ok());
+    }
+
+    #[test]
+    fn trap_ends_when_trapper_leaves() {
+        let mut b = duel(&["bind"], &["tackle"], vol_rules());
+        let mut rng = Seq(vec![0, 0, 1], 0);
+        b.play_turn(&[act(0)], &mut rng);
+        assert!(b.is_trapped(1));
+        b.clear_volatile_on_leave(0);
+        assert!(!b.is_trapped(1));
+    }
+
+    #[test]
+    fn charge_move_spends_turn_one_and_attacks_on_turn_two() {
+        // solar-beam: flag_charge; bidoof is the attacker.
+        let mut b = duel(&["solar-beam"], &["growl"], vol_rules());
+        let pp0 = b.combatants[0].moves[0].pp;
+        let mut rng = Seq(vec![], 0);
+        let ev = b.play_turn(&[act(0)], &mut rng);
+        assert!(b.is_charging(0));
+        assert_eq!(b.combatants[1].hp, b.combatants[1].max_hp, "no damage on the charge turn");
+        assert!(!ev.iter().any(|e| matches!(e, Event::UsedMove { .. })));
+        assert!(b.take_status_events().iter().any(|e| matches!(e, StatusEvent::Charging { actor: 0, .. })));
+        assert_eq!(b.combatants[0].moves[0].pp, pp0 - 1);
+        // Turn two: even if the player picked another slot/none, the stored move fires.
+        let ev = b.play_turn(&[act(0)], &mut rng);
+        assert!(!b.is_charging(0));
+        assert!(ev.iter().any(|e| matches!(e, Event::UsedMove { actor: 0, damage, .. } if *damage > 0)));
+        assert_eq!(b.combatants[0].moves[0].pp, pp0 - 1, "PP is spent once for the two turns");
+    }
+
+    #[test]
+    fn recharge_move_skips_the_next_action() {
+        let mut b = duel(&["hyper-beam"], &["tackle"], vol_rules());
+        b.combatants[1].max_hp = 5000;
+        b.combatants[1].hp = 5000;
+        let mut rng = Seq(vec![], 0);
+        let ev = b.play_turn(&[act(0)], &mut rng);
+        assert!(ev.iter().any(|e| matches!(e, Event::UsedMove { actor: 0, .. })));
+        assert!(b.must_recharge(0));
+        let hp = b.combatants[1].hp;
+        b.play_turn(&[act(0)], &mut rng);
+        assert_eq!(b.combatants[1].hp, hp, "recharge turn deals nothing");
+        assert!(!b.must_recharge(0));
+        assert!(b.take_status_events().contains(&StatusEvent::Recharging { actor: 0 }));
+        b.play_turn(&[act(0)], &mut rng);
+        assert!(b.combatants[1].hp < hp, "attacks again afterwards");
+    }
+
+    #[test]
+    fn protect_blocks_protectable_moves_and_chain_halves_odds() {
+        // Pikachu protects (priority +4 acts first); bidoof tackles.
+        let mut b = duel(&["tackle"], &["protect"], vol_rules());
+        let mut rng = Seq(vec![], 0);
+        let ev = b.play_turn(&[act(0), act(1)], &mut rng);
+        assert_eq!(b.combatants[1].hp, b.combatants[1].max_hp);
+        assert!(!ev.iter().any(|e| matches!(e, Event::UsedMove { actor: 0, .. })));
+        let se = b.take_status_events();
+        assert!(se.contains(&StatusEvent::ProtectUp { actor: 1 }));
+        assert!(se.iter().any(|e| matches!(e, StatusEvent::ProtectedFrom { target: 1, attacker: 0, .. })));
+        // Second consecutive use needs a 1-in-3 roll: roll 1 fails and resets the chain.
+        let mut rng = Seq(vec![1], 0);
+        b.play_turn(&[act(0), act(1)], &mut rng);
+        let se = b.take_status_events();
+        assert!(se.contains(&StatusEvent::ProtectFailed { actor: 1 }));
+        assert!(b.combatants[1].hp < b.combatants[1].max_hp, "tackle landed after the failure");
+        // Chain was reset: next use is guaranteed again.
+        let mut rng = Seq(vec![], 7);
+        b.play_turn(&[act(0), act(1)], &mut rng);
+        assert!(b.take_status_events().contains(&StatusEvent::ProtectUp { actor: 1 }));
+        // Roll 0 on the following consecutive use succeeds (odds 1/3).
+        let mut rng = Seq(vec![0], 0);
+        b.play_turn(&[act(0), act(1)], &mut rng);
+        assert!(b.take_status_events().contains(&StatusEvent::ProtectUp { actor: 1 }));
+    }
+
+    #[test]
+    fn protect_does_not_stop_moves_that_are_not_protectable() {
+        let t = MoveEffectsTable::load(root()).unwrap();
+        // The flag column decides: a move without it passes through.
+        assert!(t.get("tackle").unwrap().protectable);
+        assert!(!t.get("swords-dance").unwrap().protectable);
+    }
+
+    #[test]
+    fn speed_stages_reorder_turns_only_when_enabled() {
+        // Bidoof (base speed lower) vs pikachu: boost bidoof's speed and compare who acts first.
+        for (enabled, expect_first) in [(false, 1usize), (true, 0usize)] {
+            let rules = StatusRules {
+                speed_stages: enabled,
+                ..StatusRules::default()
+            };
+            let mut b = duel(&["tackle"], &["tackle"], rules);
+            b.combatants[0].speed = 100;
+            b.combatants[1].speed = 120;
+            b.stages_mut(0).speed = 1; // 150 vs 120 when enabled
+            let mut rng = Seq(vec![], 99);
+            let ev = b.play_turn(&[act(0), act(1)], &mut rng);
+            assert!(ev.contains(&Event::ActedFirst(expect_first)), "enabled={enabled}");
+        }
+        // Down stage: 0.66 * 130 = ~86 < 100.
+        let rules = StatusRules {
+            speed_stages: true,
+            ..StatusRules::default()
+        };
+        let mut b = duel(&["tackle"], &["tackle"], rules);
+        b.combatants[0].speed = 130;
+        b.combatants[1].speed = 100;
+        b.stages_mut(0).speed = -1;
+        let mut rng = Seq(vec![], 99);
+        let ev = b.play_turn(&[act(0), act(1)], &mut rng);
+        assert!(ev.contains(&Event::ActedFirst(1)));
+    }
+
+    #[test]
+    fn stage_multipliers_follow_the_config_flag() {
+        let off = StatusRules::default();
+        let on = StatusRules {
+            stage_multipliers: true,
+            ..StatusRules::default()
+        };
+        let dmg = |rules: StatusRules| {
+            let mut b = duel(&["tackle"], &["growl"], rules);
+            b.stages_mut(0).attack = 1;
+            let mut rng = Seq(vec![], 0);
+            b.play_turn(&[act(0)], &mut rng);
+            b.combatants[1].max_hp - b.combatants[1].hp
+        };
+        assert!(dmg(on) > dmg(off));
+    }
+
+    #[test]
+    fn notes_rates_use_recovered_slip_denominators() {
+        let mut b = duel(&["tackle"], &["tackle"], StatusRules::default());
+        assert_eq!(b.residual_divisor(MajorStatus::Poison), 8);
+        b.set_status_rules(StatusRules {
+            notes_rates: true,
+            ..StatusRules::default()
+        });
+        assert_eq!(b.residual_divisor(MajorStatus::Poison), 6);
+        assert_eq!(b.residual_divisor(MajorStatus::Burn), 12);
+        assert_eq!(b.residual_divisor(MajorStatus::Frostbite), 12);
+        b.combatants[1].max_hp = 120;
+        b.combatants[1].hp = 120;
+        b.combatants[1].status = Some(MajorStatus::Poison);
+        let mut rng = Seq(vec![], 0);
+        b.play_turn(&[], &mut rng);
+        assert_eq!(b.combatants[1].hp, 100);
+    }
+}
