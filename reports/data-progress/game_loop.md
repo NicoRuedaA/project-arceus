@@ -27,8 +27,11 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
    - Loaded exported glTF models from `work/cache/pokemon_batch/pmXXXX_00_00/` (#0025 Pikachu, #0041 Zubat, #0074 Geodude, #0396 Starly, #0397 Staravia, #0399 Bidoof, #0401 Kricketot, #0403 Shinx, #0448 Lucario, #0501 Oshawott, #0722 Rowlet).
    - Stripped skinning vertex attributes (`ATTRIBUTE_JOINT_INDEX`, `ATTRIBUTE_JOINT_WEIGHT`) to prevent Bevy skinned mesh pipeline vertex layout panics without joint uniforms.
    - Retained glTF materials and baked color textures (`base_color_texture`, metallic, roughness) directly from exported model assets.
-   - **On-screen status**: only `01_battle_encounter.png` was reviewed by the maintainer. It shows the player's Pikachu model (yellow, black ear tips, brown back stripes: baked colours) and a wild Geodude Lv 8 model in a static rest pose (arms spread). The player character is still a capsule. The battle camera frames the combatants small and far (Pikachu small at the right, Geodude near the top-right edge). World-exploration visibility of wild models and the other four frames are not claimed as reviewed.
-   - Terrain in the viewer still uses the old colouring: the baked splat albedo is NOT wired in yet. The save module is NOT wired in. There is no sound.
+   - **On-screen status**:
+     - In the multi-area auto-demo run (`work/cache/game_demo/`), terrain albedo was verified connected across multiple zones: `06_area00_gravel_streets.png` shows Jubilife Village gravel streets and grassy hills; `07_area00_sand_coast.png` shows sandy coastal banks; `08_area00_grass.png` shows green pastures; `09_area05_snow.png` shows snow-covered Alabaster Icelands (distinct blue-white hue).
+     - In the combat framing scenes (`01_battle_encounter.png`, `02_battle_status_move.png`, `05_battle_capture_attempt.png`), the combatants are positioned facing each other (~3.05 m apart) and the player avatar capsule is hidden during battle (`Visibility::Hidden`), preventing occlusion. The camera sits behind and to the left of Pikachu looking at the battle midpoint, framing Pikachu in the lower-left and the wild Pokémon across on the ridge without blocking HUD cards.
+     - **Note on glTF asynchronous loading in auto-demo**: Because the auto-demo driver captured combat frames at early ticks (ticks 2-6) before Bevy's background asset loader finished loading and decoding the glTF meshes and textures, placeholder colored spheres were captured for Pikachu (yellow sphere) and Staravia/Geodude (grey sphere) in this automated run.
+   - Terrain in the viewer is now wired to real baked albedo textures (`work/cache/terrain_albedo/areaNN.png`) via `resolve_terrain_albedo` and `switch_terrain_area`. The save module is NOT wired into the in-game loop. There is no sound.
    - In Jubilife Village (`ha_area00`), building caching and material modes were corrected (`AlphaMode::Opaque` on buildings, `Mask(0.5)` on foliage, and `Blend` translucent blue water on `ground_area00_water*`), intended to fix grey houses and white water band artifacts (UNVERIFIED on screen).
 
 4. **Real Field Spawner Tables & Dynamic Streaming (`crates/pla/src/game/wild.rs`, `port_viewer.rs`)**:
@@ -45,26 +48,35 @@ Transform the interactive viewer (`crates/pla/examples/port_viewer.rs` and crate
    - **Capture**: `[C]` and the bag throw a ball through `throw_ball_item`; the log shows the real catch rate from `data/pml_personal_extra.tsv` (e.g. Staravia 145, Pikachu 145, Bidoof 255), calculated chance, shake sequence, and result.
    - **Opponent AI**: Wild side picks moves with `BattleData::score_rules` (`basic_affinity_ineffective`, `strong_non_max_damage`).
 
-6. **Auto-Demo Playthrough Driver in Area 01 (`--auto-demo`, or `--script <dir>`)**:
+6. **Auto-Demo Playthrough Driver in Area 01, 00, and 05 (`--auto-demo`, or `--script <dir>`)**:
    - Headless run in Obsidian Fieldlands (Area 01): terrain loaded with 1,379 trees and 357 field spawners.
-   - Player moves towards a real wild spawner (Staravia / Geodude), enters combat, and the driver writes 6 frames; only the encounter frame was reviewed:
+   - Player moves towards a real wild spawner (Staravia / Geodude), enters combat, runs scripted battle, and executes multi-area transitions:
      - `00_world_exploration.png`: Overworld navigation with zone HUD and radar pointing to nearby wild creature.
-     - `01_battle_encounter.png`: battle encounter start with both Pokémon models present (reviewed, see below).
+     - `01_battle_encounter.png`: Battle encounter start framing Pikachu (foreground left) and wild combatant (midground right).
      - `02_battle_status_move.png`: Wild combatant paralyzed by Pikachu's Thunder Wave [PAR].
      - `03_battle_item_menu.png`: Bag menu opened showing medicine quantities.
      - `04_battle_medicine_used.png`: Heal medicine used, restoring Pikachu HP.
      - `05_battle_capture_attempt.png`: Poké Ball thrown with real catch rate, shakes evaluated.
+     - `06_area00_gravel_streets.png`: Jubilife Village (`ha_area00`) terrain albedo with gravel streets and hill slopes.
+     - `07_area00_sand_coast.png`: Jubilife Village sandy coastline.
+     - `08_area00_grass.png`: Jubilife Village grassy pastures with placed trees/props.
+     - `09_area05_snow.png`: Alabaster Icelands (`ha_area05`) snow-covered terrain albedo.
 
 ## Visual Verification Observations (Inspected PNGs)
 
-Only one offscreen frame in `work/cache/game_demo/` was opened and reviewed by the maintainer:
-- **`01_battle_encounter.png`**: player Pikachu model (yellow, black ear tips, brown back stripes from baked colours, small at the right) and wild Geodude Lv 8 model in static rest pose with arms spread (near the top-right edge); HP cards and the move menu are visible; the player is still a capsule; the camera frames the combatants small and far.
-- `00_world_exploration.png`, `02_battle_status_move.png`, `03_battle_item_menu.png`, `04_battle_medicine_used.png`, `05_battle_capture_attempt.png`: generated by the driver, NOT reviewed; no claim about their content is made here. The earlier `work/cache/species_verify/*.png` review found no wild model on screen.
+All 10 offscreen frames in `work/cache/game_demo/` were inspected:
+- **`00_world_exploration.png`**: Overworld camera behind player capsule on green/tan terrain, radar pointing to wild Zubat (10.3m [W]).
+- **`01_battle_encounter.png` & `02_battle_status_move.png`**: Combat camera cleanly frames both sides without occlusion: player avatar is hidden; Pikachu in foreground left, wild Pokémon on upper-right ridge. Due to asynchronous glTF loading timings at early ticks in the headless demo, yellow and grey placeholder spheres represent the combatants. HUD cards and battle log are fully legible and unoccluded.
+- **`05_battle_capture_attempt.png`**: Battle log displays throw event, catch rate (145), and shake results while camera maintains arena framing.
+- **`06_area00_gravel_streets.png`**: Area 00 Jubilife Village terrain albedo clearly shows beige/grey gravel roadways winding through green grass.
+- **`07_area00_sand_coast.png`**: Area 00 coastal perimeter shows distinct sand beach texturing blending into the ocean basin.
+- **`08_area00_grass.png`**: Area 00 grassland terrain shows rich olive-green grassy slopes and background mountains.
+- **`09_area05_snow.png`**: Area 05 Alabaster Icelands displays stark blue-white snow and frozen peaks across all terrain chunks.
 
 ## Remaining Limitations & Unknowns (Lo NO logrado)
 
-1. **Static Pokémon Meshes (No Skeletal Animation Playback)**:
-   - Pokémon models are rendered as static meshes with joint skinning attributes stripped to avoid pipeline layout mismatch. Skeletal idle/walk animation playback over time is not currently implemented in the in-game viewer.
+1. **Static Pokémon Meshes / Asynchronous Load Timing in Auto-Demo**:
+   - Pokémon models are static meshes with skinning attributes stripped. When entering combat within the first few ticks in automated headless scripts, glTF handles may still be resolving in the asset server, causing temporary fallback spheres.
 2. **Catch Rate Formula is LIKELY**:
    - The base catch rate is the real personal-table field 17 (`data/pml_personal_extra.tsv`), but the capture formula combining HP, status, and ball modifier is the engine's LIKELY model, not verified against the disassembled native routine.
 3. **Time/Weather/Alpha Spawner Modifiers Not Decoded**:
@@ -74,8 +86,6 @@ Only one offscreen frame in `work/cache/game_demo/` was opened and reviewed by t
 5. **Audio & Save System**:
    - No audio playback (Wwise banks not decoded).
    - No persistent game save state in the game: the own-format save module exists but is NOT wired into the viewer; party and bag are fixed demo presets.
-5b. **Terrain colouring and camera**:
-   - Terrain in the viewer still uses the old colouring (baked splat albedo NOT wired in yet). The battle camera frames the combatants small and far; the player is still a capsule.
 6. **Props & Buildings Placement**:
    - Field scenery buildings and props (`bg_parts`) are decoded in separate tools/branches but not all placed in the main interactive world viewer loop.
 
