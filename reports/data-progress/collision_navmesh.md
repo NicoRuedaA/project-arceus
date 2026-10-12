@@ -36,7 +36,7 @@ Per-pack summary (committed): [`data/field/navmesh_summary.tsv`](../../data/fiel
 ## hkaiNavMesh (not proven)
 - Edge flags are the single value 4 on all 1,255,402 edges; face data is 0 on the primary meshes and 3 on every face of the second mesh; edge data is always 0. Their meaning is unknown.
 - The second mesh in each main pack follows the ground only loosely (45 % to 95 % of vertices within 2 m); its role (for example another agent type or surface class) is not established.
-- Sub-area packs (`ha_areaNN_sXX*`): 56 packs; about 40 contain small identical meshes (14 faces) in what looks like an object-local frame; larger ones (`ha_area00_s02` 14,419 faces, `ha_area00_s01`) do not match the main area's heightmap in the same frame (0 of 707 and 527 of 18,854 vertices within 2 m). Their placement is unknown. `ha_area11` has extent 2047 (2048-wide map) and no heightmap was compared.
+- Sub-area packs (`ha_areaNN_sXX*`): 55 packs; most hold tiny meshes (4 to 17 faces, 20 of them identical) in what looks like an object-local frame; larger ones (`ha_area00_s02` 14,419 faces, `ha_area00_s01`) do not match the main area's heightmap in the same frame (0 of 707 and 527 of 18,854 vertices within 2 m). Their placement is unknown. `ha_area11` has extent 2047 (2048-wide map) and no heightmap was compared.
 - Edge winding, clusters and the graph (`hkaiDirectedGraphExplicitCost`) and the `hkcdStaticAabbTree` are not used.
 - Metres as unit: inferred.
 
