@@ -85,15 +85,15 @@ pub struct LookParams {
     pub cloud_opacity: f32,
 }
 
-/// Sheet sun intensity -> lux. ASSUMED. Classic 2400 (old); vivid 4800 so the 2.8 day sun is ~13.4k lux,
+/// Sheet sun intensity -> lux. ASSUMED. Classic 2400 (old); vivid 4200 so the 2.8 day sun is ~11.8k lux,
 /// inside the 10-20k lux range Bevy's default exposure expects for a sunny day.
 pub const LUX_PER_INTENSITY_CLASSIC: f32 = 2400.0;
-pub const LUX_PER_INTENSITY_VIVID: f32 = 4800.0;
+pub const LUX_PER_INTENSITY_VIVID: f32 = 4200.0;
 /// Day sun intensity of the sheet (areas 00-04), used to normalise "how daylit is this slot".
 pub const DAY_SUN_INTENSITY: f32 = 2.8;
-/// Vivid ambient brightness (cd/m2) at full daylight. ASSUMED: about 20% of the sun's diffuse radiance
-/// (13.4k lux / pi ~ 4.3k) so shadows stay readable and soft.
-pub const AMBIENT_VIVID_DAY: f32 = 900.0;
+/// Vivid ambient brightness (cd/m2) at full daylight. ASSUMED: about 30% of the sun's diffuse radiance
+/// (11.8k lux / pi ~ 3.7k) so shadows stay readable and soft.
+pub const AMBIENT_VIVID_DAY: f32 = 1100.0;
 
 /// How daylit the slot is, 0..1.2 (sun intensity relative to the 2.8 day value).
 pub fn daylight(env: &ZoneEnv) -> f32 {
@@ -232,7 +232,7 @@ pub fn cloud_texture_rgba(size: usize, seed: u32) -> Vec<u8> {
         for x in 0..size {
             let d = cloud_density(x, y, size, seed);
             // Thin edges slightly darker/bluer than cores (cheap self-shadowing look).
-            let shade = 0.80 + 0.20 * d;
+            let shade = 0.88 + 0.12 * d;
             out.push((255.0 * shade) as u8);
             out.push((255.0 * (0.84 + 0.16 * d)) as u8);
             out.push(255);
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn sun_mapping_vivid_in_daylight_range() {
         let p = look_params(&env(2.8), LookSettings::default());
-        assert!((p.sun_lux - 13_440.0).abs() < 1.0);
+        assert!((p.sun_lux - 11_760.0).abs() < 1.0);
         assert!((10_000.0..=20_000.0).contains(&p.sun_lux));
         let c = look_params(&env(2.8), LookSettings { look: Look::Classic, shadows: true });
         assert!((c.sun_lux - 6_720.0).abs() < 1.0);
