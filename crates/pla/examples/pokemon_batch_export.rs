@@ -5,7 +5,9 @@
 //!
 //! Usage: pokemon_batch_export <archive/pokemon dir> <output-dir> <output-index.tsv> [--force] [--only <stem>]
 
-use pla::assets::pokemon_model::{assemble_pack, write_skinned_lod_level, write_static_lod_level};
+use pla::assets::pokemon_model::{
+    assemble_pack, write_skinned_lod_level, write_static_lod_level_baked, LayerBlendFormula,
+};
 use std::{
     env, fs,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -54,7 +56,7 @@ fn export_pack(pack: &Path, out: &Path, stem: &str) -> Outcome {
     for (label, needle) in [("idle", "defaultwait"), ("walk", "walk")] {
         if let Some(clip) = pick(needle) {
             let file = out.join(format!("{stem}_{label}.gltf"));
-            match write_skinned_lod_level(&model, 0, &clip.name, &file, None) {
+            match write_skinned_lod_level(&model, 0, &clip.name, &file, Some(LayerBlendFormula::MaskLerp)) {
                 Ok(()) => clips += 1,
                 Err(e) => notes.push(format!("{label}: {e}")),
             }
@@ -65,7 +67,7 @@ fn export_pack(pack: &Path, out: &Path, stem: &str) -> Outcome {
     if clips == 0 {
         // Fall back to the static mesh so the model is still usable.
         let file = out.join(format!("{stem}_static.gltf"));
-        return match write_static_lod_level(&model, 0, &file) {
+        return match write_static_lod_level_baked(&model, 0, &file, LayerBlendFormula::MaskLerp) {
             Ok(()) => Outcome {
                 status: "ok",
                 reason: format!("static only; {}", notes.join(" | ")),
@@ -110,7 +112,7 @@ fn main() -> Result<(), String> {
     std::panic::set_hook(Box::new(|_| {}));
     for pack in &packs {
         let stem = pack.file_stem().unwrap().to_string_lossy().to_string();
-        if only.as_ref().is_some_and(|o| o != &stem) {
+        if only.as_ref().is_some_and(|o| !o.split(',').any(|x| x == stem)) {
             continue;
         }
         let out = out_root.join(&stem);

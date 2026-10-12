@@ -92,6 +92,9 @@ pub enum LayerBlendFormula {
     WeightedSum,
     /// Hypothesis: sequentially lerp albedo toward albedo times each layer color.
     SequentialLerp,
+    /// Hypothesis: per-material block; mask channels R,G,B,A weight
+    /// BaseColorLayer1..4 (linear colours); remaining weight keeps the albedo.
+    MaskLerp,
 }
 
 /// Compose an offline base-color texture from the observed albedo and layer mask.
@@ -102,6 +105,9 @@ pub fn bake_layered_base_color(
     layers: &[[f32; 4]; 4],
     formula: LayerBlendFormula,
 ) -> Result<bntx::TextureData, String> {
+    if formula == LayerBlendFormula::MaskLerp {
+        return bake_mask_lerp(albedo, mask, layers);
+    }
     let expected = (albedo.width as usize)
         .checked_mul(albedo.height as usize)
         .and_then(|pixels| pixels.checked_mul(4))
@@ -146,6 +152,7 @@ pub fn bake_layered_base_color(
                         .clamp(0.0, 1.0);
                     source[channel] * color
                 }
+                LayerBlendFormula::MaskLerp => unreachable!("handled before the loop"),
                 LayerBlendFormula::SequentialLerp => {
                     (0..4).fold(source[channel], |current, layer| {
                         let target = source[channel] * layers[layer][channel];
@@ -162,6 +169,71 @@ pub fn bake_layered_base_color(
         height: albedo.height,
         rgba,
     })
+}
+
+/// Bake `albedo * ((1 - sum w) + sum w_i * Layer_i)` at the mask resolution.
+pub fn bake_mask_lerp(
+    albedo: &bntx::TextureData,
+    mask: &bntx::TextureData,
+    layers: &[[f32; 4]; 4],
+) -> Result<bntx::TextureData, String> {
+    if albedo.width == 0 || albedo.height == 0 || mask.width == 0 || mask.height == 0 {
+        return Err("albedo or layer-mask dimensions are zero".into());
+    }
+    if albedo.rgba.len() != (albedo.width * albedo.height * 4) as usize
+        || mask.rgba.len() != (mask.width * mask.height * 4) as usize
+    {
+        return Err("albedo or layer-mask payload size mismatch".into());
+    }
+    let (w, h) = (mask.width as usize, mask.height as usize);
+    let (aw, ah) = (albedo.width as usize, albedo.height as usize);
+    let mut rgba = vec![0u8; w * h * 4];
+    for y in 0..h {
+        for x in 0..w {
+            let m = &mask.rgba[(y * w + x) * 4..][..4];
+            let mut weights = [0.0f32; 4];
+            for (c, wgt) in weights.iter_mut().enumerate() {
+                *wgt = f32::from(m[c]) / 255.0;
+            }
+            let total: f32 = weights.iter().sum();
+            if total > 1.0 {
+                weights.iter_mut().for_each(|v| *v /= total);
+            }
+            let keep = (1.0 - weights.iter().sum::<f32>()).max(0.0);
+            // Bilinear albedo sample (texel centres), in linear light.
+            let fx = ((x as f32 + 0.5) * aw as f32 / w as f32 - 0.5).clamp(0.0, aw as f32 - 1.0);
+            let fy = ((y as f32 + 0.5) * ah as f32 / h as f32 - 0.5).clamp(0.0, ah as f32 - 1.0);
+            let (x0, y0) = (fx.floor() as usize, fy.floor() as usize);
+            let (x1, y1) = ((x0 + 1).min(aw - 1), (y0 + 1).min(ah - 1));
+            let (tx, ty) = (fx - x0 as f32, fy - y0 as f32);
+            let texel = |xx: usize, yy: usize, c: usize| {
+                srgb_to_linear(f32::from(albedo.rgba[(yy * aw + xx) * 4 + c]) / 255.0)
+            };
+            let o = (y * w + x) * 4;
+            for c in 0..3 {
+                let a = texel(x0, y0, c) * (1.0 - tx) + texel(x1, y0, c) * tx;
+                let b = texel(x0, y1, c) * (1.0 - tx) + texel(x1, y1, c) * tx;
+                let alb = a * (1.0 - ty) + b * ty;
+                let tint = keep + (0..4).map(|l| weights[l] * layers[l][c]).sum::<f32>();
+                rgba[o + c] = (linear_to_srgb((alb * tint).clamp(0.0, 1.0)) * 255.0).round() as u8;
+            }
+            rgba[o + 3] = albedo.rgba[((y0 * aw) + x0) * 4 + 3];
+        }
+    }
+    Ok(bntx::TextureData { width: w as u32, height: h as u32, rgba })
+}
+
+/// Pokémon TRMSH UV0 has V running upwards while the glTF samples images
+/// top-down; flipping the rows (the textures wrap) lines both up. Verified on
+/// Pikachu: the nose/mouth/ear features of `ao`/`nrm` only coincide with the
+/// mesh UV chart when V is flipped.
+fn flip_rows(image: &bntx::TextureData) -> bntx::TextureData {
+    let row = image.width as usize * 4;
+    let mut rgba = Vec::with_capacity(image.rgba.len());
+    for y in (0..image.height as usize).rev() {
+        rgba.extend_from_slice(&image.rgba[y * row..(y + 1) * row]);
+    }
+    bntx::TextureData { width: image.width, height: image.height, rgba }
 }
 
 fn srgb_to_linear(value: f32) -> f32 {
@@ -724,7 +796,7 @@ fn save_texture(
         })
         .collect::<String>();
     let filename = format!("{safe_name}.png");
-    image
+    flip_rows(image)
         .save_png(&output.join(&filename))
         .map_err(|e| e.to_string())?;
     Ok(Some(filename))
@@ -772,6 +844,9 @@ fn add_static_material(
             .any(|texture| &texture.internal_name == *name)
     });
     let base_uri = match (material, base_name, formula) {
+        (Some(material), Some(_), Some(LayerBlendFormula::MaskLerp)) => Some(
+            save_mask_lerp_base_color(model, material, &mesh.material_binding, gltf_path)?,
+        ),
         (Some(material), Some(name), Some(formula)) => Some(save_baked_base_color(
             model, material, name, formula, gltf_path,
         )?),
@@ -790,6 +865,30 @@ fn add_static_material(
         None
     };
     Ok(material_index)
+}
+
+fn save_mask_lerp_base_color(
+    model: &PokemonModel,
+    material: &PokemonMaterial,
+    binding: &str,
+    gltf_path: &Path,
+) -> Result<String, String> {
+    let blocks = super::pokemon_material::parse_blocks(&material.raw_bytes);
+    let block = blocks
+        .iter()
+        .find(|block| block.name.eq_ignore_ascii_case(binding))
+        .ok_or_else(|| format!("no material block named {binding}"))?;
+    let albedo_file = block.texture("BaseColorMap").ok_or("block has no BaseColorMap")?;
+    let mask_file = block.texture("LayerMaskMap").ok_or("block has no LayerMaskMap")?;
+    let layers = block.base_color_layers().ok_or("block lacks BaseColorLayer1..4")?;
+    let albedo = decoded_texture_by_file(model, albedo_file)?;
+    let mask = decoded_texture_by_file(model, mask_file)?;
+    let baked = bake_mask_lerp(albedo, mask, &layers)?;
+    let safe = |s: &str| s.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect::<String>();
+    let filename = format!("{}_{}_color.png", safe(albedo_file.trim_end_matches(".bntx")), safe(binding));
+    let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));
+    flip_rows(&baked).save_png(&output.join(&filename)).map_err(|e| e.to_string())?;
+    Ok(filename)
 }
 
 fn save_baked_base_color(
@@ -834,6 +933,7 @@ fn save_baked_base_color(
     let suffix = match formula {
         LayerBlendFormula::WeightedSum => "weighted_sum",
         LayerBlendFormula::SequentialLerp => "sequential_lerp",
+        LayerBlendFormula::MaskLerp => "mask_lerp",
     };
     let filename = format!("{albedo_name}_{suffix}.png");
     let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));
