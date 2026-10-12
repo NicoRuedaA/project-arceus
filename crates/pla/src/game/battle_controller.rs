@@ -2,7 +2,10 @@
 
 use bevy::prelude::*;
 use crate::battle::BattleData;
-use crate::battle_engine::{Action, Battle, Combatant, Event, XorShift32};
+use crate::battle_engine::{Action, Battle, CaptureModifiers, Combatant, Event, XorShift32};
+
+/// Placeholder catch rate (0-255): the real per-species value is UNKNOWN in the typed tables.
+const CAPTURE_CATCH_RATE_PLACEHOLDER: u8 = 45;
 
 /// Menu selection state inside battle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,7 +168,10 @@ impl ActiveBattleSession {
             true, // suitable range
             1,    // player galaxy rank
             1,    // pokemon rank
+            // Catch rate is not in the typed species table (UNKNOWN input): fixed placeholder.
+            CAPTURE_CATCH_RATE_PLACEHOLDER,
             false,// backstrike
+            CaptureModifiers::default(),
             &mut self.rng,
         )?;
 
