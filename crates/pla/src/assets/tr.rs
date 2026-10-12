@@ -1548,7 +1548,11 @@ impl TrSkl {
         for at in &offsets {
             let table = buffer.table(*at, 8)?;
             if let Some(at) = buffer.field(&table, 7, 4)? {
-                if buffer.u32(at)? != 0 {
+                // pkNX's PLA Skeleton.fbs declares Transform=0, Joint=1, and
+                // Locator=2. These are node categories, not alternate table
+                // layouts: all three use the same transform/parent/rig fields.
+                // Keep unknown future enum values fail-closed.
+                if buffer.u32(at)? > 2 {
                     return Err("unsupported trskl node type".into());
                 }
             }
