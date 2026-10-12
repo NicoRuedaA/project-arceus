@@ -15,7 +15,7 @@ These rules apply to every agent and session working on this repository (Claude,
 
 ## Machine safety
 6. Every heavy command (cargo build/test/run, batch converters, scans) runs under `systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- <cmd>` with `CARGO_BUILD_JOBS=3`. Stream outputs to disk; never accumulate unbounded data in memory.
-7. **Never open a visible window** on the user's display. Renders and screenshots are offscreen/headless, in one process, not one process per shot.
+7. **Never open a visible window** on the user's display. Renders and screenshots are offscreen/headless, in one process, not one process per shot. Even a window created with `visible: false` can flash on the user's Wayland desktop, so run the viewer / `--auto-demo` / `--screenshot` at most ONCE per task (group every view in that single run) and never in a loop. The session also has a Hyprland rule sending windows titled `Pokémon Legends: Arceus — Bevy Port Interactive Viewer` to the hidden `special:agents` workspace; it is not a substitute for this rule.
 8. Do not use `pkill -f <pattern>` when the pattern also appears in your own command line.
 
 ## Data and reports
