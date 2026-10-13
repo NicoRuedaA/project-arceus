@@ -6,13 +6,14 @@
 //! toast). All rules live in pure functions so they are unit tested without a window.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
 
 use super::battle_controller::{ActiveBattleSession, BattleAssets, WILD};
 use super::battle_items;
-use super::save_game::{PartyMember, PlayerSave, SaveFile, SaveGame, MAX_PARTY};
+use super::save_game::{PartyMember, PlayerSave, SaveFile, SaveGame, MAX_BOX, MAX_PARTY};
 use super::ui::ActiveZoneInfo;
 use super::PlayerAvatar;
 use crate::battle::{BattleData, BattleMove};
@@ -67,7 +68,8 @@ impl WireCli {
 pub struct PlayerProgress {
     /// Up to 6 members, in party order.
     pub party: Vec<PartyMember>,
-    /// Caught Pokemon that did not fit in the party. NOT saved: the save format has no box yet.
+    /// Caught Pokemon that did not fit in the party. Persisted as `PlayerSave::box_pokemon`
+    /// (save format v3, up to [`MAX_BOX`]).
     pub box_list: Vec<PartyMember>,
     /// item id -> quantity.
     pub bag: BTreeMap<u16, u16>,
@@ -88,7 +90,7 @@ impl PlayerProgress {
     pub fn from_save(s: &PlayerSave) -> Self {
         Self {
             party: s.party.clone(),
-            box_list: Vec::new(),
+            box_list: s.box_pokemon.clone(),
             bag: s.bag.clone(),
             money: s.money,
             seen: s.seen.clone(),
@@ -108,6 +110,7 @@ impl PlayerProgress {
             yaw,
             time_slot: self.time_slot,
             party: self.party.iter().take(MAX_PARTY).cloned().collect(),
+            box_pokemon: self.box_list.iter().take(MAX_BOX).cloned().collect(),
             bag: self.bag.iter().filter(|(_, n)| **n > 0).map(|(i, n)| (*i, *n)).collect(),
             money: self.money,
             seen: self.seen.clone(),
@@ -123,7 +126,66 @@ impl PlayerProgress {
     pub fn add_money(&mut self, amount: u32) {
         self.money = self.money.saturating_add(amount);
     }
+
+    /// Store `m` in the box. Returns its slot, or [`BoxError::BoxFull`] at [`MAX_BOX`].
+    pub fn deposit(&mut self, m: PartyMember) -> Result<usize, BoxError> {
+        if self.box_list.len() >= MAX_BOX {
+            return Err(BoxError::BoxFull);
+        }
+        self.box_list.push(m);
+        Ok(self.box_list.len() - 1)
+    }
+
+    /// Move the box Pokemon at `box_index` back into the party.
+    pub fn withdraw(&mut self, box_index: usize) -> Result<PartyMember, BoxError> {
+        if box_index >= self.box_list.len() {
+            return Err(BoxError::BadBoxSlot);
+        }
+        if self.party.len() >= MAX_PARTY {
+            return Err(BoxError::PartyFull);
+        }
+        let m = self.box_list.remove(box_index);
+        self.party.push(m.clone());
+        Ok(m)
+    }
+
+    /// Exchange the party member at `party_index` with the box Pokemon at `box_index`.
+    pub fn swap(&mut self, box_index: usize, party_index: usize) -> Result<(), BoxError> {
+        if box_index >= self.box_list.len() {
+            return Err(BoxError::BadBoxSlot);
+        }
+        if party_index >= self.party.len() {
+            return Err(BoxError::BadPartySlot);
+        }
+        std::mem::swap(&mut self.box_list[box_index], &mut self.party[party_index]);
+        Ok(())
+    }
 }
+
+/// Why a box operation was refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoxError {
+    /// The box already holds [`MAX_BOX`] Pokemon.
+    BoxFull,
+    /// The party already holds [`MAX_PARTY`] Pokemon.
+    PartyFull,
+    /// No Pokemon at that box slot.
+    BadBoxSlot,
+    /// No Pokemon at that party slot.
+    BadPartySlot,
+}
+
+impl fmt::Display for BoxError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BoxFull => write!(f, "the box is full"),
+            Self::PartyFull => write!(f, "the party is full"),
+            Self::BadBoxSlot => write!(f, "no Pokemon in that box slot"),
+            Self::BadPartySlot => write!(f, "no Pokemon in that party slot"),
+        }
+    }
+}
+impl std::error::Error for BoxError {}
 
 /// `ha_area01` for area index 1.
 pub fn zone_id(area_idx: u8) -> String {
@@ -386,8 +448,9 @@ pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
         progress.caught_count = progress.caught_count.saturating_add(1);
         if progress.party.len() < MAX_PARTY {
             progress.party.push(m.clone());
-        } else {
-            progress.box_list.push(m.clone());
+        } else if progress.deposit(m.clone()).is_err() {
+            // Party AND box are full: the catch is still recorded as caught, but the Pokemon
+            // cannot be stored (the real game's behaviour at this extreme is unknown).
         }
     } else if out.won {
         progress.defeated = progress.defeated.saturating_add(1);
@@ -794,6 +857,78 @@ mod tests {
     }
 
     #[test]
+    fn full_party_catch_goes_to_box_and_survives_the_file() {
+        let mut p = progress2();
+        p.party = (0..MAX_PARTY).map(|i| member(25 + i as u16, 10, 5)).collect();
+        let catch = BattleOutcome {
+            party: vec![],
+            bag: BTreeMap::new(),
+            wild_dex: 396,
+            won: false,
+            caught: Some(member(396, 9, 5)),
+            rng: 1,
+        };
+        apply_outcome(&mut p, &catch);
+        assert_eq!(p.party.len(), MAX_PARTY, "party stays full");
+        assert_eq!(p.box_list.len(), 1, "the catch went to the box");
+        assert_eq!(p.box_list[0].species, 396);
+        // format v3 writes it and it reloads identical
+        let dir = tmpdir("boxroute");
+        let mut game = SaveGame::new(SaveFile::in_dir(&dir));
+        assert!(game.save(p.to_save(1, [1.0, 2.0, 3.0], 0.5)));
+        let mut game2 = SaveGame::new(SaveFile::in_dir(&dir));
+        let st = load_startup(&mut game2, &WireCli::default());
+        assert!(st.loaded);
+        assert_eq!(st.progress.party, p.party);
+        assert_eq!(st.progress.box_list, p.box_list);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn box_deposit_withdraw_swap_and_limits() {
+        let mut p = progress2();
+        let idx = p.deposit(member(396, 9, 5)).unwrap();
+        assert_eq!(idx, 0);
+        let taken = p.withdraw(0).unwrap();
+        assert_eq!(taken.species, 396);
+        assert!(p.box_list.is_empty() && p.party.len() == 3);
+        assert!(matches!(p.withdraw(0), Err(BoxError::BadBoxSlot)));
+        // swap party[0] <-> box[0]
+        p.deposit(member(111, 1, 1)).unwrap();
+        let party0 = p.party[0].species;
+        p.swap(0, 0).unwrap();
+        assert_eq!(p.party[0].species, 111);
+        assert_eq!(p.box_list[0].species, party0);
+        assert!(matches!(p.swap(9, 0), Err(BoxError::BadBoxSlot)));
+        assert!(matches!(p.swap(0, 9), Err(BoxError::BadPartySlot)));
+        // withdrawing into a full party is refused and nothing moves
+        p.party = (0..MAX_PARTY).map(|i| member(25 + i as u16, 10, 5)).collect();
+        p.deposit(member(222, 1, 1)).unwrap();
+        let last = p.box_list.len() - 1;
+        assert!(matches!(p.withdraw(last), Err(BoxError::PartyFull)));
+        assert_eq!(p.box_list.len(), 2);
+    }
+
+    #[test]
+    fn full_box_catch_is_counted_but_not_stored() {
+        let mut p = progress2();
+        p.party = (0..MAX_PARTY).map(|i| member(25 + i as u16, 10, 5)).collect();
+        p.box_list = (0..MAX_BOX).map(|i| member(1 + (i as u16 % 800), 1, 1)).collect();
+        let catch = BattleOutcome {
+            party: vec![],
+            bag: BTreeMap::new(),
+            wild_dex: 396,
+            won: false,
+            caught: Some(member(396, 9, 5)),
+            rng: 1,
+        };
+        apply_outcome(&mut p, &catch);
+        assert_eq!(p.box_list.len(), MAX_BOX, "the box stays at the limit");
+        assert!(p.caught.contains(&396), "the catch is still recorded");
+        assert_eq!(p.caught_count, 1);
+    }
+
+    #[test]
     fn startup_new_game_ignores_existing_save_and_missing_save_is_reported() {
         let dir = tmpdir("startup");
         let mut game = SaveGame::new(SaveFile::in_dir(&dir));
@@ -934,5 +1069,34 @@ mod tests {
         assert!(p.caught.contains(&399) && p.seen.contains(&399));
         assert_eq!(p.party.len(), 4);
         assert_eq!(p.caught_count, 1);
+    }
+
+    #[test]
+    fn real_catch_with_full_party_lands_in_the_box() {
+        let Some(a) = assets() else { return };
+        let mut p = PlayerProgress::new_game();
+        p.party = default_party(&a);
+        while p.party.len() < MAX_PARTY {
+            p.party.push(p.party[0].clone());
+        }
+        let mut s = fresh(&a);
+        let (roster, _) = install_party(&mut s, &a.data, &p.party).unwrap();
+        assert_eq!(roster.len(), MAX_PARTY);
+        s.battle.combatants[WILD].caught = true;
+        s.battle.ended = true;
+        let out = snapshot(&s, &roster, &[]);
+        apply_outcome(&mut p, &out);
+        assert_eq!(p.party.len(), MAX_PARTY);
+        assert_eq!(p.box_list.len(), 1, "the caught Pokemon went to the box");
+        assert_eq!(p.box_list[0].species, 399);
+        // and it survives a save/reload with a 6-member party plus the box
+        let dir = tmpdir("realbox");
+        let mut game = SaveGame::new(SaveFile::in_dir(&dir));
+        assert!(game.save(p.to_save(1, [0.0; 3], 0.0)));
+        let mut g2 = SaveGame::new(SaveFile::in_dir(&dir));
+        let loaded = load_startup(&mut g2, &WireCli::default()).progress;
+        assert_eq!(loaded.party, p.party);
+        assert_eq!(loaded.box_list, p.box_list);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
