@@ -22,7 +22,7 @@ Left panel is the old placeholder (dark-grey sky, fixed light, no fog); right us
 Water, grass/detail, wind, cloud/star textures binding, probe cubemap IBL, per-weather selection, hour boundaries of slots.
 
 ## Viewer look (render settings, `crates/pla/src/game/render_look.rs`)
-Feedback: the first viewer mapping looked flat next to real game footage (grey haze, no shadows, plain sky, dull foliage). Switch: `--look classic|vivid` (default vivid), `--no-shadows`. DATA stays the source (sun colour/intensity/direction, SubColor, SkyColor0..3, DepthGrad near/far/colour); every number below is ASSUMED/INTERPRETATION assumed values tuned against one reference screenshot (decoded data unchanged), not decoded. The night slot is still fairly bright.
+Feedback: the first viewer mapping looked flat next to real game footage (grey haze, no shadows, plain sky, dull foliage). Switch: `--look classic|vivid` (default vivid), `--no-shadows`. DATA stays the source (sun colour/intensity/direction, SubColor, SkyColor0..3, DepthGrad near/far/colour); every number below is ASSUMED/INTERPRETATION assumed values tuned against one reference screenshot (decoded data unchanged), not decoded. The night slot was fairly bright in the first mapping; Brief 4 adds a night response (below).
 - Sun: vivid 4200 lux per sheet intensity (day 2.8 -> 11.8k lux; classic 2400 -> 6.7k). Default Bevy exposure kept.
 - Ambient: sky-coloured (mid-gradient mixed 35% with white), 1100 cd/m2 x daylight (sun/2.8, floor 0.08), so shadows are soft and bluish. Classic: SubColor x 250.
 - Shadows (vivid): directional shadow map, 4 cascades, 0.3-250 m (first bound 12 m, 20% overlap), 2048 px, depth bias 0.05, normal bias 1.4. Every mesh casts/receives by default; sky and cloud domes are excluded. `--no-shadows` turns them off.
@@ -31,3 +31,49 @@ Feedback: the first viewer mapping looked flat next to real game footage (grey h
 - Tone/colour (vivid): TonyMcMapface tonemapper, ColorGrading post-saturation 1.15 and contrast 1.12 on shadows/midtones/highlights.
 - NOT done: bloom (needs Bevy's `bevy_post_process` crate, not in the offline dependency set; not added), SSAO, probe-based IBL, and the game's real exposure.
 - Evidence: unit tests for the pure parts (sun mapping, fog maths, grading ranges, cloud noise determinism/tileability) and a WINDOWLESS Bevy render (`crates/pla/examples/look_headless.rs`: winit disabled, camera renders to an image) of a synthetic scene (flat-colour placeholder trees/hills) under the real plugin and sheet, classic vs vivid vs time slots. It shows shadows without acne, less haze, clouds and richer greens. It is NOT game content and NOT a comparison with real terrain/trees/Pokemon; the maintainer still has to judge the look in the real viewer.
+
+### Night look (Brief 4 — darker night, 2026-10-13)
+Change (ASSUMED, vivid look only; classic keeps the old flat mapping): a multiplicative night response
+`night_scale(daylight)` (1 for day/evening, 0.30 below `daylight` 0.20, smoothstep in between) scales
+the mapped sun and ambient, dims the haze colour to 35%, drops the ambient fill's white share to 0.12
+(bluer) and floors the ambient brightness at 20 cd/m2. Day and evening are unchanged (`night_scale` = 1);
+the decoded sky dome/gradient is NOT touched, so the remaining night brightness is decoded data.
+
+Measured from the real sheet by the unit test `night_table_from_real_sheet` (vivid, cd/m2 for the
+colour-luminance ambient figure, lux for the sun):
+
+| area | s0 morning | s1 day | s2 evening | s3 night | night/day ambient |
+|------|-----------:|-------:|-----------:|---------:|------------------:|
+| 00 | 714.0 | 779.5 | 685.9 | 10.7 | 1.4% |
+| 01 | 533.3 | 759.1 | 671.1 | 14.4 | 1.9% |
+| 02 | 571.2 | 795.9 | 493.9 | 10.7 | 1.3% |
+| 03 | 571.2 | 605.9 | 693.5 | 10.7 | 1.8% |
+| 04 | 666.6 | 759.1 | 671.1 | 8.7 | 1.1% |
+| 05 | 214.1 | 398.0 | 204.4 | 8.5 | 2.1% |
+
+Mapped sun (lux): day 5.9k-11.8k, evening 2.7k-7.4k, night 362-740 (3-7% of day). Mapped ambient
+brightness (cd/m2): day 398-1100, evening 204-982, night 35-72. Acceptance holds in every area:
+night ambient < 0.4 x day ambient (it is 1-2%), day >= evening > night. Note: the sheet gives equal
+day/evening sun intensity in areas 03/04, and area 03's warmer evening sky has a higher colour
+luminance than its day sky, so the colour-luminance metric can put evening above day there (data, not a bug).
+
+One windowless `look_headless --slots` run (single process, 4 slots, no window; synthetic flat-colour
+scene, area 00, 1280x720) gives mean pixel luminance (sRGB / linearised):
+
+| slot | mean luminance sRGB | mean luminance linear |
+|------|--------------------:|----------------------:|
+| 0 morning | 0.5571 | 0.3458 |
+| 1 day | 0.5721 | 0.3647 |
+| 2 evening | 0.5278 | 0.3095 |
+| 3 night | 0.1593 | 0.0391 |
+
+Night is 28% of day in sRGB and 11% in linear terms (against 100% before, where every slot kept the full
+lux mapping). Analytic old vs new for area 00 night: ambient brightness 117.8 -> 35.4 cd/m2, sun
+1260 -> 378 lux. The four frames are in `work/look_night/` (git-ignored, not committed).
+
+- Verified: formula and monotonicity by unit tests (`cargo test --offline -p pla render_look`, 12 passed);
+  the render figures above came from the one allowed headless run. No windowed/viewer run.
+- Assumed: every night number (fractions, thresholds, floor), the mapping of sheet units to lux/cd/m2,
+  the four-slot meaning, and that area 00's synthetic scene is representative.
+- Unknown: the game's real exposure, tone mapping and night look; whether this night level is what the
+  maintainer wants (he judges by eye). Only one area/slot set was rendered.

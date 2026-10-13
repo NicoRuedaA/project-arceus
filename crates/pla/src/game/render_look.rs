@@ -95,9 +95,75 @@ pub const DAY_SUN_INTENSITY: f32 = 2.8;
 /// (11.8k lux / pi ~ 3.7k) so shadows stay readable and soft.
 pub const AMBIENT_VIVID_DAY: f32 = 1100.0;
 
+// --- Night response. ASSUMED / INTERPRETATION: none of the numbers below are decoded. The game's
+// exposure and its real night look are unknown; these are chosen so the night slot (sheet sun
+// 0.3..0.6) reads clearly dark, keeps its decoded blue sky and stays legible. The day and evening
+// slots (sheet sun 1.0..2.8) keep the previous mapping, since `night_scale` is 1 above the upper
+// threshold. Evidence: `reports/data-progress/lighting.md`.
+/// Below this `daylight` (sun / 2.8) the slot is treated as deep night: full dimming applies. The
+/// night slots of the sheet are 0.11..0.21, far below it; evening/day are 0.36..1.0.
+pub const NIGHT_DIM_MAX_DAYLIGHT: f32 = 0.20;
+/// At or above this `daylight` there is no night dimming (the previous daytime mapping). The lowest
+/// day-ish value in the sheet is area 05 evening (0.36), so daytime is never dimmed.
+pub const NIGHT_DIM_MIN_DAYLIGHT: f32 = 0.45;
+/// Fraction of the mapped sun and ambient that survives in deep night (faint moon fill). ASSUMED.
+pub const NIGHT_LIGHT_FRACTION: f32 = 0.30;
+/// Legibility floor for the vivid ambient brightness (cd/m2) in the darkest slot. ASSUMED.
+pub const NIGHT_AMBIENT_MIN: f32 = 20.0;
+/// Fraction of the haze/fog colour that survives in deep night. ASSUMED.
+pub const NIGHT_FOG_FRACTION: f32 = 0.35;
+/// White share of the night ambient fill colour (low -> the fill stays blue, not grey). ASSUMED.
+pub const NIGHT_AMBIENT_WHITE: f32 = 0.12;
+/// White share of the day ambient fill colour (matches the pre-existing 0.35). ASSUMED.
+pub const DAY_AMBIENT_WHITE: f32 = 0.35;
+
 /// How daylit the slot is, 0..1.2 (sun intensity relative to the 2.8 day value).
 pub fn daylight(env: &ZoneEnv) -> f32 {
     (env.sun_intensity / DAY_SUN_INTENSITY).clamp(0.0, 1.2)
+}
+
+/// Night dimming factor in [`NIGHT_LIGHT_FRACTION`]..1: 1 for day and evening (no change to the
+/// previous mapping), falling to the night fraction below [`NIGHT_DIM_MAX_DAYLIGHT`]. Smoothstep so
+/// the light fades across twilight. ASSUMED curve.
+pub fn night_scale(day: f32) -> f32 {
+    let span = (NIGHT_DIM_MIN_DAYLIGHT - NIGHT_DIM_MAX_DAYLIGHT).max(1e-6);
+    let x = ((day - NIGHT_DIM_MAX_DAYLIGHT) / span).clamp(0.0, 1.0);
+    let s = x * x * (3.0 - 2.0 * x);
+    NIGHT_LIGHT_FRACTION + (1.0 - NIGHT_LIGHT_FRACTION) * s
+}
+
+/// Rec.709 relative luminance of a linear rgb triple (0..1 channels). Pure; no clamp.
+pub fn luminance(rgb: [f32; 3]) -> f32 {
+    0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+}
+
+/// Ambient light contribution as a perceived cd/m2 figure: colour luminance x brightness.
+pub fn ambient_luminance(p: &LookParams) -> f32 {
+    luminance(p.ambient_color) * p.ambient_brightness
+}
+
+/// Sun light contribution as a perceived lux figure: decoded sun colour luminance x mapped lux.
+pub fn sun_luminance(p: &LookParams, env: &ZoneEnv) -> f32 {
+    luminance(env.sun_color) * p.sun_lux
+}
+
+/// Measured luminance of one area/slot under a look. Used by the report and the unit tests.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ZoneLuminance {
+    /// Ambient fill (cd/m2).
+    pub ambient: f32,
+    /// Directional sun/moon (lux).
+    pub sun: f32,
+    /// Combined estimate (cd/m2): ambient plus a Lambertian share of the sun (sun / pi). ASSUMED.
+    pub scene: f32,
+}
+
+/// Derive the luminance figures of `env` under `settings` (pure; see [`look_params`]).
+pub fn zone_luminance(env: &ZoneEnv, settings: LookSettings) -> ZoneLuminance {
+    let p = look_params(env, settings);
+    let ambient = ambient_luminance(&p);
+    let sun = sun_luminance(&p, env);
+    ZoneLuminance { ambient, sun, scene: ambient + sun / std::f32::consts::PI }
 }
 
 /// Exponential-squared density so that fog reaches 50% at `d50` metres.
@@ -138,12 +204,21 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
         },
         Look::Vivid => {
             let day = daylight(env);
-            // Ambient colour = sky (mid gradient) mixed 35% with white so shadows are soft blue, not grey.
+            // Night dimming (ASSUMED): 1 for day/evening, NIGHT_LIGHT_FRACTION in deep night. `dayness`
+            // is its 0..1 complement used to fade the colours below.
+            let nscale = night_scale(day);
+            let dayness = ((nscale - NIGHT_LIGHT_FRACTION) / (1.0 - NIGHT_LIGHT_FRACTION)).clamp(0.0, 1.0);
+            // Ambient colour = sky (mid gradient) mixed with white so shadows are soft blue, not grey.
+            // At night the white share shrinks (NIGHT_AMBIENT_WHITE) so the fill stays blue.
             let sky = super::lighting::sky_color_at(env, 0.55);
-            let amb = mix3(sky, [1.0; 3], 0.35);
-            // Haze colour: halfway between the decoded depth-gradient colour and the horizon sky.
+            let white_mix = NIGHT_AMBIENT_WHITE + (DAY_AMBIENT_WHITE - NIGHT_AMBIENT_WHITE) * dayness;
+            let amb = mix3(sky, [1.0; 3], white_mix);
+            // Haze colour: halfway between the decoded depth-gradient colour and the horizon sky,
+            // dimmed towards the decoded night sky so the night does not wash out to bright teal. ASSUMED.
             let hz = env.sky[0].0;
-            let fc = mix3([env.fog_color[0], env.fog_color[1], env.fog_color[2]], hz, 0.5);
+            let fc0 = mix3([env.fog_color[0], env.fog_color[1], env.fog_color[2]], hz, 0.5);
+            let fog_dim = NIGHT_FOG_FRACTION + (1.0 - NIGHT_FOG_FRACTION) * dayness;
+            let fc = [fc0[0] * fog_dim, fc0[1] * fog_dim, fc0[2] * fog_dim];
             // Cloud colour: white warmed by the sun colour, dimmed by daylight (night clouds are dark).
             let sun = env.sun_color;
             let sun_n = sun[0].max(sun[1]).max(sun[2]).max(1e-3);
@@ -151,9 +226,10 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
             let cc = mix3([1.0; 3], warm, 0.25);
             let lum = (0.12 + 0.88 * day.min(1.0)).clamp(0.0, 1.0);
             LookParams {
-                sun_lux: env.sun_intensity * LUX_PER_INTENSITY_VIVID,
+                // Night dimming leaves a faint moon sun; day/evening keep the previous lux mapping.
+                sun_lux: env.sun_intensity * LUX_PER_INTENSITY_VIVID * nscale,
                 ambient_color: amb,
-                ambient_brightness: AMBIENT_VIVID_DAY * day.max(0.08),
+                ambient_brightness: (AMBIENT_VIVID_DAY * day * nscale).max(NIGHT_AMBIENT_MIN),
                 // Pushed-out falloff: 50% haze only at the decoded far distance (was fully opaque there).
                 fog: FogSpec::ExpSquared { density: exp_squared_density(far) },
                 fog_color: [fc[0], fc[1], fc[2], 1.0],
@@ -411,5 +487,118 @@ mod tests {
         assert_eq!(z, [0.0, 0.0]);
         let h = cloud_uv([1.0, 0.0, 0.0]);
         assert!(h[0] > 5.0 && h[0].is_finite());
+    }
+
+    #[test]
+    fn luminance_known_values_and_channel_order() {
+        assert!((luminance([1.0, 1.0, 1.0]) - 1.0).abs() < 1e-6);
+        assert_eq!(luminance([0.0, 0.0, 0.0]), 0.0);
+        assert!((luminance([0.0, 1.0, 0.0]) - 0.7152).abs() < 1e-6);
+        // Green dominates, blue contributes the least.
+        assert!(luminance([0.0, 1.0, 0.0]) > luminance([1.0, 0.0, 0.0]));
+        assert!(luminance([1.0, 0.0, 0.0]) > luminance([0.0, 0.0, 1.0]));
+    }
+
+    #[test]
+    fn night_scale_bounded_and_monotone() {
+        assert!((night_scale(0.0) - NIGHT_LIGHT_FRACTION).abs() < 1e-6);
+        assert_eq!(night_scale(NIGHT_DIM_MAX_DAYLIGHT), NIGHT_LIGHT_FRACTION);
+        assert!((night_scale(NIGHT_DIM_MIN_DAYLIGHT) - 1.0).abs() < 1e-6);
+        assert_eq!(night_scale(3.0), 1.0);
+        let mut prev = 0.0;
+        for i in 0..=60 {
+            let d = i as f32 / 40.0; // 0..1.5
+            let s = night_scale(d);
+            assert!(s >= prev - 1e-6, "night_scale not monotone at {d}");
+            assert!((NIGHT_LIGHT_FRACTION..=1.0).contains(&s));
+            prev = s;
+        }
+    }
+
+    #[test]
+    fn night_is_dark_and_day_gt_evening_gt_night() {
+        // Synthetic day/evening/night at the sheet's own sun intensities for area 00 (2.8/2.5/0.3).
+        let day = look_params(&env(2.8), LookSettings::default());
+        let eve = look_params(&env(2.5), LookSettings::default());
+        let night = look_params(&env(0.3), LookSettings::default());
+        for p in [&day, &eve, &night] {
+            for v in p.ambient_color.iter().chain(p.cloud_color.iter()).chain([&p.sun_lux, &p.ambient_brightness]) {
+                assert!(v.is_finite(), "non-finite render value");
+            }
+            for c in p.fog_color {
+                assert!(c.is_finite());
+            }
+        }
+        let a_day = ambient_luminance(&day);
+        let a_eve = ambient_luminance(&eve);
+        let a_night = ambient_luminance(&night);
+        assert!(a_night < 0.4 * a_day, "night ambient {a_night} not < 0.4 x day {a_day}");
+        assert!(a_eve > a_night && a_day >= a_eve, "ambient not day>=evening>night");
+        // Sun too, using the decoded sun colour luminance.
+        let s_day = sun_luminance(&day, &env(2.8));
+        let s_night = sun_luminance(&night, &env(0.3));
+        assert!(s_night < 0.4 * s_day);
+        // Night fill is blue-ish and dimmer than the day fill.
+        assert!(night.ambient_color[2] > night.ambient_color[0]);
+        assert!(luminance(night.ambient_color) < luminance(day.ambient_color));
+        // Night haze is dimmer than day haze.
+        assert!(luminance([night.fog_color[0], night.fog_color[1], night.fog_color[2]]) < 0.5 * luminance([day.fog_color[0], day.fog_color[1], day.fog_color[2]]));
+    }
+
+    #[test]
+    fn extreme_slots_stay_finite() {
+        for sun in [0.0, 0.05, 1e4] {
+            let p = look_params(&env(sun), LookSettings::default());
+            for v in p.ambient_color.iter().chain(p.cloud_color.iter()).chain([&p.sun_lux, &p.ambient_brightness]) {
+                assert!(v.is_finite(), "non-finite at sun {sun}");
+            }
+            assert!(p.ambient_brightness >= NIGHT_AMBIENT_MIN - 1e-3, "ambient floor not honoured at sun {sun}");
+        }
+    }
+
+    /// Measures ambient/sun/scene luminance for the six real areas x four time slots from the sheet.
+    /// Skips (green) when the game-derived sheet is absent, like the other data-dependent tests.
+    #[test]
+    fn night_table_from_real_sheet() {
+        let Some(path) = crate::game::lighting::find_lighting_sheet() else {
+            eprintln!("[skip] data/field_lighting_env.tsv not found; night table not measured");
+            return;
+        };
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            eprintln!("[skip] {path:?} unreadable");
+            return;
+        };
+        let mut measured = 0usize;
+        for area in 0..6u8 {
+            let name = format!("ha_area{area:02}");
+            // (colour luminance, mapped ambient brightness, mapped sun lux)
+            let mut slots = Vec::new();
+            for slot in 0..4usize {
+                let Some(env) = crate::game::lighting::parse_zone_env(&text, &name, slot) else {
+                    eprintln!("[skip] {name} slot {slot} absent");
+                    return;
+                };
+                let l = zone_luminance(&env, LookSettings::default());
+                let p = look_params(&env, LookSettings::default());
+                for v in [l.ambient, l.sun, l.scene, p.ambient_brightness, p.sun_lux] {
+                    assert!(v.is_finite(), "{name} slot {slot} non-finite");
+                }
+                println!(
+                    "{name} slot {slot}: sun {:.1} lux, ambient {:.1} cd/m2, scene {:.1} cd/m2 (brightness {:.1}, mapped sun {:.0} lux)",
+                    l.sun, l.ambient, l.scene, p.ambient_brightness, p.sun_lux
+                );
+                slots.push((l, p.ambient_brightness, p.sun_lux));
+            }
+            // Slot 1 = day, 2 = evening, 3 = night. The acceptance metric is colour luminance:
+            // night must be < 0.4x day. The monotone ordering is asserted on the mapped light level;
+            // the sheet gives equal day/evening sun in areas 03/04, and a warmer (brighter) evening
+            // sky colour in area 03, so the colour metric itself can invert day/evening there (data).
+            assert!(slots[3].0.ambient < 0.4 * slots[1].0.ambient, "{name} night ambient not <0.4x day");
+            assert!(slots[3].0.sun < 0.4 * slots[1].0.sun, "{name} night sun not <0.4x day");
+            assert!(slots[2].1 > slots[3].1 && slots[1].1 >= slots[2].1, "{name} ambient brightness not day>=evening>night");
+            assert!(slots[2].2 > slots[3].2 && slots[1].2 >= slots[2].2, "{name} mapped sun not day>=evening>night");
+            measured += 1;
+        }
+        assert_eq!(measured, 6);
     }
 }

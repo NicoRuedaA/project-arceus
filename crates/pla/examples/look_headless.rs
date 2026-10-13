@@ -2,6 +2,8 @@
 //!
 //! No window is created (winit disabled, camera renders to an image), so nothing appears on the desktop.
 //! Usage: `look_headless [--look classic|vivid] [--no-shadows] [--area 0] [--time-slot 1] [--yaw DEG] [--out PNG]`
+//! `--slots` renders the four time slots (0..=3) in this single process (no window, one run) and prints
+//! the mean pixel luminance of each frame, so the night dimming can be compared with figures.
 //! The scene is placeholder geometry (flat colours), only meant to compare lighting/shadows/sky/fog
 //! settings; it is not game content.
 
@@ -28,7 +30,24 @@ fn main() {
     let out = arg(&args, "--out").unwrap_or_else(|| "work/look_headless.png".into());
     let area: u8 = arg(&args, "--area").and_then(|s| s.parse().ok()).unwrap_or(0);
     let yaw: f32 = arg(&args, "--yaw").and_then(|s| s.parse().ok()).unwrap_or(0.0);
-    let slot = time_slot_from_args(&args);
+    if args.iter().any(|a| a == "--slots") {
+        // One process, four windowless renders (one per time slot), then a luminance figure each.
+        let stem = out.strip_suffix(".png").unwrap_or(&out).to_string();
+        for slot in 0..=3usize {
+            let path = format!("{stem}_s{slot}.png");
+            run_one(area, slot, yaw, path.clone());
+            match mean_luminance(path.as_str()) {
+                Ok((srgb, lin)) => println!("[measure] {path}: mean luminance sRGB {srgb:.4}, linear {lin:.4}"),
+                Err(e) => eprintln!("[measure] {path}: cannot read back ({e})"),
+            }
+        }
+    } else {
+        let slot = time_slot_from_args(&args);
+        run_one(area, slot, yaw, out.clone());
+    }
+}
+
+fn run_one(area: u8, slot: usize, yaw: f32, out: String) {
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -47,6 +66,52 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(Update, capture)
         .run();
+}
+
+/// Mean Rec.709 luminance of a PNG, on the stored sRGB values (perceptual) and on their linearisation.
+fn mean_luminance(path: &str) -> Result<(f64, f64), Box<dyn std::error::Error>> {
+    use png::{BitDepth, ColorType};
+    let mut dec = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(path)?));
+    dec.set_transformations(png::Transformations::EXPAND | png::Transformations::normalize_to_color8());
+    let mut reader = dec.read_info()?;
+    if reader.info().bit_depth != BitDepth::Eight {
+        return Err("only 8-bit PNGs are read back".into());
+    }
+    let size = reader.output_buffer_size().ok_or("image too large to buffer")?;
+    let mut buf = vec![0u8; size];
+    let info = reader.next_frame(&mut buf)?;
+    let data = &buf[..info.buffer_size()];
+    let ch = match info.color_type {
+        ColorType::Rgb => 3,
+        ColorType::Rgba => 4,
+        ColorType::Grayscale => 1,
+        ColorType::GrayscaleAlpha => 2,
+        other => return Err(format!("unsupported colour type {other:?}").into()),
+    };
+    let (mut sum_srgb, mut sum_lin, mut n) = (0.0f64, 0.0f64, 0u64);
+    for px in data.chunks_exact(ch) {
+        let (r, g, b) = match ch {
+            1 => (px[0], px[0], px[0]),
+            _ => (px[0], px[1], px[2]),
+        };
+        let (rf, gf, bf) = (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0);
+        sum_srgb += 0.2126 * rf + 0.7152 * gf + 0.0722 * bf;
+        let (rl, gl, bl) = (srgb_to_linear(rf), srgb_to_linear(gf), srgb_to_linear(bf));
+        sum_lin += 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+        n += 1;
+    }
+    if n == 0 {
+        return Err("empty image".into());
+    }
+    Ok((sum_srgb / n as f64, sum_lin / n as f64))
+}
+
+fn srgb_to_linear(c: f64) -> f64 {
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
+    }
 }
 
 #[derive(Resource)]
