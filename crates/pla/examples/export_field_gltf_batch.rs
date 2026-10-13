@@ -3,20 +3,20 @@
 //! Usage: cargo run -p pla --example export_field_gltf_batch --offline -- <romfs-root> <output-gltf-dir> <output-tsv>
 
 use pla::assets::bntx::Bntx;
-use pla::assets::gfpak::GfPak;
 use pla::assets::field_material::trmsh_submeshes;
+use pla::assets::gfpak::GfPak;
 use pla::assets::gltf_export::{
-    primitive_from_tr, skeleton_from_tr, subset_primitive, GltfExport, GltfMaterial,
+    primitive_from_tr, skeleton_from_tr, subset_primitive, GltfExport, GltfMaterial, GltfNode,
+    GltfSkin,
 };
 use pla::assets::pokemon_material::parse_blocks;
-use pla::assets::tr::{TrMbf, TrSkl};
+use pla::assets::tr::{TrMbf, TrShapeLayout, TrSkl};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 struct PackContext<'a> {
-    pack_name: &'a str,
     prefix: &'a str,
     bytes: &'a [u8],
     gfpak: &'a GfPak,
@@ -39,9 +39,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = BufWriter::new(File::create(&out_tsv)?);
     writeln!(writer, "# sheet: data/field_model_export_index")?;
     writeln!(writer, "# version: 1")?;
-    writeln!(writer, "# generator: crates/pla/examples/export_field_gltf_batch.rs")?;
-    writeln!(writer, "# target: Pokémon Legends: Arceus v262144 field scenery models")?;
-    writeln!(writer, "source_pack:string\tmodel_name:string*\toutput:string?\tstatus:enum\treason:string?")?;
+    writeln!(
+        writer,
+        "# generator: crates/pla/examples/export_field_gltf_batch.rs"
+    )?;
+    writeln!(
+        writer,
+        "# target: Pokémon Legends: Arceus v262144 field scenery models"
+    )?;
+    writeln!(
+        writer,
+        "source_pack:string\tmodel_name:string*\toutput:string?\tstatus:enum\treason:string?"
+    )?;
 
     let mut total_count = 0;
     let mut ok_count = 0;
@@ -80,7 +89,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let prefix = "bin/field/model/pack/";
         let ctx = PackContext {
-            pack_name,
             prefix,
             bytes: &bytes,
             gfpak: &gfpak,
@@ -95,14 +103,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let pack_stem = pack_path.file_stem().unwrap().to_str().unwrap();
             let out_pack_dir = out_dir.join(pack_stem);
             match export_model(&ctx, &model, &out_pack_dir) {
-                Ok(rel_out) => {
+                Ok((rel_out, note)) => {
                     ok_count += 1;
                     writeln!(
                         writer,
-                        "{}\t{}\t{}\tok\t",
+                        "{}\t{}\t{}\tok\t{}",
                         pack_name,
                         model,
-                        rel_out.display()
+                        rel_out.display(),
+                        note.unwrap_or_default()
                     )?;
                 }
                 Err(reason) => {
@@ -111,9 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     writeln!(
                         writer,
                         "{}\t{}\t\tblocked\t{}",
-                        pack_name,
-                        model,
-                        clean_reason
+                        pack_name, model, clean_reason
                     )?;
                 }
             }
@@ -142,7 +149,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let area_stem = pack_path.file_stem().unwrap().to_str().unwrap();
         let prefix = format!("bin/field/terrain/{}/terrain/", area_stem);
 
-        println!("Processing terrain pack: {} (prefix: {})", pack_name, prefix);
+        println!(
+            "Processing terrain pack: {} (prefix: {})",
+            pack_name, prefix
+        );
         let bytes = std::fs::read(pack_path)?;
         let gfpak = match GfPak::parse(&bytes) {
             Ok(p) => p,
@@ -152,7 +162,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
         let ctx = PackContext {
-            pack_name,
             prefix: &prefix,
             bytes: &bytes,
             gfpak: &gfpak,
@@ -169,14 +178,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             total_count += 1;
             let out_pack_dir = out_dir.join(format!("{}_terrain", area_stem));
             match export_model(&ctx, &model, &out_pack_dir) {
-                Ok(rel_out) => {
+                Ok((rel_out, note)) => {
                     ok_count += 1;
                     writeln!(
                         writer,
-                        "{}\t{}\t{}\tok\t",
+                        "{}\t{}\t{}\tok\t{}",
                         pack_name,
                         model,
-                        rel_out.display()
+                        rel_out.display(),
+                        note.unwrap_or_default()
                     )?;
                 }
                 Err(reason) => {
@@ -185,9 +195,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     writeln!(
                         writer,
                         "{}\t{}\t\tblocked\t{}",
-                        pack_name,
-                        model,
-                        clean_reason
+                        pack_name, model, clean_reason
                     )?;
                 }
             }
@@ -211,11 +219,7 @@ fn discover_models(bytes: &[u8], prefix: &str, gfpak: &GfPak) -> Vec<String> {
             let mut start = pos;
             while start > 0 {
                 let c = bytes[start - 1];
-                if (c >= b'a' && c <= b'z')
-                    || (c >= b'A' && c <= b'Z')
-                    || (c >= b'0' && c <= b'9')
-                    || c == b'_'
-                {
+                if c.is_ascii_alphanumeric() || c == b'_' {
                     start -= 1;
                 } else {
                     break;
@@ -245,49 +249,61 @@ fn export_model(
     ctx: &PackContext,
     model_name: &str,
     out_pack_dir: &Path,
-) -> Result<PathBuf, String> {
+) -> Result<(PathBuf, Option<String>), String> {
     let trmsh_path = format!("{}{}.trmsh", ctx.prefix, model_name);
     let trmbf_path = format!("{}{}.trmbf", ctx.prefix, model_name);
     let trmtr_path = format!("{}{}.trmtr", ctx.prefix, model_name);
     let trskl_path = format!("{}{}.trskl", ctx.prefix, model_name);
 
-    let trmsh_idx = find_entry(ctx.gfpak, &trmsh_path)
-        .ok_or_else(|| format!("missing {}", trmsh_path))?;
-    let trmbf_idx = find_entry(ctx.gfpak, &trmbf_path)
-        .ok_or_else(|| format!("missing {}", trmbf_path))?;
+    let trmsh_idx =
+        find_entry(ctx.gfpak, &trmsh_path).ok_or_else(|| format!("missing {}", trmsh_path))?;
+    let trmbf_idx =
+        find_entry(ctx.gfpak, &trmbf_path).ok_or_else(|| format!("missing {}", trmbf_path))?;
 
-    let trmsh_bytes = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[trmsh_idx])?;
-    let trmbf_bytes = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[trmbf_idx])?;
+    let trmsh_bytes = ctx
+        .gfpak
+        .decoded_data(ctx.bytes, &ctx.gfpak.entries[trmsh_idx])?;
+    let trmbf_bytes = ctx
+        .gfpak
+        .decoded_data(ctx.bytes, &ctx.gfpak.entries[trmbf_idx])?;
 
     let mut export = GltfExport::default();
 
-    // Skeleton if present
-    let skeleton = if let Some(trskl_idx) = find_entry(ctx.gfpak, &trskl_path) {
-        if let Ok(skl_bytes) = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[trskl_idx]) {
-            if let Ok(skl) = TrSkl::parse(&skl_bytes) {
-                if let Ok(binds) = TrSkl::read_bind_records(&skl_bytes) {
-                    if let Ok((nodes, skin)) = skeleton_from_tr(&skl, &binds, 0, 0) {
-                        export.nodes = nodes;
-                        export.skins.push(skin);
-                        Some(skl)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
+    // Mesh: the bounded legacy layout first; when it is unavailable or
+    // disagrees with the payload, the FlatBuffer shape declaration is
+    // authoritative (it names stride, index width and attributes).
+    let (mesh, layout_route) = match TrMbf::parse_with_layout(&trmbf_bytes, &trmsh_bytes) {
+        Ok(mesh) => (mesh, "legacy"),
+        Err(legacy_error) => match parse_shape_layout(&trmbf_bytes, &trmsh_bytes) {
+            Ok(mesh) => (mesh, "shape"),
+            Err(shape_error) => return Err(format!("{legacy_error}; shape layout: {shape_error}")),
+        },
     };
 
-    // Mesh
-    let mesh = TrMbf::parse_with_layout(&trmbf_bytes, &trmsh_bytes)?;
+    // Skeleton only when the mesh actually deforms: a model without the
+    // demonstrated unique ID 7/8 pair is exported as a static mesh, and a mesh
+    // with the pair whose skeleton cannot be built is also static (with the
+    // measured reason in the index).
+    let (skeleton, skin_note) = if mesh.has_unique_skin_channels() {
+        match load_skeleton(ctx, &trskl_path) {
+            Ok((skl, nodes, skin)) => {
+                export.nodes = nodes;
+                export.skins.push(skin);
+                (Some(skl), None)
+            }
+            Err(error) => (
+                None,
+                Some(format!("static (skeleton unavailable: {error})")),
+            ),
+        }
+    } else {
+        (
+            None,
+            Some(format!(
+                "static (no unique ID 7/8 skin channels; {layout_route} layout)"
+            )),
+        )
+    };
 
     // Materials & textures: one TRMTR block per submesh (AppliedMaterial), matched by name.
     let whole = primitive_from_tr(model_name, &mesh, &trmbf_bytes, skeleton.as_ref(), None)?;
@@ -296,37 +312,53 @@ fn export_model(
         .entry_index_by_path(&trmtr_path)
         .ok()
         .flatten()
-        .and_then(|i| ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[i]).ok())
+        .and_then(|i| {
+            ctx.gfpak
+                .decoded_data(ctx.bytes, &ctx.gfpak.entries[i])
+                .ok()
+        })
         .map(|b| parse_blocks(&b))
         .unwrap_or_default();
     let submeshes = find_entry(ctx.gfpak, &trmsh_path)
-        .and_then(|_| Some(trmsh_submeshes(&trmsh_bytes)))
+        .map(|_| trmsh_submeshes(&trmsh_bytes))
         .unwrap_or_default();
     let covered: usize = submeshes.iter().map(|s| s.index_count).sum();
     let exact = !submeshes.is_empty()
         && covered == whole.indices.len()
-        && submeshes.iter().all(|s| s.index_offset + s.index_count <= whole.indices.len());
+        && submeshes
+            .iter()
+            .all(|s| s.index_offset + s.index_count <= whole.indices.len());
     let mut texture_cache: std::collections::HashMap<String, Option<String>> = Default::default();
-    let mut material_for = |export: &mut GltfExport, block_name: &str, tex: &str| -> Option<usize> {
-        let uri = texture_cache
-            .entry(tex.to_string())
-            .or_insert_with(|| decode_albedo(ctx, tex, out_pack_dir))
-            .clone()?;
-        if let Some(i) = export.materials.iter().position(|m| m.base_color_uri.as_deref() == Some(uri.as_str())) {
-            return Some(i);
-        }
-        export.materials.push(GltfMaterial {
-            name: format!("{block_name}_mat"),
-            base_color_uri: Some(uri),
-            normal_uri: None, // Flat baseColor shading; normal map skipped as unproven shading
-        });
-        Some(export.materials.len() - 1)
-    };
+    let mut material_for =
+        |export: &mut GltfExport, block_name: &str, tex: &str| -> Option<usize> {
+            let uri = texture_cache
+                .entry(tex.to_string())
+                .or_insert_with(|| decode_albedo(ctx, tex, out_pack_dir))
+                .clone()?;
+            if let Some(i) = export
+                .materials
+                .iter()
+                .position(|m| m.base_color_uri.as_deref() == Some(uri.as_str()))
+            {
+                return Some(i);
+            }
+            export.materials.push(GltfMaterial {
+                name: format!("{block_name}_mat"),
+                base_color_uri: Some(uri),
+                normal_uri: None, // Flat baseColor shading; normal map skipped as unproven shading
+            });
+            Some(export.materials.len() - 1)
+        };
     if exact && submeshes.len() > 1 && !blocks.is_empty() {
         for (n, sub) in submeshes.iter().enumerate() {
-            let block = blocks.iter().find(|b| b.name.eq_ignore_ascii_case(&sub.material));
+            let block = blocks
+                .iter()
+                .find(|b| b.name.eq_ignore_ascii_case(&sub.material));
             let material = block
-                .and_then(|b| b.texture("BaseColorMap").map(|t| (b.name.clone(), t.to_string())))
+                .and_then(|b| {
+                    b.texture("BaseColorMap")
+                        .map(|t| (b.name.clone(), t.to_string()))
+                })
                 .and_then(|(n, t)| material_for(&mut export, &n, &t));
             let indices = &whole.indices[sub.index_offset..sub.index_offset + sub.index_count];
             export.primitives.push(subset_primitive(
@@ -340,10 +372,17 @@ fn export_model(
         // Single submesh (or unparsable submesh table): the block named by the submesh, else the first.
         let block = submeshes
             .first()
-            .and_then(|s| blocks.iter().find(|b| b.name.eq_ignore_ascii_case(&s.material)))
+            .and_then(|s| {
+                blocks
+                    .iter()
+                    .find(|b| b.name.eq_ignore_ascii_case(&s.material))
+            })
             .or_else(|| blocks.first());
         let material = block
-            .and_then(|b| b.texture("BaseColorMap").map(|t| (b.name.clone(), t.to_string())))
+            .and_then(|b| {
+                b.texture("BaseColorMap")
+                    .map(|t| (b.name.clone(), t.to_string()))
+            })
             .and_then(|(n, t)| material_for(&mut export, &n, &t));
         let mut p = whole;
         p.material = material;
@@ -353,7 +392,40 @@ fn export_model(
     let out_gltf = out_pack_dir.join(format!("{}.gltf", model_name));
     export.write(&out_gltf)?;
 
-    Ok(out_gltf)
+    Ok((out_gltf, skin_note))
+}
+
+/// Load and validate the sibling skeleton so the mesh can be skinned.
+fn load_skeleton(
+    ctx: &PackContext,
+    trskl_path: &str,
+) -> Result<(TrSkl, Vec<GltfNode>, GltfSkin), String> {
+    let index = find_entry(ctx.gfpak, trskl_path).ok_or_else(|| format!("missing {trskl_path}"))?;
+    let bytes = ctx
+        .gfpak
+        .decoded_data(ctx.bytes, &ctx.gfpak.entries[index])
+        .map_err(|error| error.to_string())?;
+    let skl = TrSkl::parse(&bytes)?;
+    let binds = TrSkl::read_bind_records(&bytes)?;
+    let (nodes, skin) = skeleton_from_tr(&skl, &binds, 0, 0)?;
+    Ok((skl, nodes, skin))
+}
+
+/// Parse one shape from the `.trmsh` FlatBuffer, trying each declared shape
+/// until one describes the `.trmbf` payload.
+fn parse_shape_layout(trmbf: &[u8], trmsh: &[u8]) -> Result<TrMbf, String> {
+    let shapes = TrShapeLayout::parse_all(trmsh)?;
+    if shapes.is_empty() {
+        return Err("no declared shapes".into());
+    }
+    let mut last_error = String::new();
+    for shape_index in 0..shapes.len() {
+        match TrMbf::parse_with_shape_layout(trmbf, trmsh, shape_index) {
+            Ok(mesh) => return Ok(mesh),
+            Err(error) => last_error = error,
+        }
+    }
+    Err(last_error)
 }
 
 fn find_entry(gfpak: &GfPak, path: &str) -> Option<usize> {
@@ -363,7 +435,10 @@ fn find_entry(gfpak: &GfPak, path: &str) -> Option<usize> {
 /// Decode the first texture of a BNTX entry of the pack to `<name>.png` next to the glTF.
 fn decode_albedo(ctx: &PackContext, tex_name: &str, out_pack_dir: &Path) -> Option<String> {
     let idx = find_entry(ctx.gfpak, &format!("{}{}", ctx.prefix, tex_name))?;
-    let bytes = ctx.gfpak.decoded_data(ctx.bytes, &ctx.gfpak.entries[idx]).ok()?;
+    let bytes = ctx
+        .gfpak
+        .decoded_data(ctx.bytes, &ctx.gfpak.entries[idx])
+        .ok()?;
     let bntx = Bntx::parse(&bytes).ok()?;
     let data = bntx.textures.first()?.decode(&bytes).ok()?;
     let png = format!("{tex_name}.png");

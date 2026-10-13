@@ -10,6 +10,7 @@ pub mod gfpak;
 pub mod gltf_export;
 pub mod havok_tag;
 pub mod message;
+pub mod model_diagnosis;
 pub mod navmesh;
 pub mod player_model;
 pub mod pokemon_material;

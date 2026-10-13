@@ -139,6 +139,195 @@ impl TrMshLayout {
     }
 }
 
+/// One vertex attribute declared by a `.trmsh` FlatBuffer shape.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrShapeAttribute {
+    /// Per-model attribute ID (1 position, 6 UV0, 7/8 skin, ...).
+    pub id: u32,
+    /// Layer ordinal of the declaration (UV1 and similar reuse an ID).
+    pub layer: u32,
+    /// Observed format code.
+    pub format_code: u32,
+    /// Byte offset within one interleaved vertex record.
+    pub offset: usize,
+    /// Width in bytes demonstrated by the format code.
+    pub byte_size: usize,
+}
+
+/// One shape declaration from the `.trmsh` FlatBuffer root vector.
+///
+/// The FlatBuffer shape is the authoritative declaration for the models whose
+/// legacy bounded `.trmsh` section is malformed or unavailable: it names the
+/// vertex stride, the index width and every attribute of the shape (including
+/// layered duplicates). Attribute semantics beyond the demonstrated IDs stay
+/// unknown; the parser only validates internal consistency (contiguous
+/// coverage of the declared stride).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrShapeLayout {
+    /// Bytes per interleaved vertex record declared by the shape.
+    pub stride: usize,
+    /// Bytes per triangle index: 2 (UINT16) or 4 (UINT32).
+    pub index_width: usize,
+    /// Declared attributes in shape order.
+    pub attributes: Vec<TrShapeAttribute>,
+}
+
+impl TrShapeLayout {
+    /// The declaration for `(id, layer)`, when present.
+    pub fn attribute(&self, id: u32, layer: u32) -> Option<&TrShapeAttribute> {
+        self.attributes
+            .iter()
+            .find(|attribute| attribute.id == id && attribute.layer == layer)
+    }
+
+    /// Parse every shape declaration of a `.trmsh` FlatBuffer.
+    pub fn parse_all(trmsh: &[u8]) -> Result<Vec<TrShapeLayout>, String> {
+        Self::parse_selected(trmsh, None).map(|(layouts, _)| layouts)
+    }
+
+    /// Parse one shape declaration (and report the declared shape count).
+    ///
+    /// Shapes are parsed lazily because a pack can mix a usable shape with a
+    /// later shape that uses an unsupported stride (pm0628 declares shape 3 at
+    /// stride 68).
+    pub(crate) fn parse_at(
+        trmsh: &[u8],
+        shape_index: usize,
+    ) -> Result<(TrShapeLayout, usize), String> {
+        let (mut layouts, shape_count) = Self::parse_selected(trmsh, Some(shape_index))?;
+        layouts
+            .pop()
+            .map(|layout| (layout, shape_count))
+            .ok_or_else(|| format!("shape {shape_index} out of range of {shape_count}"))
+    }
+
+    fn parse_selected(
+        trmsh: &[u8],
+        only: Option<usize>,
+    ) -> Result<(Vec<TrShapeLayout>, usize), String> {
+        if trmsh.len() > 32 * 1024 * 1024 {
+            return Err("shape layout exceeds input cap".into());
+        }
+        let mesh = SklBuffer(trmsh);
+        let root = mesh.table(mesh.target(0)?, 3)?;
+        let shapes = mesh.vector(&root, 1)?;
+        if shapes.len() > 64 {
+            return Err("shape count exceeds supported cap".into());
+        }
+        let shape_count = shapes.len();
+        let mut layouts = Vec::with_capacity(shape_count.min(8));
+        for (shape_ordinal, shape_at) in shapes.into_iter().enumerate() {
+            if only.is_some_and(|index| index != shape_ordinal) {
+                continue;
+            }
+            let shape = mesh.table(shape_at, 13)?;
+            let index_type = mesh.u32(mesh.required(&shape, 2, 4)?)?;
+            let index_width = match index_type {
+                // 1 = UINT16 and 2 = UINT32: verified against the raw index
+                // bytes of every sampled shape (u16 samples stay in range,
+                // u32 samples need more than 16 bits).
+                1 => 2,
+                2 => 4,
+                other => {
+                    return Err(format!(
+                        "shape {shape_ordinal}: unsupported index type {other}"
+                    ))
+                }
+            };
+            let layouts_vector = mesh.vector(&shape, 3)?;
+            if layouts_vector.len() != 1 {
+                return Err(format!("shape {shape_ordinal}: requires one vertex layout"));
+            }
+            let table = mesh.table(layouts_vector[0], 2)?;
+            let sizes = mesh.vector(&table, 1)?;
+            if sizes.len() != 1 {
+                return Err(format!("shape {shape_ordinal}: requires one vertex stream"));
+            }
+            let size_table = mesh.table(sizes[0], 1)?;
+            let stride = mesh.u32(mesh.required(&size_table, 0, 4)?)? as usize;
+            if !(12..=MAX_SHAPE_STRIDE).contains(&stride) {
+                return Err(format!(
+                    "shape {shape_ordinal}: unsupported stride {stride}"
+                ));
+            }
+            let mut attributes = Vec::new();
+            for at in mesh.vector(&table, 0)? {
+                let declaration = mesh.table(at, 5)?;
+                let scalar = |id| -> Result<Option<u32>, String> {
+                    mesh.field(&declaration, id, 4)?
+                        .map(|at| mesh.u32(at))
+                        .transpose()
+                };
+                let slot = scalar(0)?.unwrap_or(0);
+                if slot != 0 {
+                    return Err(format!("shape {shape_ordinal}: unsupported slot {slot}"));
+                }
+                let id = scalar(1)?
+                    .ok_or_else(|| format!("shape {shape_ordinal}: attribute has no ID"))?;
+                let layer = scalar(2)?.unwrap_or(0);
+                let format_code = scalar(3)?.ok_or_else(|| {
+                    format!("shape {shape_ordinal}: attribute {id} has no format code")
+                })?;
+                // ID 1 position is implicitly at byte 0; its offset field is
+                // absent in every sampled declaration.
+                let offset = if id == 1 {
+                    scalar(4)?.unwrap_or(0) as usize
+                } else {
+                    scalar(4)?.ok_or_else(|| {
+                        format!("shape {shape_ordinal}: attribute {id} has no byte offset")
+                    })? as usize
+                };
+                let byte_size = format_size(format_code).ok_or_else(|| {
+                    format!(
+                        "shape {shape_ordinal}: unsupported format code {format_code} for ID {id}"
+                    )
+                })?;
+                if attributes.iter().any(|attribute: &TrShapeAttribute| {
+                    attribute.id == id && attribute.layer == layer
+                }) {
+                    return Err(format!(
+                        "shape {shape_ordinal}: duplicate attribute ID {id} layer {layer}"
+                    ));
+                }
+                attributes.push(TrShapeAttribute {
+                    id,
+                    layer,
+                    format_code,
+                    offset,
+                    byte_size,
+                });
+            }
+            let mut intervals: Vec<_> = attributes
+                .iter()
+                .map(|attribute| (attribute.offset, attribute.byte_size, attribute.id))
+                .collect();
+            intervals.sort_unstable_by_key(|interval| interval.0);
+            let mut covered = 0usize;
+            for (offset, byte_size, id) in intervals {
+                if offset != covered {
+                    return Err(format!(
+                        "shape {shape_ordinal}: ID {id} begins at {offset}, expected contiguous byte {covered}"
+                    ));
+                }
+                covered = covered
+                    .checked_add(byte_size)
+                    .ok_or_else(|| format!("shape {shape_ordinal}: attribute interval overflow"))?;
+            }
+            if covered != stride {
+                return Err(format!(
+                    "shape {shape_ordinal}: attributes cover {covered} bytes, stride is {stride}"
+                ));
+            }
+            layouts.push(TrShapeLayout {
+                stride,
+                index_width,
+                attributes,
+            });
+        }
+        Ok((layouts, shape_count))
+    }
+}
+
 /// A parsed `.trmbf` mesh buffer: raw vertices plus the triangle indices.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrMbf {
@@ -152,8 +341,9 @@ pub struct TrMbf {
     pub vertex_stride: usize,
     /// Legacy number of 12-byte chunks in the stride; not the attribute count.
     pub arrays: usize,
-    /// Triangle indices (`u16`, three per triangle).
-    pub indices: Vec<u16>,
+    /// Triangle indices (three per triangle). UINT32 index buffers keep their
+    /// declared width; a `u16` source is widened losslessly.
+    pub indices: Vec<u32>,
     /// Validated `.trmsh` attribute declarations, when parsed with a sibling.
     pub layout: Option<TrMshLayout>,
 }
@@ -185,8 +375,12 @@ const MULTI_MESH_SEARCH_START: usize = 0x60;
 /// Compatibility width for the old 12-byte attribute-group accessor.
 pub const ATTRIBUTE_BYTES: usize = 12;
 
-/// Largest stride the parser currently accepts.
+/// Largest stride the heuristic legacy parser accepts.
 const MAX_STRIDE: usize = 64;
+/// Largest declared shape stride the coverage-validated shape parser accepts.
+/// Observed declarations reach 68 bytes (pm0570_00_41); the bound only rejects
+/// nonsense and every accepted layout must still cover its stride exactly.
+const MAX_SHAPE_STRIDE: usize = 128;
 fn u32le(b: &[u8], o: usize) -> u32 {
     u32::from_le_bytes(b[o..o + 4].try_into().unwrap())
 }
@@ -201,6 +395,11 @@ fn format_size(format_code: u32) -> Option<usize> {
         51 => Some(12),
         43 | 48 | 39 => Some(8),
         20 | 22 => Some(4),
+        // 16 bytes: the width is forced by the contiguous coverage of the
+        // sampling shape declarations (for example ground_area01_cave01 declares
+        // stride 52 with the ID 5/format 54 record left over after offsets
+        // 0/12/20/28/36); its semantics are not decoded and are kept opaque.
+        54 => Some(16),
         _ => None,
     }
 }
@@ -337,13 +536,13 @@ impl TrMbf {
             }
             for skip in (0..=128).step_by(2) {
                 let mut at = o + skip;
-                let mut indices: Vec<u16> = Vec::new();
+                let mut indices: Vec<u32> = Vec::new();
                 while at + 2 <= bytes.len() {
                     let value = u16::from_le_bytes([bytes[at], bytes[at + 1]]);
                     if value as usize >= count {
                         break;
                     }
-                    indices.push(value);
+                    indices.push(u32::from(value));
                     at += 2;
                 }
                 indices.truncate(indices.len() / 3 * 3);
@@ -422,11 +621,11 @@ impl TrMbf {
             if tail.len() < 6 || !tail.len().is_multiple_of(2) {
                 continue;
             }
-            let indices: Vec<u16> = tail
+            let indices: Vec<u32> = tail
                 .as_chunks::<2>()
                 .0
                 .iter()
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .map(|c| u32::from(u16::from_le_bytes([c[0], c[1]])))
                 .collect();
             let count = indices.iter().copied().max().unwrap_or(0) as usize + 1;
             let vertex_bytes = split - MULTI_MESH_SEARCH_START;
@@ -490,14 +689,14 @@ impl TrMbf {
                      plausible stride (multi-buffer files like item_224 are not decoded yet)"
                 )
             })?;
-            let mut indices: Vec<u16> = Vec::new();
+            let mut indices: Vec<u32> = Vec::new();
             let mut at = split;
             while at + 2 <= bytes.len() {
                 let value = u16::from_le_bytes([bytes[at], bytes[at + 1]]);
                 if value as usize >= count {
                     break;
                 }
-                indices.push(value);
+                indices.push(u32::from(value));
                 at += 2;
             }
             indices.truncate(indices.len() / 3 * 3);
@@ -524,9 +723,9 @@ impl TrMbf {
             return Err("odd index buffer size".into());
         }
         let (pairs, _) = index_bytes.as_chunks::<2>();
-        let indices: Vec<u16> = pairs
+        let indices: Vec<u32> = pairs
             .iter()
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .map(|c| u32::from(u16::from_le_bytes([c[0], c[1]])))
             .collect();
         // A few meshes ship an index count that is not a multiple of three
         // (item_224 has 8 158), so keep the complete triangles instead of
@@ -609,7 +808,7 @@ impl TrMbf {
         let size_table = mesh.table(sizes[0], 1)?;
         let stride = mesh.u32(mesh.required(&size_table, 0, 4)?)? as usize;
         if !(12..=MAX_STRIDE).contains(&stride) {
-            return Err("unsupported skin shape stride".into());
+            return Err(format!("unsupported skin shape stride {stride}"));
         }
         let mut attributes = Vec::new();
         for at in mesh.vector(&table, 0)? {
@@ -620,8 +819,10 @@ impl TrMbf {
                     .transpose()
                     .map(|v| v.unwrap_or(0))
             };
-            if scalar(0)? != 0 || scalar(2)? != 0 {
-                return Err("unsupported skin slot/layer".into());
+            let slot = scalar(0)?;
+            let layer = scalar(2)?;
+            if slot != 0 || layer != 0 {
+                return Err(format!("unsupported skin slot/layer {slot}/{layer}"));
             }
             let id = scalar(1)?;
             if attributes.iter().any(|a: &TrMshAttribute| a.id == id) {
@@ -676,14 +877,14 @@ impl TrMbf {
         if index_size == 0 || !index_size.is_multiple_of(6) {
             return Err("skin indices are not a triangle list".into());
         }
-        let indices: Vec<u16> = buffer
+        let indices: Vec<u32> = buffer
             .range(index_offset, index_size)?
             .as_chunks::<2>()
             .0
             .iter()
-            .map(|b| u16::from_le_bytes(*b))
+            .map(|b| u32::from(u16::from_le_bytes(*b)))
             .collect();
-        if indices.iter().any(|&i| usize::from(i) >= vertex_count) {
+        if indices.iter().any(|&i| i as usize >= vertex_count) {
             return Err("skin triangle index outside vertex buffer".into());
         }
         Ok(TrMbf {
@@ -699,6 +900,168 @@ impl TrMbf {
                 table_offset: table.at,
             }),
         })
+    }
+
+    /// Parse one `.trmbf` buffer using the authoritative `.trmsh` FlatBuffer
+    /// shape declaration instead of the bounded legacy layout section.
+    ///
+    /// Handles both container buffers (one FlatBuffer buffer per shape, as in
+    /// the Pokémon packs) and single-buffer files (payload at `0x44`, indices at
+    /// `0x44 + u32@0x28`) whose index buffer is UINT32 or whose legacy layout is
+    /// unavailable. Shapes without skin channels are accepted: the caller
+    /// decides whether to skin them. No attribute semantics are inferred beyond
+    /// the declared IDs and formats.
+    pub fn parse_with_shape_layout(
+        trmbf: &[u8],
+        trmsh: &[u8],
+        shape_index: usize,
+    ) -> Result<TrMbf, String> {
+        if trmbf.len() > 32 * 1024 * 1024 || trmsh.len() > 32 * 1024 * 1024 {
+            return Err("shape layout exceeds input cap".into());
+        }
+        let (shape, shape_count) = TrShapeLayout::parse_at(trmsh, shape_index)?;
+        // Container files map one FlatBuffer buffer per shape and take
+        // precedence: a container can coincidentally mirror the single-buffer
+        // header (objects_area01_kingtree01 declares 12/1698724/1698696 at the
+        // header while its payload lives in buffer tables).
+        let buffer = SklBuffer(trmbf);
+        let container = buffer
+            .target(0)
+            .and_then(|at| buffer.table(at, 2))
+            .and_then(|root| buffer.vector(&root, 1));
+        let use_container = matches!(&container, Ok(buffers) if buffers.len() == shape_count);
+        // Single-buffer files declare the payload at 0x40 and the index buffer
+        // at 0x44 + u32@0x28 = payload + 28; the payload must divide by stride.
+        let single_buffer = !use_container
+            && read_u32(trmbf, 0) == Some(12)
+            && read_u32(trmbf, 0x28)
+                .zip(read_u32(trmbf, 0x40))
+                .is_some_and(|(index_gap, payload)| {
+                    index_gap as usize == payload as usize + 28
+                        && payload as usize > 0
+                        && (payload as usize).is_multiple_of(shape.stride)
+                });
+        let (vertex_offset, vertex_size, index_bytes): (usize, usize, &[u8]) = if use_container {
+            let buffers = container.expect("checked above");
+            let selected = buffer.table(
+                *buffers
+                    .get(shape_index)
+                    .ok_or("shape buffer index out of range")?,
+                2,
+            )?;
+            let vertices = buffer.vector(&selected, 1)?;
+            let indices = buffer.vector(&selected, 0)?;
+            if vertices.len() != 1 || indices.len() != 1 {
+                return Err("shape requires one vertex/index buffer".into());
+            }
+            let (vertex_offset, vertex_size) = buffer.byte_range(vertices[0])?;
+            let (index_offset, index_size) = buffer.byte_range(indices[0])?;
+            (
+                vertex_offset,
+                vertex_size,
+                buffer.range(index_offset, index_size)?,
+            )
+        } else if single_buffer {
+            let payload = read_u32(trmbf, 0x40).unwrap() as usize;
+            let index_gap = read_u32(trmbf, 0x28).unwrap() as usize;
+            let index_start = VERTEX_OFFSET + index_gap;
+            (
+                VERTEX_OFFSET,
+                payload,
+                trmbf
+                    .get(index_start..)
+                    .ok_or("shape index buffer starts outside the .trmbf")?,
+            )
+        } else {
+            return Err(match container {
+                Ok(buffers) => format!(
+                    "shape/buffer correspondence unresolved: {} buffers for {} shapes",
+                    buffers.len(),
+                    shape_count
+                ),
+                Err(error) => error,
+            });
+        };
+        if vertex_size == 0 || !vertex_size.is_multiple_of(shape.stride) {
+            return Err("invalid shape vertex payload size".into());
+        }
+        let vertex_count = vertex_size / shape.stride;
+        if vertex_count > 1_000_000 {
+            return Err("shape vertex count exceeds supported cap".into());
+        }
+        if index_bytes.is_empty() || !index_bytes.len().is_multiple_of(shape.index_width) {
+            return Err(format!(
+                "shape index buffer of {} bytes does not fit the declared {}-byte index",
+                index_bytes.len(),
+                shape.index_width
+            ));
+        }
+        let mut indices: Vec<u32> = match shape.index_width {
+            2 => index_bytes
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|chunk| u32::from(u16::from_le_bytes(*chunk)))
+                .collect(),
+            4 => index_bytes
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|chunk| u32::from_le_bytes(*chunk))
+                .collect(),
+            other => return Err(format!("unsupported shape index width {other}")),
+        };
+        if indices.iter().any(|&index| index as usize >= vertex_count) {
+            return Err("shape triangle index outside the vertex buffer".into());
+        }
+        // A few buffers carry a trailing partial triangle; keep the complete ones.
+        indices.truncate(indices.len() / 3 * 3);
+        if indices.is_empty() {
+            return Err("shape index buffer holds no complete triangle".into());
+        }
+        let layout = TrMshLayout {
+            stride: shape.stride,
+            attributes: shape
+                .attributes
+                .iter()
+                .map(|attribute| TrMshAttribute {
+                    id: attribute.id,
+                    format_code: attribute.format_code,
+                    offset: attribute.offset,
+                    byte_size: attribute.byte_size,
+                })
+                .collect(),
+            // The FlatBuffer shape has no single declaration-table address; the
+            // value is informational for layout-parsed models.
+            table_offset: 0,
+        };
+        Ok(TrMbf {
+            vertex_offset,
+            vertex_size,
+            vertex_count,
+            vertex_stride: shape.stride,
+            arrays: shape.stride / ATTRIBUTE_BYTES,
+            indices,
+            layout: Some(layout),
+        })
+    }
+
+    /// Whether the validated layout declares exactly one ID 7 / ID 8 pair with
+    /// the demonstrated RGBA8_UINT / RGBA16_UNORM formats. Models without this
+    /// pair do not deform and are exported as static meshes.
+    pub fn has_unique_skin_channels(&self) -> bool {
+        let Some(layout) = &self.layout else {
+            return false;
+        };
+        let unique = |id: u32, format_code: u32, byte_size: usize| {
+            let mut matches = layout.attributes.iter().filter(|attribute| {
+                attribute.id == id
+                    && attribute.format_code == format_code
+                    && attribute.byte_size == byte_size
+            });
+            matches.next().is_some() && matches.next().is_none()
+        };
+        unique(7, 22, 4) && unique(8, 39, 8)
     }
 
     /// Read the demonstrated RGBA8_UINT/RGBA16_UNORM skin lane from a declared
@@ -908,7 +1271,7 @@ impl TrMbf {
                     let mut quality = 0.0f64;
                     let mut n = 0u64;
                     for t in (0..self.indices.len().saturating_sub(2)).step_by(3) {
-                        let get = |idx: u16| -> [f32; 3] {
+                        let get = |idx: u32| -> [f32; 3] {
                             [
                                 value(idx as usize, a),
                                 value(idx as usize, b),
@@ -986,8 +1349,11 @@ impl TrMbf {
         Some(position)
     }
 
-    /// UV0 of vertex `i`: the verified ID 6 / format 48 pair of `f32`s.
-    /// No semantic UV is guessed when the sibling `.trmsh` is unavailable.
+    /// UV0 of vertex `i`: the demonstrated ID 6 / format 48 pair of `f32`s.
+    /// The offset comes from the validated layout; layered ID 6 declarations
+    /// (UV1) resolve to the lowest declared offset, which is layer 0 in every
+    /// sampled model. No semantic UV is guessed when the sibling `.trmsh` is
+    /// unavailable.
     pub fn uv(&self, bytes: &[u8], i: usize) -> Option<[f32; 2]> {
         if i >= self.vertex_count {
             return None;
@@ -997,10 +1363,10 @@ impl TrMbf {
             .as_ref()?
             .attributes
             .iter()
-            .find(|attribute| attribute.id == 6)?;
-        if attribute.format_code != 48 || attribute.offset != 28 || attribute.byte_size != 8 {
-            return None;
-        }
+            .filter(|attribute| {
+                attribute.id == 6 && attribute.format_code == 48 && attribute.byte_size == 8
+            })
+            .min_by_key(|attribute| attribute.offset)?;
         let start = i
             .checked_mul(self.vertex_stride)?
             .checked_add(attribute.offset)?;
@@ -1206,6 +1572,288 @@ mod tests {
             f32::from_le_bytes(vertices[8..12].try_into().unwrap()),
         ];
         assert_eq!(first_vertex_markers, marker_values);
+    }
+
+    // --- FlatBuffer shape declarations (synthetic, no game bytes) ---
+
+    fn fb_word(bytes: &mut [u8], at: usize, value: u32) {
+        bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn fb_offset(bytes: &mut [u8], at: usize, target: usize) {
+        fb_word(bytes, at, u32::try_from(target - at).unwrap());
+    }
+
+    fn fb_allocate(bytes: &mut Vec<u8>, size: usize) -> usize {
+        while !bytes.len().is_multiple_of(4) {
+            bytes.push(0);
+        }
+        let at = bytes.len();
+        bytes.resize(at + size, 0);
+        at
+    }
+
+    fn fb_table(bytes: &mut Vec<u8>, size: usize, fields: &[u16]) -> usize {
+        let at = fb_allocate(bytes, size);
+        let vt = fb_allocate(bytes, 4 + fields.len() * 2);
+        fb_word(bytes, at, (at as i32 - vt as i32) as u32);
+        bytes[vt..vt + 2].copy_from_slice(&((4 + fields.len() * 2) as u16).to_le_bytes());
+        bytes[vt + 2..vt + 4].copy_from_slice(&(size as u16).to_le_bytes());
+        for (i, field) in fields.iter().enumerate() {
+            bytes[vt + 4 + i * 2..vt + 6 + i * 2].copy_from_slice(&field.to_le_bytes());
+        }
+        at
+    }
+
+    fn fb_vector(bytes: &mut Vec<u8>, count: usize) -> usize {
+        let at = fb_allocate(bytes, 4 + count * 4);
+        fb_word(bytes, at, count as u32);
+        at
+    }
+
+    /// Build a `.trmsh` FlatBuffer with one shape. Attributes are
+    /// `(slot, id, layer, format_code, offset)`.
+    fn synthetic_shape_trmsh(
+        stride: u32,
+        index_type: u32,
+        attributes: &[(u32, u32, u32, u32, u32)],
+    ) -> Vec<u8> {
+        let mut bytes = vec![0; 4];
+        let root = fb_table(&mut bytes, 8, &[0, 4]);
+        fb_offset(&mut bytes, 0, root);
+        let shapes = fb_vector(&mut bytes, 1);
+        fb_offset(&mut bytes, root + 4, shapes);
+
+        let shape = fb_table(&mut bytes, 20, &[0, 0, 12, 16]);
+        fb_offset(&mut bytes, shapes + 4, shape);
+        fb_word(&mut bytes, shape + 12, index_type);
+        let layouts = fb_vector(&mut bytes, 1);
+        fb_offset(&mut bytes, shape + 16, layouts);
+
+        let layout = fb_table(&mut bytes, 12, &[4, 8]);
+        fb_offset(&mut bytes, layouts + 4, layout);
+        let declarations = fb_vector(&mut bytes, attributes.len());
+        fb_offset(&mut bytes, layout + 4, declarations);
+        for (i, (slot, id, layer, format, offset)) in attributes.iter().enumerate() {
+            let attribute = fb_table(&mut bytes, 24, &[4, 8, 12, 16, 20]);
+            fb_offset(&mut bytes, declarations + 4 + 4 * i, attribute);
+            fb_word(&mut bytes, attribute + 4, *slot);
+            fb_word(&mut bytes, attribute + 8, *id);
+            fb_word(&mut bytes, attribute + 12, *layer);
+            fb_word(&mut bytes, attribute + 16, *format);
+            fb_word(&mut bytes, attribute + 20, *offset);
+        }
+        let sizes = fb_vector(&mut bytes, 1);
+        fb_offset(&mut bytes, layout + 8, sizes);
+        let stream = fb_table(&mut bytes, 8, &[4]);
+        fb_offset(&mut bytes, sizes + 4, stream);
+        fb_word(&mut bytes, stream + 4, stride);
+        bytes
+    }
+
+    /// Build a single-buffer `.trmbf` with `stride`-byte vertices and `u32` indices.
+    fn synthetic_u32_index_trmbf(stride: usize, vertex_count: usize, indices: &[u32]) -> Vec<u8> {
+        let payload = stride * vertex_count;
+        let declared = payload + 28;
+        let index_offset = VERTEX_OFFSET + declared;
+        let mut bytes = vec![0u8; index_offset + indices.len() * 4];
+        fb_word(&mut bytes, 0, 12);
+        fb_word(&mut bytes, 0x28, declared as u32);
+        fb_word(&mut bytes, 0x40, payload as u32);
+        for (i, index) in indices.iter().enumerate() {
+            fb_word(&mut bytes, index_offset + i * 4, *index);
+        }
+        for vertex in 0..vertex_count {
+            for (component, value) in [1.0f32, 2.0, 3.0].into_iter().enumerate() {
+                let at = VERTEX_OFFSET + vertex * stride + component * 4;
+                bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
+            }
+            let uv = VERTEX_OFFSET + vertex * stride + 28;
+            for (component, value) in [0.25f32, 0.5].into_iter().enumerate() {
+                bytes[uv + component * 4..uv + component * 4 + 4]
+                    .copy_from_slice(&value.to_le_bytes());
+            }
+        }
+        bytes
+    }
+
+    fn position_uv_shape(stride: u32, index_type: u32) -> Vec<u8> {
+        synthetic_shape_trmsh(
+            stride,
+            index_type,
+            &[
+                (0, 1, 0, 51, 0),
+                (0, 2, 0, 43, 12),
+                (0, 3, 0, 43, 20),
+                (0, 6, 0, 48, 28),
+            ],
+        )
+    }
+
+    #[test]
+    fn shape_layout_parses_layers_stride_and_index_width() {
+        let trmsh = synthetic_shape_trmsh(
+            56,
+            1,
+            &[
+                (0, 1, 0, 51, 0),
+                (0, 2, 0, 43, 12),
+                (0, 3, 0, 43, 20),
+                (0, 3, 1, 43, 28),
+                (0, 6, 0, 48, 36),
+                (0, 6, 1, 48, 44),
+                (0, 5, 0, 20, 52),
+            ],
+        );
+        let layouts = TrShapeLayout::parse_all(&trmsh).unwrap();
+        assert_eq!(layouts.len(), 1);
+        assert_eq!(layouts[0].stride, 56);
+        assert_eq!(layouts[0].index_width, 2);
+        assert_eq!(layouts[0].attributes.len(), 7);
+        assert_eq!(layouts[0].attribute(3, 1).unwrap().offset, 28);
+        assert_eq!(layouts[0].attribute(6, 0).unwrap().offset, 36);
+        assert_eq!(layouts[0].attribute(5, 0).unwrap().byte_size, 4);
+    }
+
+    #[test]
+    fn shape_layout_maps_u32_index_type_and_format_54_width() {
+        let trmsh = synthetic_shape_trmsh(
+            52,
+            2,
+            &[
+                (0, 1, 0, 51, 0),
+                (0, 2, 0, 43, 12),
+                (0, 3, 0, 43, 20),
+                (0, 6, 0, 48, 28),
+                (0, 5, 0, 54, 36),
+            ],
+        );
+        let layouts = TrShapeLayout::parse_all(&trmsh).unwrap();
+        assert_eq!(layouts[0].index_width, 4);
+        let opaque = layouts[0].attribute(5, 0).unwrap();
+        assert_eq!((opaque.format_code, opaque.byte_size), (54, 16));
+    }
+
+    #[test]
+    fn shape_layout_rejects_coverage_gaps_and_duplicates() {
+        let gap = synthetic_shape_trmsh(36, 1, &[(0, 1, 0, 51, 0), (0, 6, 0, 48, 28)]);
+        assert!(TrShapeLayout::parse_all(&gap)
+            .unwrap_err()
+            .contains("expected contiguous"));
+        let duplicate = synthetic_shape_trmsh(
+            36,
+            1,
+            &[(0, 1, 0, 51, 0), (0, 1, 0, 43, 12), (0, 6, 0, 48, 28)],
+        );
+        assert!(TrShapeLayout::parse_all(&duplicate)
+            .unwrap_err()
+            .contains("duplicate attribute ID 1"));
+    }
+
+    #[test]
+    fn parse_with_shape_layout_reads_u32_single_buffer_indices() {
+        let trmsh = position_uv_shape(36, 2);
+        let trmbf = synthetic_u32_index_trmbf(36, 2, &[0, 1, 1]);
+        let mesh = TrMbf::parse_with_shape_layout(&trmbf, &trmsh, 0).unwrap();
+        assert_eq!(mesh.vertex_count, 2);
+        assert_eq!(mesh.vertex_stride, 36);
+        assert_eq!(mesh.indices, vec![0, 1, 1]);
+        assert!(!mesh.has_unique_skin_channels());
+        assert_eq!(mesh.uv(&trmbf, 1), Some([0.25, 0.5]));
+    }
+
+    #[test]
+    fn parse_with_shape_layout_rejects_indices_outside_the_vertex_buffer() {
+        let trmsh = position_uv_shape(36, 2);
+        let trmbf = synthetic_u32_index_trmbf(36, 2, &[0, 1, 7]);
+        assert!(TrMbf::parse_with_shape_layout(&trmbf, &trmsh, 0)
+            .unwrap_err()
+            .contains("outside the vertex buffer"));
+    }
+
+    #[test]
+    fn has_unique_skin_channels_requires_the_demonstrated_pair() {
+        let trmsh = synthetic_shape_trmsh(
+            48,
+            1,
+            &[
+                (0, 1, 0, 51, 0),
+                (0, 2, 0, 43, 12),
+                (0, 3, 0, 43, 20),
+                (0, 6, 0, 48, 28),
+                (0, 7, 0, 22, 36),
+                (0, 8, 0, 39, 40),
+            ],
+        );
+        let trmbf = synthetic_u32_index_trmbf(48, 2, &[0, 1, 1]);
+        let mesh = TrMbf::parse_with_shape_layout(&trmbf, &trmsh, 0).unwrap();
+        assert!(mesh.has_unique_skin_channels());
+        let without_weights = synthetic_shape_trmsh(
+            44,
+            1,
+            &[
+                (0, 1, 0, 51, 0),
+                (0, 2, 0, 43, 12),
+                (0, 3, 0, 43, 20),
+                (0, 6, 0, 48, 28),
+                (0, 7, 0, 22, 36),
+                (0, 8, 0, 20, 40),
+            ],
+        );
+        let short = synthetic_u32_index_trmbf(44, 2, &[0, 1, 1]);
+        let mesh = TrMbf::parse_with_shape_layout(&short, &without_weights, 0).unwrap();
+        assert!(!mesh.has_unique_skin_channels());
+    }
+
+    #[test]
+    fn parse_with_shape_layout_reads_container_buffers() {
+        let stride = 36usize;
+        let trmsh = position_uv_shape(stride as u32, 2);
+        // Container `.trmbf`: root field 1 = one buffer; buffer field 0 =
+        // indices, field 1 = vertices. Each is a vector of stream tables whose
+        // field 0 is a length-prefixed byte vector (as `byte_range` reads).
+        let mut trmbf = vec![0; 4];
+        let root = fb_table(&mut trmbf, 8, &[0, 4]);
+        fb_offset(&mut trmbf, 0, root);
+        let buffers = fb_vector(&mut trmbf, 1);
+        fb_offset(&mut trmbf, root + 4, buffers);
+        let buffer = fb_table(&mut trmbf, 12, &[4, 8]);
+        fb_offset(&mut trmbf, buffers + 4, buffer);
+        let vertex_count = 2usize;
+        let vertex_streams = fb_vector(&mut trmbf, 1);
+        fb_offset(&mut trmbf, buffer + 8, vertex_streams);
+        let vertex_stream = fb_table(&mut trmbf, 8, &[4]);
+        fb_offset(&mut trmbf, vertex_streams + 4, vertex_stream);
+        let vertex_bytes = fb_allocate(&mut trmbf, 4 + stride * vertex_count);
+        fb_word(&mut trmbf, vertex_bytes, (stride * vertex_count) as u32);
+        for vertex in 0..vertex_count {
+            for (component, value) in [1.0f32, 2.0, 3.0].into_iter().enumerate() {
+                let at = vertex_bytes + 4 + vertex * stride + component * 4;
+                trmbf[at..at + 4].copy_from_slice(&value.to_le_bytes());
+            }
+            let uv = vertex_bytes + 4 + vertex * stride + 28;
+            for (component, value) in [0.25f32, 0.5].into_iter().enumerate() {
+                trmbf[uv + component * 4..uv + component * 4 + 4]
+                    .copy_from_slice(&value.to_le_bytes());
+            }
+        }
+        fb_offset(&mut trmbf, vertex_stream + 4, vertex_bytes);
+        let index_streams = fb_vector(&mut trmbf, 1);
+        fb_offset(&mut trmbf, buffer + 4, index_streams);
+        let index_stream = fb_table(&mut trmbf, 8, &[4]);
+        fb_offset(&mut trmbf, index_streams + 4, index_stream);
+        let index_bytes = fb_allocate(&mut trmbf, 4 + 3 * 4);
+        fb_word(&mut trmbf, index_bytes, 12);
+        for (i, index) in [0u32, 1, 1].iter().enumerate() {
+            fb_word(&mut trmbf, index_bytes + 4 + i * 4, *index);
+        }
+        fb_offset(&mut trmbf, index_stream + 4, index_bytes);
+
+        let mesh = TrMbf::parse_with_shape_layout(&trmbf, &trmsh, 0).unwrap();
+        assert_eq!(mesh.vertex_count, 2);
+        assert_eq!(mesh.vertex_offset, vertex_bytes + 4);
+        assert_eq!(mesh.indices, vec![0, 1, 1]);
+        assert_eq!(mesh.uv(&trmbf, 0), Some([0.25, 0.5]));
     }
 }
 

@@ -18,18 +18,26 @@ Entries in GFLXPACK containers are addressed by a 64-bit hash of their full virt
 Batch export ran across all 53 field model packs (`ha_area*.gfpak`, excluding collision and animation packs, plus `resident_bg_parts_model.gfpak`) and all 63 terrain packs (`plants_*` scenery models).
 
 - **Total models evaluated**: 841
-- **Exported OK to glTF 2.0**: 626 (74.4%)
-- **Blocked**: 215 (25.6%)
+- **Exported OK to glTF 2.0**: 834 (99.2%)
+- **Blocked**: 7 (0.8%) — 24-byte empty `.trmbf` placeholders with zero declared shapes
 
 ### Blocked histogram
-- `missing or duplicate skin channel`: 149 (animated/skinned foliage or props with multi-stream vertex bindings)
-- `.trmbf stride 12 does not match .trmsh stride 36`: 26 (stream split / sub-mesh buffer layout unhandled)
-- `no valid bounded .trmsh vertex-layout section`: 19
-- `unsupported .trmbf layout (multi-buffer files)`: 10
-- `.trmbf stride 12 does not match .trmsh stride 48`: 4
-- `malformed .trmsh vertex-layout candidate(s)`: 7
+- `no valid bounded .trmsh vertex-layout section; shape layout: no declared shapes`: 7 (`wall_area00_02`, `wall_area01_kingtree01`, `wall_area01_water01_asase`, `wall_area02_floor01`, `wall_area03_water01_asase`, `objects_oldtextplate06`, `objects_oldtextplate07`)
 
-All export statuses are recorded in `data/field_model_export_index.tsv` (validated with `sheetty-cli check data`: 0 errors, 0 warnings).
+Before the Brief 19 fallbacks the same batch read 626 ok / 215 blocked; the
+per-class recovery table and the parser details are in
+[blocked_models.md](blocked_models.md). Export composition after the change:
+43 skinned models, 783 static (no unique ID 7/8 skin channels), 8 static
+because the sibling skeleton is unusable (reason recorded per model in the
+index).
+
+All export statuses are recorded in `data/field_model_export_index.tsv`
+(validated with `cargo run -p sheetty-cli -- check data`: 0 errors, 0 warnings).
+The 834 exported glTFs were re-checked with the non-windowed structural
+verifier `crates/pla/examples/verify_field_gltf_json.rs` (buffer sizes,
+accessor ranges, finite bounded positions, UINT32 triangle indices inside the
+vertex range, texture/skin/animation references): 834/834 clean. No windowed
+render was run for this revision, so the visual result is not verified here.
 
 ## Grey / untextured field models: diagnosis and fix (worktree fix-greyhouses)
 
@@ -48,7 +56,7 @@ Census (`crates/pla/examples/field_material_census.rs`, run over the 626 ok mode
 
 Cause: single material for a whole multi-material mesh (179 models; dominant for buildings). Not causes: missing/undecodable textures, wrong pack, BC format support, layer colours. Vertex layout `s40` (62 models) has an extra attribute id 5 at offset 36 (format code 20) whose meaning is not proven; it is NOT exported as COLOR_0.
 
-Fix (`export_field_gltf_batch`): the `.trmsh` submesh table (`assets/field_material.rs`) gives index range + `AppliedMaterial`; each submesh becomes its own primitive with the block of that name (albedo only, shared images). The writer now lists one scene node per mesh when no skeleton nodes exist (single-primitive output is unchanged). After re-export: 179 models have several primitives, 168 reference more than one texture, 14 primitives still have no material (13 water planes plus one sea sub-mesh of `ground_area05_vista01`). The Pokémon exporter output for `pm0025_00_00` and `pm0026_00_00` is byte-identical to before. The export index is unchanged (626 ok / 215 blocked).
+Fix (`export_field_gltf_batch`): the `.trmsh` submesh table (`assets/field_material.rs`) gives index range + `AppliedMaterial`; each submesh becomes its own primitive with the block of that name (albedo only, shared images). The writer now lists one scene node per mesh when no skeleton nodes exist (single-primitive output is unchanged). After re-export: 179 models have several primitives, 168 reference more than one texture, 14 primitives still have no material (13 water planes plus one sea sub-mesh of `ground_area05_vista01`). The Pokémon exporter output for `pm0025_00_00` and `pm0026_00_00` is byte-identical to before. The export index at that time was unchanged (626 ok / 215 blocked); it is now 834 ok / 7 blocked after the Brief 19 fallbacks.
 
 Verification: one headless Blender run (Workbench, flat texture colour, no lighting) rendered 12 previously grey/dark multi-material models (houses 02, 03_a, 04_a, 06_a, 07, 09_a, 13, 16, 17_b, 08, gate02, 12) before and after, plus 4 single-material controls (house11, fence01, rock03_gray, obj10). After the fix the houses show coloured roofs (blue, red, purple, orange) and walls; the controls are unchanged. Colours are the albedo only; no claim that they match the game's lighting or shader. Textures with alpha < 1 (e.g. `house09_a_03`) are rendered opaque by the viewer.
 
