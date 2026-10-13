@@ -73,7 +73,7 @@
     "port.png": "295301cc39e2b79501a8f63d7257fccb3c264d5785a1a3f9aa5b3f677a12efef"
   },
   "rust_source_fingerprint": {
-    "file_count": 189,
+    "file_count": 191,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -213,7 +213,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "a447babb76904c87424b80d80494641f0b4fc6ac6a74750a3113ce2f11a0fb50"
+        "sha256": "ccdf21fbc10bac7cf99716bfa8eb0cab9621ebffb022df56bbe03a93df0cdf75"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
@@ -226,6 +226,10 @@
       {
         "path": "crates/pla/examples/spawn_terrain_check.rs",
         "sha256": "d5dd0ed9c1160f997a4386f3309a9a4a86556b84df2af5de04f635889429dc63"
+      },
+      {
+        "path": "crates/pla/examples/style_headless.rs",
+        "sha256": "7c6fa2199cbdbde7975c93894ae639009e15b40c67b117b597ebebfd00ad1b94"
       },
       {
         "path": "crates/pla/examples/subzone_report.rs",
@@ -480,6 +484,10 @@
         "sha256": "9d6781953e8e2570565fd9db6de3415c35a6bb88a4fe83a06215061d696b1452"
       },
       {
+        "path": "crates/pla/src/game/art_style.rs",
+        "sha256": "c15c47db8e0de7da910032f559425bdcd89ee60bd243602cfc0153a2e22308e5"
+      },
+      {
         "path": "crates/pla/src/game/audio/catalog.rs",
         "sha256": "9961ad91a1c792cedafd10a5d6c54e48682ff30940099ec1d31d10c476d73cca"
       },
@@ -605,7 +613,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "fef793813d9b352b91c7e7b1cddc12918b3ec0c8bcd18782d4dba3ddd9af6408"
+        "sha256": "10b2f776e96196504ae5714aee08757eacf4a1022c85021fb615e94e3fe3c872"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -833,7 +841,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "1fbc29e13a636b26d6a41846d6f597c7a78eee9381a8b18959a60ac097e4ddd8"
+    "sha256": "1f497f9b433b98e7f67374b7c1dfb915bf7cfa95719a4735a272a94b47a00ee6"
   },
   "state_partitions": {
     "analysis_documentation_status": {
