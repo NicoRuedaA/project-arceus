@@ -775,6 +775,7 @@ fn main() -> ExitCode {
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
     app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
+    app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
@@ -861,6 +862,7 @@ fn main() -> ExitCode {
     );
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
     app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
+    app.add_systems(Update, sync_arena_player_model.run_if(in_state(GameState::Battle)));
 
     app.run();
     ExitCode::SUCCESS
@@ -1448,7 +1450,10 @@ fn setup_battle_arena(
     };
 
     let wild_dex = battle_session.as_ref().map_or(397, |s| s.wild_dex);
-    let player_dex: u16 = 25; // Pikachu
+    // The party member that is out (the saved party is installed before this runs).
+    let player_dex: u16 = battle_session
+        .as_ref()
+        .map_or(25, |s| s.battle.combatants[s.active_player()].species.dex);
 
     // Ensure glTF models are requested
     for dex in [player_dex, wild_dex] {
@@ -2816,5 +2821,53 @@ fn controls_demo_driver(
     if t >= 100 && balls.iter().count() == 0 || t >= 1800 {
         println!("[CONTROLS-DEMO] done at tick {t}: balls in world: {}", balls.iter().count());
         exit.write(AppExit::Success);
+    }
+}
+
+/// Keep the player's arena model on the species that is out: a switch or an evolution changes
+/// it, so slot 0 is respawned with the new species (same pose); `spawn_pokemon_models` then
+/// loads its glTF like any arena model.
+fn sync_arena_player_model(
+    mut commands: Commands,
+    session: Option<Res<ActiveBattleSession>>,
+    slots: Query<(Entity, &PokemonSpawn, &Transform, &pla::game::pokemon_anim::PokemonBattleSlot), With<BattleArenaMarker>>,
+    mut catalog: ResMut<PokemonCatalogResource>,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Some(sess) = session else { return };
+    let Some(c) = sess.battle.combatants.get(sess.active_player()) else { return };
+    let want = c.species.dex;
+    for (entity, spawn, xf, slot) in &slots {
+        if slot.0 != 0 || spawn.national_dex == want {
+            continue;
+        }
+        if !catalog.handles.contains_key(&want) {
+            if let Some(rel) = resolve_pokemon_gltf_rel(want) {
+                let handle: Handle<Gltf> = asset_server.load(rel);
+                catalog.handles.insert(want, handle);
+            }
+        }
+        catalog.spawned.remove(&entity);
+        commands.entity(entity).despawn();
+        commands
+            .spawn((
+                BattleArenaMarker,
+                PokemonSpawn { national_dex: want },
+                pla::game::pokemon_anim::PokemonBattleSlot(0),
+                Transform::from_translation(xf.translation).with_rotation(xf.rotation),
+                Visibility::default(),
+            ))
+            .with_children(|parent| {
+                parent.spawn((
+                    Mesh3d(meshes.add(Mesh::from(Sphere::new(0.35)))),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: get_species_color(want),
+                        ..default()
+                    })),
+                ));
+            });
+        println!("Arena slot 0 now shows #{want}");
     }
 }
