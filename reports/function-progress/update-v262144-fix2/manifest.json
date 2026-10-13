@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 214,
+    "file_count": 215,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -225,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "c5c2fba1eb0416ec964d3d7077c170d4c3725ccca55011d6c079099234d6d410"
+        "sha256": "15962b4d699595472bad6d552532c978ea9288ad58adae195d2769cb4670d706"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
@@ -669,11 +669,15 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "889bb0b40592a8e79a6d26ac1bc10b8e7ac43c5ec6c73ec92e3dd34d129b316e"
+        "sha256": "65d34cee108cfa1d1fdcde1834bb8b0b84a59977945f002ceb8d1d9aaea4234d"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
         "sha256": "472fc88dfc720cb713566a304ed1b7823e4a4850caa871661e0a39b78ab51ef2"
+      },
+      {
+        "path": "crates/pla/src/game/npc.rs",
+        "sha256": "400227bd1b7b35c9a4e274f37e459aa00754ef23e8200ffa7ea4aa40bf33173e"
       },
       {
         "path": "crates/pla/src/game/outbreak.rs",
@@ -933,7 +937,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "3382fa7bc65fc3786191f159255a13c7f648c4b1ce32e38262e5c13fe88b515e"
+    "sha256": "bf5a67e7fa30e03e0615d9179fe40dd28697f5fb907e64448e084e4d8affc2ab"
   },
   "state_partitions": {
     "analysis_documentation_status": {
