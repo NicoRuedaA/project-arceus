@@ -87,10 +87,10 @@ Read while merging, against the plugins `main` gained after this branch started:
 - **Follows the zone change**: area music (`audio::observe_zone_music` reads `ActiveZoneInfo`; sub-area
   ids have no music mapping and stop it), vegetation (`vegetation::veg_track_area` reloads per main
   area), terrain, navmesh, spawners, HUD name and the zone autosave.
-- **Does NOT follow it (gap, no crash)**: decoded lighting/sky (`ZoneLightingPlugin` applies the start
-  area once in `PostStartup`), placed objects (`WorldObjectsPlugin` parses the start area's placements
-  at build time and keeps streaming them around the player) and the `.trins` trees (`spawn_tree_instances`
-  in the viewer spawns once). After a fast travel the new area therefore shows the start area's lighting
-  and stale scenery until a restart. Battle effects and the gamepad input layer have no zone state.
+- **Fixed by Brief 8b** (branch `feat/zone-reload`, report [zone_reload.md](zone_reload.md)): the decoded
+  lighting/sky (`lighting::reload_zone_environment`), the placed objects (`world_objects::reload_world_objects`)
+  and the `.trins` trees (the viewer spawner now tracks `TerrainResource`) reload on a zone change, and the
+  recorded water bodies of the old area are cleared. Before 8b they stayed the start area's until a restart.
+  Battle effects and the gamepad input layer have no zone state.
 - `GameState::Loading` is new; the battle input, effects and audio systems compile and run unchanged
   with it. Nothing here was seen in a window.

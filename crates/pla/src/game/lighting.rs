@@ -10,11 +10,17 @@
 //! multipliers (slot 3 = night VERIFIED by spawn data), not proven.
 //! The mapping of the sheet numbers to Bevy units (lux, cd/m2) is this module's own interpretation.
 //! If the sheet or the zone is missing, nothing is changed (the old placeholder stays).
+//!
+//! Brief 8b: [`ZoneLightingPlugin`] used to apply the start area once at `PostStartup`;
+//! [`reload_zone_environment`] now swaps the four decoded slots and re-applies the whole scene
+//! state (sun light, sky dome, clouds, ambient, clear colour, fog, camera post-process) when the
+//! game changes zone (`game::zone::apply_zone_change`).
 
 use std::path::{Path, PathBuf};
 
 use bevy::asset::RenderAssetUsages;
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::ecs::system::RunSystemOnce;
 use bevy::light::{
     CascadeShadowConfigBuilder, DirectionalLight, DirectionalLightShadowMap, GlobalAmbientLight, NotShadowCaster,
     NotShadowReceiver,
@@ -169,6 +175,7 @@ pub fn bloom_camera_component(params: &LookParams) -> Option<Bloom> {
 }
 
 /// Plugin: applies the decoded environment of `area` (index) at `slot`; no-op without the sheet.
+/// A zone change reloads it through [`reload_zone_environment`] (Brief 8b).
 pub struct ZoneLightingPlugin {
     pub area: u8,
     /// Fallback slot when the app has no [`GameClock`] resource: the examples pin to it. With a
@@ -288,7 +295,11 @@ impl Plugin for ZoneLightingPlugin {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Despawn the previous sun/sky state and spawn the scene state of the current environment:
+/// sun light, sky gradient dome, clouds, camera fog and post-process. Also writes the ambient
+/// light and the clear colour, so a reload leaves no field of the old zone behind. Runs at
+/// `PostStartup` and from [`reload_zone_environment`] on a zone change.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn apply_environment(
     mut commands: Commands,
     mut loaded: ResMut<LoadedZoneEnv>,
@@ -296,8 +307,11 @@ fn apply_environment(
     weather: Option<Res<WeatherVisual>>,
     clock: Option<Res<GameClock>>,
     mut applied: ResMut<AppliedLook>,
-    old_lights: Query<Entity, With<DirectionalLight>>,
+    mut ambient: ResMut<GlobalAmbientLight>,
+    mut clear: ResMut<ClearColor>,
+    old_visuals: Query<(Entity, Option<&Mesh3d>), Or<(With<DirectionalLight>, With<SkyDome>)>>,
     cameras: Query<Entity, With<Camera3d>>,
+    cloud_material: Option<Res<CloudMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
@@ -308,8 +322,19 @@ fn apply_environment(
     loaded.pair = pair;
     loaded.factor = factor;
     applied.0 = Some(blend_key(pair, factor, weather.as_ref().map(|w| w.id).unwrap_or(0)));
-    for e in &old_lights {
+    ambient.color = Color::linear_rgb(p.ambient_color[0], p.ambient_color[1], p.ambient_color[2]);
+    ambient.brightness = p.ambient_brightness;
+    clear.0 = Color::linear_rgb(env.sky[0].0[0], env.sky[0].0[1], env.sky[0].0[2]);
+    for (e, mesh) in &old_visuals {
+        // The old dome mesh and cloud material are ours alone: drop them with their entities.
+        if let Some(m) = mesh {
+            meshes.remove(&m.0);
+        }
         commands.entity(e).despawn();
+    }
+    if let Some(old) = cloud_material {
+        materials.remove(&old.0);
+        commands.remove_resource::<CloudMaterial>();
     }
     let d = Vec3::from(env.sun_dir);
     let mut sun = commands.spawn((
@@ -404,6 +429,45 @@ fn apply_environment(
             Transform::IDENTITY,
         ));
     }
+}
+
+/// Reload the decoded environment of `area` (e.g. `ha_area01`) after a zone change: replace the
+/// four `LoadedZoneEnv` slots and re-run [`apply_environment`], which swaps the sun, the sky dome,
+/// the clouds, the ambient light, the clear colour, the camera fog and the post-process.
+///
+/// Called by `game::zone::apply_zone_change` (Brief 8b). Returns `false` without touching anything
+/// when the app has no [`ZoneLightingPlugin`] (no `LoadedZoneEnv`) or the sheet has no row for
+/// `area`; the previous environment stays in that case.
+pub fn reload_zone_environment(world: &mut World, area: &str) -> bool {
+    if world.get_resource::<LoadedZoneEnv>().is_none() {
+        return false; // plugin not installed: nothing to reload
+    }
+    let Some(text) = find_lighting_sheet().and_then(|p| std::fs::read_to_string(p).ok()) else {
+        eprintln!("Lighting: cannot read the lighting sheet; keeping the current environment on the zone change");
+        return false;
+    };
+    let anchor = (0..4).find_map(|s| parse_zone_env(&text, area, s));
+    let Some(anchor) = anchor else {
+        eprintln!("Lighting: no decoded environment for {area}; keeping the current one");
+        return false;
+    };
+    let fallback = world.resource::<LoadedZoneEnv>().fallback_slot;
+    let slots: [ZoneEnv; 4] =
+        std::array::from_fn(|s| parse_zone_env(&text, area, s).unwrap_or_else(|| anchor.clone()));
+    {
+        let mut loaded = world.resource_mut::<LoadedZoneEnv>();
+        loaded.slots = slots;
+        loaded.current = anchor;
+        loaded.pair = (fallback, fallback);
+        loaded.factor = 0.0;
+    }
+    // Clear the applied key first: if `apply_environment` cannot run to completion (missing asset
+    // resources), the next `sync_environment` tick still refreshes sun, ambient, sky and fog from
+    // the new slots. When it does run, it sets the key of the new environment itself.
+    world.resource_mut::<AppliedLook>().0 = None;
+    let _ = world.run_system_once(apply_environment);
+    println!("Lighting: reloaded decoded environment for {area}");
+    true
 }
 
 /// Follow the clock (and the weather) every frame, but only re-apply the scene state when the
@@ -599,6 +663,123 @@ mod tests {
         assert_eq!(time_slot_from_args(&a(&[])), DEFAULT_TIME_SLOT);
         assert_eq!(time_slot_from_args(&a(&["--time-slot", "3"])), 3);
         assert_eq!(time_slot_from_args(&a(&["--time-slot", "9"])), DEFAULT_TIME_SLOT);
+    }
+
+    /// Real sheet text (tests read the committed `data/field_lighting_env.tsv`).
+    fn real_sheet() -> Option<String> {
+        let p = find_lighting_sheet()?;
+        std::fs::read_to_string(p).ok()
+    }
+
+    /// World with the state `ZoneLightingPlugin::build` installs for `area`, plus the asset and
+    /// light resources `apply_environment` writes to.
+    fn plugin_world(area: &str) -> World {
+        let text = real_sheet().expect("lighting sheet");
+        let slots: [ZoneEnv; 4] = std::array::from_fn(|s| {
+            parse_zone_env(&text, area, s).unwrap_or_else(|| panic!("{area} slot {s}"))
+        });
+        let mut world = World::new();
+        world.insert_resource(Assets::<Mesh>::default());
+        world.insert_resource(Assets::<StandardMaterial>::default());
+        world.insert_resource(Assets::<Image>::default());
+        world.insert_resource(ClearColor::default());
+        world.insert_resource(GlobalAmbientLight::default());
+        world.insert_resource(LoadedZoneEnv {
+            current: slots[1].clone(),
+            slots,
+            fallback_slot: 1,
+            pair: (1, 1),
+            factor: 0.0,
+        });
+        world.insert_resource(ActiveLookSettings(LookSettings::default()));
+        world.insert_resource(AppliedLook(Some((1, 1, BLEND_STEPS, 0))));
+        world
+    }
+
+    #[test]
+    fn reload_swaps_the_decoded_environment_and_replaces_the_scene_state() {
+        let Some(text) = real_sheet() else {
+            eprintln!("[skip] data/field_lighting_env.tsv not found");
+            return;
+        };
+        let mut world = plugin_world("ha_area00");
+        let old_sun = world.spawn(DirectionalLight::default()).id();
+        let old_dome = world.spawn(SkyDome).id();
+
+        assert!(
+            reload_zone_environment(&mut world, "ha_area01"),
+            "reload runs for a decoded area"
+        );
+
+        let env1 = parse_zone_env(&text, "ha_area01", 1).expect("area 01 slot 1");
+        for s in 0..4 {
+            assert_eq!(
+                world.resource::<LoadedZoneEnv>().slots[s],
+                parse_zone_env(&text, "ha_area01", s).unwrap(),
+                "slot {s} is area 01's"
+            );
+        }
+        assert!(world.get_entity(old_sun).is_err(), "old sun despawned");
+        assert!(world.get_entity(old_dome).is_err(), "old sky dome despawned");
+        let (suns, sun_red) = {
+            let mut q = world.query::<&DirectionalLight>();
+            let mut count = 0;
+            let mut red = f32::NAN;
+            for l in q.iter(&world) {
+                if count == 0 {
+                    red = l.color.to_linear().red;
+                }
+                count += 1;
+            }
+            (count, red)
+        };
+        assert_eq!(suns, 1, "exactly one sun light after a reload");
+        assert!(
+            (sun_red - env1.sun_color[0]).abs() < 1e-5,
+            "sun colour is the new area's"
+        );
+        let p = look_params(&env1, LookSettings::default());
+        let ambient = world.resource::<GlobalAmbientLight>();
+        assert!(
+            (ambient.brightness - p.ambient_brightness).abs() < 1e-3,
+            "ambient light follows the new area"
+        );
+        assert!(
+            (world.resource::<ClearColor>().0.to_linear().red - env1.sky[0].0[0]).abs() < 1e-6,
+            "clear colour is the new horizon sky"
+        );
+        assert!(
+            world.resource::<AppliedLook>().0.is_some(),
+            "sync key re-armed for the new environment"
+        );
+    }
+
+    #[test]
+    fn reload_is_a_no_op_without_the_plugin_or_for_an_unknown_area() {
+        let mut world = World::new();
+        assert!(
+            !reload_zone_environment(&mut world, "ha_area01"),
+            "without LoadedZoneEnv (plugin not installed) nothing happens"
+        );
+        let Some(text) = real_sheet() else {
+            eprintln!("[skip] data/field_lighting_env.tsv not found");
+            return;
+        };
+        let mut world = plugin_world("ha_area00");
+        let before = parse_zone_env(&text, "ha_area00", 1).unwrap();
+        assert!(
+            !reload_zone_environment(&mut world, "ha_area99"),
+            "an area with no sheet rows is refused"
+        );
+        assert_eq!(
+            world.resource::<LoadedZoneEnv>().slots[1],
+            before,
+            "the previous environment stays"
+        );
+        assert!(
+            world.resource::<AppliedLook>().0.is_some(),
+            "the applied key was not cleared"
+        );
     }
 
     #[test]
