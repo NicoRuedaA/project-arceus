@@ -73,3 +73,24 @@ systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- \
   env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target \
       PLA_CACHE_ROOT=/home/nico/work/decompilacion/work/cache cargo test -p pla game::zone
 ```
+
+## Merge into `main` (2026-10-13)
+
+Read while merging, against the plugins `main` gained after this branch started:
+
+- **Fixed at merge time** (`fix(zone)` commit): `apply_zone_change` only cleared the spawner-to-entity
+  map, which orphaned the old area's wild creatures (nothing would ever unload them). It now despawns
+  them (with their model children) and resets `ConsumedSpawners`, because 445 spawner ids repeat across
+  main areas in `data/field_spawn_table.tsv`. An unreadable spawn table now leaves the new area empty
+  instead of replaying the old area's spawners. Covered by the headless test
+  `zone_change_despawns_the_old_area_creatures` (14 `game::zone` tests in total).
+- **Follows the zone change**: area music (`audio::observe_zone_music` reads `ActiveZoneInfo`; sub-area
+  ids have no music mapping and stop it), vegetation (`vegetation::veg_track_area` reloads per main
+  area), terrain, navmesh, spawners, HUD name and the zone autosave.
+- **Does NOT follow it (gap, no crash)**: decoded lighting/sky (`ZoneLightingPlugin` applies the start
+  area once in `PostStartup`), placed objects (`WorldObjectsPlugin` parses the start area's placements
+  at build time and keeps streaming them around the player) and the `.trins` trees (`spawn_tree_instances`
+  in the viewer spawns once). After a fast travel the new area therefore shows the start area's lighting
+  and stale scenery until a restart. Battle effects and the gamepad input layer have no zone state.
+- `GameState::Loading` is new; the battle input, effects and audio systems compile and run unchanged
+  with it. Nothing here was seen in a window.
