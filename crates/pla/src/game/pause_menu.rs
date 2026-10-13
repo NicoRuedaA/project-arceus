@@ -1,8 +1,14 @@
 //! Pause menu (Esc or gamepad +): a Bevy UI overlay navigable with the keyboard
 //! (arrows, W/S or A/D, D-pad, Enter/A) and the mouse (hover + click).
 //!
-//! Options: Resume, Bag, Invert camera X axis, Invert camera Y axis, Volume (master, cycles
-//! 100/75/50/25/0 %), Back to safe spawn, Save game, Rest (heals the party, no clock yet), Quit.
+//! Options: Resume, Bag, Party, Boxes, Pokédex, Crafting, Shop (test shop 0), Invert camera X
+//! axis, Invert camera Y axis, Volume (master, cycles 100/75/50/25/0 %), Back to safe spawn, Save
+//! game, Rest (heals the party), Quit. The screen rows only raise a request resource
+//! ([`BagOpenRequested`], [`PartyOpenRequested`], [`BoxOpenRequested`], [`DexOpenRequested`],
+//! [`ShopOpenRequested`], [`crate::game::crafting_ui::CraftingOpenRequested`]); each screen plugin
+//! consumes its own request, freezes the world and owns the input until it closes. A screen whose
+//! plugin is not installed shows a toast instead. Party, Boxes, Pokédex, Crafting and Shop open
+//! only in the overworld (never during a battle or a zone change).
 //! The panel also shows the player's money and play time (from `PlayerProgress` and `PlayTime`).
 //!
 //! While [`Paused`] is `true` the plugin freezes the world by contract: every gameplay system must
@@ -14,6 +20,9 @@
 
 use bevy::prelude::*;
 
+use bevy::ecs::system::SystemParam;
+
+use super::crafting_ui::CraftingOpenRequested;
 use super::input_map::{Action, ActionState};
 use super::play_time::{format_play_time, PlayTime};
 use super::save_wire::{PlayerProgress, RestRequested, SaveRequested, SaveToast};
@@ -27,6 +36,11 @@ use super::state::{GameState, Paused};
 pub enum MenuOption {
     Resume,
     Bag,
+    Party,
+    Boxes,
+    Pokedex,
+    Crafting,
+    Shop,
     InvertX,
     InvertY,
     Volume,
@@ -37,9 +51,14 @@ pub enum MenuOption {
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 9] = [
+pub const OPTIONS: [MenuOption; 14] = [
     MenuOption::Resume,
     MenuOption::Bag,
+    MenuOption::Party,
+    MenuOption::Boxes,
+    MenuOption::Pokedex,
+    MenuOption::Crafting,
+    MenuOption::Shop,
     MenuOption::InvertX,
     MenuOption::InvertY,
     MenuOption::Volume,
@@ -56,6 +75,8 @@ pub enum MenuAction {
     Resume,
     /// Open the bag screen (the bag plugin consumes [`BagOpenRequested`]).
     OpenBag,
+    /// Open another fullscreen screen (party, boxes, Pokédex, crafting, shop).
+    OpenScreen(Screen),
     /// A setting flipped: persist `settings.txt`.
     SettingsChanged,
     /// Teleport the player to the safe spawn of the current area.
@@ -66,6 +87,17 @@ pub enum MenuAction {
     Rest,
     /// Leave the program.
     Quit,
+}
+
+/// Fullscreen screens reachable from the pause menu besides the bag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Screen {
+    Party,
+    Boxes,
+    Pokedex,
+    Crafting,
+    /// The bag plugin's shop mode on shop 0 (the same test shop as `--debug-shop`).
+    Shop,
 }
 
 /// Move the highlighted row by `delta`, wrapping around both ends.
@@ -79,6 +111,11 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
     match option {
         MenuOption::Resume => MenuAction::Resume,
         MenuOption::Bag => MenuAction::OpenBag,
+        MenuOption::Party => MenuAction::OpenScreen(Screen::Party),
+        MenuOption::Boxes => MenuAction::OpenScreen(Screen::Boxes),
+        MenuOption::Pokedex => MenuAction::OpenScreen(Screen::Pokedex),
+        MenuOption::Crafting => MenuAction::OpenScreen(Screen::Crafting),
+        MenuOption::Shop => MenuAction::OpenScreen(Screen::Shop),
         MenuOption::InvertX => {
             settings.invert_camera_x = !settings.invert_camera_x;
             MenuAction::SettingsChanged
@@ -111,6 +148,11 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
     match option {
         MenuOption::Resume => "Resume".into(),
         MenuOption::Bag => "Bag".into(),
+        MenuOption::Party => "Party".into(),
+        MenuOption::Boxes => "Pokémon boxes".into(),
+        MenuOption::Pokedex => "Pokédex".into(),
+        MenuOption::Crafting => "Crafting".into(),
+        MenuOption::Shop => "Shop (test shop)".into(),
         MenuOption::InvertX => format!("Invert camera X axis: {}", on_off(settings.invert_camera_x)),
         MenuOption::InvertY => format!("Invert camera Y axis: {}", on_off(settings.invert_camera_y)),
         MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
@@ -150,10 +192,90 @@ pub struct SafeSpawnRequested(pub bool);
 #[derive(Resource, Debug, Default)]
 pub struct BagOpenRequested(pub bool);
 
+/// Set to `true` by the pause menu's `Party` row; the party screen consumes it and opens.
+#[derive(Resource, Debug, Default)]
+pub struct PartyOpenRequested(pub bool);
+
+/// Set to `true` by the pause menu's `Pokémon boxes` row; the box screen consumes it and opens.
+#[derive(Resource, Debug, Default)]
+pub struct BoxOpenRequested(pub bool);
+
+/// Set to `true` by the pause menu's `Pokédex` row; the Pokédex screen consumes it and opens.
+#[derive(Resource, Debug, Default)]
+pub struct DexOpenRequested(pub bool);
+
+/// Set to `true` by the pause menu's `Shop` row; the bag plugin opens its shop mode on shop 0.
+#[derive(Resource, Debug, Default)]
+pub struct ShopOpenRequested(pub bool);
+
+/// Open requests of the fullscreen screens. A screen whose plugin is not installed has no
+/// resource here and its row only shows a toast.
+#[derive(SystemParam)]
+pub struct ScreenRequests<'w> {
+    bag: ResMut<'w, BagOpenRequested>,
+    party: Option<ResMut<'w, PartyOpenRequested>>,
+    boxes: Option<ResMut<'w, BoxOpenRequested>>,
+    dex: Option<ResMut<'w, DexOpenRequested>>,
+    crafting: Option<ResMut<'w, CraftingOpenRequested>>,
+    shop: Option<ResMut<'w, ShopOpenRequested>>,
+}
+
+impl ScreenRequests<'_> {
+    /// Raise the request of `screen`; `false` when its plugin is not installed.
+    fn request(&mut self, screen: Screen) -> bool {
+        let flag = match screen {
+            Screen::Party => self.party.as_deref_mut().map(|r| &mut r.0),
+            Screen::Boxes => self.boxes.as_deref_mut().map(|r| &mut r.0),
+            Screen::Pokedex => self.dex.as_deref_mut().map(|r| &mut r.0),
+            Screen::Crafting => self.crafting.as_deref_mut().map(|r| &mut r.0),
+            Screen::Shop => self.shop.as_deref_mut().map(|r| &mut r.0),
+        };
+        match flag {
+            Some(flag) => {
+                *flag = true;
+                true
+            }
+            None => false,
+        }
+    }
+}
+
+/// Toast shown when a screen row cannot open now.
+pub fn screen_unavailable_text(screen: Screen, in_world: bool) -> String {
+    let name = match screen {
+        Screen::Party => "Party",
+        Screen::Boxes => "Pokémon boxes",
+        Screen::Pokedex => "Pokédex",
+        Screen::Crafting => "Crafting",
+        Screen::Shop => "Shop",
+    };
+    if in_world {
+        format!("{name} is not available in this build.")
+    } else {
+        format!("{name} opens only while exploring (not in a battle or a zone change).")
+    }
+}
+
 /// Set by a fullscreen screen that owns the input while open (the bag/shop screen): the pause
 /// menu hides its root and ignores every key until the flag is cleared.
 #[derive(Resource, Debug, Default)]
 pub struct PauseMenuSuppressed(pub bool);
+
+/// Freeze (`on`) or release the world for a fullscreen screen: sets [`Paused`] and
+/// [`PauseMenuSuppressed`] together, so the pause overlay stays hidden and ignores Esc while the
+/// screen owns the input. Missing resources (standalone screen apps) are skipped.
+pub fn freeze_for_screen(
+    paused: &mut Option<ResMut<Paused>>,
+    suppressed: &mut Option<ResMut<PauseMenuSuppressed>>,
+    on: bool,
+) {
+    if let Some(p) = paused.as_deref_mut() {
+        p.0 = on;
+    }
+    if let Some(s) = suppressed.as_deref_mut() {
+        s.0 = on;
+    }
+}
 
 /// Highlighted row.
 #[derive(Resource, Debug, Default)]
@@ -228,7 +350,7 @@ fn spawn_menu(mut commands: Commands) {
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
                     padding: UiRect::all(Val::Px(24.0)),
-                    row_gap: Val::Px(10.0),
+                    row_gap: Val::Px(6.0),
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.05, 0.08, 0.12, 0.95)),
@@ -246,7 +368,7 @@ fn spawn_menu(mut commands: Commands) {
                             PauseButton(i),
                             Node {
                                 width: Val::Px(420.0),
-                                padding: UiRect::axes(Val::Px(16.0), Val::Px(9.0)),
+                                padding: UiRect::axes(Val::Px(16.0), Val::Px(6.0)),
                                 justify_content: JustifyContent::Center,
                                 ..default()
                             },
@@ -288,7 +410,7 @@ fn pause_input(
     mut save_request: ResMut<SaveRequested>,
     mut rest_request: ResMut<RestRequested>,
     mut safe_request: ResMut<SafeSpawnRequested>,
-    mut bag_request: ResMut<BagOpenRequested>,
+    mut screens: ScreenRequests,
     suppressed: Res<PauseMenuSuppressed>,
     mut toast: ResMut<SaveToast>,
     buttons: Query<(&PauseButton, &Interaction), Changed<Interaction>>,
@@ -297,7 +419,7 @@ fn pause_input(
 ) {
     // The main menu owns the input while it is open (Escape backs out of its options
     // page); never show the pause overlay on top of it.
-    if state.is_some_and(|s| *s.get() == GameState::MainMenu) {
+    if state.as_ref().is_some_and(|s| *s.get() == GameState::MainMenu) {
         return;
     }
     // Another fullscreen screen owns the input (bag/shop): do nothing, it handles Esc itself.
@@ -369,8 +491,16 @@ fn pause_input(
     match activate(OPTIONS[i], &mut settings) {
         MenuAction::Resume => paused.0 = false,
         MenuAction::OpenBag => {
-            bag_request.0 = true;
+            screens.bag.0 = true;
             paused.0 = false;
+        }
+        MenuAction::OpenScreen(screen) => {
+            // The screen keeps the world frozen (its plugin sets `Paused` and
+            // `PauseMenuSuppressed` when it consumes the request this frame).
+            let in_world = state.as_ref().is_none_or(|s| *s.get() == GameState::World);
+            if !in_world || !screens.request(screen) {
+                toast.show(screen_unavailable_text(screen, in_world));
+            }
         }
         MenuAction::SettingsChanged => {
             if let Err(e) = settings.save_to_dir(&dir.0) {
@@ -467,6 +597,15 @@ mod tests {
         assert_eq!(activate(MenuOption::Resume, &mut s), MenuAction::Resume);
         assert_eq!(activate(MenuOption::Bag, &mut s), MenuAction::OpenBag);
         assert_eq!(option_label(MenuOption::Bag, &s), "Bag");
+        assert_eq!(activate(MenuOption::Party, &mut s), MenuAction::OpenScreen(Screen::Party));
+        assert_eq!(activate(MenuOption::Boxes, &mut s), MenuAction::OpenScreen(Screen::Boxes));
+        assert_eq!(activate(MenuOption::Pokedex, &mut s), MenuAction::OpenScreen(Screen::Pokedex));
+        assert_eq!(
+            activate(MenuOption::Crafting, &mut s),
+            MenuAction::OpenScreen(Screen::Crafting)
+        );
+        assert_eq!(activate(MenuOption::Shop, &mut s), MenuAction::OpenScreen(Screen::Shop));
+        assert_eq!(option_label(MenuOption::Pokedex, &s), "Pokédex");
         assert_eq!(activate(MenuOption::Save, &mut s), MenuAction::Save);
         assert_eq!(activate(MenuOption::SafeSpawn, &mut s), MenuAction::SafeSpawn);
         assert_eq!(option_label(MenuOption::SafeSpawn, &s), "Back to safe spawn");
@@ -479,9 +618,27 @@ mod tests {
     #[test]
     fn safe_spawn_row_is_reachable_by_navigation() {
         let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 9);
+        assert_eq!(OPTIONS.len(), 14);
         assert_eq!(move_selection(i - 1, 1), i);
         assert_eq!(move_selection(i, 1), i + 1);
+    }
+
+    #[test]
+    fn screen_rows_follow_the_bag_row_in_order() {
+        let bag = OPTIONS.iter().position(|o| *o == MenuOption::Bag).unwrap();
+        assert_eq!(
+            OPTIONS[bag + 1..bag + 6],
+            [
+                MenuOption::Party,
+                MenuOption::Boxes,
+                MenuOption::Pokedex,
+                MenuOption::Crafting,
+                MenuOption::Shop
+            ]
+        );
+        assert_eq!(OPTIONS[bag + 6], MenuOption::InvertX);
+        assert!(screen_unavailable_text(Screen::Boxes, false).contains("only while exploring"));
+        assert!(screen_unavailable_text(Screen::Party, true).contains("not available"));
     }
 
     #[test]
@@ -574,6 +731,150 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    fn data_root() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+    }
+
+    /// The viewer's screen set (party, boxes, Pokédex, crafting, bag/shop) behind the pause menu.
+    fn screens_app(tag: &str) -> App {
+        use crate::game::crafting::{Bag, TsvRecipeProvider};
+        let dir = std::env::temp_dir().join(format!("pla_pause_{tag}_{}", std::process::id()));
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.add_plugins(crate::game::input_map::InputMapPlugin);
+        PauseMenuPlugin::install(&mut app, UserSettings::default(), dir);
+        let recipes = TsvRecipeProvider::load(data_root()).unwrap();
+        app.add_plugins((
+            crate::game::party_screen::PartyScreenPlugin,
+            crate::game::box_screen::BoxScreenPlugin,
+            crate::game::dex_screen::DexScreenPlugin::with_data_dir(data_root()),
+            crate::game::crafting_ui::CraftingPlugin::with_provider(&recipes, Bag::default()),
+            crate::game::bag_screen::BagScreenPlugin::with_data_dir(data_root()),
+        ));
+        let mut progress = PlayerProgress::new_game();
+        progress.party.push(crate::game::save_game::PartyMember {
+            species: 25,
+            level: 5,
+            hp: 20,
+            ..Default::default()
+        });
+        progress.bag.insert(1613, 2);
+        app.insert_resource(progress);
+        step(&mut app, &[], &[]);
+        app
+    }
+
+    fn screen_open(app: &App, row: MenuOption) -> bool {
+        let w = app.world();
+        match row {
+            MenuOption::Party => w.resource::<crate::game::party_screen::PartyScreenState>().open,
+            MenuOption::Boxes => w.resource::<crate::game::box_screen::BoxScreenState>().open,
+            MenuOption::Pokedex => w.resource::<crate::game::dex_screen::DexUi>().open,
+            MenuOption::Crafting => w.resource::<crate::game::crafting_ui::CraftingUi>().open,
+            MenuOption::Shop => {
+                let ui = w.resource::<crate::game::bag_screen::BagUi>();
+                ui.open && ui.mode == crate::game::bag_screen::BagMode::Shop
+            }
+            other => panic!("{other:?} is not a screen row"),
+        }
+    }
+
+    fn pause_root_visible(app: &mut App) -> bool {
+        let mut q = app
+            .world_mut()
+            .query_filtered::<&Visibility, With<PauseRoot>>();
+        q.iter(app.world()).any(|v| *v == Visibility::Visible)
+    }
+
+    #[test]
+    fn headless_every_screen_row_opens_its_screen_and_esc_returns_to_the_world() {
+        let rows = [
+            MenuOption::Party,
+            MenuOption::Boxes,
+            MenuOption::Pokedex,
+            MenuOption::Crafting,
+            MenuOption::Shop,
+        ];
+        for row in rows {
+            let mut app = screens_app("screens");
+            step(&mut app, &[KeyCode::Escape], &[]);
+            assert!(app.world().resource::<Paused>().0, "{row:?}: menu open");
+            app.world_mut().resource_mut::<PauseMenu>().selected =
+                OPTIONS.iter().position(|o| *o == row).unwrap();
+            step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
+            assert!(screen_open(&app, row), "{row:?} must open from the pause menu");
+            assert!(app.world().resource::<Paused>().0, "{row:?}: world stays frozen");
+            assert!(app.world().resource::<PauseMenuSuppressed>().0, "{row:?}: owns input");
+            step(&mut app, &[], &[KeyCode::Enter]);
+            assert!(screen_open(&app, row), "{row:?} stays open");
+            assert!(!pause_root_visible(&mut app), "{row:?}: pause overlay hidden");
+
+            step(&mut app, &[KeyCode::Escape], &[]);
+            assert!(!screen_open(&app, row), "{row:?} must close on Esc");
+            assert!(!app.world().resource::<Paused>().0, "{row:?}: world resumes");
+            assert!(!app.world().resource::<PauseMenuSuppressed>().0);
+            step(&mut app, &[], &[KeyCode::Escape]);
+            assert!(!app.world().resource::<Paused>().0, "{row:?}: Esc did not reopen the menu");
+        }
+    }
+
+    #[test]
+    fn headless_screens_show_live_progress_and_refuse_outside_the_world() {
+        let mut app = screens_app("live");
+        step(&mut app, &[KeyCode::Escape], &[]);
+        app.world_mut().resource_mut::<PauseMenu>().selected =
+            OPTIONS.iter().position(|o| *o == MenuOption::Party).unwrap();
+        step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
+        assert_eq!(
+            app.world().resource::<crate::game::party_screen::PartyScreenData>().party[0].species,
+            25,
+            "the party screen mirrors PlayerProgress"
+        );
+        step(&mut app, &[KeyCode::Escape], &[KeyCode::Enter]);
+        step(&mut app, &[], &[KeyCode::Escape]);
+
+        // Crafting copies the player's bag when it opens.
+        step(&mut app, &[KeyCode::Escape], &[]);
+        app.world_mut().resource_mut::<PauseMenu>().selected =
+            OPTIONS.iter().position(|o| *o == MenuOption::Crafting).unwrap();
+        step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
+        assert_eq!(
+            app.world().resource::<crate::game::crafting_ui::CraftingBag>().0.get(&1613),
+            Some(&2)
+        );
+        assert_eq!(app.world().resource::<crate::game::crafting_ui::CraftingCatalog>().0.len(), 43);
+        step(&mut app, &[KeyCode::Escape], &[KeyCode::Enter]);
+        step(&mut app, &[], &[KeyCode::Escape]);
+
+        // During a battle the boxes row only shows a toast and the menu stays up.
+        app.insert_resource(State::new(GameState::Battle));
+        step(&mut app, &[KeyCode::Escape], &[]);
+        app.world_mut().resource_mut::<PauseMenu>().selected =
+            OPTIONS.iter().position(|o| *o == MenuOption::Boxes).unwrap();
+        step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
+        assert!(!screen_open(&app, MenuOption::Boxes));
+        assert!(app.world().resource::<Paused>().0);
+        assert!(!app.world().resource::<PauseMenuSuppressed>().0);
+        assert!(app.world().resource::<SaveToast>().text.contains("only while exploring"));
+    }
+
+    #[test]
+    fn screen_row_without_its_plugin_shows_a_toast() {
+        let dir = std::env::temp_dir().join(format!("pla_pause_noscreen_{}", std::process::id()));
+        let mut app = App::new();
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.add_plugins(crate::game::input_map::InputMapPlugin);
+        PauseMenuPlugin::install(&mut app, UserSettings::default(), dir);
+        step(&mut app, &[], &[]);
+        step(&mut app, &[KeyCode::Escape], &[]);
+        app.world_mut().resource_mut::<PauseMenu>().selected =
+            OPTIONS.iter().position(|o| *o == MenuOption::Pokedex).unwrap();
+        step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
+        assert!(app.world().resource::<Paused>().0, "the menu stays open");
+        assert!(app.world().resource::<SaveToast>().text.contains("not available"));
+    }
+
     #[test]
     fn headless_app_navigates_and_confirms_with_consumed_edges() {
         let dir = std::env::temp_dir().join(format!("pla_pause_nav_{}", std::process::id()));
@@ -587,12 +888,15 @@ mod tests {
         step(&mut app, &[KeyCode::Escape], &[]);
         assert_eq!(app.world().resource::<PauseMenu>().selected, 0);
 
-        // D-pad/A-D/arrow navigation passes the Bag row and reaches Invert camera X axis.
+        // D-pad/A-D/arrow navigation passes the Bag and screen rows and reaches Invert camera X.
+        let invert_x = OPTIONS.iter().position(|o| *o == MenuOption::InvertX).unwrap();
         step(&mut app, &[KeyCode::ArrowDown], &[]);
         assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
-        step(&mut app, &[], &[KeyCode::ArrowDown]);
-        step(&mut app, &[KeyCode::ArrowDown], &[]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, 2);
+        for expected in 2..=invert_x {
+            step(&mut app, &[], &[KeyCode::ArrowDown]);
+            step(&mut app, &[KeyCode::ArrowDown], &[]);
+            assert_eq!(app.world().resource::<PauseMenu>().selected, expected);
+        }
 
         step(&mut app, &[KeyCode::Enter], &[]);
         assert!(app.world().resource::<UserSettings>().invert_camera_x);
@@ -608,13 +912,13 @@ mod tests {
 
         // W/S still move through the vertical menu; S does not leak as the battle Switch.
         step(&mut app, &[KeyCode::KeyS], &[KeyCode::ArrowDown, KeyCode::Enter]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, 3);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, invert_x + 1);
         assert!(!app
             .world()
             .resource::<ActionState>()
             .just_pressed(Action::OpenSwitch));
         step(&mut app, &[KeyCode::KeyW], &[KeyCode::KeyS]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, 2);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, invert_x);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

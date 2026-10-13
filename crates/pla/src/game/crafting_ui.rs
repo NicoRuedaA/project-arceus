@@ -1,8 +1,16 @@
-//! Minimal Bevy crafting screen. The plugin is intentionally independent from the viewer.
+//! Minimal Bevy crafting screen.
+//!
+//! Viewer wiring: the pause menu's `Crafting` row raises [`CraftingOpenRequested`]. Opening
+//! freezes the world (shared `Paused` / `PauseMenuSuppressed`) and, when a [`PlayerProgress`]
+//! resource exists, copies the player's bag into [`CraftingBag`]; a successful craft writes the
+//! bag back. Esc closes and releases the world.
 
 use bevy::prelude::*;
 
 use super::crafting::{craft, Bag, CraftError, Recipe, RecipeCatalog, RecipeProvider};
+use super::pause_menu::{freeze_for_screen, PauseMenuSuppressed};
+use super::save_wire::PlayerProgress;
+use super::state::Paused;
 
 #[derive(Resource, Debug, Clone, Default)]
 pub struct CraftingCatalog(pub Vec<Recipe>);
@@ -91,7 +99,7 @@ impl Plugin for CraftingPlugin {
             .add_systems(Startup, spawn_crafting_ui)
             .add_systems(
                 Update,
-                (open_requested, handle_crafting_input, sync_crafting_ui),
+                (open_requested, handle_crafting_input, sync_crafting_ui).chain(),
             );
     }
 }
@@ -117,8 +125,8 @@ fn spawn_crafting_ui(mut commands: Commands, catalog: Res<CraftingCatalog>) {
                 Node {
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
-                    padding: UiRect::all(Val::Px(24.0)),
-                    row_gap: Val::Px(10.0),
+                    padding: UiRect::all(Val::Px(16.0)),
+                    row_gap: Val::Px(2.0),
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.05, 0.08, 0.12, 0.96)),
@@ -136,7 +144,7 @@ fn spawn_crafting_ui(mut commands: Commands, catalog: Res<CraftingCatalog>) {
                             CraftingRow(i),
                             Node {
                                 width: Val::Px(480.0),
-                                padding: UiRect::axes(Val::Px(16.0), Val::Px(9.0)),
+                                padding: UiRect::axes(Val::Px(16.0), Val::Px(1.0)),
                                 justify_content: JustifyContent::Center,
                                 ..default()
                             },
@@ -146,7 +154,7 @@ fn spawn_crafting_ui(mut commands: Commands, catalog: Res<CraftingCatalog>) {
                             button.spawn((
                                 CraftingRowText(i),
                                 Text::new(""),
-                                TextFont::from_font_size(20.0),
+                                TextFont::from_font_size(14.0),
                                 TextColor(Color::WHITE),
                             ));
                         });
@@ -166,20 +174,35 @@ fn spawn_crafting_ui(mut commands: Commands, catalog: Res<CraftingCatalog>) {
         });
 }
 
-fn open_requested(mut request: ResMut<CraftingOpenRequested>, mut ui: ResMut<CraftingUi>) {
+fn open_requested(
+    mut request: ResMut<CraftingOpenRequested>,
+    mut ui: ResMut<CraftingUi>,
+    mut bag: ResMut<CraftingBag>,
+    progress: Option<Res<PlayerProgress>>,
+    mut paused: Option<ResMut<Paused>>,
+    mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
+) {
     if request.0 {
         request.0 = false;
         ui.open = true;
         ui.selected = 0;
         ui.message.clear();
+        if let Some(progress) = progress {
+            bag.0 = progress.bag.clone();
+        }
+        freeze_for_screen(&mut paused, &mut suppressed, true);
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_crafting_input(
     keys: Option<Res<ButtonInput<KeyCode>>>,
     catalog: Res<CraftingCatalog>,
     mut bag: ResMut<CraftingBag>,
     mut ui: ResMut<CraftingUi>,
+    mut progress: Option<ResMut<PlayerProgress>>,
+    mut paused: Option<ResMut<Paused>>,
+    mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
 ) {
     if !ui.open {
         return;
@@ -187,6 +210,7 @@ fn handle_crafting_input(
     let Some(keys) = keys else { return };
     if keys.just_pressed(KeyCode::Escape) {
         ui.open = false;
+        freeze_for_screen(&mut paused, &mut suppressed, false);
         return;
     }
     if keys.just_pressed(KeyCode::ArrowUp) {
@@ -201,7 +225,12 @@ fn handle_crafting_input(
             return;
         };
         ui.message = match craft(&mut bag.0, recipe) {
-            Ok(()) => format!("Crafted {}.", recipe.name.display()),
+            Ok(()) => {
+                if let Some(progress) = progress.as_deref_mut() {
+                    progress.bag = bag.0.clone();
+                }
+                format!("Crafted {}.", recipe.name.display())
+            }
             Err(CraftError::MissingMaterial { .. }) => "Missing materials.".into(),
             Err(CraftError::OutputStackFull { .. }) => "Output stack is full.".into(),
             Err(CraftError::UnknownCondition) => "Condition unknown; crafting refused.".into(),

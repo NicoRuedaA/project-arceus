@@ -7,7 +7,9 @@
 //! opponent, so field and battle share the same effect rules.
 //!
 //! Opening: `I` (or the pause menu's `Bag` row). With `--debug-shop` a shop trigger is
-//! spawned at the player's start position: stand on it and press `E` to trade.
+//! spawned at the player's start position: stand on it and press `E` to trade. The pause menu's
+//! `Shop (test shop)` row ([`ShopOpenRequested`]) opens the same shop 0 without the trigger; no
+//! real merchant positions are decoded.
 //!
 //! Limits (declared): the merchant identity behind each decoded shop hash is UNKNOWN, the
 //! sell price is ASSUMED half, the world is frozen by the shared `Paused` resource while a
@@ -22,7 +24,7 @@ use crate::battle_engine::items::{ItemEffect, ItemTable};
 use crate::battle_engine::{Battle, MajorStatus};
 use crate::game::battle_controller::BattleAssets;
 use crate::game::battle_items::{label, status_tag};
-use crate::game::pause_menu::{BagOpenRequested, PauseMenuSuppressed};
+use crate::game::pause_menu::{BagOpenRequested, PauseMenuSuppressed, ShopOpenRequested};
 use crate::game::save_game::PartyMember;
 use crate::game::save_wire::{member_to_combatant, PlayerProgress};
 use crate::game::shop::Shop;
@@ -449,12 +451,14 @@ impl Plugin for BagScreenPlugin {
             .init_resource::<BagUi>()
             .init_resource::<Paused>()
             .init_resource::<PauseMenuSuppressed>()
-            .init_resource::<BagOpenRequested>();
+            .init_resource::<BagOpenRequested>()
+            .init_resource::<ShopOpenRequested>();
         app.add_systems(Startup, spawn_bag_ui);
         app.add_systems(
             Update,
             (
                 open_requested,
+                shop_open_requested,
                 spawn_debug_shop_trigger,
                 shop_trigger_interact,
                 bag_input,
@@ -568,6 +572,33 @@ fn open_requested(
     ui.mode = BagMode::Bag;
     ui.pocket = 0;
     ui.selected = 0;
+    ui.message.clear();
+    set_freeze(&mut paused, &mut suppressed, true);
+}
+
+/// The pause menu's `Shop` row: open shop 0 (the `--debug-shop` test shop) in shop mode.
+fn shop_open_requested(
+    mut request: ResMut<ShopOpenRequested>,
+    shops: Res<ShopCatalog>,
+    mut ui: ResMut<BagUi>,
+    mut paused: Option<ResMut<Paused>>,
+    mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
+) {
+    if !request.0 {
+        return;
+    }
+    request.0 = false;
+    if shops.0.is_empty() {
+        // No shop sheet: nothing to open, the pause menu stays as it was.
+        eprintln!("[bag] shop requested but no shop data is loaded");
+        return;
+    }
+    ui.open = true;
+    ui.mode = BagMode::Shop;
+    ui.shop = 0;
+    ui.tab = ShopTab::Buy;
+    ui.selected = 0;
+    ui.pocket = 0;
     ui.message.clear();
     set_freeze(&mut paused, &mut suppressed, true);
 }
@@ -1270,6 +1301,24 @@ mod tests {
         assert_eq!(shops.0.len(), 8, "the real sheet loads 8 decoded shops");
         let table = app.world().resource::<BagItemTable>().0.clone().unwrap();
         assert!(shops.0[0].stock.iter().all(|id| table.get(*id).is_some()));
+    }
+
+    #[test]
+    fn pause_menu_shop_request_opens_shop_zero_and_esc_closes_it() {
+        let mut app = app(root(), false);
+        app.world_mut().resource_mut::<ShopOpenRequested>().0 = true;
+        app.update();
+        {
+            let ui = app.world().resource::<BagUi>();
+            assert!(ui.open);
+            assert_eq!((ui.mode, ui.shop), (BagMode::Shop, 0));
+        }
+        assert!(!app.world().resource::<ShopOpenRequested>().0);
+        assert!(app.world().resource::<Paused>().0);
+        assert!(app.world().resource::<PauseMenuSuppressed>().0);
+        tap(&mut app, KeyCode::Escape);
+        assert!(!app.world().resource::<BagUi>().open);
+        assert!(!app.world().resource::<Paused>().0);
     }
 
     #[test]

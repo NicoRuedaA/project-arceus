@@ -842,6 +842,14 @@ fn main() -> ExitCode {
     // Day/night clock: --time-slot pins it, --time-scale speeds it, the save supplies the start.
     pla::game::clock::GameClockPlugin::install(&mut app, &cli_args, wire_start.time_minutes);
     pla::game::save_wire::SaveWirePlugin::install(&mut app, save_game, wire_start, &wire_cli);
+    // Fullscreen screens opened from the pause menu (Esc): party, boxes, Pokédex and crafting.
+    // Installed after SaveWirePlugin so they read the live `PlayerProgress`.
+    app.add_plugins((
+        pla::game::party_screen::PartyScreenPlugin,
+        pla::game::box_screen::BoxScreenPlugin,
+        pla::game::dex_screen::DexScreenPlugin::default(),
+        crafting_plugin(),
+    ));
     if let Some(p) = safe_spawn_xz {
         app.insert_resource(sp::SafeSpawnPoint(p));
     }
@@ -1194,6 +1202,7 @@ fn setup_scene(
     println!("  Mouse Wheel   : Zoom camera distance");
     println!("  Z / Tab       : Toggle Orbit Mode 0 <-> Aim Mode 2 (ZL)");
     println!("  1 - 5         : Select active Pokémon (Pikachu, Starters)");
+    println!("  Esc           : Pause menu (Bag, Party, Pokémon boxes, Pokédex, Crafting, Shop, ...)");
     println!("============================================================");
 
     if let Some(db) = &pml.0 {
@@ -1204,6 +1213,20 @@ fn setup_scene(
     } else {
         println!("Note: PML Database not found at data/ (running with fallback species).");
     }
+}
+
+/// Crafting screen fed by the tracked `data/crafting_recipes.tsv` (empty when it is missing).
+fn crafting_plugin() -> pla::game::crafting_ui::CraftingPlugin {
+    use pla::game::crafting::{Bag, TsvRecipeProvider};
+    let provider = pla::game::bag_screen::find_item_data_dir()
+        .ok_or_else(|| "data directory not found".to_string())
+        .and_then(TsvRecipeProvider::load)
+        .unwrap_or_else(|e| {
+            eprintln!("[crafting] recipe sheet unavailable ({e}); the screen lists no recipes");
+            TsvRecipeProvider::default()
+        });
+    println!("[crafting] {} recipes loaded", provider.0.len());
+    pla::game::crafting_ui::CraftingPlugin::with_provider(&provider, Bag::default())
 }
 
 /// Registers the `.trins` models of `terrain`'s area for asynchronous glTF loading (the models

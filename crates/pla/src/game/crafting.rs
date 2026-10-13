@@ -88,6 +88,102 @@ impl RecipeCatalog {
     }
 }
 
+/// Rows of the tracked `data/crafting_recipes.tsv` sheet (decoded MakeList records).
+///
+/// Only columns of the sheet are used: `recipe_id`, `result_item_id`, `result_quantity`, the
+/// `materials` list (`item:qty,item:qty`) and `condition`. The sheet has no recipe name column, so
+/// every name is [`RecipeName::Unknown`]; its `condition` is `UNKNOWN` for every row (MakeList has
+/// no unlock-condition field), which [`craft`] refuses by design.
+#[derive(Debug, Clone, Default)]
+pub struct TsvRecipeProvider(pub Vec<Recipe>);
+
+impl TsvRecipeProvider {
+    /// Parse the sheet text. Comment lines start with `#`; the first other line is the header.
+    pub fn parse(text: &str) -> Result<Self, String> {
+        let mut lines = text
+            .lines()
+            .filter(|line| !line.trim().is_empty() && !line.starts_with('#'));
+        let headers: Vec<&str> = lines
+            .next()
+            .ok_or_else(|| "crafting_recipes: missing header".to_string())?
+            .split('\t')
+            .map(|field| field.split_once(':').map_or(field, |(name, _)| name))
+            .collect();
+        let column = |name: &str| {
+            headers
+                .iter()
+                .position(|header| *header == name)
+                .ok_or_else(|| format!("crafting_recipes: missing column {name}"))
+        };
+        let (id_c, product_c, quantity_c, materials_c, condition_c) = (
+            column("recipe_id")?,
+            column("result_item_id")?,
+            column("result_quantity")?,
+            column("materials")?,
+            column("condition")?,
+        );
+        let mut recipes = Vec::new();
+        for (index, line) in lines.enumerate() {
+            let row = index + 2;
+            let values: Vec<&str> = line.split('\t').collect();
+            if values.len() != headers.len() {
+                return Err(format!(
+                    "crafting_recipes row {row}: expected {} fields, got {}",
+                    headers.len(),
+                    values.len()
+                ));
+            }
+            let number = |c: usize, what: &str| {
+                values[c]
+                    .parse::<u16>()
+                    .map_err(|_| format!("crafting_recipes row {row}: invalid {what}"))
+            };
+            let mut materials = Vec::new();
+            for pair in values[materials_c].split(',').filter(|p| !p.is_empty()) {
+                let (item, quantity) = pair
+                    .split_once(':')
+                    .ok_or_else(|| format!("crafting_recipes row {row}: invalid material {pair}"))?;
+                materials.push(MaterialCost {
+                    item_id: item
+                        .parse()
+                        .map_err(|_| format!("crafting_recipes row {row}: invalid material id"))?,
+                    quantity: quantity.parse().map_err(|_| {
+                        format!("crafting_recipes row {row}: invalid material quantity")
+                    })?,
+                });
+            }
+            let condition = match values[condition_c].trim() {
+                "" | "NONE" => RecipeCondition::None,
+                "UNKNOWN" => RecipeCondition::Unknown,
+                known => RecipeCondition::Known(known.to_string()),
+            };
+            recipes.push(Recipe {
+                id: values[id_c].to_string(),
+                name: RecipeName::Unknown,
+                product: number(product_c, "result_item_id")?,
+                product_quantity: number(quantity_c, "result_quantity")?,
+                materials,
+                condition,
+            });
+        }
+        Ok(Self(recipes))
+    }
+
+    /// Load `crafting_recipes.tsv` from a tracked data directory.
+    pub fn load(data_dir: impl AsRef<std::path::Path>) -> Result<Self, String> {
+        let path = data_dir.as_ref().join("crafting_recipes.tsv");
+        let text = std::fs::read_to_string(&path)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        Self::parse(&text)
+    }
+}
+
+impl RecipeProvider for TsvRecipeProvider {
+    fn recipes(&self) -> Vec<Recipe> {
+        self.0.clone()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CraftError {
     InvalidRecipe,
@@ -278,6 +374,36 @@ mod tests {
             craft(&mut bag.clone(), &labelled),
             Err(CraftError::UnsupportedCondition("story flag".into()))
         );
+    }
+
+    #[test]
+    fn tracked_recipe_sheet_loads_every_row_with_unknown_names_and_conditions() {
+        let text = include_str!("../../../../data/crafting_recipes.tsv");
+        let rows = TsvRecipeProvider::parse(text).unwrap().0;
+        assert_eq!(rows.len(), 43);
+        assert_eq!(rows[0].id, "1");
+        assert_eq!((rows[0].product, rows[0].product_quantity), (1710, 1));
+        assert_eq!(
+            rows[0].materials,
+            vec![
+                MaterialCost { item_id: 1613, quantity: 1 },
+                MaterialCost { item_id: 1628, quantity: 1 }
+            ]
+        );
+        assert!(rows.iter().all(|r| r.name == RecipeName::Unknown));
+        assert!(rows.iter().all(|r| r.condition == RecipeCondition::Unknown));
+        // The sheet's unknown unlock condition keeps every recipe refused, even with materials.
+        let mut bag = Bag::from([(1613, 9), (1628, 9)]);
+        assert_eq!(craft(&mut bag, &rows[0]), Err(CraftError::UnknownCondition));
+    }
+
+    #[test]
+    fn malformed_recipe_rows_are_rejected() {
+        let header = "recipe_id:u8\tresult_item_id:u32\tresult_quantity:u32\tmaterials:string\tcondition:string\n";
+        assert!(TsvRecipeProvider::parse(&format!("{header}1\t2\t1\t3:1\tNONE\n")).is_ok());
+        assert!(TsvRecipeProvider::parse(&format!("{header}1\t2\t1\t3-1\tNONE\n")).is_err());
+        assert!(TsvRecipeProvider::parse(&format!("{header}1\t2\t1\n")).is_err());
+        assert!(TsvRecipeProvider::parse("").is_err());
     }
 
     #[test]
