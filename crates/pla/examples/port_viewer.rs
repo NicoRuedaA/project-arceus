@@ -40,6 +40,7 @@ use pla::game::{
     WildCreature,
 };
 use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleState, BallSimulation};
+use pla::game::input_map::{Action, ActionState};
 use pla::game::pause_menu::PauseMenuPlugin;
 use pla::game::settings::UserSettings;
 use pla::game::state::{not_paused, Paused};
@@ -886,6 +887,8 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
     app.add_plugins(pla::game::audio::GameAudioPlugin::from_env_and_args());
     app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
+    // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
+    app.add_plugins(pla::game::input_map::InputMapPlugin);
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
         app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });
@@ -1666,9 +1669,11 @@ fn apply_safe_spawn_request(
 
 /// Player locomotion system: translates input along camera relative vectors,
 /// uses navmesh collision to block cliffs/water with smooth sliding, and samples surface height.
+/// Movement comes from [`ActionState`] (WASD/arrows or the gamepad left stick); the stick keeps
+/// its deflected magnitude so a half-pushed stick walks slower.
 fn player_locomotion(
     time: Res<Time>,
-    keys: Res<ButtonInput<KeyCode>>,
+    input: Res<ActionState>,
     camera_ctrl: Res<CameraController>,
     terrain_res: Option<Res<TerrainResource>>,
     navmesh_res: Option<Res<GameNavmeshResource>>,
@@ -1682,24 +1687,16 @@ fn player_locomotion(
     };
 
     let dt = time.delta_secs();
-    let mut input_dir = Vec2::ZERO;
-
-    if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
-        input_dir.y += 1.0;
-    }
-    if keys.pressed(KeyCode::KeyS) || keys.pressed(KeyCode::ArrowDown) {
-        input_dir.y -= 1.0;
-    }
-    if keys.pressed(KeyCode::KeyA) || keys.pressed(KeyCode::ArrowLeft) {
-        input_dir.x -= 1.0;
-    }
-    if keys.pressed(KeyCode::KeyD) || keys.pressed(KeyCode::ArrowRight) {
-        input_dir.x += 1.0;
-    }
+    let input_dir = input.move_axis();
 
     if input_dir.length_squared() > 0.0 {
-        let input_norm = input_dir.normalize();
-        let is_sprinting = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
+        // Keyboard is digital (normalising a diagonal keeps full speed); the stick stays analog.
+        let input_norm = if input_dir.length() > 1.0 {
+            input_dir.normalize()
+        } else {
+            input_dir
+        };
+        let is_sprinting = input.pressed(Action::Sprint);
         let speed = if is_sprinting { 8.0 } else { 4.5 };
 
         // Camera yaw defines the forward direction on the XZ plane.
@@ -1707,7 +1704,8 @@ fn player_locomotion(
         let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
         let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
 
-        let move_vec = (forward * input_norm.y + right * input_norm.x).normalize();
+        // Orthonormal basis: the vector magnitude is the input deflection (1 for keys).
+        let move_vec = forward * input_norm.y + right * input_norm.x;
         let delta_xz = Vec2::new(move_vec.x * speed * dt, move_vec.z * speed * dt);
         let current_xz = Vec2::new(transform.translation.x, transform.translation.z);
 
@@ -1761,9 +1759,10 @@ fn player_locomotion(
 
 /// Camera input and state updates (implements PLA dec319 kinematics).
 /// While paused it only drains the mouse events, so nothing accumulates behind the menu.
+/// Keyboard/gamepad look and zoom come from [`ActionState`]; the mouse delta stays raw.
 fn camera_controls(
     time: Res<Time>,
-    keys: Res<ButtonInput<KeyCode>>,
+    input: Res<ActionState>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: MessageReader<bevy::input::mouse::MouseMotion>,
     mut mouse_wheel: MessageReader<bevy::input::mouse::MouseWheel>,
@@ -1778,8 +1777,8 @@ fn camera_controls(
     }
     let dt = time.delta_secs();
 
-    // Toggle camera mode between Orbit (0) and Aim (2).
-    if keys.just_pressed(KeyCode::KeyZ) || keys.just_pressed(KeyCode::Tab) {
+    // Toggle camera mode between Orbit (0) and Aim (2): Z/Tab, or gamepad ZL.
+    if input.just_pressed(Action::Aim) {
         camera_ctrl.mode = match camera_ctrl.mode {
             CameraMode::OrbitDefault => CameraMode::AimOverShoulder,
             CameraMode::AimOverShoulder => CameraMode::OrbitDefault,
@@ -1799,13 +1798,10 @@ fn camera_controls(
         }
     }
 
-    // Keyboard orbit controls (Q/E for yaw).
-    if keys.pressed(KeyCode::KeyQ) {
-        mouse_delta.x -= 120.0 * dt;
-    }
-    if keys.pressed(KeyCode::KeyE) {
-        mouse_delta.x += 120.0 * dt;
-    }
+    // Keyboard (Q/E) and gamepad right stick orbit, at the old 120 px/s full-deflection rate.
+    // Stick up looks up (negative mouse-delta-y), matching mouse up.
+    let look = input.look_axis();
+    mouse_delta += Vec2::new(look.x, -look.y) * 120.0 * dt;
 
     // Settings: invert the horizontal (yaw: mouse X, Q/E) and vertical (pitch) axes separately.
     let (yaw_input, pitch_input) = settings.apply_invert(mouse_delta.x, mouse_delta.y);
@@ -1817,11 +1813,10 @@ fn camera_controls(
     for ev in mouse_wheel.read() {
         camera_ctrl.target_distance = (camera_ctrl.target_distance - ev.y * 0.6).clamp(1.5, 12.0);
     }
-    if keys.pressed(KeyCode::KeyR) {
-        camera_ctrl.target_distance = (camera_ctrl.target_distance - 4.0 * dt).clamp(1.5, 12.0);
-    }
-    if keys.pressed(KeyCode::KeyF) {
-        camera_ctrl.target_distance = (camera_ctrl.target_distance + 4.0 * dt).clamp(1.5, 12.0);
+    // Zoom axis: +1 closer (R), −1 farther (F).
+    let zoom = input.zoom();
+    if zoom != 0.0 {
+        camera_ctrl.target_distance = (camera_ctrl.target_distance - zoom * 4.0 * dt).clamp(1.5, 12.0);
     }
 
     // In Aim mode, camera distance contracts and reticle becomes visible.
