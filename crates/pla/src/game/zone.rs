@@ -860,7 +860,8 @@ pub fn zone_change_driver(world: &mut World) {
     });
 }
 
-/// Load `request.zone`: terrain, navmesh, spawners, zone info; returns the safe landing point.
+/// Load `request.zone`: terrain, navmesh, placed-object walls, spawners, zone info; returns the
+/// safe landing point.
 ///
 /// Main areas (`ha_areaNN`) load today. Sub-area ids are refused with a notice: the request and
 /// the decoded arrival are correct, but an interior scene is Brief 37, and loading the parent's
@@ -887,6 +888,13 @@ pub fn apply_zone_change(
             world.insert_resource(nav);
         }
         Err(e) => eprintln!("zone: navmesh for ha_area{area_idx:02} not reloaded: {e}"),
+    }
+    // Placed-object walls live in the old area's frame: swap them for the new area's (or none),
+    // otherwise the old houses would stand as invisible walls in the new area.
+    if let Some(mut walls) = world.get_resource_mut::<crate::game::world_collision::WorldCollision>() {
+        if let Err(e) = walls.switch_area(area_idx) {
+            eprintln!("zone: no placed-object walls in ha_area{area_idx:02}: {e}");
+        }
     }
     // The old area's creatures live in the old frame: remove them, then stream the new table
     // (an unreadable table leaves the new area empty rather than replaying the old spawners).

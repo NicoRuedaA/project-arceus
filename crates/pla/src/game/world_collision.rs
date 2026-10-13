@@ -711,6 +711,38 @@ impl WorldCollision {
         }
     }
 
+    /// Install a new placement set (zone change): the old area's instances leave the grid at
+    /// once and the new ones stream in around the player on the next [`Self::stream_to`].
+    /// The parsed-mesh cache is kept: it is keyed by model name, not by area.
+    pub fn replace_placements(&mut self, placements: Vec<Placement>) {
+        self.placements_total = placements.len();
+        self.placements_with_collision = placements
+            .iter()
+            .filter(|p| self.packs.has_collision_entry(&p.model))
+            .count();
+        self.alive = vec![false; placements.len()];
+        self.placements = placements;
+        self.rebuild();
+    }
+
+    /// Switch to main area `area` (`ha_areaNN`) reusing the loaded packs. Areas above 5 and an
+    /// unreadable placement sheet leave NO placed walls (an empty set), never the old area's
+    /// walls, which live in another area's frame.
+    pub fn switch_area(&mut self, area: u8) -> Result<(), String> {
+        if area > 5 {
+            self.replace_placements(Vec::new());
+            return Err(format!("ha_area{area:02} has no placed-object collision"));
+        }
+        let Some(text) = find_data_file("field_object_placements.tsv")
+            .and_then(|p| std::fs::read_to_string(p).ok())
+        else {
+            self.replace_placements(Vec::new());
+            return Err("data/field_object_placements.tsv not found".into());
+        };
+        self.replace_placements(parse_placements(&text, &format!("ha_area{area:02}")));
+        Ok(())
+    }
+
     /// Build the resource for one area from the committed placement sheet and the game packs.
     pub fn load(bin_root: impl AsRef<Path>, area: u8, rot_mode: RotMode) -> Result<Self, String> {
         let packs = CollisionPacks::load(bin_root)?;
@@ -864,6 +896,30 @@ mod tests {
             section_count: 1,
             material_names: vec!["box".into()],
         }
+    }
+
+    #[test]
+    fn replacing_placements_drops_the_old_area_walls() {
+        let mut wc = WorldCollision {
+            grid: CollisionGrid::new(CELL),
+            packs: CollisionPacks { packs: Vec::new() },
+            placements: Vec::new(),
+            models: HashMap::new(),
+            alive: Vec::new(),
+            rot_mode: RotMode::YawY,
+            placements_total: 0,
+            placements_with_collision: 0,
+            meshes_parsed: 0,
+            triangles: 0,
+        };
+        wc.grid.insert(Arc::new(wall_mesh()), Mat4::IDENTITY);
+        let start = Vec2::new(0.1, 0.0);
+        assert_ne!(wc.push_player_out(start, 0.9), start, "the wall pushes before the switch");
+        wc.replace_placements(Vec::new());
+        assert_eq!(wc.instance_count(), 0);
+        assert_eq!(wc.push_player_out(start, 0.9), start, "no wall after the zone change");
+        assert!(wc.switch_area(6).is_err());
+        assert_eq!(wc.instance_count(), 0);
     }
 
     #[test]

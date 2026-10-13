@@ -77,7 +77,10 @@ cargo test -p pla world_collision     # 12 passed
 
 - Meaning of the 33 unnamed empty stubs and the 16 named empty shapes (they carry no geometry).
 - Sub-area placements (their frames are unknown, see object_placement.md); only main areas 00–05 are
-  used, and the runtime is not rebuilt when the viewer would change area (brief 8).
+  used. Since the merge with the zone change (brief 8) the runtime swaps its placement set on a
+  zone change (`WorldCollision::switch_area`, called from `zone::apply_zone_change`): the old
+  area's walls leave at once and an area above 5 or a missing sheet leaves no placed walls.
+  Unit-tested (`replacing_placements_drops_the_old_area_walls`); not run in the viewer.
 - Tree collision from `.trins` instances is not included (only `bg_parts` placements); tree models
   do have `_col.trcol` shapes, so adding them is mechanical once the instance list is available.
 - Whether the original game uses these exact shapes for player movement (they are camera/terrain
