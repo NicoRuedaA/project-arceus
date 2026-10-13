@@ -73,7 +73,7 @@
     "port.png": "171c21e73b75893738344b373a2e7ea2c8909240f5279fc13dc18b3663d77e32"
   },
   "rust_source_fingerprint": {
-    "file_count": 123,
+    "file_count": 125,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -324,12 +324,16 @@
         "sha256": "2f91f986bc02ee45c30a1cc5220dbba0bda0dd9795bc4ee98c48473b63349edb"
       },
       {
+        "path": "crates/pla/src/battle_engine/progression.rs",
+        "sha256": "bd952e09c774aa16066c5cb6a589a1ce357a1c7c509cce2ec27caa940187e911"
+      },
+      {
         "path": "crates/pla/src/battle_engine/statuses.rs",
         "sha256": "755d5373b7feb5b87a9db7f6af078b28f14a6b3f58f53c3f1aa1aeafbb380ff4"
       },
       {
         "path": "crates/pla/src/battle_engine.rs",
-        "sha256": "759cb1f4dd21f8c839533a30bfc9d518a09e4defd2afba329c23fd68946975b7"
+        "sha256": "57656adfcd1a4bcb18bb55cda78838edf1ff4fcb90a1e1e813f676f535c3f17e"
       },
       {
         "path": "crates/pla/src/dispatch.rs",
@@ -385,11 +389,15 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "497cb5d80bfd076c58e808b153f4237ed0e403cbc444e5a18181c9306e5a7def"
+        "sha256": "dceb9364e96bbce4334163428961e7335e91cc118364df0665ded9add37965d2"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
         "sha256": "472fc88dfc720cb713566a304ed1b7823e4a4850caa871661e0a39b78ab51ef2"
+      },
+      {
+        "path": "crates/pla/src/game/party_progress.rs",
+        "sha256": "4b7d6f198da9694ae1c5e5e4fd6c301ff215be3653b55cca66fdecd485f932d8"
       },
       {
         "path": "crates/pla/src/game/pause_menu.rs",
@@ -569,7 +577,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "b63b2840cbc434cf47bc594ba3134ef26437d4555662204574b7f1863c55f526"
+    "sha256": "c44b05626899790b8c5f3d3f67e12119d1702d721f4e1d1759b556d8b755b77c"
   },
   "state_partitions": {
     "analysis_documentation_status": {
