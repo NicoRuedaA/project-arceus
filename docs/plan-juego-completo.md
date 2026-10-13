@@ -70,8 +70,8 @@ Documento escrito el 2026-10-12. Está en español porque lo pidió el usuario p
 |---|---|:-:|---|
 | Tabla de tipos, daño, estadísticas y críticos | Hecho | | Leídos del código del juego, no comprobados en juego |
 | Efectos de 851 movimientos, objetos, cambio, IA simple | Hecho | | |
-| Reglas «probables» o supuestas: turnos, precisión, clima, quemadura, captura, confusión, sueño, atrapar, carga, protección | Parcial | 3 | Hay que verificarlas contra el juego. Los estados nuevos no están activados ni muestran mensajes |
-| Activar los estados nuevos y mostrar sus mensajes | Falta | 1 | |
+| Reglas «probables» o supuestas: turnos, precisión, clima, quemadura, captura, confusión, sueño, atrapar, carga, protección | Parcial | 3 | Hay que verificarlas contra el juego. Los estados nuevos ya se activan y muestran mensajes (reglas ASUMIDAS/PROBABLES) |
+| Activar los estados nuevos y mostrar sus mensajes | Hecho | 1 | Activados por defecto en `game/battle_controller` (`BattleAssets::status_rules`); mensajes vía `battle_log::format_status`. Reglas ASUMIDAS/PROBABLES, verificadas solo con pruebas unitarias y el ejemplo sin ventana |
 | Habilidades de Pokémon y objetos equipados | Falta | 4 | |
 | Estilos ágil y fuerte y el sistema de turnos propio de este juego | Falta | 3 | |
 | Combates contra jefes y entrenadores (varios Pokémon) | Falta | 3 | |

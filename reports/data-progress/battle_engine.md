@@ -70,6 +70,34 @@ Opt-in through `Battle::set_status_rules(StatusRules)`; `StatusRules::default()`
 
 Unsupported: semi-invulnerable charge turns (Fly/Dig have no flag in the table), Endure, Counter/Mirror Coat, Magic Coat/Snatch, the game's real confusion/sleep/trap values, and stage behaviour beyond three states.
 
+## Status rules wired into the game loop
+
+The rules above used to be engine-only. `game/battle_controller.rs` now turns them on for the
+game loop: `BattleAssets::load` sets `status_rules: StatusRules::game_rules()` and
+`ActiveBattleSession::build` calls `Battle::set_status_rules(a.status_rules)`, so a full session
+(the one the viewer, the save loop and `game::battle_demo` use) runs confusion, trapping,
+charge/recharge, Protect, sleep duration, the notes' paralysis/slip rates and the speed/stage
+multipliers. The plain `ActiveBattleSession::new` (no data tables, kept for callers with only a
+`BattleData`) leaves `StatusRules::default()` (everything off).
+
+After each turn the controller drains `Battle::take_status_events()` and `battle_log::format_status`
+maps all 14 `StatusEvent` variants to English log lines; they are appended in engine order after
+the turn's main and effect lines and before the end-of-battle line. The engine records status
+events on a stream with no position inside `Event`, so exact interleaving is not possible and the
+lines are grouped, not woven between the main events. A switch refused outside a turn also drains
+them. The HP cards add `CNF`/`TRAP` next to the existing status and stage tags. The headless
+`examples/battle_demo.rs` enables the rules and prints the new lines; a run with `move 3`
+(confuse-ray) and `move 4` (solar-beam) printed `staraptor became confused!`, `pikachu is charging
+solar-beam!` and `staraptor snapped out of confusion!`.
+
+Confidence is unchanged by the wiring: which moves confuse/trap/charge comes from the effects-table
+columns (LIKELY); durations, the 33 % confusion self-hit, trap damage and the Protect chain are
+ASSUMED franchise conventions; paralysis failure 33 % and the slip denominators come from the
+static notes (LIKELY). None of this is verified against the real game: the enabled rules are the
+engine's approximation, not the game's own values. **Verified** only by unit tests and the
+non-windowed example (`cargo test -p pla statuses battle_log battle_controller`; full
+`cargo test -p pla`).
+
 ## Items
 
 Item data and the additive `pla::battle_engine::items` module (healing, cures, revive, PP restore, ball items) are documented in [items.md](items.md).
@@ -81,5 +109,6 @@ From the repository root (all cargo commands are memory-scoped):
 ```sh
 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target cargo run -q --offline -p sheetty-cli -- check data
 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target cargo test --offline -p pla battle_engine::tests
-printf 'move 1\nheal\nswitch 2\nquit\n' | systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target cargo run --offline -p pla --example battle_demo
+systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target cargo test --offline -p pla -- statuses battle_log battle_controller
+printf 'move 3\nmove 4\nquit\n' | systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target cargo run --offline -p pla --example battle_demo
 ```
