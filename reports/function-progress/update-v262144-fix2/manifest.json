@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 210,
+    "file_count": 212,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -221,7 +221,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "6b2d06772eaf9187ac1fb39102c496cc9f650b3add807a4caf7c32bb85018e51"
+        "sha256": "b875c2133b0cd4fb3ea3c1261a31708bd9a35dd74a47f1050bc53e7e02347eec"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
@@ -533,7 +533,7 @@
       },
       {
         "path": "crates/pla/src/game/ball_lifecycle.rs",
-        "sha256": "904949dc2fb5aa652ec3b201d18a0d10323e5d61411cf22abf8b2d43a9eefa34"
+        "sha256": "04fc125e14bfab87f41ddfd97fe136ff2d58a7a8adb59ac920e4f61f0846e0df"
       },
       {
         "path": "crates/pla/src/game/battle_ai.rs",
@@ -586,6 +586,10 @@
       {
         "path": "crates/pla/src/game/box_screen.rs",
         "sha256": "e05e90e123bc8e5c1118d96a0299f3b4205faae97933255c74267bd04b38381a"
+      },
+      {
+        "path": "crates/pla/src/game/capture_world.rs",
+        "sha256": "f8e140735f529c25c93f2c1f7d293b990341dca4b3a73cdbb80901ee7b4d76d0"
       },
       {
         "path": "crates/pla/src/game/catch_rate.rs",
@@ -657,7 +661,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "7c18059d68a6b141dd9361be57d1cc9b1f70a97f10f82d3eab0b87b549b675a5"
+        "sha256": "9c10219df1458e09fac0fe4d3e40430f790585e784acac3f2a70daa9cb240dee"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -726,6 +730,10 @@
       {
         "path": "crates/pla/src/game/state.rs",
         "sha256": "6d1e59023d4dd9555133a8b3acfebe87000174a9b2d0aeda9eafbd99b2577ea5"
+      },
+      {
+        "path": "crates/pla/src/game/throwing.rs",
+        "sha256": "6b1d681c237630b60a5d9cba3e73792075999c7d5a8f1a6aa7ed503868a3261b"
       },
       {
         "path": "crates/pla/src/game/trainer_battle.rs",
@@ -917,7 +925,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "8c49447a864046f996785052eaf407535add455fdebd497b6b95e98b3854ecc0"
+    "sha256": "8b6d62c3a6ea93c281ed10028e428208e28e57c716950a49a755a20115235480"
   },
   "state_partitions": {
     "analysis_documentation_status": {
