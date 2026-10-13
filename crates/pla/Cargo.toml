@@ -9,7 +9,7 @@ license = "MIT"
 sheetty = { path = "../sheetty" }
 phf = { version = "0.13", default-features = false }
 mlua = { version = "0.12", features = ["lua53", "vendored"] }
-bevy = { version = "0.19.1", default-features = false, features = ["std", "bevy_asset", "bevy_render", "bevy_core_pipeline", "bevy_sprite", "bevy_sprite_render", "bevy_pbr", "bevy_light", "bevy_image", "bevy_animation", "bevy_gltf", "bevy_scene", "bevy_world_serialization", "tonemapping_luts", "zstd_rust", "bevy_log", "bevy_window", "bevy_winit", "x11", "wayland", "bevy_state", "png", "debug", "bevy_ui", "bevy_ui_render", "bevy_text", "default_font"] }
+bevy = { version = "0.19.1", default-features = false, features = ["std", "bevy_asset", "bevy_render", "bevy_core_pipeline", "bevy_sprite", "bevy_sprite_render", "bevy_pbr", "bevy_light", "bevy_image", "bevy_animation", "bevy_gltf", "bevy_scene", "bevy_world_serialization", "tonemapping_luts", "zstd_rust", "bevy_log", "bevy_window", "bevy_winit", "x11", "wayland", "bevy_state", "png", "debug", "bevy_ui", "bevy_ui_render", "bevy_text", "default_font", "bevy_gilrs"] }
 bevy_gltf = { version = "0.19.1", default-features = false, features = ["bevy_animation"] }
 tegra_swizzle = "0.4"
 bcdec_rs = "0.2.0"
