@@ -242,6 +242,7 @@ mod tests {
             price: 100,
             max_quantity: 999,
             effect_kind: 1,
+            pocket_code: 6,
             ball_category: None,
             hp_heal: HpHeal::None,
             cures: vec![],

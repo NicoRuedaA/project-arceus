@@ -57,11 +57,13 @@ existing save bag now shows in the battle bag.
 Why PLA turns could be the default: all existing battle-controller, save-wire and headless tests
 pass with it (290 `game::` tests), and the new headless session tests pass in both flows.
 
-## Save format v4 (VERIFIED by tests, port format)
+## Save format v5 (VERIFIED by tests, port format)
 
-`PLASAVE 4` adds a ninth member field, the cumulative experience (`-` = unknown). v3 files load
-through `migrate_v3_to_v4` (every experience unknown, which the rules read as "exactly the
-threshold of the saved level"). Form and experience travel through the battle in
+`PLASAVE 5` adds a ninth member/box field, the cumulative experience (`-` = unknown). v4 (the
+play-time format from task 21) belongs to `main`; v4 files load through `migrate_v4_to_v5` and
+v1-v3 files through the whole chain, with every experience unknown, which the rules read as
+"exactly the threshold of the saved level". The next format bump is v6 (reserved for the
+clock/weather task, Brief 9). Form and experience travel through the battle in
 `ActiveBattleSession::member_meta` (the engine combatant has neither) and back into the save by
 `save_wire::snapshot` / `apply_sync`; the nickname is kept. `install_party` now also keeps the
 battle rules (status rules were lost before) and the move-style table, and restarts the queue.
@@ -90,13 +92,13 @@ systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- env CARGO_BU
 printf 'move 1 strong\nmove 2 agile\nquit\n' | cargo run -q --offline -p pla --example battle_demo -- --pla-turns
 ```
 
-Tests added: save v3→v4 migration and round trip; experience/level/learn/evolution decisions
+Tests added: save v4→v5 migration (plus the v3→current test checking experience) and round trip; experience/level/learn/evolution decisions
 (`battle_progress`); style log lines; turn-order formatting and flag parsing (`battle_turns`);
 AI style rule; style input state machine, PLA vs classic flow, faster opponent acting first,
 queue advance on items, rare candy and effort items (`battle_controller`); evolution animation
 system (`evolution_fx`); and two headless Bevy sessions with the real save wiring and input
 system (`battle_flow_headless`): win → experience → level 15 → thunder-fang prompt → Shinx
-evolves into Luxio → autosave → the v4 file reloads the same member; and the classic flag.
+evolves into Luxio → autosave → the v5 file reloads the same member; and the classic flag.
 
 ## What to check by eye (maintainer)
 

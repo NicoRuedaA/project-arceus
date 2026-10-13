@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 pub mod audio;
+pub mod bag_screen;
 pub mod battle_ai;
 pub mod battle_anim;
 pub mod battle_controller;
@@ -28,6 +29,7 @@ pub mod catch_rate;
 pub mod effects;
 pub mod navigation;
 pub mod party_progress;
+pub mod play_time;
 pub mod player_anim;
 pub mod pokemon_anim;
 pub mod pause_menu;
@@ -36,10 +38,12 @@ pub mod save_wire;
 pub mod spawn_point;
 pub mod ball_lifecycle;
 pub mod settings;
+pub mod shop;
 pub mod state;
 pub mod ui;
 pub mod vegetation;
 pub mod world_collision;
+pub mod water;
 pub mod world_objects;
 pub mod wild;
 pub mod wild_wander;

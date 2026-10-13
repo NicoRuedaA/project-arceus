@@ -381,7 +381,7 @@ El enlace `decompiled` es la convención del repo (el directorio de pseudocódig
 #### Brief 21 — Dinero, tiempo de juego y descanso
 **Dificultad:** 2.
 **Objetivo:** el jugador gana dinero (venta de objetos, combates), se cuenta el tiempo jugado y puede descansar para curar al equipo.
-**Estado actual:** `PlayerSave.money`, `PlayerProgress::add_money` (`game/save_wire.rs`), `defeated`, `caught_count`; ningún contador de tiempo de juego. Informe `save_game.md`: «money income» sin hacer. Campamento/descanso: no hay datos decodificados (carpetas `bin/field/` sin `camp`; **desconocido: investigar** `bin/misc/app_config/field_common_config.bin`, `common_general_config.bin`).
+**Estado actual:** `PlayerSave.money`, `PlayerProgress::add_money` (`game/save_wire.rs`), `defeated`, `caught_count`; ningún contador de tiempo de juego. Informe `save_game.md`: «money income» sin hacer. Campamento/descanso: no hay datos decodificados (carpetas `bin/field/` sin `camp`; **desconocido: investigar** `bin/misc/app_config/field_common_config.bin`, `common_general_config.bin`). Evidencia ya leída durante el brief 21: `n2-base-camps-and-travel.md` §2.1 documenta el menú de descanso en tienda (mañana/mediodía/tarde/noche/un rato) y su avance del reloj (`FUN_02499418`); los importes de dinero y la duración exacta de «un rato» siguen sin decodificar.
 **Qué hay que construir:**
 1. `PlayerSave.play_seconds: u64` (versión +1 con migración; coordinar con 5 y 9) y recurso `PlayTime` que acumula solo en `GameState::World`/`Battle` y fuera de pausa (`not_paused`).
 2. Ingresos: fórmula provisional (ASSUMED) por victoria/venta; venta de objetos ligada a la tienda (14).
@@ -390,7 +390,7 @@ El enlace `decompiled` es la convención del repo (el directorio de pseudocódig
 **Archivos:** `game/save_game.rs`, `game/save_wire.rs`, `game/pause_menu.rs`, módulo nuevo `game/play_time.rs`; una línea en `port_viewer.rs`.
 **Datos de entrada:** Ninguno del juego (reglas provisionales); evidencia de lectura de código `reports/function-progress/n2-base-camps-and-travel.md` §2 (descanso en tienda y avance del reloj) y `n2-savedata-io.md`.
 **Aceptación:** pruebas unitarias (migración, acumulación con pausa, curación completa, dinero sin overflow `u32`), `cargo test --offline -p pla save_ pause`. A ojo: texto del menú.
-**Riesgos:** conflictos de versión de guardado con 5 y 9: pactar el orden (5 → v3, 21 → v4, 9 → v5, por ejemplo, y fusionar en ese orden).
+**Riesgos:** conflictos de versión de guardado con 5 y 9: pactar el orden (5 → v3, 21 → v4, la progresión conectada → v5 (experiencia del equipo), 9 → v6; fusionar en ese orden).
 **Reparto:** un agente.
 **Lanzamiento:** «Ejecuta el brief 21 de docs/briefs-agentes.md (worktree `money-time`).»
 

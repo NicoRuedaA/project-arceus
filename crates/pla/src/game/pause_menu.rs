@@ -1,20 +1,22 @@
 //! Pause menu (Esc or gamepad +): a Bevy UI overlay navigable with the keyboard
 //! (arrows, W/S or A/D, D-pad, Enter/A) and the mouse (hover + click).
 //!
-//! Options: Resume, Invert camera X axis, Invert camera Y axis, Volume (master, cycles
-//! 100/75/50/25/0 %), Back to safe spawn, Save game, Quit.
+//! Options: Resume, Bag, Invert camera X axis, Invert camera Y axis, Volume (master, cycles
+//! 100/75/50/25/0 %), Back to safe spawn, Save game, Rest (heals the party, no clock yet), Quit.
+//! The panel also shows the player's money and play time (from `PlayerProgress` and `PlayTime`).
 //!
 //! While [`Paused`] is `true` the plugin freezes the world by contract: every gameplay system must
 //! carry `.run_if(pla::game::state::not_paused)` (the opposite condition is
 //! `pla::game::state::is_paused`). The menu logic lives in plain functions ([`move_selection`],
-//! [`activate`], [`option_label`]) so it is unit tested without a window; the input edges come
-//! from [`crate::game::input_map::ActionState`] and are consumed here so the battle does not
-//! also see them on the same frame.
+//! [`activate`], [`option_label`], [`menu_info_text`]) so it is unit tested without a window; the
+//! input edges come from [`crate::game::input_map::ActionState`] and are consumed here so the
+//! battle does not also see them on the same frame.
 
 use bevy::prelude::*;
 
 use super::input_map::{Action, ActionState};
-use super::save_wire::{SaveRequested, SaveToast};
+use super::play_time::{format_play_time, PlayTime};
+use super::save_wire::{PlayerProgress, RestRequested, SaveRequested, SaveToast};
 use super::settings::UserSettings;
 use super::state::{GameState, Paused};
 
@@ -24,22 +26,26 @@ use super::state::{GameState, Paused};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuOption {
     Resume,
+    Bag,
     InvertX,
     InvertY,
     Volume,
     SafeSpawn,
     Save,
+    Rest,
     Quit,
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 7] = [
+pub const OPTIONS: [MenuOption; 9] = [
     MenuOption::Resume,
+    MenuOption::Bag,
     MenuOption::InvertX,
     MenuOption::InvertY,
     MenuOption::Volume,
     MenuOption::SafeSpawn,
     MenuOption::Save,
+    MenuOption::Rest,
     MenuOption::Quit,
 ];
 
@@ -48,12 +54,16 @@ pub const OPTIONS: [MenuOption; 7] = [
 pub enum MenuAction {
     /// Close the menu and unfreeze the world.
     Resume,
+    /// Open the bag screen (the bag plugin consumes [`BagOpenRequested`]).
+    OpenBag,
     /// A setting flipped: persist `settings.txt`.
     SettingsChanged,
     /// Teleport the player to the safe spawn of the current area.
     SafeSpawn,
     /// Save the game exactly like F5.
     Save,
+    /// Heal the party (refused during a battle; no clock advance yet, Brief 9 owns the clock).
+    Rest,
     /// Leave the program.
     Quit,
 }
@@ -68,6 +78,7 @@ pub fn move_selection(selected: usize, delta: i32) -> usize {
 pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
     match option {
         MenuOption::Resume => MenuAction::Resume,
+        MenuOption::Bag => MenuAction::OpenBag,
         MenuOption::InvertX => {
             settings.invert_camera_x = !settings.invert_camera_x;
             MenuAction::SettingsChanged
@@ -82,6 +93,7 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
         }
         MenuOption::SafeSpawn => MenuAction::SafeSpawn,
         MenuOption::Save => MenuAction::Save,
+        MenuOption::Rest => MenuAction::Rest,
         MenuOption::Quit => MenuAction::Quit,
     }
 }
@@ -98,13 +110,20 @@ fn on_off(v: bool) -> &'static str {
 pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
     match option {
         MenuOption::Resume => "Resume".into(),
+        MenuOption::Bag => "Bag".into(),
         MenuOption::InvertX => format!("Invert camera X axis: {}", on_off(settings.invert_camera_x)),
         MenuOption::InvertY => format!("Invert camera Y axis: {}", on_off(settings.invert_camera_y)),
         MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
         MenuOption::SafeSpawn => "Back to safe spawn".into(),
         MenuOption::Save => "Save game".into(),
+        MenuOption::Rest => "Rest (heal party)".into(),
         MenuOption::Quit => "Quit".into(),
     }
+}
+
+/// One-line player summary shown under the rows: money and play time.
+pub fn menu_info_text(money: u32, play_seconds: u64) -> String {
+    format!("Money: {money}   ·   Play time: {}", format_play_time(play_seconds))
 }
 
 /// Next master volume of the Volume row: 100 -> 75 -> 50 -> 25 -> 0 -> 100 (a value between
@@ -127,6 +146,15 @@ pub fn toggle_paused(paused: bool) -> bool {
 #[derive(Resource, Debug, Default)]
 pub struct SafeSpawnRequested(pub bool);
 
+/// Set to `true` by the pause menu's `Bag` row; the bag screen consumes it and opens.
+#[derive(Resource, Debug, Default)]
+pub struct BagOpenRequested(pub bool);
+
+/// Set by a fullscreen screen that owns the input while open (the bag/shop screen): the pause
+/// menu hides its root and ignores every key until the flag is cleared.
+#[derive(Resource, Debug, Default)]
+pub struct PauseMenuSuppressed(pub bool);
+
 /// Highlighted row.
 #[derive(Resource, Debug, Default)]
 pub struct PauseMenu {
@@ -143,6 +171,8 @@ struct PauseRoot;
 struct PauseButton(usize);
 #[derive(Component)]
 struct PauseButtonText(usize);
+#[derive(Component)]
+struct PauseInfoText;
 
 pub struct PauseMenuPlugin;
 
@@ -155,7 +185,10 @@ impl PauseMenuPlugin {
             .init_resource::<PauseMenu>()
             .init_resource::<SaveToast>()
             .init_resource::<SaveRequested>()
+            .init_resource::<RestRequested>()
             .init_resource::<SafeSpawnRequested>()
+            .init_resource::<BagOpenRequested>()
+            .init_resource::<PauseMenuSuppressed>()
             // Also initialised by `InputMapPlugin`; kept here so the menu can live without it.
             .init_resource::<ActionState>();
         app.add_systems(Startup, spawn_menu)
@@ -229,6 +262,12 @@ fn spawn_menu(mut commands: Commands) {
                         });
                 }
                 panel.spawn((
+                    PauseInfoText,
+                    Text::new(""),
+                    TextFont::from_font_size(16.0),
+                    TextColor(Color::srgb(0.85, 0.85, 0.6)),
+                ));
+                panel.spawn((
                     Text::new("Arrows, W/S or D-pad + Enter/A, or click. Esc or + resumes."),
                     TextFont::from_font_size(14.0),
                     TextColor(Color::srgb(0.7, 0.75, 0.8)),
@@ -247,7 +286,10 @@ fn pause_input(
     mut settings: ResMut<UserSettings>,
     dir: Res<SettingsDir>,
     mut save_request: ResMut<SaveRequested>,
+    mut rest_request: ResMut<RestRequested>,
     mut safe_request: ResMut<SafeSpawnRequested>,
+    mut bag_request: ResMut<BagOpenRequested>,
+    suppressed: Res<PauseMenuSuppressed>,
     mut toast: ResMut<SaveToast>,
     buttons: Query<(&PauseButton, &Interaction), Changed<Interaction>>,
     mut exit: MessageWriter<AppExit>,
@@ -256,6 +298,10 @@ fn pause_input(
     // The main menu owns the input while it is open (Escape backs out of its options
     // page); never show the pause overlay on top of it.
     if state.is_some_and(|s| *s.get() == GameState::MainMenu) {
+        return;
+    }
+    // Another fullscreen screen owns the input (bag/shop): do nothing, it handles Esc itself.
+    if suppressed.0 {
         return;
     }
     // Menu (Esc or gamepad +) toggles. The action edges are consumed so the battle
@@ -322,6 +368,10 @@ fn pause_input(
     }
     match activate(OPTIONS[i], &mut settings) {
         MenuAction::Resume => paused.0 = false,
+        MenuAction::OpenBag => {
+            bag_request.0 = true;
+            paused.0 = false;
+        }
         MenuAction::SettingsChanged => {
             if let Err(e) = settings.save_to_dir(&dir.0) {
                 toast.show(format!("Could not save settings: {e}"));
@@ -332,27 +382,33 @@ fn pause_input(
             paused.0 = false;
         }
         MenuAction::Save => save_request.0 = true,
+        MenuAction::Rest => rest_request.0 = true,
         MenuAction::Quit => {
             exit.write(AppExit::Success);
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn sync_menu(
     paused: Res<Paused>,
     menu: Res<PauseMenu>,
     settings: Res<UserSettings>,
+    progress: Option<Res<PlayerProgress>>,
+    play: Option<Res<PlayTime>>,
+    suppressed: Res<PauseMenuSuppressed>,
     mut root: Query<&mut Visibility, With<PauseRoot>>,
     mut buttons: Query<(&PauseButton, &mut BackgroundColor)>,
     mut texts: Query<(&PauseButtonText, &mut Text)>,
+    mut info: Query<&mut Text, (With<PauseInfoText>, Without<PauseButtonText>)>,
 ) {
     for mut v in &mut root {
-        let want = if paused.0 { Visibility::Visible } else { Visibility::Hidden };
+        let want = if paused.0 && !suppressed.0 { Visibility::Visible } else { Visibility::Hidden };
         if *v != want {
             *v = want;
         }
     }
-    if !paused.0 {
+    if !paused.0 || suppressed.0 {
         return;
     }
     for (b, mut bg) in &mut buttons {
@@ -366,6 +422,15 @@ fn sync_menu(
         let label = option_label(OPTIONS[t.0], &settings);
         if text.0 != label {
             text.0 = label;
+        }
+    }
+    let label = menu_info_text(
+        progress.as_ref().map_or(0, |p| p.money),
+        play.as_ref().map_or(0, |p| p.seconds),
+    );
+    for mut text in &mut info {
+        if text.0 != label {
+            text.0 = label.clone();
         }
     }
 }
@@ -400,9 +465,13 @@ mod tests {
     fn other_rows_map_to_actions_without_touching_settings() {
         let mut s = UserSettings::default();
         assert_eq!(activate(MenuOption::Resume, &mut s), MenuAction::Resume);
+        assert_eq!(activate(MenuOption::Bag, &mut s), MenuAction::OpenBag);
+        assert_eq!(option_label(MenuOption::Bag, &s), "Bag");
         assert_eq!(activate(MenuOption::Save, &mut s), MenuAction::Save);
         assert_eq!(activate(MenuOption::SafeSpawn, &mut s), MenuAction::SafeSpawn);
         assert_eq!(option_label(MenuOption::SafeSpawn, &s), "Back to safe spawn");
+        assert_eq!(activate(MenuOption::Rest, &mut s), MenuAction::Rest);
+        assert_eq!(option_label(MenuOption::Rest, &s), "Rest (heal party)");
         assert_eq!(activate(MenuOption::Quit, &mut s), MenuAction::Quit);
         assert_eq!(s, UserSettings::default());
     }
@@ -410,9 +479,22 @@ mod tests {
     #[test]
     fn safe_spawn_row_is_reachable_by_navigation() {
         let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 7);
+        assert_eq!(OPTIONS.len(), 9);
         assert_eq!(move_selection(i - 1, 1), i);
         assert_eq!(move_selection(i, 1), i + 1);
+    }
+
+    #[test]
+    fn rest_row_sits_between_save_and_quit() {
+        let rest = OPTIONS.iter().position(|o| *o == MenuOption::Rest).unwrap();
+        assert_eq!(OPTIONS[rest - 1], MenuOption::Save);
+        assert_eq!(OPTIONS[rest + 1], MenuOption::Quit);
+    }
+
+    #[test]
+    fn info_line_shows_money_and_play_time() {
+        assert_eq!(menu_info_text(1234, 3661), "Money: 1234   ·   Play time: 1:01:01");
+        assert_eq!(menu_info_text(0, 0), "Money: 0   ·   Play time: 0:00:00");
     }
 
     #[test]
@@ -505,9 +587,12 @@ mod tests {
         step(&mut app, &[KeyCode::Escape], &[]);
         assert_eq!(app.world().resource::<PauseMenu>().selected, 0);
 
-        // D-pad/A-D/arrow navigation reaches the second row (Invert camera X axis).
+        // D-pad/A-D/arrow navigation passes the Bag row and reaches Invert camera X axis.
         step(&mut app, &[KeyCode::ArrowDown], &[]);
         assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
+        step(&mut app, &[], &[KeyCode::ArrowDown]);
+        step(&mut app, &[KeyCode::ArrowDown], &[]);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 2);
 
         step(&mut app, &[KeyCode::Enter], &[]);
         assert!(app.world().resource::<UserSettings>().invert_camera_x);
@@ -523,13 +608,13 @@ mod tests {
 
         // W/S still move through the vertical menu; S does not leak as the battle Switch.
         step(&mut app, &[KeyCode::KeyS], &[KeyCode::ArrowDown, KeyCode::Enter]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, 2);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 3);
         assert!(!app
             .world()
             .resource::<ActionState>()
             .just_pressed(Action::OpenSwitch));
         step(&mut app, &[KeyCode::KeyW], &[KeyCode::KeyS]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 2);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

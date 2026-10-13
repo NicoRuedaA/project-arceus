@@ -1,7 +1,7 @@
 //! Conversions between the save's `PartyMember` / the engine's `Combatant` and the pure
 //! progression type. No Bevy, no side effects.
 //!
-//! Save format v4 stores the cumulative experience (`PartyMember::exp`); a member whose
+//! Save format v5 stores the cumulative experience (`PartyMember::exp`); a member whose
 //! experience is unknown (older saves, fresh members) starts at the exact threshold of its
 //! level (ASSUMED). `PartyMember` is rebuilt without touching HP/status/nickname.
 
@@ -101,7 +101,7 @@ mod tests {
         assert_eq!((p.species, p.hp), (42, 35));
         assert_eq!(p.moves, vec![SavedMove { move_id: 33, pp: 7 }, SavedMove { move_id: 45, pp: 20 }]);
         assert_eq!(p.nickname.as_deref(), Some("zu"));
-        assert_eq!(p.exp, Some(10_648), "the experience is written back (save v4)");
+        assert_eq!(p.exp, Some(10_648), "the experience is written back (save v5)");
         // a saved experience is used when present
         let saved = ProgressMember::from_party(&t, &p, None);
         assert_eq!(saved.exp, 10_648);
