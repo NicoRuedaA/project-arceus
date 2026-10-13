@@ -3,6 +3,7 @@
 pub mod ahtb;
 pub mod bntx;
 pub mod collision;
+pub mod effect_sequence;
 pub mod event_list;
 pub mod field_material;
 pub mod gfpak;
@@ -13,6 +14,7 @@ pub mod navmesh;
 pub mod player_model;
 pub mod pokemon_material;
 pub mod pokemon_model;
+pub mod ptcl;
 pub mod sarc;
 pub mod terrain;
 pub mod terrain_albedo;
