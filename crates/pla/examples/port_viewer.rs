@@ -453,6 +453,7 @@ fn main() -> ExitCode {
                 println!("  --save-dir <PATH>     Save directory (sets PLA_SAVE_DIR); F5 saves");
                 println!("  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)");
                 println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
+                println!("  --story <N> --event-time-scale <F> --distortion-now --outbreak <ID|off> --no-world-events  World events (Brief 39)");
                 return ExitCode::SUCCESS;
             }
             _ => {}
@@ -785,6 +786,7 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::art_style::ArtStylePlugin::from_env_and_args());
     app.add_plugins(pla::game::water::WaterPlugin);
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
+    app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     app.add_plugins(pla::game::follower::FollowerPlugin);
     app.add_plugins(pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args());
