@@ -4,13 +4,25 @@
 //! unit-tested deterministically. The Bevy plugin at the bottom only feeds positions,
 //! the navmesh and the player position into [`step`] and writes back the transform.
 //! Verified by unit tests only; never checked visually.
+//!
+//! Reactions ([`WildBehaviorSettings`], viewer flag `--wild-behavior`): when enabled (the
+//! default) every creature's [`WildBehavior`] state machine is stepped each frame from the
+//! player's distance, the angle to the creature's facing and the player's noise (still / walking
+//! / running). Idle and Wander keep the wander loop above; Alert and Attack stop and face the
+//! player, Flee walks away, Chase walks towards the player (the existing proximity encounter of
+//! the viewer then starts the battle), Sleep stands still. Every movement stays inside the
+//! spawner radius and on the navmesh. With `--wild-behavior off` the plain wander loop (stop and
+//! face within [`ALERT_RANGE`]) runs exactly as before. Archetype per creature, flee/chase
+//! speeds and noise thresholds are SUPPOSED port policy (no species data is decoded).
 
 use bevy::prelude::*;
 
 use super::navigation::GameNavmeshResource;
 use super::state::{GameState, Paused};
 use super::wild::{hash_str, splitmix64, ActiveAreaSpawners, WildCreature};
-use super::wild_behavior::WildBehavior;
+use super::wild_behavior::{
+    Archetype, BehaviorParams, Machine, Noise, Perception, State as ReactionState, WildBehavior,
+};
 use super::PlayerAvatar;
 
 pub const MIN_RADIUS: f32 = 3.0;
@@ -38,6 +50,113 @@ impl Default for WanderConfig {
     fn default() -> Self {
         Self { enabled: true }
     }
+}
+
+/// Which archetypes drive the wild reaction state machine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArchetypeChoice {
+    /// Deterministic per-creature pick among passive / timid / aggressive (SUPPOSED policy).
+    Mixed,
+    /// Every creature uses this archetype (testing aid).
+    All(Archetype),
+}
+
+/// `--wild-behavior on|off|passive|timid|aggressive` (default `on` = mixed archetypes).
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WildBehaviorSettings {
+    /// `false` = plain wander loop only (the pre-wiring behaviour).
+    pub enabled: bool,
+    pub archetypes: ArchetypeChoice,
+}
+
+impl Default for WildBehaviorSettings {
+    fn default() -> Self {
+        Self { enabled: true, archetypes: ArchetypeChoice::Mixed }
+    }
+}
+
+impl WildBehaviorSettings {
+    /// Parse `--wild-behavior VALUE` (or `--wild-behavior=VALUE`); unknown values keep the
+    /// default and print a warning.
+    pub fn from_args(args: &[String]) -> Self {
+        let value = args.iter().enumerate().find_map(|(i, a)| {
+            if a == "--wild-behavior" {
+                args.get(i + 1).cloned()
+            } else {
+                a.strip_prefix("--wild-behavior=").map(str::to_string)
+            }
+        });
+        let Some(value) = value else { return Self::default() };
+        match Self::parse(&value) {
+            Some(settings) => settings,
+            None => {
+                eprintln!(
+                    "[wild] unknown --wild-behavior {value:?} (on|off|passive|timid|aggressive); using on"
+                );
+                Self::default()
+            }
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        let all = |a| Some(Self { enabled: true, archetypes: ArchetypeChoice::All(a) });
+        match value.to_ascii_lowercase().as_str() {
+            "on" | "mixed" => Some(Self::default()),
+            "off" => Some(Self { enabled: false, ..Self::default() }),
+            "passive" => all(Archetype::Passive),
+            "timid" => all(Archetype::Timid),
+            "aggressive" => all(Archetype::Aggressive),
+            _ => None,
+        }
+    }
+
+    /// Archetype of a creature with wander seed `seed`.
+    pub fn archetype_for(&self, seed: u64) -> Archetype {
+        match self.archetypes {
+            ArchetypeChoice::All(a) => a,
+            ArchetypeChoice::Mixed => assumed_archetype(seed),
+        }
+    }
+}
+
+/// SUPPOSED port policy: no species-to-archetype data is decoded, so each creature gets one of
+/// the three archetypes from its deterministic wander seed (about one third each).
+pub fn assumed_archetype(seed: u64) -> Archetype {
+    let mut rng = seed ^ 0xa5a5_5a5a_c3c3_3c3c;
+    match splitmix64(&mut rng) % 3 {
+        0 => Archetype::Passive,
+        1 => Archetype::Timid,
+        _ => Archetype::Aggressive,
+    }
+}
+
+/// SUPPOSED flee speed (m/s, before the size scale); faster than the wander walk.
+pub const FLEE_SPEED: f32 = 3.5;
+/// SUPPOSED chase speed (m/s, before the size scale); slower than the player's walk (4.5 m/s).
+pub const CHASE_SPEED: f32 = 3.0;
+/// A chasing creature stops this far inside its attack distance (m).
+const CHASE_STOP_MARGIN: f32 = 0.05;
+/// SUPPOSED player speed (m/s) above which the player counts as running (walk 4.5, sprint 8).
+pub const RUN_NOISE_SPEED: f32 = 6.0;
+/// SUPPOSED player speed (m/s) above which the player makes walking noise.
+pub const WALK_NOISE_SPEED: f32 = 0.5;
+
+/// Noise class of the player from its planar speed.
+pub fn noise_from_speed(speed: f32) -> Noise {
+    if !speed.is_finite() || speed <= WALK_NOISE_SPEED {
+        Noise::Silent
+    } else if speed <= RUN_NOISE_SPEED {
+        Noise::Walk
+    } else {
+        Noise::Run
+    }
+}
+
+/// What a creature perceives of the player this frame.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PlayerSense {
+    pub pos: (f32, f32),
+    pub noise: Noise,
 }
 
 /// Optional size hint (1.0 = average). Bigger creatures walk slower.
@@ -221,6 +340,101 @@ pub fn step(
     }
 }
 
+/// Moves `st` along `heading` by up to `max_adv` metres after turning towards it; refuses
+/// (stays put) when the next point leaves the spawner radius or the navmesh. Returns the
+/// distance moved.
+fn move_heading(
+    st: &mut WanderState,
+    p: &WanderParams,
+    heading: f32,
+    max_adv: f32,
+    dt: f32,
+    walkable: &dyn Fn(f32, f32) -> bool,
+) -> f32 {
+    st.yaw = turn_towards(st.yaw, heading, TURN_RATE, dt);
+    if angle_diff(st.yaw, heading).abs() > MOVE_ANGLE || max_adv <= 0.0 {
+        return 0.0;
+    }
+    let next = (st.pos.0 + heading.sin() * max_adv, st.pos.1 + heading.cos() * max_adv);
+    if dist(next, p.home) > p.radius || !walkable(next.0, next.1) {
+        return 0.0;
+    }
+    st.pos = next;
+    st.walked += max_adv;
+    max_adv
+}
+
+/// Perception of `player` by a creature at `st` (a hidden or absent player is not perceived).
+pub fn perception_of(st: &WanderState, player: Option<PlayerSense>) -> Perception {
+    match player {
+        Some(pl) => {
+            let (dx, dz) = (pl.pos.0 - st.pos.0, pl.pos.1 - st.pos.1);
+            let angle = if dx.abs() + dz.abs() > 1e-4 {
+                angle_diff(st.yaw, yaw_for(dx, dz)).abs()
+            } else {
+                0.0
+            };
+            Perception {
+                distance: (dx * dx + dz * dz).sqrt(),
+                angle,
+                noise: pl.noise,
+                player_hidden: false,
+                hour: None,
+            }
+        }
+        None => Perception { player_hidden: true, ..Perception::quiet(f32::INFINITY) },
+    }
+}
+
+/// One frame of a creature driven by its reaction state machine (`--wild-behavior on`).
+///
+/// The machine is stepped first; Idle/Wander then run the plain wander loop without its own
+/// player alert (the machine owns noticing), and every other state moves or faces the player as
+/// described in the module docs.
+pub fn behavior_step(
+    st: &mut WanderState,
+    p: &WanderParams,
+    machine: &mut Machine,
+    params: BehaviorParams,
+    dt: f32,
+    player: Option<PlayerSense>,
+    walkable: &dyn Fn(f32, f32) -> bool,
+) {
+    let perception = perception_of(st, player);
+    machine.step(dt, params, perception);
+    let to_player = player.map(|pl| (pl.pos.0 - st.pos.0, pl.pos.1 - st.pos.1));
+    match machine.state {
+        ReactionState::Idle | ReactionState::Wander => {
+            st.alert = false;
+            step(st, p, dt, None, walkable);
+            machine.sync_wander_phase(matches!(st.phase, Phase::Walk { .. }));
+        }
+        ReactionState::Sleep => st.alert = false,
+        ReactionState::Alert | ReactionState::Attack => {
+            st.alert = true;
+            if let Some((dx, dz)) = to_player.filter(|(dx, dz)| dx.abs() + dz.abs() > 1e-4) {
+                st.yaw = turn_towards(st.yaw, yaw_for(dx, dz), TURN_RATE, dt);
+            }
+        }
+        ReactionState::Flee => {
+            st.alert = true;
+            if let Some((dx, dz)) = to_player.filter(|(dx, dz)| dx.abs() + dz.abs() > 1e-4) {
+                let speed = FLEE_SPEED * p.speed_scale;
+                move_heading(st, p, yaw_for(-dx, -dz), speed * dt, dt, walkable);
+            }
+        }
+        ReactionState::Chase => {
+            st.alert = true;
+            if let Some((dx, dz)) = to_player.filter(|(dx, dz)| dx.abs() + dz.abs() > 1e-4) {
+                // Stop just inside the attack distance so float noise cannot flip Attack/Chase.
+                let gap = (dx * dx + dz * dz).sqrt() - (params.attack_distance - CHASE_STOP_MARGIN);
+                let adv = (CHASE_SPEED * p.speed_scale * dt).min(gap.max(0.0));
+                move_heading(st, p, yaw_for(dx, dz), adv, dt, walkable);
+            }
+        }
+    }
+}
+
 /// Pure gating rule: wander only when enabled, in the overworld and not paused.
 pub fn wander_allowed(enabled: bool, in_world: bool, paused: bool) -> bool {
     enabled && in_world && !paused
@@ -241,6 +455,7 @@ pub fn wander_active(
 
 fn attach_wander(
     mut commands: Commands,
+    settings: Option<Res<WildBehaviorSettings>>,
     spawners: Option<Res<ActiveAreaSpawners>>,
     nav: Option<Res<GameNavmeshResource>>,
     q: Query<(Entity, &WildCreature, &Transform, Option<&WanderSizeHint>), Without<WanderState>>,
@@ -257,10 +472,17 @@ fn attach_wander(
             .and_then(|n| n.height_at(tf.translation.x, tf.translation.z))
             .map(|h| tf.translation.y - h);
         let seed = wander_seed(&wild.spawner_id, wild.national_dex);
+        let behavior = match settings.as_deref() {
+            Some(s) if s.enabled => WildBehavior {
+                machine: Machine::new(seed),
+                params: BehaviorParams::assumed(s.archetype_for(seed)),
+            },
+            _ => WildBehavior::assumed_passive(seed),
+        };
         commands.entity(e).insert((
             WanderState::new(seed, (tf.translation.x, tf.translation.z)),
             WanderHome { params, y_offset },
-            WildBehavior::assumed_passive(seed),
+            behavior,
         ));
     }
 }
@@ -270,8 +492,11 @@ pub fn noticeable_player(player: Option<(f32, f32)>, hidden: bool) -> Option<(f3
     player.filter(|_| !hidden)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn wander_system(
     time: Res<Time>,
+    settings: Option<Res<WildBehaviorSettings>>,
+    mut last_player: Local<Option<(f32, f32)>>,
     nav: Option<Res<GameNavmeshResource>>,
     wall_collision: Option<Res<super::world_collision::WorldCollision>>,
     player: Query<&Transform, (With<PlayerAvatar>, Without<WanderState>)>,
@@ -290,18 +515,33 @@ fn wander_system(
     // A hidden player (tall grass, or crouching in a stealth volume) is not noticed: the
     // creatures wander as if nobody were there (game::player_skills::PlayerStealth).
     let hidden = stealth.is_some_and(|s| s.hidden);
-    let pl = noticeable_player(
-        player.single().ok().map(|t| (t.translation.x, t.translation.z)),
-        hidden,
-    );
+    let raw_player = player.single().ok().map(|t| (t.translation.x, t.translation.z));
+    let pl = noticeable_player(raw_player, hidden);
+    // Player noise from its planar speed since the last frame (a teleport reads as one frame of
+    // running noise at most).
+    let player_speed = match (raw_player, *last_player) {
+        (Some(now), Some(before)) if dt > 0.0 => dist(now, before) / dt,
+        _ => 0.0,
+    };
+    *last_player = raw_player;
+    let sense = pl.map(|pos| PlayerSense { pos, noise: noise_from_speed(player_speed) });
+    let reactions = settings.is_none_or(|s| s.enabled);
     let walkable = |x: f32, z: f32| nav.is_walkable(x, z);
     for (mut tf, mut st, home, wild, behavior) in &mut q {
         if wild.in_battle || wild.defeated {
             continue;
         }
-        step(&mut st, &home.params, dt, pl, &walkable);
-        if let Some(mut behavior) = behavior {
-            behavior.machine.sync_wander_phase(matches!(st.phase, Phase::Walk { .. }));
+        match behavior {
+            Some(mut behavior) if reactions => {
+                let WildBehavior { machine, params } = &mut *behavior;
+                behavior_step(&mut st, &home.params, machine, *params, dt, sense, &walkable);
+            }
+            behavior => {
+                step(&mut st, &home.params, dt, pl, &walkable);
+                if let Some(mut behavior) = behavior {
+                    behavior.machine.sync_wander_phase(matches!(st.phase, Phase::Walk { .. }));
+                }
+            }
         }
         // Placed-object collision after the wander step, keeping the creature on the navmesh.
         if let Some(wc) = wall_collision.as_ref() {
@@ -324,7 +564,9 @@ pub struct WildWanderPlugin;
 
 impl Plugin for WildWanderPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<WanderConfig>().add_systems(
+        app.init_resource::<WanderConfig>()
+            .init_resource::<WildBehaviorSettings>()
+            .add_systems(
             Update,
             (attach_wander, wander_system.run_if(wander_active)).chain(),
         );
@@ -508,6 +750,167 @@ mod tests {
         app.update();
         let mut query = app.world_mut().query::<(&WanderState, &WildBehavior)>();
         assert_eq!(query.iter(app.world()).count(), 3);
+    }
+
+    fn wide() -> WanderParams {
+        WanderParams::new((100.0, 200.0), 25.0, 1.0)
+    }
+
+    /// Creature at the home point facing +Z, player `ahead` metres in front of it.
+    fn facing_setup(id: &str, ahead: f32) -> (WanderState, PlayerSense) {
+        let mut st = fresh(id);
+        st.yaw = 0.0;
+        let player = PlayerSense { pos: (100.0, 200.0 + ahead), noise: Noise::Silent };
+        (st, player)
+    }
+
+    fn reaction(archetype: Archetype) -> (Machine, BehaviorParams) {
+        (Machine::new(9), BehaviorParams::assumed(archetype))
+    }
+
+    #[test]
+    fn wild_behavior_flag_parses_and_defaults_to_on() {
+        let args = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(WildBehaviorSettings::from_args(&args(&["viewer"])), WildBehaviorSettings::default());
+        assert!(WildBehaviorSettings::default().enabled);
+        assert!(!WildBehaviorSettings::from_args(&args(&["v", "--wild-behavior", "off"])).enabled);
+        assert!(WildBehaviorSettings::from_args(&args(&["v", "--wild-behavior=on"])).enabled);
+        assert_eq!(
+            WildBehaviorSettings::from_args(&args(&["v", "--wild-behavior", "timid"])).archetypes,
+            ArchetypeChoice::All(Archetype::Timid)
+        );
+        assert_eq!(WildBehaviorSettings::parse("bogus"), None);
+        assert_eq!(
+            WildBehaviorSettings::from_args(&args(&["v", "--wild-behavior", "bogus"])),
+            WildBehaviorSettings::default()
+        );
+    }
+
+    #[test]
+    fn mixed_archetypes_are_deterministic_and_use_all_three() {
+        let picks: Vec<Archetype> = (0..300u64).map(|i| assumed_archetype(wander_seed(&format!("s{i}"), 25))).collect();
+        for a in [Archetype::Passive, Archetype::Timid, Archetype::Aggressive] {
+            let n = picks.iter().filter(|p| **p == a).count();
+            assert!((60..=140).contains(&n), "{a:?}: {n} of 300");
+        }
+        assert_eq!(assumed_archetype(42), assumed_archetype(42));
+        let forced = WildBehaviorSettings::parse("aggressive").unwrap();
+        assert_eq!(forced.archetype_for(1), Archetype::Aggressive);
+    }
+
+    #[test]
+    fn noise_follows_player_speed() {
+        assert_eq!(noise_from_speed(0.0), Noise::Silent);
+        assert_eq!(noise_from_speed(4.5), Noise::Walk);
+        assert_eq!(noise_from_speed(8.0), Noise::Run);
+        assert_eq!(noise_from_speed(f32::NAN), Noise::Silent);
+    }
+
+    #[test]
+    fn passive_creature_alerts_faces_and_stays_put() {
+        let p = wide();
+        let (mut st, _) = facing_setup("pa", 0.0);
+        let (mut m, params) = reaction(Archetype::Passive);
+        // Player 5 m to the east, inside the 10 m vision only once the creature looks; walking
+        // noise (6 m hearing) makes it notice from any angle.
+        let player = PlayerSense { pos: (105.0, 200.0), noise: Noise::Walk };
+        let before = st.pos;
+        for _ in 0..30 {
+            behavior_step(&mut st, &p, &mut m, params, DT, Some(player), &all);
+        }
+        assert_eq!(m.state, ReactionState::Alert);
+        assert!(st.alert);
+        assert_eq!(st.pos, before, "an alert creature does not walk");
+        assert!(angle_diff(st.yaw, yaw_for(1.0, 0.0)).abs() < 1e-3, "faces the player");
+    }
+
+    #[test]
+    fn timid_creature_flees_away_inside_its_radius() {
+        let p = wide();
+        let (mut st, player) = facing_setup("ti", 3.0);
+        let (mut m, params) = reaction(Archetype::Timid);
+        let start = dist(st.pos, player.pos);
+        let mut fled = false;
+        for _ in 0..90 {
+            behavior_step(&mut st, &p, &mut m, params, DT, Some(player), &all);
+            fled |= m.state == ReactionState::Flee;
+            assert!(dist(st.pos, p.home) <= p.radius + 1e-3);
+        }
+        assert!(fled, "timid reaction is Flee");
+        assert!(dist(st.pos, player.pos) > start + 2.0, "moved away from the player");
+    }
+
+    #[test]
+    fn aggressive_creature_chases_then_stops_at_attack_distance() {
+        let p = wide();
+        let (mut st, player) = facing_setup("ag", 8.0);
+        let (mut m, params) = reaction(Archetype::Aggressive);
+        for _ in 0..300 {
+            behavior_step(&mut st, &p, &mut m, params, DT, Some(player), &all);
+        }
+        assert_eq!(m.state, ReactionState::Attack);
+        let d = dist(st.pos, player.pos);
+        assert!(d <= params.attack_distance + 1e-3 && d >= params.attack_distance - 0.2, "d = {d}");
+        // Within the viewer's 2.8 m proximity encounter, so the existing battle start fires.
+        assert!(d < 2.8);
+    }
+
+    #[test]
+    fn chase_and_flee_respect_walkability() {
+        let p = wide();
+        let blocked = |_: f32, _: f32| false;
+        for archetype in [Archetype::Timid, Archetype::Aggressive] {
+            let (mut st, player) = facing_setup("wb", 6.0);
+            let (mut m, params) = reaction(archetype);
+            let before = st.pos;
+            for _ in 0..120 {
+                behavior_step(&mut st, &p, &mut m, params, DT, Some(player), &blocked);
+            }
+            assert_eq!(st.pos, before, "{archetype:?} must not leave the navmesh");
+        }
+    }
+
+    #[test]
+    fn hidden_or_absent_player_leaves_the_wander_loop_in_charge() {
+        let p = params();
+        let (mut st, _) = facing_setup("hid", 0.0);
+        let (mut m, params_b) = reaction(Archetype::Aggressive);
+        for _ in 0..3_000 {
+            behavior_step(&mut st, &p, &mut m, params_b, DT, None, &all);
+            assert!(matches!(m.state, ReactionState::Idle | ReactionState::Wander));
+        }
+        assert!(st.walked > 1.0, "still wanders");
+        assert!(perception_of(&st, None).player_hidden);
+    }
+
+    #[test]
+    fn headless_settings_choose_the_attached_archetype() {
+        for (value, expected) in [
+            ("timid", Archetype::Timid),
+            ("aggressive", Archetype::Aggressive),
+            ("off", Archetype::Passive),
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, WildWanderPlugin));
+            app.insert_resource(WildBehaviorSettings::parse(value).unwrap());
+            app.world_mut().spawn((
+                WildCreature {
+                    species_name: "synthetic".into(),
+                    national_dex: 399,
+                    level: 5,
+                    spawn_pos: Vec3::ZERO,
+                    aggro_range: 2.8,
+                    in_battle: false,
+                    defeated: false,
+                    spawner_id: "synthetic".into(),
+                },
+                Transform::default(),
+            ));
+            app.update();
+            let mut q = app.world_mut().query::<&WildBehavior>();
+            let b = q.single(app.world()).unwrap();
+            assert_eq!(b.params.archetype, expected, "--wild-behavior {value}");
+        }
     }
 
     #[test]

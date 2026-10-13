@@ -773,6 +773,9 @@ fn main() -> ExitCode {
         &cli_args,
     ));
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
+    // Wild reactions (alert / flee / chase from data/wild_behavior.tsv policy); `--wild-behavior
+    // off` keeps the plain wander loop.
+    app.insert_resource(pla::game::wild_wander::WildBehaviorSettings::from_args(&cli_args));
     app.add_plugins(pla::game::follower::FollowerPlugin);
     app.add_plugins(pla::game::capture_world::CaptureWorldPlugin);
     app.add_plugins(pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args());
