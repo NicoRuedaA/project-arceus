@@ -39,7 +39,7 @@ The one draw (`single_180`, Rapidash with Double-Edge) is both sides fainting on
 | Battle UI: opponent card "LABEL [##-] 2/3  SPECIES Lv. N", player card with its own counter | `opponent_card_title`, `player_card_title`, `game/ui.rs` | — |
 | Arena: the opponent's 3D model and cry follow the Pokémon that is out | `port_viewer.rs` `sync_arena_player_model` (slot 1), `battle_anim::slot_in`, `audio.rs` | — |
 | Saved party installed into a trainer battle keeps the trainer's whole party | `save_wire::install_party` | — |
-| Trainers in the world: markers at NPC placements whose model pack belongs to a trainer; V within 3 m starts the battle; `--trainer <id>` (or `noble:<setting>`) lets V start any battle; `--no-trainers` hides them | `trainer_encounter.rs` (`TrainerEncounterPlugin`) | NPC -> trainer link **ASSUMED** (the real link is in the story event scripts, out of scope); coordinates used as stored like the object placements (PROBABLE same frame) |
+| Trainers in the world: markers at NPC placements whose model pack belongs to a trainer; V within 3 m starts the battle; `--trainer <id>` (or `noble:<setting>`) lets V start any battle; `--no-trainers` hides them; markers are hidden during a battle and a beaten trainer's marker turns grey | `trainer_encounter.rs` (`TrainerEncounterPlugin`) | NPC -> trainer link **ASSUMED** (the real link is in the story event scripts, out of scope); coordinates used as stored like the object placements (PROBABLE same frame) |
 
 Native functions touched by this work (for the evidence ledger): the trainer loader at `0x836564` (copies the trainer root fields into the trainer object) is partially mirrored by `pla::game::trainer_data::TrainerCatalog::load`; the party builder at `0x837504` (fills one Pokémon creation struct per member) is partially mirrored by `pla::game::trainer_data::TrainerMon::to_combatant`. Both read the decoded sheets, not the binary files, and neither is behaviour-verified.
 
@@ -62,6 +62,7 @@ All of them are windowless. In the viewer: walk to a red capsule (a trainer mark
 - Defeated trainers are remembered for the session only (the save format would need v6).
 - Noble field phase: gauge, balm hits, stagger windows, field attacks (`boss_field_attacks.tsv` is loaded nowhere yet).
 - Send-out order, item counts, double battles (none found in the data).
+- The trainer's battle music event (`bgm` column, e.g. `PLAY_BGM_VS_TRAINER_01`) is kept in the session but not wired to the audio plugin.
 
 ## What to check by eye
 

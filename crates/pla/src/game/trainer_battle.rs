@@ -225,7 +225,7 @@ fn damage_proxy(battle: &Battle, data: &BattleData, actor: usize, target: usize)
         .iter()
         .filter(|m| m.pp > 0 && m.data.power > 0)
         .map(|m| {
-            let stab = if me.species.types.iter().any(|t| *t == m.data.move_type) { 1.5 } else { 1.0 };
+            let stab = if me.species.types.contains(&m.data.move_type) { 1.5 } else { 1.0 };
             f32::from(m.data.power) * type_effectiveness(data.type_chart(), &m.data.move_type, foe) * stab
         })
         .fold(0.0, f32::max)
@@ -736,7 +736,7 @@ mod tests {
                         assert!(log1.iter().any(|l| l.starts_with("You defeated")), "{log1:?}");
                         assert_eq!(st.prize, t.prize_base.map(|b| trainer_prize_assumed(b, t.party.last().unwrap().level)));
                         // every opponent member fainted and the next one was announced
-                        assert_eq!(log1.iter().filter(|l| l.contains("sent out")).count() >= 3, true, "{log1:?}");
+                        assert!(log1.iter().filter(|l| l.contains("sent out")).count() >= 3, "{log1:?}");
                     }
                     Some(Some(1)) => assert!(log1.iter().any(|l| l.starts_with("You lost to")), "{log1:?}"),
                     Some(None) => {} // both sides fainted on the same turn (recoil): a draw

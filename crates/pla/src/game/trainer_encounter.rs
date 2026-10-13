@@ -169,14 +169,43 @@ impl TrainerEncounterPlugin {
 impl Plugin for TrainerEncounterPlugin {
     fn build(&self, app: &mut App) {
         let Some(world) = self.load_world() else { return };
-        app.insert_resource(world).init_resource::<DefeatedTrainers>().add_systems(
-            Update,
-            (
-                spawn_zone_trainers,
-                trainer_challenge.run_if(in_state(GameState::World)).run_if(not_paused),
-                record_trainer_result,
-            ),
-        );
+        app.insert_resource(world)
+            .init_resource::<DefeatedTrainers>()
+            .add_systems(
+                Update,
+                (
+                    spawn_zone_trainers,
+                    trainer_challenge.run_if(in_state(GameState::World)).run_if(not_paused),
+                    record_trainer_result,
+                ),
+            )
+            .add_systems(OnEnter(GameState::Battle), hide_markers_in_battle)
+            .add_systems(OnExit(GameState::Battle), show_markers_after_battle);
+    }
+}
+
+/// The markers would stand in the battle arena (the challenged one is within 3 m): hide them.
+fn hide_markers_in_battle(mut q: Query<&mut Visibility, With<TrainerNpc>>) {
+    for mut v in &mut q {
+        *v = Visibility::Hidden;
+    }
+}
+
+/// Show the markers again; a beaten trainer's marker turns grey.
+fn show_markers_after_battle(
+    defeated: Res<DefeatedTrainers>,
+    mut q: Query<(&TrainerNpc, &mut Visibility, Option<&MeshMaterial3d<StandardMaterial>>)>,
+    mut materials: Option<ResMut<Assets<StandardMaterial>>>,
+) {
+    for (npc, mut v, mat) in &mut q {
+        *v = Visibility::Inherited;
+        if defeated.0.contains(&npc.trainer_id) {
+            if let (Some(mat), Some(materials)) = (mat, materials.as_deref_mut()) {
+                if let Some(mut m) = materials.get_mut(&mat.0) {
+                    m.base_color = Color::srgb(0.45, 0.45, 0.5);
+                }
+            }
+        }
     }
 }
 
@@ -211,7 +240,7 @@ pub fn spawn_zone_trainers(
         let mut e = commands.spawn((
             TrainerNpc { key: p.key.clone(), trainer_id: p.trainer_id.clone() },
             xf,
-            Visibility::default(),
+            Visibility::Inherited,
             Name::new(format!("trainer {}", p.key)),
         ));
         if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
@@ -340,7 +369,7 @@ mod tests {
     fn app(dir: &Path) -> Option<App> {
         let assets = BattleAssets::load(data_root()).ok()?;
         let plugin = TrainerEncounterPlugin { markers: true, forced: None, data_dir: Some(data_root()) };
-        let world = plugin.load_world()?;
+        plugin.load_world()?;
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, StatesPlugin));
         app.init_state::<GameState>();
@@ -363,10 +392,7 @@ mod tests {
             play_seconds: 0,
         };
         SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(dir)), start, &WireCli::default());
-        app.insert_resource(world).init_resource::<DefeatedTrainers>().add_systems(
-            Update,
-            (spawn_zone_trainers, trainer_challenge.run_if(in_state(GameState::World)), record_trainer_result),
-        );
+        app.add_plugins(plugin);
         app.add_systems(Update, crate::game::battle_input::battle_input_system);
         Some(app)
     }
@@ -405,6 +431,12 @@ mod tests {
             assert_eq!(s.battle.sides[1].len(), def.party.len(), "install_party kept the trainer's party");
             assert_eq!(s.battle.combatants[WILD].species.dex, def.party[0].species_id);
         }
+        let hidden = app
+            .world_mut()
+            .query::<(&Visibility, &TrainerNpc)>()
+            .iter(app.world())
+            .all(|(v, _)| *v == Visibility::Hidden);
+        assert!(hidden, "markers are hidden during the battle");
         // Make the player overwhelming so the win is certain, then fight with logical inputs.
         for _ in 0..200 {
             let ended = app.world().resource::<ActiveBattleSession>().battle.ended;
@@ -449,6 +481,12 @@ mod tests {
         }
         assert!(app.world().get_resource::<ActiveBattleSession>().is_none(), "session closed");
         app.update();
+        let shown = app
+            .world_mut()
+            .query::<(&Visibility, &TrainerNpc)>()
+            .iter(app.world())
+            .all(|(v, _)| *v == Visibility::Inherited);
+        assert!(shown, "markers are shown again after the battle");
         let money = app.world().resource::<PlayerProgress>().money;
         assert_eq!(money - money_before, prize.unwrap_or(0), "the trainer prize is paid, not the wild one");
         assert!(prize.is_some_and(|p| p > 0), "guards store a prize base");

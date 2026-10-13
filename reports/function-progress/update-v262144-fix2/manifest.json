@@ -661,7 +661,7 @@
       },
       {
         "path": "crates/pla/src/game/trainer_battle.rs",
-        "sha256": "c841f4eb9c14b78032817fb475c13d087094c475229ab69da80f6c7492122689"
+        "sha256": "dfb4b3c3bb42c36ef6818eee3837be21d8b65782659331a80c859d830fe9d9bb"
       },
       {
         "path": "crates/pla/src/game/trainer_data.rs",
@@ -669,7 +669,7 @@
       },
       {
         "path": "crates/pla/src/game/trainer_encounter.rs",
-        "sha256": "756dc1885213fc0768558333a6f031dba09fe680a1ec3ab0f52c290a511f2efb"
+        "sha256": "5ec6bf4b30ef5b5db9acea54850f43be154861ad97c848e41d7b9e365789feb0"
       },
       {
         "path": "crates/pla/src/game/ui.rs",
@@ -833,7 +833,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "8bbbed0a0388c4a9d4c93dec3d183e77c2097130ca71ba03c2c573f27266e550"
+    "sha256": "1fbc29e13a636b26d6a41846d6f597c7a78eee9381a8b18959a60ac097e4ddd8"
   },
   "state_partitions": {
     "analysis_documentation_status": {
