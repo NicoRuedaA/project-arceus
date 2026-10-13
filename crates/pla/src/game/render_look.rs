@@ -13,6 +13,7 @@
 
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
+use bevy::pbr::ScreenSpaceAmbientOcclusionQualityLevel;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
@@ -28,22 +29,53 @@ pub enum Look {
     Vivid,
 }
 
-/// Look + shadow switch (resource; `ZoneLightingPlugin` reads it, or the process arguments if absent).
+/// Look, shadow and post-process switch (resource; `ZoneLightingPlugin` reads it, or the process
+/// arguments if absent). Post-processing defaults to on for the vivid look and off for classic
+/// (classic reproduces the previous flat mapping); `--ssao`/`--no-ssao` and `--bloom`/`--no-bloom`
+/// override that in either look.
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LookSettings {
     pub look: Look,
     pub shadows: bool,
+    /// Screen-space ambient occlusion (`ScreenSpaceAmbientOcclusion` on the 3D camera).
+    pub ssao: bool,
+    /// SSAO sampling quality; `--ssao-quality low|medium|high|ultra` (default medium, ASSUMED).
+    pub ssao_quality: ScreenSpaceAmbientOcclusionQualityLevel,
+    /// Bloom (`bevy_post_process` crate, `Bloom` on the 3D camera).
+    pub bloom: bool,
 }
 
 impl Default for LookSettings {
     fn default() -> Self {
-        Self { look: Look::Vivid, shadows: true }
+        Self {
+            look: Look::Vivid,
+            shadows: true,
+            ssao: true,
+            ssao_quality: ScreenSpaceAmbientOcclusionQualityLevel::Medium,
+            bloom: true,
+        }
+    }
+}
+
+/// SSAO quality from a CLI value (case-insensitive). Unknown values fall back to `Medium`.
+pub fn ssao_quality_from_str(s: &str) -> ScreenSpaceAmbientOcclusionQualityLevel {
+    if s.eq_ignore_ascii_case("low") {
+        ScreenSpaceAmbientOcclusionQualityLevel::Low
+    } else if s.eq_ignore_ascii_case("high") {
+        ScreenSpaceAmbientOcclusionQualityLevel::High
+    } else if s.eq_ignore_ascii_case("ultra") {
+        ScreenSpaceAmbientOcclusionQualityLevel::Ultra
+    } else {
+        ScreenSpaceAmbientOcclusionQualityLevel::Medium
     }
 }
 
 impl LookSettings {
-    /// `--look classic|vivid` (default vivid) and `--no-shadows`. Classic never had shadows, so it
-    /// stays shadowless unless `--look vivid`; the flag only matters for vivid.
+    /// `--look classic|vivid` (default vivid) and `--no-shadows`, plus the post-process flags:
+    /// `--ssao`/`--no-ssao`, `--bloom`/`--no-bloom`, `--ssao-quality low|medium|high|ultra`.
+    /// Classic never had shadows, so it stays shadowless unless `--look vivid`; the flag only
+    /// matters for vivid. Post-processing follows the look default (vivid on, classic off) unless
+    /// an explicit flag says otherwise.
     pub fn from_args(args: &[String]) -> Self {
         let look = args
             .iter()
@@ -51,7 +83,28 @@ impl LookSettings {
             .and_then(|i| args.get(i + 1))
             .map(|s| if s.eq_ignore_ascii_case("classic") { Look::Classic } else { Look::Vivid })
             .unwrap_or_default();
-        Self { look, shadows: !args.iter().any(|a| a == "--no-shadows") }
+        let post = |on: &str, off: &str| {
+            if args.iter().any(|a| a == on) {
+                true
+            } else if args.iter().any(|a| a == off) {
+                false
+            } else {
+                look == Look::Vivid
+            }
+        };
+        let ssao_quality = args
+            .iter()
+            .position(|a| a == "--ssao-quality")
+            .and_then(|i| args.get(i + 1))
+            .map(|s| ssao_quality_from_str(s))
+            .unwrap_or(ScreenSpaceAmbientOcclusionQualityLevel::Medium);
+        Self {
+            look,
+            shadows: !args.iter().any(|a| a == "--no-shadows"),
+            ssao: post("--ssao", "--no-ssao"),
+            ssao_quality,
+            bloom: post("--bloom", "--no-bloom"),
+        }
     }
 }
 
@@ -79,6 +132,13 @@ pub struct LookParams {
     pub shadow_normal_bias: f32,
     pub post_saturation: f32,
     pub contrast: f32,
+    /// Screen-space ambient occlusion on the 3D camera (applied by `lighting.rs`).
+    pub ssao: bool,
+    pub ssao_quality: ScreenSpaceAmbientOcclusionQualityLevel,
+    /// Bloom on the 3D camera (applied by `lighting.rs` via the `bevy_post_process` crate).
+    pub bloom: bool,
+    /// Bloom strength; decoded sheet value mapped one-to-one to Bevy's `Bloom::intensity`.
+    pub bloom_intensity: f32,
     pub clouds: bool,
     /// Cloud colour (linear rgb, already scaled by daylight) and opacity multiplier.
     pub cloud_color: [f32; 3],
@@ -116,6 +176,23 @@ pub const NIGHT_FOG_FRACTION: f32 = 0.35;
 pub const NIGHT_AMBIENT_WHITE: f32 = 0.12;
 /// White share of the day ambient fill colour (matches the pre-existing 0.35). ASSUMED.
 pub const DAY_AMBIENT_WHITE: f32 = 0.35;
+
+/// Bloom intensity when the sheet has no `Global/BloomIntensity` row. ASSUMED: the decoded base
+/// value of areas 00-06 (0.2) and Bevy's own natural preset default (0.15) bracket this.
+pub const BLOOM_INTENSITY_FALLBACK: f32 = 0.2;
+
+/// Bloom intensity from the decoded sheet `Global/BloomIntensity` (base layer): 0.2 in areas 01-04
+/// and 06, 0.1 in area 05 day, 0.5 in area 00 night. The one-to-one mapping to Bevy's
+/// `Bloom::intensity` is ASSUMED (the game's own bloom pipeline is not known); the value is clamped
+/// to Bevy's recommended 0..1 energy-conserving range. Falls back to [`BLOOM_INTENSITY_FALLBACK`]
+/// when the row is absent or zero.
+pub fn bloom_intensity(env: &ZoneEnv) -> f32 {
+    if env.bloom_intensity.is_finite() && env.bloom_intensity > 0.0 {
+        env.bloom_intensity.clamp(0.01, 1.0)
+    } else {
+        BLOOM_INTENSITY_FALLBACK
+    }
+}
 
 /// How daylit the slot is, 0..1.2 (sun intensity relative to the 2.8 day value).
 pub fn daylight(env: &ZoneEnv) -> f32 {
@@ -198,6 +275,10 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
             shadow_normal_bias: 1.8,
             post_saturation: 1.0,
             contrast: 1.0,
+            ssao: settings.ssao,
+            ssao_quality: settings.ssao_quality,
+            bloom: settings.bloom,
+            bloom_intensity: bloom_intensity(env),
             clouds: false,
             cloud_color: [1.0; 3],
             cloud_opacity: 0.0,
@@ -241,6 +322,10 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
                 shadow_normal_bias: 1.4,
                 post_saturation: 1.15,
                 contrast: 1.12,
+                ssao: settings.ssao,
+                ssao_quality: settings.ssao_quality,
+                bloom: settings.bloom,
+                bloom_intensity: bloom_intensity(env),
                 clouds: true,
                 cloud_color: [cc[0] * lum, cc[1] * lum, cc[2] * lum],
                 cloud_opacity: if day > 0.5 { 0.95 } else { 0.4 },
@@ -399,6 +484,7 @@ mod tests {
             fog_color: [0.6, 0.7, 0.8, 0.5],
             fog_near: 0.0,
             fog_far: 650.0,
+            bloom_intensity: 0.2,
         }
     }
 
@@ -408,10 +494,45 @@ mod tests {
 
     #[test]
     fn cli_defaults_and_flags() {
-        assert_eq!(LookSettings::from_args(&a(&[])), LookSettings { look: Look::Vivid, shadows: true });
+        assert_eq!(LookSettings::from_args(&a(&[])), LookSettings::default());
         let s = LookSettings::from_args(&a(&["--look", "classic", "--no-shadows"]));
-        assert_eq!(s, LookSettings { look: Look::Classic, shadows: false });
+        assert_eq!(s.look, Look::Classic);
+        assert!(!s.shadows);
+        // Classic reproduces the old flat mapping: post-processing off unless forced.
+        assert!(!s.ssao && !s.bloom);
         assert_eq!(LookSettings::from_args(&a(&["--look", "nonsense"])).look, Look::Vivid);
+        // Explicit flags force post-processing on/off in either look.
+        let c = LookSettings::from_args(&a(&["--look", "classic", "--ssao", "--bloom"]));
+        assert!(c.ssao && c.bloom);
+        let v = LookSettings::from_args(&a(&["--no-ssao", "--no-bloom"]));
+        assert_eq!((v.look, v.ssao, v.bloom), (Look::Vivid, false, false));
+        assert_eq!(v.ssao_quality, ScreenSpaceAmbientOcclusionQualityLevel::Medium);
+        assert_eq!(
+            LookSettings::from_args(&a(&["--ssao-quality", "ULTRA"])).ssao_quality,
+            ScreenSpaceAmbientOcclusionQualityLevel::Ultra
+        );
+        assert_eq!(
+            LookSettings::from_args(&a(&["--ssao-quality", "nonsense"])).ssao_quality,
+            ScreenSpaceAmbientOcclusionQualityLevel::Medium
+        );
+    }
+
+    #[test]
+    fn post_process_params_follow_flags_and_sheet() {
+        let p = look_params(&env(2.8), LookSettings::default());
+        assert!(p.ssao && p.bloom);
+        assert_eq!(p.ssao_quality, ScreenSpaceAmbientOcclusionQualityLevel::Medium);
+        assert!((p.bloom_intensity - 0.2).abs() < 1e-6, "sheet value must pass through");
+        let q = look_params(&env(2.8), LookSettings { ssao: false, bloom: false, ..Default::default() });
+        assert!(!q.ssao && !q.bloom);
+        // The sheet's area 00 night value (0.5) maps straight through; absent/zero falls back.
+        let mut e = env(2.8);
+        e.bloom_intensity = 0.5;
+        assert!((look_params(&e, LookSettings::default()).bloom_intensity - 0.5).abs() < 1e-6);
+        e.bloom_intensity = 0.0;
+        assert!((look_params(&e, LookSettings::default()).bloom_intensity - BLOOM_INTENSITY_FALLBACK).abs() < 1e-6);
+        e.bloom_intensity = f32::NAN;
+        assert!((look_params(&e, LookSettings::default()).bloom_intensity - BLOOM_INTENSITY_FALLBACK).abs() < 1e-6);
     }
 
     #[test]
@@ -419,7 +540,7 @@ mod tests {
         let p = look_params(&env(2.8), LookSettings::default());
         assert!((p.sun_lux - 11_760.0).abs() < 1.0);
         assert!((10_000.0..=20_000.0).contains(&p.sun_lux));
-        let c = look_params(&env(2.8), LookSettings { look: Look::Classic, shadows: true });
+        let c = look_params(&env(2.8), LookSettings { look: Look::Classic, shadows: true, ..Default::default() });
         assert!((c.sun_lux - 6_720.0).abs() < 1.0);
         assert!(!c.shadows && !c.clouds);
     }
@@ -441,7 +562,7 @@ mod tests {
         assert!((exp_squared_fog(density, 650.0) - 0.5).abs() < 1e-3);
         assert!(exp_squared_fog(density, 100.0) < 0.05);
         assert!(exp_squared_fog(density, 300.0) < 0.2);
-        let FogSpec::Linear { start, end } = look_params(&env(2.8), LookSettings { look: Look::Classic, shadows: false }).fog
+        let FogSpec::Linear { start, end } = look_params(&env(2.8), LookSettings { look: Look::Classic, shadows: false, ..Default::default() }).fog
         else { panic!() };
         assert_eq!((start, end), (0.0, 650.0));
     }
@@ -454,7 +575,7 @@ mod tests {
         assert!(p.shadow_first_cascade < p.shadow_max_distance);
         assert!((1.1..=1.2).contains(&p.post_saturation));
         assert!((1.0..=1.2).contains(&p.contrast));
-        assert!(look_params(&env(2.8), LookSettings { look: Look::Vivid, shadows: false }).shadows == false);
+        assert!(look_params(&env(2.8), LookSettings { look: Look::Vivid, shadows: false, ..Default::default() }).shadows == false);
         for c in p.ambient_color.iter().chain(p.cloud_color.iter()) {
             assert!((0.0..=1.0).contains(c));
         }

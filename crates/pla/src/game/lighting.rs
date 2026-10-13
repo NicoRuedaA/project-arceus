@@ -15,7 +15,9 @@ use bevy::light::{
     CascadeShadowConfigBuilder, DirectionalLight, DirectionalLightShadowMap, GlobalAmbientLight, NotShadowCaster,
     NotShadowReceiver,
 };
-use bevy::render::view::{ColorGrading, ColorGradingGlobal, ColorGradingSection};
+use bevy::pbr::ScreenSpaceAmbientOcclusion;
+use bevy::post_process::bloom::Bloom;
+use bevy::render::view::{ColorGrading, ColorGradingGlobal, ColorGradingSection, Msaa};
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
@@ -47,6 +49,10 @@ pub struct ZoneEnv {
     pub fog_color: [f32; 4],
     pub fog_near: f32,
     pub fog_far: f32,
+    /// `Global/BloomIntensity` of the base layer (0.2 in areas 01-04/06; 0.1 area 05 day; 0.5 area
+    /// 00 night). Units are the sheet's own; the mapping to Bevy's bloom intensity is ASSUMED.
+    /// Zero when the row is absent.
+    pub bloom_intensity: f32,
 }
 
 /// Direction of light travel from (pitch, yaw) radians: rotate (0,0,-1) by pitch about X, then yaw about Y.
@@ -78,6 +84,7 @@ pub fn parse_zone_env(text: &str, area: &str, slot: usize) -> Option<ZoneEnv> {
     let col = g("directional_tgt_0", "Color");
     let sub = g("directional_tgt_0", "SubColor");
     let fog = g("Gradation", "DepthGradColor");
+    let bloom = g("Global", "BloomIntensity");
     let sky = |k: usize| {
         let s = g("Sky", &format!("SkyColor{k}"));
         ([s[0], s[1], s[2]], s[3])
@@ -91,6 +98,7 @@ pub fn parse_zone_env(text: &str, area: &str, slot: usize) -> Option<ZoneEnv> {
         fog_color: fog,
         fog_near: g("Gradation", "DepthGradNear")[0],
         fog_far: g("Gradation", "DepthGradFar")[0].max(1.0),
+        bloom_intensity: bloom[0],
     })
 }
 
@@ -137,6 +145,22 @@ pub fn time_slot_from_args(args: &[String]) -> usize {
         .and_then(|s| s.parse::<usize>().ok())
         .filter(|s| *s <= 3)
         .unwrap_or(DEFAULT_TIME_SLOT)
+}
+
+/// SSAO camera component plus the MSAA override it requires, for a look: `None` when SSAO is off.
+/// `bevy_pbr`'s SSAO extract step skips cameras whose `Msaa` is not `Off` (`extract_ssao_settings`),
+/// so enabling SSAO forces `Msaa::Off` on that camera; the visual price is losing MSAA edge
+/// anti-aliasing (harder silhouettes). Object thickness is left at Bevy's default.
+pub fn ssao_camera_components(params: &LookParams) -> Option<(ScreenSpaceAmbientOcclusion, Msaa)> {
+    params
+        .ssao
+        .then(|| (ScreenSpaceAmbientOcclusion { quality_level: params.ssao_quality, ..default() }, Msaa::Off))
+}
+
+/// Bloom component for a look: `None` when bloom is off. `Bloom` requires `Hdr` on the camera and
+/// the component requirement inserts it; intensity comes from the decoded sheet value.
+pub fn bloom_camera_component(params: &LookParams) -> Option<Bloom> {
+    params.bloom.then(|| Bloom { intensity: params.bloom_intensity, ..default() })
 }
 
 /// Plugin: applies the decoded environment of `area` (index) at `slot`; no-op without the sheet.
@@ -253,6 +277,12 @@ fn apply_environment(
             directional_light_exponent: 8.0,
             falloff: falloff.clone(),
         });
+        if let Some((ssao, msaa)) = ssao_camera_components(p) {
+            c.insert((ssao, msaa));
+        }
+        if let Some(bloom) = bloom_camera_component(p) {
+            c.insert(bloom);
+        }
         if vivid {
             // ASSUMED filmic grade: TonyMcMapface keeps hues (good for greens), then saturation/contrast.
             let section = ColorGradingSection { contrast: p.contrast, ..default() };
@@ -368,9 +398,19 @@ mod tests {
             "ha_area00\tbase\tdirectional_tgt_0\tIntensity\t2.5\t0\t0\t0\t2.8\t0\t0\t0\t2.5\t0\t0\t0\t0.3\t0\t0\t0\t12",
             "ha_area00\tbase\tDirectionalMain\tRotate\t-1.0\t0.5\t0\t0\t-1.0\t0.5\t0\t0\t-1.0\t0.5\t0\t0\t-1.0\t0.5\t0\t0\t12",
             "ha_area00\tbase\tGradation\tDepthGradFar\t800\t0\t0\t0\t650\t0\t0\t0\t1000\t0\t0\t0\t800\t0\t0\t0\t12",
+            "ha_area00\tbase\tGlobal\tBloomIntensity\t0.2\t0\t0\t0\t0.2\t0\t0\t0\t0.2\t0\t0\t0\t0.5\t0\t0\t0\t12",
             "ha_area00\tmodifier\tGradation\tDepthGradFar\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t13",
         ];
         format!("# c\n{h}{}\n", rows.join("\n"))
+    }
+
+    /// Minimal parsed environment for the post-process tests.
+    fn test_env() -> ZoneEnv {
+        ZoneEnv {
+            sun_color: [1.0, 1.0, 1.0], sun_intensity: 2.8, sun_dir: [0.0, -1.0, 0.0], ambient: [0.2; 4],
+            sky: [([0.5, 0.7, 0.9], 0.0), ([0.3, 0.5, 0.9], 0.25), ([0.2, 0.4, 0.9], 0.5), ([0.1, 0.3, 0.8], 0.75)],
+            fog_color: [0.6; 4], fog_near: 0.0, fog_far: 650.0, bloom_intensity: 0.2,
+        }
     }
 
     #[test]
@@ -380,6 +420,29 @@ mod tests {
         assert_eq!(e.sun_color, [0.0, 1.0, 0.0]);
         assert_eq!(e.fog_far, 650.0);
         assert_eq!(parse_zone_env(&sheet(), "ha_area00", 3).unwrap().sun_intensity, 0.3);
+    }
+
+    #[test]
+    fn parses_bloom_intensity_per_slot() {
+        // Decoded `Global/BloomIntensity` of the base layer, read per time slot.
+        assert!((parse_zone_env(&sheet(), "ha_area00", 1).unwrap().bloom_intensity - 0.2).abs() < 1e-6);
+        assert!((parse_zone_env(&sheet(), "ha_area00", 3).unwrap().bloom_intensity - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn camera_post_process_components_follow_params() {
+        use crate::game::render_look::{look_params, LookSettings};
+        use bevy::pbr::ScreenSpaceAmbientOcclusionQualityLevel;
+        let env = test_env();
+        let p = look_params(&env, LookSettings::default());
+        let (ssao, msaa) = ssao_camera_components(&p).expect("vivid enables SSAO by default");
+        assert_eq!(msaa, Msaa::Off, "bevy_pbr SSAO only runs with Msaa::Off");
+        assert_eq!(ssao.quality_level, ScreenSpaceAmbientOcclusionQualityLevel::Medium);
+        let bloom = bloom_camera_component(&p).expect("vivid enables bloom by default");
+        assert!((bloom.intensity - 0.2).abs() < 1e-6, "bloom intensity must be the sheet value");
+        let off = look_params(&env, LookSettings { ssao: false, bloom: false, ..Default::default() });
+        assert!(ssao_camera_components(&off).is_none());
+        assert!(bloom_camera_component(&off).is_none());
     }
 
     #[test]
@@ -409,7 +472,7 @@ mod tests {
         let env = ZoneEnv {
             sun_color: [1.0; 3], sun_intensity: 1.0, sun_dir: [0.0, -1.0, 0.0], ambient: [0.0; 4],
             sky: [([1.0, 0.0, 0.0], 0.0), ([0.0, 1.0, 0.0], 0.25), ([0.0, 0.0, 1.0], 0.5), ([1.0, 1.0, 1.0], 0.75)],
-            fog_color: [0.0; 4], fog_near: 0.0, fog_far: 100.0,
+            fog_color: [0.0; 4], fog_near: 0.0, fog_far: 100.0, bloom_intensity: 0.0,
         };
         assert_eq!(sky_color_at(&env, 0.0), [1.0, 0.0, 0.0]);
         assert_eq!(sky_color_at(&env, 1.0), [1.0, 1.0, 1.0]);
