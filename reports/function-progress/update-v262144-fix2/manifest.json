@@ -89,7 +89,7 @@
       },
       {
         "path": "crates/pla/examples/audio_export.rs",
-        "sha256": "1d302e1df6a0baa7b59f964fa54a96afdc87b0f300faef6534635fb81f0572b0"
+        "sha256": "c7dd2fc5fe02f04edbc75d217e75fbb24d156656279b5f6a5d3f5f3ac222be86"
       },
       {
         "path": "crates/pla/examples/battle_demo.rs",
@@ -849,7 +849,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "8174c50de5fbf356e129801d1f434a098274015e43a7055c514b13bd36c28e2d"
+    "sha256": "7f542da7c6b1070b0ffa9d72283622bc62aaee2ae7ccb6a3611a990374e7fb83"
   },
   "state_partitions": {
     "analysis_documentation_status": {
