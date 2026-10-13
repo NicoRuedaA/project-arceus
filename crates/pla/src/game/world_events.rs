@@ -267,11 +267,13 @@ pub struct SlotState {
     pub generation: u32,
     /// Seconds until a cleared slot spawns again (`None` = filled).
     pub respawn_in: Option<f32>,
+    /// Outbreak slot that will not be refilled (fewer Pokémon left than slots).
+    pub retired: bool,
 }
 
 impl SlotState {
     fn new(slot: EventSpawnSlot) -> Self {
-        Self { slot, generation: 0, respawn_in: None }
+        Self { slot, generation: 0, respawn_in: None, retired: false }
     }
 
     /// Current synthetic spawner id.
@@ -293,9 +295,24 @@ pub struct ActiveOutbreak {
 }
 
 impl ActiveOutbreak {
-    /// Slots still allowed to hold a Pokémon: never more than what is left of the total.
-    fn live_slots(&self) -> usize {
-        usize::from(self.total.saturating_sub(self.cleared)).min(self.slots.len())
+    /// Slots that still hold a Pokémon.
+    pub fn live_slots(&self) -> usize {
+        self.slots.iter().filter(|s| !s.retired).count()
+    }
+
+    /// A slot's Pokémon was cleared: count it, then refill the slot with a new id while more
+    /// Pokémon are left than the other live slots hold, else retire it (never more alive than
+    /// what is left of the total).
+    fn clear_slot(&mut self, i: usize) {
+        self.cleared = self.cleared.saturating_add(1);
+        let left = usize::from(self.total.saturating_sub(self.cleared));
+        let others = self.live_slots().saturating_sub(1);
+        let s = &mut self.slots[i];
+        if left > others {
+            s.generation += 1;
+        } else {
+            s.retired = true;
+        }
     }
 }
 
@@ -431,6 +448,10 @@ impl WorldEvents {
             let slots: Vec<SlotState> = self.outbreaks.spawn_slots(&area, id, self.config.seed ^ u64::from(self.day)).into_iter().map(SlotState::new).collect();
             let species = self.outbreaks.species(&area, id).unwrap_or("?").to_string();
             let total = self.outbreaks.roll_total(&area, id, self.day, self.config.seed);
+            let mut slots = slots;
+            for s in slots.iter_mut().skip(usize::from(total)) {
+                s.retired = true;
+            }
             let pos = slots.first().map_or(Vec3::ZERO, |s| s.slot.pos);
             cues.push(self.cue(
                 WorldEventKind::OutbreakStart,
@@ -550,11 +571,9 @@ impl WorldEvents {
         }
         let mut ended = None;
         if let Some(o) = self.outbreak.as_mut() {
-            let live = o.live_slots();
-            for s in o.slots.iter_mut().take(live) {
-                if consumed(&s.spawner_id()) {
-                    o.cleared += 1;
-                    s.generation += 1;
+            for i in 0..o.slots.len() {
+                if !o.slots[i].retired && consumed(&o.slots[i].spawner_id()) {
+                    o.clear_slot(i);
                     self.dirty = true;
                 }
             }
@@ -583,7 +602,7 @@ impl WorldEvents {
             out.extend(self.distortion_slots.iter().filter(|s| s.respawn_in.is_none()).map(def));
         }
         if let Some(o) = &self.outbreak {
-            out.extend(o.slots.iter().take(o.live_slots()).map(def));
+            out.extend(o.slots.iter().filter(|s| !s.retired).map(def));
         }
         out
     }
@@ -1074,8 +1093,11 @@ mod tests {
         assert!((10..=15).contains(&total));
         let mut ends = 0;
         for _ in 0..total {
-            let id = ev.desired_spawners(1, 2)[0].spawner_id.clone();
+            let before: Vec<String> = ev.desired_spawners(1, 2).into_iter().map(|d| d.spawner_id).collect();
+            let id = before[0].clone();
             let cues = ev.observe_consumed(|s| s == id);
+            let now: Vec<String> = ev.desired_spawners(1, 2).into_iter().map(|d| d.spawner_id).collect();
+            assert!(before[1..].iter().all(|o| now.contains(o)), "the other alive Pokémon are never removed");
             ends += cues.iter().filter(|c| c.kind == WorldEventKind::OutbreakEnd).count();
             let live = ev.desired_spawners(1, 2).len();
             if let Some(o) = &ev.outbreak {
