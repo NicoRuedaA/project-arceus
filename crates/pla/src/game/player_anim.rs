@@ -3,8 +3,9 @@
 //! The exporter (`player_export`) writes one glTF per outfit variant
 //! (`<cache>/player/p1_default/player.gltf`) with nine clips. This module spawns that
 //! scene as a child of the `PlayerAvatar` entity, builds an `AnimationGraph` with the
-//! idle / walk / run / dash clips and cross-fades between them from the measured planar
-//! speed of the avatar. Locomotion (movement, facing, terrain height) stays in the
+//! idle / walk / run / dash / swim clips and cross-fades between them from the measured planar
+//! speed of the avatar (and from `PlayerSwim` when the avatar is in water).
+//! Locomotion (movement, facing, terrain height) stays in the
 //! viewer; the model only follows the avatar entity.
 //!
 //! Root motion: the walk / run / dash clips translate the `origin` bone forward
@@ -24,6 +25,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::PlayerAvatar;
+use super::water::{PlayerSwim, SwimState};
 
 /// Height of the avatar root above the ground (the old capsule was 1.8 m, centred).
 pub const AVATAR_ROOT_ABOVE_GROUND: f32 = 0.9;
@@ -50,6 +52,9 @@ pub enum PlayerClip {
     Walk,
     Run,
     Dash,
+    /// Played while the avatar is in water deep enough to swim (`game::water`). The clip exists
+    /// in the exported player glTF but was unused until Brief 11.
+    Swim,
 }
 
 impl PlayerClip {
@@ -60,6 +65,7 @@ impl PlayerClip {
             Self::Walk => "walk",
             Self::Run => "run",
             Self::Dash => "dash",
+            Self::Swim => "swim",
         }
     }
 }
@@ -86,6 +92,17 @@ pub fn select_clip(current: PlayerClip, speed: f32) -> PlayerClip {
         c = next;
     }
     c
+}
+
+/// Clip for a frame, taking the swimming state into account: swimming always uses the `swim`
+/// clip whatever the speed is, and leaving the water re-picks the land clip from a neutral
+/// state instead of staying stuck on `Swim`.
+pub fn select_clip_full(current: PlayerClip, speed: f32, swimming: bool) -> PlayerClip {
+    if swimming {
+        return PlayerClip::Swim;
+    }
+    let base = if current == PlayerClip::Swim { PlayerClip::Idle } else { current };
+    select_clip(base, speed)
 }
 
 /// Returns `translation` with the horizontal root motion removed: x/z pinned to the rest
@@ -150,7 +167,7 @@ pub struct PlayerMotion {
 #[derive(Component)]
 pub struct PlayerAnimState {
     pub player: Entity,
-    pub nodes: [Option<AnimationNodeIndex>; 4],
+    pub nodes: [Option<AnimationNodeIndex>; 5],
     pub current: PlayerClip,
     /// Bone whose horizontal translation is pinned (root motion), if found.
     pub root_bone: Option<Entity>,
@@ -201,9 +218,9 @@ fn wire_player(
         let clip = |c: PlayerClip| gltf.named_animations.get(c.gltf_name()).cloned();
         let Some(idle) = clip(PlayerClip::Idle) else { continue };
         let (mut graph, idle_node) = AnimationGraph::from_clip(idle);
-        let mut nodes = [None; 4];
+        let mut nodes = [None; 5];
         nodes[slot(PlayerClip::Idle)] = Some(idle_node);
-        for c in [PlayerClip::Walk, PlayerClip::Run, PlayerClip::Dash] {
+        for c in [PlayerClip::Walk, PlayerClip::Run, PlayerClip::Dash, PlayerClip::Swim] {
             nodes[slot(c)] = clip(c).map(|h| graph.add_clip(h, 1.0, graph.root));
         }
         let graph_h = graphs.add(graph);
@@ -246,11 +263,12 @@ fn track_motion(time: Res<Time>, mut q: Query<(&Transform, &mut PlayerMotion), W
 }
 
 fn switch_clips(
-    mut q: Query<(&mut PlayerAnimState, &PlayerMotion)>,
+    mut q: Query<(&mut PlayerAnimState, &PlayerMotion, Option<&PlayerSwim>)>,
     mut players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
 ) {
-    for (mut st, motion) in &mut q {
-        let mut want = select_clip(st.current, motion.speed);
+    for (mut st, motion, swim) in &mut q {
+        let swimming = swim.is_some_and(|s| s.state == SwimState::Swimming);
+        let mut want = select_clip_full(st.current, motion.speed, swimming);
         // A clip missing from the file falls back to the next slower one.
         while st.nodes[slot(want)].is_none() && want != PlayerClip::Idle {
             want = match want {
@@ -331,6 +349,22 @@ mod tests {
         assert_eq!(select_clip(Dash, 5.5), Run);
         assert_eq!(select_clip(Run, 6.2), Run);
         assert_eq!(select_clip(Run, 6.6), Dash);
+    }
+
+    #[test]
+    fn swimming_forces_the_swim_clip() {
+        // In water the clip is swim whatever the speed is.
+        assert_eq!(select_clip_full(Idle, 0.0, true), Swim);
+        assert_eq!(select_clip_full(Idle, 8.0, true), Swim);
+        // Leaving the water picks a land clip from a neutral state, not from Swim.
+        assert_eq!(select_clip_full(Swim, 0.0, false), Idle);
+        assert_eq!(select_clip_full(Swim, 1.5, false), Walk);
+        assert_eq!(select_clip_full(Swim, 4.5, false), Run);
+        // On land the previous behaviour is unchanged.
+        assert_eq!(select_clip_full(Walk, 4.3, false), Run);
+        assert_eq!(select_clip_full(Run, 0.1, false), Idle);
+        // swim is a real glTF name in the exported player model.
+        assert_eq!(Swim.gltf_name(), "swim");
     }
 
     #[test]

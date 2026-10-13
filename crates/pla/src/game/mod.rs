@@ -34,6 +34,7 @@ pub mod state;
 pub mod ui;
 pub mod vegetation;
 pub mod world_collision;
+pub mod water;
 pub mod world_objects;
 pub mod wild;
 pub mod wild_wander;
