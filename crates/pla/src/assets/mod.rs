@@ -3,6 +3,7 @@
 pub mod ahtb;
 pub mod bntx;
 pub mod collision;
+pub mod effect_sequence;
 pub mod event_list;
 pub mod field_material;
 pub mod gfpak;
