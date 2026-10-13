@@ -72,7 +72,7 @@ Documento escrito el 2026-10-12. Está en español porque lo pidió el usuario p
 | Efectos de 851 movimientos, objetos, cambio, IA simple | Hecho | | |
 | Reglas «probables» o supuestas: turnos, precisión, clima, quemadura, captura, confusión, sueño, atrapar, carga, protección | Parcial | 3 | Hay que verificarlas contra el juego. Los estados nuevos no están activados ni muestran mensajes |
 | Activar los estados nuevos y mostrar sus mensajes | Falta | 1 | |
-| Habilidades de Pokémon y objetos equipados | Falta | 4 | |
+| Habilidades de Pokémon y objetos equipados | No aplica | | El juego guarda habilidades en los datos, pero el código de combate solo da efecto a 2 (Inicio Lento de Regigigas y el cambio de forma de Cherrim con Don Floral) y a ningún objeto equipado ([informe](../reports/data-progress/abilities_held_items.md)). Lo que queda es el brief D1 |
 | Estilos ágil y fuerte y el sistema de turnos propio de este juego | Falta | 3 | |
 | Combates contra jefes y entrenadores (varios Pokémon) | Falta | 3 | |
 | Animaciones y efectos por movimiento | Falta | 4 | Hoy solo hay ataque genérico, daño y caída |
@@ -179,6 +179,6 @@ Documento escrito el 2026-10-12. Está en español porque lo pidió el usuario p
 40. Instalación sin pasos manuales.
 
 **Nivel 4, muy grande (meses)**
-41. Habilidades de Pokémon y objetos equipados.
+41. Habilidades de Pokémon y objetos equipados. **No aplica a este juego** (fase 0 hecha; lo que queda va en el brief D1 de `briefs-agentes.md`).
 42. Efectos y animaciones por movimiento.
 43. Pokédex con investigación, tareas y rangos.
