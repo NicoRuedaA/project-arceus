@@ -1,0 +1,119 @@
+# sheet: data/boss_field_attacks
+# version: 1
+# generator: .tools/trainer_boss_decode.py
+# target: Pokémon Legends: Arceus update v262144 noble/legend field attacks (bin/pokemon/data/poke_field_obstruction_waza_ns_legend.bin)
+# note: attack_key: slot 0. ns_key = name prefix (nsNN matches the setting script NsNNFieldBattle; 'sl' = legend attacks).
+# note: kind: slot 2 string (bombing/throwing/charge_attack/barrier/following/hyper_beam) VERIFIED as stored; behaviour UNKNOWN.
+# note: knock: slot 44 string (down_strong/down_weak) LIKELY the knock-down strength on the player; status: slot 46 string.
+# note: h_variant: name has an 'h' segment (e.g. ns02_sp03h) - ASSUMED a harder / second-phase variant.
+# note: raw_f8/raw_f11 floats, raw_f17 int, raw_f18 int (nan shown as empty): meaning UNKNOWN.
+id:string*	attack_key:string	ns_key:string	kind:string	knock:string?	status:string?	h_variant:bool	raw_f8:f32?	raw_f11:f32?	raw_f17:u32?	raw_f18:string?
+ns01_jump_shockwave	ns01_jump_shockwave	ns01	bombing	down_strong		0	25	2		15
+ns01_horn_aura	ns01_horn_aura	ns01	bombing	down_strong		0	25	5		15
+ns02_sp01	ns02_sp01	ns02	bombing	down_strong		0	30	9		8
+ns02_sp03	ns02_sp03	ns02	following	down_strong		0	20	1.5		120
+ns02_sp03h	ns02_sp03h	ns02	following	down_strong		1	20	1.5		90
+ns03_sp01	ns03_sp01	ns03	throwing	down_weak		0	10	1		175
+ns03_sp02	ns03_sp02	ns03	throwing	down_strong		0	30	0.5	4	120
+ns03_sp03	ns03_sp03	ns03	bombing	down_strong		0	30	1.8	30	15
+ns02_sp02	ns02_sp02	ns02	charge_attack	down_strong		0	20			
+ns06_sp01	ns06_sp01	ns06	bombing	down_strong		0	40	14		90
+ns06_sp01h	ns06_sp01h	ns06	bombing	down_strong		1	50	14		90
+ns06_sp02	ns06_sp02	ns06	charge_attack	down_strong		0	20			
+ns06_sp02h	ns06_sp02h	ns06	charge_attack	down_strong		1	30			
+ns06_sp03	ns06_sp03	ns06	bombing	down_strong		0	20	5.5		15
+ns06_sp03h_01	ns06_sp03h_01	ns06	bombing	down_strong		1	30	5.5		15
+ns05_sp01	ns05_sp01	ns05	following	down_weak		0	10	0.7		900
+ns05_sp01h	ns05_sp01h	ns05	following	down_weak		1	10	0.7		900
+ns05_sp02	ns05_sp02	ns05	bombing	down_strong		0	20	3.5	60	15
+ns05_sp03	ns05_sp03	ns05	bombing	down_strong		0	50	10	30	45
+ns05_sp03h	ns05_sp03h	ns05	bombing	down_strong		1	50	12	30	45
+ns05_sp04	ns05_sp04	ns05	charge_attack	down_strong		0	30			
+ns04_sp01_01	ns04_sp01_01	ns04	bombing	down_strong		0	10	0.5		120
+ns04_sp01_02	ns04_sp01_02	ns04	bombing	down_strong		0	10	1		120
+ns04_sp01_03	ns04_sp01_03	ns04	bombing	down_strong		0	10	1		120
+ns04_sp02	ns04_sp02	ns04	bombing	down_strong		0	10	1		6
+ns05_sp02p	ns05_sp02p	ns05	bombing	down_strong		0	20	3.5	60	15
+ns05_sp02s	ns05_sp02s	ns05	bombing	down_strong		0	20	3.5	60	15
+ns06_sp03h_02	ns06_sp03h_02	ns06	bombing	down_weak		1	10	5.5		
+ns03_sp01_2	ns03_sp01_2	ns03	throwing	down_strong		0	10	1		15
+ns03_sp01_3	ns03_sp01_3	ns03	throwing	down_weak		0	10	1		210
+ns03_sp01_4	ns03_sp01_4	ns03	throwing	down_strong		0	10	1		60
+ns03_sp02h	ns03_sp02h	ns03	throwing	down_strong		1	20	0.5	4	180
+ns03_sp03h	ns03_sp03h	ns03	bombing	down_strong		1	30	2	30	15
+ns07_sp01_01	ns07_sp01_01	ns07	bombing	down_strong		0	20	9	55	8
+ns07_sp01_02	ns07_sp01_02	ns07	bombing	down_strong		0	30	1		120
+ns07_sp02	ns07_sp02	ns07	bombing	down_strong		0	50	20		90
+ns07_sp03	ns07_sp03	ns07	bombing	down_strong		0	30	10		7
+ns08_sp01_01	ns08_sp01_01	ns08	bombing	down_strong		0	20	9	55	8
+ns08_sp01_02	ns08_sp01_02	ns08	bombing	down_strong		0	30			30
+ns08_sp02	ns08_sp02	ns08	bombing	down_strong		0	50	20		90
+ns08_sp03	ns08_sp03	ns08	bombing	down_strong		0	30	10		7
+ns09_sp01_01	ns09_sp01_01	ns09	bombing	down_strong		0	30	3	55	8
+ns09_sp01_02	ns09_sp01_02	ns09	bombing	down_strong		0	30	1		120
+ns09_sp01_03	ns09_sp01_03	ns09	bombing	down_strong		0	30	50	15	4
+ns09_sp02	ns09_sp02	ns09	bombing	down_strong		0	60	20		90
+ns09_sp03	ns09_sp03	ns09	bombing	down_strong		0	40	10		7
+ns09_sp04	ns09_sp04	ns09	charge_attack	down_strong		0	40			
+ns09_sp05	ns09_sp05	ns09	throwing	down_strong		0	2	0.2		225
+ns03_sp03r1	ns03_sp03r1	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03r2	ns03_sp03r2	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03r3	ns03_sp03r3	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03r4	ns03_sp03r4	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03r5	ns03_sp03r5	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03l1	ns03_sp03l1	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03l2	ns03_sp03l2	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03l3	ns03_sp03l3	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03l4	ns03_sp03l4	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03l5	ns03_sp03l5	ns03	bombing	down_strong		0	30	1.8	30	15
+ns07_sp01_01h	ns07_sp01_01h	ns07	bombing	down_strong		1	20	8.5	20	8
+ns03_sp03r2t	ns03_sp03r2t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03r3t	ns03_sp03r3t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03r4t	ns03_sp03r4t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03r5t	ns03_sp03r5t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03l1t	ns03_sp03l1t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03l2t	ns03_sp03l2t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03l3t	ns03_sp03l3t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03l4t	ns03_sp03l4t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03l5t	ns03_sp03l5t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03s1	ns03_sp03s1	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03s1t	ns03_sp03s1t	ns03	bombing	down_weak		0	10	2	45	75
+ns09_sp01_03d	ns09_sp01_03d	ns09	bombing	down_strong		0	30	50	15	4
+ns09_sp01_02d	ns09_sp01_02d	ns09	bombing	down_strong		0	30	1	45	8
+ns09_sp05d	ns09_sp05d	ns09	throwing	down_strong		0	1	0.2		225
+ns09_sp05b	ns09_sp05b	ns09	throwing	down_strong		0	1	0.2		225
+ns07_sp01_01s	ns07_sp01_01s	ns07	bombing	down_strong		0	20	5	55	8
+ns06_sp03h_02r_02	ns06_sp03h_02r_02	ns06	bombing	down_weak		1	20	4		450
+ns06_sp03h_02r	ns06_sp03h_02r	ns06	bombing	down_weak		1	20	5.5		5000
+ns06_sp03r_02	ns06_sp03r_02	ns06	bombing	down_strong		0	30	10		4
+ns06_sp03r_03	ns06_sp03r_03	ns06	bombing	down_strong		0	30	14		4
+ns05_sp02sm	ns05_sp02sm	ns05	bombing	down_strong		0	20	3	60	15
+sl_pm0485_magma_storm	sl_pm0485_magma_storm	sl	barrier	down_weak		0	30			
+sl_pm0490_barrier	sl_pm0490_barrier	sl	barrier	down_weak		0				
+sl_pm0641_barrier	sl_pm0641_barrier	sl	barrier	down_weak		0	20			
+sl_pm0488_crsra_wide	sl_pm0488_crsra_wide	sl	bombing		confuse	0		20		
+sl_pm0488_crsra_narrow	sl_pm0488_crsra_narrow	sl	barrier	down_weak	confuse	0				
+sl_pm0488_rush	sl_pm0488_rush	sl	charge_attack	down_weak		0	30		39	30
+contact	contact	contact	barrier	down_weak		0				
+sl_pm0491_nightmare	sl_pm0491_nightmare	sl	barrier	down_weak	sleepiness	0				
+ns03_sp04	ns03_sp04	ns03	hyper_beam	down_strong		0	50	1	75	75
+ns03_sp04_right	ns03_sp04_right	ns03	hyper_beam	down_strong		0	50	1	75	75
+ns03_sp04_left	ns03_sp04_left	ns03	hyper_beam	down_strong		0	50	1	75	75
+ns03_sp02s	ns03_sp02s	ns03	throwing	down_strong		0	30	0.5	4	90
+ns03_sp03r1t	ns03_sp03r1t	ns03	bombing	down_strong		0	30	1.8	45	75
+ns03_sp03s2	ns03_sp03s2	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03s3	ns03_sp03s3	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03s4	ns03_sp03s4	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03s5	ns03_sp03s5	ns03	bombing	down_strong		0	30	1.8	30	15
+ns03_sp03s2t	ns03_sp03s2t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03s3t	ns03_sp03s3t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03s4t	ns03_sp03s4t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03s5t	ns03_sp03s5t	ns03	bombing	down_weak		0	10	2	45	75
+ns03_sp03s1b	ns03_sp03s1b	ns03	bombing	down_weak		0	10	2	45	360
+ns03_sp03s3b	ns03_sp03s3b	ns03	bombing	down_weak		0	10	2	45	360
+ns03_sp03s5b	ns03_sp03s5b	ns03	bombing	down_weak		0	10	2	45	360
+ns09_sp02p	ns09_sp02p	ns09	bombing	down_weak		0		20		90
+ns09_sp02toki	ns09_sp02toki	ns09	bombing	down_strong		0	60	25		90
+ns07_sp01_03	ns07_sp01_03	ns07	bombing	down_weak		0	10	9		
+ns07_sp01_03s	ns07_sp01_03s	ns07	bombing	down_weak		0	10	5		
+ns09_sp01_02s	ns09_sp01_02s	ns09	bombing	down_strong		0	30	1		360
