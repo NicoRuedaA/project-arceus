@@ -105,7 +105,9 @@ pub fn primitive_from_tr(
         .iter()
         .find(|a| a.id == 6)
         .ok_or("TRMSH has no proven UV0 attribute")?;
-    if uv.format_code != 48 || uv.offset != 28 || uv.byte_size != 8 {
+    // The declared offset comes from the validated layout; ID 6 / format 48 is
+    // the demonstrated 8-byte UV pair. Older samples happened to place it at 28.
+    if uv.format_code != 48 || uv.byte_size != 8 {
         return Err("unsupported TR UV0 encoding for glTF".into());
     }
     let mut positions = Vec::with_capacity(mesh.vertex_count);
@@ -135,7 +137,7 @@ pub fn primitive_from_tr(
         positions,
         normals,
         texcoords,
-        indices: mesh.indices.iter().copied().map(u32::from).collect(),
+        indices: mesh.indices.clone(),
         joints,
         weights,
         material,
@@ -178,13 +180,13 @@ pub fn subset_primitive(
 
 fn compute_vertex_normals(
     positions: &[[f32; 3]],
-    indices: &[u16],
+    indices: &[u32],
 ) -> Result<Vec<[f32; 3]>, String> {
     if indices.is_empty() || !indices.len().is_multiple_of(3) {
         return Err("TR normal generation requires triangle-list indices".into());
     }
     let mut normals = vec![[0.0; 3]; positions.len()];
-    for tri in indices.chunks_exact(3) {
+    for tri in indices.as_chunks::<3>().0 {
         let a = *positions
             .get(tri[0] as usize)
             .ok_or("TR normal index outside vertex array")?;
@@ -876,7 +878,10 @@ mod tests {
             material: None,
         };
         let s = subset_primitive(&p, &p.indices[3..], "s", Some(1)).unwrap();
-        assert_eq!(s.positions, vec![[2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [4.0, 0.0, 0.0]]);
+        assert_eq!(
+            s.positions,
+            vec![[2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [4.0, 0.0, 0.0]]
+        );
         assert_eq!(s.indices, vec![0, 1, 2]);
         assert_eq!(s.material, Some(1));
         assert!(subset_primitive(&p, &[9], "x", None).is_err());

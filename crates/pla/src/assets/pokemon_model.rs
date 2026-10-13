@@ -220,7 +220,11 @@ pub fn bake_mask_lerp(
             rgba[o + 3] = albedo.rgba[((y0 * aw) + x0) * 4 + 3];
         }
     }
-    Ok(bntx::TextureData { width: w as u32, height: h as u32, rgba })
+    Ok(bntx::TextureData {
+        width: w as u32,
+        height: h as u32,
+        rgba,
+    })
 }
 
 /// Pokémon TRMSH UV0 has V running upwards while the glTF samples images
@@ -233,7 +237,11 @@ fn flip_rows(image: &bntx::TextureData) -> bntx::TextureData {
     for y in (0..image.height as usize).rev() {
         rgba.extend_from_slice(&image.rgba[y * row..(y + 1) * row]);
     }
-    bntx::TextureData { width: image.width, height: image.height, rgba }
+    bntx::TextureData {
+        width: image.width,
+        height: image.height,
+        rgba,
+    }
 }
 
 fn srgb_to_linear(value: f32) -> f32 {
@@ -316,7 +324,8 @@ pub fn assemble_pack_with(
         .map(|entry| (entry.index, entry))
         .collect::<BTreeMap<_, _>>();
     let descriptor_name = format!("{}.trmdl", pack_stem(path)?);
-    let descriptor_index = names.entry_index(&romfs_path(&base, layout.mdl_dir, &descriptor_name))?;
+    let descriptor_index =
+        names.entry_index(&romfs_path(&base, layout.mdl_dir, &descriptor_name))?;
     let descriptor = by_index
         .get(&descriptor_index)
         .ok_or("model descriptor entry did not decode")?;
@@ -405,10 +414,11 @@ pub fn assemble_pack_with(
     let bind_record_count = root_vector_count(skeleton_bytes, 2);
     let skeleton_node_count = root_vector_count(skeleton_bytes, 1);
     let skeleton_node_type_counts = skeleton_node_types(skeleton_bytes).unwrap_or_default();
-    let (skeleton, skeleton_parse_error) = match tr::TrSkl::parse_with(skeleton_bytes, layout.allow_ik) {
-        Ok(skeleton) => (Some(skeleton), None),
-        Err(error) => (None, Some(error)),
-    };
+    let (skeleton, skeleton_parse_error) =
+        match tr::TrSkl::parse_with(skeleton_bytes, layout.allow_ik) {
+            Ok(skeleton) => (Some(skeleton), None),
+            Err(error) => (None, Some(error)),
+        };
     let (bind_records, bind_record_error) = if skeleton.is_some() {
         match tr::TrSkl::read_bind_records_with_ik(skeleton_bytes, layout.allow_ik) {
             Ok(records) if records.is_empty() => (records, Some("parsed skeleton contains zero bind records; rest transforms are not inverse binds".into())),
@@ -439,7 +449,8 @@ pub fn assemble_pack_with(
             .iter()
             .find(|name| name.to_ascii_lowercase().ends_with(".trmbf"))
             .ok_or_else(|| format!("mesh entry {entry_index} does not declare a .trmbf name"))?;
-        let buffer_entry_index = names.entry_index(&romfs_path(&base, layout.mdl_dir, buffer_file))?;
+        let buffer_entry_index =
+            names.entry_index(&romfs_path(&base, layout.mdl_dir, buffer_file))?;
         let buffer = by_index
             .get(&buffer_entry_index)
             .ok_or_else(|| format!("buffer entry {buffer_entry_index} did not decode"))?;
@@ -450,7 +461,15 @@ pub fn assemble_pack_with(
             continue;
         };
         for shape_index in 0..shape_count {
-            match tr::TrMbf::parse_skin_shape(&buffer.bytes, &entry.bytes, shape_index) {
+            // The strict parser requires the demonstrated skin pair; a shape
+            // without it (or with layered declarations) still describes a
+            // usable static mesh, so fall back to the shape-driven layout.
+            let parsed = tr::TrMbf::parse_skin_shape(&buffer.bytes, &entry.bytes, shape_index)
+                .or_else(|strict| {
+                    tr::TrMbf::parse_with_shape_layout(&buffer.bytes, &entry.bytes, shape_index)
+                        .map_err(|shape| format!("{strict}; shape layout: {shape}"))
+                });
+            match parsed {
                 Ok(mesh) => {
                     let shape_name = flatbuffer_vector_element(&entry.bytes, 1, shape_index)
                         .and_then(|shape_at| flatbuffer_string_field(&entry.bytes, shape_at, 0))
@@ -728,7 +747,8 @@ pub fn write_skinned_lod_level(
     gltf_path: impl AsRef<Path>,
     formula: Option<LayerBlendFormula>,
 ) -> Result<(), String> {
-    write_skinned_lod_level_clips(model, lod, &[clip_name.to_owned()], gltf_path, formula).map(|_| ())
+    write_skinned_lod_level_clips(model, lod, &[clip_name.to_owned()], gltf_path, formula)
+        .map(|_| ())
 }
 
 /// Like [`write_skinned_lod_level`] but writes several clips as separate glTF animations
@@ -854,9 +874,15 @@ impl BattleClipSlot {
 pub fn clip_suffix(name: &str) -> &str {
     let mut parts = name.splitn(5, '_');
     let ok = parts.next().is_some_and(|p| p.starts_with("pm"))
-        && parts.next().is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
-        && parts.next().is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
-        && parts.next().is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()));
+        && parts
+            .next()
+            .is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
+        && parts
+            .next()
+            .is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
+        && parts
+            .next()
+            .is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()));
     match (ok, parts.next()) {
         (true, Some(rest)) => rest,
         _ => name,
@@ -1052,10 +1078,20 @@ pub(crate) fn save_player_eye_texture(
         .iter()
         .find(|block| block.name.eq_ignore_ascii_case(&mesh.material_binding))
         .ok_or_else(|| format!("no material block named {}", mesh.material_binding))?;
-    let albedo_file = block.texture("BaseColorMap").ok_or("eye block has no BaseColorMap")?;
+    let albedo_file = block
+        .texture("BaseColorMap")
+        .ok_or("eye block has no BaseColorMap")?;
     let albedo = decoded_texture_by_file(model, albedo_file)?;
-    let mask = decoded_texture_by_file(model, block.texture("LayerMaskMap").ok_or("eye block has no LayerMaskMap")?)?;
-    let emission = block.texture("EmissionColorMap").map(|f| decoded_texture_by_file(model, f)).transpose()?;
+    let mask = decoded_texture_by_file(
+        model,
+        block
+            .texture("LayerMaskMap")
+            .ok_or("eye block has no LayerMaskMap")?,
+    )?;
+    let emission = block
+        .texture("EmissionColorMap")
+        .map(|f| decoded_texture_by_file(model, f))
+        .transpose()?;
     let (w, h) = (albedo.width as usize, albedo.height as usize);
     let sample = |t: &bntx::TextureData, x: usize, y: usize, c: usize| -> f32 {
         let sx = x * t.width as usize / w;
@@ -1072,15 +1108,21 @@ pub(crate) fn save_player_eye_texture(
         }
     }
     greys.sort_by(f32::total_cmp);
-    let reference = greys.get(greys.len() * 95 / 100).copied().unwrap_or(1.0).max(1e-3);
-    let tone: [f32; 3] = std::array::from_fn(|c| srgb_to_linear(f32::from(eye_rgb[c]) / 255.0) / reference);
+    let reference = greys
+        .get(greys.len() * 95 / 100)
+        .copied()
+        .unwrap_or(1.0)
+        .max(1e-3);
+    let tone: [f32; 3] =
+        std::array::from_fn(|c| srgb_to_linear(f32::from(eye_rgb[c]) / 255.0) / reference);
     let mut rgba = Vec::with_capacity(w * h * 4);
     for y in 0..h {
         for x in 0..w {
             let iris = sample(mask, x, y, 1);
             for c in 0..3 {
                 let a = srgb_to_linear(sample(albedo, x, y, c));
-                let e = emission.map_or(0.0, |t| srgb_to_linear(sample(t, x, y, c))) * EMISSION_GAIN;
+                let e =
+                    emission.map_or(0.0, |t| srgb_to_linear(sample(t, x, y, c))) * EMISSION_GAIN;
                 let plain = a + e;
                 let tinted = a * tone[c] + e * IRIS_EMISSION_SHARE;
                 let lin = plain + (tinted - plain) * iris;
@@ -1089,11 +1131,24 @@ pub(crate) fn save_player_eye_texture(
             rgba.push(255);
         }
     }
-    let baked = bntx::TextureData { width: albedo.width, height: albedo.height, rgba };
-    let safe = |s: &str| s.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect::<String>();
-    let filename = format!("{}_eyecolor.png", safe(albedo_file.trim_end_matches(".bntx")));
+    let baked = bntx::TextureData {
+        width: albedo.width,
+        height: albedo.height,
+        rgba,
+    };
+    let safe = |s: &str| {
+        s.chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect::<String>()
+    };
+    let filename = format!(
+        "{}_eyecolor.png",
+        safe(albedo_file.trim_end_matches(".bntx"))
+    );
     let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));
-    flip_rows(&baked).save_png(&output.join(&filename)).map_err(|e| e.to_string())?;
+    flip_rows(&baked)
+        .save_png(&output.join(&filename))
+        .map_err(|e| e.to_string())?;
     Ok(filename)
 }
 
@@ -1108,16 +1163,32 @@ fn save_mask_lerp_base_color(
         .iter()
         .find(|block| block.name.eq_ignore_ascii_case(binding))
         .ok_or_else(|| format!("no material block named {binding}"))?;
-    let albedo_file = block.texture("BaseColorMap").ok_or("block has no BaseColorMap")?;
-    let mask_file = block.texture("LayerMaskMap").ok_or("block has no LayerMaskMap")?;
-    let layers = block.base_color_layers().ok_or("block lacks BaseColorLayer1..4")?;
+    let albedo_file = block
+        .texture("BaseColorMap")
+        .ok_or("block has no BaseColorMap")?;
+    let mask_file = block
+        .texture("LayerMaskMap")
+        .ok_or("block has no LayerMaskMap")?;
+    let layers = block
+        .base_color_layers()
+        .ok_or("block lacks BaseColorLayer1..4")?;
     let albedo = decoded_texture_by_file(model, albedo_file)?;
     let mask = decoded_texture_by_file(model, mask_file)?;
     let baked = bake_mask_lerp(albedo, mask, &layers)?;
-    let safe = |s: &str| s.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect::<String>();
-    let filename = format!("{}_{}_color.png", safe(albedo_file.trim_end_matches(".bntx")), safe(binding));
+    let safe = |s: &str| {
+        s.chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect::<String>()
+    };
+    let filename = format!(
+        "{}_{}_color.png",
+        safe(albedo_file.trim_end_matches(".bntx")),
+        safe(binding)
+    );
     let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));
-    flip_rows(&baked).save_png(&output.join(&filename)).map_err(|e| e.to_string())?;
+    flip_rows(&baked)
+        .save_png(&output.join(&filename))
+        .map_err(|e| e.to_string())?;
     Ok(filename)
 }
 
@@ -1331,7 +1402,7 @@ struct PokemonSubMesh {
 fn compact_submesh(
     mesh: &tr::TrMbf,
     buffer: &[u8],
-    indices: &[u16],
+    indices: &[u32],
 ) -> Result<(tr::TrMbf, Vec<u8>), String> {
     if indices.is_empty() || mesh.vertex_stride == 0 {
         return Err("empty submesh or zero vertex stride".into());
@@ -1340,14 +1411,14 @@ fn compact_submesh(
     let used = indices.iter().copied().collect::<BTreeSet<_>>();
     if used
         .iter()
-        .any(|index| usize::from(*index) >= mesh.vertex_count)
+        .any(|index| *index as usize >= mesh.vertex_count)
     {
         return Err("submesh vertex index is outside its source mesh".into());
     }
     let remap = used
         .iter()
         .enumerate()
-        .map(|(new, old)| (*old, new as u16))
+        .map(|(new, old)| (*old, new as u32))
         .collect::<BTreeMap<_, _>>();
     let remapped_indices = indices
         .iter()
@@ -1373,7 +1444,7 @@ fn compact_submesh(
     );
     let mut output_offset = TRMBF_VERTEX_OFFSET;
     for old in &used {
-        let source_offset = usize::from(*old) * mesh.vertex_stride;
+        let source_offset = *old as usize * mesh.vertex_stride;
         let source = source_vertices
             .get(source_offset..source_offset + mesh.vertex_stride)
             .ok_or("source vertex record is out of range")?;
@@ -1405,7 +1476,11 @@ fn shape_submeshes(bytes: &[u8], shape_index: usize) -> Option<Vec<PokemonSubMes
         .collect()
 }
 
-pub(crate) fn flatbuffer_table_vector(bytes: &[u8], table: usize, field_index: usize) -> Option<Vec<usize>> {
+pub(crate) fn flatbuffer_table_vector(
+    bytes: &[u8],
+    table: usize,
+    field_index: usize,
+) -> Option<Vec<usize>> {
     let vtable = table_vtable_offset(bytes, table)?;
     let vsize =
         u16::from_le_bytes(bytes.get(vtable..vtable.checked_add(2)?)?.try_into().ok()?) as usize;
@@ -1457,7 +1532,11 @@ pub(crate) fn flatbuffer_u32_field(bytes: &[u8], table: usize, field_index: usiz
     ))
 }
 
-pub(crate) fn flatbuffer_vector_element(bytes: &[u8], root_field: usize, index: usize) -> Option<usize> {
+pub(crate) fn flatbuffer_vector_element(
+    bytes: &[u8],
+    root_field: usize,
+    index: usize,
+) -> Option<usize> {
     let root = u32::from_le_bytes(bytes.get(0..4)?.try_into().ok()?) as usize;
     let vtable = table_vtable_offset(bytes, root)?;
     let vsize =
@@ -1489,7 +1568,11 @@ pub(crate) fn flatbuffer_vector_element(bytes: &[u8], root_field: usize, index: 
     (target < bytes.len()).then_some(target)
 }
 
-pub(crate) fn flatbuffer_string_field(bytes: &[u8], table: usize, field_index: usize) -> Option<String> {
+pub(crate) fn flatbuffer_string_field(
+    bytes: &[u8],
+    table: usize,
+    field_index: usize,
+) -> Option<String> {
     let vtable = table_vtable_offset(bytes, table)?;
     let vsize =
         u16::from_le_bytes(bytes.get(vtable..vtable.checked_add(2)?)?.try_into().ok()?) as usize;
@@ -1624,7 +1707,10 @@ mod tests {
     #[test]
     fn clip_suffix_strips_the_numbered_prefix() {
         assert_eq!(clip_suffix("pm0025_00_00_00400_attack01"), "attack01");
-        assert_eq!(clip_suffix("pm0396_00_00_00001_battlewait01_loop"), "battlewait01_loop");
+        assert_eq!(
+            clip_suffix("pm0396_00_00_00001_battlewait01_loop"),
+            "battlewait01_loop"
+        );
         assert_eq!(clip_suffix("attack01"), "attack01");
         assert_eq!(clip_suffix("walk"), "walk");
     }
@@ -1632,23 +1718,50 @@ mod tests {
     #[test]
     fn battle_clips_are_matched_exactly_not_by_substring() {
         // `attack01` must not match `rangeattack01_*`.
-        assert_eq!(pick_battle_clip(&PIKA, BattleClipSlot::Attack), Some("pm0025_00_00_00400_attack01"));
-        assert_eq!(pick_battle_clip(&PIKA, BattleClipSlot::RangedStart), Some("pm0025_00_00_00450_rangeattack01_start"));
-        assert_eq!(pick_battle_clip(&PIKA, BattleClipSlot::Down), Some("pm0025_00_00_00520_down01_start"));
-        assert_eq!(pick_battle_clip(&["pm0025_00_00_00450_rangeattack01_start"], BattleClipSlot::Attack), None);
+        assert_eq!(
+            pick_battle_clip(&PIKA, BattleClipSlot::Attack),
+            Some("pm0025_00_00_00400_attack01")
+        );
+        assert_eq!(
+            pick_battle_clip(&PIKA, BattleClipSlot::RangedStart),
+            Some("pm0025_00_00_00450_rangeattack01_start")
+        );
+        assert_eq!(
+            pick_battle_clip(&PIKA, BattleClipSlot::Down),
+            Some("pm0025_00_00_00520_down01_start")
+        );
+        assert_eq!(
+            pick_battle_clip(
+                &["pm0025_00_00_00450_rangeattack01_start"],
+                BattleClipSlot::Attack
+            ),
+            None
+        );
     }
 
     #[test]
     fn battle_idle_prefers_battlewait_and_falls_back_to_defaultwait() {
-        assert_eq!(pick_battle_clip(&PIKA, BattleClipSlot::BattleIdle), Some("pm0025_00_00_00000_defaultwait01_loop"));
-        let starly = ["pm0396_00_00_00000_defaultwait01_loop", "pm0396_00_00_00001_battlewait01_loop"];
-        assert_eq!(pick_battle_clip(&starly, BattleClipSlot::BattleIdle), Some("pm0396_00_00_00001_battlewait01_loop"));
+        assert_eq!(
+            pick_battle_clip(&PIKA, BattleClipSlot::BattleIdle),
+            Some("pm0025_00_00_00000_defaultwait01_loop")
+        );
+        let starly = [
+            "pm0396_00_00_00000_defaultwait01_loop",
+            "pm0396_00_00_00001_battlewait01_loop",
+        ];
+        assert_eq!(
+            pick_battle_clip(&starly, BattleClipSlot::BattleIdle),
+            Some("pm0396_00_00_00001_battlewait01_loop")
+        );
     }
 
     #[test]
     fn lowest_numbered_variant_wins() {
         let names = ["pm0399_00_00_10400_attack01", "pm0399_00_00_00400_attack01"];
-        assert_eq!(pick_battle_clip(&names, BattleClipSlot::Attack), Some("pm0399_00_00_00400_attack01"));
+        assert_eq!(
+            pick_battle_clip(&names, BattleClipSlot::Attack),
+            Some("pm0399_00_00_00400_attack01")
+        );
     }
 
     #[test]
