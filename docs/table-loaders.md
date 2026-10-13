@@ -27,16 +27,17 @@ preserves it as optional raw data rather than trusting that conflicting note.
 ## Not loaded
 
 `item.dat` has a documented 0x3c record stride and 807 records, but no local
-per-item TSV to load. `ha_shop_data.bin` and `makelist.bin` have structural
-field schemas but no decoded TSVs or local row counts. `field_huge_outbreak.bin`
-has an invalid table/vtable relation in the current evidence. No semantic
-loader is added for these sources.
+per-item TSV to load. `ha_shop_data.bin` still has only a structural export;
+`makelist.bin` now has a decoded numeric recipe TSV with 43 rows, but no
+semantic Rust loader is added here. `field_huge_outbreak.bin` has an invalid
+table/vtable relation in the current evidence. No semantic loader is added for
+these sources.
 
 `shop_data_fields.tsv` only supports a root vector, raw F00/F01 `ulong` layout,
 and a narrow F02 `ItemID` domain mapping; it does not prove shop behavior or
-provide rows. `crafting_recipes_fields.tsv` proposes names for F00–F11, but its
-notes are structural/type observations and there are no decoded recipe records
-or counts. Static event encounter schema exists for `poke_event_encount.bin`,
+provide rows. `crafting_recipes_fields.tsv` maps F00–F11 to the decoded numeric
+recipe sheet; recipe names and unlock conditions remain unknown. Static event
+encounter schema exists for `poke_event_encount.bin`,
 but no local decoded rows are available to load or count.
 
 See the Task C report for source paths, status details, checks, and blockers:

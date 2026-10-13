@@ -85,9 +85,9 @@ Detailed map: [`data/schemas/item_dat_fields.tsv`](../../data/schemas/item_dat_f
 
 Source hint: pkNX [`MakeList.fbs`](https://github.com/kwsch/pkNX/blob/d191cd0e5c05f2af81d9a41c1f1d82e6621b351a/FlatBuffers/Arceus/Schemas/Config/MakeList.fbs), commit `d191cd0e5c05f2af81d9a41c1f1d82e6621b351a` (GPL-3.0).
 
-**Observed:** 43 recipes have sequential IDs 1–43; result quantity is 1 throughout; material slots 1/2/3/4 appear in 43/41/15/7 rows; IDs and quantities are in the schema's u32 domain. External recipe references describe Poké Ball as two ingredients and Great Ball as three, consistent with the local optional ingredient-slot pattern, but the numeric material IDs cannot yet be joined to item names.
+**Observed:** 43 recipes have sequential IDs 1–43; result quantity is 1 throughout; material slots 1/2/3/4 appear in 43/41/15/7 rows; IDs and quantities are in the schema's u32 domain. `.tools/decode_crafting.py` exports all rows, and all 127 distinct referenced numeric IDs join the tracked `data/item_effects.tsv` IDs. The join is numeric only; item names are still unavailable.
 
-**Limit:** no local decoded recipe TSV is present in n2-input, so mappings are against the available binary records and are not rename proposals. Field layout is a structurally verified candidate; recipe names and specific result/ingredient IDs remain unverified.
+**Limit:** the local TSV now contains raw numeric recipe/result/material IDs and reproducible source provenance, but no condition field exists in `MakeList.fbs`. Recipe names, item names, and unlock conditions remain unknown; the numeric wire decode is not a rename proposal.
 
 Detailed map: [`data/schemas/crafting_recipes_fields.tsv`](../../data/schemas/crafting_recipes_fields.tsv).
 
