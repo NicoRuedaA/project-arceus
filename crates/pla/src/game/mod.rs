@@ -20,6 +20,7 @@ pub mod battle_items;
 pub mod battle_log;
 pub mod catch_rate;
 pub mod effects;
+pub mod follower;
 pub mod navigation;
 pub mod party_progress;
 pub mod player_anim;
