@@ -778,6 +778,7 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
+    app.add_plugins(pla::game::art_style::ArtStylePlugin::from_env_and_args());
     app.add_plugins(pla::game::water::WaterPlugin);
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
