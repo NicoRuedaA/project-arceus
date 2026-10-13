@@ -431,6 +431,27 @@ def classify_clip(name):
     return "other"
 
 
+CONFIGS = ("npc_ai_config", "npc_controller_config", "npc_talk_table_config", "npc_creater_config", "npc_popup_config",
+           "character_look_at_config", "npc_pokemon_ai_config")
+
+
+def config_rows(romfs):
+    """bin/misc/app_config/<name>.bin: root.f0[] = {f0 name, f2 type code, f3 min, f4 max, f5 [value, '', '']}.
+    Values are the first string of f5 (VERIFIED strings); their runtime use is ASSUMED from the parameter names."""
+    rows = []
+    for name in CONFIGS:
+        path = romfs / "misc/app_config" / f"{name}.bin"
+        if not path.exists():
+            continue
+        f = FB(path.read_bytes())
+        for r in f.tables(f.fields(f.u32(0))[0]):
+            fl = f.fields(r)
+            vals = f.strings(fl[5]) if 5 in fl else []
+            rows.append([name, opt_str(f, fl, 0), vals[0] if vals else "", ",".join(v for v in vals[1:] if v),
+                         opt_str(f, fl, 3), opt_str(f, fl, 4)])
+    return rows
+
+
 SHEET = "# sheet: data/{name}\n# version: 1\n# generator: .tools/npc_decode.py\n# target: {target}\n"
 
 
@@ -520,10 +541,11 @@ def main():
           body_motion(r["motions"]), ",".join(short(m) for m in r["motions"][1:]), r["item"], ",".join(r["hides"]),
           r["loc"], r["pack"], used.get(r["hash"], 0), ",".join(ctl.get(r["hash"], []))] for r in recipes])
 
-    write_sheet(d / "npc_paths.tsv", "npc_paths", f"{TARGET} placement kind `path` (point paths)", [
+    write_sheet(d / "npc_paths.tsv", "npc_paths", f"{TARGET} placement kind `path` (point paths used by wild spawners)", [
         "One row per path. points = number of control points (record f2 instances, f7 positions); length = polyline metres.",
         "interp = segment interpolation names (record f3 entries f4). loop = record f4 byte (meaning unknown; closed/loop ASSUMED).",
-        "No npc/npc_pokemon record references a path hash; which actor follows a path is LIKELY set by event scripts.",
+        "All 87 path names occur as strings in `spawner` placement files and in no npc/npc_pokemon file (checked by name and",
+        "by FNV hash): these are WILD-Pokemon movement paths (e.g. skypath = flyers), not NPC walking routes.",
     ], ["area:string*", "name:string*", "points:u16", "length_m:f32", "loop:u16", "interp:string?", "x0:f32", "y0:f32", "z0:f32"],
         [[p["area"], p["name"], len(p["points"]), fmt(p["length"]), p["flag4"], p["interp"]]
          + [fmt(v) for v in (p["points"][0] if p["points"] else [0, 0, 0])] for p in paths])
@@ -536,6 +558,11 @@ def main():
         "class is a name-pattern guess (ASSUMED), not data. Numbers follow the player's groups: 01xxx battle/trainer, 02xxx field,",
         "05xxx lsp poses, 07xxx gestures, 00xxx face.",
     ], ["clip:string*", "motion_dir:string*", "owner:string", "number:string", "name:string", "class:enum", "loop:bool"], crow)
+
+    write_sheet(d / "npc_config.tsv", "npc_config", f"{TARGET} NPC tuning parameters (bin/misc/app_config/*.bin)", [
+        "One row per parameter: value = first string of the parameter's value vector; extra = further non-empty values;",
+        "min/max = the editor range. Names and values VERIFIED as data; what the engine does with them is ASSUMED from the names.",
+    ], ["file:string*", "param:string*", "value:string", "extra:string?", "min:string?", "max:string?"], config_rows(a.romfs))
 
     cnt = collections.Counter(r["kind"] for r in rows)
     print(f"npc pokemon table: entry {pk_index}, {len(pokes)} rows")

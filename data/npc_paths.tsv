@@ -1,10 +1,11 @@
 # sheet: data/npc_paths
 # version: 1
 # generator: .tools/npc_decode.py
-# target: Pokémon Legends: Arceus v262144 placement kind `path` (point paths)
+# target: Pokémon Legends: Arceus v262144 placement kind `path` (point paths used by wild spawners)
 # note: One row per path. points = number of control points (record f2 instances, f7 positions); length = polyline metres.
 # note: interp = segment interpolation names (record f3 entries f4). loop = record f4 byte (meaning unknown; closed/loop ASSUMED).
-# note: No npc/npc_pokemon record references a path hash; which actor follows a path is LIKELY set by event scripts.
+# note: All 87 path names occur as strings in `spawner` placement files and in no npc/npc_pokemon file (checked by name and
+# note: by FNV hash): these are WILD-Pokemon movement paths (e.g. skypath = flyers), not NPC walking routes.
 area:string*	name:string*	points:u16	length_m:f32	loop:u16	interp:string?	x0:f32	y0:f32	z0:f32
 ha_area00	path_area00_000	10	820.883	1	LINEAR	545.39	61.037	610.47
 ha_area01	path_area01_004	4	519.459	1	LINEAR	203.3	28.05	477.2
