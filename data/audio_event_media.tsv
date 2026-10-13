@@ -1,0 +1,15 @@
+# sheet: data/audio_event_media
+# version: 1
+# generator: crates/pla/examples/audio_check.rs events
+# target: Pokémon Legends: Arceus update v262144 Wwise events whose media carry another name in data/audio_index.tsv (names found by FNV-1 hash of candidate names; media through the HIRC graph)
+# requires: bin/sound/NX64/wwise/bank/*.bnk; data/audio_index.tsv
+event:string*	event_id:u32	bank:string	media_count:u16	heuristic:bool	media:string	name_confidence:enum
+PLAY_BGM_HA_FI_AREA00	54688062	BGM	12	1	Default.pck/173410463,Default.pck/197661786,Default.pck/208100448,Default.pck/274333900,Default.pck/286447310,Default.pck/309572899,Default.pck/466576113,Default.pck/725145077,Default.pck/83067185,Default.pck/83140430,Default.pck/83466334,Default.pck/872205145	hash_guess
+PLAY_BGM_HA_FI_AREA01_DAY	374005740	BGM	4	1	Default.pck/278123494,Default.pck/692800523,Default.pck/740100681,Default.pck/789078183	hash_guess
+PLAY_BGM_HA_FI_AREA02_DAY	1897902867	BGM	4	1	Default.pck/194221197,Default.pck/300069279,Default.pck/545075506,Default.pck/58742889	hash_guess
+PLAY_BGM_HA_FI_AREA03_DAY	2595435526	BGM	4	1	Default.pck/50243904,Default.pck/695499846,Default.pck/736233210,Default.pck/940784306	hash_guess
+PLAY_BGM_HA_FI_AREA04_DAY	49847733	BGM	1	1	Default.pck/286287237	hash_guess
+PLAY_BGM_HA_FI_AREA05_DAY	4191202968	BGM	4	1	Default.pck/423293987,Default.pck/528254935,Default.pck/654514402,Default.pck/954349691	hash_guess
+PLAY_BGM_HA_FI_AREA06	54688056	BGM	1	1	Default.pck/127624853	hash_guess
+PLAY_BGM_HA_FI_CMN_NIGHT	2068568170	BGM	1	1	Default.pck/472670691	hash_guess
+PLAY_BGM_FIELD	3098808329	BGM	0	0		hash_guess

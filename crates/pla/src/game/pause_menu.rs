@@ -1,7 +1,8 @@
 //! Pause menu (Esc): a Bevy UI overlay navigable with the keyboard (arrows or W/S + Enter) and
 //! the mouse (hover + click).
 //!
-//! Options: Resume, Invert camera X axis, Invert camera Y axis, Back to safe spawn, Save game, Quit.
+//! Options: Resume, Invert camera X axis, Invert camera Y axis, Volume (master, cycles
+//! 100/75/50/25/0 %), Back to safe spawn, Save game, Quit.
 //!
 //! While [`Paused`] is `true` the plugin freezes the world by contract: every gameplay system must
 //! carry `.run_if(pla::game::state::not_paused)` (the opposite condition is
@@ -22,16 +23,18 @@ pub enum MenuOption {
     Resume,
     InvertX,
     InvertY,
+    Volume,
     SafeSpawn,
     Save,
     Quit,
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 6] = [
+pub const OPTIONS: [MenuOption; 7] = [
     MenuOption::Resume,
     MenuOption::InvertX,
     MenuOption::InvertY,
+    MenuOption::Volume,
     MenuOption::SafeSpawn,
     MenuOption::Save,
     MenuOption::Quit,
@@ -70,6 +73,10 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
             settings.invert_camera_y = !settings.invert_camera_y;
             MenuAction::SettingsChanged
         }
+        MenuOption::Volume => {
+            settings.master_volume = next_volume_step(settings.master_volume);
+            MenuAction::SettingsChanged
+        }
         MenuOption::SafeSpawn => MenuAction::SafeSpawn,
         MenuOption::Save => MenuAction::Save,
         MenuOption::Quit => MenuAction::Quit,
@@ -90,9 +97,19 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
         MenuOption::Resume => "Resume".into(),
         MenuOption::InvertX => format!("Invert camera X axis: {}", on_off(settings.invert_camera_x)),
         MenuOption::InvertY => format!("Invert camera Y axis: {}", on_off(settings.invert_camera_y)),
+        MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
         MenuOption::SafeSpawn => "Back to safe spawn".into(),
         MenuOption::Save => "Save game".into(),
         MenuOption::Quit => "Quit".into(),
+    }
+}
+
+/// Next master volume of the Volume row: 100 -> 75 -> 50 -> 25 -> 0 -> 100 (a value between
+/// steps goes down to the next step).
+pub fn next_volume_step(v: u8) -> u8 {
+    match v {
+        0 => 100,
+        v => (v.saturating_sub(1) / 25) * 25,
     }
 }
 
@@ -362,9 +379,24 @@ mod tests {
     #[test]
     fn safe_spawn_row_is_reachable_by_navigation() {
         let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 6);
+        assert_eq!(OPTIONS.len(), 7);
         assert_eq!(move_selection(i - 1, 1), i);
         assert_eq!(move_selection(i, 1), i + 1);
+    }
+
+    #[test]
+    fn volume_row_cycles_master_volume() {
+        let mut s = UserSettings::default();
+        assert_eq!(option_label(MenuOption::Volume, &s), "Volume: 100%");
+        let mut seen = Vec::new();
+        for _ in 0..5 {
+            assert_eq!(activate(MenuOption::Volume, &mut s), MenuAction::SettingsChanged);
+            seen.push(s.master_volume);
+        }
+        assert_eq!(seen, vec![75, 50, 25, 0, 100]);
+        assert_eq!(next_volume_step(60), 50);
+        assert_eq!(next_volume_step(1), 0);
+        assert_eq!(s.music_volume, 100, "only the master volume changes");
     }
 
     #[test]
