@@ -26,7 +26,7 @@ This remains a partial simulation; no Nintendo engine/SDK code was ported. Recov
 - **Turn order — VERIFIED structure:** descending action class, move priority, then agility; agility = Q12 factor, sun/Grass and snow/Ice ×133/100, paralysis ×50/100, cap 10,000, optional reversal, packed into 13 bits. Rank states do not enter agility (the old speed-stage rule is REFUTED). Equal keys: coin flip. The action-class numbering stays an explicit input (meaning UNKNOWN).
 - **Capture — VERIFIED (index terms and two-check structure; final threshold scaling LIKELY):** index `0.75*catch_rate + outbreak?10:0 + 30*rank_adjustment + 30*(1-0.66*current_hp/max_hp)*sick*ball*AI*backstrike*bait`; probability is clamped `I/255`, then two injected rolls each fail with `sqrt(1-p)`. Catch rate is passed explicitly because `data/pml_personal.tsv` does not expose that field (it is now decoded separately as personal field 17 into `data/pml_personal_extra.tsv`, e.g. Bidoof 255, Pikachu 145, Arceus 3, and the game loop passes it in); AI and bait factors are configurable inputs. Hand check: Bidoof (255), Poké Ball (0.75), full HP, rank adjustment 0, no other factors => I=198.9 and p≈78%.
 - **Accuracy — VERIFIED:** three states ×0.7/×1.0/×1.3 from the shared Spe/accuracy/evasion rank group, Q12 event modifier (round half down), roll in [0,99]; accuracy 101 never misses.
-- **UNKNOWN remains explicit:** native opponent AI policy, unknown action classes, nature mapping, capture catch rates not in typed data, style-specific move-power selection, and unrecovered late damage factors/rank-state behavior are not inferred. Switching, demo healing, status moves and residual damage are local simulation controls, not claims of recovered parity.
+- **UNKNOWN remains explicit:** native opponent AI policy, unknown action classes, nature mapping, capture catch rates not in typed data, and unrecovered late damage factors/rank-state behavior are not inferred. Switching, demo healing, status moves and residual damage are local simulation controls, not claims of recovered parity.
 
 ### Static provenance (names only)
 
@@ -40,7 +40,7 @@ The example remains interactive and deterministic by default. It reports partial
 
 - **VERIFIED (12):** `priority` (signed; quick-attack +1, extreme-speed +2, fake-out +3, protect +4, counter -5, trick-room -7, vital-throw -1), `crit_rank` (karate-chop/slash 1, storm-throw 6), `flinch_chance` (fake-out 100, bite 30, waterfall 20), `min_hits`/`max_hits` (double-kick 2/2, fury-swipes 2/5, triple-kick 3/3), `drain_pct` (signed; giga-drain +50, double-edge -33, head-smash -50), `heal_pct` (signed; recover +50, swallow 25, steel-beam -50 HP cost), `ailment_chance`, `flag_contact`, `flag_punch`, `flag_sound`, `flag_dance`.
 - **LIKELY (21):** `meta_category`, `ailment_id`/`ailment_name` (1 paralysis, 4 burn, 5 poison, 7 frostbite, 2 and 6 sleep-like with unknown difference, 8 confusion, 9 infatuation, 10 trap), `target_raw` (7 user, 5 all foes, 4 all others, 10 field, 12 own side, 13 reactive), stat slots `stat1..3_id` (1 Atk, 2 Def, 3 SpA, 4 SpD, 5 Spe, 6 Acc, 7 Eva, 8 all) with signed `stat1..3_stage` and `stat1..3_chance` (0 = always on status moves), `style_flag`, and the flags charge, recharge, protectable, reflectable, snatchable, defrost, heal.
-- **RAW (49):** `effect_id` and 48 `raw_fNN` slots (the PLA agile/strong style values, several per-move bytes and four-byte values). Their meaning is not established and they are not used by the engine.
+- **RAW (49):** `effect_id` and 48 `raw_fNN` slots. The agile/strong style slots among them (`raw_f68..raw_f88`) are now mapped in [`data/move_style_fields.tsv`](../../data/move_style_fields.tsv) and read by the opt-in styles module ([styles report](battle_styles.md)); the other slots' meaning is not established and they are not used by the engine.
 - Stat stage deltas are small in the data (Swords Dance +1, Agility +2, Growl -1). This is consistent with the notes' finding that PLA keeps only three rank states (down, neutral, up).
 
 ## Engine support for move effects (`pla::battle_engine::effects`)
@@ -68,7 +68,7 @@ Opt-in through `Battle::set_status_rules(StatusRules)`; `StatusRules::default()`
 | Speed rank in turn order | `speed_stages` | the game's agility ignores ranks | REFUTED, no effect now |
 | Rank states ×1.5/×0.66 on the base damage; rank changes expire after their turns (`raw_f31..f33`) | `stage_multipliers` | game code | VERIFIED |
 
-Unsupported: semi-invulnerable charge turns (Fly/Dig have no flag in the table), Endure, Counter/Mirror Coat, Magic Coat/Snatch, avoid-up, Fixated, Alpha multipliers and stage behaviour beyond three states. Status expiry is reported through `Battle::take_rule_events()` (`RuleEvent::StatusExpired`); rank expiry through `EffectEvent::StagesChanged { new_state: 0 }`.
+Unsupported: semi-invulnerable charge turns (Fly/Dig have no flag in the table), Endure, Counter/Mirror Coat, Magic Coat/Snatch, avoid-up, Fixated and Alpha multipliers (opt-in helpers now in the styles module, see below), and stage behaviour beyond three states. Status expiry is reported through `Battle::take_rule_events()` (`RuleEvent::StatusExpired`); rank expiry through `EffectEvent::StagesChanged { new_state: 0 }`.
 
 ## Status rules wired into the game loop
 
@@ -108,6 +108,10 @@ Pikachu L25 Atk 65, Bidoof L5 HP 68 and Def 31; base damage
 gives the wild Bidoof a 500 HP pool so both kicks connect. **Verified** only by unit tests and the
 non-windowed example (`cargo test -p pla statuses battle_log battle_controller`; full
 `cargo test -p pla`).
+
+## Agile/Strong styles and action order (`pla::battle_engine::styles`)
+
+Opt-in (brief 29, [styles report](battle_styles.md)). VERIFIED by static reading: style 1 = strong, 2 = agile; power, accuracy and action points per style; consecutive agile uses weakened by 3^min(n,4); the action-order queue (wait `ceil(16 - agility^0.4)`, lowest wait acts, ties: not the last actor, higher agility, lower position; 6-turn list). `Battle::play_turn_styled` equals `play_turn` when no style, table or queue is used. UNKNOWN: extra PP for a style (1 PP assumed), the cause of Fixated (x1.5/x1.33 opt-in via `set_fixated`). Alpha stats x1.5 via `apply_alpha_power` (truncation ASSUMED). Not wired into the game screens yet.
 
 ## Items
 
