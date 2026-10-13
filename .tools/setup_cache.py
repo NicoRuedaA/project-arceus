@@ -761,61 +761,61 @@ def build_steps() -> list[Step]:
     ex = "crates/pla/examples/{}.rs".format
     stg = lambda ctx, s: ctx.layout.staging / s  # noqa: E731
     return [
-        Step("base-sections", "Unpack the base game (decompress its sections)", [], int(6.5 * GB), "~2-5 min",
+        Step("base-sections", "Unpack the base game (decompress its sections)", [], int(6.5 * GB), "~1 min",
              base_sections_outputs,
              lambda ctx: [show_cmd(py(ctx, "ncz_extract.py") + [str(ctx.inputs.get("base") or "<your pk1.nsz>"),
                                                                  str(stg(ctx, "base-sections")), "--no-entries"])],
              run_base_sections, inputs=("base",), pinned_output=True,
              size_roots=lambda ctx: [ctx.layout.pk1 / "sections", ctx.layout.pk1 / "manifest.json"]),
-        Step("update-sections", "Unpack the update (decompress its sections)", [], int(0.1 * GB), "~5 s",
+        Step("update-sections", "Unpack the update (decompress its sections)", [], int(0.1 * GB), "~10 s",
              lambda ctx: [ctx.layout.pk2 / "manifest.json"] + ([exefs_section_file(ctx)] if exefs_section_file(ctx) else []),
              lambda ctx: [show_cmd(py(ctx, "ncz_extract.py") + [str(ctx.inputs.get("update") or "<your pk2.nsz>"),
                                                                  str(stg(ctx, "update-sections")), "--no-entries"])],
              run_update_sections, inputs=("update",), pinned_output=True,
              size_roots=lambda ctx: [ctx.layout.pk2 / "sections", ctx.layout.pk2 / "manifest.json"]),
         Step("romfs", "Rebuild the game data folder (base + update overlay)", ["base-sections", "update-sections"],
-             int(6.5 * GB), "~5-15 min",
+             int(6.5 * GB), "~2-5 min",
              lambda ctx: [ctx.layout.bin_root, ctx.layout.listing],
              lambda ctx: [show_cmd(romfs_cmd(ctx, stg(ctx, "romfs")))],
              run_romfs, inputs=("update", "keys"), pinned_output=True),
         Step("main-elf", "Extract the update's program file (only the audio step reads it)", ["update-sections"],
-             int(0.11 * GB), "~5 s",
+             int(0.08 * GB), "~5 s",
              lambda ctx: [ctx.layout.pk2 / "main.elf"],
              lambda ctx: ["(built in) read 'main' from the update ExeFS section, then "
                           + show_cmd(py(ctx, "nso_to_elf.py") + [str(stg(ctx, "main-elf") / "main.nso"),
                                                                   str(stg(ctx, "main-elf") / "main.elf")])],
              run_main_elf, optional="audio", pinned_output=True),
-        Step("terrain-albedo", "Bake the ground colour of each area", ["romfs"], int(0.15 * GB), "~5-10 s per area",
+        Step("terrain-albedo", "Bake the ground colour of each area", ["romfs"], int(0.2 * GB), "~1 min",
              area_outputs("terrain_albedo", "area{:02d}.png"),
              lambda ctx: [show_cmd(c) for c in bake_cmds(ctx, "terrain_albedo_bake", stg(ctx, "terrain-albedo"), ["--size", "4096"])],
              run_bake("terrain_albedo_bake", "terrain_albedo", ["--size", "4096"]),
              params=lambda ctx: {"areas": ctx.areas, "size": 4096}, sources=[ex("terrain_albedo_bake")]),
-        Step("terrain-normals", "Bake the ground relief (normal maps) of each area", ["romfs"], int(0.06 * GB),
-             "~5-10 s per area",
+        Step("terrain-normals", "Bake the ground relief (normal maps) of each area", ["romfs"], int(0.05 * GB),
+             "~15 s",
              area_outputs("terrain_normals", "area{:02d}.png"),
              lambda ctx: [show_cmd(c) for c in bake_cmds(ctx, "terrain_normals_bake", stg(ctx, "terrain-normals"), [])],
              run_bake("terrain_normals_bake", "terrain_normals", []),
              params=lambda ctx: {"areas": ctx.areas}, sources=[ex("terrain_normals_bake")]),
-        Step("minimap", "Draw the minimap of each area", ["terrain-albedo"], int(0.01 * GB), "~10 s",
+        Step("minimap", "Draw the minimap of each area", ["terrain-albedo"], int(0.015 * GB), "~10 s",
              lambda ctx: [ctx.layout.cache / "minimap"],
              lambda ctx: [show_cmd(minimap_cmd(ctx, stg(ctx, "minimap")))],
              run_minimap, params=lambda ctx: {"areas": ctx.areas}, sources=[ex("minimap_report")]),
-        Step("field-models", "Convert the scenery models (houses, trees, rocks...)", ["romfs"], int(0.9 * GB),
-             "~2-5 min",
+        Step("field-models", "Convert the scenery models (houses, trees, rocks...)", ["romfs"], int(0.5 * GB),
+             "~3 min",
              lambda ctx: [ctx.layout.cache / "gltf_field"],
              lambda ctx: [show_cmd(field_cmd(ctx, stg(ctx, "field-models")))],
              run_field, sources=[ex("export_field_gltf_batch")]),
-        Step("pokemon-models", "Convert the Pokémon models", ["romfs"], int(0.9 * GB), "~3-5 min",
+        Step("pokemon-models", "Convert the Pokémon models", ["romfs"], int(0.9 * GB), "~10 min",
              lambda ctx: [ctx.layout.cache / "pokemon_batch"],
              lambda ctx: [show_cmd(pokemon_cmd(ctx, stg(ctx, "pokemon-models")))],
              run_pokemon, params=lambda ctx: {"only": ctx.args.pokemon_only},
              sources=[ex("pokemon_batch_export")]),
-        Step("player-model", "Assemble the player character", ["romfs"], int(0.1 * GB), "~10-30 s",
+        Step("player-model", "Assemble the player character", ["romfs"], int(0.02 * GB), "~15 s",
              lambda ctx: [ctx.layout.cache / "player" / "p1_default" / "player.gltf",
                           ctx.layout.cache / "player" / "p2_default" / "player.gltf"],
              lambda ctx: [show_cmd(player_cmd(ctx, stg(ctx, "player-model")))],
              run_player, sources=[ex("player_export")], size_roots=lambda ctx: [ctx.layout.cache / "player"]),
-        Step("audio", "Decode music, sound effects and cries", ["romfs", "main-elf"], int(5.6 * GB), "~2-5 min",
+        Step("audio", "Decode music, sound effects and cries", ["romfs", "main-elf"], int(5.0 * GB), "~1 min",
              lambda ctx: [ctx.layout.cache / "audio"],
              lambda ctx: [show_cmd(audio_cmd(ctx), {"PLA_CACHE_ROOT": str(stg(ctx, "audio"))})],
              run_audio, params=lambda ctx: {"bank": ctx.args.audio_bank}, sources=[ex("audio_export")],
@@ -940,7 +940,7 @@ def missing_modules(python: Path) -> list[str]:
 
 
 def disk_problem(ctx: Context, plan: Plan) -> str | None:
-    need = sum(s.est_bytes for s in plan.to_run) + (int(15 * GB) if plan.needs_build and not ctx.target_dir.exists() else 0)
+    need = sum(s.est_bytes for s in plan.to_run) + (int(4 * GB) if plan.needs_build and not ctx.target_dir.exists() else 0)
     probe = ctx.layout.work if ctx.layout.work.exists() else ctx.layout.work.parent
     free = shutil.disk_usage(probe).free
     margin = int(2 * GB)
@@ -963,7 +963,7 @@ def print_plan(ctx: Context, plan: Plan, out: Callable[[str], None]) -> None:
         out(f"  {step.name:<16} {status:<8} {human_bytes(step.est_bytes):>8}  {step.est_time:<17} {action}")
     out("")
     if plan.needs_build:
-        out("Build first (cargo is incremental; it only recompiles what changed, ~10-30 min the first time):")
+        out("Build first (cargo is incremental; it only recompiles what changed; ~12 min the first time here):")
         out(f"  {show_cmd(build_cmd(ctx))}")
     if plan.to_run:
         out(f"Steps that would run, in order ({len(plan.to_run)}):")
@@ -1015,7 +1015,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                     help="never run these steps")
     ap.add_argument("--force", type=lambda s: [x for x in s.split(",") if x], default=[],
                     help="redo these steps even if done ('all' for every step)")
-    ap.add_argument("--no-audio", action="store_true", help="skip the audio steps (saves ~5.6 GB)")
+    ap.add_argument("--no-audio", action="store_true", help="skip the audio steps (saves ~4.9 GB)")
     ap.add_argument("--with-terrain-layers", action="store_true",
                     help="also export the ground layer textures (for editing improved textures)")
     ap.add_argument("--areas", type=lambda s: sorted({int(x) for x in s.split(",") if x != ""}), default=ALL_AREAS,
