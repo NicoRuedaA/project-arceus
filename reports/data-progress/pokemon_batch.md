@@ -41,3 +41,15 @@ Colour is done as a flat base colour (see [pokemon_color.md](pokemon_color.md)).
 ## Battle clips (2026-10-12)
 
 `pokemon_batch_export --force` now writes `<stem>_battle.gltf` next to `_idle` / `_walk` (8 battle clips, see [pokemon_animation.md](pokemon_animation.md)). Latest full re-export (Brief 19): 356 ok / 0 blocked; 344 packs with 10 clips, 2 with 8, 10 static-only. `clip_count` in the index counts clips (idle + walk + battle). Cache 841 MB.
+
+## Rare material support (Brief 17)
+
+The local pack index has an authored `rare` material name for 351/356 indexed
+packs (**VERIFIED source-name evidence**). The exporter accepts `--rare` and
+writes sibling `*_rare_idle.gltf`, `*_rare_walk.gltf`, `*_rare_battle.gltf`, or
+`*_rare_static.gltf` files using that material; normal exports remain the
+default. No full 841 MB re-export was run here. The bounded rare path exported
+Pikachu with 10 clips and 9 textures; its status is recorded separately from
+the normal `.status` file. See [pokemon_variants.md](pokemon_variants.md)
+for the raw app-config decode and the explicit **VERIFIED/PROBABLE/SUPPOSED/
+UNKNOWN** boundaries.

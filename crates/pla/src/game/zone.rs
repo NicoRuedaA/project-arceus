@@ -918,7 +918,9 @@ pub fn apply_zone_change(
     }
     // Placed-object walls live in the old area's frame: swap them for the new area's (or none),
     // otherwise the old houses would stand as invisible walls in the new area.
-    if let Some(mut walls) = world.get_resource_mut::<crate::game::world_collision::WorldCollision>() {
+    if let Some(mut walls) =
+        world.get_resource_mut::<crate::game::world_collision::WorldCollision>()
+    {
         if let Err(e) = walls.switch_area(area_idx) {
             eprintln!("zone: no placed-object walls in ha_area{area_idx:02}: {e}");
         }
@@ -962,7 +964,10 @@ pub fn apply_zone_change(
 /// Despawn every creature streamed from the previous area's spawners (with its model children)
 /// and install `spawners` as the active table. Clearing only the tracking map would orphan those
 /// entities: nothing would ever unload them again.
-pub fn replace_area_spawners(world: &mut World, spawners: Vec<crate::game::wild::SpawnerDefinition>) {
+pub fn replace_area_spawners(
+    world: &mut World,
+    spawners: Vec<crate::game::wild::SpawnerDefinition>,
+) {
     if let Some(mut consumed) = world.get_resource_mut::<crate::game::wild::ConsumedSpawners>() {
         consumed.clear();
     }
@@ -1207,11 +1212,16 @@ mod tests {
         assert!(active.spawned_entities.is_empty());
         assert_eq!(active.spawners.len(), 1);
         assert_eq!(active.spawners[0].spawner_id, "new");
-        assert!(world.get_entity(creature).is_err(), "old creature despawned");
+        assert!(
+            world.get_entity(creature).is_err(),
+            "old creature despawned"
+        );
         assert!(world.get_entity(model).is_err(), "its model child too");
         assert!(world.get_entity(unrelated).is_ok());
         assert!(
-            !world.resource::<crate::game::wild::ConsumedSpawners>().is_consumed("new", 1.0),
+            !world
+                .resource::<crate::game::wild::ConsumedSpawners>()
+                .is_consumed("new", 1.0),
             "spawner ids repeat across areas: the consumed set is reset"
         );
     }
@@ -1664,13 +1674,19 @@ mod tests {
         use bevy::state::app::StatesPlugin;
 
         let links = sheet();
-        let door = links.by_name("DOOR_AREA00_S01_1_TO_AREA00").unwrap().clone();
+        let door = links
+            .by_name("DOOR_AREA00_S01_1_TO_AREA00")
+            .unwrap()
+            .clone();
         let sheet_path = find_data_file("warp_links.tsv").unwrap();
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, StatesPlugin));
         app.init_state::<GameState>();
         app.insert_resource(ButtonInput::<KeyCode>::default());
-        app.add_plugins(ZonePlugin { links_path: Some(sheet_path), debug_links: true });
+        app.add_plugins(ZonePlugin {
+            links_path: Some(sheet_path),
+            debug_links: true,
+        });
         app.insert_resource(ActiveZoneInfo {
             area: "ha_area00".into(),
             name: zone_display_name("ha_area00"),
@@ -1683,14 +1699,21 @@ mod tests {
         assert_eq!(app.world().resource::<ZoneLinks>().len(), 134);
         assert!(app.world().resource::<ZoneLoading>().is_idle());
 
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyE);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyE);
         app.update();
         assert_eq!(
             app.world().resource::<ZoneLoading>().phase,
             ZonePhase::FadingOut,
             "door interact started the change"
         );
-        let target = app.world().resource::<ZoneLoading>().pending.as_ref().unwrap();
+        let target = app
+            .world()
+            .resource::<ZoneLoading>()
+            .pending
+            .as_ref()
+            .unwrap();
         assert_eq!(target.zone, door.to_area);
         assert_eq!(target.source, ZoneChangeSource::Door);
 

@@ -32,7 +32,8 @@ use bevy::prelude::*;
 
 use super::clock::GameClock;
 use super::distortion::{
-    DistortionCue, DistortionData, DistortionMachine, EventSpawnSlot, Phase, WormholeConfig, ITEM_DROPS_PER_DISTORTION,
+    DistortionCue, DistortionData, DistortionMachine, EventSpawnSlot, Phase, WormholeConfig,
+    ITEM_DROPS_PER_DISTORTION,
 };
 use super::input_map::{Action, ActionState};
 use super::outbreak::{encount_keys, massive_outbreak_report, MassiveOutbreakReport, OutbreakData};
@@ -40,7 +41,10 @@ use super::save_wire::{PlayerProgress, SaveToast};
 use super::state::{not_paused, GameState};
 use super::ui::ActiveZoneInfo;
 use super::weather::WeatherState;
-use super::wild::{splitmix64, ActiveAreaSpawners, ConsumedSpawners, SpawnSpeciesEntry, SpawnerDefinition, WildCreature};
+use super::wild::{
+    splitmix64, ActiveAreaSpawners, ConsumedSpawners, SpawnSpeciesEntry, SpawnerDefinition,
+    WildCreature,
+};
 use super::world_objects::find_data_file;
 use super::PlayerAvatar;
 
@@ -64,7 +68,10 @@ impl<'a> Sheet<'a> {
     pub fn parse(text: &'a str) -> Self {
         let mut cols = HashMap::new();
         let mut rows = Vec::new();
-        for line in text.lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()) {
+        for line in text
+            .lines()
+            .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
+        {
             let c: Vec<&str> = line.split('\t').collect();
             if cols.is_empty() {
                 for (i, h) in c.iter().enumerate() {
@@ -87,7 +94,11 @@ impl<'a> Sheet<'a> {
 
     /// Cell of row `r`, column `name`; empty when either is missing.
     pub fn get(&self, r: usize, name: &str) -> &'a str {
-        self.cols.get(name).and_then(|&i| self.rows.get(r).and_then(|row| row.get(i))).copied().unwrap_or("")
+        self.cols
+            .get(name)
+            .and_then(|&i| self.rows.get(r).and_then(|row| row.get(i)))
+            .copied()
+            .unwrap_or("")
     }
 }
 
@@ -124,7 +135,13 @@ const WEATHER_COLS: [&str; 8] = [
 pub fn parse_slot(s: &Sheet, r: usize) -> Option<EventSlot> {
     let species_id = s.get(r, "species_id").parse().ok()?;
     let min_level: u8 = s.get(r, "min_level").parse().unwrap_or(1);
-    let mult = |n: &str| s.get(r, n).parse::<f32>().ok().filter(|v| v.is_finite()).unwrap_or(1.0);
+    let mult = |n: &str| {
+        s.get(r, n)
+            .parse::<f32>()
+            .ok()
+            .filter(|v| v.is_finite())
+            .unwrap_or(1.0)
+    };
     Some(EventSlot {
         species_id,
         species: s.get(r, "species").to_lowercase(),
@@ -132,7 +149,11 @@ pub fn parse_slot(s: &Sheet, r: usize) -> Option<EventSlot> {
         alpha: s.get(r, "alpha") == "1",
         weight: s.get(r, "weight").parse().unwrap_or(0),
         min_level,
-        max_level: s.get(r, "max_level").parse().unwrap_or(min_level).max(min_level),
+        max_level: s
+            .get(r, "max_level")
+            .parse()
+            .unwrap_or(min_level)
+            .max(min_level),
         time: TIME_COLS.map(mult),
         weather: WEATHER_COLS.map(mult),
         condition: s.get(r, "condition").to_string(),
@@ -150,7 +171,11 @@ pub fn effective_weight(slot: &EventSlot, time_slot: usize, weather_id: u8) -> f
 }
 
 /// Species entries for the existing spawner code: alpha slots skipped, zero weights removed.
-pub fn entries_for(slots: &[EventSlot], time_slot: usize, weather_id: u8) -> Vec<SpawnSpeciesEntry> {
+pub fn entries_for(
+    slots: &[EventSlot],
+    time_slot: usize,
+    weather_id: u8,
+) -> Vec<SpawnSpeciesEntry> {
     slots
         .iter()
         .filter(|s| !s.alpha)
@@ -159,6 +184,9 @@ pub fn entries_for(slots: &[EventSlot], time_slot: usize, weather_id: u8) -> Vec
             (w > 0.0).then(|| SpawnSpeciesEntry {
                 species_id: s.species_id,
                 species_name: s.species.clone(),
+                form: s.form,
+                alpha: s.alpha,
+                unique_alpha: false,
                 min_level: s.min_level,
                 max_level: s.max_level,
                 weight: w.round().clamp(1.0, f32::from(u16::MAX)) as u16,
@@ -195,10 +223,16 @@ pub struct StoryGate {
 }
 
 impl StoryGate {
-    pub const ANY: Self = Self { cmp: Cmp::Any, a: 0, b: 0 };
+    pub const ANY: Self = Self {
+        cmp: Cmp::Any,
+        a: 0,
+        b: 0,
+    };
 
     pub fn new(cmp: &str, a: &str, b: &str) -> Self {
-        let (Ok(av), bv) = (a.parse::<u32>(), b.parse::<u32>().ok()) else { return Self::ANY };
+        let (Ok(av), bv) = (a.parse::<u32>(), b.parse::<u32>().ok()) else {
+            return Self::ANY;
+        };
         let cmp = match cmp {
             "less_than_equal" => Cmp::Le,
             "greater_than_equal" => Cmp::Ge,
@@ -207,7 +241,11 @@ impl StoryGate {
             "not_equal" => Cmp::Ne,
             _ => Cmp::Any,
         };
-        Self { cmp, a: av, b: bv.unwrap_or(av) }
+        Self {
+            cmp,
+            a: av,
+            b: bv.unwrap_or(av),
+        }
     }
 
     pub fn matches(&self, story: u32) -> bool {
@@ -238,18 +276,34 @@ pub struct WorldEventsConfig {
 
 impl Default for WorldEventsConfig {
     fn default() -> Self {
-        Self { enabled: true, story: DEFAULT_STORY, seed: 0x3e7e_17a5, time_scale: 1.0, distortion_now: false, force_outbreak: None }
+        Self {
+            enabled: true,
+            story: DEFAULT_STORY,
+            seed: 0x3e7e_17a5,
+            time_scale: 1.0,
+            distortion_now: false,
+            force_outbreak: None,
+        }
     }
 }
 
 impl WorldEventsConfig {
     pub fn from_args(args: &[String]) -> Self {
-        let val = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
+        let val = |flag: &str| {
+            args.iter()
+                .position(|a| a == flag)
+                .and_then(|i| args.get(i + 1))
+                .cloned()
+        };
         let d = Self::default();
         Self {
             enabled: !args.iter().any(|a| a == "--no-world-events"),
-            story: val("--story").and_then(|s| s.parse().ok()).unwrap_or(d.story),
-            seed: val("--event-seed").and_then(|s| s.parse().ok()).unwrap_or(d.seed),
+            story: val("--story")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(d.story),
+            seed: val("--event-seed")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(d.seed),
             time_scale: val("--event-time-scale")
                 .and_then(|s| s.parse::<f32>().ok())
                 .filter(|v| v.is_finite() && *v > 0.0)
@@ -273,7 +327,12 @@ pub struct SlotState {
 
 impl SlotState {
     fn new(slot: EventSpawnSlot) -> Self {
-        Self { slot, generation: 0, respawn_in: None, retired: false }
+        Self {
+            slot,
+            generation: 0,
+            respawn_in: None,
+            retired: false,
+        }
     }
 
     /// Current synthetic spawner id.
@@ -373,7 +432,12 @@ pub struct WorldEvents {
 }
 
 impl WorldEvents {
-    pub fn new(config: WorldEventsConfig, wormhole: Option<WormholeConfig>, distortions: DistortionData, outbreaks: OutbreakData) -> Self {
+    pub fn new(
+        config: WorldEventsConfig,
+        wormhole: Option<WormholeConfig>,
+        distortions: DistortionData,
+        outbreaks: OutbreakData,
+    ) -> Self {
         let rng = config.seed ^ 0xd157_0271;
         Self {
             config,
@@ -433,21 +497,40 @@ impl WorldEvents {
     pub fn roll_outbreak(&mut self) -> Vec<WorldEventCue> {
         let mut cues = Vec::new();
         if let Some(old) = self.outbreak.take() {
-            cues.push(self.cue(WorldEventKind::OutbreakEnd, Vec3::ZERO, format!("outbreak {} ({}) is over (day changed)", old.id, old.species)));
+            cues.push(self.cue(
+                WorldEventKind::OutbreakEnd,
+                Vec3::ZERO,
+                format!(
+                    "outbreak {} ({}) is over (day changed)",
+                    old.id, old.species
+                ),
+            ));
         }
         let area = self.area.clone();
         let id = match self.config.force_outbreak {
             Some(None) => None,
             Some(Some(id)) if !self.start_area_forced => {
                 self.start_area_forced = true;
-                self.outbreaks.spawners.contains_key(&(area.clone(), id)).then_some(id)
+                self.outbreaks
+                    .spawners
+                    .contains_key(&(area.clone(), id))
+                    .then_some(id)
             }
-            _ => self.outbreaks.draw(&area, self.config.story, self.day, self.config.seed),
+            _ => self
+                .outbreaks
+                .draw(&area, self.config.story, self.day, self.config.seed),
         };
         if let Some(id) = id {
-            let slots: Vec<SlotState> = self.outbreaks.spawn_slots(&area, id, self.config.seed ^ u64::from(self.day)).into_iter().map(SlotState::new).collect();
+            let slots: Vec<SlotState> = self
+                .outbreaks
+                .spawn_slots(&area, id, self.config.seed ^ u64::from(self.day))
+                .into_iter()
+                .map(SlotState::new)
+                .collect();
             let species = self.outbreaks.species(&area, id).unwrap_or("?").to_string();
-            let total = self.outbreaks.roll_total(&area, id, self.day, self.config.seed);
+            let total = self
+                .outbreaks
+                .roll_total(&area, id, self.day, self.config.seed);
             let mut slots = slots;
             for s in slots.iter_mut().skip(usize::from(total)) {
                 s.retired = true;
@@ -456,9 +539,20 @@ impl WorldEvents {
             cues.push(self.cue(
                 WorldEventKind::OutbreakStart,
                 pos,
-                format!("mass outbreak {id} in {area}: {total} x {species} near ({:.0}, {:.0})", pos.x, pos.z),
+                format!(
+                    "mass outbreak {id} in {area}: {total} x {species} near ({:.0}, {:.0})",
+                    pos.x, pos.z
+                ),
             ));
-            self.outbreak = Some(ActiveOutbreak { area, id, day: self.day, species, total, cleared: 0, slots });
+            self.outbreak = Some(ActiveOutbreak {
+                area,
+                id,
+                day: self.day,
+                species,
+                total,
+                cleared: 0,
+                slots,
+            });
         }
         self.dirty = true;
         cues
@@ -485,7 +579,9 @@ impl WorldEvents {
         if let (Some(cfg), Some(mut m)) = (self.wormhole.clone(), self.machine.take()) {
             let candidates = self.distortions.candidates(&self.area, self.config.story);
             let sites = &self.distortions.sites;
-            let dist = |i: usize| player.map_or(0.0, |p| sites.get(i).map_or(0.0, |s| s.centre.distance(p)));
+            let dist = |i: usize| {
+                player.map_or(0.0, |p| sites.get(i).map_or(0.0, |s| s.centre.distance(p)))
+            };
             let cues = m.tick(scaled, &cfg, &candidates, dist, &mut self.rng);
             let serial = m.serial;
             self.machine = Some(m);
@@ -508,10 +604,14 @@ impl WorldEvents {
     }
 
     fn apply_distortion_cue(&mut self, c: DistortionCue, serial: u32) -> Vec<WorldEventCue> {
-        let site_of = |d: &DistortionData, i: usize| d.sites.get(i).map(|s| (s.name.clone(), s.centre));
+        let site_of =
+            |d: &DistortionData, i: usize| d.sites.get(i).map(|s| (s.name.clone(), s.centre));
         let mut out = Vec::new();
         match c {
-            DistortionCue::NoSite => self.note(format!("{}: no distortion site open at story {}", self.area, self.config.story)),
+            DistortionCue::NoSite => self.note(format!(
+                "{}: no distortion site open at story {}",
+                self.area, self.config.story
+            )),
             DistortionCue::NoticeStart { site } => {
                 let (name, pos) = site_of(&self.distortions, site).unwrap_or_default();
                 let left = self.machine.as_ref().map_or(0.0, |m| m.remaining_s);
@@ -519,11 +619,20 @@ impl WorldEvents {
             }
             DistortionCue::AppearCountdown { site } => {
                 let (name, pos) = site_of(&self.distortions, site).unwrap_or_default();
-                out.push(self.cue(WorldEventKind::DistortionAppearCountdown, pos, format!("distortion {name} appears in a few seconds")));
+                out.push(self.cue(
+                    WorldEventKind::DistortionAppearCountdown,
+                    pos,
+                    format!("distortion {name} appears in a few seconds"),
+                ));
             }
             DistortionCue::Materialize { site } => {
                 let seed = self.config.seed ^ u64::from(serial) << 20;
-                self.distortion_slots = self.distortions.spawn_slots(site, self.config.story, seed).into_iter().map(SlotState::new).collect();
+                self.distortion_slots = self
+                    .distortions
+                    .spawn_slots(site, self.config.story, seed)
+                    .into_iter()
+                    .map(SlotState::new)
+                    .collect();
                 for s in &mut self.distortion_slots {
                     s.slot.key = format!("{}@{serial}", s.slot.key);
                 }
@@ -531,26 +640,42 @@ impl WorldEvents {
                     .distortions
                     .loot_plan(site, ITEM_DROPS_PER_DISTORTION, seed)
                     .into_iter()
-                    .map(|(pos, item)| LootDrop { pos, item, taken: false })
+                    .map(|(pos, item)| LootDrop {
+                        pos,
+                        item,
+                        taken: false,
+                    })
                     .collect();
                 self.dirty = true;
                 let (name, pos) = site_of(&self.distortions, site).unwrap_or_default();
                 let n = self.distortion_slots.len();
                 let items = self.loot.len();
-                out.push(self.cue(WorldEventKind::DistortionMaterialize, pos, format!("distortion {name} is active: {n} Pokémon slot(s), {items} item(s)")));
+                out.push(self.cue(
+                    WorldEventKind::DistortionMaterialize,
+                    pos,
+                    format!("distortion {name} is active: {n} Pokémon slot(s), {items} item(s)"),
+                ));
             }
             DistortionCue::VanishWarning { site, last } => {
                 let (name, pos) = site_of(&self.distortions, site).unwrap_or_default();
                 let left = self.machine.as_ref().map_or(0.0, |m| m.remaining_s);
                 let what = if last { "final" } else { "middle" };
-                out.push(self.cue(WorldEventKind::DistortionVanishWarning, pos, format!("distortion {name} fades in {left:.0} s ({what} warning)")));
+                out.push(self.cue(
+                    WorldEventKind::DistortionVanishWarning,
+                    pos,
+                    format!("distortion {name} fades in {left:.0} s ({what} warning)"),
+                ));
             }
             DistortionCue::End { site } => {
                 self.distortion_slots.clear();
                 self.loot.clear();
                 self.dirty = true;
                 let (name, pos) = site_of(&self.distortions, site).unwrap_or_default();
-                out.push(self.cue(WorldEventKind::DistortionEnd, pos, format!("distortion {name} is over")));
+                out.push(self.cue(
+                    WorldEventKind::DistortionEnd,
+                    pos,
+                    format!("distortion {name} is over"),
+                ));
             }
         }
         out
@@ -559,7 +684,10 @@ impl WorldEvents {
     /// Count defeated / caught event Pokémon (their spawner id was consumed).
     pub fn observe_consumed(&mut self, consumed: impl Fn(&str) -> bool) -> Vec<WorldEventCue> {
         let mut out = Vec::new();
-        let (min_s, max_s) = self.wormhole.as_ref().map_or((15.0, 23.0), |c| (c.spawn_time_min_s, c.spawn_time_max_s));
+        let (min_s, max_s) = self
+            .wormhole
+            .as_ref()
+            .map_or((15.0, 23.0), |c| (c.spawn_time_min_s, c.spawn_time_max_s));
         for i in 0..self.distortion_slots.len() {
             let s = &self.distortion_slots[i];
             if s.respawn_in.is_none() && consumed(&s.spawner_id()) {
@@ -583,7 +711,11 @@ impl WorldEvents {
         }
         if let Some((id, species, n)) = ended {
             self.outbreak = None;
-            out.push(self.cue(WorldEventKind::OutbreakEnd, Vec3::ZERO, format!("outbreak {id} cleared: {n} x {species}")));
+            out.push(self.cue(
+                WorldEventKind::OutbreakEnd,
+                Vec3::ZERO,
+                format!("outbreak {id} cleared: {n} x {species}"),
+            ));
         }
         out
     }
@@ -598,8 +730,17 @@ impl WorldEvents {
             radius: s.slot.radius,
             entries: s.slot.entries(time_slot, weather_id),
         };
-        if self.machine.as_ref().is_some_and(|m| m.phase == Phase::Active) {
-            out.extend(self.distortion_slots.iter().filter(|s| s.respawn_in.is_none()).map(def));
+        if self
+            .machine
+            .as_ref()
+            .is_some_and(|m| m.phase == Phase::Active)
+        {
+            out.extend(
+                self.distortion_slots
+                    .iter()
+                    .filter(|s| s.respawn_in.is_none())
+                    .map(def),
+            );
         }
         if let Some(o) = &self.outbreak {
             out.extend(o.slots.iter().filter(|s| !s.retired).map(def));
@@ -621,9 +762,18 @@ impl WorldEvents {
 
     /// Bring `active` in line with the events. Returns the entities to despawn (spawners that
     /// left the list while their creature was alive). Creatures in battle are kept for now.
-    pub fn reconcile(&mut self, active: &mut ActiveAreaSpawners, time_slot: usize, weather_id: u8, in_battle: impl Fn(Entity) -> bool) -> Vec<Entity> {
+    pub fn reconcile(
+        &mut self,
+        active: &mut ActiveAreaSpawners,
+        time_slot: usize,
+        weather_id: u8,
+        in_battle: impl Fn(Entity) -> bool,
+    ) -> Vec<Entity> {
         let conditions = (time_slot, weather_id);
-        if !self.dirty && active.spawners.len() == self.applied_len && conditions == self.applied_conditions {
+        if !self.dirty
+            && active.spawners.len() == self.applied_len
+            && conditions == self.applied_conditions
+        {
             return Vec::new();
         }
         let desired = self.desired_spawners(time_slot, weather_id);
@@ -634,7 +784,8 @@ impl WorldEvents {
         let mut stashed = Vec::new();
         active.spawners.retain(|s| {
             let event = s.spawner_id.starts_with(EVENT_ID_PREFIX);
-            let unwanted = suppressed.contains(&s.spawner_id) || (event && !desired_ids.contains(&s.spawner_id));
+            let unwanted = suppressed.contains(&s.spawner_id)
+                || (event && !desired_ids.contains(&s.spawner_id));
             if !unwanted {
                 return true;
             }
@@ -653,7 +804,12 @@ impl WorldEvents {
             self.stash.insert(s.spawner_id.clone(), s);
         }
         // Suppression lifted (outbreak over): put the regular spawners back.
-        let back: Vec<String> = self.stash.keys().filter(|id| !suppressed.contains(*id)).cloned().collect();
+        let back: Vec<String> = self
+            .stash
+            .keys()
+            .filter(|id| !suppressed.contains(*id))
+            .cloned()
+            .collect();
         for id in back {
             if let Some(def) = self.stash.remove(&id) {
                 if !active.spawners.iter().any(|s| s.spawner_id == id) {
@@ -661,7 +817,11 @@ impl WorldEvents {
                 }
             }
         }
-        let listed: BTreeSet<String> = active.spawners.iter().map(|s| s.spawner_id.clone()).collect();
+        let listed: BTreeSet<String> = active
+            .spawners
+            .iter()
+            .map(|s| s.spawner_id.clone())
+            .collect();
         active.spawned_entities.retain(|id, e| {
             if listed.contains(id) {
                 true
@@ -671,7 +831,11 @@ impl WorldEvents {
             }
         });
         for d in desired {
-            match active.spawners.iter_mut().find(|s| s.spawner_id == d.spawner_id) {
+            match active
+                .spawners
+                .iter_mut()
+                .find(|s| s.spawner_id == d.spawner_id)
+            {
                 Some(s) => s.entries = d.entries,
                 None => active.spawners.push(d),
             }
@@ -712,7 +876,9 @@ pub struct WorldEventsPlugin {
 
 impl WorldEventsPlugin {
     pub fn from_args(args: &[String]) -> Self {
-        Self { config: WorldEventsConfig::from_args(args) }
+        Self {
+            config: WorldEventsConfig::from_args(args),
+        }
     }
 }
 
@@ -728,9 +894,16 @@ pub fn load_world_events(config: WorldEventsConfig) -> Option<WorldEvents> {
         &read("world_events_distortion_points.tsv")?,
     );
     let table = read("field_spawn_table.tsv")?;
-    let outbreaks = OutbreakData::parse(&read("world_events_outbreak_areas.tsv")?, &read("world_events_outbreak_spawners.tsv")?, &table);
+    let outbreaks = OutbreakData::parse(
+        &read("world_events_outbreak_areas.tsv")?,
+        &read("world_events_outbreak_spawners.tsv")?,
+        &table,
+    );
     let mut ev = WorldEvents::new(config, wormhole, distortions, outbreaks);
-    if let (Some(groups), Some(cond)) = (read("world_events_mmo_groups.tsv"), read("field_spawn_conditions.tsv")) {
+    if let (Some(groups), Some(cond)) = (
+        read("world_events_mmo_groups.tsv"),
+        read("field_spawn_conditions.tsv"),
+    ) {
         let mut known = encount_keys(&cond);
         if let Some(d) = read("world_events_distortion_encounters.tsv") {
             known.extend(encount_keys(&d));
@@ -767,18 +940,26 @@ impl Plugin for WorldEventsPlugin {
             Update,
             (
                 track_area_and_day,
-                tick_world_events.run_if(in_state(GameState::World)).run_if(not_paused),
+                tick_world_events
+                    .run_if(in_state(GameState::World))
+                    .run_if(not_paused),
                 observe_consumed.run_if(in_state(GameState::World)),
                 reconcile_spawners,
                 sync_event_markers,
-                loot_interact.run_if(in_state(GameState::World)).run_if(not_paused),
+                loot_interact
+                    .run_if(in_state(GameState::World))
+                    .run_if(not_paused),
             )
                 .chain(),
         );
     }
 }
 
-fn send(cues: Vec<WorldEventCue>, out: &mut MessageWriter<WorldEventCue>, toast: &mut Option<ResMut<SaveToast>>) {
+fn send(
+    cues: Vec<WorldEventCue>,
+    out: &mut MessageWriter<WorldEventCue>,
+    toast: &mut Option<ResMut<SaveToast>>,
+) {
     for c in cues {
         if let Some(t) = toast.as_deref_mut() {
             t.show(c.text.clone());
@@ -794,7 +975,9 @@ fn track_area_and_day(
     mut out: MessageWriter<WorldEventCue>,
     mut toast: Option<ResMut<SaveToast>>,
 ) {
-    let area = zone.map(|z| super::zone::main_area_of(&z.area).to_string()).unwrap_or_default();
+    let area = zone
+        .map(|z| super::zone::main_area_of(&z.area).to_string())
+        .unwrap_or_default();
     if !area.is_empty() && area != ev.area {
         let cues = ev.enter_area(&area);
         send(cues, &mut out, &mut toast);
@@ -913,7 +1096,10 @@ fn sync_event_markers(
     let wanted = wanted_markers(&ev);
     let mut have: Vec<WorldEventMarker> = Vec::new();
     for (e, m, t) in &markers {
-        let keep = wanted.iter().any(|(w, p, _)| w == m && t.translation.distance(marker_pos(*w, *p)) < 0.01) && !have.contains(m);
+        let keep = wanted
+            .iter()
+            .any(|(w, p, _)| w == m && t.translation.distance(marker_pos(*w, *p)) < 0.01)
+            && !have.contains(m);
         if keep {
             have.push(*m);
         } else {
@@ -929,9 +1115,21 @@ fn sync_event_markers(
     };
     for (m, p, alpha) in wanted.into_iter().filter(|(m, _, _)| !have.contains(m)) {
         let (mesh, color, emissive) = match m {
-            WorldEventMarker::Dome => (meshes.add(Sphere::new(DOME_RADIUS)), Color::srgba(0.55, 0.35, 1.0, alpha), LinearRgba::rgb(0.6, 0.3, 1.2)),
-            WorldEventMarker::OutbreakPillar => (meshes.add(Cylinder::new(0.6, 40.0)), Color::srgba(1.0, 0.25, 0.2, alpha), LinearRgba::rgb(2.0, 0.4, 0.3)),
-            WorldEventMarker::Loot(_) => (meshes.add(Sphere::new(0.35)), Color::srgb(1.0, 0.9, 0.4), LinearRgba::rgb(3.0, 2.4, 0.6)),
+            WorldEventMarker::Dome => (
+                meshes.add(Sphere::new(DOME_RADIUS)),
+                Color::srgba(0.55, 0.35, 1.0, alpha),
+                LinearRgba::rgb(0.6, 0.3, 1.2),
+            ),
+            WorldEventMarker::OutbreakPillar => (
+                meshes.add(Cylinder::new(0.6, 40.0)),
+                Color::srgba(1.0, 0.25, 0.2, alpha),
+                LinearRgba::rgb(2.0, 0.4, 0.3),
+            ),
+            WorldEventMarker::Loot(_) => (
+                meshes.add(Sphere::new(0.35)),
+                Color::srgb(1.0, 0.9, 0.4),
+                LinearRgba::rgb(3.0, 2.4, 0.6),
+            ),
         };
         commands.spawn((
             m,
@@ -939,7 +1137,11 @@ fn sync_event_markers(
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color: color,
                 emissive,
-                alpha_mode: if alpha < 1.0 { AlphaMode::Blend } else { AlphaMode::Opaque },
+                alpha_mode: if alpha < 1.0 {
+                    AlphaMode::Blend
+                } else {
+                    AlphaMode::Opaque
+                },
                 cull_mode: None,
                 unlit: matches!(m, WorldEventMarker::Dome),
                 ..default()
@@ -961,11 +1163,21 @@ fn loot_interact(
     if ev.loot.is_empty() || !actions.just_pressed(Action::Confirm) {
         return;
     }
-    let Some(p) = player.iter().next().map(|t| t.translation) else { return };
-    let Some((_, item)) = ev.take_loot(p) else { return };
+    let Some(p) = player.iter().next().map(|t| t.translation) else {
+        return;
+    };
+    let Some((_, item)) = ev.take_loot(p) else {
+        return;
+    };
     actions.consume(Action::Confirm);
-    let stored = progress.map_or(0, |mut pr| super::pickups::add_to_bag(&mut pr.bag, item, 1, super::pickups::MAX_STACK_FALLBACK));
-    let cue = ev.cue(WorldEventKind::LootTaken, p, format!("distortion item {item} x{stored} picked up"));
+    let stored = progress.map_or(0, |mut pr| {
+        super::pickups::add_to_bag(&mut pr.bag, item, 1, super::pickups::MAX_STACK_FALLBACK)
+    });
+    let cue = ev.cue(
+        WorldEventKind::LootTaken,
+        p,
+        format!("distortion item {item} x{stored} picked up"),
+    );
     send(vec![cue], &mut out, &mut toast);
 }
 
@@ -978,21 +1190,46 @@ mod tests {
     use std::time::Duration;
 
     fn slot(weight: u16, alpha: bool, time: [f32; 4], weather: [f32; 8]) -> EventSlot {
-        EventSlot { species_id: 25, species: "pikachu".into(), form: 0, alpha, weight, min_level: 5, max_level: 7, time, weather, condition: String::new() }
+        EventSlot {
+            species_id: 25,
+            species: "pikachu".into(),
+            form: 0,
+            alpha,
+            weight,
+            min_level: 5,
+            max_level: 7,
+            time,
+            weather,
+            condition: String::new(),
+        }
     }
 
     #[test]
     fn sheet_and_story_gates() {
         let s = Sheet::parse("# c\na:string*\tb:u8\nx\t1\ny\n");
-        assert_eq!((s.len(), s.get(0, "a"), s.get(0, "b"), s.get(1, "b"), s.get(5, "a")), (2, "x", "1", "", ""));
+        assert_eq!(
+            (
+                s.len(),
+                s.get(0, "a"),
+                s.get(0, "b"),
+                s.get(1, "b"),
+                s.get(5, "a")
+            ),
+            (2, "x", "1", "", "")
+        );
         let le = StoryGate::new("less_than_equal", "39999", "");
         assert!(le.matches(39_999) && !le.matches(40_000));
         let bt = StoryGate::new("between", "40000", "49999");
-        assert!(bt.matches(40_000) && bt.matches(49_999) && !bt.matches(50_000) && !bt.matches(39_999));
+        assert!(
+            bt.matches(40_000) && bt.matches(49_999) && !bt.matches(50_000) && !bt.matches(39_999)
+        );
         let ge = StoryGate::new("greater_than_equal", "100000", "");
         assert!(ge.matches(100_000) && !ge.matches(99_999));
         assert!(StoryGate::new("", "", "").matches(0), "no gate");
-        assert!(StoryGate::new("3ddd5feb4a68a149", "5", "").matches(0), "unresolved comparator = always");
+        assert!(
+            StoryGate::new("3ddd5feb4a68a149", "5", "").matches(0),
+            "unresolved comparator = always"
+        );
     }
 
     #[test]
@@ -1004,7 +1241,11 @@ mod tests {
         assert_eq!(effective_weight(&night_only, 3, 2), 100.0);
         assert_eq!(effective_weight(&night_only, 3, 4), 0.0);
         assert_eq!(effective_weight(&night_only, 3, 6), 200.0);
-        assert_eq!(effective_weight(&night_only, 3, 42), 100.0, "unknown weather id = neutral");
+        assert_eq!(
+            effective_weight(&night_only, 3, 42),
+            100.0,
+            "unknown weather id = neutral"
+        );
         let alpha = slot(1, true, [1.0; 4], [1.0; 8]);
         assert!(entries_for(&[night_only.clone(), alpha.clone()], 1, 2).is_empty());
         let e = entries_for(&[night_only, alpha], 3, 6);
@@ -1016,11 +1257,29 @@ mod tests {
     fn flags_parse() {
         let a = |s: &str| s.split_whitespace().map(str::to_string).collect::<Vec<_>>();
         let c = WorldEventsConfig::from_args(&a("viewer --story 50000 --event-seed 7 --event-time-scale 20 --distortion-now --outbreak 12"));
-        assert_eq!((c.story, c.seed, c.time_scale, c.distortion_now, c.force_outbreak), (50_000, 7, 20.0, true, Some(Some(12))));
-        assert_eq!(WorldEventsConfig::from_args(&a("v --outbreak off")).force_outbreak, Some(None));
+        assert_eq!(
+            (
+                c.story,
+                c.seed,
+                c.time_scale,
+                c.distortion_now,
+                c.force_outbreak
+            ),
+            (50_000, 7, 20.0, true, Some(Some(12)))
+        );
+        assert_eq!(
+            WorldEventsConfig::from_args(&a("v --outbreak off")).force_outbreak,
+            Some(None)
+        );
         assert!(!WorldEventsConfig::from_args(&a("v --no-world-events")).enabled);
-        assert_eq!(WorldEventsConfig::from_args(&a("v --event-time-scale -3")).time_scale, 1.0);
-        assert_eq!(WorldEventsConfig::from_args(&a("v")), WorldEventsConfig::default());
+        assert_eq!(
+            WorldEventsConfig::from_args(&a("v --event-time-scale -3")).time_scale,
+            1.0
+        );
+        assert_eq!(
+            WorldEventsConfig::from_args(&a("v")),
+            WorldEventsConfig::default()
+        );
     }
 
     #[test]
@@ -1029,7 +1288,10 @@ mod tests {
         assert!(!day_rolled(Some(600), 601));
         assert!(day_rolled(Some(1439), 0));
         assert!(day_rolled(Some(1400), 30));
-        assert!(!day_rolled(Some(700), 690), "a small step back (rest/load) is not a new day");
+        assert!(
+            !day_rolled(Some(700), 690),
+            "a small step back (rest/load) is not a new day"
+        );
     }
 
     fn real_events(config: WorldEventsConfig) -> Option<WorldEvents> {
@@ -1043,17 +1305,33 @@ mod tests {
     fn area01_spawners() -> Option<ActiveAreaSpawners> {
         let path = find_data_file("field_spawn_table.tsv")?;
         let spawners = load_spawners_for_area(path, 1).ok()?;
-        Some(ActiveAreaSpawners { spawners, ..Default::default() })
+        Some(ActiveAreaSpawners {
+            spawners,
+            ..Default::default()
+        })
     }
 
     #[test]
     fn an_outbreak_replaces_the_area_spawn_table_correctly() {
-        let (Some(mut ev), Some(mut active)) = (real_events(WorldEventsConfig { force_outbreak: Some(Some(1)), ..Default::default() }), area01_spawners()) else {
+        let (Some(mut ev), Some(mut active)) = (
+            real_events(WorldEventsConfig {
+                force_outbreak: Some(Some(1)),
+                ..Default::default()
+            }),
+            area01_spawners(),
+        ) else {
             return;
         };
-        let before: BTreeSet<String> = active.spawners.iter().map(|s| s.spawner_id.clone()).collect();
+        let before: BTreeSet<String> = active
+            .spawners
+            .iter()
+            .map(|s| s.spawner_id.clone())
+            .collect();
         let outbreak_ids = ev.outbreaks.outbreak_spawner_ids("ha_area01");
-        assert!(outbreak_ids.is_subset(&before), "the regular table lists all 46 outbreak spawners");
+        assert!(
+            outbreak_ids.is_subset(&before),
+            "the regular table lists all 46 outbreak spawners"
+        );
         let disabled = ev.outbreaks.disabled[&("ha_area01".to_string(), 1)].clone();
         assert_eq!(disabled.len(), 4);
         ev.enter_area("ha_area01");
@@ -1061,10 +1339,24 @@ mod tests {
         assert_eq!((o.id, o.species.as_str()), (1, "pikachu"));
         let gone = ev.reconcile(&mut active, 1, 2, |_| false);
         assert!(gone.is_empty());
-        let after: BTreeSet<String> = active.spawners.iter().map(|s| s.spawner_id.clone()).collect();
-        assert!(after.is_disjoint(&outbreak_ids), "no outbreak spawner left in its static form");
-        assert!(after.is_disjoint(&disabled), "the 4 `not_equal` spawners are off during outbreak 1");
-        let events: Vec<&SpawnerDefinition> = active.spawners.iter().filter(|s| s.spawner_id.starts_with(EVENT_ID_PREFIX)).collect();
+        let after: BTreeSet<String> = active
+            .spawners
+            .iter()
+            .map(|s| s.spawner_id.clone())
+            .collect();
+        assert!(
+            after.is_disjoint(&outbreak_ids),
+            "no outbreak spawner left in its static form"
+        );
+        assert!(
+            after.is_disjoint(&disabled),
+            "the 4 `not_equal` spawners are off during outbreak 1"
+        );
+        let events: Vec<&SpawnerDefinition> = active
+            .spawners
+            .iter()
+            .filter(|s| s.spawner_id.starts_with(EVENT_ID_PREFIX))
+            .collect();
         assert_eq!(events.len(), 4, "4 alive outbreak Pokémon");
         for s in &events {
             let (dex, name, lvl) = roll_spawner(s, active.seed).expect("species");
@@ -1072,37 +1364,80 @@ mod tests {
             assert!((11..=13).contains(&lvl));
         }
         // Every other regular spawner is untouched.
-        let regular_after = after.iter().filter(|id| !id.starts_with(EVENT_ID_PREFIX)).count();
-        assert_eq!(regular_after, before.len() - outbreak_ids.len() - disabled.len());
+        let regular_after = after
+            .iter()
+            .filter(|id| !id.starts_with(EVENT_ID_PREFIX))
+            .count();
+        assert_eq!(
+            regular_after,
+            before.len() - outbreak_ids.len() - disabled.len()
+        );
         // Outbreak off -> the disabled spawners come back, the outbreak ones stay off.
         ev.outbreak = None;
         ev.dirty = true;
         ev.reconcile(&mut active, 1, 2, |_| false);
-        let off: BTreeSet<String> = active.spawners.iter().map(|s| s.spawner_id.clone()).collect();
+        let off: BTreeSet<String> = active
+            .spawners
+            .iter()
+            .map(|s| s.spawner_id.clone())
+            .collect();
         assert!(!off.iter().any(|id| id.starts_with(EVENT_ID_PREFIX)));
         assert!(off.is_disjoint(&outbreak_ids));
-        assert!(disabled.is_subset(&off), "the 4 switched-off spawners are back after the outbreak");
-        assert_eq!(off.len(), before.len() - outbreak_ids.len(), "only the inactive outbreak spawners stay out");
+        assert!(
+            disabled.is_subset(&off),
+            "the 4 switched-off spawners are back after the outbreak"
+        );
+        assert_eq!(
+            off.len(),
+            before.len() - outbreak_ids.len(),
+            "only the inactive outbreak spawners stay out"
+        );
     }
 
     #[test]
     fn outbreak_counts_cleared_pokemon_and_ends_at_its_total() {
-        let Some(mut ev) = real_events(WorldEventsConfig { force_outbreak: Some(Some(1)), ..Default::default() }) else { return };
+        let Some(mut ev) = real_events(WorldEventsConfig {
+            force_outbreak: Some(Some(1)),
+            ..Default::default()
+        }) else {
+            return;
+        };
         ev.enter_area("ha_area01");
         let total = ev.outbreak.as_ref().unwrap().total;
         assert!((10..=15).contains(&total));
         let mut ends = 0;
         for _ in 0..total {
-            let before: Vec<String> = ev.desired_spawners(1, 2).into_iter().map(|d| d.spawner_id).collect();
+            let before: Vec<String> = ev
+                .desired_spawners(1, 2)
+                .into_iter()
+                .map(|d| d.spawner_id)
+                .collect();
             let id = before[0].clone();
             let cues = ev.observe_consumed(|s| s == id);
-            let now: Vec<String> = ev.desired_spawners(1, 2).into_iter().map(|d| d.spawner_id).collect();
-            assert!(before[1..].iter().all(|o| now.contains(o)), "the other alive Pokémon are never removed");
-            ends += cues.iter().filter(|c| c.kind == WorldEventKind::OutbreakEnd).count();
+            let now: Vec<String> = ev
+                .desired_spawners(1, 2)
+                .into_iter()
+                .map(|d| d.spawner_id)
+                .collect();
+            assert!(
+                before[1..].iter().all(|o| now.contains(o)),
+                "the other alive Pokémon are never removed"
+            );
+            ends += cues
+                .iter()
+                .filter(|c| c.kind == WorldEventKind::OutbreakEnd)
+                .count();
             let live = ev.desired_spawners(1, 2).len();
             if let Some(o) = &ev.outbreak {
-                assert_eq!(live, usize::from(o.total - o.cleared).min(4), "never more alive than what is left");
-                assert!(!ev.desired_spawners(1, 2).iter().any(|d| d.spawner_id == id), "a cleared slot gets a new id");
+                assert_eq!(
+                    live,
+                    usize::from(o.total - o.cleared).min(4),
+                    "never more alive than what is left"
+                );
+                assert!(
+                    !ev.desired_spawners(1, 2).iter().any(|d| d.spawner_id == id),
+                    "a cleared slot gets a new id"
+                );
             }
         }
         assert_eq!(ends, 1);
@@ -1114,26 +1449,51 @@ mod tests {
     /// materialises with Pokémon that the regular spawner list now holds, and ends.
     #[test]
     fn headless_distortion_cycle_and_outbreak_in_area01() {
-        let (Some(_), Some(active)) = (real_events(WorldEventsConfig::default()), area01_spawners()) else { return };
+        let (Some(_), Some(active)) =
+            (real_events(WorldEventsConfig::default()), area01_spawners())
+        else {
+            return;
+        };
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, StatesPlugin));
         app.init_state::<GameState>();
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(250)));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            250,
+        )));
         app.insert_resource(active);
         app.insert_resource(ConsumedSpawners::default());
-        app.insert_resource(ActiveZoneInfo { area: "ha_area01".into(), name: "x".into() });
+        app.insert_resource(ActiveZoneInfo {
+            area: "ha_area01".into(),
+            name: "x".into(),
+        });
         app.insert_resource(GameClock::pinned_at_slot(1));
-        app.world_mut().spawn((PlayerAvatar, Transform::from_xyz(523.3, 33.6, 169.4)));
+        app.world_mut()
+            .spawn((PlayerAvatar, Transform::from_xyz(523.3, 33.6, 169.4)));
         app.add_plugins(WorldEventsPlugin {
-            config: WorldEventsConfig { distortion_now: true, time_scale: 40.0, force_outbreak: Some(Some(2)), ..Default::default() },
+            config: WorldEventsConfig {
+                distortion_now: true,
+                time_scale: 40.0,
+                force_outbreak: Some(Some(2)),
+                ..Default::default()
+            },
         });
         let mut saw_active_spawns = 0usize;
         let mut kinds = Vec::new();
         for _ in 0..80 {
             app.update();
             let ev = app.world().resource::<WorldEvents>();
-            if ev.machine.as_ref().is_some_and(|m| m.phase == Phase::Active) {
-                let n = app.world().resource::<ActiveAreaSpawners>().spawners.iter().filter(|s| s.spawner_id.starts_with("we:wh:")).count();
+            if ev
+                .machine
+                .as_ref()
+                .is_some_and(|m| m.phase == Phase::Active)
+            {
+                let n = app
+                    .world()
+                    .resource::<ActiveAreaSpawners>()
+                    .spawners
+                    .iter()
+                    .filter(|s| s.spawner_id.starts_with("we:wh:"))
+                    .count();
                 saw_active_spawns = saw_active_spawns.max(n);
             }
             let msgs = app.world().resource::<Messages<WorldEventCue>>();
@@ -1155,22 +1515,49 @@ mod tests {
         ] {
             assert!(kinds.contains(&k), "missing {k:?} in {kinds:?}");
         }
-        assert!((5..=6).contains(&saw_active_spawns), "2..3 main + 3 sub slots, got {saw_active_spawns}");
+        assert!(
+            (5..=6).contains(&saw_active_spawns),
+            "2..3 main + 3 sub slots, got {saw_active_spawns}"
+        );
         let active = app.world().resource::<ActiveAreaSpawners>();
-        assert!(!active.spawners.iter().any(|s| s.spawner_id.starts_with("we:wh:")), "distortion contents removed after End");
-        let ob: Vec<_> = active.spawners.iter().filter(|s| s.spawner_id.starts_with("we:ob:")).collect();
+        assert!(
+            !active
+                .spawners
+                .iter()
+                .any(|s| s.spawner_id.starts_with("we:wh:")),
+            "distortion contents removed after End"
+        );
+        let ob: Vec<_> = active
+            .spawners
+            .iter()
+            .filter(|s| s.spawner_id.starts_with("we:ob:"))
+            .collect();
         assert_eq!(ob.len(), 4, "forced outbreak 2 stays");
-        assert!(ob.iter().all(|s| s.entries.iter().all(|e| e.species_name == "pichu")));
+        assert!(ob
+            .iter()
+            .all(|s| s.entries.iter().all(|e| e.species_name == "pichu")));
         let mut q = app.world_mut().query::<&WorldEventMarker>();
         let markers = q.iter(app.world()).copied().collect::<Vec<_>>();
         assert!(markers.contains(&WorldEventMarker::OutbreakPillar));
-        assert!(!markers.contains(&WorldEventMarker::Dome), "dome removed after the end");
+        assert!(
+            !markers.contains(&WorldEventMarker::Dome),
+            "dome removed after the end"
+        );
     }
 
     #[test]
     fn loot_is_taken_once_and_only_in_range() {
-        let mut ev = WorldEvents::new(WorldEventsConfig::default(), None, DistortionData::default(), OutbreakData::default());
-        ev.loot = vec![LootDrop { pos: Vec3::new(10.0, 0.0, 0.0), item: 1611, taken: false }];
+        let mut ev = WorldEvents::new(
+            WorldEventsConfig::default(),
+            None,
+            DistortionData::default(),
+            OutbreakData::default(),
+        );
+        ev.loot = vec![LootDrop {
+            pos: Vec3::new(10.0, 0.0, 0.0),
+            item: 1611,
+            taken: false,
+        }];
         assert_eq!(ev.take_loot(Vec3::ZERO), None);
         assert_eq!(ev.take_loot(Vec3::new(8.0, 5.0, 0.0)), Some((0, 1611)));
         assert_eq!(ev.take_loot(Vec3::new(10.0, 0.0, 0.0)), None, "taken");
