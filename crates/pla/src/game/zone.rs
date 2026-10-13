@@ -888,17 +888,19 @@ pub fn apply_zone_change(
         }
         Err(e) => eprintln!("zone: navmesh for ha_area{area_idx:02} not reloaded: {e}"),
     }
-    if let Some(path) = find_data_file("field_spawn_table.tsv") {
-        match load_spawners_for_area(&path, area_idx) {
-            Ok(spawners) => {
-                if let Some(mut active) = world.get_resource_mut::<ActiveAreaSpawners>() {
-                    active.spawners = spawners;
-                    active.spawned_entities.clear();
-                }
-            }
-            Err(e) => eprintln!("zone: spawners not reloaded: {e}"),
+    // The old area's creatures live in the old frame: remove them, then stream the new table
+    // (an unreadable table leaves the new area empty rather than replaying the old spawners).
+    let spawners = match find_data_file("field_spawn_table.tsv") {
+        Some(path) => load_spawners_for_area(&path, area_idx).unwrap_or_else(|e| {
+            eprintln!("zone: spawners not reloaded: {e}");
+            Vec::new()
+        }),
+        None => {
+            eprintln!("zone: data/field_spawn_table.tsv not found; no spawners in the new area");
+            Vec::new()
         }
-    }
+    };
+    replace_area_spawners(world, spawners);
     if let Some(mut info) = world.get_resource_mut::<ActiveZoneInfo>() {
         info.area = request.zone.clone();
         info.name = zone_display_name(&request.zone);
@@ -911,6 +913,25 @@ pub fn apply_zone_change(
         landing_point(mesh, &comps, wanted, safe)
     });
     Ok(landing.unwrap_or((wanted, request.spawn.y)))
+}
+
+/// Despawn every creature streamed from the previous area's spawners (with its model children)
+/// and install `spawners` as the active table. Clearing only the tracking map would orphan those
+/// entities: nothing would ever unload them again.
+pub fn replace_area_spawners(world: &mut World, spawners: Vec<crate::game::wild::SpawnerDefinition>) {
+    if let Some(mut consumed) = world.get_resource_mut::<crate::game::wild::ConsumedSpawners>() {
+        consumed.clear();
+    }
+    let Some(mut active) = world.get_resource_mut::<ActiveAreaSpawners>() else {
+        return;
+    };
+    active.spawners = spawners;
+    let old: Vec<Entity> = active.spawned_entities.drain().map(|(_, e)| e).collect();
+    for entity in old {
+        if let Ok(e) = world.get_entity_mut(entity) {
+            e.despawn();
+        }
+    }
 }
 
 fn position_player(world: &mut World, xz: Vec2, y: f32, yaw_deg: f32) {
@@ -1114,6 +1135,41 @@ mod tests {
             gate_flag: String::new(),
             confidence: "ASSUMED".into(),
         }
+    }
+
+    #[test]
+    fn zone_change_despawns_the_old_area_creatures() {
+        let mut world = World::new();
+        let creature = world.spawn_empty().id();
+        let model = world.spawn(ChildOf(creature)).id();
+        let unrelated = world.spawn_empty().id();
+        let mut active = ActiveAreaSpawners::default();
+        active.spawned_entities.insert("old".into(), creature);
+        world.insert_resource(active);
+        let mut consumed = crate::game::wild::ConsumedSpawners::default();
+        consumed.consume("new", 0.0);
+        world.insert_resource(consumed);
+
+        let new = crate::game::wild::SpawnerDefinition {
+            spawner_id: "new".into(),
+            area: "ha_area01".into(),
+            pos: Vec3::ZERO,
+            radius: 5.0,
+            entries: Vec::new(),
+        };
+        replace_area_spawners(&mut world, vec![new]);
+
+        let active = world.resource::<ActiveAreaSpawners>();
+        assert!(active.spawned_entities.is_empty());
+        assert_eq!(active.spawners.len(), 1);
+        assert_eq!(active.spawners[0].spawner_id, "new");
+        assert!(world.get_entity(creature).is_err(), "old creature despawned");
+        assert!(world.get_entity(model).is_err(), "its model child too");
+        assert!(world.get_entity(unrelated).is_ok());
+        assert!(
+            !world.resource::<crate::game::wild::ConsumedSpawners>().is_consumed("new", 1.0),
+            "spawner ids repeat across areas: the consumed set is reset"
+        );
     }
 
     #[test]
