@@ -4,7 +4,7 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 6
+//! PLASAVE 7
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
@@ -15,9 +15,11 @@
 //! `play_seconds` (whole seconds of played time). v5 adds a ninth member/box field, the
 //! cumulative experience (`-` = unknown: the member counts as sitting exactly on its level
 //! threshold). v6 replaces the coarse `time_slot` with `time_minutes` (the game clock's minute of
-//! day, 0..1439; Brief 9). Older files load via the migration chain: a v2 file gets an empty box,
-//! a v1-v3 file a play time of 0, a v1-v4 file every experience unknown, and a v1-v5 file's
-//! `time_slot=N` becomes the centre minute of that slot (ASSUMED slot hours). The next bump is v7.
+//! day, 0..1439; Brief 9). v7 adds `picked`, the ids of collected field-item spawns
+//! (`data/field_item_spawns.tsv`, Brief 12). Older files load via the migration chain: a v2 file
+//! gets an empty box, a v1-v3 file a play time of 0, a v1-v4 file every experience unknown, a
+//! v1-v5 file's `time_slot=N` becomes the centre minute of that slot (ASSUMED slot hours), and a
+//! v1-v6 file an empty picked set. The next bump is v8.
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -35,7 +37,7 @@ use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 6;
+pub const CURRENT_VERSION: u32 = 7;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
@@ -235,6 +237,10 @@ pub struct PlayerSave {
     /// Whole seconds played while in the world or a battle, not paused (format v4). How the
     /// original game counts play time is **unknown**; this is wall-clock time of the port.
     pub play_seconds: u64,
+    /// Ids of already-collected field-item spawns (`GameProgress.picked`, format v7, Brief 12).
+    /// Ids are the placement hashes in `data/field_item_spawns.tsv`; a respawned spawn is removed
+    /// again.
+    pub picked: BTreeSet<u64>,
 }
 
 impl Default for PlayerSave {
@@ -255,6 +261,7 @@ impl Default for PlayerSave {
             caught_count: 0,
             rng_seed: 1,
             play_seconds: 0,
+            picked: BTreeSet::new(),
         }
     }
 }
@@ -332,6 +339,7 @@ impl PlayerSave {
         kv("play_seconds", self.play_seconds.to_string());
         kv("seen", join_set(&self.seen));
         kv("caught", join_set(&self.caught));
+        kv("picked", join_set_u64(&self.picked));
         kv(
             "bag",
             self.bag
@@ -396,6 +404,7 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
             3 => migrate_v3_to_v4(lines)?,
             4 => migrate_v4_to_v5(lines),
             5 => migrate_v5_to_v6(lines)?,
+            6 => migrate_v6_to_v7(lines),
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -468,6 +477,13 @@ fn migrate_v5_to_v6(mut lines: Vec<String>) -> Result<Vec<String>, SaveError> {
     Ok(lines)
 }
 
+/// v6 -> v7 is this task (Brief 12): v7 adds `picked` (collected field-item spawn ids). The key
+/// defaults to an empty set when missing, so no line has to change; this arm documents the step
+/// and is the only version bump Brief 12 owns.
+fn migrate_v6_to_v7(lines: Vec<String>) -> Vec<String> {
+    lines
+}
+
 // ---------------------------------------------------------------- parsing
 
 fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
@@ -495,6 +511,7 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
             "play_seconds" => s.play_seconds = v.parse().map_err(|_| err("bad play_seconds"))?,
             "seen" => s.seen = parse_set(v).ok_or_else(|| err("bad seen list"))?,
             "caught" => s.caught = parse_set(v).ok_or_else(|| err("bad caught list"))?,
+            "picked" => s.picked = parse_set_u64(v).ok_or_else(|| err("bad picked list"))?,
             "bag" => {
                 for e in v.split(',').filter(|e| !e.is_empty()) {
                     let (a, b) = e.split_once(':').ok_or_else(|| err("bad bag entry"))?;
@@ -570,6 +587,13 @@ fn join_set(s: &BTreeSet<u16>) -> String {
 }
 fn parse_set(v: &str) -> Option<BTreeSet<u16>> {
     v.split(',').filter(|e| !e.is_empty()).map(|e| e.parse().ok()).collect()
+}
+/// `picked` ids are 64-bit placement hashes; written in hexadecimal for compactness.
+fn join_set_u64(s: &BTreeSet<u64>) -> String {
+    s.iter().map(|v| format!("{v:016x}")).collect::<Vec<_>>().join(",")
+}
+fn parse_set_u64(v: &str) -> Option<BTreeSet<u64>> {
+    v.split(',').filter(|e| !e.is_empty()).map(|e| u64::from_str_radix(e, 16).ok()).collect()
 }
 /// Nicknames are hex-encoded so no separator can ever appear; `~` marks the empty string
 /// (`-` means "no nickname").
@@ -847,6 +871,7 @@ mod tests {
             caught_count: 2,
             rng_seed: 0xdead_beef,
             play_seconds: 12_345,
+            picked: BTreeSet::from([0xbe63_6c89_f1de_0b4c, 0x0000_0000_0000_0001]),
             ..PlayerSave::default()
         }
     }
@@ -974,6 +999,7 @@ mod tests {
         assert!(s.box_pokemon.is_empty(), "a v1 save has no box");
         assert_eq!(m.exp, None, "a v1 save has no experience");
         assert_eq!(s.play_seconds, 0, "a v1 save has no play time");
+        assert!(s.picked.is_empty(), "a v1 save has no picked spawns");
         // and re-saving writes the current version
         assert!(s.encode().unwrap().starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
     }
@@ -990,6 +1016,7 @@ mod tests {
         assert_eq!(s.party[0].species, 25);
         assert!(s.box_pokemon.is_empty());
         assert_eq!(s.play_seconds, 0, "a v2 save has no play time");
+        assert!(s.picked.is_empty());
         assert!(s.encode().unwrap().starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
     }
 
@@ -1003,17 +1030,37 @@ mod tests {
         let s = PlayerSave::decode(&text).unwrap();
         assert_eq!(s.version, CURRENT_VERSION);
         assert_eq!(s.play_seconds, 0, "a v3 save has no play time");
+        assert!(s.picked.is_empty(), "a v3 save has no picked spawns");
         assert_eq!(s.box_pokemon.len(), 1);
         assert_eq!(s.box_pokemon[0].species, 133);
         assert_eq!((s.party[0].exp, s.box_pokemon[0].exp), (None, None), "a v3 save has no experience");
         let out = s.encode().unwrap();
-        assert!(out.starts_with("PLASAVE 6\n"));
+        assert!(out.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
         assert!(out.contains("\nplay_seconds=0\n"), "the new field is written on re-save");
     }
 
-/// A literal v4 body (8-field members and box lines, with `play_seconds`) loads through
-    /// v4->v5->v6: every experience unknown, play time kept, the slot turned into minutes;
-    /// re-saving writes v6 with the ninth field.
+    /// `picked` survives encode/decode as hexadecimal u64 ids and is written sorted.
+    #[test]
+    fn picked_round_trips() {
+        let s = sample();
+        assert_eq!(s.picked.len(), 2, "sample carries picked spawns");
+        let text = s.encode().unwrap();
+        assert!(text.contains("\npicked=0000000000000001,be636c89f1de0b4c\n"), "{text}");
+        let back = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s, back);
+    }
+
+    /// A malformed picked id is refused.
+    #[test]
+    fn malformed_picked_rejected() {
+        let body = "zone=z\npos=0,0,0\nyaw=0\ntime_minutes=0\nmoney=0\nrng_seed=1\npicked=not-hex\nEND\n";
+        let text = format!("PLASAVE 6\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        assert!(matches!(PlayerSave::decode(&text), Err(SaveError::Parse { .. })));
+    }
+
+    /// A literal v4 body (8-field members and box lines, with `play_seconds`) loads through
+    /// v4->v5->v6->v7: every experience unknown, play time kept, the slot turned into minutes,
+    /// an empty picked set; re-saving writes the current version with the ninth field.
     #[test]
     fn migration_v4_to_current_marks_experience_unknown() {
         let body = "zone=ha_area01\npos=1,0,1\nyaw=0\ntime_slot=1\nmoney=10\nrng_seed=3\nplay_seconds=77\n\
@@ -1025,18 +1072,20 @@ mod tests {
         assert_eq!(s.time_minutes, 15 * 60, "slot 1 -> 15:00");
         assert_eq!((s.party[0].species, s.party[0].level, s.party[0].exp), (403, 14, None));
         assert_eq!(s.box_pokemon[0].exp, None);
+        assert!(s.picked.is_empty(), "a v4 save has no picked spawns");
         let again = s.encode().unwrap();
-        assert!(again.starts_with("PLASAVE 6\n"));
+        assert!(again.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
         assert!(again.contains("member=403|0|14|40|-|0:0:0:0:0:0|33:35|-|-\n"), "{again}");
+        assert!(again.contains("\npicked=\n"), "the empty set is written on re-save");
         let mut with_exp = s.clone();
         with_exp.party[0].exp = Some(2_700);
         let back = PlayerSave::decode(&with_exp.encode().unwrap()).unwrap();
         assert_eq!(back.party[0].exp, Some(2_700));
     }
 
-    /// A literal v5 body (ninth experience field, `time_slot`) loads through v5->v6: the slot
-    /// becomes the centre minute of its 6-hour segment (03:00/09:00/15:00/21:00; slot hours
-    /// ASSUMED) and the experience survives.
+    /// A literal v5 body (ninth experience field, `time_slot`) loads through v5->v6 with an empty
+    /// picked set: the slot becomes the centre minute of its 6-hour segment
+    /// (03:00/09:00/15:00/21:00; slot hours ASSUMED) and the experience survives.
     #[test]
     fn migration_v5_to_current_turns_the_slot_into_minutes() {
         let body = "zone=ha_area03\npos=7,0,-2\nyaw=2.0\ntime_slot=3\nplay_seconds=456\nmoney=99\nrng_seed=8\n\
@@ -1047,8 +1096,9 @@ mod tests {
         assert_eq!(s.time_minutes, 3 * 60, "night slot -> 03:00");
         assert_eq!(s.play_seconds, 456, "v5 data survives");
         assert_eq!(s.party[0].exp, Some(1234), "v5 experience survives");
+        assert!(s.picked.is_empty(), "a v5 save has no picked spawns");
         let out = s.encode().unwrap();
-        assert!(out.starts_with("PLASAVE 6\n"));
+        assert!(out.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
         assert!(out.contains("\ntime_minutes=180\n"), "the new field is written on re-save");
         assert!(!out.contains("time_slot="), "the old key is gone");
         // Every slot maps to its centre: 0 -> 09:00, 1 -> 15:00, 2 -> 21:00.
@@ -1061,6 +1111,22 @@ mod tests {
         let body = "zone=z\npos=0,0,0\nyaw=0\nmoney=0\nrng_seed=1\nEND\n";
         let text = format!("PLASAVE 5\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
         assert_eq!(PlayerSave::decode(&text).unwrap().time_minutes, DEFAULT_START_MINUTES);
+    }
+
+    /// A literal v6 body (`time_minutes`, no `picked`) loads through v6->v7 with an empty picked
+    /// set and keeps the clock; re-saving writes v7 and the empty set. Brief 12's own bump.
+    #[test]
+    fn migration_v6_to_current_defaults_picked() {
+        let body = "zone=ha_area01\npos=1,2,3\nyaw=0\ntime_minutes=900\nmoney=10\nrng_seed=2\n\
+                    play_seconds=5\nmember=25|0|5|10|-|0:0:0:0:0:0|33:5|-|-\nEND\n";
+        let text = format!("PLASAVE 6\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let s = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s.version, CURRENT_VERSION);
+        assert_eq!(s.time_minutes, 900, "a v6 save keeps its clock");
+        assert!(s.picked.is_empty(), "a v6 save has no picked spawns");
+        let out = s.encode().unwrap();
+        assert!(out.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
+        assert!(out.contains("\npicked=\n"), "the empty set is written on re-save");
     }
 
     /// `time_minutes` round-trips and is validated to be a real minute of day.

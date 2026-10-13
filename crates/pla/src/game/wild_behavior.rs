@@ -81,7 +81,7 @@ impl BehaviorParams {
             Archetype::Passive => Self {
                 archetype,
                 vision_distance: 10.0,
-                vision_half_angle: 1.047_197_6,
+                vision_half_angle: std::f32::consts::FRAC_PI_3,
                 hearing_distance: 6.0,
                 alert_duration_s: 2.0,
                 flee_duration_s: 2.0,

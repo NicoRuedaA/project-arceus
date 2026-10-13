@@ -98,9 +98,7 @@ fn setup(
         );
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
         mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-        mesh.insert_indices(Indices::U32(
-            mesh_data.indices.iter().map(|&i| u32::from(i)).collect(),
-        ));
+        mesh.insert_indices(Indices::U32(mesh_data.indices.clone()));
         mesh.compute_normals();
         insert_skin_attributes(&mut mesh, &mesh_data, &mesh_bytes, &skeleton)
             .expect("decode demonstrated skin influences");

@@ -41,7 +41,7 @@ pm0077_00_00.gfpak	00_00	ok		10	8
 pm0078_00_00.gfpak	00_00	ok		10	11
 pm0081_00_00.gfpak	00_00	ok	static only; idle: bind rig 7 node 9 disagrees with reference rest pose: residual 1.5000000462292622 > 0.0001 | walk: bind rig 7 node 9 disagrees with reference rest pose: residual 1.5000000462292622 > 0.0001	0	4
 pm0082_00_00.gfpak	00_00	ok		10	6
-pm0092_00_00.gfpak	00_00	ok		10	4
+pm0092_00_00.gfpak	00_00	ok		10	5
 pm0093_00_00.gfpak	00_00	ok		10	5
 pm0094_00_00.gfpak	00_00	ok	static only; idle: bind rig 11 node 13 disagrees with reference rest pose: residual 0.00040423036501352483 > 0.0001 | walk: bind rig 11 node 13 disagrees with reference rest pose: residual 0.00040423036501352483 > 0.0001	0	5
 pm0095_00_00.gfpak	00_00	ok		10	7
@@ -59,7 +59,7 @@ pm0122_00_00.gfpak	00_00	ok		10	4
 pm0123_00_00.gfpak	00_00	ok		10	6
 pm0123_01_00.gfpak	01_00	ok		10	7
 pm0125_00_00.gfpak	00_00	ok		10	7
-pm0126_00_00.gfpak	00_00	ok		10	4
+pm0126_00_00.gfpak	00_00	ok		10	9
 pm0129_00_00.gfpak	00_00	ok		10	5
 pm0129_01_00.gfpak	01_00	ok		10	5
 pm0130_00_00.gfpak	00_00	ok		10	7
@@ -73,7 +73,7 @@ pm0137_00_00.gfpak	00_00	ok		10	4
 pm0143_00_00.gfpak	00_00	ok		10	2
 pm0155_00_00.gfpak	00_00	ok		10	3
 pm0156_00_00.gfpak	00_00	ok		10	6
-pm0157_00_41.gfpak	00_41	ok		10	4
+pm0157_00_41.gfpak	00_41	ok		10	5
 pm0169_00_00.gfpak	00_00	ok		10	5
 pm0172_00_00.gfpak	00_00	ok		10	5
 pm0173_00_00.gfpak	00_00	ok		10	4
@@ -141,7 +141,7 @@ pm0224_00_00.gfpak	00_00	ok		10	5
 pm0224_01_00.gfpak	01_00	ok		10	4
 pm0226_00_00.gfpak	00_00	ok		10	4
 pm0233_00_00.gfpak	00_00	ok		10	3
-pm0234_00_00.gfpak	00_00	ok		10	2
+pm0234_00_00.gfpak	00_00	ok		10	6
 pm0239_00_00.gfpak	00_00	ok		10	7
 pm0240_00_00.gfpak	00_00	ok		10	7
 pm0242_00_00.gfpak	00_00	ok		10	7
@@ -197,7 +197,7 @@ pm0404_00_00.gfpak	00_00	ok		10	6
 pm0404_01_00.gfpak	01_00	ok		10	5
 pm0405_00_00.gfpak	00_00	ok		10	7
 pm0405_01_00.gfpak	01_00	ok		10	7
-pm0406_00_00.gfpak	00_00	ok		10	4
+pm0406_00_00.gfpak	00_00	ok		10	7
 pm0407_00_00.gfpak	00_00	ok		10	7
 pm0407_01_00.gfpak	01_00	ok	static only; idle: no parsed clip | walk: no parsed clip	0	7
 pm0408_00_00.gfpak	00_00	ok		10	7
@@ -244,7 +244,7 @@ pm0436_00_00.gfpak	00_00	ok		10	4
 pm0437_00_00.gfpak	00_00	ok		10	7
 pm0438_00_00.gfpak	00_00	ok		10	6
 pm0439_00_00.gfpak	00_00	ok		10	5
-pm0440_00_00.gfpak	00_00	ok		10	3
+pm0440_00_00.gfpak	00_00	ok		10	7
 pm0441_00_00.gfpak	00_00	ok		10	7
 pm0442_00_00.gfpak	00_00	ok		10	8
 pm0443_00_00.gfpak	00_00	ok		10	4
@@ -285,7 +285,7 @@ pm0464_01_00.gfpak	01_00	ok	walk: pm0464_01_00_00030_walk01_loop: animation trac
 pm0465_00_00.gfpak	00_00	ok		10	7
 pm0465_01_00.gfpak	01_00	ok		10	7
 pm0466_00_00.gfpak	00_00	ok		10	7
-pm0467_00_00.gfpak	00_00	ok		10	3
+pm0467_00_00.gfpak	00_00	ok		10	9
 pm0468_00_00.gfpak	00_00	ok		10	4
 pm0469_00_00.gfpak	00_00	ok		10	7
 pm0470_00_00.gfpak	00_00	ok		10	7
@@ -329,10 +329,10 @@ pm0548_00_00.gfpak	00_00	ok		10	5
 pm0549_00_41.gfpak	00_41	ok		10	5
 pm0549_71_41.gfpak	71_41	ok		10	5
 pm0550_13_41.gfpak	13_41	ok		10	5
-pm0570_00_41.gfpak	00_41	blocked	no LOD0 mesh parsed (mesh pm0570_00_41.trmsh shape 0 entry 158 / buffer entry 155: unsupported skin shape stride)	0	0
-pm0571_00_41.gfpak	00_41	ok		10	3
+pm0570_00_41.gfpak	00_41	ok		10	8
+pm0571_00_41.gfpak	00_41	ok		10	9
 pm0627_00_00.gfpak	00_00	ok		10	7
-pm0628_00_41.gfpak	00_41	blocked	no LOD0 mesh parsed (mesh pm0628_00_41.trmsh shape 0 entry 137 / buffer entry 134: unsupported skin slot/layer)	0	0
+pm0628_00_41.gfpak	00_41	ok	static only; idle: bind rig 23 node 25 disagrees with reference rest pose: residual 0.03469176059974605 > 0.0001 | walk: bind rig 23 node 25 disagrees with reference rest pose: residual 0.03469176059974605 > 0.0001	0	6
 pm0641_11_00.gfpak	11_00	ok		10	7
 pm0641_12_00.gfpak	12_00	ok		10	8
 pm0642_11_00.gfpak	11_00	ok		10	7
@@ -356,6 +356,6 @@ pm1003_00_41.gfpak	00_41	ok	static only; idle: bind rig 51 node 53 disagrees wit
 pm1004_11_00.gfpak	11_00	ok		10	8
 pm1004_12_00.gfpak	12_00	ok		10	9
 pm1005_00_41.gfpak	00_41	ok		10	4
-pm1006_11_41.gfpak	11_41	ok		10	3
-pm1006_12_41.gfpak	12_41	ok		10	3
+pm1006_11_41.gfpak	11_41	ok		10	7
+pm1006_12_41.gfpak	12_41	ok		10	7
 pm1007_00_00.gfpak	00_00	ok		10	6
