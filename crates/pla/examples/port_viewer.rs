@@ -792,6 +792,8 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
+    app.add_plugins(pla::game::player_motion::PlayerMotionPlugin);
+    app.add_plugins(pla::game::interact::InteractPlugin);
     // Installed after InputMapPlugin: MainMenuPlugin adds that plugin itself when it is
     // missing, and Bevy panics when the same plugin is added twice.
     if main_menu {
@@ -872,7 +874,9 @@ fn main() -> ExitCode {
             automated_tick_driver,
             controls_demo_driver,
         )
-            .chain(),
+            .chain()
+            // Jump/fall/climb integrate after the horizontal locomotion of the frame.
+            .before(pla::game::player_motion::PlayerMotionSet),
     );
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
     app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
@@ -1608,9 +1612,11 @@ fn player_locomotion(
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
+    motion_query: Query<&pla::game::player_motion::PlayerMotionState, With<PlayerAvatar>>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
     mut swim_query: Query<&mut PlayerSwim, With<PlayerAvatar>>,
 ) {
+    use pla::game::player_motion::MotionMode;
     let Ok(mut transform) = player_query.single_mut() else {
         return;
     };
@@ -1619,6 +1625,7 @@ fn player_locomotion(
         .single()
         .map(|s| s.state == SwimState::Swimming)
         .unwrap_or(false);
+    let motion_mode = motion_query.single().map(|m| m.mode).unwrap_or_default();
 
     let dt = time.delta_secs();
     let input_dir = input.move_axis();
@@ -1631,13 +1638,18 @@ fn player_locomotion(
             input_dir
         };
         let is_sprinting = input.pressed(Action::Sprint);
-        // Sprinting is not allowed in water; swimming is slower than walking.
+        // Sprinting is not allowed in water; swimming is slower than walking. In the air the
+        // ground speed is scaled by the decoded control_airMoveRate (game::player_motion);
+        // while climbing the vertical system holds the avatar in place horizontally.
+        let ground_speed = if is_sprinting { 8.0 } else { 4.5 };
         let speed = if was_swimming {
             SWIM_SPEED
-        } else if is_sprinting {
-            8.0
+        } else if motion_mode == MotionMode::Airborne {
+            pla::game::player_motion::air_speed(ground_speed)
+        } else if motion_mode == MotionMode::Climbing {
+            0.0
         } else {
-            4.5
+            ground_speed
         };
 
         // Camera yaw defines the forward direction on the XZ plane.
@@ -1714,29 +1726,38 @@ fn player_locomotion(
         .as_ref()
         .and_then(|t| t.area.sample_world_height(transform.translation.x, transform.translation.z));
 
-    if let Some(surface_y) = nav_h.or(terrain_h) {
-        // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
-        let level = water_bodies.as_ref().and_then(|w| {
-            pla::game::water::grounded_level_at(
-                w,
-                Vec2::new(transform.translation.x, transform.translation.z),
+    // Ground snapping (and the water probe) only run while grounded: in the air or on a
+    // climbable the vertical system (game::player_motion) owns Y, and a jump over water
+    // must not snap the avatar down to the surface mid-flight.
+    if motion_mode == MotionMode::Grounded {
+        if let Some(surface_y) = nav_h.or(terrain_h) {
+            // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
+            let level = water_bodies.as_ref().and_then(|w| {
+                pla::game::water::grounded_level_at(
+                    w,
+                    Vec2::new(transform.translation.x, transform.translation.z),
+                    surface_y,
+                    pla::game::water::SWIM_MAX_GROUND_OFFSET,
+                )
+            });
+            let state = pla::game::water::step_swim(
+                swim_query.single().map(|s| s.state).unwrap_or_default(),
+                level,
                 surface_y,
-                pla::game::water::SWIM_MAX_GROUND_OFFSET,
-            )
-        });
-        let state = pla::game::water::step_swim(
-            swim_query.single().map(|s| s.state).unwrap_or_default(),
-            level,
-            surface_y,
-        );
-        if let Ok(mut swim) = swim_query.single_mut() {
-            swim.state = state;
+            );
+            if let Ok(mut swim) = swim_query.single_mut() {
+                swim.state = state;
+            }
+            transform.translation.y = if state == SwimState::Swimming {
+                pla::game::water::swim_root_y(level.unwrap_or(surface_y))
+            } else if pla::game::player_motion::is_ledge_drop(transform.translation.y, surface_y + 0.9)
+            {
+                // A drop longer than a step is a ledge: game::player_motion makes the avatar fall.
+                transform.translation.y
+            } else {
+                surface_y + 0.9
+            };
         }
-        transform.translation.y = if state == SwimState::Swimming {
-            pla::game::water::swim_root_y(level.unwrap_or(surface_y))
-        } else {
-            surface_y + 0.9
-        };
     }
 }
 

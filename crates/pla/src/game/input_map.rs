@@ -17,6 +17,7 @@
 //! | Sprint | Shift (held) | L3, left stick click (held) |
 //! | Aim toggle | Z / Tab | ZL |
 //! | Dodge | not mapped | Y |
+//! | Jump / grab climbable | X | X (west; the original jumps only while riding; port choice) |
 //! | Throw | not mapped | ZR |
 //! | Confirm | Enter / NumpadEnter / Space | A (south) |
 //! | Cancel | Escape / Backspace | B (east) |
@@ -55,6 +56,9 @@ pub enum Action {
     Menu,
     Sprint,
     Dodge,
+    /// Jump / climb grab (Brief 13). The original has no plain on-foot jump
+    /// (jumping is a ride action there), so the binding is a port choice.
+    Jump,
     Aim,
     Throw,
     Prev,
@@ -217,6 +221,9 @@ impl RawInput {
         if keys.any_just_pressed([KeyCode::KeyZ, KeyCode::Tab]) {
             key_pressed.push(Action::Aim);
         }
+        if keys.just_pressed(KeyCode::KeyX) {
+            key_pressed.push(Action::Jump);
+        }
 
         Self {
             key_move,
@@ -235,7 +242,7 @@ impl RawInput {
 
         // The same physical button may map to a field action and a battle action
         // (e.g. Y: dodge in the world, Fight in battle); consumers are state gated.
-        const BUTTONS: [(GamepadButton, Action); 15] = [
+        const BUTTONS: [(GamepadButton, Action); 16] = [
             (GamepadButton::South, Action::Confirm),
             (GamepadButton::East, Action::Cancel),
             (GamepadButton::Start, Action::Menu),
@@ -244,8 +251,9 @@ impl RawInput {
             (GamepadButton::DPadDown, Action::Next),
             (GamepadButton::DPadRight, Action::Next),
             (GamepadButton::North, Action::Dodge),
-            (GamepadButton::North, Action::OpenFight),
+                        (GamepadButton::North, Action::OpenFight),
             (GamepadButton::West, Action::OpenSwitch),
+            (GamepadButton::West, Action::Jump),
             (GamepadButton::LeftTrigger, Action::OpenItem),
             (GamepadButton::RightTrigger, Action::OpenRun),
             (GamepadButton::RightTrigger2, Action::Throw),
@@ -516,6 +524,22 @@ mod tests {
         assert!(state.just_pressed(Action::OpenCapture));
         assert!(state.just_pressed(Action::Aim));
         assert!(state.pressed(Action::Sprint));
+    }
+
+    #[test]
+    fn jump_maps_to_keyboard_x_and_pad_west() {
+        let raw = RawInput::from_keyboard(&keyboard(&[KeyCode::KeyX]));
+        assert_eq!(raw.key_pressed, vec![Action::Jump]);
+        let mut raw = RawInput::default();
+        raw.merge_gamepad(&gamepad(&[GamepadButton::West]));
+        let state = actions(&raw);
+        assert!(state.just_pressed(Action::Jump));
+        // North stays the dodge button; it must not also jump.
+        let mut raw = RawInput::default();
+        raw.merge_gamepad(&gamepad(&[GamepadButton::North]));
+        let state = actions(&raw);
+        assert!(state.just_pressed(Action::Dodge));
+        assert!(!state.just_pressed(Action::Jump));
     }
 
     #[test]

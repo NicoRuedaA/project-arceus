@@ -3,10 +3,10 @@
 //! The exporter (`player_export`) writes one glTF per outfit variant
 //! (`<cache>/player/p1_default/player.gltf`) with nine clips. This module spawns that
 //! scene as a child of the `PlayerAvatar` entity, builds an `AnimationGraph` with the
-//! idle / walk / run / dash / swim clips and cross-fades between them from the measured planar
-//! speed of the avatar (and from `PlayerSwim` when the avatar is in water).
-//! Locomotion (movement, facing, terrain height) stays in the
-//! viewer; the model only follows the avatar entity.
+//! idle / walk / run / dash / swim / jump_start / jump_fall / land clips and cross-fades
+//! between them from the measured planar speed of the avatar, `PlayerSwim` in water and
+//! `PlayerMotionState` in the air (Brief 13). Locomotion (movement, facing, terrain
+//! height) stays in the viewer / `game::player_motion`; the model only follows the avatar.
 //!
 //! Root motion: the walk / run / dash clips translate the `origin` bone forward
 //! (0 -> 1.7 / 2.85 / 3.3 m per loop). The entity is moved by the locomotion code, so
@@ -24,6 +24,7 @@ use bevy::world_serialization::WorldAssetRoot;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use super::player_motion::{MotionMode, PlayerMotionState};
 use super::PlayerAvatar;
 use super::water::{PlayerSwim, SwimState};
 
@@ -45,7 +46,7 @@ const RUN_DOWN: f32 = 3.6;
 const DASH_UP: f32 = 6.5;
 const DASH_DOWN: f32 = 5.8;
 
-/// Locomotion clip chosen from the player speed.
+/// Locomotion clip chosen from the player speed and the vertical motion state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlayerClip {
     Idle,
@@ -55,6 +56,12 @@ pub enum PlayerClip {
     /// Played while the avatar is in water deep enough to swim (`game::water`). The clip exists
     /// in the exported player glTF but was unused until Brief 11.
     Swim,
+    /// Take-off / rising phase of a jump (`game::player_motion`). No longer unused since Brief 13.
+    JumpStart,
+    /// Descending phase of a jump or a plain fall.
+    JumpFall,
+    /// Short clip after touchdown; played while `PlayerMotionState::land_timer` runs.
+    Land,
 }
 
 impl PlayerClip {
@@ -66,6 +73,9 @@ impl PlayerClip {
             Self::Run => "run",
             Self::Dash => "dash",
             Self::Swim => "swim",
+            Self::JumpStart => "jump_start",
+            Self::JumpFall => "jump_fall",
+            Self::Land => "land",
         }
     }
 }
@@ -95,14 +105,51 @@ pub fn select_clip(current: PlayerClip, speed: f32) -> PlayerClip {
 }
 
 /// Clip for a frame, taking the swimming state into account: swimming always uses the `swim`
-/// clip whatever the speed is, and leaving the water re-picks the land clip from a neutral
-/// state instead of staying stuck on `Swim`.
+/// clip whatever the speed is, and leaving the water (or any one-shot state) re-picks the land
+/// clip from a neutral state instead of staying stuck on it.
 pub fn select_clip_full(current: PlayerClip, speed: f32, swimming: bool) -> PlayerClip {
     if swimming {
         return PlayerClip::Swim;
     }
-    let base = if current == PlayerClip::Swim { PlayerClip::Idle } else { current };
+    use PlayerClip::*;
+    let base = match current {
+        Swim | JumpStart | JumpFall | Land => Idle,
+        other => other,
+    };
     select_clip(base, speed)
+}
+
+/// Clip for a frame from the vertical motion state (Brief 13): airborne uses `jump_start`
+/// while rising and `jump_fall` while descending, touchdown frames use `land`, and climbing
+/// reuses `walk` as a placeholder (the export has no climb clip). Everything else falls back
+/// to [`select_clip_full`].
+pub fn select_clip_motion(
+    current: PlayerClip,
+    speed: f32,
+    swimming: bool,
+    motion: Option<&PlayerMotionState>,
+) -> PlayerClip {
+    if swimming {
+        return PlayerClip::Swim;
+    }
+    if let Some(m) = motion {
+        match m.mode {
+            MotionMode::Airborne => {
+                return if m.vertical_speed > 0.0 {
+                    PlayerClip::JumpStart
+                } else {
+                    PlayerClip::JumpFall
+                };
+            }
+            MotionMode::Climbing => return PlayerClip::Walk,
+            MotionMode::Grounded => {
+                if m.land_timer > 0.0 {
+                    return PlayerClip::Land;
+                }
+            }
+        }
+    }
+    select_clip_full(current, speed, swimming)
 }
 
 /// Returns `translation` with the horizontal root motion removed: x/z pinned to the rest
@@ -163,11 +210,14 @@ pub struct PlayerMotion {
     pub speed: f32,
 }
 
+/// Number of clip slots ([`PlayerClip`] covers all nine exported clips except `idle2`).
+pub const CLIP_SLOTS: usize = 8;
+
 /// Runtime animation state once the model has been wired.
 #[derive(Component)]
 pub struct PlayerAnimState {
     pub player: Entity,
-    pub nodes: [Option<AnimationNodeIndex>; 5],
+    pub nodes: [Option<AnimationNodeIndex>; CLIP_SLOTS],
     pub current: PlayerClip,
     /// Bone whose horizontal translation is pinned (root motion), if found.
     pub root_bone: Option<Entity>,
@@ -218,9 +268,17 @@ fn wire_player(
         let clip = |c: PlayerClip| gltf.named_animations.get(c.gltf_name()).cloned();
         let Some(idle) = clip(PlayerClip::Idle) else { continue };
         let (mut graph, idle_node) = AnimationGraph::from_clip(idle);
-        let mut nodes = [None; 5];
+        let mut nodes = [None; CLIP_SLOTS];
         nodes[slot(PlayerClip::Idle)] = Some(idle_node);
-        for c in [PlayerClip::Walk, PlayerClip::Run, PlayerClip::Dash, PlayerClip::Swim] {
+        for c in [
+            PlayerClip::Walk,
+            PlayerClip::Run,
+            PlayerClip::Dash,
+            PlayerClip::Swim,
+            PlayerClip::JumpStart,
+            PlayerClip::JumpFall,
+            PlayerClip::Land,
+        ] {
             nodes[slot(c)] = clip(c).map(|h| graph.add_clip(h, 1.0, graph.root));
         }
         let graph_h = graphs.add(graph);
@@ -263,12 +321,17 @@ fn track_motion(time: Res<Time>, mut q: Query<(&Transform, &mut PlayerMotion), W
 }
 
 fn switch_clips(
-    mut q: Query<(&mut PlayerAnimState, &PlayerMotion, Option<&PlayerSwim>)>,
+    mut q: Query<(
+        &mut PlayerAnimState,
+        &PlayerMotion,
+        Option<&PlayerSwim>,
+        Option<&PlayerMotionState>,
+    )>,
     mut players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
 ) {
-    for (mut st, motion, swim) in &mut q {
+    for (mut st, motion, swim, air) in &mut q {
         let swimming = swim.is_some_and(|s| s.state == SwimState::Swimming);
-        let mut want = select_clip_full(st.current, motion.speed, swimming);
+        let mut want = select_clip_motion(st.current, motion.speed, swimming, air);
         // A clip missing from the file falls back to the next slower one.
         while st.nodes[slot(want)].is_none() && want != PlayerClip::Idle {
             want = match want {
@@ -365,6 +428,44 @@ mod tests {
         assert_eq!(select_clip_full(Run, 0.1, false), Idle);
         // swim is a real glTF name in the exported player model.
         assert_eq!(Swim.gltf_name(), "swim");
+    }
+
+    #[test]
+    fn jump_fall_and_land_clips_come_from_the_motion_state() {
+        let mut m = PlayerMotionState {
+            mode: MotionMode::Airborne,
+            vertical_speed: 2.0,
+            ..default()
+        };
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), JumpStart);
+        m.vertical_speed = 0.0;
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), JumpFall);
+        m.vertical_speed = -4.0;
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), JumpFall);
+        // Touchdown plays the land clip while its timer runs.
+        m.mode = MotionMode::Grounded;
+        m.vertical_speed = 0.0;
+        m.land_timer = crate::game::player_motion::LAND_TIME;
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), Land);
+        m.land_timer = 0.0;
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), Idle);
+        // Climbing reuses walk (no climb clip exists in the export).
+        m.mode = MotionMode::Climbing;
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), Walk);
+        // Water beats every motion state.
+        m.mode = MotionMode::Airborne;
+        m.vertical_speed = 1.0;
+        assert_eq!(select_clip_motion(Walk, 4.0, true, Some(&m)), Swim);
+        // Without a motion state the speed rules are unchanged.
+        assert_eq!(select_clip_motion(Idle, 4.5, false, None), Run);
+        // All new clip names are real glTF animation names.
+        for (clip, name) in [
+            (JumpStart, "jump_start"),
+            (JumpFall, "jump_fall"),
+            (Land, "land"),
+        ] {
+            assert_eq!(clip.gltf_name(), name);
+        }
     }
 
     #[test]
