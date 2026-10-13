@@ -74,7 +74,7 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 | Activar los estados nuevos y mostrar sus mensajes | Hecho | 1 | Activados por defecto en `game/battle_controller` (`BattleAssets::status_rules`); mensajes vía `battle_log::format_status`. Esto también activa la fórmula de daño real del juego (daño aproximadamente x3). Comprobado solo con pruebas unitarias y el ejemplo sin ventana |
 | Habilidades de Pokémon y objetos equipados | No aplica | | El juego guarda habilidades en los datos, pero el código de combate solo da efecto a 2 (Inicio Lento de Regigigas y el cambio de forma de Cherrim con Don Floral) y a ningún objeto equipado ([informe](../reports/data-progress/abilities_held_items.md)). Lo que queda es el brief D1 |
 | Estilos ágil y fuerte y el sistema de turnos propio de este juego | Parcial: motor hecho y conectado al combate del visor (opción `--pla-turns` en la demo) | 3 | Sin mirar a ojo |
-| Combates contra jefes y entrenadores (varios Pokémon) | En investigación de datos | 3 | |
+| Combates contra jefes y entrenadores (varios Pokémon) | Parcial: hecho en la rama `feat/trainer-battles` (sin fusionar) | 3 | 377/377 entrenadores cargados y jugables sin ventana; IA con los bits de módulo; sin captura ni huida; Giratina con segunda fase; Nobles solo en su fase por turnos; premio SUPUESTO; marcadores en el mundo con tecla V (vínculo PNJ-entrenador SUPUESTO). Sin mirar a ojo ([informe](../reports/data-progress/trainer_battles.md)) |
 | Animaciones y efectos por movimiento | Hecho | 4 | Hoy solo hay ataque genérico, daño y caída |
 | Captura: tipos de bola, cebos, bayas, sigilo, animación en el mundo | Pendiente de unir | 2 | La bola física ya se lanza y desaparece |
 
@@ -166,7 +166,7 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 27. Comportamiento salvaje completo. **[falta]**
 28. Verificar las reglas de combate «probables». **[hecho]**
 29. Estilos ágil y fuerte y turnos propios. **[parcial: motor hecho y conectado al visor]**
-30. Combates contra jefes y entrenadores. **[en investigación de datos]**
+30. Combates contra jefes y entrenadores. **[parcial: hecho en `feat/trainer-battles`, sin fusionar ni mirar a ojo]**
 31. Personajes no jugables. **[en investigación de datos]**
 32. Pantallas de equipo, cajas y Pokédex básico. **[falta]**
 33. Artesanía y materiales. **[falta]**

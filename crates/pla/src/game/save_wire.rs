@@ -358,6 +358,13 @@ pub fn install_party(
         mons.iter_mut().for_each(heal_full);
     }
     let wild = sess.battle.combatants[WILD].clone();
+    // Trainer battles: the other opponent members (side 1 after `WILD`) and their forms.
+    let extra_opponents: Vec<(Combatant, MemberMeta)> = sess.battle.sides[1]
+        .iter()
+        .filter(|&&i| i != WILD)
+        .map(|&i| (sess.battle.combatants[i].clone(), sess.member_meta.get(i).copied().unwrap_or_default()))
+        .collect();
+    let wild_meta = sess.member_meta.get(WILD).copied().unwrap_or_default();
     let effects = sess.battle.move_effects().cloned();
     let items = sess.battle.item_table().cloned();
     let styles = sess.battle.move_styles().cloned();
@@ -374,7 +381,14 @@ pub fn install_party(
     if combatants.len() == 1 {
         combatants.push(wild);
     }
-    let mut battle = Battle::new(combatants, vec![side, vec![WILD]], data.type_chart().clone())?;
+    let mut opponents = vec![WILD];
+    let mut opponent_metas = vec![(WILD, wild_meta)];
+    for (c, m) in extra_opponents {
+        opponents.push(combatants.len());
+        opponent_metas.push((combatants.len(), m));
+        combatants.push(c);
+    }
+    let mut battle = Battle::new(combatants, vec![side, opponents], data.type_chart().clone())?;
     if let Some(e) = effects {
         battle.set_move_effects(e);
     }
@@ -391,6 +405,9 @@ pub fn install_party(
     let mut meta = vec![MemberMeta::default(); battle.combatants.len()];
     for (j, m) in metas.into_iter().enumerate() {
         meta[combatant_index(j)] = m;
+    }
+    for (i, m) in opponent_metas {
+        meta[i] = m;
     }
     sess.battle = battle;
     sess.member_meta = meta;
@@ -422,6 +439,10 @@ pub struct BattleOutcome {
     /// The wild Pokemon as a party member, when it was caught.
     pub caught: Option<PartyMember>,
     pub rng: u32,
+    /// Trainer battles: the prize of the win (SUPUESTO formula, see
+    /// `trainer_battle::trainer_prize_assumed`); `Some(0)` when the trainer stores no prize.
+    /// `None` in wild battles, which pay [`victory_reward`].
+    pub trainer_prize: Option<u32>,
 }
 
 /// Snapshot the session. Form and experience come from `sess.member_meta` (they change with
@@ -443,9 +464,14 @@ pub fn snapshot(sess: &ActiveBattleSession, roster: &[usize], bag_ids: &[u16]) -
         bag: bag_ids.iter().map(|&id| (id, sess.bag.count(id))).collect(),
         wild_dex: sess.wild_dex,
         wild_level: wild.level,
-        won: wild.hp == 0 && !wild.caught,
+        won: if sess.is_trainer_battle() {
+            sess.battle.ended && sess.battle.winner_side() == Some(Some(0))
+        } else {
+            wild.hp == 0 && !wild.caught
+        },
         caught: wild.caught.then(|| PartyMember::from_combatant(wild)),
         rng: sess.rng.0,
+        trainer_prize: sess.trainer.as_ref().map(|t| t.prize.unwrap_or(0)),
     }
 }
 
@@ -500,7 +526,7 @@ pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
         }
     } else if out.won {
         progress.defeated = progress.defeated.saturating_add(1);
-        progress.add_money(victory_reward(out.wild_level));
+        progress.add_money(out.trainer_prize.unwrap_or_else(|| victory_reward(out.wild_level)));
     }
 }
 
@@ -939,6 +965,7 @@ mod tests {
             won: true,
             caught: None,
             rng: 77,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.party[0].hp, 12);
@@ -971,6 +998,7 @@ mod tests {
             won: false,
             caught: None,
             rng: 0,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.bag, BTreeMap::from([(10, 4)]));
@@ -990,6 +1018,7 @@ mod tests {
             won: true,
             caught: None,
             rng: 1,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &base);
         assert_eq!((p.defeated, p.caught_count), (1, 0));
@@ -1027,6 +1056,7 @@ mod tests {
             won: true,
             caught: None,
             rng: 1,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.money, u32::MAX, "the prize saturates instead of overflowing");
@@ -1062,6 +1092,7 @@ mod tests {
             won: false,
             caught: Some(member(396, 9, 5)),
             rng: 1,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.party.len(), MAX_PARTY, "party stays full");
@@ -1117,6 +1148,7 @@ mod tests {
             won: false,
             caught: Some(member(396, 9, 5)),
             rng: 1,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.box_list.len(), MAX_BOX, "the box stays at the limit");

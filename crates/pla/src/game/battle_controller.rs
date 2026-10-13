@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 
-use super::battle_ai::choose_ai_action;
+use super::trainer_battle::{OpponentChoice, TrainerBattleState};
 use super::battle_items::{self, BagEntry, ItemKind};
 use super::battle_log::{self, tail};
 use super::battle_progress::ProgressFlow;
@@ -34,7 +34,8 @@ use crate::battle_engine::{
     Event, MajorStatus, XorShift32,
 };
 
-/// Index of the wild combatant in `Battle::combatants` (side 1).
+/// Index of the wild combatant in `Battle::combatants` (side 1). In a trainer battle it is the
+/// trainer's first Pokemon; use [`ActiveBattleSession::opponent`] for the one that is out.
 pub const WILD: usize = 1;
 /// Slots shown at once in the move / item / party grid.
 pub const GRID_SLOTS: usize = 4;
@@ -261,6 +262,8 @@ pub struct ActiveBattleSession {
     pub progression: Option<Arc<ProgressionTables>>,
     /// After-battle steps (move prompts, evolution); see `battle_progress`.
     pub progress: ProgressFlow,
+    /// Trainer / boss battle facts (`None` in a wild battle); see `trainer_battle`.
+    pub trainer: Option<TrainerBattleState>,
 }
 
 impl ActiveBattleSession {
@@ -389,6 +392,7 @@ impl ActiveBattleSession {
             member_meta,
             progression: assets.and_then(|a| a.progression.clone()),
             progress: ProgressFlow::default(),
+            trainer: None,
         };
         let mut start = vec!["Battle Started!".to_string()];
         if s.turn_mode.uses_queue() {
@@ -402,6 +406,11 @@ impl ActiveBattleSession {
 
     pub fn active_player(&self) -> usize {
         self.battle.active_combatant(0).unwrap_or(0)
+    }
+
+    /// The opponent's Pokemon that is out (always [`WILD`] in a wild battle).
+    pub fn opponent(&self) -> usize {
+        self.battle.active_combatant(1).unwrap_or(WILD)
     }
 
     /// The battle tables, when the session was started with them.
@@ -456,10 +465,12 @@ impl ActiveBattleSession {
 
     pub fn display_name(&self, i: usize) -> String {
         let n = self.battle.combatants[i].species.name.to_uppercase();
-        if i == WILD {
-            format!("Wild {n}")
-        } else {
+        if !self.battle.sides.get(1).is_some_and(|s| s.contains(&i)) {
             n
+        } else if self.trainer.is_some() {
+            format!("Foe {n}")
+        } else {
+            format!("Wild {n}")
         }
     }
 
@@ -513,15 +524,21 @@ impl ActiveBattleSession {
             .collect()
     }
 
-    /// The wild Pokemon's move, chosen by the engine-rule AI (random slot without tables).
-    fn wild_action(&mut self, target: usize) -> Action {
-        match &self.data {
-            Some(data) => choose_ai_action(&self.battle, data, WILD, target, &mut self.rng),
-            None => {
-                let n = self.battle.combatants[WILD].moves.len().max(1);
-                Action {
-                    actor: WILD,
-                    move_slot: (self.rng.0 as usize) % n,
+    /// The opponent's move for this turn; a trainer's switch or item is carried out here and
+    /// returns `None` with its log lines (the turn is spent on it). Wild Pokemon always attack
+    /// with the engine-rule AI (random slot without tables).
+    fn opponent_action(&mut self, target: usize) -> (Option<Action>, Vec<String>) {
+        match self.opponent_choice(target) {
+            OpponentChoice::Move(a) => (Some(a), Vec::new()),
+            special => {
+                let lines = self.perform_opponent_special(special);
+                if lines.is_empty() {
+                    // refused by the engine: attack instead
+                    let actor = self.opponent();
+                    let slot = self.battle.best_damage_action(actor).map_or(0, |a| a.move_slot);
+                    (Some(Action { actor, move_slot: slot }), Vec::new())
+                } else {
+                    (None, lines)
                 }
             }
         }
@@ -546,6 +563,7 @@ impl ActiveBattleSession {
             lines.insert(at, format!("Go! {}!", names[after_active]));
             self.selected_move_idx = 0;
         }
+        self.trainer_after_turn(&events, &mut lines);
         self.event_log.extend(events.clone());
         self.current_turn = self.battle.turn;
         self.push_lines(lines);
@@ -561,9 +579,10 @@ impl ActiveBattleSession {
     fn resolve_turn(&mut self, player: Option<Action>) -> Vec<Event> {
         let before_active = self.active_player();
         let mut actions: Vec<Action> = player.into_iter().collect();
-        if self.battle.combatants[WILD].is_alive() {
-            let wild_action = self.wild_action(before_active);
-            actions.push(wild_action);
+        if self.battle.combatants[self.opponent()].is_alive() {
+            let (action, lines) = self.opponent_action(before_active);
+            self.push_lines(lines);
+            actions.extend(action);
         }
         let status_moves = self.status_moves_of(&actions);
         let events = self.battle.play_turn(&actions, &mut self.rng);
@@ -583,16 +602,24 @@ impl ActiveBattleSession {
     fn run_ai_turns(&mut self) -> Vec<Event> {
         let mut all = Vec::new();
         for _ in 0..8 {
-            if self.battle.ended || !self.uses_queue() || !self.battle.combatants[WILD].is_alive() {
+            let opp = self.opponent();
+            if self.battle.ended || !self.uses_queue() || !self.battle.combatants[opp].is_alive() {
                 break;
             }
-            if self.battle.next_actor() != Some(WILD) {
+            if self.battle.next_actor() != Some(opp) {
                 break;
             }
             let target = self.active_player();
-            let action = self.wild_action(target);
+            let (action, lines) = self.opponent_action(target);
+            let Some(action) = action else {
+                // a trainer's switch or item: its queue step ends without a move
+                self.push_lines(lines);
+                self.battle.advance_action_queue(opp);
+                all.push(Event::TurnStarted(self.battle.turn));
+                continue;
+            };
             let style = match &self.data {
-                Some(d) => choose_ai_style(&self.battle, d.type_chart(), WILD, action.move_slot, target),
+                Some(d) => choose_ai_style(&self.battle, d.type_chart(), opp, action.move_slot, target),
                 None => Style::Normal,
             };
             all.extend(self.resolve_single(StyledAction { action, style }));
@@ -624,6 +651,7 @@ impl ActiveBattleSession {
     /// Run the after-battle progression once the battle has ended (idempotent).
     fn check_end(&mut self) {
         if self.battle.ended {
+            self.trainer_battle_end();
             self.process_battle_end();
         }
     }
@@ -742,8 +770,13 @@ impl ActiveBattleSession {
         }
     }
 
-    /// Throw a ball item at the wild Pokemon. Returns true when a turn was spent.
+    /// Throw a ball item at the wild Pokemon. Returns true when a turn was spent. Refused in
+    /// trainer and Noble battles (nothing is consumed).
     pub fn throw_ball(&mut self, item_id: u16) -> bool {
+        if let Some(line) = self.capture_refusal() {
+            self.push_lines(vec![line]);
+            return false;
+        }
         let Some(data) = self.data.clone() else {
             self.push_lines(vec!["No capture data loaded.".into()]);
             return false;
@@ -843,6 +876,10 @@ impl ActiveBattleSession {
     }
 
     pub fn run_away(&mut self) {
+        if let Some(line) = self.run_refusal() {
+            self.push_lines(vec![line]);
+            return;
+        }
         self.battle.ended = true;
         self.push_lines(vec!["Got away safely!".into()]);
         self.check_end();
@@ -851,6 +888,10 @@ impl ActiveBattleSession {
     /// Legacy capture entry kept for callers without the item bag (fixed Poke Ball, placeholder
     /// catch rate). The in-game input path uses `throw_ball` instead.
     pub fn attempt_capture_in_battle(&mut self, battle_data: &BattleData) -> Result<bool, String> {
+        if let Some(line) = self.capture_refusal() {
+            self.push_lines(vec![line]);
+            return Ok(false);
+        }
         let res = self.battle.attempt_capture(
             battle_data,
             WILD,
@@ -1051,6 +1092,10 @@ impl ActiveBattleSession {
             }
             BattleInput::Capture => {
                 self.selected_menu_idx = 3;
+                if let Some(line) = self.capture_refusal() {
+                    self.push_lines(vec![line]);
+                    return false;
+                }
                 let ball = self
                     .bag_view()
                     .iter()

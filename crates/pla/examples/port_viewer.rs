@@ -782,6 +782,7 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     app.add_plugins(pla::game::follower::FollowerPlugin);
+    app.add_plugins(pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args());
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
     app.add_plugins(pla::game::audio::GameAudioPlugin::from_env_and_args());
     app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
@@ -2887,7 +2888,8 @@ fn controls_demo_driver(
 
 /// Keep the player's arena model on the species that is out: a switch or an evolution changes
 /// it, so slot 0 is respawned with the new species (same pose); `spawn_pokemon_models` then
-/// loads its glTF like any arena model.
+/// loads its glTF like any arena model. Slot 1 follows the opponent the same way (a trainer
+/// sends out its next Pokemon).
 fn sync_arena_player_model(
     mut commands: Commands,
     session: Option<Res<ActiveBattleSession>>,
@@ -2898,10 +2900,12 @@ fn sync_arena_player_model(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let Some(sess) = session else { return };
-    let Some(c) = sess.battle.combatants.get(sess.active_player()) else { return };
-    let want = c.species.dex;
     for (entity, spawn, xf, slot) in &slots {
-        if slot.0 != 0 || spawn.national_dex == want {
+        // slot 0: the player's active Pokemon; slot 1: the opponent's (a trainer switches).
+        let who = if slot.0 == 0 { sess.active_player() } else { sess.opponent() };
+        let Some(c) = sess.battle.combatants.get(who) else { continue };
+        let want = c.species.dex;
+        if slot.0 > 1 || spawn.national_dex == want {
             continue;
         }
         if !catalog.handles.contains_key(&want) {
@@ -2916,7 +2920,7 @@ fn sync_arena_player_model(
             .spawn((
                 BattleArenaMarker,
                 PokemonSpawn { national_dex: want },
-                pla::game::pokemon_anim::PokemonBattleSlot(0),
+                pla::game::pokemon_anim::PokemonBattleSlot(slot.0),
                 Transform::from_translation(xf.translation).with_rotation(xf.rotation),
                 Visibility::default(),
             ))
@@ -2929,6 +2933,6 @@ fn sync_arena_player_model(
                     })),
                 ));
             });
-        println!("Arena slot 0 now shows #{want}");
+        println!("Arena slot {} now shows #{want}", slot.0);
     }
 }

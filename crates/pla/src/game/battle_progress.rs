@@ -19,7 +19,7 @@
 
 use std::collections::VecDeque;
 
-use super::battle_controller::{ActiveBattleSession, BattleInput, BattleMenuState, MemberMeta, WILD};
+use super::battle_controller::{ActiveBattleSession, BattleInput, BattleMenuState, MemberMeta};
 use crate::battle_engine::progression::{
     check_evolution, evolve, evolve_combatant, exp_yield_for, level_up_combatant, use_progress_item,
     AwardOutcome, EffortError, Evolution, EvolutionContext, ProgressMember, ProgressionTables, MAX_LEVEL,
@@ -196,14 +196,22 @@ impl ActiveBattleSession {
             return;
         }
         self.progress.end_processed = true;
-        let wild = &self.battle.combatants[WILD];
-        let won = wild.hp == 0 && !wild.caught;
+        // Wild battle: the wild Pokemon if it fainted. Trainer battle: every fainted member.
+        let defeated = self.defeated_opponents();
+        let trainer = self.trainer.is_some();
         let ci = self.active_player();
         let alive = self.battle.combatants.get(ci).is_some_and(|c| c.hp > 0);
-        if let (true, true, Some(t)) = (won, alive, self.progression.clone()) {
-            let (dex, level) = (wild.species.dex, wild.level);
-            // ASSUMED: wild battles, the active Pokemon is the only participant.
-            let amount = battle_exp(&t, dex, 0, level, 1, false);
+        if let (false, true, Some(t)) = (defeated.is_empty(), alive, self.progression.clone()) {
+            // ASSUMED: the active Pokemon is the only participant and takes the experience of
+            // every defeated opponent at the end of the battle.
+            let amount: u32 = defeated
+                .iter()
+                .map(|&i| {
+                    let c = &self.battle.combatants[i];
+                    let form = self.member_meta.get(i).map_or(0, |m| m.form);
+                    battle_exp(&t, c.species.dex, form, c.level, 1, trainer)
+                })
+                .sum();
             let mut m = self.progress_member(&t, ci);
             let out = progression::award_exp(&t, &mut m, amount);
             let mut lines = vec![format!("{} gained {amount} Exp. Points!", self.display_name(ci))];
