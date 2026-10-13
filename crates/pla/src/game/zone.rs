@@ -20,11 +20,14 @@
 //!   against the real rows;
 //! - main-area scene load (`ha_areaNN`, terrain + navmesh + spawners): end-to-end tested on real
 //!   game data (headless, `[skip]` without it);
+//! - scene reload on a change (Brief 8b): the decoded lighting/sky and the placed objects are
+//!   swapped here, the `.trins` trees follow `TerrainResource`; unit and headless tested, not seen
+//!   in a window;
 //! - sub-area scenes (`ha_areaNN_sXX`: houses, tents, caves, temple): the decoded request is
 //!   correct, but the interior scene itself is Brief 37; [`apply_zone_change`] refuses with a
 //!   visible notice instead of loading the wrong terrain.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -384,6 +387,30 @@ pub fn zone_display_name(zone: &str) -> String {
     match main_area_index(zone) {
         Some(idx) => display_name_for_index(idx),
         None => zone.to_string(),
+    }
+}
+
+// ------------------------------------------------------------------ one-shot scene content
+
+/// What the viewer's one-shot `.trins` tree spawner must do when the active area changes
+/// (Brief 8b). Each area has its own instance list, so a change has to remove the previous area's
+/// tree entities and stream the new area's models instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrinsReloadStep {
+    /// First spawn: there are no tree entities to remove.
+    Initial,
+    /// The same area is already spawned: nothing to do.
+    Skip,
+    /// A different area's trees are live: despawn them and stream this area's.
+    Reload,
+}
+
+/// Decision of [`TrinsReloadStep`] from the area whose `.trins` are already spawned.
+pub fn trins_reload_step(spawned_area: Option<u8>, active_area: u8) -> TrinsReloadStep {
+    match spawned_area {
+        Some(a) if a == active_area => TrinsReloadStep::Skip,
+        Some(_) => TrinsReloadStep::Reload,
+        None => TrinsReloadStep::Initial,
     }
 }
 
@@ -896,6 +923,15 @@ pub fn apply_zone_change(
             eprintln!("zone: no placed-object walls in ha_area{area_idx:02}: {e}");
         }
     }
+    // Brief 8b: the streamed scenery, the decoded lighting/sky and the `.trins` trees used to stay
+    // the start area's after a change. The trees follow on their own (the viewer spawner tracks
+    // `TerrainResource`); the table and the environment are swapped here.
+    let tree_models: HashSet<String> = world
+        .get_resource::<TerrainResource>()
+        .map(|t| t.area.instances.iter().map(|i| i.model_name.clone()).collect())
+        .unwrap_or_default();
+    crate::game::world_objects::reload_world_objects(world, area_idx, &tree_models);
+    crate::game::lighting::reload_zone_environment(world, &request.zone);
     // The old area's creatures live in the old frame: remove them, then stream the new table
     // (an unreadable table leaves the new area empty rather than replaying the old spawners).
     let spawners = match find_data_file("field_spawn_table.tsv") {
@@ -1663,6 +1699,109 @@ mod tests {
             *app.world().resource::<State<GameState>>().get(),
             GameState::Loading,
             "the app asks for GameState::Loading while the change is in flight"
+        );
+    }
+
+    #[test]
+    fn trins_reload_decision() {
+        assert_eq!(trins_reload_step(None, 0), TrinsReloadStep::Initial);
+        assert_eq!(trins_reload_step(Some(0), 0), TrinsReloadStep::Skip);
+        assert_eq!(trins_reload_step(Some(0), 1), TrinsReloadStep::Reload);
+        assert_eq!(trins_reload_step(Some(5), 0), TrinsReloadStep::Reload);
+    }
+
+    /// Brief 8b: a change swaps the placed-object table and re-applies the decoded environment.
+    /// The tree spawner follows `TerrainResource` (its step is covered by `trins_reload_decision`).
+    #[test]
+    fn zone_change_reloads_placed_objects_and_decoded_lighting() {
+        if game_bin_root().is_none() {
+            eprintln!("[skip] game bin root not found (set PLA_BIN_ROOT)");
+            return;
+        }
+        use bevy::light::{DirectionalLight, GlobalAmbientLight};
+        use crate::game::render_look::LookSettings;
+        use crate::game::world_objects::{
+            installed_placement_count, Placement, RotMode, WorldObjects,
+        };
+
+        let bin_root = game_bin_root().unwrap();
+        let sheet = crate::game::lighting::find_lighting_sheet().expect("lighting sheet");
+        let text = std::fs::read_to_string(sheet).unwrap();
+        let env1 = crate::game::lighting::parse_zone_env(&text, "ha_area01", 1).expect("slot 1");
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(Assets::<Mesh>::default());
+        app.insert_resource(Assets::<StandardMaterial>::default());
+        app.insert_resource(Assets::<Image>::default());
+        app.add_plugins(crate::game::lighting::ZoneLightingPlugin { area: 0, slot: 1 });
+        app.update(); // PostStartup applied area 00's environment
+
+        // Initial scene state: area 00's terrain and a synthetic placed-object table.
+        let initial = TerrainArea::load(&bin_root, 0).expect("area 00 terrain");
+        let settings = initial
+            .mesh_settings(TerrainScaleOverride::default(), 64)
+            .expect("mesh settings");
+        let chunks = build_mesh_chunks(&initial.heightmap, settings).expect("chunks");
+        app.insert_resource(TerrainResource {
+            area: Arc::new(initial),
+            chunks,
+            blended_albedo: None,
+            settings,
+        });
+        app.insert_resource(ZoneBinRoot(bin_root.clone()));
+        app.insert_resource(ActiveZoneInfo {
+            area: "ha_area00".into(),
+            name: zone_display_name("ha_area00"),
+        });
+        app.insert_resource(ActiveAreaSpawners::default());
+        let stale = Placement {
+            model: "objects_old".into(),
+            pos: [1.0, 2.0, 3.0],
+            rot_deg: [0.0; 3],
+            scale: [1.0; 3],
+        };
+        app.insert_resource(WorldObjects::for_tests(vec![stale], RotMode::YawY));
+
+        let request = ZoneChangeRequest {
+            zone: "ha_area01".into(),
+            spawn: Vec3::new(100.0, 0.0, 100.0),
+            yaw_deg: 0.0,
+            source: ZoneChangeSource::Debug,
+            link: None,
+        };
+        apply_zone_change(app.world_mut(), &request).expect("area 01 loads");
+
+        assert_eq!(app.world().resource::<ActiveZoneInfo>().area, "ha_area01");
+        assert_eq!(
+            installed_placement_count(app.world()),
+            Some(0),
+            "the start area's table was replaced (the test table has no export paths)"
+        );
+        let (suns, sun_red) = {
+            let mut q = app.world_mut().query::<&DirectionalLight>();
+            let mut count = 0;
+            let mut red = f32::NAN;
+            for l in q.iter(app.world()) {
+                if count == 0 {
+                    red = l.color.to_linear().red;
+                }
+                count += 1;
+            }
+            (count, red)
+        };
+        assert_eq!(suns, 1, "one sun light after the environment swap");
+        assert!((sun_red - env1.sun_color[0]).abs() < 1e-5, "sun from ha_area01");
+        let clear_red = app.world().resource::<ClearColor>().0.to_linear().red;
+        assert!(
+            (clear_red - env1.sky[0].0[0]).abs() < 1e-6,
+            "clear colour is the new area's horizon sky"
+        );
+        let p = crate::game::render_look::look_params(&env1, LookSettings::default());
+        let brightness = app.world().resource::<GlobalAmbientLight>().brightness;
+        assert!(
+            (brightness - p.ambient_brightness).abs() < 1e-3,
+            "ambient light follows the new area"
         );
     }
 }

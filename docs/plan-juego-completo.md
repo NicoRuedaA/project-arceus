@@ -17,7 +17,7 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 | Punto | Estado | Dif. | Notas |
 |---|---|:-:|---|
 | Las 6 zonas principales (0 a 5): terreno, árboles, casas, apariciones | Hecho | | Aldea Joya, Campos Obsidiana, Cenagal Carmesí, Costa Cobalto, Cordillera Corona, Glaciares Alabastro |
-| Cambiar de zona sin reiniciar | Hecho (falta 8b: recargar luz, objetos y árboles) | 2 | Puertas, caminos y pantallas de carga |
+| Cambiar de zona sin reiniciar | Hecho (8b implementado en la rama `feat/zone-reload`: la luz, los objetos y los árboles se recargan; pendiente de fusionar) | 2 | Puertas, caminos y pantallas de carga |
 | Subzonas e interiores (cuevas, casas por dentro) | Parcial: datos y puertas descifrados, sin implementar | 3 | Sus coordenadas son locales y no entendemos el marco |
 | Zonas 06 y 11 | Parcial | 2 | |
 | Hierba densa, flores y arbustos | Hecho | 3 | Dependen de máscaras de detalle (`detailmap`) sin descifrar. Es lo que más cambia el aspecto |
@@ -142,7 +142,7 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 7. Menú principal y opciones básicas. **[hecho]**
 
 **Nivel 2, medio (varios días)**
-8. Cambiar de zona sin reiniciar. **[hecho (8b en cola)]**
+8. Cambiar de zona sin reiniciar. **[hecho; 8b implementado en la rama `feat/zone-reload`, pendiente de fusionar]**
 9. Clima y ciclo de día y noche con reloj. **[en proceso]**
 10. Colisiones con edificios y rocas. **[hecho]**
 11. Agua (reflejos, olas) y nadar. **[hecho]**

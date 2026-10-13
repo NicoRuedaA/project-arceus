@@ -709,6 +709,35 @@ mod tests {
         assert!(s.log_lines.iter().any(|l| l.contains("no running")));
     }
 
+    /// A ball of every kind in the bag is refused against a trainer through every entry point
+    /// (menu capture, bag item, throw, legacy capture): no ball spent, no turn lost, the RNG
+    /// untouched, nothing caught and the battle neither ended nor skipped.
+    #[test]
+    fn every_ball_kind_is_rejected_against_a_trainer_without_side_effects() {
+        let Some((a, c)) = fixtures() else { return };
+        let mut s = ActiveBattleSession::start_trainer(&a, "pikachu", 25, c.get("trainer01_01").unwrap(), Entity::PLACEHOLDER).unwrap();
+        assert!(s.is_trainer_battle());
+        assert!(s.capture_refusal().is_some(), "a trainer battle always carries a capture refusal");
+        let balls: Vec<u16> = s.bag_order.iter().filter(|e| e.kind == ItemKind::Ball).map(|e| e.item_id).collect();
+        assert!(!balls.is_empty());
+        let counts: Vec<u16> = balls.iter().map(|&b| s.bag.count(b)).collect();
+        let (turn, rng, party, caught) = (s.battle.turn, s.rng.0, s.battle.sides[1].len(), s.battle.combatants[WILD].caught);
+        for &b in &balls {
+            assert!(!s.use_bag_item(b), "bag use of ball {b}");
+            assert!(!s.throw_ball(b), "throw of ball {b}");
+        }
+        assert!(!s.handle_input(BattleInput::Capture));
+        assert!(s.attempt_capture_in_battle(&a.data).is_ok_and(|caught| !caught));
+        let after: Vec<u16> = balls.iter().map(|&b| s.bag.count(b)).collect();
+        assert_eq!(after, counts, "no ball consumed");
+        assert_eq!(s.battle.turn, turn, "no turn lost");
+        assert_eq!(s.rng.0, rng, "no capture roll drawn");
+        assert_eq!(s.battle.sides[1].len(), party, "trainer team untouched");
+        assert_eq!(s.battle.combatants[WILD].caught, caught);
+        assert!(!s.battle.ended, "the battle neither ended nor was skipped");
+        assert!(s.is_trainer_battle());
+    }
+
     /// Acceptance: a headless 3-vs-3 battle to the end, no panic, same winner for the same seed.
     #[test]
     fn three_vs_three_runs_to_the_end_deterministically() {

@@ -8,6 +8,10 @@
 //! Water planes (`ground_*water*`, the game's undecoded `Water` shader) go through
 //! `game::water`: they get the `WaterMaterial` and their world footprint/level is recorded in
 //! `WaterBodies` so the locomotion can decide swimming.
+//!
+//! Brief 8b: [`reload_world_objects`] swaps the table to the new area on a zone change
+//! (`game::zone::apply_zone_change`): the plugin parses the start area's placements once, so
+//! without it the new area would stream the old area's houses and props.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -85,6 +89,19 @@ pub fn dedupe_variants(rows: Vec<Placement>) -> Vec<Placement> {
         .collect()
 }
 
+/// Placements that can be streamed: model not already placed by the `.trins` trees
+/// (`exclude_models`) and with an exported glTF on disk (`paths`). Shared by the plugin build and
+/// the zone-change reload so both filter the sheet the same way.
+pub fn keep_streamable_placements(
+    rows: Vec<Placement>,
+    exclude_models: &HashSet<String>,
+    paths: &HashMap<String, (PathBuf, String)>,
+) -> Vec<Placement> {
+    rows.into_iter()
+        .filter(|p| !exclude_models.contains(&p.model) && paths.get(&p.model).is_some_and(|(f, _)| f.exists()))
+        .collect()
+}
+
 /// Which rotation interpretation to use (kept switchable for visual verification).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RotMode {
@@ -158,8 +175,9 @@ pub struct WorldObjectsPlugin {
     pub rot_mode: RotMode,
 }
 
+/// Active placed-object state (crate-visible: the zone change driver swaps its table).
 #[derive(Resource)]
-struct WorldObjects {
+pub(crate) struct WorldObjects {
     placements: Vec<Placement>,
     paths: HashMap<String, (PathBuf, String)>,
     alive: HashMap<usize, Entity>,
@@ -193,10 +211,7 @@ impl Plugin for WorldObjectsPlugin {
         let paths = model_paths(&self.cache_root, self.area);
         let total = all.len();
         let overlap = all.iter().filter(|p| self.exclude_models.contains(&p.model)).count();
-        let placements: Vec<Placement> = all
-            .into_iter()
-            .filter(|p| !self.exclude_models.contains(&p.model) && paths.get(&p.model).is_some_and(|(f, _)| f.exists()))
-            .collect();
+        let placements = keep_streamable_placements(all, &self.exclude_models, &paths);
         println!(
             "World objects {area}: {total} ok placements, {overlap} overlap .trins models (skipped), {} with an exported glTF on disk.",
             placements.len()
@@ -211,6 +226,77 @@ impl Plugin for WorldObjectsPlugin {
             rot_mode: self.rot_mode,
         });
         app.add_systems(Update, stream_objects);
+    }
+}
+
+/// Swap the streamed placed objects to main area `area_idx` after a zone change (Brief 8b).
+///
+/// Despawns every live object (the primitive children go with it), forgets the old area's water
+/// bodies, and installs the new area's table filtered with `exclude_models` (the new area's
+/// `.trins` models) exactly like `WorldObjectsPlugin::build`. Areas outside 00..=05 get an empty
+/// table, the same set the plugin parses at startup. Returns the number of placements installed,
+/// or `None` when the plugin is not installed in `world`.
+pub fn reload_world_objects(
+    world: &mut World,
+    area_idx: u8,
+    exclude_models: &HashSet<String>,
+) -> Option<usize> {
+    let old: Vec<Entity> = {
+        let mut wo = world.get_resource_mut::<WorldObjects>()?;
+        wo.handles.clear();
+        wo.prims.clear();
+        wo.water_meshes.clear();
+        wo.alive.drain().map(|(_, e)| e).collect()
+    };
+    for entity in old {
+        // Despawns the primitive children as well (ChildOf linked-despawn).
+        world.despawn(entity);
+    }
+    // The recorded surfaces belong to the old area's frame: keep them and a new-area player would
+    // "swim" on dry land until the new area's water streams in.
+    if let Some(mut bodies) = world.get_resource_mut::<WaterBodies>() {
+        bodies.bodies.clear();
+        bodies.dropped = 0;
+    }
+    let placements = if area_idx <= 5 {
+        let area = format!("ha_area{area_idx:02}");
+        let text = find_data_file("field_object_placements.tsv")
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .unwrap_or_else(|| {
+                eprintln!("World objects: placement sheet not found on a zone change; {area} stays empty");
+                String::new()
+            });
+        let wo = world.resource::<WorldObjects>();
+        keep_streamable_placements(parse_placements(&text, &area), exclude_models, &wo.paths)
+    } else {
+        Vec::new()
+    };
+    let count = placements.len();
+    world.resource_mut::<WorldObjects>().placements = placements;
+    println!("World objects ha_area{area_idx:02}: {count} placements installed for the zone change");
+    Some(count)
+}
+
+/// Number of placements of the currently installed area (diagnostics and tests); `None` when the
+/// plugin is not installed.
+pub fn installed_placement_count(world: &World) -> Option<usize> {
+    world.get_resource::<WorldObjects>().map(|w| w.placements.len())
+}
+
+#[cfg(test)]
+impl WorldObjects {
+    /// Table with `placements` but no export paths and nothing alive: a zone-change test can then
+    /// see the reload clear it (every placement is filtered out without `paths`).
+    pub fn for_tests(placements: Vec<Placement>, rot_mode: RotMode) -> Self {
+        Self {
+            placements,
+            paths: HashMap::new(),
+            alive: HashMap::new(),
+            handles: HashMap::new(),
+            prims: HashMap::new(),
+            water_meshes: HashMap::new(),
+            rot_mode,
+        }
     }
 }
 
@@ -451,5 +537,78 @@ ha_area01\td\tk\th\tobjects_d\tok\t1\t2\t3\t\t\t\t\t\t\t\n";
         let a = placement_rotation(&p, RotMode::YawY) * Vec3::X;
         let b = placement_rotation(&p, RotMode::YawYNeg) * Vec3::X;
         assert!((a + b).length() < 1e-5);
+    }
+
+    #[test]
+    fn keep_streamable_filters_by_exclusion_and_disk() {
+        let rows = parse_placements(T, "ha_area00");
+        assert_eq!(rows.len(), 1, "only the ok row of the area is parsed");
+        let dir = std::env::temp_dir().join(format!("wo_stream_test_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("objects_a.gltf");
+        std::fs::write(&file, "{}").unwrap();
+        let mut paths = HashMap::new();
+        paths.insert("objects_a".to_string(), (file, "cache/objects_a.gltf".to_string()));
+        assert_eq!(keep_streamable_placements(rows.clone(), &HashSet::new(), &paths).len(), 1);
+        let mut excluded = HashSet::new();
+        excluded.insert("objects_a".to_string());
+        assert!(
+            keep_streamable_placements(rows.clone(), &excluded, &paths).is_empty(),
+            "a model the .trins trees place is skipped"
+        );
+        let mut missing = HashMap::new();
+        missing.insert(
+            "objects_a".to_string(),
+            (dir.join("absent.gltf"), "cache/absent.gltf".to_string()),
+        );
+        assert!(
+            keep_streamable_placements(rows, &HashSet::new(), &missing).is_empty(),
+            "no exported glTF on disk: not streamable"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reload_despawns_the_old_area_and_installs_the_new_table() {
+        let mut world = World::new();
+        let live = world.spawn_empty().id();
+        let child = world.spawn(ChildOf(live)).id();
+        let unrelated = world.spawn_empty().id();
+        let stale = Placement {
+            model: "objects_old".into(),
+            pos: [1.0, 2.0, 3.0],
+            rot_deg: [0.0; 3],
+            scale: [1.0; 3],
+        };
+        let mut wo = WorldObjects::for_tests(vec![stale], RotMode::YawY);
+        wo.alive.insert(0, live);
+        world.insert_resource(wo);
+        let mut bodies = WaterBodies::default();
+        bodies.insert(crate::game::water::WaterBody {
+            min: Vec2::ZERO,
+            max: Vec2::new(10.0, 10.0),
+            level: 1.0,
+            triangles: vec![],
+        });
+        world.insert_resource(bodies);
+
+        let count = reload_world_objects(&mut world, 1, &HashSet::new()).expect("plugin installed");
+        assert_eq!(count, 0, "the test table has no export paths: nothing is streamable");
+        assert!(world.get_entity(live).is_err(), "old placed object despawned");
+        assert!(world.get_entity(child).is_err(), "its primitives went with it");
+        assert!(world.get_entity(unrelated).is_ok());
+        assert!(world.resource::<WorldObjects>().alive.is_empty());
+        assert_eq!(installed_placement_count(&world), Some(0));
+        assert!(
+            world.resource::<WaterBodies>().bodies.is_empty(),
+            "the old area's water bodies are forgotten"
+        );
+    }
+
+    #[test]
+    fn reload_without_the_plugin_is_a_no_op() {
+        let mut world = World::new();
+        assert!(reload_world_objects(&mut world, 1, &HashSet::new()).is_none());
+        assert!(installed_placement_count(&world).is_none());
     }
 }
