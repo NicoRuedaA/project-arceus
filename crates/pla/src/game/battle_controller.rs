@@ -3,26 +3,39 @@
 //! The session owns the engine `Battle`, a small party, the item bag and the log. All menu and
 //! turn logic lives here as plain functions on `ActiveBattleSession` so it is unit-testable
 //! without Bevy systems; `battle_input` only maps keys to `BattleInput`.
+//!
+//! Turn flow ([`TurnMode`], see `battle_turns`): by default the PLA action-order queue decides
+//! who acts (one combatant per step, the opponent acts automatically when the queue picks it)
+//! and the player may use a move in agile (Q) or strong (E) style. `--classic-turns` keeps the
+//! old once-per-round flow. After the battle, `battle_progress` awards experience and runs the
+//! move-learn prompts and evolution before the battle screen closes.
 
 use std::path::Path;
 use std::sync::Arc;
 
 use bevy::prelude::*;
 
-use super::battle_ai::choose_ai_action;
+use super::trainer_battle::{OpponentChoice, TrainerBattleState};
 use super::battle_items::{self, BagEntry, ItemKind};
 use super::battle_log::{self, tail};
+use super::battle_progress::ProgressFlow;
+use super::battle_style_ai::choose_ai_style;
+pub use super::battle_turns::TurnMode;
+use super::battle_turns::{style_word, turn_order_lines};
 pub use super::catch_rate::{CatchRateSource, CatchRateTable, CAPTURE_CATCH_RATE_PLACEHOLDER};
 use crate::battle::BattleData;
 use crate::battle_engine::effects::{MoveEffectsTable, Stages};
 use crate::battle_engine::items::{ItemBag, ItemTable};
+use crate::battle_engine::progression::ProgressionTables;
 use crate::battle_engine::statuses::StatusRules;
+use crate::battle_engine::styles::{MoveStyleTable, Style, StyledAction};
 use crate::battle_engine::{
     capture_index, capture_probability, Action, Battle, BattleRng, CaptureModifiers, Combatant,
     Event, MajorStatus, XorShift32,
 };
 
-/// Index of the wild combatant in `Battle::combatants` (side 1).
+/// Index of the wild combatant in `Battle::combatants` (side 1). In a trainer battle it is the
+/// trainer's first Pokemon; use [`ActiveBattleSession::opponent`] for the one that is out.
 pub const WILD: usize = 1;
 /// Slots shown at once in the move / item / party grid.
 pub const GRID_SLOTS: usize = 4;
@@ -36,6 +49,10 @@ pub enum BattleMenuState {
     ItemSelect,
     SwitchSelect,
     ExecutingTurn,
+    /// After the battle: pick a move to forget (1-4) or give up (Back).
+    LearnMove,
+    /// After the battle: evolution animation (Back stops it).
+    Evolving,
 }
 
 /// Abstract player input (keys are mapped in `battle_input`; the demo script uses these too).
@@ -53,6 +70,18 @@ pub enum BattleInput {
     /// Throw the first ball in the bag.
     Capture,
     Run,
+    /// Use the highlighted move in agile style (key Q; PLA turn flow only).
+    StyleAgile,
+    /// Use the highlighted move in strong style (key E; PLA turn flow only).
+    StyleStrong,
+}
+
+/// Per-combatant facts the engine does not keep: the form and the cumulative experience
+/// (`None` = unknown, the level threshold is used). Filled from the save by `install_party`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MemberMeta {
+    pub form: u8,
+    pub exp: Option<u32>,
 }
 
 /// Data tables needed to start a battle with the data-driven features.
@@ -68,6 +97,14 @@ pub struct BattleAssets {
     /// damage is roughly three times the old main-series numbers. Set it to
     /// `StatusRules::default()` to turn every rule off (legacy formula).
     pub status_rules: StatusRules,
+    /// Agile / strong values per move (`MoveStyleTable::load`); `None` when the sheets are
+    /// missing (every move is then used normally).
+    pub move_styles: Option<MoveStyleTable>,
+    /// Experience curves, learnsets, evolutions and progression items; `None` disables
+    /// experience, level-ups and evolution.
+    pub progression: Option<Arc<ProgressionTables>>,
+    /// Turn flow of new battles (default PLA queue; `--classic-turns` / `PLA_TURNS=classic`).
+    pub turn_mode: TurnMode,
 }
 
 impl BattleAssets {
@@ -77,12 +114,22 @@ impl BattleAssets {
             eprintln!("catch rates unavailable ({e}); using the placeholder rate");
             CatchRateTable::default()
         });
+        let move_styles = MoveStyleTable::load(root)
+            .map_err(|e| eprintln!("move styles unavailable ({e}); every move is used normally"))
+            .ok();
+        let progression = ProgressionTables::load(root)
+            .map_err(|e| eprintln!("progression tables unavailable ({e}); no experience or evolution"))
+            .ok()
+            .map(Arc::new);
         Ok(Self {
             data: Arc::new(BattleData::load(root)?),
             move_effects: MoveEffectsTable::load(root)?,
             items: ItemTable::load(root)?,
             catch_rates,
             status_rules: StatusRules::game_rules(),
+            move_styles,
+            progression,
+            turn_mode: TurnMode::from_env_and_args(),
         })
     }
 }
@@ -207,7 +254,16 @@ pub struct ActiveBattleSession {
     pub list_cursor: usize,
     pub catch_rate: u8,
     pub catch_rate_source: CatchRateSource,
-    data: Option<Arc<BattleData>>,
+    pub(crate) data: Option<Arc<BattleData>>,
+    /// Turn flow of this battle.
+    pub turn_mode: TurnMode,
+    /// Form and experience per combatant index (see [`MemberMeta`]).
+    pub member_meta: Vec<MemberMeta>,
+    pub progression: Option<Arc<ProgressionTables>>,
+    /// After-battle steps (move prompts, evolution); see `battle_progress`.
+    pub progress: ProgressFlow,
+    /// Trainer / boss battle facts (`None` in a wild battle); see `trainer_battle`.
+    pub trainer: Option<TrainerBattleState>,
 }
 
 impl ActiveBattleSession {
@@ -292,16 +348,27 @@ impl ActiveBattleSession {
         )?;
         let mut bag = ItemBag::default();
         let mut bag_order = Vec::new();
+        let turn_mode = assets.map_or(TurnMode::Classic, |a| a.turn_mode);
         let (catch_rate, catch_rate_source) = match assets {
             Some(a) => {
                 battle.set_move_effects(a.move_effects.clone());
                 battle.set_item_table(a.items.clone());
                 battle.set_status_rules(a.status_rules);
+                if let Some(t) = &a.move_styles {
+                    battle.set_move_styles(t.clone());
+                }
+                if turn_mode.uses_queue() {
+                    battle.enable_action_queue();
+                }
                 (bag, bag_order) = battle_items::starter_bag(&a.items);
+                if let Some(p) = &a.progression {
+                    battle_items::add_progress_items(&mut bag, &mut bag_order, &a.items, p);
+                }
                 a.catch_rates.lookup(wild_species)
             }
             None => (CAPTURE_CATCH_RATE_PLACEHOLDER, CatchRateSource::Placeholder),
         };
+        let member_meta = vec![MemberMeta::default(); battle.combatants.len()];
         let mut s = Self {
             battle,
             wild_entity,
@@ -321,8 +388,17 @@ impl ActiveBattleSession {
             catch_rate,
             catch_rate_source,
             data: assets.map(|a| a.data.clone()),
+            turn_mode,
+            member_meta,
+            progression: assets.and_then(|a| a.progression.clone()),
+            progress: ProgressFlow::default(),
+            trainer: None,
         };
-        s.push_lines(vec!["Battle Started!".into()]);
+        let mut start = vec!["Battle Started!".to_string()];
+        if s.turn_mode.uses_queue() {
+            start.push(s.styles_hint());
+        }
+        s.push_lines(start);
         Ok(s)
     }
 
@@ -332,12 +408,69 @@ impl ActiveBattleSession {
         self.battle.active_combatant(0).unwrap_or(0)
     }
 
+    /// The opponent's Pokemon that is out (always [`WILD`] in a wild battle).
+    pub fn opponent(&self) -> usize {
+        self.battle.active_combatant(1).unwrap_or(WILD)
+    }
+
+    /// The battle tables, when the session was started with them.
+    pub fn battle_data(&self) -> Option<&BattleData> {
+        self.data.as_deref()
+    }
+
+    /// The PLA action-order queue drives this battle.
+    pub fn uses_queue(&self) -> bool {
+        self.turn_mode.uses_queue() && self.battle.action_queue().is_some()
+    }
+
+    /// Start-of-battle hint for the PLA turn flow. Mastery (brief D3) is not tracked yet, so
+    /// every move whose data allows styles counts as mastered; the hint says so.
+    pub fn styles_hint(&self) -> String {
+        if self.battle.move_styles().is_some() {
+            "Styles: Q = Agile, E = Strong on the highlighted move (mastery not tracked yet: every move counts as mastered).".into()
+        } else {
+            "Styles unavailable (move style sheets not loaded).".into()
+        }
+    }
+
+    /// HUD turn-order list (next 6 turns) for the PLA flow; empty in the classic flow.
+    pub fn turn_order_lines(&self) -> Vec<String> {
+        if !self.uses_queue() {
+            return Vec::new();
+        }
+        let names = self.names();
+        let preview = self.battle.turn_order_preview(crate::battle_engine::styles::TURN_ORDER_PREVIEW_LEN);
+        turn_order_lines(&preview, &|i| names[i].clone(), 0)
+    }
+
+    /// Power / accuracy of a move slot in each style, as shown on the move grid
+    /// (`"Pow 90 A70 S110 | Acc S100"`); `None` when the move has no usable styles.
+    pub fn style_summary(&self, combatant: usize, slot: usize) -> Option<String> {
+        let m = self.battle.combatants.get(combatant)?.moves.get(slot)?;
+        let d = self.battle.move_styles()?.get(&m.data.name)?;
+        if !d.styles_usable {
+            return None;
+        }
+        let mut out = format!(
+            "Pow {} A{} S{}",
+            d.power(Style::Normal),
+            d.power(Style::Agile),
+            d.power(Style::Strong)
+        );
+        if d.accuracy(Style::Strong) != d.accuracy(Style::Normal) {
+            out.push_str(&format!(" | Acc S{}", d.accuracy(Style::Strong)));
+        }
+        Some(out)
+    }
+
     pub fn display_name(&self, i: usize) -> String {
         let n = self.battle.combatants[i].species.name.to_uppercase();
-        if i == WILD {
-            format!("Wild {n}")
-        } else {
+        if !self.battle.sides.get(1).is_some_and(|s| s.contains(&i)) {
             n
+        } else if self.trainer.is_some() {
+            format!("Foe {n}")
+        } else {
+            format!("Wild {n}")
         }
     }
 
@@ -379,44 +512,48 @@ impl ActiveBattleSession {
 
     // ------------------------------------------------------------------ turns
 
-    /// Resolve one engine turn. `player` is the player's action (None when the player used the
-    /// turn on a switch, item or ball); the wild side always acts, chosen by the engine AI.
-    fn resolve_turn(&mut self, player: Option<Action>) -> Vec<Event> {
-        let before_active = self.active_player();
-        let mut actions: Vec<Action> = player.into_iter().collect();
-        if self.battle.combatants[WILD].is_alive() {
-            let wild_action = match &self.data {
-                Some(data) => choose_ai_action(&self.battle, data, WILD, before_active, &mut self.rng),
-                None => {
-                    let n = self.battle.combatants[WILD].moves.len().max(1);
-                    Action {
-                        actor: WILD,
-                        move_slot: (self.rng.0 as usize) % n,
-                    }
-                }
-            };
-            actions.push(wild_action);
-        }
-        let status_moves: Vec<(usize, String)> = actions
+    /// Status moves (no power) among `actions`: the engine emits no `UsedMove` for them, so the
+    /// log announces them itself.
+    fn status_moves_of(&self, actions: &[Action]) -> Vec<(usize, String)> {
+        actions
             .iter()
             .filter_map(|a| {
                 let m = self.battle.combatants[a.actor].moves.get(a.move_slot)?;
                 (m.data.power == 0 && m.pp > 0).then(|| (a.actor, m.data.name.clone()))
             })
-            .collect();
-        let events = self.battle.play_turn(&actions, &mut self.rng);
+            .collect()
+    }
+
+    /// The opponent's move for this turn; a trainer's switch or item is carried out here and
+    /// returns `None` with its log lines (the turn is spent on it). Wild Pokemon always attack
+    /// with the engine-rule AI (random slot without tables).
+    fn opponent_action(&mut self, target: usize) -> (Option<Action>, Vec<String>) {
+        match self.opponent_choice(target) {
+            OpponentChoice::Move(a) => (Some(a), Vec::new()),
+            special => {
+                let lines = self.perform_opponent_special(special);
+                if lines.is_empty() {
+                    // refused by the engine: attack instead
+                    let actor = self.opponent();
+                    let slot = self.battle.best_damage_action(actor).map_or(0, |a| a.move_slot);
+                    (Some(Action { actor, move_slot: slot }), Vec::new())
+                } else {
+                    (None, lines)
+                }
+            }
+        }
+    }
+
+    /// Log and record one resolved engine turn (classic round or PLA single action).
+    fn record_turn(&mut self, before_active: usize, events: Vec<Event>, status_moves: &[(usize, String)]) -> Vec<Event> {
         let effects = self.battle.take_effect_events();
         let statuses = self.battle.take_status_events();
         let rules = self.battle.take_rule_events();
+        let styles = self.battle.take_style_events();
         let names = self.names();
-        let mut lines = battle_log::format_turn(
-            &|i| names[i].clone(),
-            &events,
-            &effects,
-            &statuses,
-            &rules,
-            &status_moves,
-        );
+        let name = |i: usize| names[i].clone();
+        let mut lines = battle_log::format_turn(&name, &events, &effects, &statuses, &rules, status_moves);
+        battle_log::insert_style_lines(&mut lines, &name, &styles);
         let after_active = self.active_player();
         if after_active != before_active && !self.battle.ended {
             let at = lines
@@ -426,30 +563,140 @@ impl ActiveBattleSession {
             lines.insert(at, format!("Go! {}!", names[after_active]));
             self.selected_move_idx = 0;
         }
+        self.trainer_after_turn(&events, &mut lines);
         self.event_log.extend(events.clone());
         self.current_turn = self.battle.turn;
         self.push_lines(lines);
         self.menu_state = BattleMenuState::MainMenu;
         self.selected_menu_idx = 0;
+        self.check_end();
         events
     }
 
-    /// The player attacks with `move_slot`; the wild Pokemon answers. Returns the turn events
-    /// (empty when the choice is refused, e.g. no PP left, and no turn passes).
+    /// Classic flow: resolve one engine round. `player` is the player's action (None when the
+    /// player used the turn on a switch, item or ball); the wild side always acts, chosen by
+    /// the engine AI.
+    fn resolve_turn(&mut self, player: Option<Action>) -> Vec<Event> {
+        let before_active = self.active_player();
+        let mut actions: Vec<Action> = player.into_iter().collect();
+        if self.battle.combatants[self.opponent()].is_alive() {
+            let (action, lines) = self.opponent_action(before_active);
+            self.push_lines(lines);
+            actions.extend(action);
+        }
+        let status_moves = self.status_moves_of(&actions);
+        let events = self.battle.play_turn(&actions, &mut self.rng);
+        self.record_turn(before_active, events, &status_moves)
+    }
+
+    /// PLA flow: one combatant acts alone with its style; the queue step follows the move.
+    fn resolve_single(&mut self, action: StyledAction) -> Vec<Event> {
+        let before_active = self.active_player();
+        let status_moves = self.status_moves_of(&[action.action]);
+        let events = self.battle.play_turn_styled(&[action], &mut self.rng);
+        self.record_turn(before_active, events, &status_moves)
+    }
+
+    /// PLA flow: while the queue picks the wild Pokemon, it acts (style from
+    /// `battle_style_ai`). Bounded to 8 actions in a row. Returns the events.
+    fn run_ai_turns(&mut self) -> Vec<Event> {
+        let mut all = Vec::new();
+        for _ in 0..8 {
+            let opp = self.opponent();
+            if self.battle.ended || !self.uses_queue() || !self.battle.combatants[opp].is_alive() {
+                break;
+            }
+            if self.battle.next_actor() != Some(opp) {
+                break;
+            }
+            let target = self.active_player();
+            let (action, lines) = self.opponent_action(target);
+            let Some(action) = action else {
+                // a trainer's switch or item: its queue step ends without a move
+                self.push_lines(lines);
+                self.battle.advance_action_queue(opp);
+                all.push(Event::TurnStarted(self.battle.turn));
+                continue;
+            };
+            let style = match &self.data {
+                Some(d) => choose_ai_style(&self.battle, d.type_chart(), opp, action.move_slot, target),
+                None => Style::Normal,
+            };
+            all.extend(self.resolve_single(StyledAction { action, style }));
+        }
+        all
+    }
+
+    /// Let the opponent act if the queue says it is its turn (PLA flow; no-op otherwise).
+    /// Called every frame by `battle_input` and before each player input. True when it acted.
+    pub fn poll_ai(&mut self) -> bool {
+        !self.run_ai_turns().is_empty()
+    }
+
+    /// The opponent's answer to a player action that was not a move (item, ball, switch).
+    fn opponent_turn(&mut self) {
+        if self.uses_queue() {
+            let player = self.active_player();
+            self.battle.advance_action_queue(player);
+            self.run_ai_turns();
+            if !self.battle.ended {
+                self.menu_state = BattleMenuState::MainMenu;
+                self.selected_menu_idx = 0;
+            }
+        } else {
+            self.resolve_turn(None);
+        }
+    }
+
+    /// Run the after-battle progression once the battle has ended (idempotent).
+    fn check_end(&mut self) {
+        if self.battle.ended {
+            self.trainer_battle_end();
+            self.process_battle_end();
+        }
+    }
+
+    /// The player attacks with `move_slot` in the normal style; the wild Pokemon answers.
+    /// Returns the turn events (empty when the choice is refused, e.g. no PP left, and no turn
+    /// passes).
     pub fn execute_player_attack(&mut self, move_slot: usize) -> Vec<Event> {
+        self.execute_player_attack_styled(move_slot, Style::Normal)
+    }
+
+    /// The player attacks with `move_slot` in `style`. PLA flow: a due opponent acts first,
+    /// then the player's move, then the opponent while the queue picks it. Classic flow: one
+    /// round, the style is ignored (and the log says so).
+    pub fn execute_player_attack_styled(&mut self, move_slot: usize, style: Style) -> Vec<Event> {
         if self.battle.ended {
             return Vec::new();
         }
+        let mut events = self.run_ai_turns();
+        if self.battle.ended {
+            return events;
+        }
         let actor = self.active_player();
         let Some(slot) = self.battle.combatants[actor].moves.get(move_slot) else {
-            return Vec::new();
+            return events;
         };
         if slot.pp == 0 {
             let msg = format!("{} has no PP left!", slot.data.name);
             self.push_lines(vec![msg]);
-            return Vec::new();
+            return events;
         }
-        self.resolve_turn(Some(Action { actor, move_slot }))
+        let action = Action { actor, move_slot };
+        if !self.uses_queue() {
+            if style != Style::Normal {
+                self.push_lines(vec![format!(
+                    "{} Style needs the PLA turn order (off with --classic-turns): used normally.",
+                    style_word(style)
+                )]);
+            }
+            events.extend(self.resolve_turn(Some(action)));
+            return events;
+        }
+        events.extend(self.resolve_single(StyledAction { action, style }));
+        events.extend(self.run_ai_turns());
+        events
     }
 
     /// Use a bag item (medicine or ball). Returns true when a turn was spent.
@@ -499,13 +746,21 @@ impl ActiveBattleSession {
                             line.push('!');
                         }
                         self.push_lines(vec![line]);
-                        self.resolve_turn(None);
+                        self.opponent_turn();
                         true
                     }
                     Err(e) => {
                         self.push_lines(vec![format!("It would have no effect on {who}. ({e})")]);
                         false
                     }
+                }
+            }
+            ItemKind::Progress => {
+                if self.use_progress_bag_item(item_id, &entry.label) {
+                    self.opponent_turn();
+                    true
+                } else {
+                    false
                 }
             }
             ItemKind::Other => {
@@ -515,8 +770,13 @@ impl ActiveBattleSession {
         }
     }
 
-    /// Throw a ball item at the wild Pokemon. Returns true when a turn was spent.
+    /// Throw a ball item at the wild Pokemon. Returns true when a turn was spent. Refused in
+    /// trainer and Noble battles (nothing is consumed).
     pub fn throw_ball(&mut self, item_id: u16) -> bool {
+        if let Some(line) = self.capture_refusal() {
+            self.push_lines(vec![line]);
+            return false;
+        }
         let Some(data) = self.data.clone() else {
             self.push_lines(vec!["No capture data loaded.".into()]);
             return false;
@@ -577,11 +837,12 @@ impl ActiveBattleSession {
                     self.battle.ended = true;
                     self.push_lines(lines);
                     self.menu_state = BattleMenuState::MainMenu;
+                    self.check_end();
                     true
                 } else {
                     lines.push(format!("{wild} broke free!"));
                     self.push_lines(lines);
-                    self.resolve_turn(None);
+                    self.opponent_turn();
                     true
                 }
             }
@@ -600,7 +861,7 @@ impl ActiveBattleSession {
                 let (o, n) = (self.display_name(old), self.display_name(target));
                 self.push_lines(vec![format!("{o}, come back!"), format!("Go! {n}!")]);
                 self.selected_move_idx = 0;
-                self.resolve_turn(None);
+                self.opponent_turn();
                 true
             }
             Err(e) => {
@@ -615,13 +876,22 @@ impl ActiveBattleSession {
     }
 
     pub fn run_away(&mut self) {
+        if let Some(line) = self.run_refusal() {
+            self.push_lines(vec![line]);
+            return;
+        }
         self.battle.ended = true;
         self.push_lines(vec!["Got away safely!".into()]);
+        self.check_end();
     }
 
     /// Legacy capture entry kept for callers without the item bag (fixed Poke Ball, placeholder
     /// catch rate). The in-game input path uses `throw_ball` instead.
     pub fn attempt_capture_in_battle(&mut self, battle_data: &BattleData) -> Result<bool, String> {
+        if let Some(line) = self.capture_refusal() {
+            self.push_lines(vec![line]);
+            return Ok(false);
+        }
         let res = self.battle.attempt_capture(
             battle_data,
             WILD,
@@ -638,6 +908,7 @@ impl ActiveBattleSession {
             self.battle.combatants[WILD].caught = true;
             self.battle.ended = true;
             self.push_lines(vec!["Wild Pokémon caught in Poké Ball!".into()]);
+            self.check_end();
         } else {
             self.push_lines(vec!["Wild Pokémon broke free!".into()]);
         }
@@ -707,14 +978,26 @@ impl ActiveBattleSession {
                     }
                 }
             }
-            _ => {
-                let c = &self.battle.combatants[self.active_player()];
+            BattleMenuState::LearnMove if self.learn_prompt().is_some() => {
+                let (ci, _) = self.learn_prompt().unwrap_or_default();
+                let c = &self.battle.combatants[ci];
                 for k in 0..GRID_SLOTS {
                     if let Some(m) = c.moves.get(k) {
-                        out[k] = (
-                            format!("[{}] {}", k + 1, m.data.name),
-                            format!("Type: {} | PP {}/{}", m.data.move_type, m.pp, m.data.pp),
-                        );
+                        out[k] = (format!("[{}] {}", k + 1, m.data.name), "Press to forget this move".to_string());
+                    }
+                }
+            }
+            _ => {
+                let p = self.active_player();
+                let c = &self.battle.combatants[p];
+                let styles = self.uses_queue();
+                for k in 0..GRID_SLOTS {
+                    if let Some(m) = c.moves.get(k) {
+                        let mut detail = format!("Type: {} | PP {}/{}", m.data.move_type, m.pp, m.data.pp);
+                        if let Some(sum) = self.style_summary(p, k).filter(|_| styles) {
+                            detail = format!("{} PP {}/{} | {sum}", m.data.move_type, m.pp, m.data.pp);
+                        }
+                        out[k] = (format!("[{}] {}", k + 1, m.data.name), detail);
                     }
                 }
             }
@@ -786,7 +1069,12 @@ impl ActiveBattleSession {
     /// Handle one player input. Returns true when a battle turn was spent.
     pub fn handle_input(&mut self, input: BattleInput) -> bool {
         if self.battle.ended {
-            return false;
+            return self.progress_input(input);
+        }
+        // PLA flow: an opponent whose turn it is acts before the player's choice.
+        self.poll_ai();
+        if self.battle.ended {
+            return true;
         }
         match input {
             BattleInput::OpenFight => {
@@ -804,6 +1092,10 @@ impl ActiveBattleSession {
             }
             BattleInput::Capture => {
                 self.selected_menu_idx = 3;
+                if let Some(line) = self.capture_refusal() {
+                    self.push_lines(vec![line]);
+                    return false;
+                }
                 let ball = self
                     .bag_view()
                     .iter()
@@ -862,6 +1154,11 @@ impl ActiveBattleSession {
             BattleInput::Confirm => {
                 let n = self.selected_move_idx;
                 return !self.execute_player_attack(n).is_empty();
+            }
+            BattleInput::StyleAgile | BattleInput::StyleStrong if self.selected_move_idx < moves => {
+                let style = if input == BattleInput::StyleAgile { Style::Agile } else { Style::Strong };
+                let n = self.selected_move_idx;
+                return !self.execute_player_attack_styled(n, style).is_empty();
             }
             _ => {}
         }
@@ -1167,5 +1464,239 @@ mod tests {
         s.bag = ItemBag::default();
         assert!(!s.handle_input(BattleInput::Capture));
         assert!(s.battle_summary.contains("No Poke Balls"));
+    }
+
+    // ------------------------------------------------------------ PLA turns and styles
+
+    fn session_mode(player: &str, level: u8, wild: &str, wild_level: u8, mode: TurnMode) -> Option<ActiveBattleSession> {
+        let mut a = assets()?;
+        a.turn_mode = mode;
+        ActiveBattleSession::start(&a, player, level, wild, wild_level, 0, Entity::PLACEHOLDER).ok()
+    }
+
+    #[test]
+    fn pla_flow_enables_the_queue_and_lists_six_turns() {
+        let Some(s) = session_mode("pikachu", 25, "bidoof", 5, TurnMode::Pla) else { return };
+        assert!(s.uses_queue());
+        assert!(s.battle.move_styles().is_some());
+        let order = s.turn_order_lines();
+        assert_eq!(order.len(), 6);
+        assert!(order[0].starts_with(">1. PIKACHU"), "the faster Pokemon acts first: {order:?}");
+        assert!(s.log_lines.iter().any(|l| l.contains("mastery not tracked")), "{:?}", s.log_lines);
+        // the move grid shows the style values of a PLA move
+        let texts = s.slot_texts();
+        assert!(texts[0].1.contains("Pow "), "{:?}", texts[0]);
+    }
+
+    #[test]
+    fn classic_flow_keeps_one_round_for_both_sides() {
+        let Some(mut s) = session_mode("pikachu", 25, "bidoof", 5, TurnMode::Classic) else { return };
+        assert!(!s.uses_queue());
+        assert!(s.turn_order_lines().is_empty());
+        s.battle.combatants[WILD].max_hp = 5_000;
+        s.battle.combatants[WILD].hp = 5_000;
+        s.execute_player_attack(0);
+        assert_eq!(s.battle.turn, 1);
+        assert!(s.log_lines.iter().any(|l| l.starts_with("PIKACHU used")));
+        assert!(s.log_lines.iter().any(|l| l.starts_with("Wild BIDOOF")), "{:?}", s.log_lines);
+        // a style request in the classic flow is used normally and explained
+        s.handle_input(BattleInput::StyleStrong);
+        assert!(s.log_lines.iter().any(|l| l.contains("Strong Style needs the PLA turn order")));
+    }
+
+    #[test]
+    fn strong_style_is_logged_and_delays_the_user() {
+        let Some(mut s) = session_mode("pikachu", 25, "bidoof", 5, TurnMode::Pla) else { return };
+        s.battle.combatants[WILD].max_hp = 5_000;
+        s.battle.combatants[WILD].hp = 5_000;
+        let wait_before = s.battle.action_queue().unwrap().entries[0].wait;
+        assert!(s.handle_input(BattleInput::StyleStrong));
+        let log = s.log_lines.join("\n");
+        assert!(log.contains("PIKACHU used a Strong Style move!"), "{log}");
+        assert!(log.contains("PIKACHU's next turn was pushed back (+5)."), "{log}");
+        let at = s.log_lines.iter().position(|l| l == "PIKACHU used a Strong Style move!").unwrap();
+        assert!(s.log_lines[at + 1].starts_with("PIKACHU used thunderbolt"), "{log}");
+        assert!(wait_before > 0);
+    }
+
+    #[test]
+    fn agile_style_pushes_the_target_back() {
+        let Some(mut s) = session_mode("pikachu", 25, "bidoof", 5, TurnMode::Pla) else { return };
+        s.battle.combatants[WILD].max_hp = 5_000;
+        s.battle.combatants[WILD].hp = 5_000;
+        s.handle_input(BattleInput::Next); // highlight quick-attack
+        assert_eq!(s.selected_move_idx, 1);
+        assert!(s.handle_input(BattleInput::StyleAgile));
+        let log = s.log_lines.join("\n");
+        assert!(log.contains("PIKACHU used an Agile Style move!"), "{log}");
+        assert!(log.contains("Wild BIDOOF's next turn was pushed back (+3)."), "{log}");
+        assert_eq!(s.battle.agile_streak(0), 1);
+    }
+
+    #[test]
+    fn style_keys_are_ignored_in_lists_and_need_a_move() {
+        let Some(mut s) = session_mode("pikachu", 25, "bidoof", 5, TurnMode::Pla) else { return };
+        s.handle_input(BattleInput::OpenItem);
+        let lines = s.log_lines.len();
+        assert!(!s.handle_input(BattleInput::StyleAgile), "no move is used from the bag list");
+        assert_eq!(s.log_lines.len(), lines);
+        assert_eq!(s.menu_state, BattleMenuState::ItemSelect);
+        s.handle_input(BattleInput::Back);
+        s.selected_move_idx = 7; // out of range: nothing happens
+        assert!(!s.handle_input(BattleInput::StyleStrong));
+    }
+
+    #[test]
+    fn a_faster_wild_pokemon_acts_before_the_player() {
+        // The wild Bidoof gets speed 1000 (base wait 1): the queue picks it first, and the
+        // poll made before the player's input lets it act.
+        let Some(mut s) = session_mode("pikachu", 5, "bidoof", 40, TurnMode::Pla) else { return };
+        s.battle.combatants[WILD].speed = 1_000;
+        s.battle.enable_action_queue();
+        assert!(s.turn_order_lines()[0].contains("Wild BIDOOF"), "{:?}", s.turn_order_lines());
+        s.battle.combatants[0].max_hp = 5_000;
+        s.battle.combatants[0].hp = 5_000;
+        s.handle_input(BattleInput::Slot(0));
+        let first_use = s.log_lines.iter().find(|l| l.contains(" used ") || l.contains("missed")).unwrap();
+        assert!(first_use.starts_with("Wild BIDOOF"), "{:?}", s.log_lines);
+        assert!(s.log_lines.iter().any(|l| l.starts_with("PIKACHU used")), "{:?}", s.log_lines);
+    }
+
+    #[test]
+    fn non_move_actions_advance_the_queue() {
+        let Some(mut s) = session_mode("pikachu", 25, "bidoof", 5, TurnMode::Pla) else { return };
+        s.battle.combatants[0].hp = 10;
+        let potion = s.bag_order[0].item_id;
+        assert!(s.use_bag_item(potion));
+        // Pikachu waited its full base wait again, so the slower Bidoof (wait 3) acted.
+        assert!(s.log_lines.iter().any(|l| l.starts_with("Wild BIDOOF")), "{:?}", s.log_lines);
+        assert_eq!(s.menu_state, BattleMenuState::MainMenu);
+    }
+
+    // ------------------------------------------------------------ progression after battle
+
+    /// Shinx L14 one point short of level 15 (evolution level and thunder-fang level; its
+    /// four moves are full), against a wild Bidoof with 1 HP.
+    fn shinx_on_the_edge() -> Option<ActiveBattleSession> {
+        let mut s = session_mode("shinx", 14, "bidoof", 5, TurnMode::Pla)?;
+        let t = s.progression.clone()?;
+        let group = t.growth_group(403, 0);
+        s.member_meta[0].exp = Some(crate::battle_engine::progression::exp_for_level(&t, group, 15) - 1);
+        s.battle.combatants[WILD].hp = 1;
+        Some(s)
+    }
+
+    fn win(s: &mut ActiveBattleSession) {
+        for _ in 0..6 {
+            if s.battle.ended {
+                break;
+            }
+            s.battle.combatants[0].hp = s.battle.combatants[0].max_hp;
+            s.execute_player_attack(0);
+        }
+        assert!(s.battle.ended, "{:?}", s.log_lines);
+    }
+
+    #[test]
+    fn win_gives_exp_level_up_and_a_move_prompt() {
+        let Some(mut s) = shinx_on_the_edge() else { return };
+        let max_hp_before = s.battle.combatants[0].max_hp;
+        win(&mut s);
+        let log = s.log_lines.join("\n");
+        assert!(log.contains("SHINX gained "), "{log}");
+        assert!(log.contains("SHINX grew to level 15!"), "{log}");
+        let won_at = s.log_lines.iter().position(|l| l == "Battle over: you won!").unwrap();
+        let gain_at = s.log_lines.iter().position(|l| l.starts_with("SHINX gained ")).unwrap();
+        assert!(gain_at > won_at, "experience follows the win line");
+        assert_eq!(s.battle.combatants[0].level, 15);
+        assert!(s.battle.combatants[0].max_hp > max_hp_before, "stats recomputed");
+        assert_eq!(s.menu_state, BattleMenuState::LearnMove);
+        assert!(log.contains("wants to learn thunder-fang"), "{log}");
+        assert!(s.slot_texts()[0].1.contains("forget"));
+        // inputs other than 1-4 / Back do nothing; 1 forgets tackle
+        assert!(!s.handle_input(BattleInput::Confirm));
+        assert!(s.handle_input(BattleInput::Slot(0)));
+        assert_eq!(s.battle.combatants[0].moves[0].data.name, "thunder-fang");
+        assert!(s.log_lines.iter().any(|l| l.contains("forgot tackle and learned thunder-fang")));
+        // then the level-15 evolution starts
+        assert_eq!(s.menu_state, BattleMenuState::Evolving);
+        assert!(s.log_lines.iter().any(|l| l.contains("SHINX is evolving!")));
+    }
+
+    #[test]
+    fn evolution_completes_after_the_animation() {
+        let Some(mut s) = shinx_on_the_edge() else { return };
+        win(&mut s);
+        s.handle_input(BattleInput::Back); // give up thunder-fang
+        assert!(s.log_lines.iter().any(|l| l == "SHINX did not learn thunder-fang."));
+        assert_eq!(s.menu_state, BattleMenuState::Evolving);
+        let hp_lost = s.battle.combatants[0].max_hp - s.battle.combatants[0].hp;
+        s.tick_progress(1.0);
+        assert_eq!(s.battle.combatants[0].species.dex, 403, "still animating");
+        s.tick_progress(crate::game::battle_progress::EVOLVE_SECONDS);
+        assert_eq!(s.battle.combatants[0].species.dex, 404);
+        assert_eq!(s.battle.combatants[0].max_hp - s.battle.combatants[0].hp, hp_lost, "damage kept");
+        assert!(s.log_lines.iter().any(|l| l == "Congratulations! Your SHINX evolved into LUXIO!"), "{:?}", s.log_lines);
+        assert!(!s.progress.busy());
+        assert_eq!(s.menu_state, BattleMenuState::MainMenu);
+        assert!(s.member_meta[0].exp.is_some());
+    }
+
+    #[test]
+    fn evolution_can_be_stopped() {
+        let Some(mut s) = shinx_on_the_edge() else { return };
+        win(&mut s);
+        s.handle_input(BattleInput::Back);
+        s.tick_progress(0.5);
+        assert!(s.handle_input(BattleInput::Back));
+        assert!(s.log_lines.iter().any(|l| l == "Huh? SHINX stopped evolving!"));
+        s.tick_progress(10.0);
+        assert_eq!(s.battle.combatants[0].species.dex, 403);
+        assert!(!s.progress.busy());
+    }
+
+    #[test]
+    fn running_or_catching_gives_no_experience() {
+        let Some(mut s) = shinx_on_the_edge() else { return };
+        s.handle_input(BattleInput::Run);
+        assert!(s.battle.ended);
+        assert!(!s.log_lines.iter().any(|l| l.contains("Exp. Points")));
+        assert!(!s.progress.busy());
+        assert_eq!(s.battle.combatants[0].level, 14);
+    }
+
+    #[test]
+    fn rare_candy_levels_up_and_queues_the_prompt_for_after_the_battle() {
+        let Some(mut s) = shinx_on_the_edge() else { return };
+        s.battle.combatants[WILD].max_hp = 5_000;
+        s.battle.combatants[WILD].hp = 5_000;
+        let candy = s.bag_order.iter().find(|e| e.kind == ItemKind::Progress && e.label.starts_with("Level")).map(|e| e.item_id);
+        let Some(candy) = candy else { panic!("no rare candy in the bag: {:?}", s.bag_order) };
+        let before = s.bag.count(candy);
+        assert!(s.use_bag_item(candy));
+        assert_eq!(s.bag.count(candy), before - 1);
+        assert_eq!(s.battle.combatants[0].level, 15);
+        assert!(s.log_lines.iter().any(|l| l == "SHINX grew to level 15!"));
+        assert!(s.progress.busy(), "thunder-fang and the evolution wait for the battle end");
+        assert_eq!(s.menu_state, BattleMenuState::MainMenu, "the battle goes on");
+        s.run_away();
+        assert_eq!(s.menu_state, BattleMenuState::LearnMove);
+    }
+
+    #[test]
+    fn effort_item_raises_effort_and_recomputes_stats() {
+        let Some(mut s) = session_mode("pikachu", 25, "bidoof", 5, TurnMode::Pla) else { return };
+        s.battle.combatants[WILD].max_hp = 5_000;
+        s.battle.combatants[WILD].hp = 5_000;
+        let item = s.bag_order.iter().find(|e| e.kind == ItemKind::Progress && e.label.contains('+') && e.label.starts_with("Effort")).cloned();
+        let Some(item) = item else { panic!("no effort item: {:?}", s.bag_order) };
+        let before = s.battle.combatants[0].clone();
+        assert!(s.use_bag_item(item.item_id));
+        let after = &s.battle.combatants[0];
+        let raised = (0..6).find(|&i| after.effort[i] > before.effort[i]).expect("one effort rose");
+        assert_eq!(after.effort[raised], before.effort[raised] + 1);
+        assert!(s.log_lines.iter().any(|l| l.contains("effort rose to level 1")), "{:?}", s.log_lines);
+        let stat = |c: &Combatant| [c.max_hp, c.attack, c.defense, c.special_attack, c.special_defense, c.speed][raised];
+        assert!(stat(after) > stat(&before), "the stat grows with its effort level");
     }
 }

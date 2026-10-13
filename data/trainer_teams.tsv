@@ -1,0 +1,631 @@
+# sheet: data/trainer_teams
+# version: 1
+# generator: .tools/trainer_decode.py
+# target: Pokémon Legends: Arceus update v262144 trainer parties (bin/trainer/trdata_*.bin)
+# note: Party order is the stored vector order; whether it is the send-out order is UNKNOWN.
+# note: level (slot 6), nature (slot 7, 0..24), sex (slot 8, 0/1) fill the creation struct next to species/form (LIKELY).
+# note: gv_*: slots 9..14; slot 12 is written to the last (speed) entry of the creation struct, so the file order is HP, Atk, Def, Spe, SpA, SpD (LIKELY).
+# note: moveN_mastered: move table slot 1 (bool) - LIKELY the move-mastery flag (all moves mastered on late variants).
+# note: flag_f15: never set in the data; the code turns it into a rare/shiny mode value (LIKELY shiny flag). flag_f16: set on 3 members; meaning UNKNOWN.
+# note: species/move names are development labels from .tools/species_names.json and move_names.json.
+id:string*	trainer_id:string	slot:u8	species_id:u16	species:string	form:u16	level:u8	nature:u8	sex:u8	gv_hp:u8	gv_atk:u8	gv_def:u8	gv_spe:u8	gv_spa:u8	gv_spd:u8	move1_id:u16	move1:string?	move1_mastered:bool	move2_id:u16	move2:string?	move2_mastered:bool	move3_id:u16	move3:string?	move3_mastered:bool	move4_id:u16	move4:string?	move4_mastered:bool	flag_f15:bool	flag_f16:bool
+giratina01_1	giratina01	1	487	giratina	0	70	12	0	0	0	0	0	0	0	396	aura-sphere	0	337	dragon-claw	0	414	earth-power	0	467	shadow-force	0	0	0
+single_001_1	single_001	1	95	onix	0	70	12	0	10	0	10	0	0	10	249	rock-smash	1	442	iron-head	1	446	stealth-rock	1	0		0	0	0
+single_002_1	single_002	1	208	steelix	0	80	12	0	10	5	10	10	5	10	249	rock-smash	1	442	iron-head	1	446	stealth-rock	1	414	earth-power	0	0	0
+single_003_1	single_003	1	42	golbat	0	60	12	0	10	0	5	0	0	5	141	leech-life	0	314	air-cutter	0	44	bite	0	0		0	0	0
+single_004_1	single_004	1	169	crobat	0	60	12	0	10	0	10	10	0	10	141	leech-life	1	314	air-cutter	1	44	bite	1	95	hypnosis	1	0	0
+single_005_1	single_005	1	58	growlithe	1	80	12	0	10	0	10	5	0	10	242	crunch	1	394	flare-blitz	1	583	play-rough	1	157	rock-slide	1	0	0
+single_006_1	single_006	1	59	arcanine	1	70	12	0	10	0	10	0	0	10	242	crunch	1	833	raging-fury	1	583	play-rough	1	38	double-edge	1	0	0
+single_007_1	single_007	1	396	starly	0	70	12	0	10	0	10	0	0	10	355	roost	1	98	quick-attack	1	332	aerial-ace	1	0		0	0	0
+single_008_1	single_008	1	397	staravia	0	60	12	0	10	0	5	0	5	5	355	roost	0	98	quick-attack	0	332	aerial-ace	0	0		0	0	0
+single_009_1	single_009	1	176	togetic	0	70	12	0	10	0	10	10	0	10	608	baby-doll-eyes	1	33	tackle	1	409	drain-punch	1	0		0	0	0
+single_010_1	single_010	1	468	togekiss	0	70	12	0	10	0	10	5	0	10	608	baby-doll-eyes	1	428	zen-headbutt	1	577	draining-kiss	1	0		0	0	0
+single_011_1	single_011	1	54	psyduck	0	70	12	0	7	0	6	0	0	6	56	hydro-pump	1	161	tri-attack	1	58	ice-beam	1	0		0	0	0
+single_012_1	single_012	1	55	golduck	0	60	12	0	10	0	10	0	0	10	56	hydro-pump	1	428	zen-headbutt	1	58	ice-beam	1	0		0	0	0
+single_013_1	single_013	1	37	vulpix	0	83	5	0	10	10	10	10	10	10	608	baby-doll-eyes	1	417	nasty-plot	1	326	extrasensory	1	466	ominous-wind	1	0	0
+single_014_1	single_014	1	38	ninetales	0	77	5	0	10	10	10	10	10	10	608	baby-doll-eyes	1	53	flamethrower	1	326	extrasensory	1	247	shadow-ball	1	0	0
+single_015_1	single_015	1	122	mr-mime	0	84	22	0	10	10	10	0	10	10	102	mimic	1	0		0	0		0	0		0	0	0
+single_016_1	single_016	1	122	mr-mime	0	70	9	0	10	10	10	10	10	10	85	thunderbolt	1	347	calm-mind	1	595	mystical-fire	1	605	dazzling-gleam	0	0	0
+single_017_1	single_017	1	242	blissey	0	70	12	1	10	10	10	10	10	10	416	giga-impact	1	135	soft-boiled	1	347	calm-mind	1	161	tri-attack	1	0	0
+single_018_1	single_018	1	453	croagunk	0	70	12	0	10	0	10	5	0	10	249	rock-smash	1	398	poison-jab	1	339	bulk-up	0	0		0	0	0
+single_019_1	single_019	1	454	toxicroak	0	60	3	0	10	0	5	0	0	5	474	venoshock	1	249	rock-smash	1	196	icy-wind	0	0		0	0	0
+single_020_1	single_020	1	65	alakazam	0	70	8	0	10	0	10	5	0	10	95	hypnosis	1	105	recover	1	427	psycho-cut	1	0		0	0	0
+single_021_1	single_021	1	425	drifloon	0	70	20	0	10	0	10	5	0	10	94	psychic	1	506	hex	1	451	charge-beam	1	0		0	0	0
+single_022_1	single_022	1	426	drifblim	0	60	20	0	10	0	5	0	0	5	247	shadow-ball	1	196	icy-wind	1	326	extrasensory	1	0		0	0	0
+single_023_1	single_023	1	418	buizel	0	70	15	0	10	0	10	0	0	10	458	double-hit	1	339	bulk-up	1	453	aqua-jet	0	0		0	0	0
+single_024_1	single_024	1	419	floatzel	0	60	15	0	10	0	5	0	0	5	339	bulk-up	1	242	crunch	1	249	rock-smash	1	0		0	0	0
+single_025_1	single_025	1	549	lilligant	1	70	12	1	10	0	10	5	0	10	78	stun-spore	1	249	rock-smash	1	105	recover	0	0		0	0	0
+single_026_1	single_026	1	77	ponyta	0	70	12	0	10	0	10	5	0	10	95	hypnosis	1	172	flame-wheel	1	458	double-hit	1	38	double-edge	1	0	0
+single_027_1	single_027	1	78	rapidash	0	70	12	0	10	0	10	5	0	10	95	hypnosis	1	528	wild-charge	1	458	double-hit	1	38	double-edge	1	0	0
+single_028_1	single_028	1	37	vulpix	0	70	23	0	10	0	10	0	0	10	417	nasty-plot	1	52	ember	1	98	quick-attack	0	0		0	0	0
+single_029_1	single_029	1	38	ninetales	0	60	23	0	10	0	10	0	0	10	98	quick-attack	1	52	ember	1	0		0	0		0	0	0
+single_030_1	single_030	1	108	lickitung	0	70	20	0	10	0	10	10	0	10	205	rollout	1	156	rest	1	301	ice-ball	1	0		0	0	0
+single_031_1	single_031	1	356	dusclops	0	60	20	0	10	0	5	10	0	5	7	fire-punch	1	8	ice-punch	1	9	thunder-punch	1	0		0	0	0
+single_032_1	single_032	1	477	dusknoir	0	70	23	0	10	0	10	10	0	10	506	hex	1	7	fire-punch	1	8	ice-punch	1	9	thunder-punch	1	0	0
+single_033_1	single_033	1	113	chansey	0	70	12	1	10	5	10	5	0	10	347	calm-mind	1	33	tackle	1	135	soft-boiled	1	0		0	0	0
+single_034_1	single_034	1	712	bergmite	0	60	12	0	10	0	5	0	0	5	242	crunch	1	334	iron-defense	1	38	double-edge	1	0		0	0	0
+single_035_1	single_035	1	713	avalugg	1	70	20	0	10	10	10	10	10	10	836	mountain-gale	1	334	iron-defense	1	446	stealth-rock	1	0		0	0	0
+single_036_1	single_036	1	93	haunter	0	60	12	0	10	0	5	0	0	5	95	hypnosis	1	139	poison-gas	1	412	energy-ball	0	0		0	0	0
+single_037_1	single_037	1	114	tangela	0	60	3	0	10	0	0	0	0	0	78	stun-spore	1	249	rock-smash	1	0		0	0		0	0	0
+single_038_1	single_038	1	465	tangrowth	0	70	3	0	10	0	7	5	0	10	79	sleep-powder	1	249	rock-smash	1	458	double-hit	1	0		0	0	0
+single_039_1	single_039	1	75	graveler	0	70	3	0	10	5	10	5	0	10	38	double-edge	1	334	iron-defense	1	0		0	0		0	0	0
+single_040_1	single_040	1	193	yanma	0	60	12	0	10	0	5	0	0	5	16	gust	1	98	quick-attack	1	95	hypnosis	1	0		0	0	0
+single_041_1	single_041	1	435	skuntank	0	60	3	0	10	0	5	0	0	5	491	acid-spray	1	53	flamethrower	1	399	dark-pulse	1	0		0	0	0
+single_042_1	single_042	1	95	onix	0	70	13	0	10	0	10	10	0	10	249	rock-smash	1	442	iron-head	1	446	stealth-rock	1	0		0	0	0
+single_043_1	single_043	1	126	magmar	0	60	12	0	10	0	5	0	0	5	139	poison-gas	1	7	fire-punch	1	116	focus-energy	1	0		0	0	0
+single_044_1	single_044	1	125	electabuzz	0	60	12	0	10	0	5	0	0	5	9	thunder-punch	1	86	thunder-wave	1	98	quick-attack	1	0		0	0	0
+single_045_1	single_045	1	101	electrode	1	55	12	0	0	0	0	0	0	10	120	self-destruct	0	0		0	0		0	0		0	0	0
+single_046_1	single_046	1	479	rotom	2	70	3	0	10	0	10	0	0	10	56	hydro-pump	1	86	thunder-wave	1	84	thunder-shock	1	506	hex	1	0	0
+single_047_1	single_047	1	571	zoroark	1	50	3	0	10	0	10	3	0	10	555	snarl	1	417	nasty-plot	0	0		0	0		0	0	0
+single_048_1	single_048	1	135	jolteon	0	70	12	0	10	0	10	5	0	10	98	quick-attack	1	608	baby-doll-eyes	1	451	charge-beam	1	116	focus-energy	1	0	0
+single_049_1	single_049	1	470	leafeon	0	70	12	0	10	0	10	5	0	10	98	quick-attack	1	608	baby-doll-eyes	1	412	energy-ball	1	116	focus-energy	1	0	0
+single_050_1	single_050	1	134	vaporeon	0	70	12	0	10	0	5	5	0	5	98	quick-attack	1	608	baby-doll-eyes	1	352	water-pulse	1	116	focus-energy	1	0	0
+single_051_1	single_051	1	137	porygon	0	70	12	0	10	0	10	5	0	10	105	recover	1	161	tri-attack	1	129	swift	1	0		0	0	0
+single_052_1	single_052	1	68	machamp	0	70	12	0	10	0	10	5	0	10	398	poison-jab	1	183	mach-punch	1	339	bulk-up	1	249	rock-smash	1	0	0
+single_053_1	single_053	1	501	oshawott	0	80	9	0	10	0	10	10	0	10	453	aqua-jet	1	14	swords-dance	1	156	rest	1	401	aqua-tail	1	0	0
+single_054_1	single_054	1	502	dewott	0	70	9	0	10	0	10	5	0	10	401	aqua-tail	1	33	tackle	1	14	swords-dance	1	0		0	0	0
+single_055_1	single_055	1	503	samurott	1	60	15	0	5	0	5	0	0	5	453	aqua-jet	1	332	aerial-ace	1	0		0	0		0	0	0
+single_056_1	single_056	1	398	staraptor	0	70	12	0	10	0	10	5	0	10	413	brave-bird	1	38	double-edge	1	0		0	0		0	0	0
+single_057_1	single_057	1	705	sliggoo	1	80	5	0	10	0	5	5	0	10	842	shelter	1	352	water-pulse	1	151	acid-armor	1	491	acid-spray	1	0	0
+single_058_1	single_058	1	41	zubat	0	80	9	0	10	0	10	0	0	10	95	hypnosis	1	16	gust	1	141	leech-life	1	440	cross-poison	1	0	0
+single_059_1	single_059	1	81	magnemite	0	80	3	0	10	0	10	0	0	10	86	thunder-wave	1	451	charge-beam	1	430	flash-cannon	1	0		0	0	0
+single_060_1	single_060	1	82	magneton	0	70	3	0	10	0	10	0	0	10	86	thunder-wave	1	84	thunder-shock	1	430	flash-cannon	1	0		0	0	0
+single_061_1	single_061	1	122	mr-mime	0	60	15	0	10	0	5	0	0	5	334	iron-defense	1	95	hypnosis	1	428	zen-headbutt	1	0		0	0	0
+single_062_1	single_062	1	391	monferno	0	60	15	0	10	0	5	0	0	5	52	ember	1	183	mach-punch	1	417	nasty-plot	1	0		0	0	0
+single_063_1	single_063	1	397	staravia	0	60	12	0	10	0	5	0	0	5	16	gust	1	98	quick-attack	1	355	roost	1	0		0	0	0
+single_064_1	single_064	1	197	umbreon	0	70	12	0	10	0	10	5	0	10	98	quick-attack	1	608	baby-doll-eyes	1	399	dark-pulse	1	116	focus-energy	1	0	0
+single_065_1	single_065	1	196	espeon	0	70	12	0	10	0	10	5	7	10	98	quick-attack	1	608	baby-doll-eyes	1	605	dazzling-gleam	1	116	focus-energy	1	0	0
+single_066_1	single_066	1	397	staravia	0	70	12	0	10	0	10	10	0	10	466	ominous-wind	1	403	air-slash	1	98	quick-attack	1	355	roost	1	0	0
+single_067_1	single_067	1	198	murkrow	0	70	12	0	10	0	10	5	0	10	16	gust	1	399	dark-pulse	1	355	roost	1	0		0	0	0
+single_068_1	single_068	1	201	unown	11	80	12	0	10	5	10	10	10	7	237	hidden-power	1	0		0	0		0	0		0	0	0
+single_069_1	single_069	1	215	sneasel	0	60	15	0	10	0	5	0	0	5	98	quick-attack	1	420	ice-shard	1	129	swift	1	0		0	0	0
+single_070_1	single_070	1	143	snorlax	0	70	12	0	10	10	10	5	0	10	205	rollout	1	200	outrage	1	0		0	0		0	0	0
+single_071_1	single_071	1	211	qwilfish	1	60	12	0	8	0	5	0	0	5	191	spikes	1	42	pin-missile	1	839	barb-barrage	1	0		0	0	0
+single_072_1	single_072	1	392	infernape	0	80	12	0	10	0	10	3	0	10	183	mach-punch	1	172	flame-wheel	1	339	bulk-up	1	446	stealth-rock	1	0	0
+single_073_1	single_073	1	212	scizor	0	70	12	0	10	0	10	5	0	10	418	bullet-punch	1	98	quick-attack	1	404	x-scissor	1	332	aerial-ace	1	0	0
+single_074_1	single_074	1	207	gligar	0	70	13	0	10	0	10	0	0	10	426	mud-bomb	1	98	quick-attack	1	332	aerial-ace	1	0		0	0	0
+single_075_1	single_075	1	446	munchlax	0	70	12	0	10	0	10	5	0	10	523	bulldoze	1	44	bite	1	0		0	0		0	0	0
+single_076_1	single_076	1	143	snorlax	0	70	15	0	10	0	10	5	0	10	156	rest	1	528	wild-charge	1	0		0	0		0	0	0
+single_077_1	single_077	1	66	machop	0	70	9	0	10	0	10	0	0	10	33	tackle	1	53	flamethrower	1	183	mach-punch	1	458	double-hit	1	0	0
+single_078_1	single_078	1	67	machoke	0	60	12	0	10	0	5	0	0	5	33	tackle	1	249	rock-smash	1	183	mach-punch	1	0		0	0	0
+single_079_1	single_079	1	421	cherrim	0	70	12	0	10	0	10	5	0	10	78	stun-spore	1	577	draining-kiss	1	345	magical-leaf	1	0		0	0	0
+single_080_1	single_080	1	421	cherrim	0	80	20	1	10	0	10	10	0	10	79	sleep-powder	1	577	draining-kiss	1	412	energy-ball	1	63	hyper-beam	1	0	0
+single_081_1	single_081	1	26	raichu	0	70	3	0	10	0	10	0	0	10	85	thunderbolt	1	86	thunder-wave	1	63	hyper-beam	1	0		0	0	0
+single_082_1	single_082	1	233	porygon2	0	70	12	0	10	0	10	5	0	10	161	tri-attack	1	105	recover	1	129	swift	1	0		0	0	0
+single_083_1	single_083	1	452	drapion	0	70	12	0	10	0	10	5	0	10	440	cross-poison	1	404	x-scissor	1	242	crunch	1	0		0	0	0
+single_084_1	single_084	1	240	magby	0	70	23	0	10	0	10	10	0	10	7	fire-punch	1	249	rock-smash	1	116	focus-energy	1	0		0	0	0
+single_085_1	single_085	1	239	elekid	0	70	15	0	10	0	10	0	0	10	86	thunder-wave	1	9	thunder-punch	1	98	quick-attack	1	0		0	0	0
+single_086_1	single_086	1	143	snorlax	0	70	12	0	10	0	10	10	0	10	38	double-edge	1	0		0	0		0	0		0	0	0
+single_087_1	single_087	1	398	staraptor	0	50	3	0	5	0	0	0	0	0	16	gust	1	0		0	0		0	0		0	0	0
+single_088_1	single_088	1	398	staraptor	0	60	15	0	5	0	0	0	0	0	98	quick-attack	1	0		0	0		0	0		0	0	0
+single_089_1	single_089	1	398	staraptor	0	60	3	0	5	0	0	0	0	0	16	gust	1	0		0	0		0	0		0	0	0
+single_090_1	single_090	1	398	staraptor	0	60	15	1	5	0	0	0	0	0	98	quick-attack	1	0		0	0		0	0		0	0	0
+single_091_1	single_091	1	430	honchkrow	0	60	3	0	10	0	10	8	0	10	16	gust	1	417	nasty-plot	1	0		0	0		0	0	0
+single_092_1	single_092	1	436	bronzor	0	70	12	0	10	0	10	5	0	10	93	confusion	1	95	hypnosis	1	334	iron-defense	1	446	stealth-rock	1	0	0
+single_093_1	single_093	1	437	bronzong	0	70	12	0	10	0	10	5	0	10	94	psychic	1	95	hypnosis	1	334	iron-defense	1	446	stealth-rock	1	0	0
+single_094_1	single_094	1	475	gallade	0	60	12	0	10	0	5	0	0	5	14	swords-dance	1	94	psychic	1	348	leaf-blade	1	163	slash	1	0	0
+single_095_1	single_095	1	299	nosepass	0	60	12	0	10	0	10	0	0	10	86	thunder-wave	1	334	iron-defense	1	157	rock-slide	1	0		0	0	0
+single_096_1	single_096	1	397	staravia	0	60	15	0	10	0	10	0	0	10	156	rest	1	332	aerial-ace	1	0		0	0		0	0	0
+single_097_1	single_097	1	459	snover	0	70	12	0	10	7	10	5	0	10	420	ice-shard	1	181	powder-snow	1	0		0	0		0	0	0
+single_098_1	single_098	1	460	abomasnow	0	70	3	0	10	0	10	0	0	10	412	energy-ball	1	420	ice-shard	1	556	icicle-crash	1	0		0	0	0
+single_099_1	single_099	1	92	gastly	0	70	12	0	10	0	10	5	0	10	139	poison-gas	1	506	hex	1	156	rest	1	0		0	0	0
+single_100_1	single_100	1	93	haunter	0	70	20	0	10	0	10	10	0	10	95	hypnosis	1	506	hex	1	474	venoshock	1	0		0	0	0
+single_101_1	single_101	1	358	chimecho	0	70	12	0	10	0	10	5	0	10	94	psychic	1	95	hypnosis	1	105	recover	1	247	shadow-ball	1	0	0
+single_102_1	single_102	1	361	snorunt	0	70	12	0	10	5	10	7	5	10	191	spikes	1	242	crunch	1	423	ice-fang	1	0		0	0	0
+single_103_1	single_103	1	478	froslass	0	70	5	1	10	0	10	10	10	10	85	thunderbolt	1	506	hex	1	247	shadow-ball	1	0		0	0	0
+single_104_1	single_104	1	403	shinx	0	70	22	0	10	0	10	10	0	10	98	quick-attack	1	84	thunder-shock	1	242	crunch	1	608	baby-doll-eyes	1	0	0
+single_105_1	single_105	1	404	luxio	0	70	20	0	10	0	10	9	0	10	86	thunder-wave	1	422	thunder-fang	1	242	crunch	1	608	baby-doll-eyes	0	0	0
+single_106_1	single_106	1	405	luxray	0	60	8	0	10	0	5	0	0	5	86	thunder-wave	1	85	thunderbolt	1	242	crunch	1	555	snarl	1	0	0
+single_107_1	single_107	1	390	chimchar	0	70	8	0	10	5	10	9	5	10	339	bulk-up	1	172	flame-wheel	1	446	stealth-rock	1	0		0	0	0
+single_108_1	single_108	1	391	monferno	0	70	8	0	10	0	10	10	0	10	339	bulk-up	1	172	flame-wheel	1	446	stealth-rock	1	332	aerial-ace	1	0	0
+single_109_1	single_109	1	392	infernape	0	80	12	0	10	0	10	10	0	10	339	bulk-up	1	833	raging-fury	1	446	stealth-rock	1	409	drain-punch	1	0	0
+single_110_1	single_110	1	393	piplup	0	70	5	0	10	0	10	10	0	10	352	water-pulse	1	608	baby-doll-eyes	1	446	stealth-rock	1	0		0	0	0
+single_111_1	single_111	1	394	prinplup	0	70	5	0	10	5	10	10	5	10	352	water-pulse	1	608	baby-doll-eyes	1	446	stealth-rock	1	332	aerial-ace	1	0	0
+single_112_1	single_112	1	395	empoleon	0	80	8	0	10	10	10	10	10	10	56	hydro-pump	1	355	roost	1	446	stealth-rock	1	0		0	0	0
+single_113_1	single_113	1	387	turtwig	0	70	20	0	10	7	10	10	7	10	412	energy-ball	1	79	sleep-powder	1	0		0	0		0	0	0
+single_114_1	single_114	1	388	grotle	0	70	23	0	10	0	10	10	10	10	348	leaf-blade	1	79	sleep-powder	1	446	stealth-rock	1	0		0	0	0
+single_115_1	single_115	1	389	torterra	0	80	23	0	10	10	10	10	10	10	452	wood-hammer	1	414	earth-power	1	79	sleep-powder	1	0		0	0	0
+single_116_1	single_116	1	198	murkrow	0	70	12	0	10	0	10	5	0	10	16	gust	1	417	nasty-plot	1	355	roost	1	0		0	0	0
+single_117_1	single_117	1	198	murkrow	0	70	12	0	10	5	10	5	5	10	403	air-slash	1	417	nasty-plot	1	355	roost	1	0		0	0	0
+single_118_1	single_118	1	430	honchkrow	0	60	3	0	9	0	5	0	0	5	555	snarl	1	196	icy-wind	1	355	roost	1	0		0	0	0
+single_119_1	single_119	1	133	eevee	0	50	23	0	7	0	7	0	0	5	98	quick-attack	1	608	baby-doll-eyes	1	0		0	0		0	0	0
+single_120_1	single_120	1	405	luxray	0	60	12	0	10	0	5	0	0	5	98	quick-attack	1	84	thunder-shock	1	86	thunder-wave	1	242	crunch	1	0	0
+single_121_1	single_121	1	130	gyarados	0	60	3	0	7	0	0	0	0	0	239	twister	1	0		0	0		0	0		0	0	0
+single_122_1	single_122	1	441	chatot	0	70	12	0	10	0	10	5	0	10	16	gust	1	466	ominous-wind	1	0		0	0		0	0	0
+single_123_1	single_123	1	111	rhyhorn	0	70	12	0	10	0	10	5	0	10	446	stealth-rock	1	33	tackle	1	249	rock-smash	1	0		0	0	0
+single_124_1	single_124	1	112	rhydon	0	70	12	0	10	0	10	5	0	10	446	stealth-rock	1	33	tackle	1	249	rock-smash	1	424	fire-fang	1	0	0
+single_125_1	single_125	1	464	rhyperior	0	60	12	0	10	0	5	0	0	5	423	ice-fang	1	33	tackle	1	249	rock-smash	1	424	fire-fang	1	0	0
+single_126_1	single_126	1	396	starly	0	70	12	0	10	0	10	5	0	10	16	gust	1	98	quick-attack	1	355	roost	1	466	ominous-wind	1	0	0
+single_127_1	single_127	1	398	staraptor	0	80	3	0	10	7	10	0	0	10	403	air-slash	1	355	roost	1	416	giga-impact	1	116	focus-energy	1	0	0
+single_128_1	single_128	1	410	shieldon	0	70	8	0	10	10	10	10	0	10	442	iron-head	1	157	rock-slide	1	334	iron-defense	1	0		0	0	0
+single_129_1	single_129	1	208	steelix	0	70	8	0	10	5	10	10	0	10	205	rollout	1	446	stealth-rock	1	0		0	0		0	0	0
+single_130_1	single_130	1	408	cranidos	0	70	3	0	10	5	9	5	5	9	523	bulldoze	1	249	rock-smash	1	0		0	0		0	0	0
+single_131_1	single_131	1	242	blissey	0	70	15	1	10	0	10	3	10	10	135	soft-boiled	1	577	draining-kiss	1	0		0	0		0	0	0
+single_132_1	single_132	1	176	togetic	0	60	15	0	0	0	0	0	0	0	33	tackle	1	0		0	0		0	0		0	0	0
+single_133_1	single_133	1	468	togekiss	0	70	12	0	10	0	10	5	0	10	332	aerial-ace	1	584	fairy-wind	1	0		0	0		0	0	0
+single_134_1	single_134	1	185	sudowoodo	0	70	12	0	10	0	10	5	0	10	446	stealth-rock	1	102	mimic	1	0		0	0		0	0	0
+single_135_1	single_135	1	95	onix	0	80	20	0	10	3	10	10	3	10	446	stealth-rock	1	0		0	0		0	0		0	0	0
+single_136_1	single_136	1	900	kleavor	0	70	12	0	10	0	10	5	0	10	446	stealth-rock	1	98	quick-attack	1	318	silver-wind	1	0		0	0	0
+single_137_1	single_137	1	901	ursaluna	0	80	12	0	10	1	10	5	1	10	7	fire-punch	1	163	slash	1	583	play-rough	1	8	ice-punch	1	0	0
+single_138_1	single_138	1	223	remoraid	0	70	12	0	10	0	10	5	0	10	145	bubble	1	491	acid-spray	1	451	charge-beam	1	0		0	0	0
+single_139_1	single_139	1	224	octillery	0	60	12	0	10	0	5	0	0	5	190	octazooka	1	0		0	0		0	0		0	0	0
+single_140_1	single_140	1	221	piloswine	0	70	20	0	10	0	10	6	0	10	420	ice-shard	1	608	baby-doll-eyes	1	0		0	0		0	0	0
+single_141_1	single_141	1	473	mamoswine	0	70	12	0	10	0	10	5	0	10	58	ice-beam	1	246	ancient-power	1	442	iron-head	1	0		0	0	0
+single_142_1	single_142	1	114	tangela	0	70	20	0	10	5	10	0	3	10	78	stun-spore	1	458	double-hit	1	412	energy-ball	1	0		0	0	0
+single_143_1	single_143	1	465	tangrowth	0	70	20	0	10	0	10	0	9	10	188	sludge-bomb	1	412	energy-ball	1	71	absorb	1	0		0	0	0
+single_144_1	single_144	1	392	infernape	0	70	12	0	10	0	10	5	0	10	129	swift	1	370	close-combat	1	833	raging-fury	1	0		0	0	0
+single_145_1	single_145	1	399	bidoof	0	70	12	0	10	0	10	5	0	10	205	rollout	1	44	bite	1	14	swords-dance	1	451	charge-beam	1	0	0
+single_146_1	single_146	1	400	bibarel	0	70	12	1	10	0	10	0	0	9	242	crunch	1	231	iron-tail	1	14	swords-dance	1	446	stealth-rock	1	0	0
+single_147_1	single_147	1	477	dusknoir	0	84	23	0	10	10	10	10	10	10	141	leech-life	1	94	psychic	1	347	calm-mind	1	0		0	0	0
+single_148_1	single_148	1	405	luxray	0	70	12	0	10	4	10	10	0	10	528	wild-charge	1	242	crunch	1	86	thunder-wave	1	583	play-rough	1	0	0
+single_149_1	single_149	1	430	honchkrow	0	70	20	0	10	5	10	10	5	10	247	shadow-ball	1	399	dark-pulse	1	355	roost	1	0		0	0	0
+single_150_1	single_150	1	398	staraptor	0	70	12	0	10	0	10	5	0	10	98	quick-attack	1	355	roost	1	16	gust	1	63	hyper-beam	1	0	0
+single_151_1	single_151	1	190	aipom	0	70	12	0	10	0	10	5	0	10	98	quick-attack	1	417	nasty-plot	1	426	mud-bomb	1	458	double-hit	1	0	0
+single_152_1	single_152	1	424	ambipom	0	70	12	0	10	0	10	5	0	10	98	quick-attack	1	231	iron-tail	1	426	mud-bomb	1	458	double-hit	1	0	0
+single_153_1	single_153	1	433	chingling	0	80	12	0	10	7	10	10	7	10	247	shadow-ball	1	105	recover	1	347	calm-mind	1	0		0	0	0
+single_154_1	single_154	1	339	barboach	0	70	12	0	10	0	10	5	0	10	189	mud-slap	1	352	water-pulse	1	156	rest	1	0		0	0	0
+single_155_1	single_155	1	340	whiscash	0	60	12	0	10	0	5	0	0	5	189	mud-slap	1	401	aqua-tail	1	0		0	0		0	0	0
+single_156_1	single_156	1	58	growlithe	1	70	12	0	10	0	10	3	0	10	424	fire-fang	1	157	rock-slide	1	38	double-edge	1	242	crunch	1	0	0
+single_157_1	single_157	1	59	arcanine	1	70	12	0	10	0	10	0	0	10	53	flamethrower	1	444	stone-edge	1	38	double-edge	1	242	crunch	1	0	0
+single_158_1	single_158	1	122	mr-mime	0	77	3	0	10	0	10	0	0	10	347	calm-mind	1	247	shadow-ball	1	0		0	0		0	0	0
+single_159_1	single_159	1	435	skuntank	0	80	3	0	10	0	10	4	0	10	139	poison-gas	1	247	shadow-ball	1	474	venoshock	1	0		0	0	0
+single_160_1	single_160	1	75	graveler	0	70	8	0	10	0	10	5	0	10	189	mud-slap	1	446	stealth-rock	1	334	iron-defense	1	0		0	0	0
+single_161_1	single_161	1	441	chatot	0	70	12	0	10	5	10	5	5	10	542	hurricane	1	355	roost	1	417	nasty-plot	1	555	snarl	1	0	0
+single_162_1	single_162	1	700	sylveon	0	80	12	0	10	5	10	0	5	9	608	baby-doll-eyes	1	583	play-rough	1	347	calm-mind	1	231	iron-tail	1	0	0
+single_163_1	single_163	1	175	togepi	0	70	5	1	10	0	10	10	0	10	605	dazzling-gleam	1	608	baby-doll-eyes	1	347	calm-mind	1	0		0	0	0
+single_164_1	single_164	1	176	togetic	0	70	5	1	10	0	10	10	0	10	605	dazzling-gleam	1	608	baby-doll-eyes	1	347	calm-mind	1	161	tri-attack	1	0	0
+single_165_1	single_165	1	468	togekiss	0	84	5	1	10	9	10	10	9	10	585	moonblast	1	347	calm-mind	1	0		0	0		0	0	0
+single_166_1	single_166	1	446	munchlax	0	84	8	0	10	8	10	10	8	10	416	giga-impact	1	667	high-horsepower	1	249	rock-smash	1	0		0	0	0
+single_167_1	single_167	1	36	clefable	0	77	8	0	10	5	10	0	0	10	347	calm-mind	1	605	dazzling-gleam	1	0		0	0		0	0	0
+single_168_1	single_168	1	130	gyarados	0	70	5	0	10	4	10	10	7	10	53	flamethrower	1	542	hurricane	1	401	aqua-tail	1	0		0	0	0
+single_169_1	single_169	1	226	mantine	0	70	12	0	10	0	10	5	0	10	401	aqua-tail	1	355	roost	1	196	icy-wind	1	0		0	0	0
+single_170_1	single_170	1	214	heracross	0	60	12	0	10	0	5	0	0	5	42	pin-missile	1	370	close-combat	1	0		0	0		0	0	0
+single_171_1	single_171	1	436	bronzor	0	70	5	0	10	0	10	10	0	10	446	stealth-rock	1	93	confusion	1	95	hypnosis	1	0		0	0	0
+single_172_1	single_172	1	411	bastiodon	0	70	12	0	10	7	10	10	7	10	444	stone-edge	1	442	iron-head	1	334	iron-defense	1	414	earth-power	1	0	0
+single_173_1	single_173	1	550	basculin	2	70	12	0	10	0	10	0	0	10	834	wave-crash	1	38	double-edge	1	453	aqua-jet	1	0		0	0	0
+single_174_1	single_174	1	902	basculegion	1	60	12	1	9	0	5	0	0	5	453	aqua-jet	1	242	crunch	1	0		0	0		0	0	0
+single_175_1	single_175	1	47	parasect	0	60	12	0	10	0	5	0	0	5	147	spore	1	163	slash	1	0		0	0		0	0	0
+single_176_1	single_176	1	100	voltorb	1	70	3	0	10	0	10	0	0	10	451	charge-beam	1	86	thunder-wave	1	345	magical-leaf	1	0		0	0	0
+single_177_1	single_177	1	101	electrode	1	70	3	0	10	0	10	0	0	10	86	thunder-wave	1	85	thunderbolt	1	835	chloroblast	1	0		0	0	0
+single_178_1	single_178	1	25	pikachu	0	70	20	1	10	0	10	5	0	10	86	thunder-wave	1	451	charge-beam	1	608	baby-doll-eyes	1	0		0	0	0
+single_179_1	single_179	1	77	ponyta	0	70	3	0	7	0	8	0	0	8	52	ember	1	95	hypnosis	1	38	double-edge	1	0		0	0	0
+single_180_1	single_180	1	78	rapidash	0	60	4	0	0	0	0	0	0	0	52	ember	1	38	double-edge	1	0		0	0		0	0	0
+single_181_1	single_181	1	903	sneasler	0	70	12	0	10	0	10	5	0	10	98	quick-attack	1	827	dire-claw	1	409	drain-punch	1	0		0	0	0
+single_182_1	single_182	1	76	golem	0	70	20	0	10	9	10	10	6	10	189	mud-slap	1	414	earth-power	1	334	iron-defense	1	53	flamethrower	0	0	0
+single_183_1	single_183	1	463	lickilicky	0	70	3	0	10	7	10	7	7	10	416	giga-impact	1	428	zen-headbutt	1	231	iron-tail	1	249	rock-smash	1	0	0
+single_184_1	single_184	1	470	leafeon	0	70	12	0	10	9	10	10	10	10	98	quick-attack	1	608	baby-doll-eyes	1	348	leaf-blade	1	0		0	0	0
+single_185_1	single_185	1	469	yanmega	0	70	12	0	10	0	10	10	0	10	95	hypnosis	1	141	leech-life	1	403	air-slash	1	332	aerial-ace	1	0	0
+single_186_1	single_186	1	467	magmortar	0	70	22	1	10	8	10	10	8	10	53	flamethrower	1	139	poison-gas	1	523	bulldoze	1	0		0	0	0
+single_187_1	single_187	1	466	electivire	0	70	12	0	10	7	10	7	7	10	85	thunderbolt	1	86	thunder-wave	1	523	bulldoze	1	0		0	0	0
+single_188_1	single_188	1	462	magnezone	0	70	15	0	10	7	10	7	10	10	430	flash-cannon	1	85	thunderbolt	1	86	thunder-wave	1	0		0	0	0
+single_189_1	single_189	1	398	staraptor	0	70	12	0	10	4	10	5	4	10	332	aerial-ace	1	355	roost	1	98	quick-attack	1	0		0	0	0
+single_190_1	single_190	1	471	glaceon	0	70	15	0	10	0	10	6	4	10	98	quick-attack	1	608	baby-doll-eyes	1	196	icy-wind	1	0		0	0	0
+single_191_1	single_191	1	136	flareon	0	70	3	0	10	7	7	7	5	10	98	quick-attack	1	608	baby-doll-eyes	1	424	fire-fang	1	0		0	0	0
+single_192_1	single_192	1	461	weavile	0	70	15	0	10	0	10	0	0	10	8	ice-punch	1	420	ice-shard	1	14	swords-dance	1	400	night-slash	1	0	0
+single_193_1	single_193	1	68	machamp	0	70	15	0	7	0	7	0	0	7	183	mach-punch	1	7	fire-punch	1	409	drain-punch	1	339	bulk-up	1	0	0
+single_194_1	single_194	1	474	porygon-z	0	70	12	0	10	6	10	7	6	10	86	thunder-wave	1	105	recover	0	63	hyper-beam	0	0		0	0	0
+single_195_1	single_195	1	282	gardevoir	0	70	12	1	10	0	10	5	0	10	585	moonblast	1	105	recover	1	347	calm-mind	1	247	shadow-ball	0	0	0
+single_196_1	single_196	1	476	probopass	0	70	12	0	10	0	7	5	0	7	829	power-shift	1	414	earth-power	1	86	thunder-wave	1	0		0	0	0
+single_197_1	single_197	1	94	gengar	0	70	23	0	10	0	10	0	0	10	506	hex	1	95	hypnosis	1	247	shadow-ball	1	0		0	0	0
+single_198_1	single_198	1	362	glalie	0	70	15	0	10	4	10	0	4	10	44	bite	1	523	bulldoze	1	156	rest	1	420	ice-shard	1	0	0
+single_199_1	single_199	1	445	garchomp	0	70	8	0	10	0	10	0	0	10	239	twister	1	446	stealth-rock	1	53	flamethrower	0	332	aerial-ace	1	0	0
+single_200_1	single_200	1	571	zoroark	1	60	2	0	5	10	5	5	0	5	163	slash	1	417	nasty-plot	1	425	shadow-sneak	1	0		0	0	0
+single_201_1	single_201	1	706	goodra	1	60	12	0	0	0	0	0	0	0	434	draco-meteor	1	442	iron-head	1	352	water-pulse	1	0		0	0	0
+single_202_1	single_202	1	904	overqwil	0	60	12	0	5	0	0	0	0	0	399	dark-pulse	1	42	pin-missile	1	247	shadow-ball	1	0		0	0	0
+single_203_1	single_203	1	724	decidueye	1	50	12	0	0	0	0	0	0	0	332	aerial-ace	1	345	magical-leaf	1	0		0	0		0	0	0
+single_203_2	single_203	2	157	typhlosion	1	50	12	1	0	0	0	0	0	0	98	quick-attack	1	53	flamethrower	1	0		0	0		0	0	0
+single_203_3	single_203	3	503	samurott	1	50	12	0	0	0	0	0	0	0	163	slash	1	401	aqua-tail	1	0		0	0		0	0	0
+single_204_1	single_204	1	724	decidueye	1	50	12	0	0	0	0	0	0	0	332	aerial-ace	1	345	magical-leaf	1	0		0	0		0	0	0
+single_204_2	single_204	2	157	typhlosion	1	50	12	1	0	0	0	0	0	0	98	quick-attack	1	53	flamethrower	1	0		0	0		0	0	0
+single_204_3	single_204	3	503	samurott	1	50	12	0	0	0	0	0	0	0	163	slash	1	401	aqua-tail	1	0		0	0		0	0	0
+single_205_1	single_205	1	423	gastrodon	1	70	12	0	10	5	10	5	5	10	105	recover	1	523	bulldoze	1	56	hydro-pump	1	0		0	0	0
+single_206_1	single_206	1	411	bastiodon	0	84	9	1	10	10	10	10	0	10	157	rock-slide	1	334	iron-defense	1	0		0	0		0	0	0
+single_207_1	single_207	1	389	torterra	0	60	12	0	5	0	5	0	0	5	838	headlong-rush	1	348	leaf-blade	1	0		0	0		0	0	0
+single_207_2	single_207	2	392	infernape	0	60	12	0	5	0	5	0	0	5	833	raging-fury	1	183	mach-punch	1	0		0	0		0	0	0
+single_207_3	single_207	3	395	empoleon	0	60	12	0	5	0	5	0	0	5	834	wave-crash	1	430	flash-cannon	1	0		0	0		0	0	0
+single_208_1	single_208	1	36	clefable	0	70	20	1	10	10	10	0	10	5	347	calm-mind	1	247	shadow-ball	1	446	stealth-rock	1	0		0	0	0
+single_209_1	single_209	1	441	chatot	0	60	12	0	10	0	5	0	0	5	417	nasty-plot	1	542	hurricane	1	583	play-rough	1	0		0	0	0
+single_210_1	single_210	1	47	parasect	0	60	12	0	10	0	5	0	5	5	147	spore	1	412	energy-ball	1	141	leech-life	1	0		0	0	0
+single_211_1	single_211	1	463	lickilicky	0	60	12	0	10	0	5	0	0	5	205	rollout	1	249	rock-smash	1	416	giga-impact	1	63	hyper-beam	1	0	0
+single_212_1	single_212	1	462	magnezone	0	80	20	0	10	10	10	10	10	10	86	thunder-wave	1	85	thunderbolt	1	430	flash-cannon	1	0		0	0	0
+single_213_1	single_213	1	724	decidueye	1	87	3	0	10	10	10	10	10	10	843	triple-arrows	1	348	leaf-blade	1	332	aerial-ace	1	427	psycho-cut	1	0	0
+single_213_2	single_213	2	157	typhlosion	1	87	15	1	10	10	10	10	10	10	844	infernal-parade	1	157	rock-slide	1	53	flamethrower	1	347	calm-mind	1	0	0
+single_213_3	single_213	3	503	samurott	1	87	3	0	10	10	10	10	10	10	845	ceaseless-edge	1	398	poison-jab	1	224	megahorn	1	231	iron-tail	1	0	0
+single_214_1	single_214	1	722	rowlet	0	84	23	0	10	10	10	10	10	10	355	roost	1	348	leaf-blade	1	403	air-slash	1	427	psycho-cut	1	0	0
+single_215_1	single_215	1	723	dartrix	0	70	23	0	10	0	10	5	0	10	345	magical-leaf	1	332	aerial-ace	0	355	roost	0	0		0	0	0
+single_216_1	single_216	1	724	decidueye	1	60	12	0	5	0	5	0	0	5	670	leafage	1	403	air-slash	1	0		0	0		0	0	0
+single_217_1	single_217	1	627	rufflet	0	70	15	0	5	0	5	0	0	5	239	twister	1	355	roost	1	98	quick-attack	1	0		0	0	0
+single_218_1	single_218	1	628	braviary	1	80	12	0	10	0	10	10	0	10	840	esper-wing	1	98	quick-attack	1	163	slash	1	332	aerial-ace	1	0	0
+single_219_1	single_219	1	627	rufflet	0	60	12	0	10	0	5	0	0	5	98	quick-attack	1	332	aerial-ace	1	239	twister	1	163	slash	1	0	0
+single_220_1	single_220	1	211	qwilfish	1	60	17	0	8	0	5	0	0	5	40	poison-sting	1	191	spikes	1	0		0	0		0	0	0
+single_221_1	single_221	1	904	overqwil	0	70	12	0	10	0	10	5	0	10	839	barb-barrage	1	301	ice-ball	1	401	aqua-tail	1	0		0	0	0
+single_222_1	single_222	1	712	bergmite	0	60	12	0	10	4	5	0	4	5	33	tackle	1	44	bite	1	334	iron-defense	1	420	ice-shard	1	0	0
+single_223_1	single_223	1	713	avalugg	1	70	12	0	10	0	10	5	0	10	836	mountain-gale	1	242	crunch	1	334	iron-defense	1	0		0	0	0
+single_224_1	single_224	1	479	rotom	3	84	20	0	10	10	10	10	5	10	59	blizzard	1	85	thunderbolt	1	506	hex	1	0		0	0	0
+single_225_1	single_225	1	479	rotom	5	84	20	0	10	10	10	10	10	10	437	leaf-storm	1	247	shadow-ball	0	399	dark-pulse	0	86	thunder-wave	0	0	0
+single_226_1	single_226	1	479	rotom	2	84	20	0	10	10	10	10	10	10	56	hydro-pump	1	247	shadow-ball	1	399	dark-pulse	1	0		0	0	0
+single_227_1	single_227	1	133	eevee	0	80	13	1	10	7	9	7	0	9	98	quick-attack	1	608	baby-doll-eyes	1	231	iron-tail	1	0		0	0	0
+single_228_1	single_228	1	443	gible	0	70	20	0	10	10	10	10	10	10	434	draco-meteor	1	523	bulldoze	1	446	stealth-rock	1	0		0	0	0
+single_229_1	single_229	1	705	sliggoo	1	70	20	0	10	6	10	6	6	10	434	draco-meteor	1	58	ice-beam	1	0		0	0		0	0	0
+single_230_1	single_230	1	445	garchomp	0	70	22	1	10	5	10	10	5	10	200	outrage	1	414	earth-power	1	0		0	0		0	0	0
+single_231_1	single_231	1	447	riolu	0	60	15	0	10	0	5	0	0	5	249	rock-smash	1	0		0	0		0	0		0	0	0
+single_232_1	single_232	1	448	lucario	0	70	12	0	10	4	10	0	0	10	183	mach-punch	1	418	bullet-punch	1	0		0	0		0	0	0
+single_233_1	single_233	1	155	cyndaquil	0	84	23	0	10	10	10	10	10	10	53	flamethrower	1	98	quick-attack	1	205	rollout	1	0		0	0	0
+single_234_1	single_234	1	156	quilava	0	70	12	0	10	0	10	0	0	10	172	flame-wheel	1	98	quick-attack	1	332	aerial-ace	1	0		0	0	0
+single_235_1	single_235	1	157	typhlosion	1	60	3	1	5	0	5	0	0	5	466	ominous-wind	1	98	quick-attack	1	52	ember	1	0		0	0	0
+single_236_1	single_236	1	904	overqwil	0	70	12	0	10	0	10	5	0	10	42	pin-missile	1	839	barb-barrage	1	401	aqua-tail	1	399	dark-pulse	1	0	0
+single_237_1	single_237	1	706	goodra	1	84	7	0	10	9	10	10	9	10	842	shelter	1	442	iron-head	1	157	rock-slide	1	434	draco-meteor	1	0	0
+single_238_1	single_238	1	724	decidueye	1	70	12	0	10	7	10	5	7	10	843	triple-arrows	1	437	leaf-storm	1	355	roost	1	0		0	0	0
+single_239_1	single_239	1	101	electrode	1	70	12	0	10	0	10	5	0	10	835	chloroblast	1	87	thunder	1	86	thunder-wave	1	0		0	0	0
+single_240_1	single_240	1	472	gliscor	0	70	12	0	10	0	10	5	0	10	332	aerial-ace	1	14	swords-dance	1	0		0	0		0	0	0
+single_241_1	single_241	1	904	overqwil	0	70	12	0	10	0	10	5	0	10	191	spikes	1	401	aqua-tail	1	416	giga-impact	1	0		0	0	0
+single_242_1	single_242	1	479	rotom	1	84	20	0	10	10	10	10	10	10	315	overheat	1	87	thunder	1	86	thunder-wave	1	506	hex	1	0	0
+trainer01_01_1	trainer01_01	1	112	rhydon	0	34	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	157	rock-slide	0	0		0	0	0
+trainer01_01_2	trainer01_01	2	94	gengar	0	35	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	506	hex	0	474	venoshock	0	0	0
+trainer01_02_1	trainer01_02	1	112	rhydon	0	61	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_02_2	trainer01_02	2	94	gengar	0	62	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer01_11_1	trainer01_11	1	112	rhydon	0	37	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_11_2	trainer01_11	2	94	gengar	0	38	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	506	hex	0	0		0	0	0
+trainer01_12_1	trainer01_12	1	112	rhydon	0	40	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_12_2	trainer01_12	2	94	gengar	0	41	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	506	hex	0	0		0	0	0
+trainer01_13_1	trainer01_13	1	112	rhydon	0	43	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_13_2	trainer01_13	2	94	gengar	0	44	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer01_14_1	trainer01_14	1	112	rhydon	0	46	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_14_2	trainer01_14	2	94	gengar	0	47	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer01_15_1	trainer01_15	1	112	rhydon	0	49	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_15_2	trainer01_15	2	94	gengar	0	50	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer01_16_1	trainer01_16	1	112	rhydon	0	52	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_16_2	trainer01_16	2	94	gengar	0	53	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer01_17_1	trainer01_17	1	112	rhydon	0	55	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_17_2	trainer01_17	2	94	gengar	0	56	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer01_18_1	trainer01_18	1	112	rhydon	0	58	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_18_2	trainer01_18	2	94	gengar	0	59	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer01_19_1	trainer01_19	1	112	rhydon	0	61	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_19_2	trainer01_19	2	94	gengar	0	62	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer01_20_1	trainer01_20	1	112	rhydon	0	64	12	1	0	0	0	0	0	0	446	stealth-rock	0	523	bulldoze	0	667	high-horsepower	0	0		0	0	0
+trainer01_20_2	trainer01_20	2	94	gengar	0	65	12	0	0	0	0	0	0	0	399	dark-pulse	0	95	hypnosis	0	247	shadow-ball	0	0		0	0	0
+trainer02_01_1	trainer02_01	1	460	abomasnow	0	35	12	1	0	0	0	0	0	0	556	icicle-crash	0	412	energy-ball	0	420	ice-shard	0	0		0	0	0
+trainer02_11_1	trainer02_11	1	460	abomasnow	0	38	12	1	0	0	0	0	0	0	556	icicle-crash	0	412	energy-ball	0	420	ice-shard	0	0		0	0	0
+trainer02_12_1	trainer02_12	1	460	abomasnow	0	41	12	1	0	0	0	0	0	0	556	icicle-crash	0	412	energy-ball	0	420	ice-shard	0	0		0	0	0
+trainer02_13_1	trainer02_13	1	460	abomasnow	0	44	12	1	0	0	0	0	0	0	556	icicle-crash	0	452	wood-hammer	0	420	ice-shard	0	0		0	0	0
+trainer02_14_1	trainer02_14	1	460	abomasnow	0	47	12	1	0	0	0	0	0	0	556	icicle-crash	0	452	wood-hammer	0	420	ice-shard	0	0		0	0	0
+trainer02_15_1	trainer02_15	1	460	abomasnow	0	50	12	1	0	0	0	0	0	0	556	icicle-crash	0	452	wood-hammer	0	420	ice-shard	0	0		0	0	0
+trainer02_16_1	trainer02_16	1	460	abomasnow	0	53	12	1	0	0	0	0	0	0	556	icicle-crash	0	452	wood-hammer	0	420	ice-shard	0	0		0	0	0
+trainer02_17_1	trainer02_17	1	460	abomasnow	0	56	12	1	0	0	0	0	0	0	556	icicle-crash	0	452	wood-hammer	0	420	ice-shard	0	0		0	0	0
+trainer02_18_1	trainer02_18	1	460	abomasnow	0	59	12	1	0	0	0	0	0	0	556	icicle-crash	0	452	wood-hammer	0	420	ice-shard	0	0		0	0	0
+trainer02_19_1	trainer02_19	1	460	abomasnow	0	62	12	1	0	0	0	0	0	0	556	icicle-crash	0	452	wood-hammer	0	420	ice-shard	0	0		0	0	0
+trainer02_20_1	trainer02_20	1	460	abomasnow	0	65	12	1	0	0	0	0	0	0	556	icicle-crash	0	452	wood-hammer	0	420	ice-shard	0	0		0	0	0
+trainer03_01_1	trainer03_01	1	454	toxicroak	0	34	12	1	0	0	0	0	0	0	398	poison-jab	0	426	mud-bomb	0	249	rock-smash	0	0		0	0	0
+trainer03_02_1	trainer03_02	1	454	toxicroak	0	23	12	1	0	0	0	0	0	0	474	venoshock	0	249	rock-smash	0	0		0	0		0	0	0
+trainer03_11_1	trainer03_11	1	454	toxicroak	0	37	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	249	rock-smash	0	0		0	0	0
+trainer03_12_1	trainer03_12	1	454	toxicroak	0	40	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	249	rock-smash	0	0		0	0	0
+trainer03_13_1	trainer03_13	1	454	toxicroak	0	43	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	249	rock-smash	0	0		0	0	0
+trainer03_14_1	trainer03_14	1	454	toxicroak	0	46	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	370	close-combat	0	0		0	0	0
+trainer03_15_1	trainer03_15	1	454	toxicroak	0	49	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	370	close-combat	0	0		0	0	0
+trainer03_16_1	trainer03_16	1	454	toxicroak	0	52	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	370	close-combat	0	0		0	0	0
+trainer03_17_1	trainer03_17	1	454	toxicroak	0	55	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	370	close-combat	0	0		0	0	0
+trainer03_18_1	trainer03_18	1	454	toxicroak	0	58	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	370	close-combat	0	0		0	0	0
+trainer03_19_1	trainer03_19	1	454	toxicroak	0	61	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	370	close-combat	0	0		0	0	0
+trainer03_20_1	trainer03_20	1	454	toxicroak	0	64	12	1	0	0	0	0	0	0	398	poison-jab	0	414	earth-power	0	370	close-combat	0	0		0	0	0
+trainer04_01_1	trainer04_01	1	67	machoke	0	41	12	0	0	0	0	0	0	0	418	bullet-punch	0	339	bulk-up	0	38	double-edge	0	249	rock-smash	0	0	0
+trainer04_01_2	trainer04_01	2	114	tangela	0	41	12	1	0	0	0	0	0	0	78	stun-spore	0	412	energy-ball	0	246	ancient-power	0	0		0	0	0
+trainer04_01_3	trainer04_01	3	472	gliscor	0	42	12	0	0	0	0	0	0	0	98	quick-attack	0	332	aerial-ace	0	426	mud-bomb	0	398	poison-jab	0	0	0
+trainer04_02_1	trainer04_02	1	65	alakazam	0	67	12	0	0	0	0	0	0	0	94	psychic	0	247	shadow-ball	1	605	dazzling-gleam	1	161	tri-attack	1	0	0
+trainer04_02_2	trainer04_02	2	465	tangrowth	0	67	12	1	0	0	0	0	0	0	79	sleep-powder	0	412	energy-ball	0	246	ancient-power	0	0		0	0	0
+trainer04_02_3	trainer04_02	3	476	probopass	0	67	12	1	0	0	0	0	0	0	408	power-gem	0	414	earth-power	0	430	flash-cannon	1	0		0	0	0
+trainer04_02_4	trainer04_02	4	68	machamp	0	67	12	0	0	0	0	0	0	0	418	bullet-punch	0	8	ice-punch	1	7	fire-punch	1	370	close-combat	0	0	0
+trainer04_02_5	trainer04_02	5	462	magnezone	0	67	12	0	0	0	0	0	0	0	87	thunder	0	161	tri-attack	0	430	flash-cannon	0	86	thunder-wave	0	0	0
+trainer04_02_6	trainer04_02	6	472	gliscor	0	68	12	0	0	0	0	0	0	0	98	quick-attack	0	332	aerial-ace	0	444	stone-edge	1	404	x-scissor	0	0	0
+trainer04_03_1	trainer04_03	1	65	alakazam	0	75	15	1	5	5	5	5	5	5	94	psychic	0	247	shadow-ball	1	605	dazzling-gleam	1	347	calm-mind	1	0	0
+trainer04_03_2	trainer04_03	2	465	tangrowth	0	75	22	0	5	5	5	5	5	5	79	sleep-powder	0	412	energy-ball	0	246	ancient-power	0	188	sludge-bomb	0	0	0
+trainer04_03_3	trainer04_03	3	476	probopass	0	75	15	0	5	5	5	5	5	5	408	power-gem	0	414	earth-power	0	430	flash-cannon	1	85	thunderbolt	1	0	0
+trainer04_03_4	trainer04_03	4	68	machamp	0	76	13	1	5	5	5	5	5	5	418	bullet-punch	0	8	ice-punch	1	7	fire-punch	1	370	close-combat	0	0	0
+trainer04_03_5	trainer04_03	5	462	magnezone	0	76	15	0	5	5	5	5	5	5	87	thunder	0	161	tri-attack	0	430	flash-cannon	0	86	thunder-wave	0	0	0
+trainer04_03_6	trainer04_03	6	472	gliscor	0	77	3	1	5	5	5	5	5	5	414	earth-power	1	332	aerial-ace	0	444	stone-edge	1	404	x-scissor	0	0	0
+trainer04_04_1	trainer04_04	1	900	kleavor	0	75	23	1	9	5	5	9	5	7	830	stone-axe	1	404	x-scissor	1	370	close-combat	1	347	calm-mind	1	0	1
+trainer04_04_2	trainer04_04	2	899	wyrdeer	0	75	13	0	9	5	9	9	5	9	95	hypnosis	1	828	psyshield-bash	1	231	iron-tail	1	523	bulldoze	1	0	1
+trainer04_04_3	trainer04_04	3	902	basculegion	1	75	5	1	9	5	10	9	9	10	506	hex	1	94	psychic	1	58	ice-beam	1	352	water-pulse	1	0	1
+trainer05_01_1	trainer05_01	1	435	skuntank	0	44	12	0	0	0	0	0	0	0	398	poison-jab	0	400	night-slash	0	53	flamethrower	0	0		0	0	0
+trainer05_01_2	trainer05_01	2	41	zubat	0	22	12	1	0	3	0	0	3	0	95	hypnosis	0	16	gust	0	0		0	0		0	0	0
+trainer05_01_3	trainer05_01	3	451	skorupi	0	22	12	1	0	3	0	0	3	0	474	venoshock	0	44	bite	0	0		0	0		0	0	0
+trainer05_02_1	trainer05_02	1	435	skuntank	0	40	12	0	0	0	0	0	0	0	398	poison-jab	0	400	night-slash	0	53	flamethrower	0	0		0	0	0
+trainer06_01_1	trainer06_01	1	464	rhyperior	0	50	12	1	0	0	0	0	0	0	157	rock-slide	0	667	high-horsepower	0	249	rock-smash	1	0		0	0	0
+trainer06_01_2	trainer06_01	2	467	magmortar	0	30	12	0	0	4	0	0	4	0	139	poison-gas	0	53	flamethrower	0	0		0	0		0	0	0
+trainer06_01_3	trainer06_01	3	466	electivire	0	30	12	0	0	4	0	0	4	0	86	thunder-wave	0	9	thunder-punch	0	0		0	0		0	0	0
+trainer06_03_1	trainer06_03	1	464	rhyperior	0	65	12	1	5	5	5	5	5	5	444	stone-edge	1	667	high-horsepower	0	249	rock-smash	1	224	megahorn	1	0	0
+trainer06_03_2	trainer06_03	2	467	magmortar	0	50	12	0	0	4	0	0	4	0	139	poison-gas	0	53	flamethrower	0	157	rock-slide	0	94	psychic	1	0	0
+trainer06_03_3	trainer06_03	3	466	electivire	0	50	12	0	0	4	0	0	4	0	86	thunder-wave	0	9	thunder-punch	0	8	ice-punch	0	231	iron-tail	1	0	0
+trainer07_01_1	trainer07_01	1	362	glalie	0	48	12	0	0	0	0	0	0	0	420	ice-shard	0	242	crunch	0	556	icicle-crash	0	0		0	0	0
+trainer07_01_2	trainer07_01	2	478	froslass	0	24	12	1	0	3	0	0	3	0	181	powder-snow	0	506	hex	0	0		0	0		0	0	0
+trainer08_01_1	trainer08_01	1	429	mismagius	0	59	12	1	0	0	0	0	0	0	247	shadow-ball	0	408	power-gem	0	326	extrasensory	0	95	hypnosis	0	0	0
+trainer08_01_2	trainer08_01	2	903	sneasler	0	59	12	0	0	0	0	0	0	0	827	dire-claw	0	370	close-combat	0	98	quick-attack	0	0		0	0	0
+trainer08_01_3	trainer08_01	3	282	gardevoir	0	60	12	1	0	0	0	0	0	0	347	calm-mind	0	605	dazzling-gleam	0	94	psychic	0	0		0	0	0
+trainer08_01_4	trainer08_01	4	475	gallade	0	60	12	0	0	0	0	0	0	0	14	swords-dance	0	409	drain-punch	0	427	psycho-cut	0	0		0	0	0
+trainer08_02_1	trainer08_02	1	429	mismagius	0	63	12	1	0	0	0	0	0	0	247	shadow-ball	0	408	power-gem	0	326	extrasensory	0	95	hypnosis	0	0	0
+trainer08_02_2	trainer08_02	2	903	sneasler	0	63	12	0	0	0	0	0	0	0	827	dire-claw	0	370	close-combat	0	98	quick-attack	0	421	shadow-claw	1	0	0
+trainer08_02_3	trainer08_02	3	282	gardevoir	0	64	12	1	0	0	0	0	0	0	347	calm-mind	0	605	dazzling-gleam	0	94	psychic	0	595	mystical-fire	1	0	0
+trainer08_02_4	trainer08_02	4	475	gallade	0	64	12	0	0	0	0	0	0	0	14	swords-dance	0	409	drain-punch	0	427	psycho-cut	0	9	thunder-punch	1	0	0
+trainer09_01_1	trainer09_01	1	628	braviary	1	61	12	0	0	0	0	0	0	0	840	esper-wing	0	403	air-slash	0	98	quick-attack	0	0		0	0	0
+trainer09_01_2	trainer09_01	2	76	golem	0	61	12	0	0	0	0	0	0	0	446	stealth-rock	0	157	rock-slide	0	38	double-edge	0	0		0	0	0
+trainer09_01_3	trainer09_01	3	36	clefable	0	61	12	1	0	0	0	0	0	0	577	draining-kiss	0	94	psychic	0	347	calm-mind	0	608	baby-doll-eyes	0	0	0
+trainer09_01_4	trainer09_01	4	143	snorlax	0	62	12	0	0	0	0	0	0	0	428	zen-headbutt	0	667	high-horsepower	0	416	giga-impact	0	0		0	0	0
+trainer09_02_1	trainer09_02	1	76	golem	0	65	12	0	0	0	0	0	0	0	442	iron-head	1	444	stone-edge	1	9	thunder-punch	1	523	bulldoze	0	0	0
+trainer09_02_2	trainer09_02	2	36	clefable	0	65	12	1	0	0	0	0	0	0	577	draining-kiss	0	94	psychic	0	347	calm-mind	0	352	water-pulse	1	0	0
+trainer09_02_3	trainer09_02	3	628	braviary	1	65	12	0	0	0	0	0	0	0	840	esper-wing	0	403	air-slash	0	98	quick-attack	0	0		0	0	0
+trainer09_02_4	trainer09_02	4	214	heracross	0	65	12	0	0	0	0	0	0	0	370	close-combat	0	14	swords-dance	0	42	pin-missile	0	332	aerial-ace	0	0	0
+trainer09_02_5	trainer09_02	5	143	snorlax	0	66	12	0	0	0	0	0	0	0	428	zen-headbutt	0	667	high-horsepower	0	416	giga-impact	0	7	fire-punch	1	0	0
+trainer09_03_1	trainer09_03	1	76	golem	0	65	12	0	0	0	0	0	0	0	442	iron-head	1	444	stone-edge	1	9	thunder-punch	1	523	bulldoze	0	0	0
+trainer09_03_2	trainer09_03	2	36	clefable	0	65	12	1	0	0	0	0	0	0	577	draining-kiss	0	94	psychic	0	347	calm-mind	0	352	water-pulse	1	0	0
+trainer09_03_3	trainer09_03	3	628	braviary	1	65	12	0	0	0	0	0	0	0	840	esper-wing	0	403	air-slash	0	98	quick-attack	0	0		0	0	0
+trainer09_03_4	trainer09_03	4	214	heracross	0	65	12	0	0	0	0	0	0	0	370	close-combat	0	14	swords-dance	0	42	pin-missile	0	332	aerial-ace	0	0	0
+trainer09_03_5	trainer09_03	5	143	snorlax	0	66	12	0	0	0	0	0	0	0	428	zen-headbutt	0	667	high-horsepower	0	416	giga-impact	0	7	fire-punch	1	0	0
+trainer10_01_1	trainer10_01	1	442	spiritomb	0	68	12	0	0	0	0	0	0	0	95	hypnosis	0	399	dark-pulse	0	326	extrasensory	0	247	shadow-ball	0	0	0
+trainer10_01_2	trainer10_01	2	407	roserade	0	68	12	0	0	0	0	0	0	0	398	poison-jab	0	80	petal-dance	0	191	spikes	1	0		0	0	0
+trainer10_01_3	trainer10_01	3	468	togekiss	0	68	12	1	1	1	1	1	1	1	347	calm-mind	0	585	moonblast	0	326	extrasensory	0	403	air-slash	0	0	0
+trainer10_01_4	trainer10_01	4	59	arcanine	1	68	12	1	0	0	0	0	0	0	833	raging-fury	0	242	crunch	0	157	rock-slide	0	0		0	0	0
+trainer10_01_5	trainer10_01	5	448	lucario	0	68	12	0	0	0	0	0	0	0	370	close-combat	0	242	crunch	0	339	bulk-up	0	418	bullet-punch	0	0	0
+trainer10_01_6	trainer10_01	6	445	garchomp	0	68	12	0	0	0	0	0	0	0	337	dragon-claw	0	414	earth-power	0	163	slash	0	442	iron-head	1	0	0
+trainer10_02_1	trainer10_02	1	175	togepi	0	5	12	1	0	0	0	0	0	0	33	tackle	0	0		0	0		0	0		0	0	0
+trainer10_03_1	trainer10_03	1	175	togepi	0	22	12	1	1	1	1	1	1	1	347	calm-mind	0	577	draining-kiss	0	33	tackle	0	0		0	0	0
+trainer10_03_2	trainer10_03	2	443	gible	0	22	12	0	0	0	0	0	0	0	239	twister	0	523	bulldoze	0	0		0	0		0	0	0
+trainer11_02_1	trainer11_02	1	470	leafeon	0	36	12	0	0	0	0	0	0	0	348	leaf-blade	0	98	quick-attack	0	347	calm-mind	0	0		0	0	0
+trainer11_02_2	trainer11_02	2	133	eevee	0	18	12	0	0	2	0	0	2	0	98	quick-attack	0	608	baby-doll-eyes	0	0		0	0		0	0	0
+trainer11_04_1	trainer11_04	1	470	leafeon	0	64	12	0	0	0	0	0	0	0	98	quick-attack	0	608	baby-doll-eyes	0	348	leaf-blade	0	0		0	0	0
+trainer11_04_2	trainer11_04	2	197	umbreon	0	32	12	1	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	399	dark-pulse	0	0		0	0	0
+trainer11_04_3	trainer11_04	3	134	vaporeon	0	32	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	401	aqua-tail	0	0		0	0	0
+trainer11_05_1	trainer11_05	1	470	leafeon	0	65	12	0	3	3	3	3	3	10	98	quick-attack	0	608	baby-doll-eyes	0	348	leaf-blade	0	0		0	0	0
+trainer11_05_2	trainer11_05	2	197	umbreon	0	34	12	1	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	399	dark-pulse	0	0		0	0	0
+trainer11_05_3	trainer11_05	3	134	vaporeon	0	34	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	401	aqua-tail	0	0		0	0	0
+trainer12_01_1	trainer12_01	1	471	glaceon	0	17	12	1	0	0	0	0	0	0	98	quick-attack	0	181	powder-snow	0	129	swift	0	0		0	0	0
+trainer12_02_1	trainer12_02	1	471	glaceon	0	30	12	1	0	0	0	0	0	0	98	quick-attack	0	608	baby-doll-eyes	0	58	ice-beam	0	0		0	0	0
+trainer12_02_2	trainer12_02	2	133	eevee	0	15	12	0	0	2	0	0	2	0	98	quick-attack	0	608	baby-doll-eyes	0	0		0	0		0	0	0
+trainer12_04_1	trainer12_04	1	471	glaceon	0	64	12	1	0	0	0	0	0	0	98	quick-attack	0	608	baby-doll-eyes	0	58	ice-beam	0	0		0	0	0
+trainer12_04_2	trainer12_04	2	196	espeon	0	32	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	94	psychic	0	0		0	0	0
+trainer12_04_3	trainer12_04	3	136	flareon	0	32	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	53	flamethrower	0	0		0	0	0
+trainer12_05_1	trainer12_05	1	471	glaceon	0	65	12	1	3	3	3	3	3	3	98	quick-attack	0	608	baby-doll-eyes	0	58	ice-beam	0	0		0	0	0
+trainer12_05_2	trainer12_05	2	196	espeon	0	34	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	94	psychic	0	0		0	0	0
+trainer12_05_3	trainer12_05	3	136	flareon	0	34	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	53	flamethrower	0	0		0	0	0
+trainer13_01_1	trainer13_01	1	25	pikachu	0	9	12	0	0	0	0	0	0	0	98	quick-attack	0	86	thunder-wave	0	84	thunder-shock	0	0		0	0	0
+trainer13_02_1	trainer13_02	1	439	mime-jr	0	19	12	0	0	0	0	0	0	0	428	zen-headbutt	0	334	iron-defense	0	95	hypnosis	0	0		0	0	0
+trainer13_02_2	trainer13_02	2	25	pikachu	0	20	12	0	1	1	1	1	1	1	98	quick-attack	0	86	thunder-wave	0	84	thunder-shock	0	0		0	0	0
+trainer13_03_1	trainer13_03	1	122	mr-mime	0	46	12	0	0	0	0	0	0	0	94	psychic	0	347	calm-mind	0	334	iron-defense	0	95	hypnosis	0	0	0
+trainer13_03_2	trainer13_03	2	397	staravia	0	46	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	355	roost	0	0		0	0	0
+trainer13_03_3	trainer13_03	3	25	pikachu	0	47	12	0	1	1	1	1	1	1	98	quick-attack	0	231	iron-tail	0	85	thunderbolt	0	0		0	0	0
+trainer13_04_1	trainer13_04	1	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	334	iron-defense	0	95	hypnosis	0	0	0
+trainer13_04_2	trainer13_04	2	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer13_04_3	trainer13_04	3	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer13_04a_1	trainer13_04a	1	35	clefairy	0	61	12	1	5	5	5	5	5	5	53	flamethrower	1	585	moonblast	1	247	shadow-ball	1	347	calm-mind	1	0	0
+trainer13_04a_2	trainer13_04a	2	122	mr-mime	0	62	12	0	5	5	5	5	5	5	412	energy-ball	1	94	psychic	1	95	hypnosis	1	85	thunderbolt	1	0	0
+trainer13_04a_3	trainer13_04a	3	398	staraptor	0	62	12	1	5	5	5	5	5	5	98	quick-attack	1	413	brave-bird	1	370	close-combat	1	355	roost	1	0	0
+trainer13_04a_4	trainer13_04a	4	395	empoleon	0	63	12	0	5	5	5	5	5	5	430	flash-cannon	1	56	hydro-pump	1	58	ice-beam	1	608	baby-doll-eyes	1	0	0
+trainer13_04a_5	trainer13_04a	5	25	pikachu	0	63	12	0	7	7	7	7	7	7	98	quick-attack	1	231	iron-tail	1	344	volt-tackle	1	583	play-rough	1	0	0
+trainer13_04b_1	trainer13_04b	1	35	clefairy	0	61	12	1	5	5	5	5	5	5	53	flamethrower	1	585	moonblast	1	247	shadow-ball	1	347	calm-mind	1	0	0
+trainer13_04b_2	trainer13_04b	2	122	mr-mime	0	62	12	0	5	5	5	5	5	5	412	energy-ball	1	94	psychic	1	95	hypnosis	1	85	thunderbolt	1	0	0
+trainer13_04b_3	trainer13_04b	3	398	staraptor	0	62	12	1	5	5	5	5	5	5	98	quick-attack	1	413	brave-bird	1	370	close-combat	1	355	roost	1	0	0
+trainer13_04b_4	trainer13_04b	4	389	torterra	0	63	12	0	5	5	5	5	5	5	838	headlong-rush	1	348	leaf-blade	1	442	iron-head	1	444	stone-edge	1	0	0
+trainer13_04b_5	trainer13_04b	5	25	pikachu	0	63	12	0	7	7	7	7	7	7	98	quick-attack	1	231	iron-tail	1	344	volt-tackle	1	583	play-rough	1	0	0
+trainer13_04c_1	trainer13_04c	1	35	clefairy	0	61	12	1	5	5	5	5	5	5	53	flamethrower	1	585	moonblast	1	247	shadow-ball	1	347	calm-mind	1	0	0
+trainer13_04c_2	trainer13_04c	2	122	mr-mime	0	62	12	0	5	5	5	5	5	5	412	energy-ball	1	94	psychic	1	95	hypnosis	1	85	thunderbolt	1	0	0
+trainer13_04c_3	trainer13_04c	3	398	staraptor	0	62	12	1	5	5	5	5	5	5	98	quick-attack	1	413	brave-bird	1	370	close-combat	1	355	roost	1	0	0
+trainer13_04c_4	trainer13_04c	4	392	infernape	0	63	12	0	5	5	5	5	5	5	833	raging-fury	1	339	bulk-up	1	370	close-combat	1	9	thunder-punch	1	0	0
+trainer13_04c_5	trainer13_04c	5	25	pikachu	0	63	12	0	7	7	7	7	7	7	98	quick-attack	1	231	iron-tail	1	344	volt-tackle	1	583	play-rough	1	0	0
+trainer13_05_1	trainer13_05	1	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	95	hypnosis	0	0		0	0	0
+trainer13_05_2	trainer13_05	2	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer13_05_3	trainer13_05	3	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer13_05a_1	trainer13_05a	1	35	clefairy	0	60	12	1	5	5	5	5	5	5	94	psychic	1	585	moonblast	1	247	shadow-ball	1	0		0	0	0
+trainer13_05a_2	trainer13_05a	2	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	95	hypnosis	0	0		0	0	0
+trainer13_05a_3	trainer13_05a	3	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer13_05a_4	trainer13_05a	4	394	prinplup	0	62	12	0	5	5	5	5	5	5	608	baby-doll-eyes	1	710	liquidation	1	58	ice-beam	1	0		0	0	0
+trainer13_05a_5	trainer13_05a	5	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer13_05b_1	trainer13_05b	1	35	clefairy	0	60	12	1	5	5	5	5	5	5	94	psychic	1	585	moonblast	1	247	shadow-ball	1	0		0	0	0
+trainer13_05b_2	trainer13_05b	2	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	95	hypnosis	0	0		0	0	0
+trainer13_05b_3	trainer13_05b	3	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer13_05b_4	trainer13_05b	4	388	grotle	0	62	12	0	5	5	5	5	5	5	523	bulldoze	1	348	leaf-blade	1	446	stealth-rock	1	0		0	0	0
+trainer13_05b_5	trainer13_05b	5	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer13_05c_1	trainer13_05c	1	35	clefairy	0	60	12	1	5	5	5	5	5	5	94	psychic	1	585	moonblast	1	247	shadow-ball	1	0		0	0	0
+trainer13_05c_2	trainer13_05c	2	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	95	hypnosis	0	0		0	0	0
+trainer13_05c_3	trainer13_05c	3	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer13_05c_4	trainer13_05c	4	391	monferno	0	62	12	0	5	5	5	5	5	5	172	flame-wheel	1	417	nasty-plot	1	9	thunder-punch	1	0		0	0	0
+trainer13_05c_5	trainer13_05c	5	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer14_01_1	trainer14_01	1	25	pikachu	0	9	12	0	0	0	0	0	0	0	98	quick-attack	0	86	thunder-wave	0	84	thunder-shock	0	0		0	0	0
+trainer14_02_1	trainer14_02	1	439	mime-jr	0	19	12	0	0	0	0	0	0	0	428	zen-headbutt	0	334	iron-defense	0	95	hypnosis	0	0		0	0	0
+trainer14_02_2	trainer14_02	2	25	pikachu	0	20	12	0	1	1	1	1	1	1	98	quick-attack	0	86	thunder-wave	0	84	thunder-shock	0	0		0	0	0
+trainer14_03_1	trainer14_03	1	122	mr-mime	0	46	12	0	0	0	0	0	0	0	94	psychic	0	347	calm-mind	0	334	iron-defense	0	95	hypnosis	0	0	0
+trainer14_03_2	trainer14_03	2	397	staravia	0	46	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	355	roost	0	0		0	0	0
+trainer14_03_3	trainer14_03	3	25	pikachu	0	47	12	0	1	1	1	1	1	1	98	quick-attack	0	231	iron-tail	0	85	thunderbolt	0	0		0	0	0
+trainer14_04_1	trainer14_04	1	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	334	iron-defense	0	95	hypnosis	0	0	0
+trainer14_04_2	trainer14_04	2	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer14_04_3	trainer14_04	3	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer14_04a_1	trainer14_04a	1	35	clefairy	0	61	12	1	5	5	5	5	5	5	53	flamethrower	1	585	moonblast	1	247	shadow-ball	1	347	calm-mind	1	0	0
+trainer14_04a_2	trainer14_04a	2	122	mr-mime	0	62	12	0	5	5	5	5	5	5	412	energy-ball	1	94	psychic	1	95	hypnosis	1	85	thunderbolt	1	0	0
+trainer14_04a_3	trainer14_04a	3	398	staraptor	0	62	12	1	5	5	5	5	5	5	98	quick-attack	1	413	brave-bird	1	370	close-combat	1	355	roost	1	0	0
+trainer14_04a_4	trainer14_04a	4	395	empoleon	0	63	12	0	5	5	5	5	5	5	430	flash-cannon	1	56	hydro-pump	1	58	ice-beam	1	608	baby-doll-eyes	1	0	0
+trainer14_04a_5	trainer14_04a	5	25	pikachu	0	63	12	0	7	7	7	7	7	7	98	quick-attack	1	231	iron-tail	1	344	volt-tackle	1	583	play-rough	1	0	0
+trainer14_04b_1	trainer14_04b	1	35	clefairy	0	61	12	1	5	5	5	5	5	5	53	flamethrower	1	585	moonblast	1	247	shadow-ball	1	347	calm-mind	1	0	0
+trainer14_04b_2	trainer14_04b	2	122	mr-mime	0	62	12	0	5	5	5	5	5	5	412	energy-ball	1	94	psychic	1	95	hypnosis	1	85	thunderbolt	1	0	0
+trainer14_04b_3	trainer14_04b	3	398	staraptor	0	62	12	1	5	5	5	5	5	5	98	quick-attack	1	413	brave-bird	1	370	close-combat	1	355	roost	1	0	0
+trainer14_04b_4	trainer14_04b	4	389	torterra	0	63	12	0	5	5	5	5	5	5	838	headlong-rush	1	348	leaf-blade	1	442	iron-head	1	444	stone-edge	1	0	0
+trainer14_04b_5	trainer14_04b	5	25	pikachu	0	63	12	0	7	7	7	7	7	7	98	quick-attack	1	231	iron-tail	1	344	volt-tackle	1	583	play-rough	1	0	0
+trainer14_04c_1	trainer14_04c	1	35	clefairy	0	61	12	1	5	5	5	5	5	5	53	flamethrower	1	585	moonblast	1	247	shadow-ball	1	347	calm-mind	1	0	0
+trainer14_04c_2	trainer14_04c	2	122	mr-mime	0	62	12	0	5	5	5	5	5	5	412	energy-ball	1	94	psychic	1	95	hypnosis	1	85	thunderbolt	1	0	0
+trainer14_04c_3	trainer14_04c	3	398	staraptor	0	62	12	1	5	5	5	5	5	5	98	quick-attack	1	413	brave-bird	1	370	close-combat	1	355	roost	1	0	0
+trainer14_04c_4	trainer14_04c	4	392	infernape	0	63	12	0	5	5	5	5	5	5	833	raging-fury	1	339	bulk-up	1	370	close-combat	1	9	thunder-punch	1	0	0
+trainer14_04c_5	trainer14_04c	5	25	pikachu	0	63	12	0	7	7	7	7	7	7	98	quick-attack	1	231	iron-tail	1	344	volt-tackle	1	583	play-rough	1	0	0
+trainer14_05_1	trainer14_05	1	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	95	hypnosis	0	0		0	0	0
+trainer14_05_2	trainer14_05	2	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer14_05_3	trainer14_05	3	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer14_05a_1	trainer14_05a	1	35	clefairy	0	60	12	1	5	5	5	5	5	5	94	psychic	1	585	moonblast	1	247	shadow-ball	1	0		0	0	0
+trainer14_05a_2	trainer14_05a	2	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	95	hypnosis	0	0		0	0	0
+trainer14_05a_3	trainer14_05a	3	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer14_05a_4	trainer14_05a	4	394	prinplup	0	62	12	0	5	5	5	5	5	5	608	baby-doll-eyes	1	710	liquidation	1	58	ice-beam	1	0		0	0	0
+trainer14_05a_5	trainer14_05a	5	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer14_05b_1	trainer14_05b	1	35	clefairy	0	60	12	1	5	5	5	5	5	5	94	psychic	1	585	moonblast	1	247	shadow-ball	1	0		0	0	0
+trainer14_05b_2	trainer14_05b	2	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	95	hypnosis	0	0		0	0	0
+trainer14_05b_3	trainer14_05b	3	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer14_05b_4	trainer14_05b	4	388	grotle	0	62	12	0	5	5	5	5	5	5	523	bulldoze	1	348	leaf-blade	1	446	stealth-rock	1	0		0	0	0
+trainer14_05b_5	trainer14_05b	5	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer14_05c_1	trainer14_05c	1	35	clefairy	0	60	12	1	5	5	5	5	5	5	94	psychic	1	585	moonblast	1	247	shadow-ball	1	0		0	0	0
+trainer14_05c_2	trainer14_05c	2	122	mr-mime	0	61	12	0	0	0	0	0	0	0	409	drain-punch	1	428	zen-headbutt	0	95	hypnosis	0	0		0	0	0
+trainer14_05c_3	trainer14_05c	3	398	staraptor	0	61	12	1	0	0	0	0	0	0	98	quick-attack	0	413	brave-bird	0	370	close-combat	0	0		0	0	0
+trainer14_05c_4	trainer14_05c	4	391	monferno	0	62	12	0	5	5	5	5	5	5	172	flame-wheel	1	417	nasty-plot	1	9	thunder-punch	1	0		0	0	0
+trainer14_05c_5	trainer14_05c	5	25	pikachu	0	62	12	0	3	3	3	3	3	3	98	quick-attack	0	231	iron-tail	0	344	volt-tackle	1	583	play-rough	1	0	0
+trainer15_01_1	trainer15_01	1	424	ambipom	0	57	12	1	0	0	0	0	0	0	98	quick-attack	0	7	fire-punch	1	9	thunder-punch	1	231	iron-tail	1	0	0
+trainer15_01_2	trainer15_01	2	430	honchkrow	0	57	12	0	0	0	0	0	0	0	400	night-slash	0	332	aerial-ace	0	196	icy-wind	1	0		0	0	0
+trainer15_01_3	trainer15_01	3	405	luxray	0	57	12	0	0	0	0	0	0	0	528	wild-charge	0	242	crunch	0	98	quick-attack	0	583	play-rough	1	0	0
+trainer15_01_4	trainer15_01	4	571	zoroark	1	58	12	0	0	0	0	0	0	0	841	bitter-malice	0	425	shadow-sneak	0	399	dark-pulse	1	129	swift	0	0	0
+trainer16_01_1	trainer16_01	1	414	mothim	0	55	12	0	0	0	0	0	0	0	403	air-slash	0	405	bug-buzz	0	0		0	0		0	0	0
+trainer16_01_2	trainer16_01	2	135	jolteon	0	55	12	0	0	0	0	0	0	0	38	double-edge	0	85	thunderbolt	0	0		0	0		0	0	0
+trainer16_01_3	trainer16_01	3	423	gastrodon	1	56	12	0	0	0	0	0	0	0	56	hydro-pump	0	414	earth-power	0	188	sludge-bomb	1	0		0	0	0
+trainer17_01_1	trainer17_01	1	413	wormadam	0	55	12	1	0	0	0	0	0	0	412	energy-ball	0	405	bug-buzz	0	0		0	0		0	0	0
+trainer17_01_2	trainer17_01	2	700	sylveon	0	55	12	1	0	0	0	0	0	0	38	double-edge	0	583	play-rough	0	0		0	0		0	0	0
+trainer17_01_3	trainer17_01	3	423	gastrodon	0	56	12	1	0	0	0	0	0	0	56	hydro-pump	0	414	earth-power	0	58	ice-beam	1	0		0	0	0
+trainer18_01_1	trainer18_01	1	446	munchlax	0	10	12	0	0	0	0	0	0	0	33	tackle	0	205	rollout	0	0		0	0		0	0	0
+trainer18_03_1	trainer18_03	1	446	munchlax	0	60	12	0	0	0	0	5	0	0	416	giga-impact	0	428	zen-headbutt	1	667	high-horsepower	1	0		0	0	0
+trainer18_03_2	trainer18_03	2	461	weavile	0	36	12	1	0	0	0	0	0	0	398	poison-jab	1	420	ice-shard	1	163	slash	1	0		0	0	0
+trainer18_03_3	trainer18_03	3	169	crobat	0	36	12	1	0	0	0	0	0	0	403	air-slash	0	440	cross-poison	0	0		0	0		0	0	0
+trainer19_01_1	trainer19_01	1	704	goomy	0	15	12	0	0	0	0	0	0	0	145	bubble	0	151	acid-armor	0	491	acid-spray	0	0		0	0	0
+trainer21_01_1	trainer21_01	1	399	bidoof	0	62	15	0	10	8	10	10	8	10	85	thunderbolt	1	58	ice-beam	1	247	shadow-ball	1	129	swift	1	0	0
+trainer21_01_2	trainer21_01	2	396	starly	0	62	5	0	10	8	10	10	8	10	98	quick-attack	1	403	air-slash	1	355	roost	1	466	ominous-wind	1	0	0
+trainer21_01_3	trainer21_01	3	403	shinx	0	62	3	0	10	8	10	10	8	10	424	fire-fang	1	583	play-rough	1	242	crunch	1	231	iron-tail	1	0	0
+trainer21_02_1	trainer21_02	1	399	bidoof	0	63	15	0	10	8	10	10	8	10	85	thunderbolt	1	58	ice-beam	1	247	shadow-ball	1	129	swift	1	0	0
+trainer21_02_2	trainer21_02	2	396	starly	0	63	5	0	10	8	10	10	8	10	98	quick-attack	1	403	air-slash	1	355	roost	1	466	ominous-wind	1	0	0
+trainer21_02_3	trainer21_02	3	403	shinx	0	63	3	0	10	8	10	10	8	10	424	fire-fang	1	583	play-rough	1	242	crunch	1	231	iron-tail	1	0	0
+trainer30_01_1	trainer30_01	1	78	rapidash	0	62	12	0	0	0	0	0	0	0	394	flare-blitz	1	38	double-edge	1	0		0	0		0	0	0
+trainer30_01_2	trainer30_01	2	428	lopunny	0	62	12	0	0	0	0	0	0	0	583	play-rough	1	370	close-combat	1	0		0	0		0	0	0
+trainer30_01_3	trainer30_01	3	392	infernape	0	63	12	0	0	0	0	0	0	0	417	nasty-plot	1	833	raging-fury	1	38	double-edge	1	0		0	0	0
+trainer30_02_1	trainer30_02	1	78	rapidash	0	64	12	0	0	0	0	0	0	0	394	flare-blitz	1	95	hypnosis	1	38	double-edge	1	0		0	0	0
+trainer30_02_2	trainer30_02	2	428	lopunny	0	65	12	0	0	0	0	0	0	0	458	double-hit	1	583	play-rough	1	370	close-combat	1	0		0	0	0
+trainer30_02_3	trainer30_02	3	392	infernape	0	65	12	0	0	0	0	0	0	0	417	nasty-plot	1	833	raging-fury	1	38	double-edge	1	183	mach-punch	1	0	0
+trainer30_03_1	trainer30_03	1	78	rapidash	0	67	12	0	3	3	3	3	3	3	394	flare-blitz	1	95	hypnosis	1	528	wild-charge	1	0		0	0	0
+trainer30_03_2	trainer30_03	2	208	steelix	0	67	12	0	3	3	3	3	3	3	446	stealth-rock	1	442	iron-head	1	667	high-horsepower	1	0		0	0	0
+trainer30_03_3	trainer30_03	3	428	lopunny	0	68	12	0	3	3	3	3	3	3	458	double-hit	1	583	play-rough	1	370	close-combat	1	0		0	0	0
+trainer30_03_4	trainer30_03	4	392	infernape	0	68	12	0	3	3	3	3	3	3	339	bulk-up	1	833	raging-fury	1	38	double-edge	1	183	mach-punch	1	0	0
+trainer30_04_1	trainer30_04	1	78	rapidash	0	70	12	0	5	5	5	5	5	5	394	flare-blitz	1	95	hypnosis	1	528	wild-charge	1	231	iron-tail	1	0	0
+trainer30_04_2	trainer30_04	2	208	steelix	0	71	12	0	5	5	5	5	5	5	446	stealth-rock	1	442	iron-head	1	667	high-horsepower	1	423	ice-fang	1	0	0
+trainer30_04_3	trainer30_04	3	428	lopunny	0	71	12	0	5	5	5	5	5	5	458	double-hit	1	583	play-rough	1	370	close-combat	1	416	giga-impact	1	0	0
+trainer30_04_4	trainer30_04	4	392	infernape	0	72	12	0	5	5	5	5	5	5	339	bulk-up	1	833	raging-fury	1	444	stone-edge	1	183	mach-punch	1	0	0
+trainer30_05_1	trainer30_05	1	78	rapidash	0	75	12	0	7	7	7	7	7	7	394	flare-blitz	1	95	hypnosis	1	528	wild-charge	1	231	iron-tail	1	0	0
+trainer30_05_2	trainer30_05	2	208	steelix	0	75	12	0	7	7	7	7	7	7	446	stealth-rock	1	442	iron-head	1	667	high-horsepower	1	423	ice-fang	1	0	0
+trainer30_05_3	trainer30_05	3	428	lopunny	0	75	12	0	7	7	7	7	7	7	458	double-hit	1	583	play-rough	1	370	close-combat	1	416	giga-impact	1	0	0
+trainer30_05_4	trainer30_05	4	426	drifblim	0	76	12	0	7	7	7	7	7	7	347	calm-mind	1	95	hypnosis	1	506	hex	1	85	thunderbolt	1	0	0
+trainer30_05_5	trainer30_05	5	392	infernape	0	76	12	0	7	7	7	7	7	7	339	bulk-up	1	833	raging-fury	1	444	stone-edge	1	183	mach-punch	1	0	0
+trainer31_01_1	trainer31_01	1	429	mismagius	0	63	12	1	0	0	0	0	0	0	247	shadow-ball	1	408	power-gem	1	326	extrasensory	1	0		0	0	0
+trainer31_01_2	trainer31_01	2	282	gardevoir	0	64	12	1	0	0	0	0	0	0	605	dazzling-gleam	1	94	psychic	1	595	mystical-fire	1	0		0	0	0
+trainer31_01_3	trainer31_01	3	475	gallade	0	64	12	0	0	0	0	0	0	0	409	drain-punch	1	427	psycho-cut	1	9	thunder-punch	1	0		0	0	0
+trainer31_02_1	trainer31_02	1	407	roserade	0	65	12	1	0	0	0	0	0	0	474	venoshock	1	80	petal-dance	1	605	dazzling-gleam	1	0		0	0	0
+trainer31_02_2	trainer31_02	2	462	magnezone	0	65	12	0	0	0	0	0	0	0	430	flash-cannon	1	85	thunderbolt	1	86	thunder-wave	1	0		0	0	0
+trainer31_02_3	trainer31_02	3	475	gallade	0	66	3	0	0	0	0	0	0	0	14	swords-dance	1	409	drain-punch	1	427	psycho-cut	1	9	thunder-punch	1	0	0
+trainer31_03_1	trainer31_03	1	407	roserade	0	68	12	1	3	3	3	3	3	3	474	venoshock	1	80	petal-dance	1	605	dazzling-gleam	1	77	poison-powder	1	0	0
+trainer31_03_2	trainer31_03	2	462	magnezone	0	68	12	0	3	3	3	3	3	3	430	flash-cannon	1	85	thunderbolt	1	86	thunder-wave	1	63	hyper-beam	1	0	0
+trainer31_03_3	trainer31_03	3	282	gardevoir	0	69	15	0	3	3	3	3	3	3	347	calm-mind	1	396	aura-sphere	1	585	moonblast	1	595	mystical-fire	1	0	0
+trainer31_03_4	trainer31_03	4	475	gallade	0	69	3	0	3	3	3	3	3	3	339	bulk-up	1	409	drain-punch	1	427	psycho-cut	1	8	ice-punch	1	0	0
+trainer31_04_1	trainer31_04	1	407	roserade	0	72	12	1	5	5	5	5	5	5	474	venoshock	1	80	petal-dance	1	605	dazzling-gleam	1	78	stun-spore	1	0	0
+trainer31_04_2	trainer31_04	2	462	magnezone	0	72	12	0	5	5	5	5	5	5	430	flash-cannon	1	87	thunder	1	86	thunder-wave	1	63	hyper-beam	1	0	0
+trainer31_04_3	trainer31_04	3	282	gardevoir	0	73	15	0	5	5	5	5	5	5	347	calm-mind	1	94	psychic	1	585	moonblast	1	105	recover	1	0	0
+trainer31_04_4	trainer31_04	4	475	gallade	0	73	3	0	5	5	5	5	5	5	339	bulk-up	1	409	drain-punch	1	427	psycho-cut	1	8	ice-punch	1	0	0
+trainer31_05_1	trainer31_05	1	407	roserade	0	76	12	1	5	5	5	5	5	5	474	venoshock	1	80	petal-dance	1	605	dazzling-gleam	1	78	stun-spore	1	0	0
+trainer31_05_2	trainer31_05	2	462	magnezone	0	76	12	0	5	5	5	5	5	5	430	flash-cannon	1	87	thunder	1	86	thunder-wave	1	63	hyper-beam	1	0	0
+trainer31_05_3	trainer31_05	3	903	sneasler	0	76	13	1	5	5	5	5	5	5	827	dire-claw	1	339	bulk-up	1	421	shadow-claw	1	404	x-scissor	1	0	0
+trainer31_05_4	trainer31_05	4	282	gardevoir	0	77	15	0	5	5	5	5	5	5	347	calm-mind	1	94	psychic	1	585	moonblast	1	105	recover	1	0	0
+trainer31_05_5	trainer31_05	5	475	gallade	0	77	3	0	5	5	5	5	5	5	339	bulk-up	1	409	drain-punch	1	427	psycho-cut	1	348	leaf-blade	1	0	0
+trainer32_01_1	trainer32_01	1	76	golem	0	64	12	1	0	0	0	0	0	0	442	iron-head	1	444	stone-edge	1	523	bulldoze	1	0		0	0	0
+trainer32_01_2	trainer32_01	2	214	heracross	0	64	12	1	0	0	0	0	0	0	370	close-combat	1	42	pin-missile	1	332	aerial-ace	1	0		0	0	0
+trainer32_01_3	trainer32_01	3	143	snorlax	0	65	12	1	0	0	0	0	0	0	428	zen-headbutt	1	667	high-horsepower	1	416	giga-impact	1	7	fire-punch	1	0	0
+trainer32_02_1	trainer32_02	1	76	golem	0	67	12	1	0	0	0	0	0	0	442	iron-head	1	444	stone-edge	1	523	bulldoze	1	0		0	0	0
+trainer32_02_2	trainer32_02	2	214	heracross	0	67	12	1	0	0	0	0	0	0	370	close-combat	1	42	pin-missile	1	332	aerial-ace	1	14	swords-dance	1	0	0
+trainer32_02_3	trainer32_02	3	143	snorlax	0	68	12	1	0	0	0	0	0	0	428	zen-headbutt	1	667	high-horsepower	1	416	giga-impact	1	7	fire-punch	1	0	0
+trainer32_03_1	trainer32_03	1	76	golem	0	69	12	1	3	3	3	3	3	3	442	iron-head	1	444	stone-edge	1	9	thunder-punch	1	523	bulldoze	1	0	0
+trainer32_03_2	trainer32_03	2	214	heracross	0	69	12	1	3	3	3	3	3	3	370	close-combat	1	42	pin-missile	1	332	aerial-ace	1	14	swords-dance	1	0	0
+trainer32_03_3	trainer32_03	3	901	ursaluna	0	69	12	1	3	3	3	3	3	3	583	play-rough	1	608	baby-doll-eyes	1	667	high-horsepower	1	8	ice-punch	1	0	0
+trainer32_03_4	trainer32_03	4	143	snorlax	0	70	12	1	3	3	3	3	3	3	428	zen-headbutt	1	667	high-horsepower	1	416	giga-impact	1	7	fire-punch	1	0	0
+trainer32_04_1	trainer32_04	1	76	golem	0	73	12	1	5	5	5	5	5	5	442	iron-head	1	444	stone-edge	1	9	thunder-punch	1	414	earth-power	1	0	0
+trainer32_04_2	trainer32_04	2	214	heracross	0	74	12	1	5	5	5	5	5	5	370	close-combat	1	224	megahorn	1	332	aerial-ace	1	14	swords-dance	1	0	0
+trainer32_04_3	trainer32_04	3	901	ursaluna	0	74	12	1	5	5	5	5	5	5	583	play-rough	1	608	baby-doll-eyes	1	838	headlong-rush	1	8	ice-punch	1	0	0
+trainer32_04_4	trainer32_04	4	143	snorlax	0	75	12	1	5	5	5	5	5	5	428	zen-headbutt	1	667	high-horsepower	1	416	giga-impact	1	7	fire-punch	1	0	0
+trainer32_05_1	trainer32_05	1	76	golem	0	77	12	1	7	7	7	7	7	7	442	iron-head	1	444	stone-edge	1	9	thunder-punch	1	414	earth-power	1	0	0
+trainer32_05_2	trainer32_05	2	214	heracross	0	77	12	1	7	7	7	7	7	7	370	close-combat	1	224	megahorn	1	332	aerial-ace	1	14	swords-dance	1	0	0
+trainer32_05_3	trainer32_05	3	476	probopass	0	78	12	0	7	7	7	7	7	7	444	stone-edge	1	442	iron-head	1	446	stealth-rock	1	85	thunderbolt	1	0	0
+trainer32_05_4	trainer32_05	4	901	ursaluna	0	78	12	1	7	7	7	7	7	7	583	play-rough	1	608	baby-doll-eyes	1	838	headlong-rush	1	8	ice-punch	1	0	0
+trainer32_05_5	trainer32_05	5	143	snorlax	0	79	12	1	7	7	7	7	7	7	428	zen-headbutt	1	667	high-horsepower	1	416	giga-impact	1	7	fire-punch	1	0	0
+trainer33_01_1	trainer33_01	1	549	lilligant	1	63	12	1	0	0	0	0	0	0	409	drain-punch	1	80	petal-dance	0	398	poison-jab	1	0		0	0	0
+trainer33_01_2	trainer33_01	2	436	bronzor	0	32	12	0	0	0	0	0	0	0	506	hex	1	93	confusion	1	0		0	0		0	0	0
+trainer33_02_1	trainer33_02	1	549	lilligant	1	65	12	1	0	0	0	0	0	0	409	drain-punch	1	80	petal-dance	0	398	poison-jab	1	0		0	0	0
+trainer33_02_2	trainer33_02	2	437	bronzong	0	34	12	0	0	0	0	0	0	0	506	hex	1	93	confusion	1	95	hypnosis	0	0		0	0	0
+trainer33_03_1	trainer33_03	1	549	lilligant	1	68	12	1	3	3	3	3	3	3	409	drain-punch	1	348	leaf-blade	0	398	poison-jab	1	837	victory-dance	1	0	0
+trainer33_03_2	trainer33_03	2	437	bronzong	0	40	12	0	0	0	0	0	0	0	506	hex	1	326	extrasensory	0	95	hypnosis	1	0		0	0	0
+trainer33_03_3	trainer33_03	3	432	purugly	0	40	12	1	0	0	0	0	0	0	163	slash	1	400	night-slash	1	0		0	0		0	0	0
+trainer33_04_1	trainer33_04	1	549	lilligant	1	71	12	1	3	3	3	3	3	3	409	drain-punch	1	348	leaf-blade	0	398	poison-jab	1	837	victory-dance	1	0	0
+trainer33_04_2	trainer33_04	2	437	bronzong	0	45	12	0	0	0	0	0	0	0	506	hex	1	94	psychic	1	95	hypnosis	1	430	flash-cannon	1	0	0
+trainer33_04_3	trainer33_04	3	432	purugly	0	45	12	1	0	0	0	0	0	0	163	slash	1	400	night-slash	1	583	play-rough	1	0		0	0	0
+trainer33_05_1	trainer33_05	1	549	lilligant	1	73	12	1	5	5	5	5	5	5	409	drain-punch	1	348	leaf-blade	1	398	poison-jab	1	837	victory-dance	1	0	0
+trainer33_05_2	trainer33_05	2	437	bronzong	0	47	12	0	0	0	0	0	0	0	506	hex	1	94	psychic	1	95	hypnosis	1	430	flash-cannon	1	0	0
+trainer33_05_3	trainer33_05	3	432	purugly	0	47	12	1	0	0	0	0	0	0	163	slash	1	400	night-slash	1	583	play-rough	1	332	aerial-ace	1	0	0
+trainer34_01_1	trainer34_01	1	435	skuntank	0	64	12	0	0	0	0	0	0	0	398	poison-jab	0	400	night-slash	0	53	flamethrower	0	0		0	0	0
+trainer34_01_2	trainer34_01	2	42	golbat	0	33	12	1	0	3	0	0	3	0	95	hypnosis	0	16	gust	0	0		0	0		0	0	0
+trainer34_02_1	trainer34_02	1	435	skuntank	0	66	12	0	0	0	0	0	0	0	188	sludge-bomb	0	400	night-slash	0	53	flamethrower	0	0		0	0	0
+trainer34_02_2	trainer34_02	2	42	golbat	0	36	12	1	0	3	0	0	3	0	95	hypnosis	0	314	air-cutter	0	141	leech-life	1	0		0	0	0
+trainer34_03_1	trainer34_03	1	435	skuntank	0	69	12	0	3	3	3	3	3	3	188	sludge-bomb	1	400	night-slash	0	53	flamethrower	1	231	iron-tail	0	0	0
+trainer34_03_2	trainer34_03	2	452	drapion	0	41	12	1	0	3	0	0	3	0	474	venoshock	0	44	bite	0	249	rock-smash	0	0		0	0	0
+trainer34_03_3	trainer34_03	3	42	golbat	0	42	12	1	0	3	0	0	3	0	95	hypnosis	0	403	air-slash	0	141	leech-life	1	0		0	0	0
+trainer34_04_1	trainer34_04	1	435	skuntank	0	72	12	0	3	3	3	3	3	3	188	sludge-bomb	1	400	night-slash	1	53	flamethrower	1	231	iron-tail	1	0	0
+trainer34_04_2	trainer34_04	2	452	drapion	0	46	12	1	0	3	0	0	3	0	474	venoshock	1	44	bite	1	249	rock-smash	1	404	x-scissor	1	0	0
+trainer34_04_3	trainer34_04	3	42	golbat	0	47	12	1	0	3	0	0	3	0	95	hypnosis	1	403	air-slash	1	141	leech-life	1	247	shadow-ball	1	0	0
+trainer34_05_1	trainer34_05	1	435	skuntank	0	74	12	0	5	5	5	5	5	5	188	sludge-bomb	1	400	night-slash	1	53	flamethrower	1	231	iron-tail	1	0	0
+trainer34_05_2	trainer34_05	2	452	drapion	0	47	12	1	0	3	0	0	3	0	474	venoshock	1	422	thunder-fang	0	249	rock-smash	1	423	ice-fang	1	0	0
+trainer34_05_3	trainer34_05	3	42	golbat	0	48	12	1	0	3	0	0	3	0	95	hypnosis	1	403	air-slash	1	141	leech-life	1	247	shadow-ball	1	0	0
+trainer35_01_1	trainer35_01	1	470	leafeon	0	65	12	0	3	3	3	3	3	10	98	quick-attack	0	608	baby-doll-eyes	0	348	leaf-blade	0	0		0	0	0
+trainer35_01_2	trainer35_01	2	197	umbreon	0	34	12	1	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	399	dark-pulse	0	0		0	0	0
+trainer35_01_3	trainer35_01	3	134	vaporeon	0	34	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	401	aqua-tail	0	0		0	0	0
+trainer35_02_1	trainer35_02	1	470	leafeon	0	67	12	0	3	3	3	3	3	10	98	quick-attack	0	347	calm-mind	0	348	leaf-blade	0	231	iron-tail	1	0	0
+trainer35_02_2	trainer35_02	2	197	umbreon	0	37	12	1	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	399	dark-pulse	0	0		0	0	0
+trainer35_02_3	trainer35_02	3	134	vaporeon	0	37	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	401	aqua-tail	0	0		0	0	0
+trainer35_03_1	trainer35_03	1	470	leafeon	0	70	12	0	3	3	3	3	3	10	404	x-scissor	0	347	calm-mind	0	348	leaf-blade	0	231	iron-tail	1	0	0
+trainer35_03_2	trainer35_03	2	197	umbreon	0	44	12	1	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	399	dark-pulse	0	247	shadow-ball	0	0	0
+trainer35_03_3	trainer35_03	3	134	vaporeon	0	44	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	401	aqua-tail	0	196	icy-wind	0	0	0
+trainer35_04_1	trainer35_04	1	470	leafeon	0	73	12	0	5	5	5	5	5	10	404	x-scissor	1	347	calm-mind	1	348	leaf-blade	1	231	iron-tail	1	0	0
+trainer35_04_2	trainer35_04	2	197	umbreon	0	48	12	1	3	3	3	3	3	3	98	quick-attack	1	608	baby-doll-eyes	1	399	dark-pulse	1	247	shadow-ball	1	0	0
+trainer35_04_3	trainer35_04	3	134	vaporeon	0	48	12	0	3	3	3	3	3	3	98	quick-attack	1	608	baby-doll-eyes	1	401	aqua-tail	1	58	ice-beam	1	0	0
+trainer35_05_1	trainer35_05	1	470	leafeon	0	75	12	0	7	7	7	7	7	10	404	x-scissor	1	347	calm-mind	1	348	leaf-blade	1	231	iron-tail	1	0	0
+trainer35_05_2	trainer35_05	2	197	umbreon	0	50	12	1	3	3	3	3	3	3	98	quick-attack	1	94	psychic	1	399	dark-pulse	1	247	shadow-ball	1	0	0
+trainer35_05_3	trainer35_05	3	134	vaporeon	0	50	12	0	3	3	3	3	3	3	98	quick-attack	1	608	baby-doll-eyes	1	401	aqua-tail	1	58	ice-beam	1	0	0
+trainer36_01_1	trainer36_01	1	705	sliggoo	1	63	12	0	0	0	0	0	0	0	442	iron-head	1	406	dragon-pulse	1	352	water-pulse	1	0		0	0	0
+trainer36_01_2	trainer36_01	2	220	swinub	0	32	12	0	0	0	0	0	0	0	523	bulldoze	1	556	icicle-crash	1	0		0	0		0	0	0
+trainer36_02_1	trainer36_02	1	706	goodra	1	65	12	0	0	0	0	0	0	0	442	iron-head	1	406	dragon-pulse	1	352	water-pulse	1	0		0	0	0
+trainer36_02_2	trainer36_02	2	221	piloswine	0	34	12	0	0	0	0	0	0	0	523	bulldoze	1	556	icicle-crash	1	446	stealth-rock	0	0		0	0	0
+trainer36_03_1	trainer36_03	1	706	goodra	1	68	12	0	3	3	3	3	3	3	442	iron-head	1	406	dragon-pulse	1	352	water-pulse	1	0		0	0	0
+trainer36_03_2	trainer36_03	2	221	piloswine	0	40	12	0	0	0	0	0	0	0	667	high-horsepower	1	556	icicle-crash	1	446	stealth-rock	1	0		0	0	0
+trainer36_03_3	trainer36_03	3	340	whiscash	0	40	12	0	0	0	0	0	0	0	426	mud-bomb	1	428	zen-headbutt	1	0		0	0		0	0	0
+trainer36_04_1	trainer36_04	1	706	goodra	1	71	12	0	3	3	3	3	3	3	442	iron-head	1	406	dragon-pulse	1	56	hydro-pump	1	842	shelter	1	0	0
+trainer36_04_2	trainer36_04	2	473	mamoswine	0	45	12	0	0	0	0	0	0	0	667	high-horsepower	1	556	icicle-crash	1	446	stealth-rock	1	0		0	0	0
+trainer36_04_3	trainer36_04	3	340	whiscash	0	45	12	0	0	0	0	0	0	0	426	mud-bomb	1	428	zen-headbutt	1	401	aqua-tail	1	332	aerial-ace	1	0	0
+trainer36_05_1	trainer36_05	1	706	goodra	1	73	12	0	3	3	3	3	3	3	442	iron-head	1	406	dragon-pulse	1	56	hydro-pump	1	842	shelter	1	0	0
+trainer36_05_2	trainer36_05	2	473	mamoswine	0	47	12	0	0	0	0	0	0	0	667	high-horsepower	1	556	icicle-crash	1	446	stealth-rock	1	444	stone-edge	1	0	0
+trainer36_05_3	trainer36_05	3	340	whiscash	0	47	12	0	0	0	0	0	0	0	426	mud-bomb	1	428	zen-headbutt	1	401	aqua-tail	1	332	aerial-ace	1	0	0
+trainer37_01_1	trainer37_01	1	362	glalie	0	64	12	0	0	0	0	0	0	0	58	ice-beam	0	242	crunch	0	556	icicle-crash	0	0		0	0	0
+trainer37_01_2	trainer37_01	2	478	froslass	0	33	12	1	0	3	0	0	3	0	420	ice-shard	0	506	hex	0	0		0	0		0	0	0
+trainer37_02_1	trainer37_02	1	362	glalie	0	66	12	0	0	0	0	0	0	0	58	ice-beam	0	242	crunch	0	523	bulldoze	0	0		0	0	0
+trainer37_02_2	trainer37_02	2	478	froslass	0	36	12	1	0	3	0	0	3	0	420	ice-shard	0	506	hex	0	85	thunderbolt	0	0		0	0	0
+trainer37_03_1	trainer37_03	1	362	glalie	0	69	12	0	3	3	3	3	3	3	58	ice-beam	0	242	crunch	0	523	bulldoze	1	191	spikes	1	0	0
+trainer37_03_2	trainer37_03	2	713	avalugg	1	41	12	0	0	3	0	0	3	0	44	bite	0	334	iron-defense	0	836	mountain-gale	0	0		0	0	0
+trainer37_03_3	trainer37_03	3	478	froslass	0	42	12	1	0	3	0	0	3	0	423	ice-fang	0	506	hex	0	85	thunderbolt	0	0		0	0	0
+trainer37_04_1	trainer37_04	1	362	glalie	0	72	12	0	3	3	3	3	3	3	59	blizzard	1	242	crunch	1	523	bulldoze	1	191	spikes	1	0	0
+trainer37_04_2	trainer37_04	2	713	avalugg	1	46	12	0	0	3	0	0	3	0	242	crunch	1	334	iron-defense	1	836	mountain-gale	1	157	rock-slide	1	0	0
+trainer37_04_3	trainer37_04	3	478	froslass	0	47	12	1	0	3	0	0	3	0	423	ice-fang	1	506	hex	1	85	thunderbolt	1	352	water-pulse	1	0	0
+trainer37_05_1	trainer37_05	1	362	glalie	0	74	12	0	3	3	3	3	3	3	59	blizzard	1	242	crunch	1	523	bulldoze	1	442	iron-head	1	0	0
+trainer37_05_2	trainer37_05	2	713	avalugg	1	47	12	0	0	3	0	0	3	0	242	crunch	1	334	iron-defense	1	836	mountain-gale	1	157	rock-slide	1	0	0
+trainer37_05_3	trainer37_05	3	478	froslass	0	48	12	1	0	3	0	0	3	0	423	ice-fang	1	247	shadow-ball	1	85	thunderbolt	1	352	water-pulse	1	0	0
+trainer38_01_1	trainer38_01	1	471	glaceon	0	65	12	1	3	3	3	3	3	3	98	quick-attack	0	608	baby-doll-eyes	0	58	ice-beam	0	0		0	0	0
+trainer38_01_2	trainer38_01	2	196	espeon	0	34	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	94	psychic	0	0		0	0	0
+trainer38_01_3	trainer38_01	3	136	flareon	0	34	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	53	flamethrower	0	0		0	0	0
+trainer38_02_1	trainer38_02	1	471	glaceon	0	67	12	1	3	3	3	3	3	3	98	quick-attack	0	347	calm-mind	0	58	ice-beam	0	247	shadow-ball	1	0	0
+trainer38_02_2	trainer38_02	2	196	espeon	0	37	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	94	psychic	0	0		0	0	0
+trainer38_02_3	trainer38_02	3	136	flareon	0	37	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	53	flamethrower	0	0		0	0	0
+trainer38_03_1	trainer38_03	1	471	glaceon	0	70	12	1	5	5	5	5	5	5	352	water-pulse	1	347	calm-mind	0	58	ice-beam	0	247	shadow-ball	1	0	0
+trainer38_03_2	trainer38_03	2	196	espeon	0	44	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	94	psychic	0	605	dazzling-gleam	0	0	0
+trainer38_03_3	trainer38_03	3	136	flareon	0	44	12	0	0	3	0	0	3	0	98	quick-attack	0	608	baby-doll-eyes	0	53	flamethrower	0	249	rock-smash	0	0	0
+trainer38_04_1	trainer38_04	1	471	glaceon	0	73	12	1	5	5	5	5	5	5	352	water-pulse	1	347	calm-mind	1	58	ice-beam	1	247	shadow-ball	1	0	0
+trainer38_04_2	trainer38_04	2	196	espeon	0	48	12	0	3	3	3	3	3	3	98	quick-attack	1	608	baby-doll-eyes	1	94	psychic	1	605	dazzling-gleam	1	0	0
+trainer38_04_3	trainer38_04	3	136	flareon	0	48	12	0	3	3	3	3	3	3	98	quick-attack	1	608	baby-doll-eyes	1	53	flamethrower	1	249	rock-smash	1	0	0
+trainer38_05_1	trainer38_05	1	471	glaceon	0	75	12	1	7	7	7	7	7	7	352	water-pulse	1	347	calm-mind	1	58	ice-beam	1	247	shadow-ball	1	0	0
+trainer38_05_2	trainer38_05	2	196	espeon	0	50	12	0	3	3	3	3	3	3	98	quick-attack	1	608	baby-doll-eyes	1	94	psychic	1	605	dazzling-gleam	1	0	0
+trainer38_05_3	trainer38_05	3	136	flareon	0	50	12	0	3	3	3	3	3	3	98	quick-attack	1	231	iron-tail	1	53	flamethrower	1	249	rock-smash	1	0	0

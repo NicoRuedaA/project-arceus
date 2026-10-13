@@ -1,0 +1,159 @@
+# sheet: data/npc_config
+# version: 1
+# generator: .tools/npc_decode.py
+# target: Pokémon Legends: Arceus v262144 NPC tuning parameters (bin/misc/app_config/*.bin)
+# note: One row per parameter: value = first string of the parameter's value vector; extra = further non-empty values;
+# note: min/max = the editor range. Names and values VERIFIED as data; what the engine does with them is ASSUMED from the names.
+file:string*	param:string*	value:string	extra:string?	min:string?	max:string?
+npc_ai_config	Outdoor_ForwardReactionRange_Distance	3.5		0	100
+npc_ai_config	Indoor_ForwardReactionRange_Distance	2		0	100
+npc_ai_config	ForwardReactionRange_Angle	75		0	360
+npc_ai_config	MediumReactionRange_Distance	1.5		0	100
+npc_ai_config	MediumReactionRange_Angle_01	200		0	360
+npc_ai_config	MediumReactionRange_Angle_02	300		0	360
+npc_ai_config	CloseReactionRange_Distance	0.95		0	100
+npc_ai_config	CloseReactionRange_Angle	360		0	360
+npc_ai_config	Outdoor_ResetRange_Distance	4		0	100
+npc_ai_config	Outdoor_ResetRange_Angle	360		0	360
+npc_ai_config	Indoor_ResetRange_Distance	4		0	100
+npc_ai_config	Indoor_ResetRange_Angle	360		0	360
+npc_controller_config	physics_height	0.75		0	5
+npc_controller_config	physics_radius	0.35		0	5
+npc_controller_config	physics_maxslope	45		0	89
+npc_controller_config	control_physics_maxslidingSpeed	7		0	20
+npc_controller_config	control_physics_slidingSlope	25		0	25
+npc_controller_config	control_autoMoveAnimation	〇			
+npc_controller_config	control_autoJumpAnimation				
+npc_controller_config	control_autoStartTurnMove	〇			
+npc_controller_config	control_autoStartTurnDeg	10			
+npc_controller_config	control_autoForwardDirection	〇			
+npc_controller_config	control_autoForwardEasing	0.07		0	1
+npc_controller_config	control_input_stop	0		0	1.5
+npc_controller_config	control_input_walk	0.4		0	1.5
+npc_controller_config	control_input_run	0.8		0	1.5
+npc_controller_config	control_input_dash	1.2		0	1.5
+npc_controller_config	control_speed_stop	0		0	20
+npc_controller_config	control_speed_walk	1.5		0	20
+npc_controller_config	control_speed_run	5		0	20
+npc_controller_config	control_speed_dash	7		0	20
+npc_controller_config	control_rootMotionRate	30		0	100
+npc_controller_config	control_moveRootMotionAmplifier	1		0	5
+npc_controller_config	control_maxCrouchingSpeed	0		0	0
+npc_controller_config	control_maxFallSpeed	50		0	100
+npc_controller_config	control_firstJumpPower	3.25		0	20
+npc_controller_config	control_secondJumpPower	0		0	20
+npc_controller_config	control_thirdJumpPower	0		0	20
+npc_controller_config	control_fourthJumpPower	0		0	20
+npc_controller_config	control_jumpAccelerationRate	1		0	2
+npc_controller_config	control_jumpAdditionalMaxPower	1.24		0	2
+npc_controller_config	control_secondaryJumpAccelerationRate	0		0	2
+npc_controller_config	control_maxSlidingSpeed	7		0	20
+npc_controller_config	control_slidingSlope	25		0	89
+npc_controller_config	control_stepHeightMin	0.01		0	5
+npc_controller_config	control_stepHeightMax	0.4		0	5
+npc_controller_config	control_isDirtMoveEnable				
+npc_controller_config	control_frameHideInBattle	10		0	100
+npc_controller_config	control_frameVisibleInBattle	10		0	100
+npc_controller_config	anm_control_moveFrontName	move_speed			
+npc_controller_config	anm_control_moveFrontEasingTime	0.1333333		0	1
+npc_controller_config	anm_control_moveFrontInputMin	0		-10	10
+npc_controller_config	anm_control_moveFrontInputMax	1		-10	10
+npc_controller_config	anm_control_moveStopName	runstop_trigger			
+npc_controller_config	anm_control_moveLeftName	move_left			
+npc_controller_config	anm_control_moveLeftEasingTime	0.0666666		0	1
+npc_controller_config	anm_control_moveLeftInputMin	0		-180	180
+npc_controller_config	anm_control_moveLeftInputMax	0		-180	180
+npc_controller_config	anm_control_slopeName	slope			
+npc_controller_config	anm_control_slopeEasingTime	0.1333333		0	1
+npc_controller_config	anm_control_slopeInputMin	-45		-90	90
+npc_controller_config	anm_control_slopeInputMax	45		-90	90
+npc_controller_config	anm_control_aerialName	aerial			
+npc_controller_config	anm_control_aerialMin	0		-1	1
+npc_controller_config	anm_control_aerialMax	0		-1	1
+npc_controller_config	anm_control_aerialLandingTypeName	landing_type_int			
+npc_controller_config	navigator_radius	0.5		0.1	10
+npc_controller_config	navigator_searchRadius	100		0	1000
+npc_controller_config	navigator_horizontalTolerance	1		0.1	10
+npc_controller_config	navigator_verticalTolerance	2		0.1	10
+npc_controller_config	navigator_iterationLimit	-1		-1	100
+npc_controller_config	navigator_maximumSpeed	6		0	10
+npc_controller_config	navigator_preferredSpeed	4		0	10
+npc_controller_config	navigator_avoidanceRadius	0.75		0.1	20
+npc_controller_config	navigator_avoidanceSensorTop	5		0	100
+npc_controller_config	navigator_avoidanceSensorBottom	5		0	100
+npc_controller_config	navigator_avoidanceSensorHalfWidth	5		0	100
+npc_talk_table_config	player_middle_waist_height	1		0	3
+npc_creater_config	LieDownMosionMin	7		0	100
+npc_creater_config	LieDownMosionMax	8		0	100
+npc_creater_config	LieDownAngle	90	0,0	0	360
+npc_popup_config	popup_offset_x	200		-300	300
+npc_popup_config	popup_offset_y	90		-300	300
+npc_popup_config	start_draw_seconds	1		-300	300
+npc_popup_config	range_draw_seconds	1		-300	300
+character_look_at_config	eye_controll_state_speed_rate	0.01		0	1
+character_look_at_config	look_position_interpolation_start_radius	0.25		0	5
+character_look_at_config	look_position_delay_rate	0.1		0	1
+character_look_at_config	look_position_interpolation_end_radius	0.025		0	1
+character_look_at_config	look_position_changed_target_radius	0.4		0	5
+character_look_at_config	look_angle_changed_yaw_deg	5		0	180
+character_look_at_config	look_angle_changed_pitch_deg	5		0	180
+character_look_at_config	look_start_keep_frame	30		0	60
+character_look_at_config	look_behind_angle_deg	135		0	180
+character_look_at_config	npc_head_rotation_speed_per_sec	60		0	180
+character_look_at_config	npc_head_start_rotation_speed_per_sec	140		0	180
+character_look_at_config	npc_head_rotation_speed_ease_time	0.5		0	180
+character_look_at_config	npc_head_rotation_speed_ease_func	5		0	5
+character_look_at_config	npc_head_disable_rotation_speed_per_sec	80		0	180
+character_look_at_config	npc_eye_rotation_speed_per_sec	60		0	180
+character_look_at_config	npc_eye_rotation_speed_ease_time	0.1		0	180
+character_look_at_config	npc_eye_rotation_speed_ease_func	5		0	5
+character_look_at_config	npc_eye_start_rotation_speed_per_sec	180		0	180
+character_look_at_config	npc_eye_disable_rotation_speed_per_sec	80		0	180
+character_look_at_config	pc_head_rotation_speed_per_sec	60		0	180
+character_look_at_config	pc_head_start_rotation_speed_per_sec	140		0	180
+character_look_at_config	pc_head_rotation_speed_ease_time	0.5		0	180
+character_look_at_config	pc_head_rotation_speed_ease_func	5		0	5
+character_look_at_config	pc_head_disable_rotation_speed_per_sec	80		0	180
+character_look_at_config	pc_eye_rotation_speed_per_sec	60		0	180
+character_look_at_config	pc_eye_rotation_speed_ease_time	0.1		0	180
+character_look_at_config	pc_eye_rotation_speed_ease_func	5		0	5
+character_look_at_config	pc_eye_start_rotation_speed_per_sec	180		0	180
+character_look_at_config	pc_eye_disable_rotation_speed_per_sec	80		0	180
+character_look_at_config	pokemon_enable_rotation_mode				
+character_look_at_config	pokemon_head_rotation_speed_per_sec	60		0	180
+character_look_at_config	pokemon_head_start_rotation_speed_per_sec	140		0	180
+character_look_at_config	pokemon_head_rotation_speed_ease_time	0.5		0	180
+character_look_at_config	pokemon_head_rotation_speed_ease_func	5		0	5
+character_look_at_config	pokemon_head_disable_rotation_speed_per_sec	80		0	180
+character_look_at_config	pokemon_eye_rotation_speed_per_sec	60		0	180
+character_look_at_config	pokemon_eye_rotation_speed_ease_time	0.1		0	180
+character_look_at_config	pokemon_eye_rotation_speed_ease_func	5		0	5
+character_look_at_config	pokemon_eye_start_rotation_speed_per_sec	180		0	180
+character_look_at_config	pokemon_eye_disable_rotation_speed_per_sec	80		0	180
+character_look_at_config	pokemon_eye_uv_rotation_speed_per_sec	300		0	180
+character_look_at_config	pokemon_eye_uv_rotation_speed_ease_time	0.1		0	180
+character_look_at_config	pokemon_eye_uv_rotation_speed_ease_func	5		0	5
+character_look_at_config	pokemon_eye_uv_start_rotation_speed_per_sec	300		0	180
+character_look_at_config	pokemon_eye_uv_disable_rotation_speed_per_sec	300		0	180
+character_look_at_config	default_head_rotation_speed_per_sec	60		0	180
+character_look_at_config	default_head_start_rotation_speed_per_sec	140		0	180
+character_look_at_config	default_head_rotation_speed_ease_time	0.5		0	180
+character_look_at_config	default_head_rotation_speed_ease_func	5		0	5
+character_look_at_config	default_head_disable_rotation_speed_per_sec	80		0	180
+character_look_at_config	default_eye_rotation_speed_per_sec	60		0	180
+character_look_at_config	default_eye_rotation_speed_ease_time	0.1		0	180
+character_look_at_config	default_eye_rotation_speed_ease_func	5		0	5
+character_look_at_config	default_eye_start_rotation_speed_per_sec	180		0	180
+character_look_at_config	default_eye_disable_rotation_speed_per_sec	80		0	180
+npc_pokemon_ai_config	Outdoor_ForwardReactionRange_Distance	3.5		0	100
+npc_pokemon_ai_config	Indoor_ForwardReactionRange_Distance	2		0	100
+npc_pokemon_ai_config	ForwardReactionRange_Angle	75		0	360
+npc_pokemon_ai_config	MediumReactionRange_Distance	1.5		0	100
+npc_pokemon_ai_config	MediumReactionRange_Angle_01	200		0	360
+npc_pokemon_ai_config	MediumReactionRange_Angle_02	300		0	360
+npc_pokemon_ai_config	CloseReactionRange_Distance	0.95		0	100
+npc_pokemon_ai_config	CloseReactionRange_Angle	360		0	360
+npc_pokemon_ai_config	Outdoor_ResetRange_Distance	4		0	100
+npc_pokemon_ai_config	Outdoor_ResetRange_Angle	360		0	360
+npc_pokemon_ai_config	Indoor_ResetRange_Distance	4		0	100
+npc_pokemon_ai_config	Indoor_ResetRange_Angle	360		0	360

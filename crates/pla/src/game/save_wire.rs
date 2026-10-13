@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
 
-use super::battle_controller::{ActiveBattleSession, BattleAssets, WILD};
+use super::battle_controller::{ActiveBattleSession, BattleAssets, MemberMeta, WILD};
 use super::battle_items;
 use super::play_time::PlayTime;
 use super::save_game::{PartyMember, PlayerSave, SaveFile, SaveGame, MAX_BOX, MAX_PARTY};
@@ -80,14 +80,15 @@ pub struct PlayerProgress {
     pub defeated: u32,
     pub caught_count: u32,
     pub rng_seed: u32,
-    pub time_slot: u8,
-    /// Ids of collected field-item spawns (`data/field_item_spawns.tsv`, save format v6).
+    /// Game clock time of day in minutes since midnight (save format v6; the clock owns it).
+    pub time_minutes: u16,
+    /// Ids of collected field-item spawns (`data/field_item_spawns.tsv`, save format v7, Brief 12).
     pub picked: BTreeSet<u64>,
 }
 
 impl PlayerProgress {
     pub fn new_game() -> Self {
-        Self { rng_seed: 0x5ca1_e001, time_slot: 1, ..Self::default() }
+        Self { rng_seed: 0x5ca1_e001, time_minutes: super::clock::DEFAULT_START_MINUTES, ..Self::default() }
     }
 
     pub fn from_save(s: &PlayerSave) -> Self {
@@ -101,7 +102,7 @@ impl PlayerProgress {
             defeated: s.defeated,
             caught_count: s.caught_count,
             rng_seed: if s.rng_seed == 0 { 0x5ca1_e001 } else { s.rng_seed },
-            time_slot: s.time_slot,
+            time_minutes: s.time_minutes,
             picked: s.picked.clone(),
         }
     }
@@ -113,7 +114,7 @@ impl PlayerProgress {
             zone: zone.to_string(),
             position,
             yaw,
-            time_slot: self.time_slot,
+            time_minutes: self.time_minutes,
             party: self.party.iter().take(MAX_PARTY).cloned().collect(),
             box_pokemon: self.box_list.iter().take(MAX_BOX).cloned().collect(),
             bag: self.bag.iter().filter(|(_, n)| **n > 0).map(|(i, n)| (*i, *n)).collect(),
@@ -251,7 +252,8 @@ pub struct StartupState {
     pub area: Option<u8>,
     pub position: Option<[f32; 3]>,
     pub yaw: f32,
-    pub time_slot: Option<usize>,
+    /// Minute of day stored in the save (None for a new game or a file without one).
+    pub time_minutes: Option<u16>,
     /// Play time stored in the save (0 for a new game or a pre-v4 file).
     pub play_seconds: u64,
     pub loaded: bool,
@@ -268,7 +270,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             area: None,
             position: None,
             yaw: 0.0,
-            time_slot: None,
+            time_minutes: None,
             play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
@@ -279,7 +281,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             area: parse_zone(&s.zone),
             position: Some(s.position),
             yaw: s.yaw,
-            time_slot: Some(usize::from(s.time_slot.min(3))),
+            time_minutes: Some(s.time_minutes),
             play_seconds: s.play_seconds,
             progress: PlayerProgress::from_save(&s),
             loaded: true,
@@ -290,7 +292,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             area: None,
             position: None,
             yaw: 0.0,
-            time_slot: None,
+            time_minutes: None,
             play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
@@ -336,7 +338,9 @@ pub fn member_to_combatant(data: &BattleData, m: &PartyMember) -> Option<Combata
 
 /// Replace the session's player side with `party` (HP, PP, status restored; fainted members stay
 /// fainted). If every member is fainted the party is fully restored first (a blackout heal: the
-/// port has no village return yet). The wild combatant, effects and item tables are kept.
+/// port has no village return yet). The wild combatant, effects, item and move-style tables and
+/// the battle rules are kept; the PLA action queue restarts from the new party; each member's
+/// form and experience go to `sess.member_meta` (the engine does not keep them).
 pub fn install_party(
     sess: &mut ActiveBattleSession,
     data: &BattleData,
@@ -344,10 +348,12 @@ pub fn install_party(
 ) -> Result<(Roster, bool), String> {
     let mut roster = Vec::new();
     let mut mons = Vec::new();
+    let mut metas = Vec::new();
     for (i, m) in party.iter().enumerate().take(MAX_PARTY) {
         if let Some(c) = member_to_combatant(data, m) {
             roster.push(i);
             mons.push(c);
+            metas.push(MemberMeta { form: m.form, exp: m.exp });
         }
     }
     if mons.is_empty() {
@@ -358,8 +364,17 @@ pub fn install_party(
         mons.iter_mut().for_each(heal_full);
     }
     let wild = sess.battle.combatants[WILD].clone();
+    // Trainer battles: the other opponent members (side 1 after `WILD`) and their forms.
+    let extra_opponents: Vec<(Combatant, MemberMeta)> = sess.battle.sides[1]
+        .iter()
+        .filter(|&&i| i != WILD)
+        .map(|&i| (sess.battle.combatants[i].clone(), sess.member_meta.get(i).copied().unwrap_or_default()))
+        .collect();
+    let wild_meta = sess.member_meta.get(WILD).copied().unwrap_or_default();
     let effects = sess.battle.move_effects().cloned();
     let items = sess.battle.item_table().cloned();
+    let styles = sess.battle.move_styles().cloned();
+    let rules = sess.battle.status_rules();
     let mut combatants = Vec::with_capacity(mons.len() + 1);
     let mut side = Vec::new();
     for (j, c) in mons.into_iter().enumerate() {
@@ -372,14 +387,36 @@ pub fn install_party(
     if combatants.len() == 1 {
         combatants.push(wild);
     }
-    let mut battle = Battle::new(combatants, vec![side, vec![WILD]], data.type_chart().clone())?;
+    let mut opponents = vec![WILD];
+    let mut opponent_metas = vec![(WILD, wild_meta)];
+    for (c, m) in extra_opponents {
+        opponents.push(combatants.len());
+        opponent_metas.push((combatants.len(), m));
+        combatants.push(c);
+    }
+    let mut battle = Battle::new(combatants, vec![side, opponents], data.type_chart().clone())?;
     if let Some(e) = effects {
         battle.set_move_effects(e);
     }
     if let Some(t) = items {
         battle.set_item_table(t);
     }
+    battle.set_status_rules(rules);
+    if let Some(t) = styles {
+        battle.set_move_styles(t);
+    }
+    if sess.turn_mode.uses_queue() {
+        battle.enable_action_queue();
+    }
+    let mut meta = vec![MemberMeta::default(); battle.combatants.len()];
+    for (j, m) in metas.into_iter().enumerate() {
+        meta[combatant_index(j)] = m;
+    }
+    for (i, m) in opponent_metas {
+        meta[i] = m;
+    }
     sess.battle = battle;
+    sess.member_meta = meta;
     sess.selected_move_idx = 0;
     Ok((roster, blackout))
 }
@@ -408,13 +445,24 @@ pub struct BattleOutcome {
     /// The wild Pokemon as a party member, when it was caught.
     pub caught: Option<PartyMember>,
     pub rng: u32,
+    /// Trainer battles: the prize of the win (SUPUESTO formula, see
+    /// `trainer_battle::trainer_prize_assumed`); `Some(0)` when the trainer stores no prize.
+    /// `None` in wild battles, which pay [`victory_reward`].
+    pub trainer_prize: Option<u32>,
 }
 
+/// Snapshot the session. Form and experience come from `sess.member_meta` (they change with
+/// evolution and experience; the engine combatant has neither).
 pub fn snapshot(sess: &ActiveBattleSession, roster: &[usize], bag_ids: &[u16]) -> BattleOutcome {
     let party = roster
         .iter()
         .enumerate()
-        .map(|(j, &p)| (p, PartyMember::from_combatant(&sess.battle.combatants[combatant_index(j)])))
+        .map(|(j, &p)| {
+            let ci = combatant_index(j);
+            let meta = sess.member_meta.get(ci).copied().unwrap_or_default();
+            let m = PartyMember::from_combatant(&sess.battle.combatants[ci]);
+            (p, PartyMember { form: meta.form, exp: meta.exp, ..m })
+        })
         .collect();
     let wild = &sess.battle.combatants[WILD];
     BattleOutcome {
@@ -422,9 +470,14 @@ pub fn snapshot(sess: &ActiveBattleSession, roster: &[usize], bag_ids: &[u16]) -
         bag: bag_ids.iter().map(|&id| (id, sess.bag.count(id))).collect(),
         wild_dex: sess.wild_dex,
         wild_level: wild.level,
-        won: wild.hp == 0 && !wild.caught,
+        won: if sess.is_trainer_battle() {
+            sess.battle.ended && sess.battle.winner_side() == Some(Some(0))
+        } else {
+            wild.hp == 0 && !wild.caught
+        },
         caught: wild.caught.then(|| PartyMember::from_combatant(wild)),
         rng: sess.rng.0,
+        trainer_prize: sess.trainer.as_ref().map(|t| t.prize.unwrap_or(0)),
     }
 }
 
@@ -435,12 +488,15 @@ pub fn bag_candidates(sess: &ActiveBattleSession, stored: &BTreeMap<u16, u16>) -
     ids.into_iter().collect()
 }
 
-/// Write the live party and bag back into the progress (every frame of a battle).
+/// Write the live party and bag back into the progress (every frame of a battle). Species,
+/// form, level, moves, effort and experience follow the battle (level-up, evolution); the
+/// nickname stays; an unknown experience keeps the stored one.
 pub fn apply_sync(progress: &mut PlayerProgress, out: &BattleOutcome) {
     for (idx, now) in &out.party {
         if let Some(slot) = progress.party.get_mut(*idx) {
-            let (form, nickname) = (slot.form, slot.nickname.clone());
-            *slot = PartyMember { form, nickname, ..now.clone() };
+            let nickname = slot.nickname.clone();
+            let exp = now.exp.or(slot.exp);
+            *slot = PartyMember { nickname, exp, ..now.clone() };
         }
     }
     for (&id, &n) in &out.bag {
@@ -476,7 +532,7 @@ pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
         }
     } else if out.won {
         progress.defeated = progress.defeated.saturating_add(1);
-        progress.add_money(victory_reward(out.wild_level));
+        progress.add_money(out.trainer_prize.unwrap_or_else(|| victory_reward(out.wild_level)));
     }
 }
 
@@ -505,8 +561,9 @@ impl RestReport {
 
 /// Fully restore HP, PP and status of the party in place (the pause menu's Rest action). Max HP
 /// and max PP come from the engine tables; a member whose species is unknown is left untouched and
-/// counted as skipped. Fainted members are revived. No clock is advanced: the day/night clock is
-/// Brief 9 and does not exist yet; the original's rest durations are not decoded (UNKNOWN).
+/// counted as skipped. Fainted members are revived. The day/night clock is advanced by the caller
+/// ([`rest_action`] jumps to the next slot, ASSUMED; the original's rest menu advances to a chosen
+/// phase, `n2-base-camps-and-travel.md` §2, and its durations are UNKNOWN).
 pub fn rest_party(party: &mut [PartyMember], data: &BattleData) -> RestReport {
     let mut report = RestReport::default();
     for m in party.iter_mut() {
@@ -634,6 +691,24 @@ fn seed_defaults(
     }
     if progress.bag.is_empty() {
         progress.bag = default_bag(&assets.items);
+        if let Some(prog) = &assets.progression {
+            for (id, qty) in battle_items::progress_selection(&assets.items, prog) {
+                progress.bag.entry(id).or_insert(qty);
+            }
+        }
+    }
+}
+
+/// Show every saved item in the battle bag menu: ids the starter menu does not list are
+/// appended (progression items get their own kind, see `battle_items::entry_for`).
+pub fn extend_bag_order(sess: &mut ActiveBattleSession, stored: &BTreeMap<u16, u16>, assets: &BattleAssets) {
+    for (&id, &qty) in stored {
+        if qty == 0 || sess.bag_order.iter().any(|e| e.item_id == id) {
+            continue;
+        }
+        if let Some(e) = battle_items::entry_for(id, &assets.items, assets.progression.as_deref()) {
+            sess.bag_order.push(e);
+        }
     }
 }
 
@@ -715,12 +790,14 @@ fn do_save(
 }
 
 /// Heal the party when the pause menu asked for a Rest. Refused during a battle or when the
-/// battle tables are not loaded; the result is shown as a toast.
+/// battle tables are not loaded; the result is shown as a toast. With a [`GameClock`] present the
+/// rest also advances the clock to the next slot (ASSUMED; see `clock.rs`).
 fn rest_action(
     mut requested: ResMut<RestRequested>,
     mut progress: ResMut<PlayerProgress>,
     assets: Option<Res<BattleAssets>>,
     session: Option<Res<ActiveBattleSession>>,
+    clock: Option<ResMut<super::clock::GameClock>>,
     mut toast: ResMut<SaveToast>,
 ) {
     if !std::mem::take(&mut requested.0) {
@@ -735,6 +812,13 @@ fn rest_action(
         return;
     };
     let report = rest_party(&mut progress.party, &assets.data);
+    if report.healed > 0 {
+        if let Some(mut clock) = clock {
+            clock.advance_to_next_slot();
+            toast.show(format!("{} The clock advanced to {}.", report.message(), clock.hhmm()));
+            return;
+        }
+    }
     toast.show(report.message());
 }
 
@@ -800,6 +884,7 @@ fn battle_wire(
                 toast.show("All Pokemon had fainted: party restored.");
             }
             sess.bag = engine_bag(&progress.bag, &assets.items);
+            extend_bag_order(&mut sess, &progress.bag, &assets);
             sess.rng = XorShift32(progress.rng_seed.max(1));
             note_encounter(&mut progress, sess.wild_dex);
             tracker.before = progress.party.clone();
@@ -872,6 +957,7 @@ mod tests {
             moves: vec![SavedMove { move_id: 33, pp }],
             effort: [0; 6],
             nickname: Some("Nick".into()),
+            exp: None,
         }
     }
 
@@ -895,6 +981,7 @@ mod tests {
             won: true,
             caught: None,
             rng: 77,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.party[0].hp, 12);
@@ -927,6 +1014,7 @@ mod tests {
             won: false,
             caught: None,
             rng: 0,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.bag, BTreeMap::from([(10, 4)]));
@@ -946,6 +1034,7 @@ mod tests {
             won: true,
             caught: None,
             rng: 1,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &base);
         assert_eq!((p.defeated, p.caught_count), (1, 0));
@@ -983,6 +1072,7 @@ mod tests {
             won: true,
             caught: None,
             rng: 1,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.money, u32::MAX, "the prize saturates instead of overflowing");
@@ -1032,6 +1122,7 @@ mod tests {
             won: false,
             caught: Some(member(396, 9, 5)),
             rng: 1,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.party.len(), MAX_PARTY, "party stays full");
@@ -1087,6 +1178,7 @@ mod tests {
             won: false,
             caught: Some(member(396, 9, 5)),
             rng: 1,
+            trainer_prize: None,
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.box_list.len(), MAX_BOX, "the box stays at the limit");
@@ -1344,10 +1436,14 @@ mod tests {
             progress.party[0].hp = 1;
         }
         app.insert_resource(a);
+        // Brief 9's clock: a rest advances it to the next slot (13:00 -> 18:00, ASSUMED).
+        app.insert_resource(crate::game::clock::GameClock::from_minutes(1.0, 13 * 60));
         app.add_systems(Update, rest_action);
         app.world_mut().resource_mut::<RestRequested>().0 = true;
         app.update();
         assert!(app.world().resource::<PlayerProgress>().party[0].hp > 1);
         assert!(app.world().resource::<SaveToast>().text.contains("healed"));
+        assert_eq!(app.world().resource::<crate::game::clock::GameClock>().hhmm(), "18:00", "rest advances the clock");
+        assert!(app.world().resource::<SaveToast>().text.contains("18:00"), "the toast tells the new time");
     }
 }

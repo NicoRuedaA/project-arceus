@@ -5,12 +5,21 @@
 
 use bevy::prelude::*;
 
+pub mod art_style;
 pub mod audio;
+pub mod bag_screen;
 pub mod battle_ai;
 pub mod battle_anim;
 pub mod battle_controller;
+#[cfg(test)]
+mod battle_flow_headless;
+pub mod battle_progress;
+pub mod battle_style_ai;
+pub mod battle_turns;
+pub mod evolution_fx;
 pub mod lighting;
 pub mod main_menu;
+pub mod minimap;
 pub mod render_look;
 pub mod battle_demo;
 pub mod battle_input;
@@ -19,7 +28,9 @@ pub mod battle_visibility;
 pub mod battle_items;
 pub mod battle_log;
 pub mod catch_rate;
+pub mod clock;
 pub mod effects;
+pub mod follower;
 pub mod navigation;
 pub mod party_progress;
 pub mod play_time;
@@ -32,11 +43,16 @@ pub mod save_wire;
 pub mod spawn_point;
 pub mod ball_lifecycle;
 pub mod settings;
+pub mod shop;
 pub mod state;
+pub mod trainer_battle;
+pub mod trainer_data;
+pub mod trainer_encounter;
 pub mod ui;
 pub mod vegetation;
 pub mod world_collision;
 pub mod water;
+pub mod weather;
 pub mod world_objects;
 pub mod wild;
 pub mod wild_wander;

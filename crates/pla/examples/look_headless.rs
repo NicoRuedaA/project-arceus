@@ -5,6 +5,10 @@
 //! [--ssao-quality low|medium|high|ultra] [--area 0] [--time-slot 1] [--yaw DEG] [--out PNG]`
 //! `--slots` renders the four time slots (0..=3) in this single process (no window, one run) and prints
 //! the mean pixel luminance of each frame, so the night dimming can be compared with figures.
+//! `--clock-report` renders the day/night clock in this single process: 03:00, 09:00, 15:00, 21:00
+//! plus the same scene in rain (15:00, weather 4) and snow (03:00, weather 5), with the mean pixel
+//! luminance of each frame (Brief 9).
+//! `--weather <2..9|name>` forces one weather in any mode (default: sunny, so renders are deterministic).
 //! `--compare-post` renders the SSAO/bloom on-off matrix in this single process and prints region
 //! luminance figures (mean, bottom third, four corners, share of dark pixels) per frame, so each
 //! post-process effect can be quantified from one run.
@@ -20,8 +24,10 @@ use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy::render::render_resource::TextureFormat;
 use bevy::window::ExitCondition;
 use bevy::winit::WinitPlugin;
+use pla::game::clock::{slot_centre_hours, slot_of_hours, GameClock};
 use pla::game::lighting::{time_slot_from_args, ZoneLightingPlugin};
 use pla::game::render_look::LookSettings;
+use pla::game::weather::{weather_id_from_arg, WeatherPlugin};
 
 #[derive(Resource)]
 struct Out(String, Handle<Image>, u32);
@@ -36,7 +42,29 @@ fn main() {
     let area: u8 = arg(&args, "--area").and_then(|s| s.parse().ok()).unwrap_or(0);
     let yaw: f32 = arg(&args, "--yaw").and_then(|s| s.parse().ok()).unwrap_or(0.0);
     let settings = LookSettings::from_args(&args);
-    if args.iter().any(|a| a == "--compare-post") {
+    // `--weather` forces one weather id in every mode (default: clear, so renders are deterministic).
+    let forced_weather = arg(&args, "--weather").as_deref().and_then(weather_id_from_arg);
+    let weather = forced_weather.unwrap_or(2);
+    if args.iter().any(|a| a == "--clock-report") {
+        // One process, six windowless renders: four hours of the day plus rain and snow (Brief 9).
+        let stem = out.strip_suffix(".png").unwrap_or(&out).to_string();
+        let cases: [(f32, u8, &str); 6] = [
+            (3.0, 2, "night"),
+            (9.0, 2, "morning"),
+            (15.0, 2, "day"),
+            (21.0, 2, "evening"),
+            (15.0, 4, "day_rain"),
+            (3.0, 5, "night_snow"),
+        ];
+        for (hours, case_weather, name) in cases {
+            let path = format!("{stem}_{name}.png");
+            run_one_at(area, hours, forced_weather.unwrap_or(case_weather), yaw, path.clone(), settings);
+            match mean_luminance(path.as_str()) {
+                Ok((srgb, lin)) => println!("[measure] {path}: mean luminance sRGB {srgb:.4}, linear {lin:.4}"),
+                Err(e) => eprintln!("[measure] {path}: cannot read back ({e})"),
+            }
+        }
+    } else if args.iter().any(|a| a == "--compare-post") {
         // One process, four windowless renders: the SSAO/bloom on-off matrix. Compare the figures of
         // each frame against `ssao_on_bloom_on` (defaults) to isolate each effect's contribution.
         let stem = out.strip_suffix(".png").unwrap_or(&out).to_string();
@@ -49,7 +77,7 @@ fn main() {
         ];
         for (name, s) in cases {
             let path = format!("{stem}_{name}.png");
-            run_one(area, slot, yaw, path.clone(), s);
+            run_one(area, slot, weather, yaw, path.clone(), s);
             match luma_stats(path.as_str()) {
                 Ok(st) => println!(
                     "[measure] {path}: mean sRGB {:.4}, mean linear {:.4}, bottom third {:.4}, corners TL {:.4} TR {:.4} BL {:.4} BR {:.4}, dark<0.30 {:.4}%",
@@ -70,7 +98,7 @@ fn main() {
         let stem = out.strip_suffix(".png").unwrap_or(&out).to_string();
         for slot in 0..=3usize {
             let path = format!("{stem}_s{slot}.png");
-            run_one(area, slot, yaw, path.clone(), settings);
+            run_one(area, slot, weather, yaw, path.clone(), settings);
             match mean_luminance(path.as_str()) {
                 Ok((srgb, lin)) => println!("[measure] {path}: mean luminance sRGB {srgb:.4}, linear {lin:.4}"),
                 Err(e) => eprintln!("[measure] {path}: cannot read back ({e})"),
@@ -78,11 +106,16 @@ fn main() {
         }
     } else {
         let slot = time_slot_from_args(&args);
-        run_one(area, slot, yaw, out.clone(), settings);
+        run_one(area, slot, weather, yaw, out.clone(), settings);
     }
 }
 
-fn run_one(area: u8, slot: usize, yaw: f32, out: String, settings: LookSettings) {
+fn run_one(area: u8, slot: usize, weather: u8, yaw: f32, out: String, settings: LookSettings) {
+    run_one_at(area, slot_centre_hours(slot), weather, yaw, out, settings);
+}
+
+/// One windowless render with the clock pinned at `hours` and a forced weather.
+fn run_one_at(area: u8, hours: f32, weather: u8, yaw: f32, out: String, settings: LookSettings) {
     App::new()
         // ZoneLightingPlugin reads this resource at plugin-build time, so insert it first.
         .insert_resource(settings)
@@ -97,7 +130,10 @@ fn run_one(area: u8, slot: usize, yaw: f32, out: String, settings: LookSettings)
                 .disable::<WinitPlugin>(),
         )
         .add_plugins(ScheduleRunnerPlugin::run_loop(Duration::from_millis(16)))
-        .add_plugins(ZoneLightingPlugin { area, slot })
+        .add_plugins(ZoneLightingPlugin { area, slot: slot_of_hours(hours) })
+        .add_plugins(WeatherPlugin { area, force: Some(weather), seed: 7 })
+        // Pinned clock: the scene renders exactly that time of day.
+        .insert_resource(GameClock::pinned_at_hours(hours))
         .insert_resource(YawDeg(yaw))
         .insert_resource(OutPath(out))
         .add_systems(Startup, setup)

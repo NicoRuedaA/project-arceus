@@ -390,7 +390,7 @@ El enlace `decompiled` es la convención del repo (el directorio de pseudocódig
 **Archivos:** `game/save_game.rs`, `game/save_wire.rs`, `game/pause_menu.rs`, módulo nuevo `game/play_time.rs`; una línea en `port_viewer.rs`.
 **Datos de entrada:** Ninguno del juego (reglas provisionales); evidencia de lectura de código `reports/function-progress/n2-base-camps-and-travel.md` §2 (descanso en tienda y avance del reloj) y `n2-savedata-io.md`.
 **Aceptación:** pruebas unitarias (migración, acumulación con pausa, curación completa, dinero sin overflow `u32`), `cargo test --offline -p pla save_ pause`. A ojo: texto del menú.
-**Riesgos:** conflictos de versión de guardado con 5 y 9: pactar el orden (5 → v3, 21 → v4, 9 → v5, por ejemplo, y fusionar en ese orden).
+**Riesgos:** conflictos de versión de guardado con 5 y 9: pactar el orden (5 → v3, 21 → v4, la progresión conectada → v5 (experiencia del equipo), 9 → v6; fusionar en ese orden). Estado: 5, 21, la progresión conectada y 9 ya fusionados; el guardado está en v6 y el siguiente cambio es v7.
 **Reparto:** un agente.
 **Lanzamiento:** «Ejecuta el brief 21 de docs/briefs-agentes.md (worktree `money-time`).»
 

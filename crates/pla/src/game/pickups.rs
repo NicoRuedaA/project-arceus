@@ -10,7 +10,7 @@
 //! - `search_item`: a one-time named collectible (its system flag is in the sheet). Picking it
 //!   collects the spawn; there is no inventory item.
 //!
-//! Collected spawn ids persist in `PlayerProgress.picked` (save format v6). Respawn: the game's
+//! Collected spawn ids persist in `PlayerProgress.picked` (save format v7). Respawn: the game's
 //! `field_item_respawn.bin` gives a margin of 40 for all three kinds with an unknown unit, so the
 //! port uses a fixed [`RESPAWN_SECONDS`] (ASSUMED) and removes the id from the save when it fires.
 //!

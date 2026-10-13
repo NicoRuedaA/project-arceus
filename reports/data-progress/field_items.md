@@ -11,7 +11,7 @@ pickups are collected but grant nothing until that link is found.
 
 Sheets: [`data/field_item_spawns.tsv`](../../data/field_item_spawns.tsv) (2,990 rows).
 Decoder: `.tools/decode_field_items.py`. Checks: `crates/pla/examples/item_spawn_check.rs`
-(headless, no window). Runtime: `crates/pla/src/game/pickups.rs` (save format v6,
+(headless, no window). Runtime: `crates/pla/src/game/pickups.rs` (save format v7,
 `PlayerProgress.picked`). Nothing here is a runtime-behaviour claim about the original game: no
 game code was run or traced; the link to the native `CollectGroundItem` / resource-node routines is
 by data shape only (see `reports/function-progress/n2-field-interact-and-harvesting.md`).
@@ -75,7 +75,7 @@ Resource node models: 27 distinct `gimmick_*` names (crystals `crystal01/02/03` 
 
 Main-area spawns sit on the terrain (the area 05 tail is trees/crystals on slopes). The synthetic
 player of the same example walks every `ha_area01` spawn (21,985 m), collects 722/722, harvests
-327 resource nodes with the weighted loot, and round-trips the picked set and the bag through a v6
+327 resource nodes with the weighted loot, and round-trips the picked set and the bag through a v7
 save file.
 
 ## The ground-item reward is undecoded (and why)
@@ -120,7 +120,7 @@ unit of the margin 40 is unknown (minutes? distance?). The port uses a fixed ASS
 - Resource nodes: one weighted loot row, count `loot_min..=loot_max`, added to the bag up to the
   item's stack ceiling (`item_effects.tsv` 999; `BattleAssets` table when loaded); the marker
   shakes for 0.6 s and disappears.
-- Collected ids persist in `PlayerProgress.picked` (save format v6, key `picked`, hex u64);
+- Collected ids persist in `PlayerProgress.picked` (save format v7, key `picked`, hex u64);
   respawn removes the id. Direct items and collectibles grant no item (above).
 - Verified by unit tests (parse, nearest, weights, stack cap, collect-once, persistence) and the
   headless `item_spawn_check` example; **not** seen in a window by anyone.

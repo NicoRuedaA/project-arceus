@@ -37,5 +37,9 @@ Method id -> count -> status
 - 31 Rain Level Up: 1 (Goodra Hisui) -> supported (weather from caller)
 - 51 Agile Style Move Count: 1, 52 Strong Style Move Count: 1, 53 / 54 Recoil Damage: 1 / 1 -> NOT SUPPORTED (counters and thresholds are not in the tables: UNKNOWN)
 
-## Hook points for the game (not wired in this phase)
+## Hook points for the game
+
+**Now wired:** see [`progression_wired.md`](progression_wired.md). Experience is awarded inside
+the battle session when it ends (so the battle log can show it), not in `save_wire`; save format
+v4 stores the experience. Original hand-off below.
 See the hand-off in the task report: `save_wire.rs` `(None, true)` branch (battle finished) calls `apply_outcome`; experience, level-up messages, pending move choices and the evolution prompt belong right after it, using `ProgressMember::from_party`, `award_exp`, `level_up_combatant`, `check_evolution`, `evolve`, `apply_to_party`. The save has no experience field yet (members start at their level threshold).

@@ -435,7 +435,7 @@ fn observe_battle_slots(
 ) {
     let Some(s) = session else { return };
     for slot in &slots {
-        let who = if slot.0 == 1 { WILD } else { s.active_player() };
+        let who = if slot.0 == 1 { s.opponent() } else { s.active_player() };
         let dex = s.battle.combatants.get(who).map(|c| c.species.dex).filter(|d| *d > 0);
         let dex = match (who, dex) {
             (WILD, None) if s.wild_dex > 0 => Some(s.wild_dex),
