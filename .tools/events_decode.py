@@ -522,7 +522,7 @@ def main():
                             md.get("scale", ""), md.get("f6", ""), md.get("f7", "")])
     write(out, "world_events_npc_pokemon", f"{tgt} fixed overworld Pokemon (bin/field/param/placement/<area>/npc_pokemon/npc_pokemon.bin)", [
         "model_key (field 2) resolves in bin/field/param/placement/common/pokemon_model_set.bin for species/form/gender/scale (empty when not).",
-        "rot_y LIKELY degrees. Most rows are story/quest props (out of port scope); `oyabun` names are fixed alphas. scale_raw 127 = default, 255 on alpha props."],
+        "rot_y LIKELY degrees. Most rows are story/quest props (out of port scope); `oyabun` (alpha) in a name is a naming hint only. scale_raw: model-set field 8, LIKELY a 0..255 size scalar (127 typical; *_big prop 255, *_small prop 1)."],
         "area:string*\tname:string*\tx:f32\ty:f32\tz:f32\trot_y:f32?\tgate_flag:string?\tgate_cmp:string?\tgate_min:string?\t"
         "gate_max:string?\tmodel_key:string\tspecies_id:u16?\tspecies:string?\tform:u16?\tgender:string?\tscale_raw:u8?\t"
         "model_f6:bool?\tmodel_f7:bool?", npc_rows)

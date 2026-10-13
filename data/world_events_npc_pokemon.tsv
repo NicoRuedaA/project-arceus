@@ -3,7 +3,7 @@
 # generator: .tools/events_decode.py
 # target: Pokémon Legends: Arceus v262144 fixed overworld Pokemon (bin/field/param/placement/<area>/npc_pokemon/npc_pokemon.bin)
 # note: model_key (field 2) resolves in bin/field/param/placement/common/pokemon_model_set.bin for species/form/gender/scale (empty when not).
-# note: rot_y LIKELY degrees. Most rows are story/quest props (out of port scope); `oyabun` names are fixed alphas. scale_raw 127 = default, 255 on alpha props.
+# note: rot_y LIKELY degrees. Most rows are story/quest props (out of port scope); `oyabun` (alpha) in a name is a naming hint only. scale_raw: model-set field 8, LIKELY a 0..255 size scalar (127 typical; *_big prop 255, *_small prop 1).
 area:string*	name:string*	x:f32	y:f32	z:f32	rot_y:f32?	gate_flag:string?	gate_cmp:string?	gate_min:string?	gate_max:string?	model_key:string	species_id:u16?	species:string?	form:u16?	gender:string?	scale_raw:u8?	model_f6:bool?	model_f7:bool?
 ha_area00	area00_poke_s3_kusa	561.88	62.09	618.89	-96.91	WPHA_STORY	less_than_equal	600		9ecc7b26ea9e99a0	722	rowlet	0		127	0	0
 ha_area00	area00_poke_s3_honoo	544.79	60.62	623.90	107.22	WPHA_STORY	less_than_equal	600		89d4ab3b91e4193e	155	cyndaquil	0		127	0	0
