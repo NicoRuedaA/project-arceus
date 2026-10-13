@@ -1558,4 +1558,47 @@ mod tests {
             "player landed on the area 01 navmesh"
         );
     }
+
+    #[test]
+    fn plugin_loads_links_and_starts_a_change_headless() {
+        use bevy::state::app::StatesPlugin;
+
+        let links = sheet();
+        let door = links.by_name("DOOR_AREA00_S01_1_TO_AREA00").unwrap().clone();
+        let sheet_path = find_data_file("warp_links.tsv").unwrap();
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.init_state::<GameState>();
+        app.insert_resource(ButtonInput::<KeyCode>::default());
+        app.add_plugins(ZonePlugin { links_path: Some(sheet_path), debug_links: true });
+        app.insert_resource(ActiveZoneInfo {
+            area: "ha_area00".into(),
+            name: zone_display_name("ha_area00"),
+        });
+        app.world_mut().spawn((
+            PlayerAvatar,
+            Transform::from_xyz(door.pos.x, door.pos.y, door.pos.z),
+        ));
+        app.update();
+        assert_eq!(app.world().resource::<ZoneLinks>().len(), 134);
+        assert!(app.world().resource::<ZoneLoading>().is_idle());
+
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyE);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ZoneLoading>().phase,
+            ZonePhase::FadingOut,
+            "door interact started the change"
+        );
+        let target = app.world().resource::<ZoneLoading>().pending.as_ref().unwrap();
+        assert_eq!(target.zone, door.to_area);
+        assert_eq!(target.source, ZoneChangeSource::Door);
+
+        app.update();
+        assert_eq!(
+            *app.world().resource::<State<GameState>>().get(),
+            GameState::Loading,
+            "the app asks for GameState::Loading while the change is in flight"
+        );
+    }
 }

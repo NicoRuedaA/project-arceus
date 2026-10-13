@@ -37,7 +37,7 @@ Branch `feat/zone-switch` (worktree `zone-switch`); one worker did both parts of
   untouched, and reports the Brief-37 dependency (toast + stderr).
 - **Zone id is a string end to end**: `ActiveZoneInfo.area`, `Progress::to_save(&zone, ..)` and the zone
   autosave write/read `ha_area00` and sub-area ids; existing save tests pass with the new signature.
-- **Tests**: `cargo test -p pla game::zone` -> 12 passed. Whole package `cargo test -p pla` -> 428 lib tests +
+- **Tests**: `cargo test -p pla game::zone` -> 13 passed. Whole package `cargo test -p pla` -> 428 lib tests +
   all integration suites, 0 failed. No window was opened (rule 3).
 
 ## Assumed
