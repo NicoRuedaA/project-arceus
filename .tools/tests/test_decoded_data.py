@@ -255,12 +255,35 @@ def validate_world_data() -> None:
     print("[PASS] Wormhole config source row-count and value-set validation")
 
 
+def validate_shop_data() -> None:
+    shop_file = DATA_DIR / "shop_stock.tsv"
+    source = Path("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/appli/shop/bin/ha_shop_data.bin")
+    with open(shop_file, "r", encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
+    assert source.is_file(), f"Missing exact source binary: {source}"
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("decode_shop_data", Path(".tools/decode_shop_data.py"))
+    decoder = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(decoder)
+    expected = decoder.parse(source.read_bytes())
+    actual = [
+        (int(r["shop_hash"]), int(r["slot"]), int(r["entry_hash"]), int(r["item_id"]))
+        for r in rows
+    ]
+    assert actual == expected, "Shop stock TSV differs from the source FlatBuffer"
+    assert len(rows) == 143, f"Expected 143 shop rows, got {len(rows)}"
+    assert len({r["shop_hash"] for r in rows}) == 8, "Expected 8 decoded shop tables"
+    print("[PASS] Shop stock source row validation")
+
+
 def main() -> None:
     print("=== Running Data Integrity Validation Suite ===")
     validate_capture_data()
     validate_weather_data()
     validate_field_data()
     validate_world_data()
+    validate_shop_data()
     print("=== All data integrity checks PASSED! ===")
 
 

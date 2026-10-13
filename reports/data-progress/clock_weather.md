@@ -75,17 +75,17 @@ game content; whether the transition "feels" right must be judged by the maintai
   `StandardMaterial` per kind, movement on the CPU (no custom WGSL, no new crates). The particle budget and
   speeds are ASSUMED.
 
-## Save format v5 (`game/save_game.rs`)
+## Save format v6 (`game/save_game.rs`)
 
-`CURRENT_VERSION = 5`. `PlayerSave::time_slot` (0..3) is replaced by `time_minutes` (0..1439, the clock's
-minute of day); `PlayerProgress.time_minutes` mirrors the live clock every frame. Migration v4→v5 rewrites
+`CURRENT_VERSION = 6` (v5 is the party experience from connected progression). `PlayerSave::time_slot` (0..3) is replaced by `time_minutes` (0..1439, the clock's
+minute of day); `PlayerProgress.time_minutes` mirrors the live clock every frame. Migration v5→v6 rewrites
 `time_slot=N` to the centre minute of that slot (N=0→540, 1→900, 2→1260, 3→180; the slot hours are ASSUMED)
-and a v4 file without the line gets the default start (15:00). v1-v3 files pass through their no-op steps
-and are converted the same way. Out-of-range minutes are refused on write and on read.
+and a v5 file without the line gets the default start (15:00). v1-v4 files pass through their earlier steps
+(v4→v5 adds the unknown experience) and are converted the same way. Out-of-range minutes are refused on write and on read.
 
 ## Verified by
 
-- `cargo test -p pla`: **639 passed, 0 failed** (15 test binaries; lib: 550, including 9 new in `clock.rs`,
+- `cargo test -p pla`: **653 lib tests passed after merging main, 0 failed** (including 9 new in `clock.rs`,
   7 in `weather.rs`, 4 new/updated in `save_game.rs`, 1 updated in `save_wire.rs`). The real-sheet weather
   and lighting tests run against the committed TSVs.
 - The single windowless run above (six views, one process, no window).

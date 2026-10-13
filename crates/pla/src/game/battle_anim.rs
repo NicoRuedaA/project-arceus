@@ -121,6 +121,16 @@ pub fn slot_of(combatant: usize) -> usize {
     }
 }
 
+/// Arena slot of a combatant in `battle`: every side-1 member (a trainer's whole party) is
+/// slot 1, every player-side one slot 0.
+pub fn slot_in(battle: &crate::battle_engine::Battle, combatant: usize) -> usize {
+    if battle.sides.get(1).is_some_and(|s| s.contains(&combatant)) {
+        1
+    } else {
+        0
+    }
+}
+
 /// Sends the animation requests of the events that arrived since the last frame.
 pub fn drive_battle_anims(
     session: Option<Res<ActiveBattleSession>>,
@@ -153,7 +163,7 @@ pub fn drive_battle_anims(
     let requests = requests_for_events_timed(&sess.event_log[*cursor..], &category, &timing);
     *cursor = len;
     for r in requests {
-        let slot = slot_of(r.combatant);
+        let slot = slot_in(&sess.battle, r.combatant);
         if let Some((entity, _)) = slots.iter().find(|(_, s)| s.0 == slot) {
             out.write(PokemonAnimMessage { entity, request: r.request, delay: r.delay });
         }

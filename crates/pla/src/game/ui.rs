@@ -70,6 +70,16 @@ pub struct BattleMoveTitleText {
     pub slot: usize,
 }
 
+/// Turn-order panel of the PLA turn flow (hidden in the classic flow).
+#[derive(Component)]
+pub struct BattleTurnOrderRoot;
+
+/// One line (0..6) of the turn-order panel.
+#[derive(Component)]
+pub struct BattleTurnOrderText {
+    pub index: usize,
+}
+
 #[derive(Component)]
 pub struct BattleMoveDetailText {
     pub slot: usize,
@@ -250,6 +260,40 @@ pub fn setup_game_ui(mut commands: Commands) {
                             TextColor(Color::srgb(0.9, 0.9, 0.9)),
                             WildHpText,
                         ));
+                    });
+
+                // Turn order (PLA action queue): next 6 turns, top-right.
+                arena_top
+                    .spawn((
+                        Node {
+                            width: Val::Px(230.0),
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(10.0)),
+                            row_gap: Val::Px(3.0),
+                            border: UiRect::all(Val::Px(2.0)),
+                            border_radius: BorderRadius::all(Val::Px(8.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.08, 0.10, 0.16, 0.88)),
+                        BorderColor::all(Color::srgba(0.85, 0.75, 0.35, 0.80)),
+                        BattleTurnOrderRoot,
+                        Visibility::Hidden,
+                    ))
+                    .with_children(|panel| {
+                        panel.spawn((
+                            Text::new("TURN ORDER"),
+                            TextFont::from_font_size(13.0),
+                            TextColor(Color::srgb(0.95, 0.80, 0.25)),
+                        ));
+                        for index in 0..6 {
+                            panel.spawn((
+                                Text::new(""),
+                                TextFont::from_font_size(12.0),
+                                TextColor(Color::srgb(0.88, 0.92, 0.96)),
+                                BattleTurnOrderText { index },
+                            ));
+                        }
                     });
             });
 
@@ -597,24 +641,8 @@ pub fn update_world_hud_system(
         let diff = w_xf.translation - p_xf.translation;
         let dist = diff.length();
         if closest_info.as_ref().map_or(true, |(d, _, _)| dist < *d) {
-            let angle = diff.x.atan2(diff.z);
-            let dir = if angle.abs() < 0.39 {
-                "S"
-            } else if angle > 0.39 && angle < 1.18 {
-                "SW"
-            } else if angle >= 1.18 && angle < 1.96 {
-                "W"
-            } else if angle >= 1.96 && angle < 2.75 {
-                "NW"
-            } else if angle <= -0.39 && angle > -1.18 {
-                "SE"
-            } else if angle <= -1.18 && angle > -1.96 {
-                "E"
-            } else if angle <= -1.96 && angle > -2.75 {
-                "NE"
-            } else {
-                "N"
-            };
+            // Shared with the minimap compass so the radar and the compass cannot disagree.
+            let dir = crate::game::minimap::compass_dir(diff.x, diff.z).label();
             closest_info = Some((dist, wild, dir));
         }
     }
@@ -647,9 +675,11 @@ pub fn update_battle_ui_system(
         Query<&mut Text, With<BattleLogText>>,
         Query<(&BattleMoveTitleText, &mut Text)>,
         Query<(&BattleMoveDetailText, &mut Text)>,
+        Query<(&BattleTurnOrderText, &mut Text)>,
     )>,
     mut move_boxes: Query<(&BattleMoveBox, &mut BackgroundColor, &mut BorderColor), Without<BattleMenuOptionBox>>,
     mut menu_boxes: Query<(&BattleMenuOptionBox, &mut BackgroundColor), Without<BattleMoveBox>>,
+    mut turn_panel: Query<&mut Visibility, With<BattleTurnOrderRoot>>,
 ) {
     let Some(ref sess) = session else {
         return;
@@ -661,7 +691,8 @@ pub fn update_battle_ui_system(
 
     let p_idx = sess.active_player();
     let p_com = &sess.battle.combatants[p_idx];
-    let w_com = &sess.battle.combatants[1];
+    let w_idx = sess.opponent();
+    let w_com = &sess.battle.combatants[w_idx];
     let with_tags = |base: String, tags: String| {
         if tags.is_empty() {
             base
@@ -672,10 +703,7 @@ pub fn update_battle_ui_system(
 
     // 1. Wild Pokémon Card (name, level, status tag; HP line also shows stat stages)
     for mut text in &mut texts.p0() {
-        text.0 = with_tags(
-            format!("WILD {}  Lv. {}", w_com.species.name.to_uppercase(), w_com.level),
-            sess.card_tags(1),
-        );
+        text.0 = with_tags(sess.opponent_card_title(), sess.card_tags(w_idx));
     }
     for mut text in &mut texts.p1() {
         text.0 = format!("HP: {} / {}", w_com.hp, w_com.max_hp);
@@ -687,10 +715,7 @@ pub fn update_battle_ui_system(
 
     // 2. Player Pokémon Card (active party member)
     for mut text in &mut texts.p2() {
-        text.0 = with_tags(
-            format!("PLAYER {}  Lv. {}", p_com.species.name.to_uppercase(), p_com.level),
-            sess.card_tags(p_idx),
-        );
+        text.0 = with_tags(sess.player_card_title(), sess.card_tags(p_idx));
     }
     for mut text in &mut texts.p3() {
         text.0 = format!("HP: {} / {}", p_com.hp, p_com.max_hp);
@@ -725,7 +750,22 @@ pub fn update_battle_ui_system(
         }
     }
 
-    // 6. Action Menu tab highlighting
+    // 6. Turn-order list (PLA flow only; the classic flow hides the panel)
+    let order = sess.turn_order_lines();
+    for mut v in &mut turn_panel {
+        let want = if order.is_empty() { Visibility::Hidden } else { Visibility::Inherited };
+        if *v != want {
+            *v = want;
+        }
+    }
+    for (line, mut text) in &mut texts.p7() {
+        let want = order.get(line.index).cloned().unwrap_or_default();
+        if text.0 != want {
+            text.0 = want;
+        }
+    }
+
+    // 7. Action Menu tab highlighting
     for (menu_box, mut bg) in &mut menu_boxes {
         if menu_box.index == sess.highlighted_tab() {
             *bg = BackgroundColor(Color::srgba(0.85, 0.65, 0.15, 0.95));

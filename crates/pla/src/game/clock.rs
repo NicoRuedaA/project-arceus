@@ -16,7 +16,7 @@
 //! - Slot 3 = night is VERIFIED by the spawn multipliers; the order of slots 1-3 (day/evening) is
 //!   ASSUMED (they are identical everywhere in the spawn data).
 //!
-//! The save stores whole game minutes ([`crate::game::save_game`] v5), so a loaded game resumes at
+//! The save stores whole game minutes ([`crate::game::save_game`] v6), so a loaded game resumes at
 //! the exact time of day it was left at.
 
 use bevy::prelude::*;

@@ -217,12 +217,43 @@ impl BattleData {
         }) else {
             return Ok(None);
         };
+        Self::species_from_row(row, name).map(Some)
+    }
+
+    /// Active species row for a national dex number and form. When that exact form is not an
+    /// active row (e.g. Kanto Arcanine, form 0, is absent from the game), the first active form
+    /// of the same dex number is used instead. Trainer parties store Hisuian forms this way.
+    pub fn species_row_by_dex_form(&self, dex: u16, form: u8) -> Result<Option<BattleSpecies>, String> {
+        let (want_dex, want_form) = (dex.to_string(), form.to_string());
+        let active = |row: &&std::collections::BTreeMap<String, String>| {
+            row.get("dex_index_national:u16").is_some_and(|v| *v == want_dex)
+                && row.get("is_active:bool").is_some_and(|v| v == "1")
+        };
+        let rows = &self.personal_data.rows;
+        let row = rows
+            .iter()
+            .filter(active)
+            .find(|row| row.get("form:u8").is_some_and(|v| *v == want_form))
+            .or_else(|| rows.iter().find(active));
+        match row {
+            Some(row) => {
+                let name = Table::value(row, "species_name:string")?.to_owned();
+                Self::species_from_row(row, &name).map(Some)
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn species_from_row(
+        row: &std::collections::BTreeMap<String, String>,
+        name: &str,
+    ) -> Result<BattleSpecies, String> {
         let number = |field: &str| -> Result<u16, String> {
             Table::value(row, field)?
                 .parse()
                 .map_err(|_| format!("invalid {field} for {name}"))
         };
-        Ok(Some(BattleSpecies {
+        Ok(BattleSpecies {
             dex: number("dex_index_national:u16")?,
             name: name.to_owned(),
             hp: number("stat_hp:u8")?,
@@ -235,7 +266,7 @@ impl BattleData {
                 Table::value(row, "type_1:string")?.to_owned(),
                 Table::value(row, "type_2:string")?.to_owned(),
             ],
-        }))
+        })
     }
 
     /// Find an active base-form species by national dex number (used to rebuild a saved party).

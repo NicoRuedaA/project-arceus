@@ -38,7 +38,7 @@ use self::material::EffectMaterial;
 use self::sim::{build_emitter_quads, EffectSim, Placement, QuadBuffers, Quality, ViewAxes, DEFAULT_EMIT_FRAMES, FPS};
 use self::timeline::{effects_for_events, EffectTimeline, PlaySide};
 pub use self::timeline::MoveTimingTable;
-use super::battle_anim::{slot_of, MoveTiming};
+use super::battle_anim::{slot_in, MoveTiming};
 use super::battle_controller::ActiveBattleSession;
 use super::pokemon_anim::PokemonBattleSlot;
 use crate::assets::effect_sequence::sequence_name;
@@ -331,8 +331,8 @@ fn drive_battle_effects(
     for fx in effects_for_events(&sess.event_log[*cursor..], &move_of, &timing) {
         out.write(PlayEffect {
             effect: EffectRef::Sequence(fx.sequence),
-            user: EffectAnchor::Slot(slot_of(fx.user)),
-            target: EffectAnchor::Slot(slot_of(fx.target)),
+            user: EffectAnchor::Slot(slot_in(battle, fx.user)),
+            target: EffectAnchor::Slot(slot_in(battle, fx.target)),
             delay: fx.delay,
             skip_target: fx.skip_target,
         });
