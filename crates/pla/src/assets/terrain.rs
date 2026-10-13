@@ -939,6 +939,12 @@ pub fn build_mesh_chunks(
             mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
             mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
             mesh.insert_indices(Indices::U32(indices));
+            // Tangent frame for the normal map (mikktspace); UVs are
+            // (x / extent, z / extent), so this matches the baked normal map.
+            // A failure only drops the normal map, not the albedo.
+            if let Err(error) = mesh.generate_tangents() {
+                eprintln!("terrain chunk at {x0},{z0}: generate_tangents failed: {error:?}");
+            }
             chunks.push(TerrainMeshChunk {
                 sample_origin: [x0 as u32, z0 as u32],
                 mesh,
@@ -972,6 +978,31 @@ mod tests {
         assert_eq!(chunks[0].sample_origin, [0, 0]);
         assert_eq!(chunks[1].sample_origin, [2, 0]);
         assert_eq!(chunks[3].sample_origin, [0, 2]);
+    }
+
+    #[test]
+    fn chunk_meshes_carry_tangents_for_the_normal_map() {
+        let heightmap = FloatTextureData {
+            width: 4,
+            height: 4,
+            samples: (0..16).map(|n| n as f32 / 15.0).collect(),
+        };
+        let chunks = build_mesh_chunks(
+            &heightmap,
+            TerrainMeshSettings {
+                horizontal_cell_size: 1.0,
+                vertical_scale: 1.0,
+                chunk_cells: 64,
+            },
+        )
+        .unwrap();
+        assert!(!chunks.is_empty());
+        for chunk in &chunks {
+            assert!(
+                chunk.mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_some(),
+                "terrain chunk is missing tangents for normal mapping"
+            );
+        }
     }
 
     #[test]
