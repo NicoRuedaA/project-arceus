@@ -795,6 +795,12 @@ fn main() -> ExitCode {
         let cache_root = std::env::var_os("PLA_CACHE_ROOT")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
+        app.add_plugins(pla::game::vegetation::VegetationPlugin {
+            area: area_idx,
+            bin_root: bin_root.clone(),
+            cache_root: cache_root.clone(),
+            quality: pla::assets::vegetation::GrassQuality::from_args(&cli),
+        });
         app.add_plugins((
             pla::game::world_objects::WorldObjectsPlugin {
                 area: area_idx,
