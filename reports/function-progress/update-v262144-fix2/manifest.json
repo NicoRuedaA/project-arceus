@@ -40,7 +40,7 @@
   "evidence_ledger": {
     "analyzed_documented_function_count": 153473,
     "path": "sheets/re/function_progress_evidence.tsv",
-    "sha256": "4e16c1e41b02566b963cf434a410ccf84a8e979215dba9696e0e13d1a9797c51"
+    "sha256": "5be28c6a1dd7bbb3d4a5707fd679c59785a07db6b2773575f13cb498ff1805d6"
   },
   "executable_text_scope": {
     "bytes": 53106320,
@@ -68,12 +68,12 @@
   },
   "outputs": {
     "analysis.png": "6b3129237a2508d820f3518699349ff9a991b2f72c43004492b92459699439e9",
-    "function-progress.tsv": "b50ff4fe610f31abc1f393e696e3683573de90b9a294b92bebad7f4d142b3815",
-    "index.html": "b3ae78bc3694c28040915122715fe8c5c8127b9bdd15719bb5d5700f782864ec",
-    "port.png": "295301cc39e2b79501a8f63d7257fccb3c264d5785a1a3f9aa5b3f677a12efef"
+    "function-progress.tsv": "86fff8a19bf8e5b26695551b21707155abd76ba11442e1252bece834f98299b3",
+    "index.html": "7acc294e7c3435a96056639d166cfc59499abe884f41aaec26b704537326ec5f",
+    "port.png": "e44a95d63988eef5a2b017f5b3b9c99a7a7e6c1c29d2c2fb756dd15555f6267d"
   },
   "rust_source_fingerprint": {
-    "file_count": 193,
+    "file_count": 199,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -564,12 +564,24 @@
         "sha256": "fc6f6963e29fe0327b369b99be841c84bde21f853662d8ba52688d4b52ed5388"
       },
       {
+        "path": "crates/pla/src/game/box_screen.rs",
+        "sha256": "e05e90e123bc8e5c1118d96a0299f3b4205faae97933255c74267bd04b38381a"
+      },
+      {
         "path": "crates/pla/src/game/catch_rate.rs",
         "sha256": "9e68e574152b12cb138ba31ea999d7f703c051296bb727ae79229ce0b0b275f1"
       },
       {
         "path": "crates/pla/src/game/clock.rs",
         "sha256": "157a63427b663c15d292046d222aacb2b0d32b245d28f6a8a3a6c616ac10744f"
+      },
+      {
+        "path": "crates/pla/src/game/crafting.rs",
+        "sha256": "734df1b7220d3561e0a5322c4adcd11df0a3c7713e3fa9dd7f94805f3b402fe6"
+      },
+      {
+        "path": "crates/pla/src/game/crafting_ui.rs",
+        "sha256": "a528812c494ce5e0863ae0c4208b0b78fbb320212f5644d9f46bf374bd553ea3"
       },
       {
         "path": "crates/pla/src/game/effects/library.rs",
@@ -617,15 +629,23 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "5e34bf9c48c182f2b99d6bb7ebe8cb1ab50c1c884f766c97f2fdeee2931e1b64"
+        "sha256": "82cf39dd54d124812dd7cee9f5452a9f06928d7860e271e5e7ef4106a072b9ae"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
         "sha256": "472fc88dfc720cb713566a304ed1b7823e4a4850caa871661e0a39b78ab51ef2"
       },
       {
+        "path": "crates/pla/src/game/party_ops.rs",
+        "sha256": "19b77894630b47101497aed8a5f86b422877dd5a5af39e6514c92a87ed690d3d"
+      },
+      {
         "path": "crates/pla/src/game/party_progress.rs",
         "sha256": "d32bdb75affe3cf0ad67ffbc2b656b6c4de481e4adbc7ef4801531c9de45f3e8"
+      },
+      {
+        "path": "crates/pla/src/game/party_screen.rs",
+        "sha256": "836c9d20df68fb09709051ba16eec0d45f980f6b354fc7822bdfa166a71dbb25"
       },
       {
         "path": "crates/pla/src/game/pause_menu.rs",
@@ -704,8 +724,12 @@
         "sha256": "96e643407b168b396fe08113204565a220cc59dfc10ffa6a3ff6ad11cbdafc49"
       },
       {
+        "path": "crates/pla/src/game/wild_behavior.rs",
+        "sha256": "b8ed44bb7175b9572845b23a875db4ec8cbeb634e81cd2bc546a43005f6c3271"
+      },
+      {
         "path": "crates/pla/src/game/wild_wander.rs",
-        "sha256": "de4ab5fe407f8e39ba14072a5750b61ebdbe98c3c6c81f98ad88ebc47a6e1905"
+        "sha256": "4a442709d6086bc9e3bb6a1a9704ba5e3dde26c4e4b48c029dcf64b291b8b1a2"
       },
       {
         "path": "crates/pla/src/game/world_collision.rs",
@@ -849,7 +873,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "8174c50de5fbf356e129801d1f434a098274015e43a7055c514b13bd36c28e2d"
+    "sha256": "8a37955616455cf8abec2602e174064445ed1db190e5f74211bd1b7ed0071b3b"
   },
   "state_partitions": {
     "analysis_documentation_status": {
@@ -920,22 +944,22 @@
     },
     "implementation_status": {
       "partial": {
-        "functions": 31,
-        "original_bytes": 51540
+        "functions": 32,
+        "original_bytes": 65900
       },
       "unknown": {
-        "functions": 153445,
-        "original_bytes": 51224136
+        "functions": 153444,
+        "original_bytes": 51209776
       }
     },
     "port_state": {
       "partial": {
-        "functions": 31,
-        "original_bytes": 51540
+        "functions": 32,
+        "original_bytes": 65900
       },
       "unknown": {
-        "functions": 153445,
-        "original_bytes": 51224136
+        "functions": 153444,
+        "original_bytes": 51209776
       }
     }
   },
