@@ -672,10 +672,6 @@ fn main() -> ExitCode {
     app.insert_resource(camera_ctrl);
     let settings_dir = UserSettings::default_dir();
     PauseMenuPlugin::install(&mut app, UserSettings::load_from_dir(&settings_dir), settings_dir.clone());
-    if main_menu {
-        // Continue is enabled only when a valid save was loaded at start-up.
-        MainMenuPlugin::install(&mut app, wire_start.loaded, settings_dir);
-    }
 
     let mut dex_list = vec![25, 501, 722, 155, 448]; // Pikachu, Oshawott, Rowlet, Cyndaquil, Lucario
     let mut current_index = 0;
@@ -782,6 +778,12 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
+    // Installed after InputMapPlugin: MainMenuPlugin adds that plugin itself when it is
+    // missing, and Bevy panics when the same plugin is added twice.
+    if main_menu {
+        // Continue is enabled only when a valid save was loaded at start-up.
+        MainMenuPlugin::install(&mut app, wire_start.loaded, settings_dir);
+    }
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
         app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });

@@ -82,6 +82,23 @@ English, 2026-10-13. Status of the opt-in main menu added to the Bevy viewer
 - `crates/pla/src/game/input_map.rs` — cherry-picked from `feat/gamepad`
   (commit `aeb7482`): `Action`, `ActionState`, `InputMapPlugin`.
 
+## Merge into `main` (2026-10-13)
+
+- The branch carried its own copy of the input map commit (`a4a07a3`, same patch as
+  `aeb7482`, which reached `main` through `feat/gamepad`). The two `input_map.rs` files
+  are byte-identical, so `main` keeps ONE implementation and the menu uses `main`'s
+  `ActionState` API unchanged.
+- `GameState` now has both `Loading` (zone change) and `MainMenu`; the pause input keeps
+  `main`'s action-based toggle and W/S navigation and only gained the early return in
+  `MainMenu`.
+- Defect found at merge: the viewer installed `MainMenuPlugin` (which adds
+  `InputMapPlugin` when missing) before its own `add_plugins(InputMapPlugin)`, so
+  `--menu` would have panicked at start-up (Bevy refuses a plugin added twice). The
+  viewer now installs the menu after `InputMapPlugin`. Checked by compilation and by
+  reading the code only; the viewer was not run.
+- Known gap (shared with the pause menu): `UserSettings::serialize` does not write the
+  `effects=` key, so saving from the options page drops it.
+
 ## How to try it
 
 ```bash
