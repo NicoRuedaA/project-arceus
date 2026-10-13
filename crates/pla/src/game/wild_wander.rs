@@ -10,6 +10,7 @@ use bevy::prelude::*;
 use super::navigation::GameNavmeshResource;
 use super::state::{GameState, Paused};
 use super::wild::{hash_str, splitmix64, ActiveAreaSpawners, WildCreature};
+use super::wild_behavior::WildBehavior;
 use super::PlayerAvatar;
 
 pub const MIN_RADIUS: f32 = 3.0;
@@ -259,6 +260,7 @@ fn attach_wander(
         commands.entity(e).insert((
             WanderState::new(seed, (tf.translation.x, tf.translation.z)),
             WanderHome { params, y_offset },
+            WildBehavior::assumed_passive(seed),
         ));
     }
 }
@@ -268,18 +270,27 @@ fn wander_system(
     nav: Option<Res<GameNavmeshResource>>,
     wall_collision: Option<Res<super::world_collision::WorldCollision>>,
     player: Query<&Transform, (With<PlayerAvatar>, Without<WanderState>)>,
-    mut q: Query<(&mut Transform, &mut WanderState, &WanderHome, &WildCreature)>,
+    mut q: Query<(
+        &mut Transform,
+        &mut WanderState,
+        &WanderHome,
+        &WildCreature,
+        Option<&mut WildBehavior>,
+    )>,
 ) {
     // Without a navmesh walkability is unknown: stay put rather than risk walking off the map.
     let Some(nav) = nav else { return };
     let dt = time.delta_secs().min(0.1);
     let pl = player.single().ok().map(|t| (t.translation.x, t.translation.z));
     let walkable = |x: f32, z: f32| nav.is_walkable(x, z);
-    for (mut tf, mut st, home, wild) in &mut q {
+    for (mut tf, mut st, home, wild, behavior) in &mut q {
         if wild.in_battle || wild.defeated {
             continue;
         }
         step(&mut st, &home.params, dt, pl, &walkable);
+        if let Some(mut behavior) = behavior {
+            behavior.machine.sync_wander_phase(matches!(st.phase, Phase::Walk { .. }));
+        }
         // Placed-object collision after the wander step, keeping the creature on the navmesh.
         if let Some(wc) = wall_collision.as_ref() {
             let pushed = wc.push_out_xz(st.pos.0, tf.translation.y + 0.6, st.pos.1, 0.4, 1.2);
@@ -440,6 +451,31 @@ mod tests {
         };
         assert_eq!(run("x"), run("x"));
         assert_ne!(run("x"), run("y"));
+    }
+
+    #[test]
+    fn headless_three_creatures_receive_behavior_fallbacks() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, WildWanderPlugin));
+        app.world_mut().spawn((PlayerAvatar, Transform::default()));
+        for i in 0..3 {
+            app.world_mut().spawn((
+                WildCreature {
+                    species_name: format!("synthetic-{i}"),
+                    national_dex: 25 + i as u16,
+                    level: 5,
+                    spawn_pos: Vec3::new(i as f32, 0.0, i as f32),
+                    aggro_range: 2.8,
+                    in_battle: false,
+                    defeated: false,
+                    spawner_id: format!("synthetic-{i}"),
+                },
+                Transform::default(),
+            ));
+        }
+        app.update();
+        let mut query = app.world_mut().query::<(&WanderState, &WildBehavior)>();
+        assert_eq!(query.iter(app.world()).count(), 3);
     }
 
     #[test]

@@ -40,6 +40,7 @@ pub mod world_collision;
 pub mod water;
 pub mod world_objects;
 pub mod wild;
+pub mod wild_behavior;
 pub mod wild_wander;
 pub mod zone;
 

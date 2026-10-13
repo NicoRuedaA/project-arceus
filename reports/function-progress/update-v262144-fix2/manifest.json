@@ -40,7 +40,7 @@
   "evidence_ledger": {
     "analyzed_documented_function_count": 153473,
     "path": "sheets/re/function_progress_evidence.tsv",
-    "sha256": "0200395de485e7d0a41b66349359382bff18f5dd65048eaa4ad21df72c91c741"
+    "sha256": "1199a1b9c55ecdd0a04da56c5c282161c41c7d615584aeefeb08df978a1e9ef0"
   },
   "executable_text_scope": {
     "bytes": 53106320,
@@ -68,12 +68,12 @@
   },
   "outputs": {
     "analysis.png": "6b3129237a2508d820f3518699349ff9a991b2f72c43004492b92459699439e9",
-    "function-progress.tsv": "03d4aa2fe2c4cf012b189e83a22f63d84c138140a158edaf560f7bb7d2604548",
-    "index.html": "85be304c76f9372893f804523bb8f1187cd7f1d395e0dace2f99fcf56900fa19",
-    "port.png": "171c21e73b75893738344b373a2e7ea2c8909240f5279fc13dc18b3663d77e32"
+    "function-progress.tsv": "101d94ac07687294d20f178be59c3001988e8d42142d98867dbac36c95e092e6",
+    "index.html": "035d10ab49a831cfd6b424abc772d1fb0d2cd78d8e6e878800af20032669aa20",
+    "port.png": "db013c97b237e5ae7de35a120bdd38d748e04643339d817eafb6eef36afc37cc"
   },
   "rust_source_fingerprint": {
-    "file_count": 174,
+    "file_count": 176,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -162,6 +162,10 @@
       {
         "path": "crates/pla/examples/navmesh_report.rs",
         "sha256": "4cd118320b4c1b2e621ab440cc194daa9dd10e3ede7a5bc0e8eabfe29261991d"
+      },
+      {
+        "path": "crates/pla/examples/perf_report.rs",
+        "sha256": "c6b034e47d68a76cb21cdb18c142e645bc33fda38e4505f6b192ac7875d7477a"
       },
       {
         "path": "crates/pla/examples/placement_terrain_check.rs",
@@ -341,7 +345,7 @@
       },
       {
         "path": "crates/pla/src/assets/terrain.rs",
-        "sha256": "a28da742c481d6a45f604eff506281dad9de80bdedf3463f83c315c9a9d89bfa"
+        "sha256": "e865abf3d9787299420945b9fb40f823223b6a1265b9c462ce65600973e3b3ab"
       },
       {
         "path": "crates/pla/src/assets/terrain_albedo.rs",
@@ -557,7 +561,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "b1851dd18189f96ddbd45034bd47be85419e7d41eb8afbe8b21f67345038b0f6"
+        "sha256": "f98b4872667b382f16d68d2660a271c98a9ab5726b64f969d6d3672d7fc6aba4"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -628,8 +632,12 @@
         "sha256": "96e643407b168b396fe08113204565a220cc59dfc10ffa6a3ff6ad11cbdafc49"
       },
       {
+        "path": "crates/pla/src/game/wild_behavior.rs",
+        "sha256": "b8ed44bb7175b9572845b23a875db4ec8cbeb634e81cd2bc546a43005f6c3271"
+      },
+      {
         "path": "crates/pla/src/game/wild_wander.rs",
-        "sha256": "de4ab5fe407f8e39ba14072a5750b61ebdbe98c3c6c81f98ad88ebc47a6e1905"
+        "sha256": "4a442709d6086bc9e3bb6a1a9704ba5e3dde26c4e4b48c029dcf64b291b8b1a2"
       },
       {
         "path": "crates/pla/src/game/world_collision.rs",
@@ -773,7 +781,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "ac725f667f5d6e3eb7268b8f0fc5a157b09df3376e427ec3fa3263d914d93441"
+    "sha256": "59554b2cf07d876e9e874a1e180fc682fb0cd037d95c30060c21e37492a13133"
   },
   "state_partitions": {
     "analysis_documentation_status": {
@@ -844,22 +852,22 @@
     },
     "implementation_status": {
       "partial": {
-        "functions": 29,
-        "original_bytes": 45416
+        "functions": 30,
+        "original_bytes": 59776
       },
       "unknown": {
-        "functions": 153447,
-        "original_bytes": 51230260
+        "functions": 153446,
+        "original_bytes": 51215900
       }
     },
     "port_state": {
       "partial": {
-        "functions": 29,
-        "original_bytes": 45416
+        "functions": 30,
+        "original_bytes": 59776
       },
       "unknown": {
-        "functions": 153447,
-        "original_bytes": 51230260
+        "functions": 153446,
+        "original_bytes": 51215900
       }
     }
   },
