@@ -143,6 +143,26 @@ def find_recipe_table(d, n):
     raise SystemExit("character recipe table not found in the resident dump")
 
 
+def find_npc_pokemon_table(d, n):
+    """NPC-Pokemon table (no path resolves to it): root vector of rows {f0 FNV id, f1 u64, f2 species, f3 form,
+    f4 sex string Male/Famale/Unknown, f6/f7 bools, f8 u32}. Located by the sex strings. Returns {id: (species, form, sex)}."""
+    for i in range(n):
+        b = entry(d, i)
+        if b[:4] == b"VFXB" or b"Famale" not in b:
+            continue
+        f = FB(b)
+        try:
+            out = {}
+            for r in f.tables(f.fields(f.u32(0))[0]):
+                fl = f.fields(r)
+                out[f.u64(fl[0])] = (f.u32(fl[2]) if 2 in fl else 0, f.u32(fl[3]) if 3 in fl else 0, opt_str(f, fl, 4))
+            if len(out) > 100:
+                return i, out
+        except (struct.error, KeyError, IndexError):
+            continue
+    return None, {}
+
+
 def string_names(romfs):
     """Character ids written as plain strings: Lua event scripts, chara/table/*.bin (facial template table), plus
     the tr pack stems with the `_m` / `_f` / `_item` endings seen on resolved ids (checked by exact hash later)."""
@@ -254,7 +274,7 @@ def body_motion(motions):
     return ""
 
 
-def decode_npcs(area, b, kind, recipes, names):
+def decode_npcs(area, b, kind, recipes, names, pokes):
     f = FB(b)
     root = f.fields(f.u32(0))
     if 0 not in root:
@@ -290,7 +310,9 @@ def decode_npcs(area, b, kind, recipes, names):
                 if not r and chash in SPECIAL_IDS:
                     row["chara_id"] = SPECIAL_IDS[chash]
             else:
-                row["chara_id"], row["chara_kind"] = "", "pokemon"
+                sp = pokes.get(chash)
+                row["chara_id"] = f"species {sp[0]} form {sp[1]} {sp[2]}".strip() if sp else ""
+                row["chara_kind"] = "pokemon" if sp else ("none" if chash == EMPTY else "unresolved")
             if kind == "npc" and vi < len(behs):
                 bl = f.fields(behs[vi])
                 fa, fb_, lk = (f.u64(bl[k]) if k in bl else None for k in (17, 18, 20))
@@ -324,6 +346,66 @@ def decode_paths(area, b):
     return out
 
 
+def index_hashes(dump_dir):
+    return {int(l.split("\t")[1], 16) for l in (dump_dir / "index.tsv").read_text().splitlines()[1:]}
+
+
+def controller_clips(a, recipes):
+    """Body animation controller of each recipe: `<body>.tracn` points to `<body>.tracr` (resource list). Returns
+    {recipe hash: sorted full clip names listed in that .tracr} (VERIFIED strings; the state machine using them,
+    `.tracs`, is not decoded)."""
+    packs = {"cc": (a.cc_dump, {})}
+    out = {}
+    for r in recipes:
+        body = next((m for m in r["motions"] if m.endswith(".tracn") and ("/base/" in m or "/tr/" in m)), "")
+        if not body:
+            continue
+        d = a.cc_dump if "/cc/" in body else a.tr_dump / body.split("/")[-2]
+        if not (d / "index.tsv").exists():
+            continue
+        if d not in packs:
+            packs[d] = (d, {int(l.split("\t")[1], 16): int(l.split("\t")[0])
+                            for l in (d / "index.tsv").read_text().splitlines()[1:]})
+        idx = packs[d][1]
+        if not idx:
+            idx.update({int(l.split("\t")[1], 16): int(l.split("\t")[0]) for l in (d / "index.tsv").read_text().splitlines()[1:]})
+        i = idx.get(fnv1a64((body[:-6] + ".tracr").encode()))
+        if i is None:
+            continue
+        b = (d / f"{i:04d}.bin").read_bytes()
+        out[r["hash"]] = sorted({m.decode() for m in re.findall(rb"(?:cb|tr)\d{4}_\d\d_[a-z0-9_]*?\d{5}_[a-z0-9_]+", b)})
+    return out
+
+
+def clip_rows(a, recipes):
+    """(clip, motion dir) rows; directories are proven by the pack hash of the full path."""
+    packs = [(index_hashes(a.cc_dump), clip_names(a.cc_dump), set())]
+    dirs = packs[0][2]
+    for r in recipes:
+        for m in r["motions"]:
+            if "/cc/" in m:
+                dirs.add(m.rsplit("/", 1)[0])
+        for m in r["models"]:
+            if "/cc/model/" in m and "/base/" not in m:
+                part = m.rsplit("/", 2)[1]
+                dirs.add(f"bin/chara/data/cc/motion/{m.split('/')[-3]}/{part}")
+    if a.tr_dump.exists():
+        for d in sorted(a.tr_dump.iterdir()):
+            if (d / "index.tsv").exists():
+                packs.append((index_hashes(d), clip_names(d), {f"bin/chara/data/tr/{d.name}"}))
+    rows = []
+    for hashes, clips, cand in packs:
+        for c in sorted(clips):
+            m = re.match(r"(.*?)_(\d{5})_(.+)$", c[:-6])
+            if not m:
+                continue
+            owner, num, nm = m.groups()
+            hit = [d for d in sorted(cand) if fnv1a64(f"{d}/{c}".encode()) in hashes]
+            for d in hit or [""]:
+                rows.append([c[:-6], short(d), owner, num, nm, classify_clip(nm), "1" if nm.endswith("_loop") else "0"])
+    return rows
+
+
 def clip_names(dump_dir):
     names = set()
     for p in dump_dir.rglob("*.bin"):
@@ -334,9 +416,10 @@ def clip_names(dump_dir):
 CLIP_CLASS = [
     ("face", r"^face\d|^eye_|mouth|blink|speak|_lip"), ("idle", r"wait|idling|stand"), ("walk", r"walk"),
     ("run", r"run|dash"), ("turn", r"turn"),
-    ("talk", r"talk|nod|agree|deny|greet|bow|wave|hand|point|clap|laugh|surprise|think|cry|anger|joy|sad|shy"),
+    ("talk", r"talk|nod|agree|deny|greet|bow|wave|hand|point|clap|laugh|surprise|think|cry|anger|joy|sad|shy|^yes|^no\d|"
+             r"getpass|whistle|uniaction|^action"),
     ("sit", r"sit|squat|kneel|lie|sleep"), ("work", r"work|sweep|carry|dig|hammer|cook|wash|farm|fish|pick|write|read"),
-    ("battle", r"battle|throw|ball|attack|damage|down"),
+    ("battle", r"battle|throw|ball|attack|damage|down|advent|withdraw|order|itemuse|lose|shock"),
 ]
 
 
@@ -375,6 +458,7 @@ def main():
         dump(p, a.tr_dump / p.stem, a.gfdump)
     files = placement_files(a.dump, by_hash, n)
     rt_index, f, recs = find_recipe_table(a.dump, n)
+    pk_index, pokes = find_npc_pokemon_table(a.dump, n)
     names_set = string_names(a.romfs)
     recipes = decode_recipes(f, recs, names_set)
     by_id = {r["hash"]: r for r in recipes}
@@ -390,7 +474,7 @@ def main():
         if len(b) <= 24:
             continue
         if kind in ("npc", "npc_pokemon"):
-            rows += decode_npcs(area, b, kind, by_id, names)
+            rows += decode_npcs(area, b, kind, by_id, names, pokes)
         elif kind == "path":
             paths += decode_paths(area, b)
 
@@ -398,7 +482,8 @@ def main():
     write_sheet(d / "npc_placements.tsv", "npc_placements", f"{TARGET} NPC and NPC-Pokémon placements (resident_release.gfpak placement kinds npc, npc_pokemon)", [
         "One row per placement VARIANT: an NPC record (key) has 1..n variants (field 4); which one is active is chosen by its condition.",
         "x,y,z area-local metres (same frame as field_object_placements); rot_* degrees (only rot_y seen non-zero); scale (always 1 seen).",
-        "chara_hash = FNV-1a 64 of the character id = data/npc_appearance.hash (recipe). For kind npc_pokemon it is record f2 (unresolved).",
+        "chara_hash = FNV-1a 64 of the character id = data/npc_appearance.hash (recipe). For npc_pokemon it keys the NPC-Pokemon table",
+        "(resident entry found by content): chara_id = `species <national dex id> form <n> <sex>` (sex spelling as in the data).",
         "cond_kind/cond_op: hashes resolved to names where a candidate matched exactly (time_zone, equal, between...); else the raw hash.",
         "cond_role: the resolved name, or a LIKELY role inferred from the flag names tested (quest_progress, story_phase_work, flag, work, default).",
         "cond_name = story/system flag or work name (WPHA_STORY, FSYS_*, sub_NNN); values are kept raw: story gates are NOT decoded.",
@@ -414,6 +499,7 @@ def main():
           r["cond_kind"], r["cond_role"] or "none", r["cond_op"], r["cond_name"], r["cond_value"], r["cond_value2"],
           r["talk_hash"], r["face_a"], r["face_b"], r["link"], r["tag"], r["beh_raw"]] for r in rows])
 
+    ctl = controller_clips(a, recipes)
     used = collections.Counter(int(r["chara_hash"], 16) for r in rows if r["kind"] == "npc" and r["chara_hash"])
     write_sheet(d / "npc_appearance.tsv", "npc_appearance", f"{TARGET} character recipe table (resident_release.gfpak entry {rt_index}, path unresolved)", [
         "One row per character id. hash = FNV-1a 64 of the id (= npc_placements.chara_hash). name_src: strings = id string found in Lua",
@@ -423,14 +509,15 @@ def main():
         "body_type = chara_create_value_list_<code>.trbsm (per-bone mesh scalers; application ASSUMED, not verified).",
         "motion_set = directory of the body .tracn (animation controller); part_motions = face/dress .tracn.",
         "placements = number of npc placement variants using this id (all areas).",
+        "controller_clips = clips listed by the body controller resource file (<motion tracn>.tracr), owner prefix kept (VERIFIED strings).",
     ], ["hash:string*", "name:string?", "name_src:enum", "group:string", "kind:enum", "body_type:string?", "base_model:string?",
         "dress_model:string?", "face_model:string?", "motion_set:string?", "part_motions:string?", "held_item:string?",
-        "hidden_meshes:string?", "locator_skeleton:string", "pack:string", "placements:u16"],
+        "hidden_meshes:string?", "locator_skeleton:string", "pack:string", "placements:u16", "controller_clips:string?"],
         [[f"{r['hash']:016x}", r["name"], r["name_src"] or "none", r["group"], r["kind"], r["body"],
           short(r["models"][0]) if r["models"] else "",
           next((short(m) for m in r["models"] if "/dress/" in m), ""), next((short(m) for m in r["models"] if "/face/" in m), ""),
           body_motion(r["motions"]), ",".join(short(m) for m in r["motions"][1:]), r["item"], ",".join(r["hides"]),
-          r["loc"], r["pack"], used.get(r["hash"], 0)] for r in recipes])
+          r["loc"], r["pack"], used.get(r["hash"], 0), ",".join(ctl.get(r["hash"], []))] for r in recipes])
 
     write_sheet(d / "npc_paths.tsv", "npc_paths", f"{TARGET} placement kind `path` (point paths)", [
         "One row per path. points = number of control points (record f2 instances, f7 positions); length = polyline metres.",
@@ -440,19 +527,17 @@ def main():
         [[p["area"], p["name"], len(p["points"]), fmt(p["length"]), p["flag4"], p["interp"]]
          + [fmt(v) for v in (p["points"][0] if p["points"] else [0, 0, 0])] for p in paths])
 
-    clips = clip_names(a.cc_dump) | (clip_names(a.tr_dump) if a.tr_dump.exists() else set())
-    crow = []
-    for c in sorted(clips):
-        m = re.match(r"(.*?)_(\d{5})_(.+)$", c[:-6])
-        if m:
-            owner, num, nm = m.groups()
-            crow.append([c[:-6], owner, num, nm, classify_clip(nm), "1" if nm.endswith("_loop") else "0"])
-    write_sheet(d / "npc_animations.tsv", "npc_animations", f"{TARGET} NPC animation clip names (cc.gfpak and tr*.gfpak)", [
-        "Clip names are strings inside the packs. owner = motion set (cbNNNN_* body sets of cc characters), cc face part, or tr character.",
-        "class is a name-pattern guess (ASSUMED), not data. Numbers follow the player's groups: 02xxx field, 05xxx lsp poses, 07xxx gestures.",
-    ], ["clip:string*", "owner:string", "number:string", "name:string", "class:enum", "loop:bool"], crow)
+    crow = clip_rows(a, recipes)
+    write_sheet(d / "npc_animations.tsv", "npc_animations", f"{TARGET} NPC animation clips (cc.gfpak and tr*.gfpak)", [
+        "One row per (motion directory, clip). Clip names are strings inside the packs; motion_dir is the directory whose",
+        "full path `<dir>/<clip>.tranm` hashes to an entry of the pack (VERIFIED by exact FNV-1a 64 match). A clip whose",
+        "directory was not found has motion_dir empty. cc dirs: motion/base/<cbNNNN set>, motion/face|dress/<part>; tr: <pack>.",
+        "class is a name-pattern guess (ASSUMED), not data. Numbers follow the player's groups: 01xxx battle/trainer, 02xxx field,",
+        "05xxx lsp poses, 07xxx gestures, 00xxx face.",
+    ], ["clip:string*", "motion_dir:string*", "owner:string", "number:string", "name:string", "class:enum", "loop:bool"], crow)
 
     cnt = collections.Counter(r["kind"] for r in rows)
+    print(f"npc pokemon table: entry {pk_index}, {len(pokes)} rows")
     print(f"recipe table: entry {rt_index}, {len(recipes)} ids ({sum(1 for r in recipes if r['name'])} named)")
     print(f"placements: {len(rows)} variants; npc {cnt['npc']}, npc_pokemon {cnt['npc_pokemon']}; "
           f"paths {len(paths)}; clips {len(crow)}")

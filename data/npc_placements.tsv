@@ -4,7 +4,8 @@
 # target: Pokémon Legends: Arceus v262144 NPC and NPC-Pokémon placements (resident_release.gfpak placement kinds npc, npc_pokemon)
 # note: One row per placement VARIANT: an NPC record (key) has 1..n variants (field 4); which one is active is chosen by its condition.
 # note: x,y,z area-local metres (same frame as field_object_placements); rot_* degrees (only rot_y seen non-zero); scale (always 1 seen).
-# note: chara_hash = FNV-1a 64 of the character id = data/npc_appearance.hash (recipe). For kind npc_pokemon it is record f2 (unresolved).
+# note: chara_hash = FNV-1a 64 of the character id = data/npc_appearance.hash (recipe). For npc_pokemon it keys the NPC-Pokemon table
+# note: (resident entry found by content): chara_id = `species <national dex id> form <n> <sex>` (sex spelling as in the data).
 # note: cond_kind/cond_op: hashes resolved to names where a candidate matched exactly (time_zone, equal, between...); else the raw hash.
 # note: cond_role: the resolved name, or a LIKELY role inferred from the flag names tested (quest_progress, story_phase_work, flag, work, default).
 # note: cond_name = story/system flag or work name (WPHA_STORY, FSYS_*, sub_NNN); values are kept raw: story gates are NOT decoded.
@@ -482,173 +483,173 @@ ha_area00	npc	area00_npc_g051	0	2	76c4a0d26345c56e	cc0065_00_vi_children_m_d	cc	
 ha_area00	npc	area00_npc_g051	1	2	76c4a0d26345c56e	cc0065_00_vi_children_m_d	cc	427.37	60.655	623.464	0	-37.3	0	1	time_zone	time_zone	equal	2			ba1722711bd70e14	normal				f0=1;f5=1;f21=1
 ha_area00	npc	area00_npc_mkrg	0	2	74895cd2d12b60b6	cc0039_00_vi_children_f_b	cc	514.207	60.441	484.494	0	-167.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_033	10		ba139d711bd3f63e	normal				f0=1;f5=1
 ha_area00	npc	area00_npc_mkrg	1	2	74895cd2d12b60b6	cc0039_00_vi_children_f_b	cc	526.77	60.574	471.368	0	180	0	1	3ddd5feb4a68a149	flag	equal	FSYS_MKRG_FIRST_PLACEMENT			ba139d711bd3f63e	normal				f0=1;f5=1;f21=3
-ha_area00	npc_pokemon	area00_poke_s3_kusa	0	2	9ecc7b26ea9e99a0		pokemon	561.883	62.093	618.893	0	-96.914	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	600		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_s3_kusa	1	2	9ecc7b26ea9e99a0		pokemon	0	0	0	0	0	0	0		none					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_s3_honoo	0	2	89d4ab3b91e4193e		pokemon	544.793	60.618	623.897	0	107.218	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	600		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_s3_honoo	1	2	89d4ab3b91e4193e		pokemon	0	0	0	0	0	0	0		none					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_s3_mizu	0	2	af4985cd1d218afc		pokemon	555.345	60.916	604.126	0	-85.401	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	600		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_s3_mizu	1	2	af4985cd1d218afc		pokemon	0	0	0	0	0	0	0		none					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_ouji	0	1	c68bd7fdeaaced3a		pokemon	483.569	60.286	452.394	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	50065		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_01	0	3	cbf29ce484222645		pokemon	445.358	62.47	519.714	0	-114.962	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	1		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_01	1	3	cbf29ce484222645		pokemon	0	0	0	0	0	0	0	2557279b949c81d6	work	not_equal	WEVE_SUB021_041_061_OPEN_COUNT	0		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_01	2	3	cbf29ce484222645		pokemon	445.358	62.47	519.714	0	-114.962	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	1		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_02	0	3	cbf29ce484222645		pokemon	429.237	62.469	528.847	0	-168.2	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	2		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_02	1	3	cbf29ce484222645		pokemon	0	0	0	0	0	0	0	2557279b949c81d6	work	not_equal	WEVE_SUB021_041_061_OPEN_COUNT	0		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_02	2	3	cbf29ce484222645		pokemon	429.237	62.469	528.847	0	-168.2	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	2		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_03	0	3	cbf29ce484222645		pokemon	426.895	62.652	492.373	0	8.96	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	3		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_03	1	3	cbf29ce484222645		pokemon	0	0	0	0	0	0	0	2557279b949c81d6	work	not_equal	WEVE_SUB021_041_061_OPEN_COUNT	0		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_03	2	3	cbf29ce484222645		pokemon	426.895	62.652	492.373	0	8.96	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	3		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_kabarudon_01	0	1	1955d84e92121d4d		pokemon	445.358	62.47	519.714	0	-114.962	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_gyaradosu_01	0	1	3d953062b5d32036		pokemon	429.237	62.469	528.847	0	-168.2	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_haganeeru_01	0	1	27198363be073d43		pokemon	426.895	62.652	492.373	0	8.96	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_05	0	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FEVE_SUB012_BIPPA_01			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	1	22	dd75c52f7283e9bb		pokemon	507.031	60.963	446.552	0	143.6	0	1	3ddd5feb4a68a149	flag	not_equal	FMAP_AREA01_SUB_012_BIPPA_01			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	2	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	3	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	4	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_2			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	5	22	dd75c52f7283e9bb		pokemon	460.519	60.325	521.797	0	141.334	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	6	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	7	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	8	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	9	22	dd75c52f7283e9bb		pokemon	503.496	60.821	510.916	0	86.537	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	10	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	11	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	12	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	13	22	dd75c52f7283e9bb		pokemon	510.878	60.073	498.169	0	-28.56	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	14	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	15	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	16	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	17	22	dd75c52f7283e9bb		pokemon	514.479	60.608	495.095	0	71.8	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_6			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	18	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	19	22	dd75c52f7283e9bb		pokemon	488.753	60.851	640.269	0	-146.2	0	1	time_zone	time_zone	equal	0	1	2	d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	20	22	dd75c52f7283e9bb		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_05	21	22	dd75c52f7283e9bb		pokemon	478.263	64.468	513.493	0	43.1	0	1	time_zone_night	time_zone_night					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	0	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FEVE_SUB012_BIPPA_02			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	1	22	a1bb2dd9130a46f2		pokemon	526.545	60.746	543.756	0	81.3	0	1	3ddd5feb4a68a149	flag	not_equal	FMAP_AREA01_SUB_012_BIPPA_02			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	2	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	3	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	4	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_2			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	5	22	a1bb2dd9130a46f2		pokemon	517.516	60.704	519.088	0	11.825	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	6	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	7	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	8	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	9	22	a1bb2dd9130a46f2		pokemon	524.202	60.559	468.637	0	8.08	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	10	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	11	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	12	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	13	22	a1bb2dd9130a46f2		pokemon	511.287	60.5	527.316	0	132.7	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	14	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	15	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	16	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	17	22	a1bb2dd9130a46f2		pokemon	514.917	60.594	496.93	0	114.1	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_6			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	18	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	19	22	a1bb2dd9130a46f2		pokemon	488.404	60.804	638.491	0	-127.6	0	1	time_zone	time_zone	equal	0	1	2	d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	20	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_06	21	22	a1bb2dd9130a46f2		pokemon	478.465	64.375	515.284	0	94.849	0	1	time_zone_night	time_zone_night					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	0	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FEVE_SUB012_BIPPA_03			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	1	22	a1bb2dd9130a46f2		pokemon	466.726	60.796	527.565	0	103.9	0	1	3ddd5feb4a68a149	flag	not_equal	FMAP_AREA01_SUB_012_BIPPA_03			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	2	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	3	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	4	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_2			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	5	22	a1bb2dd9130a46f2		pokemon	515.482	60.668	520.087	0	27.9	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	6	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	7	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	8	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	9	22	a1bb2dd9130a46f2		pokemon	516.989	61.673	495.809	0	100.007	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	10	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	11	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	12	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	13	22	a1bb2dd9130a46f2		pokemon	510.269	60.073	499.108	0	154.8	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	14	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	15	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	16	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	17	22	a1bb2dd9130a46f2		pokemon	516.659	61.646	495.996	0	-94.083	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_6			d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	18	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	19	22	a1bb2dd9130a46f2		pokemon	489.9	60.804	638.29	0	-0.8	0	1	time_zone	time_zone	equal	0	1	2	d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	20	22	a1bb2dd9130a46f2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_07	21	22	a1bb2dd9130a46f2		pokemon	478.451	64.382	516.048	0	-139.4	0	1	time_zone_night	time_zone_night					d7fb303230a323d9					
-ha_area00	npc_pokemon	area00_poke_save_09	0	2	219a868593e0f143		pokemon	479.252	60.645	555.877	0	54.615	0	1	2041c674206fe0a7	quest_progress	between	sub_004	1	10	d7fb2f3230a32226					
-ha_area00	npc_pokemon	area00_poke_save_09	1	2	219a868593e0f143		pokemon	479.07	60.608	557.823	0	126.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_004	255		d7fb2f3230a32226					
-ha_area00	npc_pokemon	area00_poke_save_10	0	3	cbf29ce484222645		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_004	10		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_10	1	3	cbf29ce484222645		pokemon	483.629	60.252	557.574	0	180	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB004_0010			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_10	2	3	cbf29ce484222645		pokemon	479.521	60.609	558.364	0	126.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_004	255		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_buizeru_01	0	1	219a868593e0f143		pokemon	479.521	60.609	558.364	0	126.5	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_11	0	4	cbf29ce484222645		pokemon	522.184	60.551	462.041	0	171.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_084	255		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_11	1	4	cbf29ce484222645		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	40000		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_11	2	4	cbf29ce484222645		pokemon	0	0	0	0	0	0	0	2557279b949c81d6	work	equal	WEVE_SUB009_050_084_CLEAR_NPC_TALK	0		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_11	3	4	cbf29ce484222645		pokemon	522.671	61.158	463.121	0	180	0	1	2041c674206fe0a7	quest_progress	equal	sub_009	255		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_ishitubute_01	0	1	af552936a4e91a20		pokemon	522.671	61.158	463.121	0	180	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_12	0	2	f75d819c39b27ec6		pokemon	518.847	62.272	493.948	0	92.1	0	1	2041c674206fe0a7	quest_progress	between	sub_094	1	80	d7fb323230a3273f					
-ha_area00	npc_pokemon	area00_poke_save_12	1	2	f75d819c39b27ec6		pokemon	518.847	62.272	493.948	0	92.1	0	1	2041c674206fe0a7	quest_progress	equal	sub_094	255		d7fb323230a3273f					
-ha_area00	npc_pokemon	area00_poke_save_13	0	4	cbf29ce484222645		pokemon	481.132	60.247	446.67	0	55.9	0	1	2557279b949c81d6	work	equal	WEVE_SUB005_KEMUSSO_NOW	2		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_13	1	4	cbf29ce484222645		pokemon	481.132	60.247	446.67	0	55.9	0	1	2557279b949c81d6	work	equal	WEVE_SUB005_KEMUSSO_NOW	1		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_13	2	4	cbf29ce484222645		pokemon	481.132	60.247	446.67	0	55.9	0	1	2041c674206fe0a7	quest_progress	equal	sub_005	255		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_13	3	4	cbf29ce484222645		pokemon	483.387	60.298	447.877	0	-43.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_005	10		cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_kemusso_01	0	1	754c295fb5f44d9b		pokemon	481.132	60.247	446.67	0	55.9	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_save_14	0	2	5c60998f55a4c354		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_019	20		d7fb313230a3258c					
-ha_area00	npc_pokemon	area00_poke_save_14	1	2	5c60998f55a4c354		pokemon	427.706	60.708	623.405	0	-59.5	0	1	time_zone	time_zone	equal	2			d7fb313230a3258c					
-ha_area00	npc_pokemon	area00_poke_save_15	0	4	5dfed77e3ef484e6		pokemon	470.133	60.902	503.539	0	-180	0	1	2041c674206fe0a7	quest_progress	equal	sub_036	20		d7fb343230a32aa5					
-ha_area00	npc_pokemon	area00_poke_save_15	1	4	5dfed77e3ef484e6		pokemon	507.29	61.525	418.185	0	2.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_036	40		d7fb343230a32aa5					
-ha_area00	npc_pokemon	area00_poke_save_15	2	4	5dfed77e3ef484e6		pokemon	552.197	60.638	464.898	0	-70.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_036	60		d7fb343230a32aa5					
-ha_area00	npc_pokemon	area00_poke_save_15	3	4	5dfed77e3ef484e6		pokemon	549.362	60.601	461.825	0	-66.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_036	255		d7fb343230a32aa5					
-ha_area00	npc_pokemon	area00_poke_zubatto	0	3	329d6d72a5ee893e		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_007	255		d7fb333230a328f2					
-ha_area00	npc_pokemon	area00_poke_zubatto	1	3	329d6d72a5ee893e		pokemon	0	0	0	0	0	0	0	time_zone_night	time_zone_night					d7fb333230a328f2					
-ha_area00	npc_pokemon	area00_poke_zubatto	2	3	329d6d72a5ee893e		pokemon	455.987	60.435	512.519	0	131	0	1	2557279b949c81d6	work	equal	WEVE_SUB007_CLEAR_NPC_TALK	0		d7fb333230a328f2					
-ha_area00	npc_pokemon	area00_poke_save_17	0	2	6bf855fae859f756		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	15200		d7fb363230a32e0b					
-ha_area00	npc_pokemon	area00_poke_save_17	1	2	6bf855fae859f756		pokemon	434.526	62.7	443.885	0	160.64	0	1	time_zone_afternoon	time_zone_afternoon					d7fb363230a32e0b					
-ha_area00	npc_pokemon	area00_poke_save_18	0	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	15200		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	1	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	1		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	2	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	10		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	3	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	20		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	4	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	30		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	5	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	40		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	6	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	50		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	7	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	60		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	8	18	7e3796c48490e2f4		pokemon	436.561	62.75	439.556	0	-34.5	0	1	time_zone_afternoon	time_zone_afternoon					d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	9	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	1		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	10	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	10		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	11	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	20		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	12	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	30		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	13	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	40		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	14	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	50		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	15	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	60		d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	16	18	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_18	17	18	7e3796c48490e2f4		pokemon	445.834	62.75	433.187	0	9.3	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	15201	39999	d7fb353230a32c58					
-ha_area00	npc_pokemon	area00_poke_save_19	0	9	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	1		d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_save_19	1	9	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	10		d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_save_19	2	9	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	20		d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_save_19	3	9	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	30		d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_save_19	4	9	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	40		d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_save_19	5	9	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	50		d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_save_19	6	9	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	60		d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_save_19	7	9	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_save_19	8	9	5f4117769e95a4e2		pokemon	445.834	62.75	433.187	0	9.3	0	1	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	40000		d7f7c83230a03d4a					
-ha_area00	npc_pokemon	area00_poke_rukario	0	1	17d0c6d90344c370		pokemon	415.397	63.162	454.081	0	63.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_098	10		d7f7c93230a03efd					
-ha_area00	npc_pokemon	npc_poke_farm_1_1	0	1	cbf29ce484222645		pokemon	530.517	60.703	511.212	0	-111.9	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_1_2	0	1	cbf29ce484222645		pokemon	532.973	60.784	514.219	0	-48.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_1_3	0	1	cbf29ce484222645		pokemon	530.055	60.715	505.826	0	104.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_2_1	0	1	cbf29ce484222645		pokemon	539.323	60.796	497.416	0	-121.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_2_2	0	1	cbf29ce484222645		pokemon	535.871	60.771	499.419	0	-97.3	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_2_3	0	1	cbf29ce484222645		pokemon	539.999	60.886	502.713	0	-7.3	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_3_1	0	1	cbf29ce484222645		pokemon	531.253	60.796	523.027	0	-46.2	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_3_2	0	1	cbf29ce484222645		pokemon	535.284	61.372	525.531	0	-87.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_3_3	0	1	cbf29ce484222645		pokemon	529.102	60.822	519.525	0	-87.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_4_1	0	1	cbf29ce484222645		pokemon	531.404	60.796	539.536	0	-99.7	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_4_2	0	1	cbf29ce484222645		pokemon	531.035	60.751	543.348	0	-180	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_4_3	0	1	cbf29ce484222645		pokemon	532.283	60.762	536.622	0	-53.5	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_5_1	0	1	cbf29ce484222645		pokemon	549.045	60.791	501.619	0	-178.417	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_5_2	0	1	cbf29ce484222645		pokemon	550.44	60.731	496.757	0	70.5	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	npc_poke_farm_5_3	0	1	cbf29ce484222645		pokemon	549	60.932	506.61	0	-29.2	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_saanaito_01	0	2	21cfef4845d0131b		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_saanaito_01	1	2	21cfef4845d0131b		pokemon	530.517	60.703	511.212	0	-111.9	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_namazun_01	0	2	733df163257691e4		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_namazun_01	1	2	733df163257691e4		pokemon	539.323	60.796	497.416	0	-121.6	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_gaburiasu_01	0	2	8fd0138aed004409		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_gaburiasu_01	1	2	8fd0138aed004409		pokemon	531.253	60.796	523.027	0	-46.2	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_manyuura_01	0	2	98b23602ac81c150		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_manyuura_01	1	2	98b23602ac81c150		pokemon	531.404	60.796	539.536	0	-99.7	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_teppouo_01	0	2	557ea5e216d1eb04		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
-ha_area00	npc_pokemon	area00_poke_debug_teppouo_01	1	2	557ea5e216d1eb04		pokemon	549.045	60.791	501.619	0	-178.417	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_s3_kusa	0	2	9ecc7b26ea9e99a0	species 722 form 0	pokemon	561.883	62.093	618.893	0	-96.914	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	600		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_s3_kusa	1	2	9ecc7b26ea9e99a0	species 722 form 0	pokemon	0	0	0	0	0	0	0		none					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_s3_honoo	0	2	89d4ab3b91e4193e	species 155 form 0	pokemon	544.793	60.618	623.897	0	107.218	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	600		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_s3_honoo	1	2	89d4ab3b91e4193e	species 155 form 0	pokemon	0	0	0	0	0	0	0		none					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_s3_mizu	0	2	af4985cd1d218afc	species 501 form 0	pokemon	555.345	60.916	604.126	0	-85.401	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	600		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_s3_mizu	1	2	af4985cd1d218afc	species 501 form 0	pokemon	0	0	0	0	0	0	0		none					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_ouji	0	1	c68bd7fdeaaced3a	species 470 form 0	pokemon	483.569	60.286	452.394	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	50065		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_01	0	3	cbf29ce484222645		none	445.358	62.47	519.714	0	-114.962	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	1		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_01	1	3	cbf29ce484222645		none	0	0	0	0	0	0	0	2557279b949c81d6	work	not_equal	WEVE_SUB021_041_061_OPEN_COUNT	0		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_01	2	3	cbf29ce484222645		none	445.358	62.47	519.714	0	-114.962	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	1		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_02	0	3	cbf29ce484222645		none	429.237	62.469	528.847	0	-168.2	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	2		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_02	1	3	cbf29ce484222645		none	0	0	0	0	0	0	0	2557279b949c81d6	work	not_equal	WEVE_SUB021_041_061_OPEN_COUNT	0		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_02	2	3	cbf29ce484222645		none	429.237	62.469	528.847	0	-168.2	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	2		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_03	0	3	cbf29ce484222645		none	426.895	62.652	492.373	0	8.96	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	3		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_03	1	3	cbf29ce484222645		none	0	0	0	0	0	0	0	2557279b949c81d6	work	not_equal	WEVE_SUB021_041_061_OPEN_COUNT	0		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_03	2	3	cbf29ce484222645		none	426.895	62.652	492.373	0	8.96	0	1	2557279b949c81d6	work	greater_than_equal	WSYS_FARM_UPDATE_COUNT	3		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_kabarudon_01	0	1	1955d84e92121d4d	species 450 form 0 Male	pokemon	445.358	62.47	519.714	0	-114.962	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_gyaradosu_01	0	1	3d953062b5d32036	species 130 form 0 Male	pokemon	429.237	62.469	528.847	0	-168.2	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_haganeeru_01	0	1	27198363be073d43	species 208 form 0 Male	pokemon	426.895	62.652	492.373	0	8.96	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_05	0	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FEVE_SUB012_BIPPA_01			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	1	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	507.031	60.963	446.552	0	143.6	0	1	3ddd5feb4a68a149	flag	not_equal	FMAP_AREA01_SUB_012_BIPPA_01			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	2	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	3	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	4	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_2			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	5	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	460.519	60.325	521.797	0	141.334	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	6	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	7	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	8	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	9	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	503.496	60.821	510.916	0	86.537	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	10	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	11	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	12	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	13	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	510.878	60.073	498.169	0	-28.56	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	14	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	15	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	16	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	17	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	514.479	60.608	495.095	0	71.8	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_6			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	18	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	19	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	488.753	60.851	640.269	0	-146.2	0	1	time_zone	time_zone	equal	0	1	2	d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	20	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_05	21	22	dd75c52f7283e9bb	species 399 form 0 Famale	pokemon	478.263	64.468	513.493	0	43.1	0	1	time_zone_night	time_zone_night					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	0	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FEVE_SUB012_BIPPA_02			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	1	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	526.545	60.746	543.756	0	81.3	0	1	3ddd5feb4a68a149	flag	not_equal	FMAP_AREA01_SUB_012_BIPPA_02			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	2	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	3	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	4	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_2			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	5	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	517.516	60.704	519.088	0	11.825	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	6	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	7	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	8	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	9	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	524.202	60.559	468.637	0	8.08	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	10	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	11	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	12	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	13	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	511.287	60.5	527.316	0	132.7	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	14	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	15	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	16	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	17	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	514.917	60.594	496.93	0	114.1	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_6			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	18	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	19	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	488.404	60.804	638.491	0	-127.6	0	1	time_zone	time_zone	equal	0	1	2	d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	20	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_06	21	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	478.465	64.375	515.284	0	94.849	0	1	time_zone_night	time_zone_night					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	0	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FEVE_SUB012_BIPPA_03			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	1	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	466.726	60.796	527.565	0	103.9	0	1	3ddd5feb4a68a149	flag	not_equal	FMAP_AREA01_SUB_012_BIPPA_03			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	2	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	3	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	4	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_2			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	5	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	515.482	60.668	520.087	0	27.9	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	6	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	7	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	8	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_3			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	9	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	516.989	61.673	495.809	0	100.007	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	10	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	11	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	12	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_4			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	13	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	510.269	60.073	499.108	0	154.8	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	14	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	15	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	16	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	equal	FSYS_UPDATE_VILLAGE_5			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	17	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	516.659	61.646	495.996	0	-94.083	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_UPDATE_VILLAGE_6			d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	18	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	19	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	489.9	60.804	638.29	0	-0.8	0	1	time_zone	time_zone	equal	0	1	2	d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	20	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_012	255		d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_07	21	22	a1bb2dd9130a46f2	species 399 form 0 Male	pokemon	478.451	64.382	516.048	0	-139.4	0	1	time_zone_night	time_zone_night					d7fb303230a323d9					
+ha_area00	npc_pokemon	area00_poke_save_09	0	2	219a868593e0f143	species 418 form 0 Male	pokemon	479.252	60.645	555.877	0	54.615	0	1	2041c674206fe0a7	quest_progress	between	sub_004	1	10	d7fb2f3230a32226					
+ha_area00	npc_pokemon	area00_poke_save_09	1	2	219a868593e0f143	species 418 form 0 Male	pokemon	479.07	60.608	557.823	0	126.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_004	255		d7fb2f3230a32226					
+ha_area00	npc_pokemon	area00_poke_save_10	0	3	cbf29ce484222645		none	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_004	10		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_10	1	3	cbf29ce484222645		none	483.629	60.252	557.574	0	180	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB004_0010			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_10	2	3	cbf29ce484222645		none	479.521	60.609	558.364	0	126.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_004	255		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_buizeru_01	0	1	219a868593e0f143	species 418 form 0 Male	pokemon	479.521	60.609	558.364	0	126.5	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_11	0	4	cbf29ce484222645		none	522.184	60.551	462.041	0	171.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_084	255		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_11	1	4	cbf29ce484222645		none	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	40000		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_11	2	4	cbf29ce484222645		none	0	0	0	0	0	0	0	2557279b949c81d6	work	equal	WEVE_SUB009_050_084_CLEAR_NPC_TALK	0		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_11	3	4	cbf29ce484222645		none	522.671	61.158	463.121	0	180	0	1	2041c674206fe0a7	quest_progress	equal	sub_009	255		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_ishitubute_01	0	1	af552936a4e91a20	species 74 form 0	pokemon	522.671	61.158	463.121	0	180	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_12	0	2	f75d819c39b27ec6	species 358 form 0	pokemon	518.847	62.272	493.948	0	92.1	0	1	2041c674206fe0a7	quest_progress	between	sub_094	1	80	d7fb323230a3273f					
+ha_area00	npc_pokemon	area00_poke_save_12	1	2	f75d819c39b27ec6	species 358 form 0	pokemon	518.847	62.272	493.948	0	92.1	0	1	2041c674206fe0a7	quest_progress	equal	sub_094	255		d7fb323230a3273f					
+ha_area00	npc_pokemon	area00_poke_save_13	0	4	cbf29ce484222645		none	481.132	60.247	446.67	0	55.9	0	1	2557279b949c81d6	work	equal	WEVE_SUB005_KEMUSSO_NOW	2		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_13	1	4	cbf29ce484222645		none	481.132	60.247	446.67	0	55.9	0	1	2557279b949c81d6	work	equal	WEVE_SUB005_KEMUSSO_NOW	1		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_13	2	4	cbf29ce484222645		none	481.132	60.247	446.67	0	55.9	0	1	2041c674206fe0a7	quest_progress	equal	sub_005	255		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_13	3	4	cbf29ce484222645		none	483.387	60.298	447.877	0	-43.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_005	10		cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_kemusso_01	0	1	754c295fb5f44d9b	species 265 form 0	pokemon	481.132	60.247	446.67	0	55.9	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_save_14	0	2	5c60998f55a4c354	species 425 form 0	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_019	20		d7fb313230a3258c					
+ha_area00	npc_pokemon	area00_poke_save_14	1	2	5c60998f55a4c354	species 425 form 0	pokemon	427.706	60.708	623.405	0	-59.5	0	1	time_zone	time_zone	equal	2			d7fb313230a3258c					
+ha_area00	npc_pokemon	area00_poke_save_15	0	4	5dfed77e3ef484e6	species 122 form 0	pokemon	470.133	60.902	503.539	0	-180	0	1	2041c674206fe0a7	quest_progress	equal	sub_036	20		d7fb343230a32aa5					
+ha_area00	npc_pokemon	area00_poke_save_15	1	4	5dfed77e3ef484e6	species 122 form 0	pokemon	507.29	61.525	418.185	0	2.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_036	40		d7fb343230a32aa5					
+ha_area00	npc_pokemon	area00_poke_save_15	2	4	5dfed77e3ef484e6	species 122 form 0	pokemon	552.197	60.638	464.898	0	-70.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_036	60		d7fb343230a32aa5					
+ha_area00	npc_pokemon	area00_poke_save_15	3	4	5dfed77e3ef484e6	species 122 form 0	pokemon	549.362	60.601	461.825	0	-66.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_036	255		d7fb343230a32aa5					
+ha_area00	npc_pokemon	area00_poke_zubatto	0	3	329d6d72a5ee893e	species 41 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_007	255		d7fb333230a328f2					
+ha_area00	npc_pokemon	area00_poke_zubatto	1	3	329d6d72a5ee893e	species 41 form 0 Famale	pokemon	0	0	0	0	0	0	0	time_zone_night	time_zone_night					d7fb333230a328f2					
+ha_area00	npc_pokemon	area00_poke_zubatto	2	3	329d6d72a5ee893e	species 41 form 0 Famale	pokemon	455.987	60.435	512.519	0	131	0	1	2557279b949c81d6	work	equal	WEVE_SUB007_CLEAR_NPC_TALK	0		d7fb333230a328f2					
+ha_area00	npc_pokemon	area00_poke_save_17	0	2	6bf855fae859f756	species 417 form 0 Male	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	15200		d7fb363230a32e0b					
+ha_area00	npc_pokemon	area00_poke_save_17	1	2	6bf855fae859f756	species 417 form 0 Male	pokemon	434.526	62.7	443.885	0	160.64	0	1	time_zone_afternoon	time_zone_afternoon					d7fb363230a32e0b					
+ha_area00	npc_pokemon	area00_poke_save_18	0	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	15200		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	1	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	1		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	2	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	10		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	3	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	20		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	4	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	30		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	5	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	40		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	6	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	50		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	7	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	60		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	8	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	436.561	62.75	439.556	0	-34.5	0	1	time_zone_afternoon	time_zone_afternoon					d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	9	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	1		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	10	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	10		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	11	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	20		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	12	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	30		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	13	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	40		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	14	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	50		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	15	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	60		d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	16	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_18	17	18	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	445.834	62.75	433.187	0	9.3	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	15201	39999	d7fb353230a32c58					
+ha_area00	npc_pokemon	area00_poke_save_19	0	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	1		d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_save_19	1	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	10		d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_save_19	2	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	20		d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_save_19	3	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	30		d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_save_19	4	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	40		d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_save_19	5	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	50		d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_save_19	6	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	60		d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_save_19	7	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_save_19	8	9	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	445.834	62.75	433.187	0	9.3	0	1	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	40000		d7f7c83230a03d4a					
+ha_area00	npc_pokemon	area00_poke_rukario	0	1	17d0c6d90344c370	species 448 form 0	pokemon	415.397	63.162	454.081	0	63.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_098	10		d7f7c93230a03efd					
+ha_area00	npc_pokemon	npc_poke_farm_1_1	0	1	cbf29ce484222645		none	530.517	60.703	511.212	0	-111.9	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_1_2	0	1	cbf29ce484222645		none	532.973	60.784	514.219	0	-48.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_1_3	0	1	cbf29ce484222645		none	530.055	60.715	505.826	0	104.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_2_1	0	1	cbf29ce484222645		none	539.323	60.796	497.416	0	-121.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_2_2	0	1	cbf29ce484222645		none	535.871	60.771	499.419	0	-97.3	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_2_3	0	1	cbf29ce484222645		none	539.999	60.886	502.713	0	-7.3	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_3_1	0	1	cbf29ce484222645		none	531.253	60.796	523.027	0	-46.2	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_3_2	0	1	cbf29ce484222645		none	535.284	61.372	525.531	0	-87.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_3_3	0	1	cbf29ce484222645		none	529.102	60.822	519.525	0	-87.6	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_4_1	0	1	cbf29ce484222645		none	531.404	60.796	539.536	0	-99.7	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_4_2	0	1	cbf29ce484222645		none	531.035	60.751	543.348	0	-180	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_4_3	0	1	cbf29ce484222645		none	532.283	60.762	536.622	0	-53.5	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_5_1	0	1	cbf29ce484222645		none	549.045	60.791	501.619	0	-178.417	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_5_2	0	1	cbf29ce484222645		none	550.44	60.731	496.757	0	70.5	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	npc_poke_farm_5_3	0	1	cbf29ce484222645		none	549	60.932	506.61	0	-29.2	0	1	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_saanaito_01	0	2	21cfef4845d0131b	species 282 form 0	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_saanaito_01	1	2	21cfef4845d0131b	species 282 form 0	pokemon	530.517	60.703	511.212	0	-111.9	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_namazun_01	0	2	733df163257691e4	species 340 form 0	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_namazun_01	1	2	733df163257691e4	species 340 form 0	pokemon	539.323	60.796	497.416	0	-121.6	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_gaburiasu_01	0	2	8fd0138aed004409	species 445 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_gaburiasu_01	1	2	8fd0138aed004409	species 445 form 0 Male	pokemon	531.253	60.796	523.027	0	-46.2	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_manyuura_01	0	2	98b23602ac81c150	species 461 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_manyuura_01	1	2	98b23602ac81c150	species 461 form 0 Male	pokemon	531.404	60.796	539.536	0	-99.7	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_teppouo_01	0	2	557ea5e216d1eb04	species 223 form 0	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					cbf29ce484222645					
+ha_area00	npc_pokemon	area00_poke_debug_teppouo_01	1	2	557ea5e216d1eb04	species 223 form 0	pokemon	549.045	60.791	501.619	0	-178.417	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
 ha_area00_s01	npc	area00_s01_npc_senior	0	5	5facc1d35b48a02d	senpai	special	45.981	10.05	73.53	0	-175.1	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	12000		cbf29ce484222645					
 ha_area00_s01	npc	area00_s01_npc_senior	1	5	5facc1d35b48a02d	senpai	special	48.144	10.03	65.959	0	-56.6	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	12200		cbf29ce484222645					f0=1;f21=1
 ha_area00_s01	npc	area00_s01_npc_senior	2	5	5facc1d35b48a02d	senpai	special	44.213	10.029	71.149	0	157.069	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	14000	14200	cbf29ce484222645					f0=1;f21=1
@@ -831,40 +832,40 @@ ha_area00_s01	npc	area00_s01_npc_g051	2	3	76c4a0d26345c56e	cc0065_00_vi_children
 ha_area00_s01	npc	area00_s01_npc_g033	0	1	51deb61bf33af976	cc0033_00_vi_middle_f_b_kmn_f	cc	32.727	15.58	73.016	0	146.475	0	1	2041c674206fe0a7	quest_progress	equal	sub_009	1		ba0990711bcb8ba2	normal				f0=1;f4=1;f5=2;f21=1;f16=1
 ha_area00_s01	npc	area00_s01_npc_g029	0	2	a2893a1b18d8ff2c	cc0032_00_vi_middle_f_a_item	cc	39.667	4.536	72.704	0	64.878	0	1	2041c674206fe0a7	quest_progress	equal	sub_064	1		ba171b711bd7022f	normal			area00_s01_npc_g029_01_01	f0=1;f5=1
 ha_area00_s01	npc	area00_s01_npc_g029	1	2	a2893a1b18d8ff2c	cc0032_00_vi_middle_f_a_item	cc	39.667	4.536	72.704	0	64.878	0	1	2041c674206fe0a7	quest_progress	equal	sub_064	10		ba171b711bd7022f	normal				f0=1;f5=1;f21=1
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_kusa	0	4	9ecc7b26ea9e99a0		pokemon	46.093	10.05	67.99	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	12200		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_kusa	1	4	9ecc7b26ea9e99a0		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	12600		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_kusa	2	4	9ecc7b26ea9e99a0		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB199_GET_KUSA			cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_kusa	3	4	9ecc7b26ea9e99a0		pokemon	56.602	12.376	82.389	0	164.826	0	1	2557279b949c81d6	work	not_equal	WEVE_SELECTED_S3	0		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_honoo	0	4	89d4ab3b91e4193e		pokemon	47.091	10.05	67.94	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	12200		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_honoo	1	4	89d4ab3b91e4193e		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	12600		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_honoo	2	4	89d4ab3b91e4193e		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB199_GET_HONOO			cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_honoo	3	4	89d4ab3b91e4193e		pokemon	61.135	10.41	75.249	0	-79.962	0	1	2557279b949c81d6	work	not_equal	WEVE_SELECTED_S3	1		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_mizu	0	4	af4985cd1d218afc		pokemon	44.995	10.05	67.745	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	12200		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_mizu	1	4	af4985cd1d218afc		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	12600		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_mizu	2	4	af4985cd1d218afc		pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB199_GET_MIZU			cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_s3_mizu	3	4	af4985cd1d218afc		pokemon	54.91	11.412	75.457	0	78.6	0	1	2557279b949c81d6	work	not_equal	WEVE_SELECTED_S3	2		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_02	0	2	6684c6b1de87286a		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_015	0		d7f7c63230a039e4					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_02	1	2	6684c6b1de87286a		pokemon	60.976	15.5	78.274	0	-153.302	0	1	time_zone_afternoon	time_zone_afternoon					d7f7c63230a039e4					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	0	6	11a4b28c3399fcae		pokemon	60.777	15.5	78.14	0	-115.568	0	1	2041c674206fe0a7	quest_progress	equal	sub_015	10		d7f7c73230a03b97					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	1	6	11a4b28c3399fcae		pokemon	60.777	15.5	78.14	0	-115.568	0	1	2041c674206fe0a7	quest_progress	equal	sub_015	20		d7f7c73230a03b97					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	2	6	11a4b28c3399fcae		pokemon	60.777	15.5	78.14	0	-115.568	0	1	2041c674206fe0a7	quest_progress	equal	sub_015	30		d7f7c73230a03b97					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	3	6	11a4b28c3399fcae		pokemon	60.777	15.5	78.14	0	-115.568	0	1	3ddd5feb4a68a149	flag	equal	FMAP_AREA00_SUB015			d7f7c73230a03b97					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	4	6	11a4b28c3399fcae		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_015	255		d7f7c73230a03b97					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	5	6	11a4b28c3399fcae		pokemon	60.777	15.5	78.14	0	-115.568	0	1	time_zone_afternoon	time_zone_afternoon					d7f7c73230a03b97					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_03	0	1	3bfe00c60aaa4629		pokemon	50.49	10	85.36	0	-146.374	0	1	344570c1301a7584	default					e0f65c3235d0a66f					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_07	0	1	0adc40fe7471c28f		pokemon	63.615	15.5	73.403	0	-117.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_065	255		d7f7c43230a0367e					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_001	0	2	cbf29ce484222645		pokemon	32.366	10.03	82.059	0	174.9	0	1	2041c674206fe0a7	quest_progress	equal	sub_058	255		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_save_001	1	2	cbf29ce484222645		pokemon	32.366	10.03	82.059	0	174.9	0	1	2557279b949c81d6	work	equal	WEVE_SUB058_CLEAR_NPC_TALK	0		cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_poke_debug_guregguru_01	0	1	317c95e85c275d22		pokemon	32.366	10.03	82.059	0	174.9	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
-ha_area00_s01	npc_pokemon	area00_s01_poke_rukario	0	1	17d0c6d90344c370		pokemon	40.198	10.03	66.576	0	85.701	0	1	2041c674206fe0a7	quest_progress	equal	sub_098	1		d7f7c93230a03efd					
-ha_area00_s01	npc_pokemon	area00_s01_poke_huwante	0	4	5c60998f55a4c354		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	10		d7fb313230a3258c					
-ha_area00_s01	npc_pokemon	area00_s01_poke_huwante	1	4	5c60998f55a4c354		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	20		d7fb313230a3258c					
-ha_area00_s01	npc_pokemon	area00_s01_poke_huwante	2	4	5c60998f55a4c354		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	30		d7fb313230a3258c					
-ha_area00_s01	npc_pokemon	area00_s01_poke_huwante	3	4	5c60998f55a4c354		pokemon	75.074	4.53	77.593	0	-134.966	0	1	time_zone	time_zone	equal	2			d7fb313230a3258c					
-ha_area00_s01	npc_pokemon	area00_s01_poke_pottyama	0	4	89d04ad6ec6542b5		pokemon	0	0	0	0	0	0	0	time_zone	time_zone	equal	1			d7f7c33230a034cb					
-ha_area00_s01	npc_pokemon	area00_s01_poke_pottyama	1	4	89d04ad6ec6542b5		pokemon	50.446	4.53	79.364	0	-51.755	0	1	2041c674206fe0a7	quest_progress	equal	sub_056	255		d7f7c33230a034cb					
-ha_area00_s01	npc_pokemon	area00_s01_poke_pottyama	2	4	89d04ad6ec6542b5		pokemon	0	0	0	0	0	0	0	time_zone	time_zone	equal	2			d7f7c33230a034cb					
-ha_area00_s01	npc_pokemon	area00_s01_poke_pottyama	3	4	89d04ad6ec6542b5		pokemon	47.977	4.537	82.53	0	31.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_056	255		d7f7c33230a034cb					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_kusa	0	4	9ecc7b26ea9e99a0	species 722 form 0	pokemon	46.093	10.05	67.99	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	12200		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_kusa	1	4	9ecc7b26ea9e99a0	species 722 form 0	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	12600		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_kusa	2	4	9ecc7b26ea9e99a0	species 722 form 0	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB199_GET_KUSA			cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_kusa	3	4	9ecc7b26ea9e99a0	species 722 form 0	pokemon	56.602	12.376	82.389	0	164.826	0	1	2557279b949c81d6	work	not_equal	WEVE_SELECTED_S3	0		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_honoo	0	4	89d4ab3b91e4193e	species 155 form 0	pokemon	47.091	10.05	67.94	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	12200		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_honoo	1	4	89d4ab3b91e4193e	species 155 form 0	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	12600		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_honoo	2	4	89d4ab3b91e4193e	species 155 form 0	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB199_GET_HONOO			cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_honoo	3	4	89d4ab3b91e4193e	species 155 form 0	pokemon	61.135	10.41	75.249	0	-79.962	0	1	2557279b949c81d6	work	not_equal	WEVE_SELECTED_S3	1		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_mizu	0	4	af4985cd1d218afc	species 501 form 0	pokemon	44.995	10.05	67.745	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	12200		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_mizu	1	4	af4985cd1d218afc	species 501 form 0	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	12600		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_mizu	2	4	af4985cd1d218afc	species 501 form 0	pokemon	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB199_GET_MIZU			cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_s3_mizu	3	4	af4985cd1d218afc	species 501 form 0	pokemon	54.91	11.412	75.457	0	78.6	0	1	2557279b949c81d6	work	not_equal	WEVE_SELECTED_S3	2		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_02	0	2	6684c6b1de87286a	species 133 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_015	0		d7f7c63230a039e4					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_02	1	2	6684c6b1de87286a	species 133 form 0 Male	pokemon	60.976	15.5	78.274	0	-153.302	0	1	time_zone_afternoon	time_zone_afternoon					d7f7c63230a039e4					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	0	6	11a4b28c3399fcae	species 197 form 0	pokemon	60.777	15.5	78.14	0	-115.568	0	1	2041c674206fe0a7	quest_progress	equal	sub_015	10		d7f7c73230a03b97					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	1	6	11a4b28c3399fcae	species 197 form 0	pokemon	60.777	15.5	78.14	0	-115.568	0	1	2041c674206fe0a7	quest_progress	equal	sub_015	20		d7f7c73230a03b97					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	2	6	11a4b28c3399fcae	species 197 form 0	pokemon	60.777	15.5	78.14	0	-115.568	0	1	2041c674206fe0a7	quest_progress	equal	sub_015	30		d7f7c73230a03b97					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	3	6	11a4b28c3399fcae	species 197 form 0	pokemon	60.777	15.5	78.14	0	-115.568	0	1	3ddd5feb4a68a149	flag	equal	FMAP_AREA00_SUB015			d7f7c73230a03b97					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	4	6	11a4b28c3399fcae	species 197 form 0	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_015	255		d7f7c73230a03b97					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_01	5	6	11a4b28c3399fcae	species 197 form 0	pokemon	60.777	15.5	78.14	0	-115.568	0	1	time_zone_afternoon	time_zone_afternoon					d7f7c73230a03b97					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_03	0	1	3bfe00c60aaa4629	species 63 form 0	pokemon	50.49	10	85.36	0	-146.374	0	1	344570c1301a7584	default					e0f65c3235d0a66f					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_07	0	1	0adc40fe7471c28f	species 67 form 0	pokemon	63.615	15.5	73.403	0	-117.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_065	255		d7f7c43230a0367e					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_001	0	2	cbf29ce484222645		none	32.366	10.03	82.059	0	174.9	0	1	2041c674206fe0a7	quest_progress	equal	sub_058	255		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_save_001	1	2	cbf29ce484222645		none	32.366	10.03	82.059	0	174.9	0	1	2557279b949c81d6	work	equal	WEVE_SUB058_CLEAR_NPC_TALK	0		cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_poke_debug_guregguru_01	0	1	317c95e85c275d22	species 453 form 0 Male	pokemon	32.366	10.03	82.059	0	174.9	0	1	3ddd5feb4a68a149	flag	equal	FEVE_DEBUG_NPC_CHECK			cbf29ce484222645					
+ha_area00_s01	npc_pokemon	area00_s01_poke_rukario	0	1	17d0c6d90344c370	species 448 form 0	pokemon	40.198	10.03	66.576	0	85.701	0	1	2041c674206fe0a7	quest_progress	equal	sub_098	1		d7f7c93230a03efd					
+ha_area00_s01	npc_pokemon	area00_s01_poke_huwante	0	4	5c60998f55a4c354	species 425 form 0	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	10		d7fb313230a3258c					
+ha_area00_s01	npc_pokemon	area00_s01_poke_huwante	1	4	5c60998f55a4c354	species 425 form 0	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	20		d7fb313230a3258c					
+ha_area00_s01	npc_pokemon	area00_s01_poke_huwante	2	4	5c60998f55a4c354	species 425 form 0	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_019	30		d7fb313230a3258c					
+ha_area00_s01	npc_pokemon	area00_s01_poke_huwante	3	4	5c60998f55a4c354	species 425 form 0	pokemon	75.074	4.53	77.593	0	-134.966	0	1	time_zone	time_zone	equal	2			d7fb313230a3258c					
+ha_area00_s01	npc_pokemon	area00_s01_poke_pottyama	0	4	89d04ad6ec6542b5	species 393 form 0	pokemon	0	0	0	0	0	0	0	time_zone	time_zone	equal	1			d7f7c33230a034cb					
+ha_area00_s01	npc_pokemon	area00_s01_poke_pottyama	1	4	89d04ad6ec6542b5	species 393 form 0	pokemon	50.446	4.53	79.364	0	-51.755	0	1	2041c674206fe0a7	quest_progress	equal	sub_056	255		d7f7c33230a034cb					
+ha_area00_s01	npc_pokemon	area00_s01_poke_pottyama	2	4	89d04ad6ec6542b5	species 393 form 0	pokemon	0	0	0	0	0	0	0	time_zone	time_zone	equal	2			d7f7c33230a034cb					
+ha_area00_s01	npc_pokemon	area00_s01_poke_pottyama	3	4	89d04ad6ec6542b5	species 393 form 0	pokemon	47.977	4.537	82.53	0	31.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_056	255		d7f7c33230a034cb					
 ha_area00_s03_c	npc	area00_s03_c_npc_g030	0	7	f70c4cb7d2550159		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_037	1		ba171a711bd7007c					
 ha_area00_s03_c	npc	area00_s03_c_npc_g030	1	7	f70c4cb7d2550159		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_037	10		ba171a711bd7007c					
 ha_area00_s03_c	npc	area00_s03_c_npc_g030	2	7	f70c4cb7d2550159		cc	9.176	2.29	17.336	0	83.535	0	1	time_zone_night	time_zone_night					ba171a711bd7007c	normal				f0=1;f5=3;f21=1;f24=1
@@ -891,10 +892,10 @@ ha_area00_s03_e	npc	area00_s03_e_npc_g005	3	4	0fcf1af5301681db	tr0024_00_guard_l
 ha_area00_s03_e	npc	area00_s03_e_npc_g007	0	1	0fcf1af5301681db	tr0024_00_guard_lower_f	tr	8.501	2	13.637	0	-89.428	0	1	time_zone_night	time_zone_night					ba0621711bc8992e	normal	laugh			f0=1;f5=1;f21=3;f24=1
 ha_area00_s03_e	npc	area00_s03_e_npc_guard_016	0	2	0fcf1af5301681db	tr0024_00_guard_lower_f	tr	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	84999		e0f6583235d09fa3					
 ha_area00_s03_e	npc	area00_s03_e_npc_guard_016	1	2	0fcf1af5301681db	tr0024_00_guard_lower_f	tr	9.209	2	11.909	0	-87.876	0	1	time_zone_afternoon	time_zone_afternoon					e0f6583235d09fa3	normal				f0=1;f4=1;f5=3;f21=3;f24=1
-ha_area00_s03_e	npc_pokemon	area00_s03_e_poke_save_18	0	2	7e3796c48490e2f4		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	39999		d7fb353230a32c58					
-ha_area00_s03_e	npc_pokemon	area00_s03_e_poke_save_18	1	2	7e3796c48490e2f4		pokemon	13.001	2.006	12.623	0	-134.956	0	1	time_zone_night	time_zone_night					d7fb353230a32c58					
-ha_area00_s03_e	npc_pokemon	area00_S03_e_poke_save_19	0	2	5f4117769e95a4e2		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	40000		d7f7c83230a03d4a					
-ha_area00_s03_e	npc_pokemon	area00_S03_e_poke_save_19	1	2	5f4117769e95a4e2		pokemon	13.001	2.006	12.623	0	-134.956	0	1	time_zone_night	time_zone_night					d7f7c83230a03d4a					
+ha_area00_s03_e	npc_pokemon	area00_s03_e_poke_save_18	0	2	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	39999		d7fb353230a32c58					
+ha_area00_s03_e	npc_pokemon	area00_s03_e_poke_save_18	1	2	7e3796c48490e2f4	species 396 form 0 Famale	pokemon	13.001	2.006	12.623	0	-134.956	0	1	time_zone_night	time_zone_night					d7fb353230a32c58					
+ha_area00_s03_e	npc_pokemon	area00_S03_e_poke_save_19	0	2	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	40000		d7f7c83230a03d4a					
+ha_area00_s03_e	npc_pokemon	area00_S03_e_poke_save_19	1	2	5f4117769e95a4e2	species 397 form 0 Famale	pokemon	13.001	2.006	12.623	0	-134.956	0	1	time_zone_night	time_zone_night					d7f7c83230a03d4a					
 ha_area00_s03_f	npc	area00_s03_f_npc_g029	0	3	f70c4cb7d2550159		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_064	1		ba171b711bd7022f					
 ha_area00_s03_f	npc	area00_s03_f_npc_g029	1	3	f70c4cb7d2550159		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_064	10		ba171b711bd7022f					
 ha_area00_s03_f	npc	area00_s03_f_npc_g029	2	3	f70c4cb7d2550159		cc	9.219	2.27	16.82	0	80.3	0	1	time_zone_night	time_zone_night					ba171b711bd7022f	normal				f0=1;f5=3;f21=1;f24=1
@@ -913,11 +914,11 @@ ha_area00_s03_h	npc	area00_s03_h_npc_guard_009	1	5	dba19996b0fb2659	tr0023_00_gu
 ha_area00_s03_h	npc	area00_s03_h_npc_guard_009	2	5	dba19996b0fb2659	tr0023_00_guard_lower_m	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_053	10		ba061f711bc895c8					
 ha_area00_s03_h	npc	area00_s03_h_npc_guard_009	3	5	dba19996b0fb2659	tr0023_00_guard_lower_m	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_053	20		ba061f711bc895c8					
 ha_area00_s03_h	npc	area00_s03_h_npc_guard_009	4	5	dba19996b0fb2659	tr0023_00_guard_lower_m	tr	13.098	2	14.445	0	-21.1	0	1	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	15201		ba061f711bc895c8	normal		area02_poke_sub_053		f0=1;f21=1;f14=1
-ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	0	5	6bf855fae859f756		pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb363230a32e0b					
-ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	1	5	6bf855fae859f756		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_053	1		d7fb363230a32e0b					
-ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	2	5	6bf855fae859f756		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_053	10		d7fb363230a32e0b					
-ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	3	5	6bf855fae859f756		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_053	20		d7fb363230a32e0b					
-ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	4	5	6bf855fae859f756		pokemon	12.648	2.25	16.246	0	-180	0	1	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	15201		d7fb363230a32e0b					
+ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	0	5	6bf855fae859f756	species 417 form 0 Male	pokemon	0	0	0	0	0	0	0	time_zone_afternoon	time_zone_afternoon					d7fb363230a32e0b					
+ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	1	5	6bf855fae859f756	species 417 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_053	1		d7fb363230a32e0b					
+ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	2	5	6bf855fae859f756	species 417 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_053	10		d7fb363230a32e0b					
+ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	3	5	6bf855fae859f756	species 417 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_053	20		d7fb363230a32e0b					
+ha_area00_s03_h	npc_pokemon	area00_s03_h_poke_sub_053	4	5	6bf855fae859f756	species 417 form 0 Male	pokemon	12.648	2.25	16.246	0	-180	0	1	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	15201		d7fb363230a32e0b					
 ha_area00_s03_i	npc	area00_s03_i_npc_g011	0	2	cf0dd9bee47edc68		cc	11.009	2.33	23.918	0	-80.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_016	0		ba0992711bcb8f08	normal				f0=1;f5=3;f21=1;f24=1
 ha_area00_s03_i	npc	area00_s03_i_npc_g011	1	2	cf0dd9bee47edc68		cc	11.009	2.33	23.918	0	-80.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_016	255		ba0992711bcb8f08	normal	laugh			f0=1;f5=3;f21=1;f24=1
 ha_area00_s03_i	npc	area00_s03_i_npc_farm_003	0	3	34bae2cb8c39e8f3	cc0006_00_ag_middle_m_a_wld_m	cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_035	1		ba029f711bc58671					
@@ -932,9 +933,9 @@ ha_area00_s03_j	npc	area00_s03_j_npc_g026	0	1	14114b3a99c66ce1	cc0034_00_vi_old_
 ha_area00_s03_j	npc	area00_s03_j_npc_g033	0	3	51deb61bf33af976	cc0033_00_vi_middle_f_b_kmn_f	cc	9.391	2	12.86	0	-122.5	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	39999		ba0990711bcb8ba2	normal				f0=1;f5=1;f21=1;f16=1;f24=1
 ha_area00_s03_j	npc	area00_s03_j_npc_g033	1	3	51deb61bf33af976	cc0033_00_vi_middle_f_b_kmn_f	cc	9.391	2	12.86	0	-122.5	0	1	2557279b949c81d6	work	not_equal	WEVE_SUB009_050_084_CLEAR_NPC_TALK	0		ba0990711bcb8ba2	normal				f0=1;f5=1;f21=1;f16=1;f24=1
 ha_area00_s03_j	npc	area00_s03_j_npc_g033	2	3	51deb61bf33af976	cc0033_00_vi_middle_f_b_kmn_f	cc	9.391	2	12.86	0	-122.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_009	10		ba0990711bcb8ba2	normal				f0=1;f5=1;f21=1;f16=1;f24=1
-ha_area00_s03_j	npc_pokemon	area00_poke_save_11	0	3	cbf29ce484222645		pokemon	8.296	3.047	12.034	0	33.7	0	1	2041c674206fe0a7	quest_progress	equal	sub_009	10		cbf29ce484222645					
-ha_area00_s03_j	npc_pokemon	area00_poke_save_11	1	3	cbf29ce484222645		pokemon	8.296	3.047	12.034	0	33.7	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	39999		cbf29ce484222645					
-ha_area00_s03_j	npc_pokemon	area00_poke_save_11	2	3	cbf29ce484222645		pokemon	8.296	3.047	12.034	0	33.7	0	1	2557279b949c81d6	work	not_equal	WEVE_SUB009_050_084_CLEAR_NPC_TALK	0		cbf29ce484222645					
+ha_area00_s03_j	npc_pokemon	area00_poke_save_11	0	3	cbf29ce484222645		none	8.296	3.047	12.034	0	33.7	0	1	2041c674206fe0a7	quest_progress	equal	sub_009	10		cbf29ce484222645					
+ha_area00_s03_j	npc_pokemon	area00_poke_save_11	1	3	cbf29ce484222645		none	8.296	3.047	12.034	0	33.7	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	39999		cbf29ce484222645					
+ha_area00_s03_j	npc_pokemon	area00_poke_save_11	2	3	cbf29ce484222645		none	8.296	3.047	12.034	0	33.7	0	1	2557279b949c81d6	work	not_equal	WEVE_SUB009_050_084_CLEAR_NPC_TALK	0		cbf29ce484222645					
 ha_area00_s03_k	npc	area00_s03_k_npc_g028	0	1	9fd14fc4675e04c2	cc0036_00_vi_old_f_a	cc	12.371	2.05	11.222	0	136.1	0	1	time_zone	time_zone	equal	2	3		ba1395711bd3e8a6	normal				f0=1;f21=1;f14=1
 ha_area00_s03_k	npc	area00_s03_k_npc_farm_004	0	2	10844c4a1781e15d	cc0006_00_ag_middle_m_a	cc	10.425	2.05	14.134	0	-12.7	0	1	2041c674206fe0a7	quest_progress	equal	sub_013	0		e114eb3235ea96fb	normal				f0=1;f21=1;f14=1
 ha_area00_s03_k	npc	area00_s03_k_npc_farm_004	1	2	10844c4a1781e15d	cc0006_00_ag_middle_m_a	cc	10.425	2.05	14.134	0	-12.7	0	1	2041c674206fe0a7	quest_progress	equal	sub_013	255		e114eb3235ea96fb	normal	laugh			f0=1;f21=1;f14=1
@@ -951,8 +952,8 @@ ha_area00_s03_l	npc	area00_s03_l_npc_craft_004	3	7	37e90b5e50520a8d	cc0016_00_pr
 ha_area00_s03_l	npc	area00_s03_l_npc_craft_004	4	7	37e90b5e50520a8d	cc0016_00_pr_young_f_wld_f	cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_066	10		b9ee9a711bb4d4e8					
 ha_area00_s03_l	npc	area00_s03_l_npc_craft_004	5	7	37e90b5e50520a8d	cc0016_00_pr_young_f_wld_f	cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_066	20		b9ee9a711bb4d4e8					
 ha_area00_s03_l	npc	area00_s03_l_npc_craft_004	6	7	37e90b5e50520a8d	cc0016_00_pr_young_f_wld_f	cc	10.757	2	14.448	0	107.3	0	1	2557279b949c81d6	work	equal	WEVE_SUB066_CLEAR_NPC_TALK	0		b9ee9a711bb4d4e8	normal				f0=1;f5=1;f21=1
-ha_area00_s03_l	npc_pokemon	area00_poke_save_sub_066	0	2	cbf29ce484222645		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_066	255		cbf29ce484222645					
-ha_area00_s03_l	npc_pokemon	area00_poke_save_sub_066	1	2	cbf29ce484222645		pokemon	11.754	2.25	21.684	0	-97.095	0	1	2557279b949c81d6	work	equal	WEVE_SUB066_CLEAR_NPC_TALK	0		cbf29ce484222645					
+ha_area00_s03_l	npc_pokemon	area00_poke_save_sub_066	0	2	cbf29ce484222645		none	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_066	255		cbf29ce484222645					
+ha_area00_s03_l	npc_pokemon	area00_poke_save_sub_066	1	2	cbf29ce484222645		none	11.754	2.25	21.684	0	-97.095	0	1	2557279b949c81d6	work	equal	WEVE_SUB066_CLEAR_NPC_TALK	0		cbf29ce484222645					
 ha_area00_s03_m	npc	area00_s03_m_npc_craft_001	0	4	6105119969aeb340		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_073	10		ba02a1711bc589d7					
 ha_area00_s03_m	npc	area00_s03_m_npc_craft_001	1	4	6105119969aeb340		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_073	20		ba02a1711bc589d7					
 ha_area00_s03_m	npc	area00_s03_m_npc_craft_001	2	4	6105119969aeb340		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_073	30		ba02a1711bc589d7					
@@ -970,7 +971,7 @@ ha_area00_s03_m	npc	area00_s03_m_npc_g001	5	9	c19a96ff27645a55		cc	0	0	0	0	0	0	0
 ha_area00_s03_m	npc	area00_s03_m_npc_g001	6	9	c19a96ff27645a55		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_085	20		ba0625711bc89ffa					
 ha_area00_s03_m	npc	area00_s03_m_npc_g001	7	9	c19a96ff27645a55		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_085	30		ba0625711bc89ffa					
 ha_area00_s03_m	npc	area00_s03_m_npc_g001	8	9	c19a96ff27645a55		cc	9.543	2.25	16.515	0	88.81	0	1	2041c674206fe0a7	quest_progress	not_equal	sub_085	40		ba0625711bc89ffa	normal				f0=1;f5=2;f21=1
-ha_area00_s03_m	npc_pokemon	area00_s03_k_save_01	0	1	cbf29ce484222645		pokemon	10.529	2.28	19.342	0	174.11	0	1	2041c674206fe0a7	quest_progress	equal	sub_017	255		cbf29ce484222645					
+ha_area00_s03_m	npc_pokemon	area00_s03_k_save_01	0	1	cbf29ce484222645		none	10.529	2.28	19.342	0	174.11	0	1	2041c674206fe0a7	quest_progress	equal	sub_017	255		cbf29ce484222645					
 ha_area00_s03_n	npc	area00_s03_n_npc_craft_boss	0	12	411dfbaeb8a45ba2	cc0018_00_pr_leader_m	cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_022	10		cbf29ce484222645					
 ha_area00_s03_n	npc	area00_s03_n_npc_craft_boss	1	12	411dfbaeb8a45ba2	cc0018_00_pr_leader_m	cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_022	20		cbf29ce484222645					
 ha_area00_s03_n	npc	area00_s03_n_npc_craft_boss	2	12	411dfbaeb8a45ba2	cc0018_00_pr_leader_m	cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_022	30		cbf29ce484222645					
@@ -989,7 +990,7 @@ ha_area00_s03_o	npc	area00_s03_o_npc_build_005	1	4	72680bc00f2fa734	cc0010_00_bu
 ha_area00_s03_o	npc	area00_s03_o_npc_build_005	2	4	72680bc00f2fa734	cc0010_00_bu_young_f_wld_f	cc	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	not_equal	FMAP_SUB014_CLEAR_NPC_TALK			e1116d3235e78b0a					
 ha_area00_s03_o	npc	area00_s03_o_npc_build_005	3	4	72680bc00f2fa734	cc0010_00_bu_young_f_wld_f	cc	13.191	2	12.517	0	151.419	0	1	2041c674206fe0a7	quest_progress	equal	sub_014	255		e1116d3235e78b0a	normal				f0=1;f4=1;f5=3;f21=1
 ha_area00_s03_o	npc	area00_s03_o_npc_build_boss	0	1	5dc0bb9fd426f508	tr0038_00_bu_leader_f	tr	9.247	2.009	13.097	0	7.6	0	1	3ddd5feb4a68a149	flag	equal	FMAP_SUB014_CLEAR_NPC_TALK			21a26bddb5f75dec	normal	laugh			f0=1;f5=1;f21=1
-ha_area00_s03_o	npc_pokemon	area00_s03_o_sub014	0	1	2f3677acad0b264f		pokemon	13.6	2.25	22.916	1	34.1	0	0.8	2041c674206fe0a7	quest_progress	equal	sub_014	40		cbf29ce484222645					
+ha_area00_s03_o	npc_pokemon	area00_s03_o_sub014	0	1	2f3677acad0b264f	species 172 form 0	pokemon	13.6	2.25	22.916	1	34.1	0	0.8	2041c674206fe0a7	quest_progress	equal	sub_014	40		cbf29ce484222645					
 ha_area00_s03_p	npc	area00_s03_p_npc_build_006	0	3	eb9519d27e542415	cc0009_00_bu_old_m	cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_091	1		e111673235e780d8					
 ha_area00_s03_p	npc	area00_s03_p_npc_build_006	1	3	eb9519d27e542415	cc0009_00_bu_old_m	cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_091	10		e111673235e780d8					
 ha_area00_s03_p	npc	area00_s03_p_npc_build_006	2	3	eb9519d27e542415	cc0009_00_bu_old_m	cc	8.855	2	13.602	0	-88.974	0	1	2041c674206fe0a7	quest_progress	not_equal	sub_091	20		e111673235e780d8	normal				f0=1;f21=1;f14=1
@@ -1003,12 +1004,12 @@ ha_area00_s03_q	npc	area00_s03_q_npc_build_003	0	1	06d7f6ee3021f773	cc0010_00_bu
 ha_area00_s03_q	npc	area00_s03_q_npc_g054	0	3	ec11addf2d40fc8c	cc0030_00_vi_middle_m_b	cc	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	39999		b9eb1d711bb1caaa					
 ha_area00_s03_q	npc	area00_s03_q_npc_g054	1	3	ec11addf2d40fc8c	cc0030_00_vi_middle_m_b	cc	12.543	2	13.178	0	176.533	0	1	time_zone_afternoon	time_zone_afternoon					b9eb1d711bb1caaa	laugh				f0=1;f5=1;f21=1;f16=1
 ha_area00_s03_q	npc	area00_s03_q_npc_g054	2	3	ec11addf2d40fc8c	cc0030_00_vi_middle_m_b	cc	12.543	2	13.178	0	176.533	0	1	time_zone_night	time_zone_night					b9eb1d711bb1caaa	laugh		area00_s03_q_npc_build_003		f0=1;f5=2
-ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_01	0	4	6684c6b1de87286a		pokemon	8.611	2.293	15.763	0	139.4	0	1	2041c674206fe0a7	quest_progress	between	sub_030	1	10	d7f7c63230a039e4					
-ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_01	1	4	6684c6b1de87286a		pokemon	8.611	2.293	15.763	0	139.4	0	1	3ddd5feb4a68a149	flag	equal	FMAP_AREA00_SUB015			d7f7c63230a039e4					
-ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_01	2	4	6684c6b1de87286a		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_015	0		d7f7c63230a039e4					
-ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_01	3	4	6684c6b1de87286a		pokemon	8.715	2.25	23.603	0	164.8	0	1	time_zone_night	time_zone_night					d7f7c63230a039e4					
-ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_02	0	2	11a4b28c3399fcae		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_015	255		d7f7c73230a03b97					
-ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_02	1	2	11a4b28c3399fcae		pokemon	8.604	2.4	23.645	0	-176.755	0	1	time_zone_night	time_zone_night					d7f7c73230a03b97					
+ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_01	0	4	6684c6b1de87286a	species 133 form 0 Male	pokemon	8.611	2.293	15.763	0	139.4	0	1	2041c674206fe0a7	quest_progress	between	sub_030	1	10	d7f7c63230a039e4					
+ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_01	1	4	6684c6b1de87286a	species 133 form 0 Male	pokemon	8.611	2.293	15.763	0	139.4	0	1	3ddd5feb4a68a149	flag	equal	FMAP_AREA00_SUB015			d7f7c63230a039e4					
+ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_01	2	4	6684c6b1de87286a	species 133 form 0 Male	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_015	0		d7f7c63230a039e4					
+ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_01	3	4	6684c6b1de87286a	species 133 form 0 Male	pokemon	8.715	2.25	23.603	0	164.8	0	1	time_zone_night	time_zone_night					d7f7c63230a039e4					
+ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_02	0	2	11a4b28c3399fcae	species 197 form 0	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_015	255		d7f7c73230a03b97					
+ha_area00_s03_q	npc_pokemon	area00_s03_q_poke_save_02	1	2	11a4b28c3399fcae	species 197 form 0	pokemon	8.604	2.4	23.645	0	-176.755	0	1	time_zone_night	time_zone_night					d7f7c73230a03b97					
 ha_area00_s03_r	npc	area00_s03_r_npc_medic_004	0	1	c086b27de81ab83a		cc	10.967	2.32	23.951	0	-88.7	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	49999		e10ad93235e223e0	normal				f0=1;f5=3;f21=1;f24=1
 ha_area00_s03_r	npc	area00_s03_r_npc_medic_002	0	3	c086b27de81ab83a		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_026	10		ba02a3711bc58d3d					
 ha_area00_s03_r	npc	area00_s03_r_npc_medic_002	1	3	c086b27de81ab83a		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_026	20		ba02a3711bc58d3d					
@@ -1024,14 +1025,14 @@ ha_area00_s03_s	npc	area00_s03_s_npc_g015	1	4	8457f2e71cd2b4fa		cc	0	0	0	0	0	0	0
 ha_area00_s03_s	npc	area00_s03_s_npc_g015	2	4	8457f2e71cd2b4fa		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_025	20		b9ff9f711bc3509a					
 ha_area00_s03_s	npc	area00_s03_s_npc_g015	3	4	8457f2e71cd2b4fa		cc	10.925	2.35	23.866	0	-98.9	0	1	time_zone_night	time_zone_night					b9ff9f711bc3509a	normal				f0=1;f5=3;f21=1;f24=1
 ha_area00_s03_s	npc	area00_s03_s_npc_medic_005	0	1	c086b27de81ab83a		cc	12.72	2.265	17.06	0	-112.4	0	1	344570c1301a7584	default					e10ada3235e22593	normal				f0=1;f5=5;f21=1;f24=1
-ha_area00_s03_s	npc_pokemon	area00_poke_save_sub_025	0	1	cbf29ce484222645		pokemon	9.676	2.3	22.712	0	180	0	1	2041c674206fe0a7	quest_progress	equal	sub_025	255		cbf29ce484222645					
+ha_area00_s03_s	npc_pokemon	area00_poke_save_sub_025	0	1	cbf29ce484222645		none	9.676	2.3	22.712	0	180	0	1	2041c674206fe0a7	quest_progress	equal	sub_025	255		cbf29ce484222645					
 ha_area00_s03_t	npc	area00_s03_t_npc_medic_003	0	1	c086b27de81ab83a		cc	11.021	2.35	23.834	0	-78.6	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	39999		ba02a2711bc58b8a	normal				f0=1;f5=3;f24=1
 ha_area00_s03_t	npc	area00_s03_t_npc_hairsalon	0	1	336b4912c1afac82	cc0036_00_vi_old_f_a_lsp	cc	12.76	2	11.02	0	68.5	0	1	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	40000		ba139f711bd3f9a4	normal				f0=1;f5=9;f21=1;f24=1
 ha_area00_s06	npc	area00_npc_boutique	0	1	16b93073905e4901	cc0002_00_clothowner_f	cc	10.434	5	8.828	0	-141.1	0	1	344570c1301a7584	default					0ab235e3c2c067bf					
 ha_area00_s07	npc	area00_s07_npc_hairsalon	0	1	9fd14fc4675e04c2	cc0036_00_vi_old_f_a	cc	10.434	5	8.828	0	-141.1	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	39999		ba139f711bd3f9a4					
 ha_area00_s07	npc	area00_s07_npc_cap04	0	1	76b41752fd20f1f2	tr0015_00_captain4_f	tr	10.434	5	8.828	0	-141.1	0	1	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	40000		eaaf2c4105bc7103					
 ha_area00_s09	npc	area00_s09_npc_photo	0	1	858bc385431f55f9	cc0034_00_vi_old_m_a	cc	14.787	2	15.959	0	-178.3	0	1	344570c1301a7584	default					ba13a1711bd3fd0a	normal				f0=1;f5=1;f21=3
-ha_area00_s09	npc_pokemon	npc_poke_photo_studio	0	1	cbf29ce484222645		pokemon	20.513	2	9.526	0	-88.44	0	1	344570c1301a7584	default					d7f4c132309dfb8e					
+ha_area00_s09	npc_pokemon	npc_poke_photo_studio	0	1	cbf29ce484222645		none	20.513	2	9.526	0	-88.44	0	1	344570c1301a7584	default					d7f4c132309dfb8e					
 ha_area00_s12_a	npc	area00_s12_a_npc_g038	0	1	65b3cfc67ee5f4a4		cc	7.752	5.209	11.234	0	131	0	1	8e77d62d1e38721e	story_phase_work	greater_than_equal	WPHA_STORY	30000		ba109f711bd1c3cd	normal				f0=1;f5=1;f21=1
 ha_area00_s12_a	npc	area00_s12_a_npc_g049	0	4	34600801ac046cf6		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_054	1		ba109e711bd1c21a					
 ha_area00_s12_a	npc	area00_s12_a_npc_g049	1	4	34600801ac046cf6		cc	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	not_equal	sub_054	10		ba109e711bd1c21a					
@@ -1154,20 +1155,20 @@ ha_area01	npc	ha_area01_bandit_3	1	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	t
 ha_area01	npc	ha_area01_bandit_3	2	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	549.891	47.621	448.531	0	135.107	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA01	3		cbf29ce484222645				ha_area00_bandit_3_01	
 ha_area01	npc	ha_area01_bandit_3	3	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	553.302	44.298	417.399	0	52.067	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA01	4		cbf29ce484222645				ha_area00_bandit_3_01	
 ha_area01	npc	ha_area01_bandit_3	4	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	586.22	38.061	417.188	0	-128.953	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA01	5		cbf29ce484222645				ha_area00_bandit_3_01	
-ha_area01	npc_pokemon	area01_poke_oyabun01	0	1	96c22933a5e58e3b		pokemon	603.06	60.5	525.4	0	-167.56	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	22200		cbf29ce484222645					
-ha_area01	npc_pokemon	area01_poke_cap1	0	2	a0047eeb132ed1d6		pokemon	467.095	27.692	309.213	0	140.3	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	19200	20099	cbf29ce484222645					
-ha_area01	npc_pokemon	area01_poke_cap1	1	2	a0047eeb132ed1d6		pokemon	857.791	35.142	290.383	0	-27.201	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	71200	72000	cbf29ce484222645					
-ha_area01	npc_pokemon	area01_poke_sub_077_A	0	1	3c3d26ba3c4d928b		pokemon	679.547	40.949	599.453	0	-120.8	0	1	2041c674206fe0a7	quest_progress	between	sub_077	10	11	cbf29ce484222645					
-ha_area01	npc_pokemon	area01_poke_sub_077_B	0	1	3c3d26ba3c4d928b		pokemon	680.182	41.091	598.634	0	-95.5	0	1	2041c674206fe0a7	quest_progress	between	sub_077	10	11	cbf29ce484222645					
-ha_area01	npc_pokemon	area01_poke_sub_077_C	0	1	3c3d26ba3c4d928b		pokemon	677.889	40.945	599.081	0	-149.6	0	1	2041c674206fe0a7	quest_progress	between	sub_077	10	11	cbf29ce484222645					
+ha_area01	npc_pokemon	area01_poke_oyabun01	0	1	96c22933a5e58e3b	species 402 form 0 Male	pokemon	603.06	60.5	525.4	0	-167.56	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	22200		cbf29ce484222645					
+ha_area01	npc_pokemon	area01_poke_cap1	0	2	a0047eeb132ed1d6	species 446 form 0	pokemon	467.095	27.692	309.213	0	140.3	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	19200	20099	cbf29ce484222645					
+ha_area01	npc_pokemon	area01_poke_cap1	1	2	a0047eeb132ed1d6	species 446 form 0	pokemon	857.791	35.142	290.383	0	-27.201	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	71200	72000	cbf29ce484222645					
+ha_area01	npc_pokemon	area01_poke_sub_077_A	0	1	3c3d26ba3c4d928b	species 46 form 0	pokemon	679.547	40.949	599.453	0	-120.8	0	1	2041c674206fe0a7	quest_progress	between	sub_077	10	11	cbf29ce484222645					
+ha_area01	npc_pokemon	area01_poke_sub_077_B	0	1	3c3d26ba3c4d928b	species 46 form 0	pokemon	680.182	41.091	598.634	0	-95.5	0	1	2041c674206fe0a7	quest_progress	between	sub_077	10	11	cbf29ce484222645					
+ha_area01	npc_pokemon	area01_poke_sub_077_C	0	1	3c3d26ba3c4d928b	species 46 form 0	pokemon	677.889	40.945	599.081	0	-149.6	0	1	2041c674206fe0a7	quest_progress	between	sub_077	10	11	cbf29ce484222645					
 ha_area01_s01	npc	area01_s01_npc_ouji	0	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	chap7a	20	255	cbf29ce484222645					
 ha_area01_s01	npc	area01_s01_npc_ouji	1	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	0	0	0	0	0	0	0	b1d54ca3acfd951c	event_label	not_equal	Ev_main_075800			cbf29ce484222645					
 ha_area01_s01	npc	area01_s01_npc_ouji	2	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	38.18	10.104	25.127	0	11	0	1	3ddd5feb4a68a149	flag	equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
 ha_area01_s01	npc	area01_s01_npc_hime	0	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	chap7a	20	255	cbf29ce484222645					
 ha_area01_s01	npc	area01_s01_npc_hime	1	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	0	0	0	0	0	0	0	b1d54ca3acfd951c	event_label	not_equal	Ev_main_075800			cbf29ce484222645					
 ha_area01_s01	npc	area01_s01_npc_hime	2	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	38.18	10.104	25.127	0	11	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
-ha_area01_s01	npc_pokemon	area01_s01_poke_oyabun01	0	1	b480f619b5f3ae80		pokemon	40	10.2	40	0	180	0	1	2041c674206fe0a7	quest_progress	between	chap7a	20	30	cbf29ce484222645					
-ha_area01_s01	npc_pokemon	area01_s01_poke_m01	0	1	8c9946681252830b		pokemon	41.296	12	42.592	0	-180	0	1	2041c674206fe0a7	quest_progress	equal	chap7a	40		cbf29ce484222645					
+ha_area01_s01	npc_pokemon	area01_s01_poke_oyabun01	0	1	b480f619b5f3ae80	species 706 form 1	pokemon	40	10.2	40	0	180	0	1	2041c674206fe0a7	quest_progress	between	chap7a	20	30	cbf29ce484222645					
+ha_area01_s01	npc_pokemon	area01_s01_poke_m01	0	1	8c9946681252830b	species 481 form 0	pokemon	41.296	12	42.592	0	-180	0	1	2041c674206fe0a7	quest_progress	equal	chap7a	40		cbf29ce484222645					
 ha_area02	npc	area02_npc_ouji	0	7	fa390faa8a4c1195	tr0003_00_ouji_m	tr	378.087	119.78	127.115	0	-75.411	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	35800	35801	cbf29ce484222645					f0=1;f21=1
 ha_area02	npc	area02_npc_ouji	1	7	fa390faa8a4c1195	tr0003_00_ouji_m	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	chap7b	10	20	cbf29ce484222645					
 ha_area02	npc	area02_npc_ouji	2	7	fa390faa8a4c1195	tr0003_00_ouji_m	tr	748.435	91.873	311.316	0	-16.1	0	1	3ddd5feb4a68a149	flag	equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					f0=1;f21=1
@@ -1257,48 +1258,48 @@ ha_area02	npc	area02_npc_tutorial_02	0	1	d8b098e45757042a	cc0042_00_na_young_m_d
 ha_area02	npc	area02_npc_tutorial_03	0	1	0fcf1af5301681db	tr0024_00_guard_lower_f	tr	655.301	53.183	659.67	0	-114.1	0	1	344570c1301a7584	default					ba098a711bcb8170	normal				f0=1;f5=1;f21=1
 ha_area02	npc	area02_npc_tutorial_04	0	1	dba19996b0fb2659	tr0023_00_guard_lower_m	tr	394.259	59.245	391.529	0	-31.3	0	1	344570c1301a7584	default					ba098a711bcb8170	normal				f0=1;f5=1;f21=1
 ha_area02	npc	area02_npc_tutorial_05	0	1	0fcf1af5301681db	tr0024_00_guard_lower_f	tr	547.914	80.063	329.385	0	79.4	0	1	344570c1301a7584	default					ba098a711bcb8170	normal				f0=1;f5=1;f21=1;f24=1
-ha_area02	npc_pokemon	area02_poke_biidaru	0	6	c8f7d5bf4173ce93		pokemon	449.842	59.222	352.053	0	-133.731	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	31200		d7f4ba32309defa9					
-ha_area02	npc_pokemon	area02_poke_biidaru	1	6	c8f7d5bf4173ce93		pokemon	463.748	59.222	340.681	0	-169.9	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	31400	31800	d7f4ba32309defa9					
-ha_area02	npc_pokemon	area02_poke_biidaru	2	6	c8f7d5bf4173ce93		pokemon	583.455	39.878	820.38	0	56.6	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	32201		d7f4ba32309defa9					
-ha_area02	npc_pokemon	area02_poke_biidaru	3	6	c8f7d5bf4173ce93		pokemon	590.25	40.063	827.273	0	-117.307	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	32200	35000	d7f4ba32309defa9					
-ha_area02	npc_pokemon	area02_poke_biidaru	4	6	c8f7d5bf4173ce93		pokemon	460.946	52.7	488.33	0	-97.2	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	35800		d7f4ba32309defa9					
-ha_area02	npc_pokemon	area02_poke_biidaru	5	6	c8f7d5bf4173ce93		pokemon	376.941	119.803	131.592	0	-151.3	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	35801		d7f4ba32309defa9					
-ha_area02	npc_pokemon	area02_poke_ringuma	0	1	5e18a362db785c35		pokemon	590.158	40.074	826.332	0	-115.5	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	32201		cbf29ce484222645					
-ha_area02	npc_pokemon	area02_poke_sukanpuu	0	1	19ee4ea3adf0b902		pokemon	639.793	45.474	730.529	0	-75.6	0	1	2041c674206fe0a7	quest_progress	between	sub_031	10	20	cbf29ce484222645					
-ha_area02	npc_pokemon	area02_poke_sukanpuu_2	0	1	19ee4ea3adf0b902		pokemon	639.049	45.466	728.851	0	-75.6	0	1	2041c674206fe0a7	quest_progress	between	sub_031	10	20	cbf29ce484222645					
-ha_area02	npc_pokemon	area02_poke_sukanpuu_3	0	1	19ee4ea3adf0b902		pokemon	638.464	45.418	730.945	0	-180	0	1	2041c674206fe0a7	quest_progress	between	sub_031	10	20	cbf29ce484222645					
-ha_area02	npc_pokemon	area02_poke_usokkii	0	2	56ebf2b961d8c2f0		pokemon	624.203	48.59	717.26	0	4.2	0	1	2041c674206fe0a7	quest_progress	equal	sub_032	20		d7f7c53230a03831					
-ha_area02	npc_pokemon	area02_poke_usokkii	1	2	56ebf2b961d8c2f0		pokemon	624.203	48.59	717.26	0	4.2	0	1	2041c674206fe0a7	quest_progress	equal	sub_032	21		d7f7c53230a03831					
-ha_area02	npc_pokemon	area02_poke_sub_026_1	0	1	780cf5544a1ba14e		pokemon	613.893	79.999	333.619	0	-68.5	0	1	2041c674206fe0a7	quest_progress	between	sub_026	1	30	e0f9de3235d3b92c					
-ha_area02	npc_pokemon	area02_poke_sub_026_2	0	1	780cf5544a1ba14e		pokemon	613.211	79.999	332.911	0	-16.1	0	1	2041c674206fe0a7	quest_progress	between	sub_026	1	30	e0f9de3235d3b92c					
-ha_area02	npc_pokemon	area02_poke_sub_026_3	0	1	780cf5544a1ba14e		pokemon	614.162	80.008	334.68	0	-119.2	0	1	2041c674206fe0a7	quest_progress	between	sub_026	1	30	e0f9de3235d3b92c					
-ha_area02	npc_pokemon	area02_poke_sub_053	0	1	6bf855fae859f756		pokemon	255.605	55.219	443.327	0	-24.734	0	1	2041c674206fe0a7	quest_progress	between	sub_053	10	20	d7fb363230a32e0b					
+ha_area02	npc_pokemon	area02_poke_biidaru	0	6	c8f7d5bf4173ce93	species 400 form 0 Male	pokemon	449.842	59.222	352.053	0	-133.731	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	31200		d7f4ba32309defa9					
+ha_area02	npc_pokemon	area02_poke_biidaru	1	6	c8f7d5bf4173ce93	species 400 form 0 Male	pokemon	463.748	59.222	340.681	0	-169.9	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	31400	31800	d7f4ba32309defa9					
+ha_area02	npc_pokemon	area02_poke_biidaru	2	6	c8f7d5bf4173ce93	species 400 form 0 Male	pokemon	583.455	39.878	820.38	0	56.6	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	32201		d7f4ba32309defa9					
+ha_area02	npc_pokemon	area02_poke_biidaru	3	6	c8f7d5bf4173ce93	species 400 form 0 Male	pokemon	590.25	40.063	827.273	0	-117.307	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	32200	35000	d7f4ba32309defa9					
+ha_area02	npc_pokemon	area02_poke_biidaru	4	6	c8f7d5bf4173ce93	species 400 form 0 Male	pokemon	460.946	52.7	488.33	0	-97.2	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	35800		d7f4ba32309defa9					
+ha_area02	npc_pokemon	area02_poke_biidaru	5	6	c8f7d5bf4173ce93	species 400 form 0 Male	pokemon	376.941	119.803	131.592	0	-151.3	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	35801		d7f4ba32309defa9					
+ha_area02	npc_pokemon	area02_poke_ringuma	0	1	5e18a362db785c35	species 901 form 0	pokemon	590.158	40.074	826.332	0	-115.5	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	32201		cbf29ce484222645					
+ha_area02	npc_pokemon	area02_poke_sukanpuu	0	1	19ee4ea3adf0b902	species 434 form 0	pokemon	639.793	45.474	730.529	0	-75.6	0	1	2041c674206fe0a7	quest_progress	between	sub_031	10	20	cbf29ce484222645					
+ha_area02	npc_pokemon	area02_poke_sukanpuu_2	0	1	19ee4ea3adf0b902	species 434 form 0	pokemon	639.049	45.466	728.851	0	-75.6	0	1	2041c674206fe0a7	quest_progress	between	sub_031	10	20	cbf29ce484222645					
+ha_area02	npc_pokemon	area02_poke_sukanpuu_3	0	1	19ee4ea3adf0b902	species 434 form 0	pokemon	638.464	45.418	730.945	0	-180	0	1	2041c674206fe0a7	quest_progress	between	sub_031	10	20	cbf29ce484222645					
+ha_area02	npc_pokemon	area02_poke_usokkii	0	2	56ebf2b961d8c2f0	species 185 form 0 Male	pokemon	624.203	48.59	717.26	0	4.2	0	1	2041c674206fe0a7	quest_progress	equal	sub_032	20		d7f7c53230a03831					
+ha_area02	npc_pokemon	area02_poke_usokkii	1	2	56ebf2b961d8c2f0	species 185 form 0 Male	pokemon	624.203	48.59	717.26	0	4.2	0	1	2041c674206fe0a7	quest_progress	equal	sub_032	21		d7f7c53230a03831					
+ha_area02	npc_pokemon	area02_poke_sub_026_1	0	1	780cf5544a1ba14e	species 54 form 0	pokemon	613.893	79.999	333.619	0	-68.5	0	1	2041c674206fe0a7	quest_progress	between	sub_026	1	30	e0f9de3235d3b92c					
+ha_area02	npc_pokemon	area02_poke_sub_026_2	0	1	780cf5544a1ba14e	species 54 form 0	pokemon	613.211	79.999	332.911	0	-16.1	0	1	2041c674206fe0a7	quest_progress	between	sub_026	1	30	e0f9de3235d3b92c					
+ha_area02	npc_pokemon	area02_poke_sub_026_3	0	1	780cf5544a1ba14e	species 54 form 0	pokemon	614.162	80.008	334.68	0	-119.2	0	1	2041c674206fe0a7	quest_progress	between	sub_026	1	30	e0f9de3235d3b92c					
+ha_area02	npc_pokemon	area02_poke_sub_053	0	1	6bf855fae859f756	species 417 form 0 Male	pokemon	255.605	55.219	443.327	0	-24.734	0	1	2041c674206fe0a7	quest_progress	between	sub_053	10	20	d7fb363230a32e0b					
 ha_area02_s01	npc	area02_s01_k011	0	1	d0a66b7f9e591581	cc0046_00_na_middle_m_d_lsp	cc	11.061	5.643	14.215	0	2.5	0	1	344570c1301a7584	default					e103e93235dc2062	normal				f0=1;f21=1;f24=1
 ha_area02_s01	npc	area02_s01_k013	0	1	da7c1f25bb0863d0	cc0047_00_na_middle_f_d_cfl_f	cc	9.248	5.609	13.628	0	154.6	0	1	344570c1301a7584	default					e107573235df1123	normal				f0=1;f5=2;f21=1
-ha_area02_s01	npc_pokemon	npc_poke_saihoon_01	0	1	b06192701c4cd0bf		pokemon	9.894	5.615	17.186	0	19.313	0	1	344570c1301a7584	default					e0f9e03235d3bc92					
+ha_area02_s01	npc_pokemon	npc_poke_saihoon_01	0	1	b06192701c4cd0bf	species 111 form 0 Male	pokemon	9.894	5.615	17.186	0	19.313	0	1	344570c1301a7584	default					e0f9e03235d3bc92					
 ha_area02_s01_a	npc	area02_s01_a_npc_k007	0	1	7e2e917c3f7165af	cc0043_00_na_young_f_d_wld_f	cc	12.151	5.608	14.841	0	-76.9	0	1	344570c1301a7584	default					e103ed3235dc272e	normal	laugh			f0=1;f5=1;f21=3
 ha_area02_s01_a	npc	area02_s01_a_npc_k008	0	1	c57e0f75df4910c8	cc0043_00_na_young_f_d_lsp	cc	9.971	5.608	17.554	0	2.5	0	1	344570c1301a7584	default					e103ee3235dc28e1	normal				f0=1;f5=1;f21=1
-ha_area02_s01_a	npc_pokemon	npc_poke_beroringa_01	0	1	f76ab6efc7b2ef31		pokemon	8.67	5.611	17.812	0	150.542	0	1	344570c1301a7584	default					e0f9e13235d3be45					
+ha_area02_s01_a	npc_pokemon	npc_poke_beroringa_01	0	1	f76ab6efc7b2ef31	species 108 form 0	pokemon	8.67	5.611	17.812	0	150.542	0	1	344570c1301a7584	default					e0f9e13235d3be45					
 ha_area02_s01_b	npc	area02_s01_b_k014	0	1	65c06383032b331d	cc0047_00_na_middle_f_d_lsp	cc	12.283	5.609	13.776	0	166.5	0	1	344570c1301a7584	default					e107563235df0f70	normal				f0=1;f5=9;f24=1
 ha_area02_s01_b	npc	area02_s01_b_k015	0	1	a0da88353e0fa1b4	cc0050_00_na_old_m_d_a	cc	10.534	5.608	16.3	0	148.758	0	1	344570c1301a7584	default					e107593235df1489	normal				f0=1;f4=1;f5=3;f21=1;f24=1
 ha_area02_s01_b	npc	area02_s01_b_k017	0	1	b97cfb7f26aa203f	cc0052_00_na_old_f_d	cc	11.378	5.608	18.277	0	36.3	0	1	344570c1301a7584	default					e1075b3235df17ef	normal				f0=1;f4=1;f5=3;f21=1;f24=1
 ha_area02_s01_c	npc	area02_s01_c_npc_k005	0	1	29a6181cf4fd8418	cc0043_00_na_young_f_d	cc	11.463	5.608	17.686	0	-127.345	0	1	344570c1301a7584	default					e103ef3235dc2a94	normal				f0=1;f5=1;f21=1
 ha_area02_s01_c	npc	area02_s01_c_npc_k018	0	1	df6bc483a2758b5f	cc0052_00_na_old_f_d_lsp	cc	9.671	5.658	17.389	0	7.6	0	1	344570c1301a7584	default					e1075a3235df163c	seel	normal			f0=1;f5=3
-ha_area02_s01_c	npc_pokemon	area02_s01_c_npc_poke_kodakku_01	0	1	780cf5544a1ba14e		pokemon	7.561	7.421	15.76	0	124.2	0	1	344570c1301a7584	default					e0f9de3235d3b92c					
-ha_area02_s01_c	npc_pokemon	area02_s01_c_npc_poke_kodakku_02	0	1	780cf5544a1ba14e		pokemon	7.314	7.421	14.972	0	85.9	0	1	344570c1301a7584	default					e0f9de3235d3b92c					
-ha_area02_s01_c	npc_pokemon	area02_s01_c_npc_poke_kodakku_03	0	1	780cf5544a1ba14e		pokemon	7.361	7.421	14.348	0	-76.9	0	1	344570c1301a7584	default					e0f9de3235d3b92c					
+ha_area02_s01_c	npc_pokemon	area02_s01_c_npc_poke_kodakku_01	0	1	780cf5544a1ba14e	species 54 form 0	pokemon	7.561	7.421	15.76	0	124.2	0	1	344570c1301a7584	default					e0f9de3235d3b92c					
+ha_area02_s01_c	npc_pokemon	area02_s01_c_npc_poke_kodakku_02	0	1	780cf5544a1ba14e	species 54 form 0	pokemon	7.314	7.421	14.972	0	85.9	0	1	344570c1301a7584	default					e0f9de3235d3b92c					
+ha_area02_s01_c	npc_pokemon	area02_s01_c_npc_poke_kodakku_03	0	1	780cf5544a1ba14e	species 54 form 0	pokemon	7.361	7.421	14.348	0	-76.9	0	1	344570c1301a7584	default					e0f9de3235d3b92c					
 ha_area02_s01_d	npc	area02_s01_d_k009	0	2	c55a3ad587a4e759	cc0046_00_na_middle_m_d	cc	12.361	5.622	15.57	0	75.2	0	1	8e77d62d1e38721e	story_phase_work	less_than_equal	WPHA_STORY	49999		e103eb3235dc23c8	normal				f0=1;f5=1;f21=1;f24=1
 ha_area02_s01_d	npc	area02_s01_d_k009	1	2	c55a3ad587a4e759	cc0046_00_na_middle_m_d	cc	12.361	5.622	15.57	0	75.2	0	1	time_zone_night	time_zone_night					e103eb3235dc23c8	normal				f0=1;f5=1;f21=1;f24=1
 ha_area02_s01_d	npc	area02_s01_d_k012	0	1	da7c1f25bb0863d0	cc0047_00_na_middle_f_d_cfl_f	cc	8.605	5.609	18.255	0	9.3	0	1	344570c1301a7584	default					e103ea3235dc2215	normal				f0=1;f5=1;f21=1;f24=1
 ha_area02_s01_d	npc	area02_s01_d_k020	0	1	2a6f55e765525761	cc0056_00_na_children_f_d_lsp	cc	10.248	5.644	15.482	0	90.764	0	1	344570c1301a7584	default					e1075c3235df19a2	normal				f0=1;f5=5;f21=1;f24=1
-ha_area02_s01_d	npc_pokemon	npc_poke_himeguma_01	0	1	e0c3b017f309db7f		pokemon	11.061	5.643	14.215	0	2.5	0	1	344570c1301a7584	default					e0f9db3235d3b413					
+ha_area02_s01_d	npc_pokemon	npc_poke_himeguma_01	0	1	e0c3b017f309db7f	species 216 form 0	pokemon	11.061	5.643	14.215	0	2.5	0	1	344570c1301a7584	default					e0f9db3235d3b413					
 ha_area02_s02	npc	area02_s02_npc_ouji	0	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	chap7b	20	255	cbf29ce484222645					
 ha_area02_s02	npc	area02_s02_npc_ouji	1	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	0	0	0	0	0	0	0	b1d54ca3acfd951c	event_label	not_equal	Ev_main_076800			cbf29ce484222645					
 ha_area02_s02	npc	area02_s02_npc_ouji	2	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	37.153	10.16	22.389	0	19.4	0	1	3ddd5feb4a68a149	flag	equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
 ha_area02_s02	npc	area02_s02_npc_hime	0	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	chap7b	20	255	cbf29ce484222645					
 ha_area02_s02	npc	area02_s02_npc_hime	1	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	0	0	0	0	0	0	0	b1d54ca3acfd951c	event_label	not_equal	Ev_main_076800			cbf29ce484222645					
 ha_area02_s02	npc	area02_s02_npc_hime	2	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	37.153	10.16	22.389	0	19.4	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
-ha_area02_s02	npc_pokemon	area02_s02_poke_oyabun01	0	1	00177ec637e0f547		pokemon	40	10.2	40	0	180	0	1	2041c674206fe0a7	quest_progress	between	chap7b	20	30	cbf29ce484222645					
+ha_area02_s02	npc_pokemon	area02_s02_poke_oyabun01	0	1	00177ec637e0f547	species 904 form 0	pokemon	40	10.2	40	0	180	0	1	2041c674206fe0a7	quest_progress	between	chap7b	20	30	cbf29ce484222645					
 ha_area03	npc	area03_npc_hime	0	4	ff11e824ea817ea9	tr0004_00_hime_f	tr	112.095	44.312	634.034	0	88.7	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	40800	40801	cbf29ce484222645					
 ha_area03	npc	area03_npc_hime	1	4	ff11e824ea817ea9	tr0004_00_hime_f	tr	877.424	50.154	124.411	0	83.7	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	45400		cbf29ce484222645					f0=1;f21=1
 ha_area03	npc	area03_npc_hime	2	4	ff11e824ea817ea9	tr0004_00_hime_f	tr	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	102000		cbf29ce484222645					
@@ -1365,27 +1366,27 @@ ha_area03	npc	ha_area03_bandit_3	2	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	t
 ha_area03	npc	ha_area03_bandit_3	3	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	134.949	46.523	322.071	0	130.961	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA03	4		cbf29ce484222645				ha_area03_bandit_3_01	
 ha_area03	npc	ha_area03_bandit_3	4	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	162.365	46.497	343.864	0	148.839	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA03	5		cbf29ce484222645				ha_area03_bandit_3_01	
 ha_area03	npc	area03_npc_tutorial_01	0	1	0fcf1af5301681db	tr0024_00_guard_lower_f	tr	197.458	32.954	644.435	0	103.9	0	1	344570c1301a7584	default					ba098a711bcb8170	normal				f0=1;f5=1;f21=1
-ha_area03	npc_pokemon	area03_pnpc_gaadhi_big	0	4	5abd56e662a3af06		pokemon	781.328	76.239	417.458	0	115.8	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	41000		d7f7c23230a03318					
-ha_area03	npc_pokemon	area03_pnpc_gaadhi_big	1	4	5abd56e662a3af06		pokemon	781.328	76.239	417.458	0	115.8	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	41100	41200	d7f7c23230a03318					
-ha_area03	npc_pokemon	area03_pnpc_gaadhi_big	2	4	5abd56e662a3af06		pokemon	828.307	49.865	135.74	0	137.7	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	45200	45201	d7f7c23230a03318					
-ha_area03	npc_pokemon	area03_pnpc_gaadhi_big	3	4	5abd56e662a3af06		pokemon	877.376	50.197	125.035	0	95.5	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	45400		d7f7c23230a03318					
-ha_area03	npc_pokemon	area03_pnpc_gaadhi_small	0	3	31b695d92696c535		pokemon	781.907	76.215	415.338	0	60	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	41000		d7f7c23230a03318					
-ha_area03	npc_pokemon	area03_pnpc_gaadhi_small	1	3	31b695d92696c535		pokemon	781.907	76.215	415.338	0	60	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	41100	41200	d7f7c23230a03318					
-ha_area03	npc_pokemon	area03_pnpc_gaadhi_small	2	3	31b695d92696c535		pokemon	251.828	25.22	639.946	0	-72.274	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	45000		d7f7c23230a03318					
-ha_area03	npc_pokemon	area03_pnpc_genger	0	1	fe46add5a3c9e59d		pokemon	831.403	49.865	132.643	0	-46.5	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	45200	45201	cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_perappu	0	1	6f92ea1dc51cabcf		pokemon	937.278	25.497	821.893	0	115.8	0	1	2041c674206fe0a7	quest_progress	between	sub_051	20	21	cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_sub_056	0	2	89d04ad6ec6542b5		pokemon	907.901	25.83	861.044	0	-87	0	1	2041c674206fe0a7	quest_progress	between	sub_056	1	10	d7f7c33230a034cb					
-ha_area03	npc_pokemon	area03_pnpc_sub_056	1	2	89d04ad6ec6542b5		pokemon	907.901	25.83	861.044	0	-87	0	1	3ddd5feb4a68a149	flag	equal	FMAP_SUB056_CLEAR_NPC_TALK			d7f7c33230a034cb					
-ha_area03	npc_pokemon	area03_pnpc_sub_049_1	0	4	04eff829ae5a9cae		pokemon	307.44	73.4	348.243	0	151.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	31		cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_sub_049_1	1	4	04eff829ae5a9cae		pokemon	307.44	73.4	348.243	0	151.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	30		cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_sub_049_1	2	4	04eff829ae5a9cae		pokemon	325.177	72.803	317.846	0	71.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	20		cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_sub_049_1	3	4	04eff829ae5a9cae		pokemon	354.165	72.469	341.049	0	120.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	10		cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_sub_049_2	0	4	b924fa5e88cbf499		pokemon	306.688	73.454	347.818	0	151.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	31		cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_sub_049_2	1	4	b924fa5e88cbf499		pokemon	306.688	73.454	347.818	0	151.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	30		cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_sub_049_2	2	4	b924fa5e88cbf499		pokemon	324.587	72.795	318.668	0	83.7	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	20		cbf29ce484222645					
-ha_area03	npc_pokemon	area03_pnpc_sub_049_2	3	4	b924fa5e88cbf499		pokemon	353.502	72.469	340.335	0	107.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	10		cbf29ce484222645					
-ha_area03_s02	npc_pokemon	area03_s02_poke_gira	0	2	2e7b41bce75826f6		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_110	20		cbf29ce484222645					
-ha_area03_s02	npc_pokemon	area03_s02_poke_gira	1	2	2e7b41bce75826f6		pokemon	20.033	2.14	40.947	0	-178.3	0	1	3ddd5feb4a68a149	flag	not_equal	FMAP_SUB110_20_RETRY			cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_gaadhi_big	0	4	5abd56e662a3af06	species 58 form 1	pokemon	781.328	76.239	417.458	0	115.8	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	41000		d7f7c23230a03318					
+ha_area03	npc_pokemon	area03_pnpc_gaadhi_big	1	4	5abd56e662a3af06	species 58 form 1	pokemon	781.328	76.239	417.458	0	115.8	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	41100	41200	d7f7c23230a03318					
+ha_area03	npc_pokemon	area03_pnpc_gaadhi_big	2	4	5abd56e662a3af06	species 58 form 1	pokemon	828.307	49.865	135.74	0	137.7	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	45200	45201	d7f7c23230a03318					
+ha_area03	npc_pokemon	area03_pnpc_gaadhi_big	3	4	5abd56e662a3af06	species 58 form 1	pokemon	877.376	50.197	125.035	0	95.5	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	45400		d7f7c23230a03318					
+ha_area03	npc_pokemon	area03_pnpc_gaadhi_small	0	3	31b695d92696c535	species 58 form 1	pokemon	781.907	76.215	415.338	0	60	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	41000		d7f7c23230a03318					
+ha_area03	npc_pokemon	area03_pnpc_gaadhi_small	1	3	31b695d92696c535	species 58 form 1	pokemon	781.907	76.215	415.338	0	60	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	41100	41200	d7f7c23230a03318					
+ha_area03	npc_pokemon	area03_pnpc_gaadhi_small	2	3	31b695d92696c535	species 58 form 1	pokemon	251.828	25.22	639.946	0	-72.274	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	45000		d7f7c23230a03318					
+ha_area03	npc_pokemon	area03_pnpc_genger	0	1	fe46add5a3c9e59d	species 94 form 0	pokemon	831.403	49.865	132.643	0	-46.5	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	45200	45201	cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_perappu	0	1	6f92ea1dc51cabcf	species 441 form 0	pokemon	937.278	25.497	821.893	0	115.8	0	1	2041c674206fe0a7	quest_progress	between	sub_051	20	21	cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_sub_056	0	2	89d04ad6ec6542b5	species 393 form 0	pokemon	907.901	25.83	861.044	0	-87	0	1	2041c674206fe0a7	quest_progress	between	sub_056	1	10	d7f7c33230a034cb					
+ha_area03	npc_pokemon	area03_pnpc_sub_056	1	2	89d04ad6ec6542b5	species 393 form 0	pokemon	907.901	25.83	861.044	0	-87	0	1	3ddd5feb4a68a149	flag	equal	FMAP_SUB056_CLEAR_NPC_TALK			d7f7c33230a034cb					
+ha_area03	npc_pokemon	area03_pnpc_sub_049_1	0	4	04eff829ae5a9cae	species 190 form 0 Male	pokemon	307.44	73.4	348.243	0	151.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	31		cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_sub_049_1	1	4	04eff829ae5a9cae	species 190 form 0 Male	pokemon	307.44	73.4	348.243	0	151.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	30		cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_sub_049_1	2	4	04eff829ae5a9cae	species 190 form 0 Male	pokemon	325.177	72.803	317.846	0	71.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	20		cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_sub_049_1	3	4	04eff829ae5a9cae	species 190 form 0 Male	pokemon	354.165	72.469	341.049	0	120.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	10		cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_sub_049_2	0	4	b924fa5e88cbf499	species 190 form 0 Famale	pokemon	306.688	73.454	347.818	0	151.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	31		cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_sub_049_2	1	4	b924fa5e88cbf499	species 190 form 0 Famale	pokemon	306.688	73.454	347.818	0	151.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	30		cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_sub_049_2	2	4	b924fa5e88cbf499	species 190 form 0 Famale	pokemon	324.587	72.795	318.668	0	83.7	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	20		cbf29ce484222645					
+ha_area03	npc_pokemon	area03_pnpc_sub_049_2	3	4	b924fa5e88cbf499	species 190 form 0 Famale	pokemon	353.502	72.469	340.335	0	107.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_049	10		cbf29ce484222645					
+ha_area03_s02	npc_pokemon	area03_s02_poke_gira	0	2	2e7b41bce75826f6	species 487 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_110	20		cbf29ce484222645					
+ha_area03_s02	npc_pokemon	area03_s02_poke_gira	1	2	2e7b41bce75826f6	species 487 form 1	pokemon	20.033	2.14	40.947	0	-178.3	0	1	3ddd5feb4a68a149	flag	not_equal	FMAP_SUB110_20_RETRY			cbf29ce484222645					
 ha_area04	npc	area04_npc_ouji	0	11	fa390faa8a4c1195	tr0003_00_ouji_m	tr	184.913	154.804	472.91	0	-58.3	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	55200	55400	cbf29ce484222645					f0=1;f21=1
 ha_area04	npc	area04_npc_ouji	1	11	fa390faa8a4c1195	tr0003_00_ouji_m	tr	213.031	284.082	131.109	0	14.4	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	84600	85000	cbf29ce484222645					f0=1;f21=1
 ha_area04	npc	area04_npc_ouji	2	11	fa390faa8a4c1195	tr0003_00_ouji_m	tr	212.613	298.165	98.433	0	136.136	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	85001		cbf29ce484222645					
@@ -1480,25 +1481,25 @@ ha_area04	npc	ha_area04_bandit_3	1	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	t
 ha_area04	npc	ha_area04_bandit_3	2	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	481.272	71.743	704.569	0	22.01	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA04	3		cbf29ce484222645				ha_area04_bandit_3_01	
 ha_area04	npc	ha_area04_bandit_3	3	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	491.313	70.522	739.95	0	-151.286	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA04	4		cbf29ce484222645				ha_area04_bandit_3_01	
 ha_area04	npc	ha_area04_bandit_3	4	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	468.901	70.386	735.015	0	-117.91	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA04	5		cbf29ce484222645				ha_area04_bandit_3_01	
-ha_area04	npc_pokemon	area04_sukatanku	0	1	584af50a97d6e1d6		pokemon	179.047	154.821	470.919	0	44.8	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	55000	55400	cbf29ce484222645					
-ha_area04	npc_pokemon	area04_pnpc_dhiaruga	0	2	106e7182195c260f		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	87005		cbf29ce484222645					
-ha_area04	npc_pokemon	area04_pnpc_dhiaruga	1	2	106e7182195c260f		pokemon	213.976	304.86	33.89	0	0	0	1	3ddd5feb4a68a149	flag	equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
-ha_area04	npc_pokemon	area04_pnpc_parukia	0	2	a055d9b805436a0c		pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	87005		cbf29ce484222645					
-ha_area04	npc_pokemon	area04_pnpc_parukia	1	2	a055d9b805436a0c		pokemon	213.976	304.86	33.89	0	0	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
-ha_area04	npc_pokemon	area04_pnpc_sub_071_1	0	2	b03300749e45bb04		pokemon	833.149	48.358	683.199	0	-74.298	0	1	2041c674206fe0a7	quest_progress	equal	sub_071	10		d7f7c03230a02fb2					
-ha_area04	npc_pokemon	area04_pnpc_sub_071_1	1	2	b03300749e45bb04		pokemon	827.789	48.786	681.63	0	2.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_071	255		d7f7c03230a02fb2					
-ha_area04	npc_pokemon	area04_pnpc_sub_071_2	0	2	b03300749e45bb04		pokemon	900.686	50.458	673.258	0	-62.508	0	1	2041c674206fe0a7	quest_progress	equal	sub_071	10		d7f7c03230a02fb2					
-ha_area04	npc_pokemon	area04_pnpc_sub_071_2	1	2	b03300749e45bb04		pokemon	827.265	48.718	682.146	0	36.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_071	255		d7f7c03230a02fb2					
-ha_area04	npc_pokemon	area00_poke_save_sub_066	0	2	cbf29ce484222645		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_066	255		cbf29ce484222645					
-ha_area04	npc_pokemon	area00_poke_save_sub_066	1	2	cbf29ce484222645		pokemon	858.91	45.904	735.238	0	-179.051	0	1	2557279b949c81d6	work	not_equal	WEVE_SUB066_CLEAR_NPC_TALK	0		cbf29ce484222645					
-ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	0	5	9e3d34369c67db99		pokemon	215.583	120.494	624.605	0	17.96	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	10		d7f7c13230a03165					
-ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	1	5	9e3d34369c67db99		pokemon	143.771	113.35	645.394	0	-82.118	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	20		d7f7c13230a03165					
-ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	2	5	9e3d34369c67db99		pokemon	212.49	87.51	726.092	0	54.404	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	30		d7f7c13230a03165					
-ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	3	5	9e3d34369c67db99		pokemon	260.461	70.524	808.722	0	71.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	40		d7f7c13230a03165					
-ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	4	5	9e3d34369c67db99		pokemon	221.362	155.411	514.574	0	146.2	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	50		d7f7c13230a03165					
+ha_area04	npc_pokemon	area04_sukatanku	0	1	584af50a97d6e1d6	species 435 form 0	pokemon	179.047	154.821	470.919	0	44.8	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	55000	55400	cbf29ce484222645					
+ha_area04	npc_pokemon	area04_pnpc_dhiaruga	0	2	106e7182195c260f	species 483 form 0	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	87005		cbf29ce484222645					
+ha_area04	npc_pokemon	area04_pnpc_dhiaruga	1	2	106e7182195c260f	species 483 form 0	pokemon	213.976	304.86	33.89	0	0	0	1	3ddd5feb4a68a149	flag	equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
+ha_area04	npc_pokemon	area04_pnpc_parukia	0	2	a055d9b805436a0c	species 484 form 0	pokemon	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	87005		cbf29ce484222645					
+ha_area04	npc_pokemon	area04_pnpc_parukia	1	2	a055d9b805436a0c	species 484 form 0	pokemon	213.976	304.86	33.89	0	0	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
+ha_area04	npc_pokemon	area04_pnpc_sub_071_1	0	2	b03300749e45bb04	species 436 form 0	pokemon	833.149	48.358	683.199	0	-74.298	0	1	2041c674206fe0a7	quest_progress	equal	sub_071	10		d7f7c03230a02fb2					
+ha_area04	npc_pokemon	area04_pnpc_sub_071_1	1	2	b03300749e45bb04	species 436 form 0	pokemon	827.789	48.786	681.63	0	2.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_071	255		d7f7c03230a02fb2					
+ha_area04	npc_pokemon	area04_pnpc_sub_071_2	0	2	b03300749e45bb04	species 436 form 0	pokemon	900.686	50.458	673.258	0	-62.508	0	1	2041c674206fe0a7	quest_progress	equal	sub_071	10		d7f7c03230a02fb2					
+ha_area04	npc_pokemon	area04_pnpc_sub_071_2	1	2	b03300749e45bb04	species 436 form 0	pokemon	827.265	48.718	682.146	0	36.5	0	1	2041c674206fe0a7	quest_progress	equal	sub_071	255		d7f7c03230a02fb2					
+ha_area04	npc_pokemon	area00_poke_save_sub_066	0	2	cbf29ce484222645		none	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	equal	sub_066	255		cbf29ce484222645					
+ha_area04	npc_pokemon	area00_poke_save_sub_066	1	2	cbf29ce484222645		none	858.91	45.904	735.238	0	-179.051	0	1	2557279b949c81d6	work	not_equal	WEVE_SUB066_CLEAR_NPC_TALK	0		cbf29ce484222645					
+ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	0	5	9e3d34369c67db99	species 363 form 0	pokemon	215.583	120.494	624.605	0	17.96	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	10		d7f7c13230a03165					
+ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	1	5	9e3d34369c67db99	species 363 form 0	pokemon	143.771	113.35	645.394	0	-82.118	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	20		d7f7c13230a03165					
+ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	2	5	9e3d34369c67db99	species 363 form 0	pokemon	212.49	87.51	726.092	0	54.404	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	30		d7f7c13230a03165					
+ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	3	5	9e3d34369c67db99	species 363 form 0	pokemon	260.461	70.524	808.722	0	71.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	40		d7f7c13230a03165					
+ha_area04	npc_pokemon	area00_poke_TAMAZARASHI_sub_099	4	5	9e3d34369c67db99	species 363 form 0	pokemon	221.362	155.411	514.574	0	146.2	0	1	2041c674206fe0a7	quest_progress	equal	sub_099	50		d7f7c13230a03165					
 ha_area04_s02	npc	area04_npc_captain7	0	1	12a13d7cadba0d3d	tr0018_00_captain7_m	tr	107.645	11.534	31.152	0	-171.013	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	51400		cbf29ce484222645					
 ha_area04_s02	npc	area04_s02_npc_g012	0	1	37e90b5e50520a8d	cc0016_00_pr_young_f_wld_f	cc	125.01	11.7	71.43	0	163.46	0	1	2041c674206fe0a7	quest_progress	equal	sub_066	20		b9ee9a711bb4d4e8	normal				f0=1;f5=1;f21=1;f16=1
-ha_area04_s02	npc_pokemon	area04_s02_oyabun	0	1	884cae4f264e7c53		pokemon	107.406	11.715	70.997	0	143.047	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	51400	51440	cbf29ce484222645					
+ha_area04_s02	npc_pokemon	area04_s02_oyabun	0	1	884cae4f264e7c53	species 169 form 0	pokemon	107.406	11.715	70.997	0	143.047	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	51400	51440	cbf29ce484222645					
 ha_area04_s03	npc	area04_s03_npc_ninja1	0	1	e18dacd6c3fd8cdd	tr0009_00_ninja1_m	tr	90.046	20.421	91.741	0	0	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	82000		cbf29ce484222645					
 ha_area04_s03	npc	area04_s03_npc_ninja2	0	2	161c054da3ba2366	tr0010_00_ninja2_m	tr	90.046	20.434	91.74	0	114.1	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	82001		cbf29ce484222645					
 ha_area04_s03	npc	area04_s03_npc_ninja2	1	2	161c054da3ba2366	tr0010_00_ninja2_m	tr	90.046	20.421	91.741	0	180	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	84600	90000	cbf29ce484222645					
@@ -1590,70 +1591,70 @@ ha_area05	npc	ha_area05_bandit_3	1	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	t
 ha_area05	npc	ha_area05_bandit_3	2	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	161.13	31.23	769.8	0	176.2	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA05	3		cbf29ce484222645				ha_area05_bandit_3_01	
 ha_area05	npc	ha_area05_bandit_3	3	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	146.5	30.31	745.49	0	108.99	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA05	4		cbf29ce484222645				ha_area05_bandit_3_01	
 ha_area05	npc	ha_area05_bandit_3	4	5	6d0bd5332e9c75a0	tr0035_00_bandit_third_f	tr	189.16	40.53	761.42	0	36.93	0	1	2557279b949c81d6	work	equal	WSYS_BANDIT_3_AREA05	5		cbf29ce484222645				ha_area05_bandit_3_01	
-ha_area05	npc_pokemon	area05_npc_pokemon_whooguru	0	4	b496c9bc67bd78ce		pokemon	642.294	38.546	442.84	0	14.4	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	60400		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_npc_pokemon_whooguru	1	4	b496c9bc67bd78ce		pokemon	464.85	95.141	781.393	0	14.4	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	60600		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_npc_pokemon_whooguru	2	4	b496c9bc67bd78ce		pokemon	675.131	117.142	73.704	0	-41.595	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	60800		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_npc_pokemon_whooguru	3	4	b496c9bc67bd78ce		pokemon	679.061	149.37	73.74	0	114.1	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	63000	64999	cbf29ce484222645					
-ha_area05	npc_pokemon	area05_poke_rokon_01	0	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_01	1	4	295e0f613e5b2e99		pokemon	156.028	39.572	816.904	0	51.5	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_01			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_01	2	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_01	3	4	295e0f613e5b2e99		pokemon	537.77	31.127	892.67	0	87	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_01			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_02	0	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_02	1	4	295e0f613e5b2e99		pokemon	190.651	50.029	743.364	0	152.834	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_02			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_02	2	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_02	3	4	295e0f613e5b2e99		pokemon	540.429	31.127	889.959	0	93.8	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_02			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_03	0	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_03	1	4	295e0f613e5b2e99		pokemon	187.089	69.999	930.352	0	-166.074	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_03			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_03	2	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_03	3	4	295e0f613e5b2e99		pokemon	541.107	31.127	889.157	0	46.5	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_03			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_04	0	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_04	1	4	295e0f613e5b2e99		pokemon	208.746	53.457	827.959	0	-34.039	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_04			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_04	2	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_04	3	4	295e0f613e5b2e99		pokemon	542.055	31.127	889.319	0	-33	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_04			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_05	0	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_05	1	4	295e0f613e5b2e99		pokemon	106.559	56.654	824.675	0	106.636	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_05			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_05	2	4	295e0f613e5b2e99		pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_05	3	4	295e0f613e5b2e99		pokemon	538.863	31.127	892.935	0	107.3	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_05			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_06	0	2	295e0f613e5b2e99		pokemon	540.932	31.127	892.208	0	44.8	0	1	2041c674206fe0a7	quest_progress	between	sub_092	20	70	d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_rokon_06	1	2	295e0f613e5b2e99		pokemon	540.932	31.127	892.208	0	44.8	0	1	3ddd5feb4a68a149	flag	equal	FEVE_POKE_SUB092_GET			d7f4c232309dfd41					
-ha_area05	npc_pokemon	area05_poke_sub_096	0	1	0e3f241026905b7f		pokemon	378.622	19.752	494.921	0	-27.9	0	1	2041c674206fe0a7	quest_progress	equal	sub_096	11		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_poke_yukiwarasi_01	0	3	7f59a6b1a057aaec		pokemon	186.93	31.364	612.768	0	-41.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	10		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_poke_yukiwarasi_01	1	3	7f59a6b1a057aaec		pokemon	136.527	44.622	633.465	0	-34.6	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	20		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_poke_yukiwarasi_01	2	3	7f59a6b1a057aaec		pokemon	137.029	44.623	639.724	0	-156.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	21		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_poke_yukiwarasi_02	0	3	7f59a6b1a057aaec		pokemon	186.064	31.296	612.432	0	19.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	10		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_poke_yukiwarasi_02	1	3	7f59a6b1a057aaec		pokemon	135.417	44.622	633.781	0	75.2	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	20		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_poke_yukiwarasi_02	2	3	7f59a6b1a057aaec		pokemon	135.203	44.623	640.261	0	164.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	21		cbf29ce484222645					
-ha_area05	npc_pokemon	area05_poke_INOMUU_01	0	1	00ffec5427c03217		pokemon	788.407	56.192	143.704	0	-139.4	0	1	344570c1301a7584	default					e0f9e63235d3c6c4					
-ha_area05	npc_pokemon	area05_poke_INOMUU_02	0	1	00ffec5427c03217		pokemon	790.065	56.088	142.302	0	-109	0	1	344570c1301a7584	default					e0f9e63235d3c6c4					
-ha_area05	npc_pokemon	area05_poke_URIMUU	0	1	c513f3a8b387ce60		pokemon	788.545	56.802	141.811	0	14.4	0	1	344570c1301a7584	default					e0f9e73235d3c877					
+ha_area05	npc_pokemon	area05_npc_pokemon_whooguru	0	4	b496c9bc67bd78ce	species 628 form 1	pokemon	642.294	38.546	442.84	0	14.4	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	60400		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_npc_pokemon_whooguru	1	4	b496c9bc67bd78ce	species 628 form 1	pokemon	464.85	95.141	781.393	0	14.4	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	60600		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_npc_pokemon_whooguru	2	4	b496c9bc67bd78ce	species 628 form 1	pokemon	675.131	117.142	73.704	0	-41.595	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	60800		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_npc_pokemon_whooguru	3	4	b496c9bc67bd78ce	species 628 form 1	pokemon	679.061	149.37	73.74	0	114.1	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	63000	64999	cbf29ce484222645					
+ha_area05	npc_pokemon	area05_poke_rokon_01	0	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_01	1	4	295e0f613e5b2e99	species 37 form 1	pokemon	156.028	39.572	816.904	0	51.5	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_01			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_01	2	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_01	3	4	295e0f613e5b2e99	species 37 form 1	pokemon	537.77	31.127	892.67	0	87	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_01			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_02	0	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_02	1	4	295e0f613e5b2e99	species 37 form 1	pokemon	190.651	50.029	743.364	0	152.834	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_02			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_02	2	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_02	3	4	295e0f613e5b2e99	species 37 form 1	pokemon	540.429	31.127	889.959	0	93.8	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_02			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_03	0	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_03	1	4	295e0f613e5b2e99	species 37 form 1	pokemon	187.089	69.999	930.352	0	-166.074	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_03			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_03	2	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_03	3	4	295e0f613e5b2e99	species 37 form 1	pokemon	541.107	31.127	889.157	0	46.5	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_03			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_04	0	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_04	1	4	295e0f613e5b2e99	species 37 form 1	pokemon	208.746	53.457	827.959	0	-34.039	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_04			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_04	2	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_04	3	4	295e0f613e5b2e99	species 37 form 1	pokemon	542.055	31.127	889.319	0	-33	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_04			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_05	0	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	sub_092	20	60	d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_05	1	4	295e0f613e5b2e99	species 37 form 1	pokemon	106.559	56.654	824.675	0	106.636	0	1	3ddd5feb4a68a149	flag	equal	FEVE_SUB092_ROKON_05			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_05	2	4	295e0f613e5b2e99	species 37 form 1	pokemon	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	greater_than_equal	sub_092	20		d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_05	3	4	295e0f613e5b2e99	species 37 form 1	pokemon	538.863	31.127	892.935	0	107.3	0	1	3ddd5feb4a68a149	flag	not_equal	FEVE_SUB092_ROKON_05			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_06	0	2	295e0f613e5b2e99	species 37 form 1	pokemon	540.932	31.127	892.208	0	44.8	0	1	2041c674206fe0a7	quest_progress	between	sub_092	20	70	d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_rokon_06	1	2	295e0f613e5b2e99	species 37 form 1	pokemon	540.932	31.127	892.208	0	44.8	0	1	3ddd5feb4a68a149	flag	equal	FEVE_POKE_SUB092_GET			d7f4c232309dfd41					
+ha_area05	npc_pokemon	area05_poke_sub_096	0	1	0e3f241026905b7f	species 362 form 0 Male	pokemon	378.622	19.752	494.921	0	-27.9	0	1	2041c674206fe0a7	quest_progress	equal	sub_096	11		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_poke_yukiwarasi_01	0	3	7f59a6b1a057aaec	species 361 form 0	pokemon	186.93	31.364	612.768	0	-41.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	10		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_poke_yukiwarasi_01	1	3	7f59a6b1a057aaec	species 361 form 0	pokemon	136.527	44.622	633.465	0	-34.6	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	20		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_poke_yukiwarasi_01	2	3	7f59a6b1a057aaec	species 361 form 0	pokemon	137.029	44.623	639.724	0	-156.3	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	21		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_poke_yukiwarasi_02	0	3	7f59a6b1a057aaec	species 361 form 0	pokemon	186.064	31.296	612.432	0	19.4	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	10		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_poke_yukiwarasi_02	1	3	7f59a6b1a057aaec	species 361 form 0	pokemon	135.417	44.622	633.781	0	75.2	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	20		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_poke_yukiwarasi_02	2	3	7f59a6b1a057aaec	species 361 form 0	pokemon	135.203	44.623	640.261	0	164.8	0	1	2041c674206fe0a7	quest_progress	equal	sub_086	21		cbf29ce484222645					
+ha_area05	npc_pokemon	area05_poke_INOMUU_01	0	1	00ffec5427c03217	species 221 form 0 Male	pokemon	788.407	56.192	143.704	0	-139.4	0	1	344570c1301a7584	default					e0f9e63235d3c6c4					
+ha_area05	npc_pokemon	area05_poke_INOMUU_02	0	1	00ffec5427c03217	species 221 form 0 Male	pokemon	790.065	56.088	142.302	0	-109	0	1	344570c1301a7584	default					e0f9e63235d3c6c4					
+ha_area05	npc_pokemon	area05_poke_URIMUU	0	1	c513f3a8b387ce60	species 220 form 0	pokemon	788.545	56.802	141.811	0	14.4	0	1	344570c1301a7584	default					e0f9e73235d3c877					
 ha_area05_s01	npc	area05_s01_npc_captain10	0	3	9529c8e4c72631d4	tr0021_00_captain10_f	tr	491.953	75.083	528.549	0	-0.151	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	62000	62001	cbf29ce484222645					
 ha_area05_s01	npc	area05_s01_npc_captain10	1	3	9529c8e4c72631d4	tr0021_00_captain10_f	tr	459.99	46.103	568.687	0	53.09	0	1	2041c674206fe0a7	quest_progress	equal	chap10d	20		cbf29ce484222645					
 ha_area05_s01	npc	area05_s01_npc_captain10	2	3	9529c8e4c72631d4	tr0021_00_captain10_f	tr	464.19	14.033	554.828	0	-88.394	0	1	2041c674206fe0a7	quest_progress	between	chap10d	30	40	cbf29ce484222645					
 ha_area05_s01	npc	area05_s01_npc_ouji	0	2	fa390faa8a4c1195	tr0003_00_ouji_m	tr	466.065	46.103	568.062	0	-44.8	0	1	2041c674206fe0a7	quest_progress	equal	chap10d	20		cbf29ce484222645					
 ha_area05_s01	npc	area05_s01_npc_ouji	1	2	fa390faa8a4c1195	tr0003_00_ouji_m	tr	463.943	14.033	549.804	0	-88.394	0	1	2041c674206fe0a7	quest_progress	between	chap10d	30	40	cbf29ce484222645					
-ha_area05_s01	npc_pokemon	area05_s01_poke_giga	0	1	bfa4299e98fb33d9		pokemon	438.95	14.03	552.42	0	86.09	0	1	2041c674206fe0a7	quest_progress	between	chap10d	30	40	cbf29ce484222645					
+ha_area05_s01	npc_pokemon	area05_s01_poke_giga	0	1	bfa4299e98fb33d9	species 486 form 0	pokemon	438.95	14.03	552.42	0	86.09	0	1	2041c674206fe0a7	quest_progress	between	chap10d	30	40	cbf29ce484222645					
 ha_area05_s03	npc	area05_s03_npc_ouji	0	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	chap7c	20	255	cbf29ce484222645					
 ha_area05_s03	npc	area05_s03_npc_ouji	1	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	0	0	0	0	0	0	0	b1d54ca3acfd951c	event_label	not_equal	Ev_main_077800			cbf29ce484222645					
 ha_area05_s03	npc	area05_s03_npc_ouji	2	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	36.85	10.15	28.11	0	28.27	0	1	3ddd5feb4a68a149	flag	equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
 ha_area05_s03	npc	area05_s03_npc_hime	0	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	0	0	0	0	0	0	0	2041c674206fe0a7	quest_progress	between	chap7c	20	255	cbf29ce484222645					
 ha_area05_s03	npc	area05_s03_npc_hime	1	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	0	0	0	0	0	0	0	b1d54ca3acfd951c	event_label	not_equal	Ev_main_077800			cbf29ce484222645					
 ha_area05_s03	npc	area05_s03_npc_hime	2	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	36.85	10.15	28.11	0	28.27	0	1	3ddd5feb4a68a149	flag	not_equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
-ha_area05_s03	npc_pokemon	area05_s03_poke_oyabun01	0	1	119437a2c563161a		pokemon	40	10.2	40	0	180	0	1	2041c674206fe0a7	quest_progress	between	chap7c	20	30	cbf29ce484222645					
-ha_area05_s03	npc_pokemon	area05_s03_poke_u01	0	1	97cc9929eddbd5f8		pokemon	39.859	12	41.662	0	-180	0	1	2041c674206fe0a7	quest_progress	equal	chap7c	40		cbf29ce484222645					
+ha_area05_s03	npc_pokemon	area05_s03_poke_oyabun01	0	1	119437a2c563161a	species 571 form 1	pokemon	40	10.2	40	0	180	0	1	2041c674206fe0a7	quest_progress	between	chap7c	20	30	cbf29ce484222645					
+ha_area05_s03	npc_pokemon	area05_s03_poke_u01	0	1	97cc9929eddbd5f8	species 480 form 0	pokemon	39.859	12	41.662	0	-180	0	1	2041c674206fe0a7	quest_progress	equal	chap7c	40		cbf29ce484222645					
 ha_area05_s04	npc	area05_s04_npc_s002	0	1	32f3a5102661a1d0	cc0044_00_na_young_m_p_cfl_m	cc	16.563	10.608	18.778	0	-115.8	0	1	344570c1301a7584	default					e0fd663235d6d61b	normal				f0=1;f5=1;f21=1;f16=1;f24=1
 ha_area05_s04	npc	area05_s04_npc_s014	0	1	8666b9928068fbf7	cc0049_00_na_middle_f_p_lsp	cc	14.432	10.608	19.647	0	14.4	0	1	344570c1301a7584	default					e100683235d90f58	normal				f0=1;f5=4;f21=1;f24=1
 ha_area05_s04	npc	area05_s04_npc_s018	0	1	a4cbdd67d2a15155	cc0054_00_na_old_f_p_a_lsp	cc	15.06	10.608	22.442	0	3.702	0	1	344570c1301a7584	default					e1006c3235d91624	normal				f0=1;f5=3;f21=1;f24=1
 ha_area05_s04_a	npc	area05_s04_a_npc_s024	0	1	8666b9928068fbf7	cc0049_00_na_middle_f_p_lsp	cc	8.04	5.613	17.303	0	-44.544	0	1	344570c1301a7584	default					e0f65b3235d0a4bc	normal				f0=1;f5=3;f21=1;f24=1
-ha_area05_s04_a	npc_pokemon	npc_poke_wanriki_01	0	1	dd8d4287cd69b2b1		pokemon	9.984	5.607	15.334	0	158	0	1	344570c1301a7584	default					e0f9dc3235d3b5c6					
+ha_area05_s04_a	npc_pokemon	npc_poke_wanriki_01	0	1	dd8d4287cd69b2b1	species 66 form 0	pokemon	9.984	5.607	15.334	0	158	0	1	344570c1301a7584	default					e0f9dc3235d3b5c6					
 ha_area05_s04_b	npc	area05_s04_b_s006	0	1	868655d5123f7937	cc0045_00_na_young_f_p_cfl_f	cc	10.516	5.608	13.257	0	176.429	0	1	344570c1301a7584	default					e0fd6a3235d6dce7	normal				f0=1;f5=1;f21=1;f16=1
 ha_area05_s04_b	npc	area05_s04_b_s011	0	1	e2bd31d0bace7a1f	cc0048_00_na_middle_m_p_lsp	cc	10.665	5.607	17.592	0	-16.1	0	1	344570c1301a7584	default					e1006b3235d91471	normal				f0=1;f5=1;f21=1;f24=1
 ha_area05_s04_b	npc	area05_s04_b_s013	0	1	bf0815edd64692ce	cc0049_00_na_middle_f_p_cfl_f	cc	7.704	5.614	14.504	0	-80.3	0	1	344570c1301a7584	default					e100693235d9110b	normal				f0=1;f5=1;f21=1;f16=1;f24=1
 ha_area05_s04_c	npc	area05_s04_c_s007	0	1	228e025d5dba7e81	cc0045_00_na_young_f_p_wld_f	cc	7.904	5.631	14.317	0	-69.221	0	1	344570c1301a7584	default					e0fd6b3235d6de9a	normal	laugh			f0=1;f5=1;f21=1;f14=1;f24=1
 ha_area05_s04_c	npc	area05_s04_c_s008	0	1	8133f4a30f46cc82	cc0045_00_na_young_f_p	cc	9.731	5.658	16.235	0	-164.986	0	1	344570c1301a7584	default					e0fd6c3235d6e04d	normal				f0=1;f5=1;f21=1;f14=1
 ha_area05_s04_c	npc	area05_s04_npc_s026	0	1	a4cbdd67d2a15155	cc0054_00_na_old_f_p_a_lsp	cc	12.784	7.454	15.393	0	180	0	1	344570c1301a7584	default					cbf29ce484222645	seel	seel			f0=1;f4=8;f5=8;f24=1
-ha_area05_s04_c	npc_pokemon	npc_poke_katikooru_01	0	1	4984c3c7710b2afc		pokemon	8.717	5.608	13.514	0	117.5	0	1	344570c1301a7584	default					e0f9da3235d3b260					
+ha_area05_s04_c	npc_pokemon	npc_poke_katikooru_01	0	1	4984c3c7710b2afc	species 712 form 0	pokemon	8.717	5.608	13.514	0	117.5	0	1	344570c1301a7584	default					e0f9da3235d3b260					
 ha_area05_s04_d	npc	area05_s04_d_s004	0	1	e13b0178d6b6f348	cc0044_00_na_young_m_p_lsp	cc	9.358	5.608	15.001	0	0	0	1	344570c1301a7584	default					e0fd683235d6d981	normal				f0=1;f21=1;f24=1
-ha_area05_s04_d	npc_pokemon	npc_poke_guraigaa_01	0	1	18223b561661afaa		pokemon	7.975	6.162	17.016	0	-54.9	0	1	344570c1301a7584	default					e0f9dd3235d3b779					
+ha_area05_s04_d	npc_pokemon	npc_poke_guraigaa_01	0	1	18223b561661afaa	species 207 form 0 Famale	pokemon	7.975	6.162	17.016	0	-54.9	0	1	344570c1301a7584	default					e0f9dd3235d3b779					
 ha_area06	npc	area06_npc_miko	0	4	ce4088951c0ec456	tr0011_00_miko_f	tr	502.013	10.475	516.656	0	16.1	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	72000		cbf29ce484222645					f0=1;f8=2;f9=2;f24=1
 ha_area06	npc	area06_npc_miko	1	4	ce4088951c0ec456	tr0011_00_miko_f	tr	0	0	0	0	0	0	0	2557279b949c81d6	work	greater_than_equal	WEVE_UMA_CLEAR_COUNT	1		cbf29ce484222645					
 ha_area06	npc	area06_npc_miko	2	4	ce4088951c0ec456	tr0011_00_miko_f	tr	502.013	10.475	516.656	0	16.1	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	75000		cbf29ce484222645					f0=1;f8=2;f9=2;f24=1
@@ -1667,7 +1668,7 @@ ha_area06	npc	area06_npc_ouji	2	3	fa390faa8a4c1195	tr0003_00_ouji_m	tr	511.694	1
 ha_area06	npc	area06_npc_hime	0	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	509.264	10.455	513.318	0	-146.311	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	72200	72400	cbf29ce484222645					f0=1;f21=1
 ha_area06	npc	area06_npc_hime	1	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	0	0	0	0	0	0	0	3ddd5feb4a68a149	flag	not_equal	FSYS_CHAPTER7_SELECT_A_ROOT			cbf29ce484222645					
 ha_area06	npc	area06_npc_hime	2	3	ff11e824ea817ea9	tr0004_00_hime_f	tr	511.694	10.654	542.639	0	180	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	75000		cbf29ce484222645					f0=1;f21=1
-ha_area06	npc_pokemon	area06_pnpc_keeshi	0	1	3bfe00c60aaa4629		pokemon	508.924	10.463	508.347	0	-5.9	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	72200	80000	e0f65c3235d0a66f					
+ha_area06	npc_pokemon	area06_pnpc_keeshi	0	1	3bfe00c60aaa4629	species 63 form 0	pokemon	508.924	10.463	508.347	0	-5.9	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	72200	80000	e0f65c3235d0a66f					
 ha_area06_s01	npc	area06_s01_npc_si1	0	2	2e28bdf747ec942b	tr0007_00_si1_m	tr	10.818	5.664	13.632	0	-19.4	0	1	8e77d62d1e38721e	story_phase_work	between	WPHA_STORY	72000	72200	cbf29ce484222645					f0=1;f21=1
 ha_area06_s01	npc	area06_s01_npc_si1	1	2	2e28bdf747ec942b	tr0007_00_si1_m	tr	11.687	5.614	13.427	0	-60.492	0	1	8e77d62d1e38721e	story_phase_work	equal	WPHA_STORY	100810		cbf29ce484222645					f0=1;f21=1
 ha_area06_s01	npc	area06_s01_npc_miko	0	4	ce4088951c0ec456	tr0011_00_miko_f	tr	0	0	0	0	0	0	0	8e77d62d1e38721e	story_phase_work	equal	WEVE_UMA_CLEAR_COUNT	0		cbf29ce484222645					
