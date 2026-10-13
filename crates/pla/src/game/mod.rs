@@ -32,6 +32,7 @@ pub mod catch_rate;
 pub mod clock;
 pub mod crafting;
 pub mod crafting_ui;
+pub mod dex_screen;
 pub mod effects;
 pub mod follower;
 pub mod navigation;
