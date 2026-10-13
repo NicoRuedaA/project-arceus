@@ -73,7 +73,7 @@
     "port.png": "171c21e73b75893738344b373a2e7ea2c8909240f5279fc13dc18b3663d77e32"
   },
   "rust_source_fingerprint": {
-    "file_count": 125,
+    "file_count": 129,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -165,7 +165,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "2669b0365a950749302d5702de937812238905ecafcc298f21b9d72ccbdeba5f"
+        "sha256": "0f859a55f4b08c955c9697b0bdcb3194b398af982fa40bd0a0c8af59f1aa3bfc"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
@@ -194,6 +194,14 @@
       {
         "path": "crates/pla/examples/texture_batch_exporter.rs",
         "sha256": "ed2cfe1c68e4373510f77d882dfd02038b4c4ae12d925fadfee9bdef2cd28d89"
+      },
+      {
+        "path": "crates/pla/examples/vegetation_headless.rs",
+        "sha256": "0bba690e0fb4af3ad415df0424b8b628bac943645aa8c2736f8757b7550a5f8b"
+      },
+      {
+        "path": "crates/pla/examples/vegetation_report.rs",
+        "sha256": "e0c8798ada6333129cc721158739092a04cd5d0865ed2dda2c72a248f3a090af"
       },
       {
         "path": "crates/pla/examples/verify_field_gltf_headless.rs",
@@ -249,7 +257,7 @@
       },
       {
         "path": "crates/pla/src/assets/mod.rs",
-        "sha256": "f463f4a209426df73a9d1ebe116989dfa20e6ceb0174b8436062be618885ebae"
+        "sha256": "5b21487d0df55868df57fcd6bde37bd07e656df8b416a658a2c1b0051bdf4656"
       },
       {
         "path": "crates/pla/src/assets/navmesh.rs",
@@ -273,7 +281,7 @@
       },
       {
         "path": "crates/pla/src/assets/terrain.rs",
-        "sha256": "0f89d98de5c477c481230a221329c02b8dfbb51d0d78de94fb65d6ecf0c54f6b"
+        "sha256": "8bf31230e6306d6bfd0bc1dafbb197ac31ba947d0e39157458f02d410f590da3"
       },
       {
         "path": "crates/pla/src/assets/terrain_albedo.rs",
@@ -306,6 +314,10 @@
       {
         "path": "crates/pla/src/assets/tr.rs",
         "sha256": "e724277c9b199fa6a1234db88a8304d5e503709d771f62ffc853bd0afcba6522"
+      },
+      {
+        "path": "crates/pla/src/assets/vegetation.rs",
+        "sha256": "73de51dbcccebf94547c674956477a31f610979fee488e3ddf22cd5dd6d66ddd"
       },
       {
         "path": "crates/pla/src/assets/vfxb.rs",
@@ -389,7 +401,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "dceb9364e96bbce4334163428961e7335e91cc118364df0665ded9add37965d2"
+        "sha256": "235f230bf9849c7b641dfb17d03a3bc863d8fc7304c32eccd0adbca543360adf"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -438,6 +450,10 @@
       {
         "path": "crates/pla/src/game/ui.rs",
         "sha256": "87b778435d1e2a9a9700b5edd64fd38dc30af388f3a27505ed5cd8fe75ba40b8"
+      },
+      {
+        "path": "crates/pla/src/game/vegetation.rs",
+        "sha256": "98debd42c744e7daab98fb1ad31627cca8cc2186281a636799b80277c0ef448b"
       },
       {
         "path": "crates/pla/src/game/wild.rs",
@@ -577,7 +593,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "c44b05626899790b8c5f3d3f67e12119d1702d721f4e1d1759b556d8b755b77c"
+    "sha256": "ebed48b9567071fb2b8f51ec1e183bdd4bd97c2e547527c60ab68f1e3640262f"
   },
   "state_partitions": {
     "analysis_documentation_status": {
