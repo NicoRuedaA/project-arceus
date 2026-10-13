@@ -20,12 +20,12 @@ The game-data table remains distinct from the damage model: verified type matchu
 
 This remains a partial simulation; no Nintendo engine/SDK code was ported. Recovered rules are implemented as new idiomatic Rust functions in `crates/pla/src/battle_engine.rs` and retain the notes' confidence levels.
 
-- **Damage core — VERIFIED:** integer base `((P*A*(floor(2L/5)+2))/D)/50+2`; Q12 fixed-point modifiers use the recovered rounding rule. Critical ×1.5, injected uniform 85–100 roll, STAB ×1.25 and the type-category multipliers (0, 0.4, 0.5, 1, 2, 2.5) follow the recovered order. Type categories use the checked-in verified 18×18 chart. Rain/Fire ×0.75 and Burn/Physical or Frostbite/Special ×0.5 are **LIKELY**. Critical and random rolls use `BattleRng`.
+- **Damage core — base formula REFUTED and replaced (brief 28, [rule report](battle_rules_verified.md)):** the game's base damage is `floor(floor(floor(P*(A+100+15L))/(D+50))/5)` (a config callback), not the main-series `((P*A*(floor(2L/5)+2))/D)/50+2`, which is only an unused fallback. The PLA formula is selected by `notes_rates` (`StatusRules::game_rules()`) or `Battle::set_pla_damage_formula(true)`; the old shape remains the default so existing callers keep their numbers. VERIFIED: rank states multiply the base damage (×1.5/×0.66 attacker, ×0.66/×1.5 defender, skipped when equal), Q12 modifiers, rain/Fire ×0.75, critical ×1.5, 85–100 roll, STAB ×1.25, type categories (0, 0.4, 0.5, 1, 2, 2.5), burn/physical and frostbite/special ×50 %, drowsy defender ×133 %.
 - **Stats — VERIFIED formula:** effort levels 0–10 and `K=[0,2,3,4,7,8,9,14,15,16,25]`; HP and non-HP formulas are implemented, including nature scaling and Shedinja HP=1. Nature percentages are input values (90/100/110); nature identity-to-stat mapping is not supplied by the typed personal table and remains caller-configured.
 - **Critical chance — VERIFIED:** move rank capped at 3 gives 1/24, 1/8, 1/2 and 1; rank 6 is guaranteed. Rank is configurable because the move export does not include it.
-- **Turn order — LIKELY:** descending action class, move priority, then modified agility; agility includes configurable Q12 factor, sun/Grass and snow/Ice ×1.33, paralysis ×0.5, cap 10,000, and optional reversal for Trick Room. Equal-key actions are randomized through injected RNG. Exact action-class encoding and 13-bit details remain **UNKNOWN**; the class is an explicit input, defaulting to attack class.
-- **Capture — LIKELY:** index `0.75*catch_rate + outbreak?10:0 + 30*rank_adjustment + 30*(1-0.66*current_hp/max_hp)*sick*ball*AI*backstrike*bait`; probability is clamped `I/255`, then two injected rolls each fail with `sqrt(1-p)`. Catch rate is passed explicitly because `data/pml_personal.tsv` does not expose that field (it is now decoded separately as personal field 17 into `data/pml_personal_extra.tsv`, e.g. Bidoof 255, Pikachu 145, Arceus 3, and the game loop passes it in); AI and bait factors are configurable inputs. Hand check: Bidoof (255), Poké Ball (0.75), full HP, rank adjustment 0, no other factors => I=198.9 and p≈78%.
-- **Accuracy — LIKELY:** three stages ×0.7/×1.0/×1.3, event Q12 modifier, and injected roll in [0,99]; exported accuracy above 100 is treated as never-miss sentinel. Conditions beyond these three states are not inferred.
+- **Turn order — VERIFIED structure:** descending action class, move priority, then agility; agility = Q12 factor, sun/Grass and snow/Ice ×133/100, paralysis ×50/100, cap 10,000, optional reversal, packed into 13 bits. Rank states do not enter agility (the old speed-stage rule is REFUTED). Equal keys: coin flip. The action-class numbering stays an explicit input (meaning UNKNOWN).
+- **Capture — VERIFIED (index terms and two-check structure; final threshold scaling LIKELY):** index `0.75*catch_rate + outbreak?10:0 + 30*rank_adjustment + 30*(1-0.66*current_hp/max_hp)*sick*ball*AI*backstrike*bait`; probability is clamped `I/255`, then two injected rolls each fail with `sqrt(1-p)`. Catch rate is passed explicitly because `data/pml_personal.tsv` does not expose that field (it is now decoded separately as personal field 17 into `data/pml_personal_extra.tsv`, e.g. Bidoof 255, Pikachu 145, Arceus 3, and the game loop passes it in); AI and bait factors are configurable inputs. Hand check: Bidoof (255), Poké Ball (0.75), full HP, rank adjustment 0, no other factors => I=198.9 and p≈78%.
+- **Accuracy — VERIFIED:** three states ×0.7/×1.0/×1.3 from the shared Spe/accuracy/evasion rank group, Q12 event modifier (round half down), roll in [0,99]; accuracy 101 never misses.
 - **UNKNOWN remains explicit:** native opponent AI policy, unknown action classes, nature mapping, capture catch rates not in typed data, style-specific move-power selection, and unrecovered late damage factors/rank-state behavior are not inferred. Switching, demo healing, status moves and residual damage are local simulation controls, not claims of recovered parity.
 
 ### Static provenance (names only)
@@ -48,7 +48,7 @@ The example remains interactive and deterministic by default. It reports partial
 Additive: all new state is private or in new types; a `Battle` without `set_move_effects(MoveEffectsTable)` behaves as before, and no existing public signature changed. Extra results are in `Battle::take_effect_events()` instead of new `Event` variants.
 
 - Supported (hand-built unit tests): real move priority and crit rank copied into move slots (turn order already sorts on priority); secondary and status ailments with chance (paralysis, burn, poison, frostbite, sleep-like); 3-state stat stages (-1/0/+1, Atk/SpA, Def/SpD, Speed, plus accuracy and evasion) with limit reporting; drain and recoil as a share of damage dealt; healing and HP cost as a share of max HP; fixed and ranged multi-hit; flinch skipping a slower target's action.
-- Stage damage multipliers (x1.5 up, x0.66 down) exist behind `set_stage_multipliers_enabled`, off by default because the notes could not show where the game applies them (UNKNOWN). Speed stages are tracked but not applied to turn order.
+- Rank multipliers (x1.5 up, x0.66 down) apply to the base damage behind `set_stage_multipliers_enabled` (placement VERIFIED, off by default for compatibility). Speed, accuracy and evasion share one rank group (VERIFIED); speed ranks do not change turn order (VERIFIED).
 - Not modeled: freeze-like and special ailments; type immunities to statuses; targets other than the opposing active combatant or the user; Counter-style reactive moves, Endure, semi-invulnerable states. The multi-hit count distribution is UNKNOWN (a uniform roll between min and max is a placeholder).
 
 ## Status rules (`pla::battle_engine::statuses`)
@@ -57,18 +57,18 @@ Opt-in through `Battle::set_status_rules(StatusRules)`; `StatusRules::default()`
 
 | Rule | Switch | Source of the behaviour | Confidence |
 |---|---|---|---|
-| Which move confuses / traps | `volatile_statuses` | table `ailment_id` 8 / 10 | LIKELY |
-| Confusion: 1-4 confused actions, 33% self-hit, typeless 40-power physical hit on own Atk/Def, 85-100% roll | `volatile_statuses` | franchise convention | ASSUMED |
-| Trapping: 4-5 rounds, 1/8 max HP per round, no switching while the trapper is active | `volatile_statuses` | franchise convention | ASSUMED |
-| Charge moves (`flag_charge`): turn 1 spends PP and skips, turn 2 attacks with the stored move | `volatile_statuses` | flag LIKELY, flow ASSUMED | LIKELY/ASSUMED |
-| Recharge moves (`flag_recharge`): the next action after a hit is skipped | `volatile_statuses` | flag LIKELY, flow ASSUMED | LIKELY/ASSUMED |
-| Protect-style moves: priority +4, meta 13, target user, `effect_id` 111/355/361/383/441 (protect, detect, max-guard, king's shield, spiky shield, baneful bunker, obstruct); blocks `flag_protectable` moves; chain success 1/3^n | `volatile_statuses` | columns VERIFIED/LIKELY, chain ASSUMED | ASSUMED chain |
-| Sleep: 1-3 skipped actions, then wakes and acts | `sleep_duration` | franchise convention | ASSUMED |
-| Paralysis action failure 33%; slip damage poison 1/6, burn 1/12, frostbite 1/12 of max HP | `notes_rates` | notes sections 6 and 7 | LIKELY |
-| Speed stage x1.5 up / x0.66 down in turn order | `speed_stages` | notes config coefficients; application to turn order not shown | LIKELY coefficients |
-| Atk/SpA and Def/SpD stage multipliers x1.5 / x0.66 | `stage_multipliers` | same coefficients | LIKELY coefficients |
+| Which move confuses / traps | `volatile_statuses` | table `ailment_id` 8 / 10 (code status ids match) | VERIFIED |
+| Confusion: duration from move data (2–5), counted per action; 33 % self-hit, 40-power hit on own Atk/Def through the active base formula, ranks ignored, 85–100 % roll | `volatile_statuses` | game code (brief 28) | VERIFIED |
+| Trapping: duration from move data (5–6), ceil(1/8) max HP per end of turn; no switching while the trapper is active | `volatile_statuses` | game code; switch block franchise convention | VERIFIED / ASSUMED switch block |
+| Charge moves (`flag_charge`): turn 1 skips, turn 2 attacks | `volatile_statuses` | no PLA move carries the flag | ASSUMED (unexercised) |
+| Recharge (`flag_recharge`) | — | flag also on Dire Claw and Psyshield Bash | REFUTED, removed |
+| Protect-style moves, chain 1/3^n | `volatile_statuses` | no PLA Protect move, no chain code found | ASSUMED chain |
+| Drowsiness: each action fails 33 % (66 % in snow); no forced sleep | `sleep_duration` | game code | VERIFIED (old 1–3 skip model REFUTED) |
+| Paralysis failure 33 %; slip damage ceil(1/6, 1/12, 1/12); drowsy defender ×133 %; major statuses last their move's turns (5 from status moves, 3 from secondary effects); PLA base damage formula | `notes_rates` | game code and config | VERIFIED |
+| Speed rank in turn order | `speed_stages` | the game's agility ignores ranks | REFUTED, no effect now |
+| Rank states ×1.5/×0.66 on the base damage; rank changes expire after their turns (`raw_f31..f33`) | `stage_multipliers` | game code | VERIFIED |
 
-Unsupported: semi-invulnerable charge turns (Fly/Dig have no flag in the table), Endure, Counter/Mirror Coat, Magic Coat/Snatch, the game's real confusion/sleep/trap values, and stage behaviour beyond three states.
+Unsupported: semi-invulnerable charge turns (Fly/Dig have no flag in the table), Endure, Counter/Mirror Coat, Magic Coat/Snatch, avoid-up, Fixated, Alpha multipliers and stage behaviour beyond three states. Status expiry is reported through `Battle::take_rule_events()` (`RuleEvent::StatusExpired`); rank expiry through `EffectEvent::StagesChanged { new_state: 0 }`.
 
 ## Items
 

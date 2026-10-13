@@ -33,6 +33,11 @@ row widths and stable identifiers. From the repository root, load them with
   2.5x category multipliers. No engine state, random rolls, or native selector
   value mapping is assumed.
 
+## Facts from the game's code (brief 28)
+
+- `integer_base_damage` here is the main-series shape. In the game it is only the fallback when no damage callback is configured; the shipped battle config installs one that computes `floor(floor(floor(P*(A+100+15L))/(D+50))/5)` (no `+2`). `pla::battle_engine::rules::pla_base_damage` implements the game's formula. Read statically, not run in-game. Details: [battle rules report](../reports/data-progress/battle_rules_verified.md).
+- Capture: the index terms, `p = I/255` and two checks against `sqrt(1-p)` are read from code (final threshold scaling in a call the decompiler lost: LIKELY).
+
 ## Explicit unknowns
 
 - Capture HP-curve shape, final-rate composition/order, shake thresholds, the
