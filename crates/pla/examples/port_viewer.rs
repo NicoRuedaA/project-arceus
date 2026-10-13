@@ -28,7 +28,7 @@ use pla::assets::navmesh::AreaNavigation;
 use pla::assets::terrain::{build_mesh_chunks, TerrainArea, TerrainScaleOverride};
 use pla::battle::BattleData;
 use pla::game::ball_lifecycle::{
-    step_ball, BallBody, BallEvent, BallLifecycleState, BallSimulation,
+    step_ball, BallBody, BallEvent, BallLifecycleState,
 };
 use pla::battle_engine::{CaptureModifiers, XorShift32};
 use pla::game::capture_world::{
