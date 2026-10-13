@@ -73,7 +73,7 @@
     "port.png": "171c21e73b75893738344b373a2e7ea2c8909240f5279fc13dc18b3663d77e32"
   },
   "rust_source_fingerprint": {
-    "file_count": 134,
+    "file_count": 144,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -82,6 +82,10 @@
       {
         "path": "crates/pla/examples/anim_spike.rs",
         "sha256": "acf199b805fc45a4ae4a5172f7788c2dbd1f318d3afa62258deef81c22645719"
+      },
+      {
+        "path": "crates/pla/examples/audio_export.rs",
+        "sha256": "1d302e1df6a0baa7b59f964fa54a96afdc87b0f300faef6534635fb81f0572b0"
       },
       {
         "path": "crates/pla/examples/battle_demo.rs",
@@ -269,7 +273,7 @@
       },
       {
         "path": "crates/pla/src/assets/mod.rs",
-        "sha256": "0fd42a9fa5692b090d860e81b7266f78daded5aea321c7f204b72abe2e781185"
+        "sha256": "9aaa28aff2a09cc9cd0ff6c31cd3ddb75369398fc5d8eeae0796e53eff1ec5cf"
       },
       {
         "path": "crates/pla/src/assets/navmesh.rs",
@@ -338,6 +342,38 @@
       {
         "path": "crates/pla/src/assets/vfxb.rs",
         "sha256": "4a9d6d0379b38e35596dc5a77adad73fc4aced18cfef34241c89ff1cbd98b4a6"
+      },
+      {
+        "path": "crates/pla/src/assets/wwise/bits.rs",
+        "sha256": "8f6501dc36d6dc30eaf54d69666019dfe72cc2ab62b935fb0523f017a3fd91d4"
+      },
+      {
+        "path": "crates/pla/src/assets/wwise/floor1_db.rs",
+        "sha256": "8b727b8acbe67238cf09a7f4bdebc0c90cab4aae74eda325b387f515a927820e"
+      },
+      {
+        "path": "crates/pla/src/assets/wwise/hirc.rs",
+        "sha256": "e4015498693735eae1c58ee0fdaa21884965cb0c346ecdd027f317e9e1e9bf56"
+      },
+      {
+        "path": "crates/pla/src/assets/wwise/opus.rs",
+        "sha256": "e4e1594ade6cdf3c533408e4618af714b3c5a7e82587f4f3698061c8a679adb2"
+      },
+      {
+        "path": "crates/pla/src/assets/wwise/vorbis.rs",
+        "sha256": "8b65cfcbcf439a349672578ebbb5752c79875f4a207bec61c3d4cae84074252d"
+      },
+      {
+        "path": "crates/pla/src/assets/wwise/vorbis_dec.rs",
+        "sha256": "d408938e475642d9a9d9236612ec108b7e473acb303a2382c437e87076601222"
+      },
+      {
+        "path": "crates/pla/src/assets/wwise/wav.rs",
+        "sha256": "7fd25e5726b566c1986200279ec0529fed94975ef444e166f9e6882e5764047a"
+      },
+      {
+        "path": "crates/pla/src/assets/wwise.rs",
+        "sha256": "f701648a74e4fbb1b9c8e61754956b38e62ec94b3c153225fb423546ac739a33"
       },
       {
         "path": "crates/pla/src/battle.rs",
@@ -588,6 +624,10 @@
         "sha256": "99a100870be3fde65cd8e649332b217fc3032e0b39d49feeb3d9997224a8b8fd"
       },
       {
+        "path": "crates/pla/tests/wwise_audio.rs",
+        "sha256": "7b2ca71ff4614e8f81bdf8afbdc3deee570ebf8a5bedf5c876727c72a02311b0"
+      },
+      {
         "path": "crates/sheetty/src/check.rs",
         "sha256": "01463297b39e7b0dbeb91eef077e0a5da2a7f9bfb74519c140aca6f9349047d2"
       },
@@ -613,7 +653,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "360d086fe5ca4b99b11cc66289713b55ea4d89f1b0cb188c81857bd37bc4972e"
+    "sha256": "4691d3bda07dd54d19f56efeee011a0b3c0b4b8f6118bdd12c667d5f427307eb"
   },
   "state_partitions": {
     "analysis_documentation_status": {
