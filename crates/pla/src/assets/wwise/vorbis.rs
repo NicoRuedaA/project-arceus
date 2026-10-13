@@ -155,7 +155,10 @@ pub struct WwiseVorbisInfo {
 pub fn read_info(wem_bytes: &[u8], wem: &Wem) -> Result<WwiseVorbisInfo, String> {
     let fmt = &wem_bytes[wem.fmt.clone()];
     if fmt.len() != 0x42 {
-        return Err(format!("unsupported Wwise Vorbis fmt size {:#x}", fmt.len()));
+        return Err(format!(
+            "unsupported Wwise Vorbis fmt size {:#x}",
+            fmt.len()
+        ));
     }
     let u32at = |o: usize| u32::from_le_bytes(fmt[o..o + 4].try_into().unwrap());
     Ok(WwiseVorbisInfo {
@@ -184,7 +187,10 @@ fn convert_setup(raw: &[u8], channels: u32, lib: &CodebookLibrary) -> Result<Set
     w.write(ncb - 1, 8);
     for _ in 0..ncb {
         let id = r.read(10) as usize;
-        let packed = lib.books.get(id).ok_or_else(|| format!("codebook id {id} outside the library"))?;
+        let packed = lib
+            .books
+            .get(id)
+            .ok_or_else(|| format!("codebook id {id} outside the library"))?;
         let mut br = BitReader::new(packed);
         rebuild_book(&mut br, &mut w).map_err(|e| format!("codebook {id}: {e}"))?;
     }
@@ -357,7 +363,10 @@ fn convert_setup(raw: &[u8], channels: u32, lib: &CodebookLibrary) -> Result<Set
     if left >= 8 {
         return Err(format!("{left} unread bits left in the setup packet"));
     }
-    Ok(SetupInfo { setup: w.into_bytes(), mode_blockflag })
+    Ok(SetupInfo {
+        setup: w.into_bytes(),
+        mode_blockflag,
+    })
 }
 
 fn identification(channels: u8, rate: u32, avg_bytes: u32, pow: [u8; 2]) -> Vec<u8> {
@@ -402,7 +411,8 @@ pub fn convert(wem_bytes: &[u8], lib: &CodebookLibrary) -> Result<StdVorbis, Str
         data.get(o + 2..o + 2 + s)?;
         Some((o + 2, s))
     };
-    let (so, ss) = rd(info.setup_packet_offset as usize).ok_or("setup packet outside the data chunk")?;
+    let (so, ss) =
+        rd(info.setup_packet_offset as usize).ok_or("setup packet outside the data chunk")?;
     let setup = convert_setup(&data[so..so + ss], channels, lib)?;
     let mode_count = setup.mode_blockflag.len() as u32;
     let mode_bits = ilog(mode_count - 1);
@@ -460,9 +470,17 @@ pub fn convert(wem_bytes: &[u8], lib: &CodebookLibrary) -> Result<StdVorbis, Str
         channels: wem.channels as u8,
         sample_rate: wem.sample_rate,
         sample_count: info.sample_count,
-        blocksizes: [1usize << info.blocksize_pow[0], 1usize << info.blocksize_pow[1]],
+        blocksizes: [
+            1usize << info.blocksize_pow[0],
+            1usize << info.blocksize_pow[1],
+        ],
         avg_bytes_per_sec: wem.avg_bytes_per_sec,
-        ident: identification(wem.channels as u8, wem.sample_rate, wem.avg_bytes_per_sec, info.blocksize_pow),
+        ident: identification(
+            wem.channels as u8,
+            wem.sample_rate,
+            wem.avg_bytes_per_sec,
+            info.blocksize_pow,
+        ),
         comment: comment_header(),
         setup: setup.setup,
         packets,
@@ -479,7 +497,11 @@ fn ogg_crc_table() -> [u32; 256] {
     for (i, e) in t.iter_mut().enumerate() {
         let mut r = (i as u32) << 24;
         for _ in 0..8 {
-            r = if r & 0x8000_0000 != 0 { (r << 1) ^ 0x04c1_1db7 } else { r << 1 };
+            r = if r & 0x8000_0000 != 0 {
+                (r << 1) ^ 0x04c1_1db7
+            } else {
+                r << 1
+            };
         }
         *e = r;
     }
@@ -496,7 +518,12 @@ pub struct OggWriter {
 
 impl OggWriter {
     pub fn new(serial: u32) -> Self {
-        OggWriter { out: Vec::new(), serial, seq: 0, table: ogg_crc_table() }
+        OggWriter {
+            out: Vec::new(),
+            serial,
+            seq: 0,
+            table: ogg_crc_table(),
+        }
     }
 
     /// Writes one page made of whole packets.
@@ -570,7 +597,11 @@ pub fn granules(v: &StdVorbis) -> Vec<i64> {
     let mut out = Vec::with_capacity(v.packets.len());
     for p in &v.packets {
         let mode = (p.first().copied().unwrap_or(0) as u32 >> 1) & ((1u32 << bits) - 1);
-        let size = v.blocksizes[v.mode_blockflags.get(mode as usize).copied().unwrap_or(false) as usize];
+        let size = v.blocksizes[v
+            .mode_blockflags
+            .get(mode as usize)
+            .copied()
+            .unwrap_or(false) as usize];
         if let Some(ps) = prev {
             total += (ps / 4 + size / 4) as i64;
         }

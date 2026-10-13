@@ -73,7 +73,11 @@ fn node_parent(body: &[u8], start: usize) -> Option<u32> {
 
 /// The media source of a sound object.
 pub fn sound_source(body: &[u8]) -> Option<SourceRef> {
-    Some(SourceRef { plugin: u32le(body, 0)?, stream_type: *body.get(4)?, media_id: u32le(body, 5)? })
+    Some(SourceRef {
+        plugin: u32le(body, 0)?,
+        stream_type: *body.get(4)?,
+        media_id: u32le(body, 5)?,
+    })
 }
 
 /// Sources of a music track object.
@@ -85,8 +89,14 @@ pub fn track_sources(body: &[u8]) -> Vec<SourceRef> {
     }
     for i in 0..n as usize {
         let o = 5 + i * 14;
-        if let (Some(plugin), Some(&st), Some(id)) = (u32le(body, o), body.get(o + 4), u32le(body, o + 5)) {
-            v.push(SourceRef { plugin, stream_type: st, media_id: id });
+        if let (Some(plugin), Some(&st), Some(id)) =
+            (u32le(body, o), body.get(o + 4), u32le(body, o + 5))
+        {
+            v.push(SourceRef {
+                plugin,
+                stream_type: st,
+                media_id: id,
+            });
         }
     }
     v
@@ -94,14 +104,20 @@ pub fn track_sources(body: &[u8]) -> Vec<SourceRef> {
 
 /// Target object id and action type of an action object.
 pub fn action_target(body: &[u8]) -> Option<(u16, u32)> {
-    Some((u16::from_le_bytes(body.get(0..2)?.try_into().ok()?), u32le(body, 2)?))
+    Some((
+        u16::from_le_bytes(body.get(0..2)?.try_into().ok()?),
+        u32le(body, 2)?,
+    ))
 }
 
 /// Action ids of an event object.
 pub fn event_actions(body: &[u8]) -> Vec<u32> {
     // The count is a variable-length integer: one byte, or two when the high bit is set.
     let (n, mut p) = match body.first() {
-        Some(&b) if b & 0x80 != 0 => (((b & 0x7f) as usize) << 8 | *body.get(1).unwrap_or(&0) as usize, 2),
+        Some(&b) if b & 0x80 != 0 => (
+            ((b & 0x7f) as usize) << 8 | *body.get(1).unwrap_or(&0) as usize,
+            2,
+        ),
         Some(&b) => (b as usize, 1),
         None => return Vec::new(),
     };
@@ -121,8 +137,17 @@ impl Graph {
         let bi = self.bank_names.len();
         self.bank_names.push(name.to_string());
         for HircObject { kind, id, body } in &bank.hirc {
-            let Some(bytes) = file.get(body.clone()) else { continue };
-            self.objs.insert(*id, Obj { kind: *kind, body: bytes.to_vec(), bank: bi });
+            let Some(bytes) = file.get(body.clone()) else {
+                continue;
+            };
+            self.objs.insert(
+                *id,
+                Obj {
+                    kind: *kind,
+                    body: bytes.to_vec(),
+                    bank: bi,
+                },
+            );
         }
     }
 
@@ -156,7 +181,12 @@ impl Graph {
     }
 
     pub fn events(&self) -> Vec<u32> {
-        let mut v: Vec<u32> = self.objs.iter().filter(|(_, o)| o.kind == T_EVENT).map(|(&i, _)| i).collect();
+        let mut v: Vec<u32> = self
+            .objs
+            .iter()
+            .filter(|(_, o)| o.kind == T_EVENT)
+            .map(|(&i, _)| i)
+            .collect();
         v.sort_unstable();
         v
     }
@@ -173,8 +203,13 @@ impl Graph {
             if n == 0 || n > 512 || p + 4 + 4 * n as usize > o.body.len() {
                 continue;
             }
-            let ids: Vec<u32> = (0..n as usize).filter_map(|i| u32le(&o.body, p + 4 + 4 * i)).collect();
-            if ids.iter().all(|i| self.objs.get(i).is_some_and(|c| ok(c.kind))) {
+            let ids: Vec<u32> = (0..n as usize)
+                .filter_map(|i| u32le(&o.body, p + 4 + 4 * i))
+                .collect();
+            if ids
+                .iter()
+                .all(|i| self.objs.get(i).is_some_and(|c| ok(c.kind)))
+            {
                 return ids;
             }
         }
@@ -243,7 +278,10 @@ mod tests {
         b[4] = 2;
         b[5..9].copy_from_slice(&1234u32.to_le_bytes());
         let s = sound_source(&b).unwrap();
-        assert_eq!((s.media_id, s.stream_type, s.plugin), (1234, 2, 0x0004_0001));
+        assert_eq!(
+            (s.media_id, s.stream_type, s.plugin),
+            (1234, 2, 0x0004_0001)
+        );
     }
 
     #[test]

@@ -19,7 +19,9 @@
 //! The Opus decode uses the system libopus through its C ABI (no crate); Vorbis uses the
 //! decoder in `pla::assets::wwise::vorbis_dec`.
 use pla::assets::wwise::hirc::Graph;
-use pla::assets::wwise::{self, opus, vorbis, vorbis_dec, wav, Bank, Codec, CodebookLibrary, Pck, Wem};
+use pla::assets::wwise::{
+    self, opus, vorbis, vorbis_dec, wav, Bank, CodebookLibrary, Codec, Pck, Wem,
+};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -31,18 +33,30 @@ use std::sync::Mutex;
 #[link(name = "opus")]
 extern "C" {
     fn opus_decoder_create(fs: i32, channels: i32, error: *mut i32) -> *mut c_void;
-    fn opus_decode_float(st: *mut c_void, data: *const u8, len: i32, pcm: *mut f32, frame_size: i32, fec: i32) -> i32;
+    fn opus_decode_float(
+        st: *mut c_void,
+        data: *const u8,
+        len: i32,
+        pcm: *mut f32,
+        frame_size: i32,
+        fec: i32,
+    ) -> i32;
     fn opus_decoder_destroy(st: *mut c_void);
 }
 
 const GAME_ROOT: &str = "/home/nico/work/decompilacion/work/pla/pk2";
 
 fn bank_dir() -> PathBuf {
-    PathBuf::from(GAME_ROOT).join("romfs_patched").join(wwise::SOUND_BANK_DIR)
+    PathBuf::from(GAME_ROOT)
+        .join("romfs_patched")
+        .join(wwise::SOUND_BANK_DIR)
 }
 
 fn cache_root() -> PathBuf {
-    PathBuf::from(std::env::var("PLA_CACHE_ROOT").unwrap_or_else(|_| "/home/nico/work/decompilacion/work/cache".into()))
+    PathBuf::from(
+        std::env::var("PLA_CACHE_ROOT")
+            .unwrap_or_else(|_| "/home/nico/work/decompilacion/work/cache".into()),
+    )
 }
 
 fn main() -> Result<(), String> {
@@ -78,7 +92,8 @@ impl Item {
 
     fn read(&self) -> Result<Vec<u8>, String> {
         let mut f = File::open(&self.path).map_err(|e| e.to_string())?;
-        f.seek(SeekFrom::Start(self.offset)).map_err(|e| e.to_string())?;
+        f.seek(SeekFrom::Start(self.offset))
+            .map_err(|e| e.to_string())?;
         let mut v = vec![0u8; self.size as usize];
         f.read_exact(&mut v).map_err(|e| e.to_string())?;
         Ok(v)
@@ -88,7 +103,6 @@ impl Item {
 struct Discovery {
     items: Vec<Item>,
     banks: Vec<(String, PathBuf, Bank)>,
-    pck_ids: HashMap<u32, u32>,
 }
 
 fn discover() -> Result<Discovery, String> {
@@ -142,7 +156,7 @@ fn discover() -> Result<Discovery, String> {
             it.prefetch_of_pck = Some(full);
         }
     }
-    Ok(Discovery { items, banks, pck_ids })
+    Ok(Discovery { items, banks })
 }
 
 // ---------------------------------------------------------------------------------------
@@ -183,7 +197,8 @@ fn census() -> Result<(), String> {
     let mut pck_codecs: BTreeMap<String, usize> = BTreeMap::new();
     let mut f = File::open(bank_dir().join("Default.pck")).map_err(|e| e.to_string())?;
     for it in pck_items.iter().filter(|i| i.bank == "Default.pck") {
-        f.seek(SeekFrom::Start(it.offset)).map_err(|e| e.to_string())?;
+        f.seek(SeekFrom::Start(it.offset))
+            .map_err(|e| e.to_string())?;
         let mut head = [0u8; 24];
         let n = f.read(&mut head).map_err(|e| e.to_string())?;
         let key = if n >= 22 && &head[..4] == b"RIFF" {
@@ -195,7 +210,11 @@ fn census() -> Result<(), String> {
         *total.entry(format!("pck {key}")).or_default() += 1;
     }
     println!("pck codecs (all entries): {pck_codecs:?}");
-    let prefetch = d.items.iter().filter(|i| i.prefetch_of_pck.is_some()).count();
+    let prefetch = d
+        .items
+        .iter()
+        .filter(|i| i.prefetch_of_pck.is_some())
+        .count();
     println!("bank entries that are prefetch prefixes of a pck file: {prefetch}");
     println!("totals: {total:?}");
     Ok(())
@@ -276,7 +295,11 @@ fn decode_item(bytes: &[u8], lib: &CodebookLibrary, want_ogg: bool) -> Result<De
         Codec::WwiseOpus(_) => {
             let o = opus::convert(bytes)?;
             let (pcm, fs) = opus_decode(&o)?;
-            let ogg = if want_ogg { Some(opus::to_ogg(&o)?) } else { None };
+            let ogg = if want_ogg {
+                Some(opus::to_ogg(&o)?)
+            } else {
+                None
+            };
             Ok(Decoded {
                 codec: w.codec.name(),
                 channels: w.channels,
@@ -286,7 +309,11 @@ fn decode_item(bytes: &[u8], lib: &CodebookLibrary, want_ogg: bool) -> Result<De
                 ogg,
                 ogg_ext: "opus",
                 note: if o.seek_entries != o.packets.len() {
-                    format!("seek entries {} != packets {}", o.seek_entries, o.packets.len())
+                    format!(
+                        "seek entries {} != packets {}",
+                        o.seek_entries,
+                        o.packets.len()
+                    )
                 } else {
                     String::new()
                 },
@@ -294,7 +321,10 @@ fn decode_item(bytes: &[u8], lib: &CodebookLibrary, want_ogg: bool) -> Result<De
         }
         Codec::Pcm => {
             if w.bits_per_sample != 16 {
-                return Err(format!("PCM with {} bits per sample is not handled", w.bits_per_sample));
+                return Err(format!(
+                    "PCM with {} bits per sample is not handled",
+                    w.bits_per_sample
+                ));
             }
             let data = &bytes[w.data.clone()];
             let ch = w.channels as usize;
@@ -321,7 +351,8 @@ fn decode_item(bytes: &[u8], lib: &CodebookLibrary, want_ogg: bool) -> Result<De
             // 0x8311: 4 bits per sample, 36-byte frames of 64 samples (avg bytes / block align).
             let est = if w.block_align > 0 && w.avg_bytes_per_sec > 0 {
                 let frames = (bytes[w.data.clone()].len() / w.block_align as usize) as u64;
-                let per_frame = w.sample_rate as u64 * w.block_align as u64 / w.avg_bytes_per_sec.max(1) as u64;
+                let per_frame =
+                    w.sample_rate as u64 * w.block_align as u64 / w.avg_bytes_per_sec.max(1) as u64;
                 Some(frames * per_frame)
             } else {
                 None
@@ -399,17 +430,24 @@ fn parse_opts(a: &[String]) -> Result<Opts, String> {
     while i < a.len() {
         let next = |i: &mut usize| -> Result<String, String> {
             *i += 1;
-            a.get(*i).cloned().ok_or_else(|| format!("{} needs a value", a[*i - 1]))
+            a.get(*i)
+                .cloned()
+                .ok_or_else(|| format!("{} needs a value", a[*i - 1]))
         };
         match a[i].as_str() {
             "--limit" => o.limit = next(&mut i)?.parse().map_err(|_| "bad --limit")?,
-            "--max-gb" => o.max_bytes = (next(&mut i)?.parse::<f64>().map_err(|_| "bad --max-gb")? * 1073741824.0) as u64,
+            "--max-gb" => {
+                o.max_bytes = (next(&mut i)?.parse::<f64>().map_err(|_| "bad --max-gb")?
+                    * 1073741824.0) as u64
+            }
             "--only" => o.only = Some(next(&mut i)?),
             "--no-wav" => o.no_wav = true,
             "--ogg" => o.ogg = true,
             "--index" => o.index = PathBuf::from(next(&mut i)?),
             "--threads" => o.threads = next(&mut i)?.parse().map_err(|_| "bad --threads")?,
-            "--crosscheck" => o.crosscheck = next(&mut i)?.parse().map_err(|_| "bad --crosscheck")?,
+            "--crosscheck" => {
+                o.crosscheck = next(&mut i)?.parse().map_err(|_| "bad --crosscheck")?
+            }
             "--names" => o.names = true,
             x => return Err(format!("unknown option {x}")),
         }
@@ -432,7 +470,14 @@ fn content_hash(b: &[u8]) -> u64 {
     h
 }
 
-fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes_written: &AtomicU64, cache: &DedupCache) -> Row {
+fn process(
+    it: &Item,
+    lib: &CodebookLibrary,
+    o: &Opts,
+    wavs: &AtomicUsize,
+    bytes_written: &AtomicU64,
+    cache: &DedupCache,
+) -> Row {
     let mut row = Row {
         key: it.key(),
         bank: it.bank.clone(),
@@ -445,7 +490,10 @@ fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes
     };
     if let Some(full) = it.prefetch_of_pck {
         row.status = "prefetch";
-        row.reason = format!("bank holds the first {} bytes; the full {} bytes are in Default.pck under the same id", it.size, full);
+        row.reason = format!(
+            "bank holds the first {} bytes; the full {} bytes are in Default.pck under the same id",
+            it.size, full
+        );
         if let Ok(b) = it.read() {
             if let Ok(w) = Wem::parse(&b) {
                 row.codec = w.codec.name();
@@ -469,7 +517,11 @@ fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes
         r.key = it.key();
         r.bank = it.bank.clone();
         r.source = it.source;
-        r.reason = if r.reason.is_empty() { "identical copy of an already processed media".into() } else { format!("{}; identical copy of an already processed media", r.reason) };
+        r.reason = if r.reason.is_empty() {
+            "identical copy of an already processed media".into()
+        } else {
+            format!("{}; identical copy of an already processed media", r.reason)
+        };
         return r;
     }
     let want_ogg = o.ogg && !o.no_wav;
@@ -488,7 +540,9 @@ fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes
     row.codec = dec.codec.clone();
     row.channels = dec.channels;
     row.rate = dec.rate;
-    row.duration_s = dec.declared_frames.map(|f| f as f32 / dec.rate.max(1) as f32);
+    row.duration_s = dec
+        .declared_frames
+        .map(|f| f as f32 / dec.rate.max(1) as f32);
     let Some(pcm) = dec.pcm else {
         row.reason = dec.note;
         return row;
@@ -511,7 +565,10 @@ fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes
         }
     }
     if st.clipped_ratio > 0.01 {
-        problems.push(format!("{:.1}% samples at full scale", st.clipped_ratio * 100.0));
+        problems.push(format!(
+            "{:.1}% samples at full scale",
+            st.clipped_ratio * 100.0
+        ));
     }
     if st.peak > 1.5 {
         problems.push(format!("peak {:.2} exceeds full scale", st.peak));
@@ -525,12 +582,20 @@ fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes
     };
     if row.status == "silent" {
         let secs = dec.declared_frames.unwrap_or(0) as f32 / dec.rate.max(1) as f32;
-        problems.push(format!(
-            "decodes to digital silence; {} bytes for {:.2} s ({:.0} bytes/s)",
-            it.size,
-            secs,
-            it.size as f32 / secs.max(0.001)
-        ));
+        let mut why = format!("{} bytes for {:.2} s", it.size, secs);
+        if let Ok(o) = opus::convert(&bytes) {
+            // Opus is constant-bitrate here: a silent track still fills whole packets.
+            let zero = o
+                .packets
+                .iter()
+                .filter(|p| p.len() > 3 && p[3..].iter().all(|&b| b == 0))
+                .count();
+            why = format!(
+                "{why}; {zero} of {} Opus packets are an empty frame followed by zero padding",
+                o.packets.len()
+            );
+        }
+        problems.push(format!("decodes to digital silence ({why})"));
     }
     // A file whose peak exceeds full scale is written peak-normalised to 0.99 (never hard-clipped).
     let mut pcm = pcm;
@@ -577,7 +642,11 @@ fn export(args: &[String]) -> Result<(), String> {
     let o = parse_opts(args)?;
     let log = |m: &str| {
         let line = format!("{} {m}\n", chrono_like());
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("work/progress/audio.log") {
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("work/progress/audio.log")
+        {
             let _ = f.write_all(line.as_bytes());
         }
         eprintln!("{m}");
@@ -591,7 +660,11 @@ fn export(args: &[String]) -> Result<(), String> {
         .filter(|i| o.only.as_ref().is_none_or(|b| &i.bank == b))
         .cloned()
         .collect();
-    log(&format!("{} media items selected of {}", selected.len(), d.items.len()));
+    log(&format!(
+        "{} media items selected of {}",
+        selected.len(),
+        d.items.len()
+    ));
     let next = AtomicUsize::new(0);
     let wavs = AtomicUsize::new(0);
     let written = AtomicU64::new(0);
@@ -606,7 +679,12 @@ fn export(args: &[String]) -> Result<(), String> {
                 let r = process(it, &lib, &o, &wavs, &written, &cache);
                 rows.lock().unwrap().push(r);
                 if i % 500 == 499 {
-                    eprintln!("  {} / {} ({:.0}s)", i + 1, selected.len(), t0.elapsed().as_secs_f32());
+                    eprintln!(
+                        "  {} / {} ({:.0}s)",
+                        i + 1,
+                        selected.len(),
+                        t0.elapsed().as_secs_f32()
+                    );
                 }
             });
         }
@@ -621,7 +699,11 @@ fn export(args: &[String]) -> Result<(), String> {
     }
     log(&format!("status counts: {by_status:?}"));
     log(&format!("codec/status: {by_codec:?}"));
-    log(&format!("wav files written: {} ({:.2} GB)", rows.iter().filter(|r| r.wav.is_some()).count(), written.load(Ordering::SeqCst) as f64 / 1073741824.0));
+    log(&format!(
+        "wav files written: {} ({:.2} GB)",
+        rows.iter().filter(|r| r.wav.is_some()).count(),
+        written.load(Ordering::SeqCst) as f64 / 1073741824.0
+    ));
     if o.names {
         map_names(&d, &mut rows, &log)?;
     }
@@ -629,12 +711,19 @@ fn export(args: &[String]) -> Result<(), String> {
         crosscheck(&selected, &lib, o.crosscheck, &log)?;
     }
     write_index(&o.index, &rows)?;
-    log(&format!("index written: {} ({} rows)", o.index.display(), rows.len()));
+    log(&format!(
+        "index written: {} ({} rows)",
+        o.index.display(),
+        rows.len()
+    ));
     Ok(())
 }
 
 fn chrono_like() -> String {
-    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     format!("{:02}:{:02}:{:02}", t / 3600 % 24, t / 60 % 60, t % 60)
 }
 
@@ -684,7 +773,11 @@ fn write_index(path: &Path, rows: &[Row]) -> Result<(), String> {
 /// Scans every identifier-like run in `bytes` and records those whose hash is in `wanted`.
 fn scan_bytes(bytes: &[u8], wanted: &HashSet<u32>, found: &mut HashMap<u32, String>) {
     let mut start: Option<usize> = None;
-    for (i, &c) in bytes.iter().enumerate().chain(std::iter::once((bytes.len(), &0u8))) {
+    for (i, &c) in bytes
+        .iter()
+        .enumerate()
+        .chain(std::iter::once((bytes.len(), &0u8)))
+    {
         let ok = c.is_ascii_alphanumeric() || c == b'_';
         match (ok, start) {
             (true, None) => start = Some(i),
@@ -693,7 +786,9 @@ fn scan_bytes(bytes: &[u8], wanted: &HashSet<u32>, found: &mut HashMap<u32, Stri
                 if (4..=120).contains(&len) {
                     let h = wwise::fnv1_lower(std::str::from_utf8(&bytes[s..i]).unwrap_or(""));
                     if wanted.contains(&h) {
-                        found.entry(h).or_insert_with(|| String::from_utf8_lossy(&bytes[s..i]).to_string());
+                        found
+                            .entry(h)
+                            .or_insert_with(|| String::from_utf8_lossy(&bytes[s..i]).to_string());
                     }
                 }
                 start = None;
@@ -710,7 +805,9 @@ fn find_names(wanted: &HashSet<u32>, log: &dyn Fn(&str)) -> HashMap<u32, String>
     let mut files = vec![root.join("main.elf")];
     let mut stack = vec![root.join("romfs_patched/bin")];
     while let Some(d) = stack.pop() {
-        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
         for e in rd.flatten() {
             let p = e.path();
             if p.is_dir() {
@@ -731,12 +828,16 @@ fn find_names(wanted: &HashSet<u32>, log: &dyn Fn(&str)) -> HashMap<u32, String>
             s.spawn(|| loop {
                 let i = next.fetch_add(1, Ordering::SeqCst);
                 let Some(path) = files.get(i) else { break };
-                let Ok(mut f) = File::open(path) else { continue };
+                let Ok(mut f) = File::open(path) else {
+                    continue;
+                };
                 let mut local = HashMap::new();
                 let mut buf = vec![0u8; 16 << 20];
                 let mut carry = 0usize;
                 loop {
-                    let Ok(n) = f.read(&mut buf[carry..]) else { break };
+                    let Ok(n) = f.read(&mut buf[carry..]) else {
+                        break;
+                    };
                     if n == 0 {
                         scan_bytes(&buf[..carry], wanted, &mut local);
                         break;
@@ -764,7 +865,6 @@ fn find_names(wanted: &HashSet<u32>, log: &dyn Fn(&str)) -> HashMap<u32, String>
     found.into_inner().unwrap()
 }
 
-
 /// Builds candidate names from templates found in the game (not stored strings) and keeps the
 /// ones whose hash matches a wanted id.
 ///   * `PLAY_PV_%03d_%02d_%02d` is a printf template in the executable (Pokémon voice events):
@@ -786,14 +886,22 @@ fn generate_names(wanted: &HashSet<u32>, known: &HashMap<u32, String>) -> HashMa
             }
         }
     }
-    let prefixes = ["PLAY_PM_N_", "STOP_PM_N_", "PLAY_PM_", "STOP_PM_", "PLAY_PV_", "STOP_PV_"];
+    let prefixes = [
+        "PLAY_PM_N_",
+        "STOP_PM_N_",
+        "PLAY_PM_",
+        "STOP_PM_",
+        "PLAY_PV_",
+        "STOP_PV_",
+    ];
     let mut suffixes: HashMap<&str, HashSet<String>> = HashMap::new();
     for n in known.values() {
         let u = n.to_ascii_uppercase();
         for p in prefixes {
             if let Some(rest) = u.strip_prefix(p) {
                 if let Some((num, suf)) = rest.split_once('_') {
-                    if num.len() == 3 && num.bytes().all(|b| b.is_ascii_digit()) && !suf.is_empty() {
+                    if num.len() == 3 && num.bytes().all(|b| b.is_ascii_digit()) && !suf.is_empty()
+                    {
                         let fam = if p.contains("PV") { "PV" } else { "PM" };
                         suffixes.entry(fam).or_default().insert(suf.to_string());
                     }
@@ -802,7 +910,11 @@ fn generate_names(wanted: &HashSet<u32>, known: &HashMap<u32, String>) -> HashMa
         }
     }
     for (fam, sufs) in &suffixes {
-        let ps: Vec<&str> = prefixes.iter().copied().filter(|p| p.contains(if *fam == "PV" { "PV" } else { "PM" })).collect();
+        let ps: Vec<&str> = prefixes
+            .iter()
+            .copied()
+            .filter(|p| p.contains(if *fam == "PV" { "PV" } else { "PM" }))
+            .collect();
         for suf in sufs {
             for sp in 1..=1100u32 {
                 for p in &ps {
@@ -821,7 +933,14 @@ fn generate_names(wanted: &HashSet<u32>, known: &HashMap<u32, String>) -> HashMa
 /// Species number encoded in a verified name (`PLAY_PV_025_00_00`, `PLAY_PM_025_...`).
 fn species_of(name: &str) -> Option<u16> {
     let u = name.to_ascii_uppercase();
-    for p in ["PLAY_PV_", "STOP_PV_", "PLAY_PM_N_", "STOP_PM_N_", "PLAY_PM_", "STOP_PM_"] {
+    for p in [
+        "PLAY_PV_",
+        "STOP_PV_",
+        "PLAY_PM_N_",
+        "STOP_PM_N_",
+        "PLAY_PM_",
+        "STOP_PM_",
+    ] {
         if let Some(rest) = u.strip_prefix(p) {
             let num: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
             if num.len() == 3 {
@@ -886,10 +1005,17 @@ fn map_names(d: &Discovery, rows: &mut [Row], log: &dyn Fn(&str)) -> Result<(), 
     let mut names = find_names(&ev_set, log);
     let from_strings = names.len();
     let generated = generate_names(&ev_set, &names);
-    log(&format!("event names from game strings {from_strings}; from templates {}", generated.len()));
+    log(&format!(
+        "event names from game strings {from_strings}; from templates {}",
+        generated.len()
+    ));
     let generated_ids: HashSet<u32> = generated.keys().copied().collect();
     names.extend(generated);
-    log(&format!("event names matched by FNV hash from game strings: {} of {}", names.len(), events.len()));
+    log(&format!(
+        "event names matched by FNV hash from game strings: {} of {}",
+        names.len(),
+        events.len()
+    ));
     // media id -> events
     let mut media_events: HashMap<u32, Vec<u32>> = HashMap::new();
     let mut heuristic_events = 0usize;
@@ -916,8 +1042,16 @@ fn map_names(d: &Discovery, rows: &mut [Row], log: &dyn Fn(&str)) -> Result<(), 
         r.category = category_from_bank(&r.bank).to_string();
         if let Some(n) = cand.first() {
             r.name = (*n).clone();
-            let id = evs.iter().find(|e| names.get(e) == Some(*n)).copied().unwrap_or(0);
-            r.name_conf = if generated_ids.contains(&id) { "hash_template" } else { "hash_string" };
+            let id = evs
+                .iter()
+                .find(|e| names.get(e) == Some(*n))
+                .copied()
+                .unwrap_or(0);
+            r.name_conf = if generated_ids.contains(&id) {
+                "hash_template"
+            } else {
+                "hash_string"
+            };
             r.category = category_from_name(n).to_string();
             r.species = species_of(n);
             named_media += 1;
@@ -925,8 +1059,15 @@ fn map_names(d: &Discovery, rows: &mut [Row], log: &dyn Fn(&str)) -> Result<(), 
             r.name_conf = "bank_only";
         }
     }
-    log(&format!("media rows with a hash-matched event name: {named_media} of {}", rows.len()));
-    let unnamed_events: Vec<u32> = events.iter().copied().filter(|e| !names.contains_key(e)).collect();
+    log(&format!(
+        "media rows with a hash-matched event name: {named_media} of {}",
+        rows.len()
+    ));
+    let unnamed_events: Vec<u32> = events
+        .iter()
+        .copied()
+        .filter(|e| !names.contains_key(e))
+        .collect();
     let mut per_bank: BTreeMap<String, (usize, usize)> = BTreeMap::new();
     for &e in &events {
         let b = g.bank_of(e).unwrap_or("?").to_string();
@@ -936,7 +1077,10 @@ fn map_names(d: &Discovery, rows: &mut [Row], log: &dyn Fn(&str)) -> Result<(), 
             ent.1 += 1;
         }
     }
-    log(&format!("events named per bank (total, named): {per_bank:?}; unnamed {}", unnamed_events.len()));
+    log(&format!(
+        "events named per bank (total, named): {per_bank:?}; unnamed {}",
+        unnamed_events.len()
+    ));
     Ok(())
 }
 
@@ -944,7 +1088,12 @@ fn map_names(d: &Discovery, rows: &mut [Row], log: &dyn Fn(&str)) -> Result<(), 
 // Cross-check with ffmpeg
 // ---------------------------------------------------------------------------------------
 
-fn crosscheck(items: &[Item], lib: &CodebookLibrary, n: usize, log: &dyn Fn(&str)) -> Result<(), String> {
+fn crosscheck(
+    items: &[Item],
+    lib: &CodebookLibrary,
+    n: usize,
+    log: &dyn Fn(&str),
+) -> Result<(), String> {
     let tmp = cache_root().join("audio").join("_crosscheck");
     std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
     let mut done = [0usize; 2];
@@ -965,11 +1114,15 @@ fn crosscheck(items: &[Item], lib: &CodebookLibrary, n: usize, log: &dyn Fn(&str
         if done[kind] >= n || w.sample_rate == 0 {
             continue;
         }
-        let Ok(dec) = decode_item(&bytes, lib, true) else { continue };
+        let Ok(dec) = decode_item(&bytes, lib, true) else {
+            continue;
+        };
         if kind == 1 && dec.rate != 48000 {
             continue; // ffmpeg resamples these to 48 kHz; the comparison would be meaningless
         }
-        let (Some(ogg), Some(pcm)) = (dec.ogg.clone(), dec.pcm.clone()) else { continue };
+        let (Some(ogg), Some(pcm)) = (dec.ogg.clone(), dec.pcm.clone()) else {
+            continue;
+        };
         let ogg_path = tmp.join(format!("{}_{}.{}", safe_dir(&it.bank), it.id, dec.ogg_ext));
         std::fs::write(&ogg_path, &ogg).map_err(|e| e.to_string())?;
         let out = std::process::Command::new("ffmpeg")
@@ -979,7 +1132,11 @@ fn crosscheck(items: &[Item], lib: &CodebookLibrary, n: usize, log: &dyn Fn(&str
             .output()
             .map_err(|e| format!("ffmpeg: {e}"))?;
         let ch = pcm.len();
-        let ff: Vec<f32> = out.stdout.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect();
+        let ff: Vec<f32> = out
+            .stdout
+            .chunks_exact(4)
+            .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
+            .collect();
         let frames = (ff.len() / ch.max(1)).min(pcm[0].len());
         let (mut err2, mut sig2) = (0f64, 0f64);
         for f in 0..frames {
@@ -990,8 +1147,17 @@ fn crosscheck(items: &[Item], lib: &CodebookLibrary, n: usize, log: &dyn Fn(&str
                 sig2 += b * b;
             }
         }
-        let ours_peak = pcm.iter().flat_map(|c| c.iter()).fold(0f32, |m, x| m.max(x.abs()));
-        let snr = if err2 > 0.0 && sig2 > 0.0 { 10.0 * (sig2 / err2).log10() } else if err2 == 0.0 || (sig2 == 0.0 && ours_peak < 1e-6) { 200.0 } else { -200.0 };
+        let ours_peak = pcm
+            .iter()
+            .flat_map(|c| c.iter())
+            .fold(0f32, |m, x| m.max(x.abs()));
+        let snr = if err2 > 0.0 && sig2 > 0.0 {
+            10.0 * (sig2 / err2).log10()
+        } else if err2 == 0.0 || (sig2 == 0.0 && ours_peak < 1e-6) {
+            200.0
+        } else {
+            -200.0
+        };
         log(&format!(
             "crosscheck {} {}: ffmpeg frames {} vs ours {} ; SNR of ours vs ffmpeg {:.1} dB (ffmpeg stderr: {})",
             it.key(),
@@ -1038,15 +1204,25 @@ fn probe(bank: &str, id: usize) -> Result<(), String> {
         .ok_or_else(|| format!("no media {bank}/{id}"))?;
     let wem_bytes = item.read()?;
     let wem = Wem::parse(&wem_bytes)?;
-    println!("{:?} ch={} rate={}", wem.codec, wem.channels, wem.sample_rate);
+    println!(
+        "{:?} ch={} rate={}",
+        wem.codec, wem.channels, wem.sample_rate
+    );
     let dec = decode_item(&wem_bytes, &lib, true)?;
     let pcm = dec.pcm.ok_or("no pcm")?;
     let st = wav::stats(&pcm, dec.rate);
-    println!("declared {:?} decoded {} {:?}", dec.declared_frames, st.frames, st);
+    println!(
+        "declared {:?} decoded {} {:?}",
+        dec.declared_frames, st.frames, st
+    );
     let (i16s, clip) = wav::interleave_i16(&pcm);
     println!("clip={clip}");
     let scratch = std::env::var("PROBE_OUT").unwrap_or_else(|_| "/tmp/claude-1000".into());
-    std::fs::write(format!("{scratch}/probe.wav"), wav::wav_bytes(dec.rate, pcm.len() as u16, &i16s)).map_err(|e| e.to_string())?;
+    std::fs::write(
+        format!("{scratch}/probe.wav"),
+        wav::wav_bytes(dec.rate, pcm.len() as u16, &i16s),
+    )
+    .map_err(|e| e.to_string())?;
     if let Some(o) = dec.ogg {
         std::fs::write(format!("{scratch}/probe.{}", dec.ogg_ext), o).map_err(|e| e.to_string())?;
     }

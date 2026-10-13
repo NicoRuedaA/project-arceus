@@ -143,7 +143,11 @@ impl Codebook {
                 let mut last = 0f32;
                 let mut div = 1usize;
                 for d in 0..dims {
-                    let idx = if lookup == 1 { (e / div) % nvals } else { e * dims + d };
+                    let idx = if lookup == 1 {
+                        (e / div) % nvals
+                    } else {
+                        e * dims + d
+                    };
                     let v = mults[idx] as f32 * delta + min + last;
                     vq[e * dims + d] = v;
                     if seq {
@@ -157,7 +161,12 @@ impl Codebook {
         } else if lookup != 0 {
             return Err("bad codebook lookup type".into());
         }
-        Ok(Codebook { dims, entries, trie, vq })
+        Ok(Codebook {
+            dims,
+            entries,
+            trie,
+            vq,
+        })
     }
 
     /// Decodes one scalar entry; `None` at end of data or on an undefined codeword.
@@ -192,7 +201,6 @@ struct Floor1 {
     class_master: Vec<usize>,
     class_books: Vec<Vec<i32>>,
     multiplier: i32,
-    rangebits: u32,
     xlist: Vec<i32>,
     sorted: Vec<usize>,
     lo_nb: Vec<usize>,
@@ -320,7 +328,6 @@ impl Setup {
                 class_master,
                 class_books,
                 multiplier,
-                rangebits,
                 xlist,
                 sorted,
                 lo_nb,
@@ -362,7 +369,15 @@ impl Setup {
                 }
                 books.push(b);
             }
-            residues.push(Residue { rtype, begin, end, psize, classbook, nclass, books });
+            residues.push(Residue {
+                rtype,
+                begin,
+                end,
+                psize,
+                classbook,
+                nclass,
+                books,
+            });
         }
         let nmap = r.read(6) as usize + 1;
         let mut mappings = Vec::new();
@@ -370,7 +385,11 @@ impl Setup {
             if r.read(16) != 0 {
                 return Err("bad mapping type".into());
             }
-            let nsub = if r.read(1) != 0 { r.read(4) as usize + 1 } else { 1 };
+            let nsub = if r.read(1) != 0 {
+                r.read(4) as usize + 1
+            } else {
+                1
+            };
             let mut coupling = Vec::new();
             if r.read(1) != 0 {
                 let steps = r.read(8) as usize + 1;
@@ -406,7 +425,11 @@ impl Setup {
                 }
                 submaps.push((f, rs));
             }
-            mappings.push(Mapping { coupling, mux, submaps });
+            mappings.push(Mapping {
+                coupling,
+                mux,
+                submaps,
+            });
         }
         let nmodes = r.read(6) as usize + 1;
         let mut modes = Vec::new();
@@ -423,7 +446,13 @@ impl Setup {
         if r.read(1) == 0 || r.overrun {
             return Err("setup framing bit missing".into());
         }
-        Ok(Setup { codebooks, floors, residues, mappings, modes })
+        Ok(Setup {
+            codebooks,
+            floors,
+            residues,
+            mappings,
+            modes,
+        })
     }
 }
 
@@ -450,9 +479,15 @@ struct Fft {
 impl Fft {
     fn new(n: usize) -> Fft {
         let bits = n.trailing_zeros();
-        let rev = (0..n).map(|i| i.reverse_bits() >> (usize::BITS - bits)).collect();
-        let cos = (0..n / 2).map(|k| (2.0 * std::f64::consts::PI * k as f64 / n as f64).cos() as f32).collect();
-        let sin = (0..n / 2).map(|k| (2.0 * std::f64::consts::PI * k as f64 / n as f64).sin() as f32).collect();
+        let rev = (0..n)
+            .map(|i| i.reverse_bits() >> (usize::BITS - bits))
+            .collect();
+        let cos = (0..n / 2)
+            .map(|k| (2.0 * std::f64::consts::PI * k as f64 / n as f64).cos() as f32)
+            .collect();
+        let sin = (0..n / 2)
+            .map(|k| (2.0 * std::f64::consts::PI * k as f64 / n as f64).sin() as f32)
+            .collect();
         Fft { n, cos, sin, rev }
     }
 
@@ -536,7 +571,14 @@ impl Decoder {
             fft.insert(bs, Fft::new(bs));
             slopes.insert(bs / 2, slope(bs / 2));
         }
-        Ok(Decoder { setup, channels: v.channels as usize, blocksizes: v.blocksizes, fft, slopes, prev: None })
+        Ok(Decoder {
+            setup,
+            channels: v.channels as usize,
+            blocksizes: v.blocksizes,
+            fft,
+            slopes,
+            prev: None,
+        })
     }
 
     fn floor_decode(&self, f: &Floor1, r: &mut BitReader) -> Option<Vec<i32>> {
@@ -581,7 +623,11 @@ impl Decoder {
             let val = y[i];
             let highroom = range - pred;
             let lowroom = pred;
-            let room = if highroom < lowroom { highroom * 2 } else { lowroom * 2 };
+            let room = if highroom < lowroom {
+                highroom * 2
+            } else {
+                lowroom * 2
+            };
             if val != 0 {
                 flag[lo] = true;
                 flag[hi] = true;
@@ -640,7 +686,10 @@ impl Decoder {
                 *slot = ly;
             }
         }
-        floor.iter().map(|&y| FLOOR1_INVERSE_DB[y.clamp(0, 255) as usize]).collect()
+        floor
+            .iter()
+            .map(|&y| FLOOR1_INVERSE_DB[y.clamp(0, 255) as usize])
+            .collect()
     }
 
     fn residue_decode(
@@ -660,7 +709,11 @@ impl Decoder {
                 return;
             }
         }
-        let mut inter: Vec<f32> = if res.rtype == 2 { vec![0.0; actual] } else { Vec::new() };
+        let mut inter: Vec<f32> = if res.rtype == 2 {
+            vec![0.0; actual]
+        } else {
+            Vec::new()
+        };
         let begin = res.begin.min(actual);
         let end = res.end.min(actual);
         if end <= begin {
@@ -684,7 +737,9 @@ impl Decoder {
                         if res.rtype != 2 && skip[j] {
                             continue;
                         }
-                        let Some(mut temp) = cb.scalar(r) else { break 'passes };
+                        let Some(mut temp) = cb.scalar(r) else {
+                            break 'passes;
+                        };
                         for i in (0..cw).rev() {
                             if pc + i < cl.len() {
                                 cl[pc + i] = temp % res.nclass;
@@ -709,7 +764,11 @@ impl Decoder {
                                 break 'passes;
                             }
                             let off = begin + pc * res.psize;
-                            let dst: &mut [f32] = if res.rtype == 2 { &mut inter } else { &mut vecs[j] };
+                            let dst: &mut [f32] = if res.rtype == 2 {
+                                &mut inter
+                            } else {
+                                &mut vecs[j]
+                            };
                             let dims = bk.dims;
                             if res.rtype == 0 {
                                 let step = res.psize / dims;
@@ -762,7 +821,11 @@ impl Decoder {
         let mode = self.setup.modes.get(mode_i).ok_or("bad mode number")?;
         let long = mode.blockflag;
         let n = self.blocksizes[long as usize];
-        let (prev_long, next_long) = if long { (r.read(1) != 0, r.read(1) != 0) } else { (false, false) };
+        let (prev_long, next_long) = if long {
+            (r.read(1) != 0, r.read(1) != 0)
+        } else {
+            (false, false)
+        };
         let half = n / 2;
         let mapping = &self.setup.mappings[mode.mapping];
         let nch = self.channels;
@@ -771,7 +834,9 @@ impl Decoder {
         for ch in 0..nch {
             let sm = mapping.submaps[mapping.mux[ch]];
             let f = &self.setup.floors[sm.0];
-            let c = self.floor_decode(f, &mut r).map(|fy| self.floor_curve(f, &fy, half));
+            let c = self
+                .floor_decode(f, &mut r)
+                .map(|fy| self.floor_curve(f, &fy, half));
             curves.push(c);
         }
         let mut no_res: Vec<bool> = curves.iter().map(|c| c.is_none()).collect();
@@ -798,7 +863,11 @@ impl Decoder {
             for i in 0..half {
                 let (mv, av) = (spec[m][i], spec[a][i]);
                 let (nm, na) = if mv > 0.0 {
-                    if av > 0.0 { (mv, mv - av) } else { (mv + av, mv) }
+                    if av > 0.0 {
+                        (mv, mv - av)
+                    } else {
+                        (mv + av, mv)
+                    }
                 } else if av > 0.0 {
                     (mv, mv + av)
                 } else {
@@ -810,8 +879,16 @@ impl Decoder {
         }
         // Window shape.
         let bs0 = self.blocksizes[0];
-        let (lstart, lend) = if long && !prev_long { (n / 4 - bs0 / 4, n / 4 + bs0 / 4) } else { (0, n / 2) };
-        let (rstart, rend) = if long && !next_long { (n * 3 / 4 - bs0 / 4, n * 3 / 4 + bs0 / 4) } else { (n / 2, n) };
+        let (lstart, lend) = if long && !prev_long {
+            (n / 4 - bs0 / 4, n / 4 + bs0 / 4)
+        } else {
+            (0, n / 2)
+        };
+        let (rstart, rend) = if long && !next_long {
+            (n * 3 / 4 - bs0 / 4, n * 3 / 4 + bs0 / 4)
+        } else {
+            (n / 2, n)
+        };
         let lslope = &self.slopes[&(lend - lstart)];
         let rslope = &self.slopes[&(rend - rstart)];
         let mut window = vec![0f32; n];
@@ -934,7 +1011,10 @@ pub fn decode_all(v: &StdVorbis) -> Result<Pcm, String> {
             c.truncate(v.sample_count as usize);
         }
     }
-    Ok(Pcm { sample_rate: v.sample_rate, channels: chans })
+    Ok(Pcm {
+        sample_rate: v.sample_rate,
+        channels: chans,
+    })
 }
 
 #[cfg(test)]
@@ -945,14 +1025,18 @@ mod tests {
     fn imdct_matches_direct_formula() {
         let n = 32usize;
         let fft = Fft::new(n);
-        let spec: Vec<f32> = (0..n / 2).map(|i| ((i * 7 % 5) as f32 - 2.0) * 0.3).collect();
+        let spec: Vec<f32> = (0..n / 2)
+            .map(|i| ((i * 7 % 5) as f32 - 2.0) * 0.3)
+            .collect();
         let (mut re, mut im, mut out) = (vec![0f32; n], vec![0f32; n], vec![0f32; n]);
         imdct(&fft, &spec, &mut out, &mut re, &mut im);
         for k in 0..n {
             let mut s = 0f64;
             for (m, x) in spec.iter().enumerate() {
                 s += *x as f64
-                    * (2.0 * std::f64::consts::PI / n as f64 * (k as f64 + 0.5 + n as f64 / 4.0) * (m as f64 + 0.5))
+                    * (2.0 * std::f64::consts::PI / n as f64
+                        * (k as f64 + 0.5 + n as f64 / 4.0)
+                        * (m as f64 + 0.5))
                         .cos();
             }
             assert!((s - out[k] as f64).abs() < 1e-3, "k={k} {s} vs {}", out[k]);

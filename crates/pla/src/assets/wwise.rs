@@ -84,7 +84,10 @@ impl Bank {
             let size = u32le(b, p + 4).ok_or("truncated chunk header")? as usize;
             let body = p + 8..(p + 8 + size).min(b.len());
             if body.end > b.len() || p + 8 + size > b.len() {
-                return Err(format!("chunk {:?} overruns the file", String::from_utf8_lossy(tag)));
+                return Err(format!(
+                    "chunk {:?} overruns the file",
+                    String::from_utf8_lossy(tag)
+                ));
             }
             match tag {
                 b"BKHD" => {
@@ -116,7 +119,11 @@ impl Bank {
                             return Err("HIRC object overruns the chunk".into());
                         }
                         let id = u32le(b, q + 5).unwrap();
-                        bank.hirc.push(HircObject { kind, id, body: q + 9..q + 5 + osize });
+                        bank.hirc.push(HircObject {
+                            kind,
+                            id,
+                            body: q + 9..q + 5 + osize,
+                        });
                         q += 5 + osize;
                     }
                 }
@@ -214,7 +221,8 @@ impl Pck {
 
     /// Reads the bytes of one stream entry.
     pub fn read(&self, f: &mut File, e: &PckEntry) -> Result<Vec<u8>, String> {
-        f.seek(SeekFrom::Start(e.byte_offset())).map_err(|e| e.to_string())?;
+        f.seek(SeekFrom::Start(e.byte_offset()))
+            .map_err(|e| e.to_string())?;
         let mut v = vec![0u8; e.size as usize];
         f.read_exact(&mut v).map_err(|e| e.to_string())?;
         Ok(v)

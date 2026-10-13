@@ -57,7 +57,10 @@ pub struct SignalStats {
 /// Peak / RMS / non-finite / centroid statistics over float channels.
 pub fn stats(channels: &[Vec<f32>], sample_rate: u32) -> SignalStats {
     let frames = channels.iter().map(|c| c.len()).min().unwrap_or(0);
-    let mut s = SignalStats { frames, ..Default::default() };
+    let mut s = SignalStats {
+        frames,
+        ..Default::default()
+    };
     let (mut acc, mut n, mut clip) = (0f64, 0usize, 0usize);
     for c in channels {
         for &x in c.iter().take(frames) {
@@ -77,7 +80,10 @@ pub fn stats(channels: &[Vec<f32>], sample_rate: u32) -> SignalStats {
         s.rms = (acc / n as f64).sqrt() as f32;
         s.clipped_ratio = clip as f32 / n as f32;
     }
-    s.centroid_hz = spectral_centroid(channels.first().map(|c| c.as_slice()).unwrap_or(&[]), sample_rate);
+    s.centroid_hz = spectral_centroid(
+        channels.first().map(|c| c.as_slice()).unwrap_or(&[]),
+        sample_rate,
+    );
     s
 }
 
@@ -158,7 +164,9 @@ mod tests {
     #[test]
     fn centroid_of_sine_is_near_its_frequency() {
         let sr = 48000;
-        let x: Vec<f32> = (0..8192).map(|i| (2.0 * std::f32::consts::PI * 3000.0 * i as f32 / sr as f32).sin()).collect();
+        let x: Vec<f32> = (0..8192)
+            .map(|i| (2.0 * std::f32::consts::PI * 3000.0 * i as f32 / sr as f32).sin())
+            .collect();
         let c = spectral_centroid(&x, sr);
         assert!((c - 3000.0).abs() < 150.0, "centroid {c}");
     }

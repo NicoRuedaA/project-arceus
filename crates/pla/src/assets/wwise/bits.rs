@@ -10,7 +10,11 @@ pub struct BitReader<'a> {
 
 impl<'a> BitReader<'a> {
     pub fn new(data: &'a [u8]) -> Self {
-        BitReader { data, pos: 0, overrun: false }
+        BitReader {
+            data,
+            pos: 0,
+            overrun: false,
+        }
     }
 
     pub fn bit_pos(&self) -> usize {
