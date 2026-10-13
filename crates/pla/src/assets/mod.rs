@@ -13,6 +13,7 @@ pub mod navmesh;
 pub mod player_model;
 pub mod pokemon_material;
 pub mod pokemon_model;
+pub mod ptcl;
 pub mod sarc;
 pub mod terrain;
 pub mod terrain_albedo;
