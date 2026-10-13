@@ -9,8 +9,100 @@ use pla::game::battle_turns::turn_order_lines;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
+fn arg_value(name: &str) -> Option<String> {
+    let args: Vec<String> = std::env::args().collect();
+    args.iter().position(|a| a == name).and_then(|i| args.get(i + 1).cloned())
+}
+
+/// `--trainer <id> [--seed N] [--level L] [--classic-turns]`: a windowless, non-interactive
+/// trainer battle (Brief 30). The player's demo party (Pikachu + two bench members at level L)
+/// always uses its best damaging move; the trainer uses its AI module bits. `--trainer
+/// noble:<setting>` runs a Noble's turn-based phase. `--trainer all` plays every trainer once
+/// and prints the totals.
+fn trainer_mode(root: &PathBuf, id: &str) -> Result<(), String> {
+    use pla::game::battle_controller::{ActiveBattleSession, BattleAssets};
+    use pla::game::trainer_data::{NobleCatalog, TrainerCatalog};
+    let assets = BattleAssets::load(root)?;
+    let catalog = TrainerCatalog::load(root)?;
+    let nobles = NobleCatalog::load(root)?;
+    let seed: u32 = arg_value("--seed").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let level: u8 = arg_value("--level").and_then(|v| v.parse().ok()).unwrap_or(50);
+    let entity = bevy::prelude::Entity::PLACEHOLDER;
+    let start = |id: &str| -> Result<ActiveBattleSession, String> {
+        match id.strip_prefix("noble:") {
+            Some(n) => ActiveBattleSession::start_noble(&assets, "pikachu", level, nobles.get(n).ok_or("unknown noble")?, entity),
+            None => ActiveBattleSession::start_trainer(&assets, "pikachu", level, catalog.get(id).ok_or("unknown trainer")?, entity),
+        }
+    };
+    let play = |s: &mut ActiveBattleSession| -> usize {
+        s.rng = XorShift32(seed.max(1));
+        let mut inputs = 0;
+        while !s.battle.ended && inputs < 500 {
+            inputs += 1;
+            let p = s.active_player();
+            let slot = s.battle.best_damage_action(p).map_or(0, |a| a.move_slot);
+            if s.execute_player_attack(slot).is_empty() && !s.battle.ended {
+                let next = s.battle.sides[0].iter().copied().find(|&i| i != p && s.battle.combatants[i].is_alive());
+                match next {
+                    Some(n) => {
+                        s.switch_to(n);
+                    }
+                    None => break,
+                }
+            }
+        }
+        inputs
+    };
+    if id == "all" {
+        let (mut won, mut lost, mut draw, mut open, mut prize) = (0, 0, 0, 0, 0u64);
+        for t in catalog.trainers.keys() {
+            let mut s = start(t)?;
+            play(&mut s);
+            match s.battle.winner_side() {
+                Some(Some(0)) => won += 1,
+                Some(Some(_)) => lost += 1,
+                Some(None) => {
+                    draw += 1;
+                    println!("draw: {t} (both sides fainted on the same turn)");
+                }
+                None => {
+                    open += 1;
+                    println!("unfinished: {t} after {} turns", s.battle.turn);
+                }
+            }
+            prize += u64::from(s.trainer.as_ref().and_then(|x| x.prize).unwrap_or(0));
+        }
+        println!(
+            "trainers played: {}  player won: {won}  player lost: {lost}  draw: {draw}  unfinished: {open}  (player party L{level}, seed {seed})",
+            catalog.len()
+        );
+        println!("total prize money paid (ASSUMED formula prize_base x last level): {prize}");
+        return Ok(());
+    }
+    let mut s = start(id)?;
+    let inputs = play(&mut s);
+    for l in &s.log_lines {
+        println!("{l}");
+    }
+    let t = s.trainer.as_ref().ok_or("not a trainer battle")?;
+    println!("---");
+    println!(
+        "trainer {} ({}), AI {}, team {}, player inputs {inputs}, winner side {:?}, prize {:?} (ASSUMED formula)",
+        t.id,
+        t.label,
+        t.ai.profile(),
+        s.battle.sides[1].len(),
+        s.battle.winner_side(),
+        t.prize
+    );
+    Ok(())
+}
+
 fn main() -> Result<(), String> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    if let Some(id) = arg_value("--trainer") {
+        return trainer_mode(&root, &id);
+    }
     let data = BattleData::load(&root)?;
     let get_species = |name: &str| -> Result<_, String> {
         data.species_row(name)?

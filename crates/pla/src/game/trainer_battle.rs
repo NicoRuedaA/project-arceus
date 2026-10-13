@@ -390,7 +390,10 @@ impl ActiveBattleSession {
         self.wild_dex = self.battle.combatants[WILD].species.dex;
         self.trainer = Some(state);
         self.log_lines.clear();
-        let mut lines = vec![self.intro_line(), format!("{} sent out {}!", self.trainer_label(), self.display_name(WILD))];
+        let mut lines = vec![self.intro_line()];
+        if self.trainer.as_ref().is_some_and(|t| t.kind == OpponentKind::Trainer) {
+            lines.push(format!("{} sent out {}!", self.trainer_label(), self.display_name(WILD)));
+        }
         if self.uses_queue() {
             lines.push(self.styles_hint());
         }
@@ -736,6 +739,7 @@ mod tests {
                         assert_eq!(log1.iter().filter(|l| l.contains("sent out")).count() >= 3, true, "{log1:?}");
                     }
                     Some(Some(1)) => assert!(log1.iter().any(|l| l.starts_with("You lost to")), "{log1:?}"),
+                    Some(None) => {} // both sides fainted on the same turn (recoil): a draw
                     other => panic!("unexpected end {other:?}"),
                 }
             }

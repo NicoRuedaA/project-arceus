@@ -1,6 +1,6 @@
 # Trainer battles, trainer AI and Noble boss battles (data research)
 
-Scope: Pokémon Legends: Arceus update v262144. Research and data only, for Brief 30 (trainer and boss battles), Brief D5 (Noble battles) and Brief D6 (items used by the opponent). Nothing here is implemented in the game yet. Evidence comes from reading the game data files (FlatBuffers structure), the battle AI script `battle.blua` (decompiled locally, outside git), and targeted disassembly of `main.elf` (file offset = address + 0x1000). Nothing was run in the game or in an emulator. No game code, pseudocode or game text was copied; label names (message ids) are identifiers, not texts.
+Scope: Pokémon Legends: Arceus update v262144. Research and data only, for Brief 30 (trainer and boss battles), Brief D5 (Noble battles) and Brief D6 (items used by the opponent). The port implementation built on this data (Brief 30) is described in [`trainer_battles.md`](trainer_battles.md). Evidence comes from reading the game data files (FlatBuffers structure), the battle AI script `battle.blua` (decompiled locally, outside git), and targeted disassembly of `main.elf` (file offset = address + 0x1000). Nothing was run in the game or in an emulator. No game code, pseudocode or game text was copied; label names (message ids) are identifiers, not texts.
 
 Confidence words: **VERIFIED** (checked against bytes or code for every row), **LIKELY** (strong indirect evidence), **ASSUMED** (a guess that fits), **UNKNOWN**.
 
