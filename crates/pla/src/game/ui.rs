@@ -70,6 +70,16 @@ pub struct BattleMoveTitleText {
     pub slot: usize,
 }
 
+/// Turn-order panel of the PLA turn flow (hidden in the classic flow).
+#[derive(Component)]
+pub struct BattleTurnOrderRoot;
+
+/// One line (0..6) of the turn-order panel.
+#[derive(Component)]
+pub struct BattleTurnOrderText {
+    pub index: usize,
+}
+
 #[derive(Component)]
 pub struct BattleMoveDetailText {
     pub slot: usize,
@@ -250,6 +260,40 @@ pub fn setup_game_ui(mut commands: Commands) {
                             TextColor(Color::srgb(0.9, 0.9, 0.9)),
                             WildHpText,
                         ));
+                    });
+
+                // Turn order (PLA action queue): next 6 turns, top-right.
+                arena_top
+                    .spawn((
+                        Node {
+                            width: Val::Px(230.0),
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(10.0)),
+                            row_gap: Val::Px(3.0),
+                            border: UiRect::all(Val::Px(2.0)),
+                            border_radius: BorderRadius::all(Val::Px(8.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.08, 0.10, 0.16, 0.88)),
+                        BorderColor::all(Color::srgba(0.85, 0.75, 0.35, 0.80)),
+                        BattleTurnOrderRoot,
+                        Visibility::Hidden,
+                    ))
+                    .with_children(|panel| {
+                        panel.spawn((
+                            Text::new("TURN ORDER"),
+                            TextFont::from_font_size(13.0),
+                            TextColor(Color::srgb(0.95, 0.80, 0.25)),
+                        ));
+                        for index in 0..6 {
+                            panel.spawn((
+                                Text::new(""),
+                                TextFont::from_font_size(12.0),
+                                TextColor(Color::srgb(0.88, 0.92, 0.96)),
+                                BattleTurnOrderText { index },
+                            ));
+                        }
                     });
             });
 
@@ -639,9 +683,11 @@ pub fn update_battle_ui_system(
         Query<&mut Text, With<BattleLogText>>,
         Query<(&BattleMoveTitleText, &mut Text)>,
         Query<(&BattleMoveDetailText, &mut Text)>,
+        Query<(&BattleTurnOrderText, &mut Text)>,
     )>,
     mut move_boxes: Query<(&BattleMoveBox, &mut BackgroundColor, &mut BorderColor), Without<BattleMenuOptionBox>>,
     mut menu_boxes: Query<(&BattleMenuOptionBox, &mut BackgroundColor), Without<BattleMoveBox>>,
+    mut turn_panel: Query<&mut Visibility, With<BattleTurnOrderRoot>>,
 ) {
     let Some(ref sess) = session else {
         return;
@@ -717,7 +763,22 @@ pub fn update_battle_ui_system(
         }
     }
 
-    // 6. Action Menu tab highlighting
+    // 6. Turn-order list (PLA flow only; the classic flow hides the panel)
+    let order = sess.turn_order_lines();
+    for mut v in &mut turn_panel {
+        let want = if order.is_empty() { Visibility::Hidden } else { Visibility::Inherited };
+        if *v != want {
+            *v = want;
+        }
+    }
+    for (line, mut text) in &mut texts.p7() {
+        let want = order.get(line.index).cloned().unwrap_or_default();
+        if text.0 != want {
+            text.0 = want;
+        }
+    }
+
+    // 7. Action Menu tab highlighting
     for (menu_box, mut bg) in &mut menu_boxes {
         if menu_box.index == sess.highlighted_tab() {
             *bg = BackgroundColor(Color::srgba(0.85, 0.65, 0.15, 0.95));

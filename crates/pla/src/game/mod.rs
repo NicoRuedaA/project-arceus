@@ -9,6 +9,12 @@ pub mod audio;
 pub mod battle_ai;
 pub mod battle_anim;
 pub mod battle_controller;
+#[cfg(test)]
+mod battle_flow_headless;
+pub mod battle_progress;
+pub mod battle_style_ai;
+pub mod battle_turns;
+pub mod evolution_fx;
 pub mod lighting;
 pub mod render_look;
 pub mod battle_demo;
