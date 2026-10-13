@@ -44,6 +44,15 @@ pub const SWIM_SPEED: f32 = 2.4;
 /// How far the avatar root sinks below the water surface while swimming (the model is 1.5 m tall
 /// with the root 0.9 m above its feet).
 pub const SWIM_ROOT_BELOW_SURFACE: f32 = 0.35;
+/// How far a water surface may sit from the ground under it and still count as water.
+///
+/// The placed water meshes are FLAT sheets whose surface is authored at a fixed height, while the
+/// terrain under them rises and falls. Measured with `water_report` (area 00): the Jubilife pond
+/// fits its bed within 0.4 m, the long river plane is 49 m off on average (floating over the sea,
+/// buried under the hills). A surface that far from the ground is not a surface you can enter, so
+/// the swim rule only trusts water within this band. The value matches the ±3 m tolerance the
+/// project's `placement_terrain_check` example uses for placements. ASSUMED.
+pub const SWIM_MAX_GROUND_OFFSET: f32 = 3.0;
 
 /// Is this a water plane model? The field index lists them as `ground_*water*` (and one
 /// `wall_*_water*_asase`), all using the game's undecoded `Water` shader.
@@ -158,22 +167,51 @@ impl Plugin for WaterPlugin {
 
 // --- Water bodies (where the water is and how high) --------------------------------------------
 
-/// An axis-aligned horizontal water rectangle. `level` is the surface height (world y).
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// A flat water surface: the world XZ triangles of the water mesh plus the surface height.
+///
+/// The footprint MUST be a triangle list, not a rectangle: measured with `water_report`, the
+/// Jubilife river (`ground_area00_water01`) is a diagonal band whose axis-aligned box is
+/// 524 x 1067 m and covers mostly dry land (only 13 of its 1760 vertices are near that box).
+#[derive(Debug, Clone, PartialEq)]
 pub struct WaterBody {
     pub min: Vec2,
     pub max: Vec2,
     pub level: f32,
+    pub triangles: Vec<[Vec2; 3]>,
 }
 
 impl WaterBody {
+    /// AABB reject first, then an exact point-in-triangle test over the water mesh.
     pub fn contains(&self, p: Vec2) -> bool {
-        p.x >= self.min.x && p.x <= self.max.x && p.y >= self.min.y && p.y <= self.max.y
+        if p.x < self.min.x || p.x > self.max.x || p.y < self.min.y || p.y > self.max.y {
+            return false;
+        }
+        self.triangles.iter().any(|t| point_in_triangle(p, t))
     }
 
     pub fn size(&self) -> Vec2 {
         self.max - self.min
     }
+}
+
+/// Point in triangle (edges included). Degenerate slivers are rejected so they cannot claim a line.
+pub fn point_in_triangle(p: Vec2, t: &[Vec2; 3]) -> bool {
+    let area = (t[1].x - t[0].x) * (t[2].y - t[0].y) - (t[2].x - t[0].x) * (t[1].y - t[0].y);
+    if area.abs() < 1e-9 {
+        return false;
+    }
+    let side = |a: Vec2, b: Vec2| (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    let (d1, d2, d3) = (side(t[0], t[1]), side(t[1], t[2]), side(t[2], t[0]));
+    !((d1 < 0.0 || d2 < 0.0 || d3 < 0.0) && (d1 > 0.0 || d2 > 0.0 || d3 > 0.0))
+}
+
+/// One water model as it is loaded: local mesh bounds (for the surface height) and the local XZ
+/// triangles (for the footprint).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct WaterMesh {
+    pub local_min: Vec3,
+    pub local_max: Vec3,
+    pub triangles: Vec<[Vec2; 3]>,
 }
 
 /// Every water rectangle the viewer has streamed in, in world XZ. Built by `world_objects` from
@@ -186,7 +224,8 @@ pub struct WaterBodies {
 }
 
 impl WaterBodies {
-    /// Bound on the list so a bad sheet cannot grow it without limit.
+    /// Bound on the list so a bad sheet cannot grow it without limit. Each body keeps the water
+    /// mesh's triangles (tens of kB), so this also bounds the memory the water can take.
     pub const MAX_BODIES: usize = 64;
 
     /// Add `body` unless it is already there (the streaming loop can see a model several times).
@@ -211,13 +250,14 @@ impl WaterBodies {
         true
     }
 
-    /// Highest water surface covering `p`, if any.
+    /// Highest water surface covering `p`, if any (exact triangle test).
     pub fn level_at(&self, p: Vec2) -> Option<f32> {
         self.bodies.iter().filter(|b| b.contains(p)).map(|b| b.level).reduce(f32::max)
     }
 
-    /// Nearest body that covers `p` or whose rectangle is within `max_dist` of it, for the
-    /// "is the water deep enough where I am about to step" test at a shore.
+    /// Highest surface of a body whose *bounding box* is within `max_dist` of `p`. Used only for
+    /// the "is there water ahead, deep enough to step in" test at a shore, where the exact
+    /// triangle is a step away; the state itself always uses [`Self::level_at`].
     pub fn level_near(&self, p: Vec2, max_dist: f32) -> Option<f32> {
         let d = |v: f32, lo: f32, hi: f32| {
             if v < lo {
@@ -258,11 +298,22 @@ pub fn world_aabb_of(local_min: Vec3, local_max: Vec3, tf: &Transform) -> (Vec3,
     (lo, hi)
 }
 
-/// Water rectangle of a water mesh placed with `tf`: XZ footprint of the mesh bounds and the
-/// surface at the top face of the plane (a flat plane has min.y ~ max.y, so either works).
-pub fn water_body_from(local_min: Vec3, local_max: Vec3, tf: &Transform) -> WaterBody {
-    let (lo, hi) = world_aabb_of(local_min, local_max, tf);
-    WaterBody { min: Vec2::new(lo.x, lo.z), max: Vec2::new(hi.x, hi.z), level: hi.y }
+/// Water surface of a water mesh placed with `tf`: the mesh triangles in world XZ, the surface at
+/// the top face of the transformed mesh bounds (a flat plane has min.y ~ max.y, so either works).
+pub fn water_body_from_mesh(mesh: &WaterMesh, tf: &Transform) -> WaterBody {
+    let (lo, hi) = world_aabb_of(mesh.local_min, mesh.local_max, tf);
+    let m = tf.to_matrix();
+    let triangles = mesh
+        .triangles
+        .iter()
+        .map(|t| {
+            t.map(|p| {
+                let w = m.transform_point3(Vec3::new(p.x, 0.0, p.y));
+                Vec2::new(w.x, w.z)
+            })
+        })
+        .collect();
+    WaterBody { min: Vec2::new(lo.x, lo.z), max: Vec2::new(hi.x, hi.z), level: hi.y, triangles }
 }
 
 // --- Swimming ----------------------------------------------------------------------------------
@@ -303,6 +354,14 @@ pub fn swim_root_y(level: f32) -> f32 {
     level - SWIM_ROOT_BELOW_SURFACE
 }
 
+/// Water level at `p`, but only when the surface actually sits on the ground there: the flat water
+/// meshes can float far above (or hang below) the terrain, and entering those is meaningless. See
+/// [`SWIM_MAX_GROUND_OFFSET`]; `ground_y` is the terrain/navmesh height under the same point.
+pub fn grounded_level_at(bodies: &WaterBodies, p: Vec2, ground_y: f32, max_offset: f32) -> Option<f32> {
+    let level = bodies.level_at(p)?;
+    ((level - ground_y).abs() <= max_offset).then_some(level)
+}
+
 // --- CPU mirrors of the shader maths (the WGSL cannot be unit-tested; these document the
 // --- intended behaviour and are asserted in the tests below) -----------------------------------
 
@@ -337,6 +396,24 @@ mod tests {
         assert!(is_water_model("ground_area01_waterfall01"));
         assert!(!is_water_model("ground_area01_cliff01"));
         assert!(!is_water_model("objects_house01"));
+    }
+
+    #[test]
+    fn only_grounded_water_counts_for_swimming() {
+        let mut wb = WaterBodies::default();
+        wb.insert(rect_body(Vec2::new(0.0, 0.0), Vec2::new(10.0, 10.0), 10.0));
+        let p = Vec2::new(5.0, 5.0);
+        // The surface sits on the ground (a river bed at 9 m): usable.
+        assert_eq!(grounded_level_at(&wb, p, 9.0, SWIM_MAX_GROUND_OFFSET), Some(10.0));
+        // The bed is 1.3 m under the surface: chest-deep, swimming starts.
+        assert_eq!(step_swim(SwimState::Grounded, grounded_level_at(&wb, p, 8.7, SWIM_MAX_GROUND_OFFSET), 8.7), SwimState::Swimming);
+        // A flat plane floating 50 m above the terrain (measured in area 00): not water we can enter.
+        assert_eq!(grounded_level_at(&wb, p, -40.0, SWIM_MAX_GROUND_OFFSET), None);
+        assert_eq!(step_swim(SwimState::Grounded, grounded_level_at(&wb, p, -40.0, SWIM_MAX_GROUND_OFFSET), -40.0), SwimState::Grounded);
+        // Buried under the hills: same.
+        assert_eq!(grounded_level_at(&wb, p, 42.0, SWIM_MAX_GROUND_OFFSET), None);
+        // Off the water entirely.
+        assert_eq!(grounded_level_at(&wb, Vec2::new(50.0, 50.0), 9.0, SWIM_MAX_GROUND_OFFSET), None);
     }
 
     #[test]
@@ -389,13 +466,37 @@ mod tests {
         assert!((swim_root_y(12.0) - (12.0 - SWIM_ROOT_BELOW_SURFACE)).abs() < 1e-6);
     }
 
+    /// A 10 x 4 rectangle from two triangles at level 5.
+    fn rect_body(min: Vec2, max: Vec2, level: f32) -> WaterBody {
+        let (a, b, c, d) = (
+            Vec2::new(min.x, min.y),
+            Vec2::new(max.x, min.y),
+            Vec2::new(max.x, max.y),
+            Vec2::new(min.x, max.y),
+        );
+        WaterBody { min, max, level, triangles: vec![[a, b, c], [a, c, d]] }
+    }
+
     #[test]
-    fn water_bodies_lookup_and_cap() {
+    fn point_in_triangle_edges_and_degenerate() {
+        let t = [Vec2::new(0.0, 0.0), Vec2::new(2.0, 0.0), Vec2::new(0.0, 2.0)];
+        assert!(point_in_triangle(Vec2::new(0.5, 0.5), &t));
+        assert!(point_in_triangle(Vec2::new(0.0, 0.0), &t), "corner counts");
+        assert!(point_in_triangle(Vec2::new(1.0, 0.0), &t), "edge counts");
+        assert!(!point_in_triangle(Vec2::new(1.5, 1.5), &t));
+        assert!(!point_in_triangle(Vec2::new(-0.1, 0.5), &t));
+        // A zero-area sliver never claims a point.
+        let flat = [Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0), Vec2::new(2.0, 2.0)];
+        assert!(!point_in_triangle(Vec2::new(1.0, 1.0), &flat));
+    }
+
+    #[test]
+    fn water_bodies_lookup_uses_the_real_footprint_not_the_box() {
         let mut wb = WaterBodies::default();
-        assert!(wb.insert(WaterBody { min: Vec2::new(0.0, 0.0), max: Vec2::new(10.0, 4.0), level: 5.0 }));
-        assert!(wb.insert(WaterBody { min: Vec2::new(2.0, 1.0), max: Vec2::new(6.0, 3.0), level: 6.0 }));
+        assert!(wb.insert(rect_body(Vec2::new(0.0, 0.0), Vec2::new(10.0, 4.0), 5.0)));
+        assert!(wb.insert(rect_body(Vec2::new(2.0, 1.0), Vec2::new(6.0, 3.0), 6.0)));
         // Same rectangle again: accepted but not duplicated.
-        assert!(wb.insert(WaterBody { min: Vec2::new(0.0, 0.0), max: Vec2::new(10.0, 4.0), level: 5.0 }));
+        assert!(wb.insert(rect_body(Vec2::new(0.0, 0.0), Vec2::new(10.0, 4.0), 5.0)));
         assert_eq!(wb.bodies.len(), 2);
         assert_eq!(wb.dropped, 0);
 
@@ -404,16 +505,42 @@ mod tests {
         assert_eq!(wb.level_at(Vec2::new(11.0, 2.0)), None);
         assert!((wb.level_at(Vec2::new(3.0, 2.0)).map(|l| water_depth(l, 0.0)).unwrap() - 6.0).abs() < 1e-6);
 
+        // A diagonal band: points inside its bounding box but off the band are dry land.
+        let band = WaterBody {
+            min: Vec2::new(0.0, 0.0),
+            max: Vec2::new(10.0, 10.0),
+            level: 3.0,
+            triangles: vec![[
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 0.0),
+                Vec2::new(1.0, 10.0),
+            ], [
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 10.0),
+                Vec2::new(0.0, 10.0),
+            ]],
+        };
+        assert!(band.contains(Vec2::new(0.5, 5.0)));
+        assert!(!band.contains(Vec2::new(5.0, 5.0)), "inside the box, off the band");
+        let mut wb2 = WaterBodies::default();
+        wb2.insert(band);
+        assert_eq!(wb2.level_at(Vec2::new(5.0, 5.0)), None);
+
         // Degenerate or non-finite boxes are rejected.
-        assert!(!wb.insert(WaterBody { min: Vec2::ZERO, max: Vec2::ZERO, level: 1.0 }));
-        assert!(!wb.insert(WaterBody { min: Vec2::ZERO, max: Vec2::new(1.0, 1.0), level: f32::NAN }));
+        assert!(!wb.insert(WaterBody { min: Vec2::ZERO, max: Vec2::ZERO, level: 1.0, triangles: Vec::new() }));
+        assert!(!wb.insert(WaterBody {
+            min: Vec2::ZERO,
+            max: Vec2::new(1.0, 1.0),
+            level: f32::NAN,
+            triangles: Vec::new(),
+        }));
         assert_eq!(wb.bodies.len(), 2);
 
         // The cap drops silently but is counted. Two bodies are already in, so only
         // MAX_BODIES - 2 of the new ones fit; the rest are counted as dropped.
         for i in 0..WaterBodies::MAX_BODIES + 5 {
             let x = 100.0 + i as f32 * 10.0;
-            let _ = wb.insert(WaterBody { min: Vec2::new(x, 0.0), max: Vec2::new(x + 5.0, 5.0), level: 1.0 });
+            let _ = wb.insert(rect_body(Vec2::new(x, 0.0), Vec2::new(x + 5.0, 5.0), 1.0));
         }
         assert_eq!(wb.bodies.len(), WaterBodies::MAX_BODIES);
         assert_eq!(wb.dropped, WaterBodies::MAX_BODIES + 5 - (WaterBodies::MAX_BODIES - 2));
@@ -422,7 +549,7 @@ mod tests {
     #[test]
     fn level_near_finds_the_shore() {
         let mut wb = WaterBodies::default();
-        wb.insert(WaterBody { min: Vec2::new(10.0, 10.0), max: Vec2::new(20.0, 20.0), level: 3.0 });
+        wb.insert(rect_body(Vec2::new(10.0, 10.0), Vec2::new(20.0, 20.0), 3.0));
         // Inside the rectangle.
         assert_eq!(wb.level_near(Vec2::new(15.0, 15.0), 1.0), Some(3.0));
         // 1 m off the edge.
@@ -457,16 +584,39 @@ mod tests {
 
     #[test]
     fn water_body_level_is_the_top_face() {
-        // A flat plane 0.02 m thick at y = 58.28: the body level is the top face.
-        let body = water_body_from(
-            Vec3::new(0.0, 58.28, 0.0),
-            Vec3::new(10.0, 58.30, 10.0),
-            &Transform::IDENTITY,
-        );
+        // A flat plane 0.02 m thick at y = 58.28: the body level is the top face and the footprint
+        // follows the triangles (here one triangle).
+        let mesh = WaterMesh {
+            local_min: Vec3::new(0.0, 58.28, 0.0),
+            local_max: Vec3::new(10.0, 58.30, 10.0),
+            triangles: vec![[Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0), Vec2::new(0.0, 10.0)]],
+        };
+        let body = water_body_from_mesh(&mesh, &Transform::IDENTITY);
         assert!((body.level - 58.30).abs() < 1e-5);
         assert!((body.size() - Vec2::new(10.0, 10.0)).length() < 1e-5);
-        assert!(body.contains(Vec2::new(5.0, 5.0)));
-        assert!(!body.contains(Vec2::new(5.0, 11.0)));
+        assert!(body.contains(Vec2::new(2.0, 2.0)));
+        assert!(!body.contains(Vec2::new(8.0, 8.0)), "outside the triangle");
+        assert!(!body.contains(Vec2::new(5.0, 11.0)), "outside the box");
+    }
+
+    #[test]
+    fn water_body_triangles_follow_the_placement() {
+        let mesh = WaterMesh {
+            local_min: Vec3::new(0.0, 1.0, 0.0),
+            local_max: Vec3::new(10.0, 1.0, 10.0),
+            triangles: vec![[Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0), Vec2::new(0.0, 10.0)]],
+        };
+        // 180 degrees about Y and a translation: the triangle ends up at x = 100 - x, z = 200 - z.
+        let tf = Transform::from_xyz(100.0, 5.0, 200.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI));
+        let body = water_body_from_mesh(&mesh, &tf);
+        assert!((body.level - 6.0).abs() < 1e-5, "level is the placed height");
+        assert_eq!(body.triangles.len(), 1);
+        let (a, b, c) = (body.triangles[0][0], body.triangles[0][1], body.triangles[0][2]);
+        assert!((a - Vec2::new(100.0, 200.0)).length() < 1e-4, "{a:?}");
+        assert!((b - Vec2::new(90.0, 200.0)).length() < 1e-4, "{b:?}");
+        assert!((c - Vec2::new(100.0, 190.0)).length() < 1e-4, "{c:?}");
+        assert!(body.contains(Vec2::new(95.0, 195.0)));
+        assert!(!body.contains(Vec2::new(85.0, 205.0)));
     }
 
     #[test]

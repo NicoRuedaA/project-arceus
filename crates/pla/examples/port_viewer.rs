@@ -1729,12 +1729,17 @@ fn player_locomotion(
 
         // Stepping into water deep enough to swim bypasses the navmesh: the river edge is not a
         // walkable face, so a walker could otherwise never reach the water at all (ASSUMED: the
-        // game's own rule for entering water is not decoded).
+        // game's own rule for entering water is not decoded). The surface must sit on the ground
+        // (see water::SWIM_MAX_GROUND_OFFSET): the placed water planes are flat sheets and some
+        // float far above the terrain.
         let water_entry = water_bodies.as_ref().and_then(|w| w.level_near(target_xz, 0.5)).is_some_and(|level| {
             terrain_res
                 .as_ref()
                 .and_then(|t| t.area.sample_world_height(target_xz.x, target_xz.y))
-                .is_some_and(|ground| level - ground > SWIM_ENTER_DEPTH)
+                .is_some_and(|ground| {
+                    (level - ground).abs() <= pla::game::water::SWIM_MAX_GROUND_OFFSET
+                        && level - ground > SWIM_ENTER_DEPTH
+                })
         });
 
         // Apply navmesh collision sliding if real navmesh is loaded
@@ -1783,9 +1788,14 @@ fn player_locomotion(
 
     if let Some(surface_y) = nav_h.or(terrain_h) {
         // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
-        let level = water_bodies
-            .as_ref()
-            .and_then(|w| w.level_at(Vec2::new(transform.translation.x, transform.translation.z)));
+        let level = water_bodies.as_ref().and_then(|w| {
+            pla::game::water::grounded_level_at(
+                w,
+                Vec2::new(transform.translation.x, transform.translation.z),
+                surface_y,
+                pla::game::water::SWIM_MAX_GROUND_OFFSET,
+            )
+        });
         let state = pla::game::water::step_swim(
             swim_query.single().map(|s| s.state).unwrap_or_default(),
             level,

@@ -114,7 +114,9 @@ fn capture(mut commands: Commands, mut out: ResMut<Out>, mut exit: MessageWriter
 }
 
 /// Mean linear RGB of the whole frame, of the lower half and of the top eighth.
-fn stats(path: &str) -> Result<([f64; 3], [f64; 3], [f64; 3]), Box<dyn std::error::Error>> {
+type Rgb = [f64; 3];
+
+fn stats(path: &str) -> Result<(Rgb, Rgb, Rgb), Box<dyn std::error::Error>> {
     use png::{BitDepth, ColorType};
     let mut dec = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(path)?));
     dec.set_transformations(png::Transformations::EXPAND | png::Transformations::normalize_to_color8());
@@ -132,18 +134,17 @@ fn stats(path: &str) -> Result<([f64; 3], [f64; 3], [f64; 3]), Box<dyn std::erro
         other => return Err(format!("unsupported colour type {other:?}").into()),
     };
     let (w, h) = (info.width as usize, info.height as usize);
-    let mut sums = ([0.0f64; 3], [0.0f64; 3], [0.0f64; 3]);
-    let mut counts = (0u64, 0u64, 0u64);
+    let (mut sums, mut counts) = (([0.0f64; 3], [0.0f64; 3], [0.0f64; 3]), (0u64, 0u64, 0u64));
     for (i, px) in data.chunks_exact(ch).enumerate() {
         let row = i / w;
         let rgb = [srgb_to_linear(px[0] as f64 / 255.0), srgb_to_linear(px[1] as f64 / 255.0), srgb_to_linear(px[2] as f64 / 255.0)];
-        for k in 0..3 {
-            sums.0[k] += rgb[k];
+        for (k, c) in rgb.iter().enumerate() {
+            sums.0[k] += c;
             if row >= h / 2 {
-                sums.1[k] += rgb[k];
+                sums.1[k] += c;
             }
             if row < h / 8 {
-                sums.2[k] += rgb[k];
+                sums.2[k] += c;
             }
         }
         counts.0 += 1;
@@ -154,7 +155,7 @@ fn stats(path: &str) -> Result<([f64; 3], [f64; 3], [f64; 3]), Box<dyn std::erro
             counts.2 += 1;
         }
     }
-    let mean = |s: [f64; 3], n: u64| [s[0] / n as f64, s[1] / n as f64, s[2] / n as f64];
+    let mean = |s: Rgb, n: u64| [s[0] / n as f64, s[1] / n as f64, s[2] / n as f64];
     Ok((mean(sums.0, counts.0), mean(sums.1, counts.1.max(1)), mean(sums.2, counts.2.max(1))))
 }
 

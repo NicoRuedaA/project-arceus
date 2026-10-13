@@ -13,12 +13,14 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use bevy::camera::primitives::MeshAabb;
+use bevy::mesh::VertexAttributeValues;
 use bevy::prelude::*;
 use bevy::gltf::{Gltf, GltfMaterial, GltfMesh};
 
 use super::PlayerAvatar;
 use super::water::{
-    is_water_model, water_body_from, water_material, WaterBodies, WaterExt, WaterMaterial,
+    is_water_model, water_body_from_mesh, water_material, WaterBodies, WaterExt, WaterMaterial,
+    WaterMesh,
 };
 
 /// Objects closer than this to the player are alive.
@@ -163,8 +165,8 @@ struct WorldObjects {
     alive: HashMap<usize, Entity>,
     handles: HashMap<String, Handle<Gltf>>,
     prims: HashMap<String, Prims>,
-    /// Local-space mesh bounds of the water models, for the world water rectangles.
-    water_aabbs: HashMap<String, (Vec3, Vec3)>,
+    /// Local geometry of the water models (bounds + XZ triangles), for the world water bodies.
+    water_meshes: HashMap<String, WaterMesh>,
     rot_mode: RotMode,
 }
 
@@ -205,17 +207,37 @@ impl Plugin for WorldObjectsPlugin {
             alive: HashMap::new(),
             handles: HashMap::new(),
             prims: HashMap::new(),
-            water_aabbs: HashMap::new(),
+            water_meshes: HashMap::new(),
             rot_mode: self.rot_mode,
         });
         app.add_systems(Update, stream_objects);
     }
 }
 
+/// Local XZ triangles of a mesh (the y is dropped: water surfaces are horizontal planes).
+fn mesh_xz_triangles(mesh: &Mesh) -> Vec<[Vec2; 3]> {
+    let Some(VertexAttributeValues::Float32x3(positions)) = mesh.attribute(Mesh::ATTRIBUTE_POSITION) else {
+        return Vec::new();
+    };
+    let Some(indices) = mesh.indices() else { return Vec::new() };
+    let indices: Vec<usize> = indices.iter().collect();
+    let mut out = Vec::with_capacity(indices.len() / 3);
+    for tri in indices.chunks(3) {
+        if let [i0, i1, i2] = tri {
+            let p = |i: usize| positions.get(i).map(|v| Vec2::new(v[0], v[2]));
+            if let (Some(a), Some(b), Some(c)) = (p(*i0), p(*i1), p(*i2)) {
+                out.push([a, b, c]);
+            }
+        }
+    }
+    out
+}
+
 #[derive(Component)]
 #[allow(dead_code)]
 struct PlacedObject(usize);
 
+#[allow(clippy::too_many_arguments)]
 fn stream_objects(
     mut commands: Commands,
     mut wo: ResMut<WorldObjects>,
@@ -286,19 +308,22 @@ fn stream_objects(
 
             let mut prims = Vec::new();
             let is_water = is_water_model(&p.model);
-            let mut water_bounds: Option<(Vec3, Vec3)> = None;
+            let mut water_mesh = WaterMesh::default();
+            let mut has_water_geometry = false;
             for mh in &gltf.meshes {
                 let Some(gm) = gltf_meshes.get(mh) else { continue };
                 for prim in &gm.primitives {
                     let is_plant = p.model.starts_with("plants_");
                     let pm = if is_water {
                         // Water planes use the water shader (game::water) instead of a flat colour.
-                        if let Some(a) = meshes.get(&prim.mesh).and_then(|m| m.compute_aabb()) {
-                            let (lo, hi) = (Vec3::from(a.min()), Vec3::from(a.max()));
-                            water_bounds = Some(match water_bounds {
-                                Some((blo, bhi)) => (blo.min(lo), bhi.max(hi)),
-                                None => (lo, hi),
-                            });
+                        if let Some(m) = meshes.get(&prim.mesh) {
+                            if let Some(a) = m.compute_aabb() {
+                                let (lo, hi) = (Vec3::from(a.min()), Vec3::from(a.max()));
+                                water_mesh.local_min = if has_water_geometry { water_mesh.local_min.min(lo) } else { lo };
+                                water_mesh.local_max = if has_water_geometry { water_mesh.local_max.max(hi) } else { hi };
+                                has_water_geometry = true;
+                            }
+                            water_mesh.triangles.extend(mesh_xz_triangles(m));
                         }
                         PrimMaterial::Water(water_materials.add(water_material(WaterExt::default())))
                     } else {
@@ -328,8 +353,8 @@ fn stream_objects(
                     prims.push((prim.mesh.clone(), pm));
                 }
             }
-            if let Some(bounds) = water_bounds {
-                wo.water_aabbs.insert(p.model.clone(), bounds);
+            if has_water_geometry {
+                wo.water_meshes.insert(p.model.clone(), water_mesh);
             }
             wo.prims.insert(p.model.clone(), prims);
         }
@@ -340,9 +365,9 @@ fn stream_objects(
             scale: Vec3::from(p.scale),
         };
         // Record where the water surface is so the locomotion can start swimming there.
-        if let Some((lo, hi)) = wo.water_aabbs.get(&p.model) {
+        if let Some(mesh) = wo.water_meshes.get(&p.model) {
             if let Some(bodies) = water_bodies.as_deref_mut() {
-                let body = water_body_from(*lo, *hi, &transform);
+                let body = water_body_from_mesh(mesh, &transform);
                 if !bodies.insert(body) {
                     println!(
                         "Water: body of {} not recorded ({} bodies is the cap, {} dropped)",
