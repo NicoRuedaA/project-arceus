@@ -1,0 +1,32 @@
+# sheet: data/move_style_fields
+# version: 1
+# generator: manually curated (brief 29); evidence and function names in reports/data-progress/battle_styles.md
+# target: Pokémon Legends: Arceus update v262144 move (waza) style fields: which column of data/pml_moves.tsv or data/pml_move_effects.tsv holds each per-style value
+# note: style numbering in the game's move-data readers is 0 normal, 1 strong (config suffix _Powerful), 2 agile (config suffix _Technical).
+# note: VERIFIED = a game reader with a per-style branch was read and the data values agree; LIKELY = slot sits in the style block, reader not traced or style branch not read.
+key:string*	style:string	sheet:string	column:string	used_by_engine:bool	confidence:string	notes:string
+power.normal	normal	pml_moves	power	1	VERIFIED	base power
+power.agile	agile	pml_moves	agile_power	1	VERIFIED	slot 74; lower than power on all 147 damaging PLA moves
+power.strong	strong	pml_moves	strong_power	1	VERIFIED	slot 79; higher than power on all 147 damaging PLA moves; per-species config overrides exist for three Origin-forme moves
+accuracy.normal	normal	pml_moves	accuracy	1	VERIFIED	101 = never misses
+accuracy.agile	agile	pml_moves	accuracy	1	VERIFIED	the move panel reads the normal accuracy slot for style 2
+accuracy.strong	strong	pml_moves	strong_accuracy	1	VERIFIED	slot 80; never lower than accuracy (173/173)
+self_points.normal	normal	pml_move_effects	raw_f69	1	VERIFIED	action points added to the user's wait (negative = sooner)
+self_points.agile	agile	pml_move_effects	raw_f70	1	VERIFIED	negative values weakened by consecutive agile uses (divide by 3^min(n,4))
+self_points.strong	strong	pml_move_effects	raw_f71	1	VERIFIED	usually 5 (Hyper Beam 8, Quick Attack 2)
+target_points.normal	normal	pml_move_effects	raw_f72	1	VERIFIED	action points added to the target's wait; also used by strong style
+target_points.agile	agile	pml_move_effects	raw_f73	1	VERIFIED	usually 3 (5 on former flinch moves); positive values weakened by consecutive agile uses
+styles_usable	all	pml_move_effects	raw_f68	1	VERIFIED	PLA move flag; styles also need the move mastered (brief D3)
+heal_percent.agile	agile	pml_move_effects	raw_f75	0	VERIFIED	signed byte (Recover 30, Self-Destruct -70)
+heal_percent.strong	strong	pml_move_effects	raw_f88	0	VERIFIED	signed byte (Recover 70, Self-Destruct -90); normal = heal_pct
+ailment_turns.agile	agile	pml_move_effects	raw_f76	0	VERIFIED	status length (Poison Powder 3); normal = raw_f14..raw_f15
+ailment_turns.strong	strong	pml_move_effects	raw_f84	0	VERIFIED	status length (Poison Powder 7)
+effect_turns.agile	agile	pml_move_effects	raw_f77	0	VERIFIED	length of other timed effects (Focus Energy 4); normal = raw_f56/f58/f61/f63 by effect
+effect_turns.strong	strong	pml_move_effects	raw_f85	0	VERIFIED	length of other timed effects (Focus Energy 7)
+rank_turns.agile	agile	pml_move_effects	raw_f78	0	VERIFIED	rank-change length (Swords Dance 4); normal = raw_f31..raw_f33
+rank_turns.strong	strong	pml_move_effects	raw_f86	0	VERIFIED	rank-change length (Swords Dance 7)
+crit_rank.strong	strong	pml_move_effects	raw_f81	0	LIKELY	2 on all 15 PLA moves with crit_rank 1, 0 on the other 158; optional in the engine (StyleRules::strong_crit_rank)
+ailment_chance.strong	strong	pml_move_effects	raw_f82	0	LIKELY	Fire Punch 30 -> 50
+stat_chance.strong	strong	pml_move_effects	raw_f83	0	LIKELY	Psychic 20 -> 40
+drain_percent.strong	strong	pml_move_effects	raw_f87	0	LIKELY	Absorb 50 -> 75, Double-Edge -33 -> -50; agile keeps drain_pct
+pp_cost	all	none	none	0	UNKNOWN	no style-dependent PP code found; the engine spends 1 PP (ASSUMED)
