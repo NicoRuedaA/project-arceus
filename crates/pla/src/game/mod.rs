@@ -66,6 +66,7 @@ pub mod world_objects;
 pub mod wild;
 pub mod wild_behavior;
 pub mod wild_wander;
+pub mod door_pairs;
 pub mod zone;
 
 pub use battle_controller::{ActiveBattleSession, BattleAssets, BattleInput, BattleMenuState};
