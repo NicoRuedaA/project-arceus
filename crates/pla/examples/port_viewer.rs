@@ -51,8 +51,13 @@ struct BinRootResource(PathBuf);
 #[derive(Resource)]
 struct TreeCatalogResource {
     handles: HashMap<String, Handle<Gltf>>,
-    spawned: bool,
+    /// Main area whose `.trins` instances are spawned; trees reload when it changes (Brief 8b).
+    spawned_area: Option<u8>,
 }
+
+/// One spawned `.trins` tree entity (one per glTF primitive); removed when the area changes.
+#[derive(Component)]
+struct TrinsTreeInstance;
 
 #[derive(Resource)]
 struct PokemonCatalogResource {
@@ -708,7 +713,7 @@ fn main() -> ExitCode {
     });
     app.insert_resource(TreeCatalogResource {
         handles: HashMap::new(),
-        spawned: false,
+        spawned_area: None,
     });
     app.insert_resource(PokemonCatalogResource {
         handles: HashMap::new(),
@@ -953,7 +958,6 @@ fn setup_scene(
     spawn_cfg: Res<PlayerSpawnConfig>,
     player_model: Res<PlayerModelConfig>,
     terrain_res: Option<Res<TerrainResource>>,
-    mut tree_catalog: ResMut<TreeCatalogResource>,
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
 ) {
@@ -1008,28 +1012,8 @@ fn setup_scene(
                 Transform::IDENTITY,
             ));
         }
-
-        // Register tree models for asynchronous glTF loading
-        let unique_models: HashSet<String> = terrain
-            .area
-            .instances
-            .iter()
-            .map(|inst| inst.model_name.clone())
-            .collect();
-        for model_name in unique_models {
-            let possible_paths = [
-                format!("cache/gltf_field/ha_area{:02}_terrain/{}.gltf", terrain.area.area, model_name),
-                format!("cache/gltf_field/ha_area{:02}/{}.gltf", terrain.area.area, model_name),
-            ];
-            for rel_path in &possible_paths {
-                let full_path = PathBuf::from("work").join(rel_path);
-                if full_path.exists() {
-                    let handle: Handle<Gltf> = asset_server.load(rel_path.clone());
-                    tree_catalog.handles.insert(model_name.clone(), handle);
-                    break;
-                }
-            }
-        }
+        // The `.trins` tree models are registered and spawned per area by `spawn_tree_instances`
+        // (it reloads them on a zone change, Brief 8b).
     } else {
         // Fallback: ground plane and field markers
         let ground_size = 40.0;
@@ -1168,24 +1152,65 @@ fn setup_scene(
     }
 }
 
+/// Registers the `.trins` models of `terrain`'s area for asynchronous glTF loading (the models
+/// live in the area's `_terrain` export directory, then the plain area directory).
+fn register_tree_models(
+    terrain: &pla::assets::terrain::TerrainArea,
+    catalog: &mut TreeCatalogResource,
+    asset_server: &AssetServer,
+) {
+    let unique_models: HashSet<String> = terrain.instances.iter().map(|i| i.model_name.clone()).collect();
+    for model_name in unique_models {
+        let possible_paths = [
+            format!("cache/gltf_field/ha_area{:02}_terrain/{}.gltf", terrain.area, model_name),
+            format!("cache/gltf_field/ha_area{:02}/{}.gltf", terrain.area, model_name),
+        ];
+        for rel_path in &possible_paths {
+            let full_path = PathBuf::from("work").join(rel_path);
+            if full_path.exists() {
+                let handle: Handle<Gltf> = asset_server.load(rel_path.clone());
+                catalog.handles.insert(model_name.clone(), handle);
+                break;
+            }
+        }
+    }
+}
+
 /// Spawns tree instances from real .trins transforms once their glTF models are loaded.
+///
+/// Tracks the active area: when `TerrainResource` changes (zone change, Brief 8b) the previous
+/// area's tree entities are despawned, its model handles dropped and the new area's streamed.
+#[allow(clippy::too_many_arguments)]
 fn spawn_tree_instances(
     mut commands: Commands,
     mut catalog: ResMut<TreeCatalogResource>,
     terrain_res: Option<Res<TerrainResource>>,
+    asset_server: Res<AssetServer>,
     gltf_assets: Res<Assets<Gltf>>,
     gltf_meshes: Res<Assets<GltfMesh>>,
     gltf_materials: Res<Assets<GltfMaterial>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
+    trees: Query<Entity, With<TrinsTreeInstance>>,
 ) {
-    if catalog.spawned {
-        return;
-    }
     let Some(ref terrain) = terrain_res else {
         return;
     };
+    let area = terrain.area.area;
+    match pla::game::zone::trins_reload_step(catalog.spawned_area, area) {
+        pla::game::zone::TrinsReloadStep::Skip => return,
+        pla::game::zone::TrinsReloadStep::Reload => {
+            for e in &trees {
+                commands.entity(e).despawn();
+            }
+        }
+        pla::game::zone::TrinsReloadStep::Initial => {}
+    }
+    catalog.handles.clear();
+    register_tree_models(&terrain.area, &mut catalog, &asset_server);
     if catalog.handles.is_empty() {
-        catalog.spawned = true;
+        // No exported tree model for this area: mark it so the next change retries.
+        println!("Trees: no exported .trins models for ha_area{area:02}");
+        catalog.spawned_area = Some(area);
         return;
     }
 
@@ -1248,6 +1273,7 @@ fn spawn_tree_instances(
             let transform = Transform::from_matrix(Mat4::from_cols_array(&flat));
             for (mesh_h, mat_h) in prims {
                 commands.spawn((
+                    TrinsTreeInstance,
                     Mesh3d(mesh_h.clone()),
                     MeshMaterial3d(mat_h.clone()),
                     transform,
@@ -1257,11 +1283,11 @@ fn spawn_tree_instances(
         }
     }
     println!(
-        "Spawned {} tree instances from real .trins matrices across {} unique models.",
+        "Spawned {} tree instances from real .trins matrices across {} unique models (ha_area{area:02}).",
         count,
         model_prims.len()
     );
-    catalog.spawned = true;
+    catalog.spawned_area = Some(area);
 }
 
 /// Dynamic streaming system: loads and unloads wild creatures around the player within streaming radius.
