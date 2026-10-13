@@ -7,10 +7,12 @@ legítima de *Pokémon Legends: Arceus* (Nintendo Switch) y guiar un port a
 Rust/Bevy desde un libro de hojas versionado haciendo uso de **The Spreadsheet Method**.
 
 > **Este repositorio no contiene contenido del juego.** Ni ROMs/NSZ, ni assets
-> extraídos, ni código descompilado, ni claves. Incluye el *método*, las
-> *herramientas* y el *conocimiento derivado* (hojas). Cada colaborador aporta su
-> propia copia del juego y sus `prod.keys`, y regenera los artefactos pesados en
-> local — véase [`REPRODUCE.md`](REPRODUCE.md).
+> extraídos, ni código descompilado, ni claves. Las tablas e informes derivados
+> que versiona contienen identificadores, cifras y algunos nombres procedentes
+> del juego (auditoría en [`docs/legal-audit.md`](docs/legal-audit.md)). Incluye
+> el *método*, las *herramientas* y el *conocimiento derivado* (hojas). Cada
+> colaborador aporta su propia copia del juego y sus `prod.keys`, y regenera los
+> artefactos pesados en local — véase [`REPRODUCE.md`](REPRODUCE.md).
 
 ## Situación del proyecto
 

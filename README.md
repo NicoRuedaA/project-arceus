@@ -7,10 +7,12 @@ copy of *Pokémon Legends: Arceus* (Nintendo Switch) and driving a Rust/Bevy por
 from a versioned sheet book.
 
 > **This repository contains no game content.** No ROMs/NSZ, no extracted
-> assets, no decompiled code, no keys. It ships the *method*, the *tooling* and
-> the *derived knowledge* (sheets). Every collaborator supplies their own copy of
-> the game and their own `prod.keys`, and regenerates the heavy artifacts
-> locally — see [`REPRODUCE.md`](REPRODUCE.md).
+> assets, no decompiled code, no keys. The derived tables and reports it tracks
+> contain game-derived ids, numbers and some name strings (audited in
+> [`docs/legal-audit.md`](docs/legal-audit.md)). It ships the *method*, the
+> *tooling* and the *derived knowledge* (sheets). Every collaborator supplies
+> their own copy of the game and their own `prod.keys`, and regenerates the heavy
+> artifacts locally — see [`REPRODUCE.md`](REPRODUCE.md).
 
 ## Where the project stands
 
