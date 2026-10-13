@@ -15,7 +15,8 @@
 //! Usage: `effect_preview [particle path under bin/effect/battle/particle] [out.png]`
 //! Default: `ew052/ew052_hit.ptcl` (Ember hit) to `work/effects/preview_<name>.png`.
 //!
-//! Battle mode: `effect_preview --moves 84,52,33 [--frames 20,40,60] [out.png]` plays each
+//! Battle mode: `effect_preview --moves 84,52,33 [--frames 20,40,60] [out.png]` (or
+//! `--sequences es002,es003` for named timelines) plays each
 //! move's whole timeline with the game plugin's own code (`pla::game::effects`: timeline
 //! scheduling, `EffectSim`, `build_emitter_quads`, world scale and anchor height) and
 //! rasterises the quads on the CPU from the viewer's battle camera (user at the near slot,
@@ -392,6 +393,11 @@ mod battle {
     pub fn run(args: &[String]) {
         let get = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
         let moves: Vec<u16> = get("--moves").unwrap_or_else(|| "84,52,33".into()).split(',').filter_map(|s| s.parse().ok()).collect();
+        // `--sequences es002,es003` plays named timelines instead of move ids.
+        let names: Vec<String> = match get("--sequences") {
+            Some(list) => list.split(',').map(str::to_string).collect(),
+            None => moves.iter().map(|m| format!("ew{m:03}")).collect(),
+        };
         let frames: Vec<u32> = get("--frames").unwrap_or_else(|| "20,40,60".into()).split(',').filter_map(|s| s.parse().ok()).collect();
         let out = args.iter().rev().find(|a| a.ends_with(".png")).cloned().unwrap_or_else(|| "work/effects/battle_preview.png".into());
         let root = default_bin_root();
@@ -403,10 +409,9 @@ mod battle {
         let d = (target - user).with_y(0.0).normalize();
         let rotation = Quat::from_rotation_y(d.x.atan2(d.z));
         let mut files: HashMap<String, Option<Arc<LoadedParticle>>> = HashMap::new();
-        let mut rgba = vec![0u8; W * frames.len() * H * moves.len() * 4];
-        for (row, mv) in moves.iter().enumerate() {
-            let name = format!("ew{mv:03}");
-            let Ok(tl) = load_timeline(&root, &name) else {
+        let mut rgba = vec![0u8; W * frames.len() * H * names.len() * 4];
+        for (row, name) in names.iter().enumerate() {
+            let Ok(tl) = load_timeline(&root, name) else {
                 println!("[skip] timeline {name} not present");
                 continue;
             };
@@ -458,15 +463,15 @@ mod battle {
                 }
             }
         }
-        let img = TextureData { width: (W * frames.len()) as u32, height: (H * moves.len()) as u32, rgba };
+        let img = TextureData { width: (W * frames.len()) as u32, height: (H * names.len()) as u32, rgba };
         img.save_png(Path::new(&out)).expect("write png");
-        println!("wrote {out} (rows: moves {moves:?}; columns: frames {frames:?}; world scale {WORLD_SCALE} m/unit, ASSUMED)");
+        println!("wrote {out} (rows: {names:?}; columns: frames {frames:?}; world scale {WORLD_SCALE} m/unit, ASSUMED)");
     }
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.iter().any(|a| a == "--moves") {
+    if args.iter().any(|a| a == "--moves" || a == "--sequences") {
         battle::run(&args);
         return;
     }

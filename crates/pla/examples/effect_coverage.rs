@@ -163,7 +163,7 @@ fn main() {
     let mut shapes: BTreeMap<String, usize> = BTreeMap::new();
     let mut skips: BTreeMap<String, usize> = BTreeMap::new();
     let (mut sizes, mut speeds, mut lives, mut grav) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-    let (mut tex_ok, mut tex_fail, mut no_tex) = (0, 0, 0);
+    let (mut tex_ok, mut tex_fail, mut no_tex, mut slot1) = (0, 0, 0, 0);
     let (mut add_by_name, mut mirrored, mut blends) = (0, 0, BTreeMap::<String, usize>::new());
     for fi in files.values() {
         tex_ok += fi.textures_ok;
@@ -186,6 +186,9 @@ fn main() {
             if e.texture.is_none() {
                 no_tex += 1;
             }
+            if e.slot == 1 {
+                slot1 += 1;
+            }
             if e.blend != blend_mode(e.emitter.blend) {
                 add_by_name += 1;
             }
@@ -205,7 +208,7 @@ fn main() {
         rows.len()
     );
     println!("particle files loaded: {}", files.len());
-    println!("emitters drawn: {drawn} {shapes:?}; skipped: {skipped} {skips:?}; drawn without texture: {no_tex}");
+    println!("emitters drawn: {drawn} {shapes:?}; skipped: {skipped} {skips:?}; drawn as a soft dot (white placeholder texture, no second sampler): {no_tex}; drawing sampler 1: {slot1}");
     println!("drawn blends {blends:?}; additive by name only: {add_by_name}; mirrored single-cell textures: {mirrored}");
     println!("textures decoded/cached: {tex_ok}, failed: {tex_fail}, distinct names: {}", texture_index.len());
     println!(

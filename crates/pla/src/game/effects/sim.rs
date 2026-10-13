@@ -230,8 +230,26 @@ pub struct EmitterDef {
     pub emitter: Emitter,
     pub shape: DrawShape,
     pub blend: BlendMode,
-    /// Texture name of sampler 0.
+    /// Texture drawn (see [`drawn_texture`]); `None` = soft round dot.
     pub texture: Option<String>,
+    /// Sampler whose texture is drawn (0, or 1 when sampler 0 is a plain white texture).
+    pub slot: usize,
+}
+
+/// Texture an emitter draws and from which sampler. A plain white sampler-0 texture
+/// (`cpt_cmn_white*`) carries no shape: with a second sampler the port draws that one
+/// (white x texture 1 = texture 1 under a multiply combine, ASSUMED); without one it draws a
+/// soft round dot (ASSUMED: those emitters are named `light`/`shine`, and their real shape
+/// comes from a shader that is not decoded). Otherwise sampler 0.
+pub fn drawn_texture(e: &Emitter, file: &PtclFile) -> (Option<String>, usize) {
+    let name = |i: usize| e.texture_ids[i].and_then(|id| file.texture_name(id)).map(str::to_string);
+    match name(0) {
+        Some(t) if t.starts_with("cpt_cmn_white") => match name(1) {
+            Some(t1) => (Some(t1), 1),
+            None => (None, 0),
+        },
+        other => (other, 0),
+    }
 }
 
 impl EmitterDef {
@@ -242,8 +260,11 @@ impl EmitterDef {
         [fix(s[0]), fix(s[1])]
     }
 
-    /// Atlas cells (u, v), at least 1 x 1.
+    /// Atlas cells (u, v), at least 1 x 1 (sampler 1's divisions are not decoded: 1 x 1).
     pub fn atlas(&self) -> [u32; 2] {
+        if self.slot != 0 {
+            return [1, 1];
+        }
         let a = self.emitter.atlas_div;
         let fix = |v: f32| if v.is_finite() && v >= 1.0 { (v as u32).min(64) } else { 1 };
         [fix(a[0]), fix(a[1])]
@@ -252,7 +273,7 @@ impl EmitterDef {
     /// Flip-book cell at normalised life `t` (ASSUMED: pattern list stepped evenly).
     pub fn cell_at(&self, t: f32) -> u32 {
         let p = &self.emitter.texture_pattern;
-        if p.is_empty() {
+        if p.is_empty() || self.slot != 0 {
             return 0;
         }
         let i = ((t.clamp(0.0, 1.0) * p.len() as f32) as usize).min(p.len() - 1);
@@ -260,13 +281,13 @@ impl EmitterDef {
         p[i] % (nu * nv)
     }
 
-    /// Wrap mode (u, v) of sampler 0: 0 mirror, 1 repeat, 2 clamp (LIKELY). Clamp when
-    /// the emitter has no texture (the shader then draws a soft dot over 0..1).
+    /// Wrap mode (u, v) of the drawn sampler: 0 mirror, 1 repeat, 2 clamp (LIKELY). Clamp
+    /// when no texture is drawn (the shader then draws a soft dot over 0..1).
     pub fn wrap(&self) -> [u8; 2] {
-        if self.texture.is_none() && self.emitter.texture_ids[0].is_none() {
+        if self.texture.is_none() {
             return [2, 2];
         }
-        self.emitter.texture_wrap[0].map(|w| w.min(2))
+        self.emitter.texture_wrap[self.slot.min(2)].map(|w| w.min(2))
     }
 
     /// UV rectangle `(u0, v0, u1, v1)` of a cell. An axis with one atlas cell and mirror
@@ -301,12 +322,10 @@ impl EffectDef {
         let mut def = EffectDef { path: path.to_string(), ..Default::default() };
         for e in &file.emitters {
             match classify(e) {
-                Ok(shape) => def.emitters.push(EmitterDef {
-                    emitter: e.clone(),
-                    shape,
-                    blend: emitter_blend(e),
-                    texture: e.texture_ids[0].and_then(|id| file.texture_name(id)).map(str::to_string),
-                }),
+                Ok(shape) => {
+                    let (texture, slot) = drawn_texture(e, file);
+                    def.emitters.push(EmitterDef { emitter: e.clone(), shape, blend: emitter_blend(e), texture, slot })
+                }
                 Err(skip) => def.skipped.push((e.name.clone(), skip)),
             }
         }
@@ -631,7 +650,13 @@ mod tests {
         let mut d = EffectDef { path: "test.ptcl".into(), ..Default::default() };
         for e in emitters {
             match classify(&e) {
-                Ok(shape) => d.emitters.push(EmitterDef { blend: emitter_blend(&e), emitter: e, shape, texture: None }),
+                Ok(shape) => d.emitters.push(EmitterDef {
+                    blend: emitter_blend(&e),
+                    emitter: e,
+                    shape,
+                    texture: Some("tex".into()),
+                    slot: 0,
+                }),
                 Err(s) => d.skipped.push((e.name.clone(), s)),
             }
         }
