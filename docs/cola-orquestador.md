@@ -11,12 +11,12 @@
 6. Las tareas se verifican por separado en cada informe: qué es VERIFICADO, PROBABLE y SUPUESTO. No se escribe «completo».
 
 ## Estado de las 43 tareas (resumen)
-- **Hechas en `main`:** 1, 2, 3 (mando), 4, 5, 6 (bloom y oclusión), 8 (cambio de zona), 11 (agua y nado), 14 (mochila y tiendas), 15 (minimapa y brújula), 16 (seguidor), 20 (medición de rendimiento), 24 (auditoría de contenido publicable), 21 (dinero, tiempo de juego y descanso; guardado v4, ahora v5 con la experiencia del equipo; el siguiente cambio es v6), 25, 28, 34, 42. **Cerrada (no aplica):** 41.
+- **Hechas en `main`:** 1, 2, 3 (mando), 4, 5, 6 (bloom y oclusión), 8 (cambio de zona), 11 (agua y nado), 14 (mochila y tiendas), 15 (minimapa y brújula), 16 (seguidor), 20 (medición de rendimiento), 24 (auditoría de contenido publicable), 21 (dinero, tiempo de juego y descanso; guardado v4, ahora v5 con la experiencia del equipo y v6 con el reloj), 9 (reloj día/noche y clima; guardado v6, el siguiente cambio es v7; las horas de cada franja son SUPUESTO), 25, 28, 34, 42. **Cerrada (no aplica):** 41.
 - **Pendiente tras 8:** 8b (ver la cola de DeepSeek).
 - **En proceso (DeepSeek):** 7 (menú principal), 10 (colisiones).
 - **A medias:** 26 y 29 (motor hecho y ya conectado al combate del visor; falta mirarlo a ojo, por el usuario), 37 (datos hechos), 39 (datos hechos).
 - **Datos de investigación ya en `main` (sin implementar):** 31 (personajes no jugables); falta implementarlos en el juego.
-- **Implementada y fusionada en `main`:** 30 (combates de entrenador y jefes). La fórmula de recompensa es SUPUESTO; faltan la IA experta y la fase de campo noble; los entrenadores derrotados no se guardan hasta el guardado v6.
+- **Implementada y fusionada en `main`:** 30 (combates de entrenador y jefes). La fórmula de recompensa es SUPUESTO; faltan la IA experta y la fase de campo noble; los entrenadores derrotados no se guardan hasta el guardado v7.
 - **Rama a medias, NO fusionada (commit «wip» por disco lleno; hay que rehacer/continuar):** 18 (`feat/throwing-module`) y 19 (`feat/models-field`).
 - **Faltan:** 9, 12–13, 17–19, 22–23 (nivel 2), 27, 31–33, 35, 36, 38, 40 (nivel 3), 43 (nivel 4).
 
