@@ -1,6 +1,7 @@
 //! Battle log text built from engine events (pure, no Bevy).
 
 use crate::battle_engine::effects::{EffectEvent, Stat};
+use crate::battle_engine::statuses::StatusEvent;
 use crate::battle_engine::{Event, MajorStatus};
 
 /// How many log lines the battle box keeps on screen.
@@ -33,6 +34,12 @@ pub fn stat_name(stat: Stat) -> &'static str {
 /// Effect lines (stages, drain, healing, multi-hit) come from a separate engine stream, so they
 /// follow the main events of the turn; the end-of-battle line stays last.
 ///
+/// `statuses` are the volatile-status events (`Battle::take_status_events`) recorded during the
+/// same turn: confusion, trapping, charge/recharge, Protect and sleep. The engine stores them on a
+/// separate stream with no position inside `events`, so exact interleaving is not possible; their
+/// own emission order is kept and they print after the main and effect lines, before the
+/// end-of-battle line.
+///
 /// The engine emits no `UsedMove` event for moves without power, so `status_moves` lists the
 /// `(actor, move name)` pairs of such moves chosen this turn; each is announced at the first
 /// point where that actor demonstrably acted (after `ActedFirst`, before an event caused by it,
@@ -41,6 +48,7 @@ pub fn format_turn(
     name: &dyn Fn(usize) -> String,
     events: &[Event],
     effects: &[EffectEvent],
+    statuses: &[StatusEvent],
     status_moves: &[(usize, String)],
 ) -> Vec<String> {
     let mut lines = Vec::new();
@@ -138,8 +146,32 @@ pub fn format_turn(
     }
     announce(&mut lines, &mut pending, &|_| true);
     lines.extend(effects.iter().filter_map(|e| format_effect(name, e)));
+    lines.extend(statuses.iter().filter_map(|e| format_status(name, e)));
     lines.extend(ended);
     lines
+}
+
+/// One log line for a volatile-status event, or `None` when nothing should be shown.
+/// `name(i)` gives the display name of combatant `i`. Failed actions that already have a main
+/// `Event` (paralysis/drowsiness `UnableToAct`) are not repeated here; the remaining status events
+/// have no main-event counterpart, so each maps to exactly one line.
+pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<String> {
+    Some(match e {
+        StatusEvent::Confused { target } => format!("{} became confused!", name(*target)),
+        StatusEvent::SnappedOutOfConfusion { target } => format!("{} snapped out of confusion!", name(*target)),
+        StatusEvent::HurtByConfusion { actor, damage } => format!("{} is confused and hurt itself! (-{damage} HP)", name(*actor)),
+        StatusEvent::WokeUp { target } => format!("{} woke up!", name(*target)),
+        StatusEvent::Trapped { target, by } => format!("{} was trapped by {}!", name(*target), name(*by)),
+        StatusEvent::HurtByTrap { target, damage } => format!("{} is hurt by the trap! (-{damage} HP)", name(*target)),
+        StatusEvent::TrapEnded { target } => format!("{} was freed from the trap!", name(*target)),
+        StatusEvent::CantSwitch { combatant, .. } => format!("{} can't switch out!", name(*combatant)),
+        StatusEvent::Charging { actor, move_name } => format!("{} is charging {move_name}!", name(*actor)),
+        StatusEvent::MustRecharge { actor } => format!("{} must recharge!", name(*actor)),
+        StatusEvent::Recharging { actor } => format!("{} is recharging!", name(*actor)),
+        StatusEvent::ProtectUp { actor } => format!("{} is protected!", name(*actor)),
+        StatusEvent::ProtectFailed { actor } => format!("{}'s protection failed!", name(*actor)),
+        StatusEvent::ProtectedFrom { target, attacker, move_name } => format!("{} protected itself from {}'s {move_name}!", name(*target), name(*attacker)),
+    })
 }
 
 pub fn format_effect(name: &dyn Fn(usize) -> String, e: &EffectEvent) -> Option<String> {
@@ -229,7 +261,7 @@ mod tests {
             EffectEvent::Hits { actor: 0, count: 2 },
             EffectEvent::Drained { actor: 0, amount: 3 },
         ];
-        let lines = format_turn(&names, &events, &fx, &[]);
+        let lines = format_turn(&names, &events, &fx, &[], &[]);
         assert_eq!(lines[0], "-- Turn 2 --");
         assert_eq!(
             lines[1],
@@ -259,13 +291,70 @@ mod tests {
                 effectiveness: "normal".into(),
             },
         ];
-        let lines = format_turn(&names, &events, &[], &[(0, "thunder-wave".into())]);
+        let lines = format_turn(&names, &events, &[], &[], &[(0, "thunder-wave".into())]);
         assert_eq!(lines[1], "PIKACHU used thunder-wave!");
         assert_eq!(lines[2], "Wild BIDOOF was paralyzed! [PAR]");
         // a missed status move is reported by the engine, not announced twice
         let missed = vec![Event::TurnStarted(1), Event::Missed { actor: 0, target: 1, name: "thunder-wave".into() }];
-        let lines = format_turn(&names, &missed, &[], &[(0, "thunder-wave".into())]);
+        let lines = format_turn(&names, &missed, &[], &[], &[(0, "thunder-wave".into())]);
         assert_eq!(lines.len(), 2);
+    }
+
+    #[test]
+    fn every_status_event_maps_to_one_line() {
+        let cases = [
+            (StatusEvent::Confused { target: 1 }, "Wild BIDOOF became confused!"),
+            (StatusEvent::SnappedOutOfConfusion { target: 1 }, "Wild BIDOOF snapped out of confusion!"),
+            (StatusEvent::HurtByConfusion { actor: 0, damage: 4 }, "PIKACHU is confused and hurt itself! (-4 HP)"),
+            (StatusEvent::WokeUp { target: 1 }, "Wild BIDOOF woke up!"),
+            (StatusEvent::Trapped { target: 1, by: 0 }, "Wild BIDOOF was trapped by PIKACHU!"),
+            (StatusEvent::HurtByTrap { target: 1, damage: 9 }, "Wild BIDOOF is hurt by the trap! (-9 HP)"),
+            (StatusEvent::TrapEnded { target: 1 }, "Wild BIDOOF was freed from the trap!"),
+            (StatusEvent::CantSwitch { side: 0, combatant: 0 }, "PIKACHU can't switch out!"),
+            (StatusEvent::Charging { actor: 0, move_name: "solar-beam".into() }, "PIKACHU is charging solar-beam!"),
+            (StatusEvent::MustRecharge { actor: 0 }, "PIKACHU must recharge!"),
+            (StatusEvent::Recharging { actor: 0 }, "PIKACHU is recharging!"),
+            (StatusEvent::ProtectUp { actor: 1 }, "Wild BIDOOF is protected!"),
+            (StatusEvent::ProtectFailed { actor: 1 }, "Wild BIDOOF's protection failed!"),
+            (
+                StatusEvent::ProtectedFrom { target: 1, attacker: 0, move_name: "tackle".into() },
+                "Wild BIDOOF protected itself from PIKACHU's tackle!",
+            ),
+        ];
+        for (event, expected) in cases {
+            assert_eq!(format_status(&names, &event).as_deref(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn status_lines_follow_the_turn_lines_in_engine_order() {
+        let events = vec![
+            Event::TurnStarted(1),
+            Event::UsedMove {
+                actor: 0,
+                target: 1,
+                name: "confuse-ray".into(),
+                damage: 0,
+                critical: false,
+                effectiveness: "normal".into(),
+            },
+        ];
+        let statuses = [
+            StatusEvent::Confused { target: 1 },
+            StatusEvent::HurtByTrap { target: 1, damage: 5 },
+        ];
+        let fx = [EffectEvent::Hits { actor: 0, count: 2 }];
+        let lines = format_turn(&names, &events, &fx, &statuses, &[]);
+        assert_eq!(
+            lines,
+            vec![
+                "-- Turn 1 --".to_string(),
+                "PIKACHU used confuse-ray! (0 dmg, normal)".to_string(),
+                "Hit 2 times!".to_string(),
+                "Wild BIDOOF became confused!".to_string(),
+                "Wild BIDOOF is hurt by the trap! (-5 HP)".to_string(),
+            ]
+        );
     }
 
     #[test]

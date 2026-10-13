@@ -70,8 +70,8 @@ Documento escrito el 2026-10-12. Está en español porque lo pidió el usuario p
 |---|---|:-:|---|
 | Tabla de tipos, daño, estadísticas y críticos | Hecho | | Leídos del código del juego, no comprobados en juego |
 | Efectos de 851 movimientos, objetos, cambio, IA simple | Hecho | | |
-| Reglas «probables» o supuestas: turnos, precisión, clima, quemadura, captura, confusión, sueño, atrapar, carga, protección | Parcial | 3 | Hay que verificarlas contra el juego. Los estados nuevos no están activados ni muestran mensajes |
-| Activar los estados nuevos y mostrar sus mensajes | Falta | 1 | |
+| Reglas «probables» o supuestas: turnos, precisión, clima, quemadura, captura, confusión, sueño, atrapar, carga, protección | Parcial | 3 | Parte de las reglas ya está VERIFICADA en el código del juego y el resto sigue ASUMIDA ([informe](../reports/data-progress/battle_rules_verified.md)). Los estados nuevos ya se activan y muestran mensajes |
+| Activar los estados nuevos y mostrar sus mensajes | Hecho | 1 | Activados por defecto en `game/battle_controller` (`BattleAssets::status_rules`); mensajes vía `battle_log::format_status`. Esto también activa la fórmula de daño real del juego (daño aproximadamente x3). Comprobado solo con pruebas unitarias y el ejemplo sin ventana |
 | Habilidades de Pokémon y objetos equipados | No aplica | | El juego guarda habilidades en los datos, pero el código de combate solo da efecto a 2 (Inicio Lento de Regigigas y el cambio de forma de Cherrim con Don Floral) y a ningún objeto equipado ([informe](../reports/data-progress/abilities_held_items.md)). Lo que queda es el brief D1 |
 | Estilos ágil y fuerte y el sistema de turnos propio de este juego | Falta | 3 | |
 | Combates contra jefes y entrenadores (varios Pokémon) | Falta | 3 | |

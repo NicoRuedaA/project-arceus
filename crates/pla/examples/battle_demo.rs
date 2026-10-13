@@ -1,10 +1,14 @@
 use pla::battle::BattleData;
+use pla::battle_engine::effects::MoveEffectsTable;
+use pla::battle_engine::statuses::StatusRules;
 use pla::battle_engine::{Action, Battle, Combatant, Event, HealingItem, XorShift32};
+use pla::game::battle_log;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
 fn main() -> Result<(), String> {
-    let data = BattleData::load(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"))?;
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let data = BattleData::load(&root)?;
     let get_species = |name: &str| -> Result<_, String> {
         data.species_row(name)?
             .ok_or_else(|| format!("missing species {name}"))
@@ -16,7 +20,12 @@ fn main() -> Result<(), String> {
     let pikachu = Combatant::from_base(
         get_species("pikachu")?,
         12,
-        vec![get_move("thunder-shock")?, get_move("quick-attack")?],
+        vec![
+            get_move("thunder-shock")?,
+            get_move("quick-attack")?,
+            get_move("confuse-ray")?,
+            get_move("solar-beam")?,
+        ],
     );
     let eevee = Combatant::from_base(
         get_species("eevee")?,
@@ -33,6 +42,8 @@ fn main() -> Result<(), String> {
         vec![vec![0, 1], vec![2]],
         data.type_chart().clone(),
     )?;
+    battle.set_move_effects(MoveEffectsTable::load(&root)?);
+    battle.set_status_rules(StatusRules::game_rules());
     let mut rng = XorShift32(0x504c_4126);
     let potion = HealingItem {
         name: "Potion (demo)".into(),
@@ -46,6 +57,9 @@ fn main() -> Result<(), String> {
     );
     println!(
         "Nature mapping, native action classes/AI, and catch rates are unknown inputs; defaults are neutral. Healing amount and party controls are demo-only."
+    );
+    println!(
+        "Status rules are ON (confusion, trapping, charge/recharge, Protect, sleep). Pikachu slots 3/4 are confuse-ray and solar-beam."
     );
 
     while !battle.ended {
@@ -179,6 +193,13 @@ fn main() -> Result<(), String> {
                     None => println!("Draw"),
                 },
                 _ => {}
+            }
+        }
+        let statuses = battle.take_status_events();
+        let names = |i: usize| battle.combatants[i].species.name.clone();
+        for event in &statuses {
+            if let Some(line) = battle_log::format_status(&names, event) {
+                println!("{line}");
             }
         }
     }

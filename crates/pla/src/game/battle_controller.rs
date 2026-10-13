@@ -16,6 +16,7 @@ pub use super::catch_rate::{CatchRateSource, CatchRateTable, CAPTURE_CATCH_RATE_
 use crate::battle::BattleData;
 use crate::battle_engine::effects::{MoveEffectsTable, Stages};
 use crate::battle_engine::items::{ItemBag, ItemTable};
+use crate::battle_engine::statuses::StatusRules;
 use crate::battle_engine::{
     capture_index, capture_probability, Action, Battle, BattleRng, CaptureModifiers, Combatant,
     Event, MajorStatus, XorShift32,
@@ -61,6 +62,10 @@ pub struct BattleAssets {
     pub move_effects: MoveEffectsTable,
     pub items: ItemTable,
     pub catch_rates: CatchRateTable,
+    /// Volatile-status rules applied when a session starts. Defaults to `StatusRules::game_rules()`
+    /// (confusion, trapping, charge/recharge, Protect, sleep duration, speed stages); set it to
+    /// `StatusRules::default()` to turn every rule off.
+    pub status_rules: StatusRules,
 }
 
 impl BattleAssets {
@@ -75,6 +80,7 @@ impl BattleAssets {
             move_effects: MoveEffectsTable::load(root)?,
             items: ItemTable::load(root)?,
             catch_rates,
+            status_rules: StatusRules::game_rules(),
         })
     }
 }
@@ -288,6 +294,7 @@ impl ActiveBattleSession {
             Some(a) => {
                 battle.set_move_effects(a.move_effects.clone());
                 battle.set_item_table(a.items.clone());
+                battle.set_status_rules(a.status_rules);
                 (bag, bag_order) = battle_items::starter_bag(&a.items);
                 a.catch_rates.lookup(wild_species)
             }
@@ -336,6 +343,14 @@ impl ActiveBattleSession {
         (0..self.battle.combatants.len())
             .map(|i| self.display_name(i))
             .collect()
+    }
+
+    /// Drain any queued volatile-status events (e.g. a refused switch) into log lines. Turn
+    /// resolution already drains them; this is for engine calls made outside a turn.
+    fn take_status_lines(&mut self) -> Vec<String> {
+        let names = self.names();
+        let events = self.battle.take_status_events();
+        events.iter().filter_map(|e| battle_log::format_status(&|i| names[i].clone(), e)).collect()
     }
 
     pub fn push_lines(&mut self, lines: Vec<String>) {
@@ -389,8 +404,9 @@ impl ActiveBattleSession {
             .collect();
         let events = self.battle.play_turn(&actions, &mut self.rng);
         let effects = self.battle.take_effect_events();
+        let statuses = self.battle.take_status_events();
         let names = self.names();
-        let mut lines = battle_log::format_turn(&|i| names[i].clone(), &events, &effects, &status_moves);
+        let mut lines = battle_log::format_turn(&|i| names[i].clone(), &events, &effects, &statuses, &status_moves);
         let after_active = self.active_player();
         if after_active != before_active && !self.battle.ended {
             let at = lines
@@ -578,10 +594,11 @@ impl ActiveBattleSession {
                 true
             }
             Err(e) => {
-                self.push_lines(vec![format!(
-                    "{} can't be sent out: {e}",
-                    self.display_name(target)
-                )]);
+                // A trap refusal queues a `CantSwitch` status event; show it with the engine error.
+                let head = format!("{} can't be sent out: {e}", self.display_name(target));
+                let mut lines = vec![head];
+                lines.extend(self.take_status_lines());
+                self.push_lines(lines);
                 false
             }
         }
@@ -695,12 +712,18 @@ impl ActiveBattleSession {
         out
     }
 
-    /// Status tag and stage markers for the HP card of combatant `i`, e.g. "[PAR] ATK+ SPE-".
+    /// Status tag and stage markers for the HP card of combatant `i`, e.g. "[PAR] CNF ATK+ SPE-".
     pub fn card_tags(&self, i: usize) -> String {
         let c = &self.battle.combatants[i];
         let mut parts = Vec::new();
         if let Some(s) = c.status {
             parts.push(format!("[{}]", battle_items::status_tag(s)));
+        }
+        if self.battle.is_confused(i) {
+            parts.push("CNF".to_string());
+        }
+        if self.battle.is_trapped(i) {
+            parts.push("TRAP".to_string());
         }
         let st = self.battle.stages(i);
         for (tag, v) in [("ATK", st.attack), ("DEF", st.defense), ("SPE", st.speed)] {
@@ -895,6 +918,51 @@ mod tests {
         assert_eq!(s.battle.combatants[WILD].status, Some(MajorStatus::Paralysis));
         assert_eq!(s.card_tags(WILD), "[PAR]");
         assert!(s.log_lines.iter().any(|l| l.contains("paralyzed")));
+    }
+
+    #[test]
+    fn full_session_enables_the_engine_status_rules() {
+        let Some(s) = session("bidoof") else { return };
+        assert_eq!(s.battle.status_rules(), StatusRules::game_rules());
+    }
+
+    #[test]
+    fn plain_session_leaves_the_status_rules_off() {
+        let Some(a) = assets() else { return };
+        let s = ActiveBattleSession::new(&a.data, "pikachu", 25, "bidoof", 5, 0, Entity::PLACEHOLDER).unwrap();
+        assert_eq!(s.battle.status_rules(), StatusRules::default());
+    }
+
+    #[test]
+    fn confusion_move_is_logged_and_lost_actions_are_reported() {
+        let Some(mut s) = session("bidoof") else { return };
+        give_move(&mut s, 3, "confuse-ray");
+        for _ in 0..10 {
+            s.execute_player_attack(3);
+            if s.battle.is_confused(WILD) {
+                break;
+            }
+        }
+        assert!(s.battle.is_confused(WILD));
+        assert!(s.log_lines.iter().any(|l| l.contains("became confused")), "{:?}", s.log_lines);
+        assert!(s.card_tags(WILD).contains("CNF"));
+        // Keep going until the confusion runs its course; the self-hit/snap lines must be logged.
+        for _ in 0..12 {
+            if s.log_lines.iter().any(|l| l.contains("hurt itself") || l.contains("snapped out")) {
+                break;
+            }
+            s.execute_player_attack(3);
+        }
+        assert!(s.log_lines.iter().any(|l| l.contains("hurt itself") || l.contains("snapped out")), "{:?}", s.log_lines);
+    }
+
+    #[test]
+    fn charge_move_logs_a_charging_line() {
+        let Some(mut s) = session("bidoof") else { return };
+        give_move(&mut s, 3, "solar-beam");
+        s.execute_player_attack(3);
+        assert!(s.log_lines.iter().any(|l| l.contains("is charging solar-beam")), "{:?}", s.log_lines);
+        assert!(s.battle.is_charging(0));
     }
 
     fn give_move(s: &mut ActiveBattleSession, slot: usize, name: &str) {
