@@ -1,0 +1,22 @@
+# sheet: data/wild_behavior
+# version: 1
+# generator: manually curated from source evidence and port policy
+# target: Pokémon Legends: Arceus update v262144 wild overworld behavior
+# doctrine: decoded storage facts are separated from unresolved semantics and port defaults
+record_id:string* scope:string* field:string* value:string? unit:string? confidence:enum source:string* notes:string?
+state_id_range native_state state_id 1..7 enum VERIFIED reports/function-progress/n2-entities-and-propagation.md:32-56 Native state range is observed; names for all seven states are not recovered.
+distance_to_player native_state distance_to_player +0x10 f32 VERIFIED reports/function-progress/n2-entities-and-propagation.md:49-56 Storage offset and type are reported from static analysis.
+reaction_flags_storage native_state flags_153 +0x153 u8 VERIFIED reports/function-progress/n2-entities-and-propagation.md:49-56 Storage offset and type are reported from static analysis.
+reaction_flags_meaning native_state flags_153 alert|flee|combat bit labels PROBABLE reports/function-progress/n2-entities-and-propagation.md:54-56 Labels are behavioral context, not a decoded bit layout.
+reaction_distance_key native_config wildpokemon_reaction_distance present string VERIFIED decompiled/update-main/FUN_024e26b4_024e26b4.c:461-509 Key lookup is visible; the numeric value is not recovered.
+sleep_reaction_keys native_config wildpokemon_sleep_reaction_frame_min|max present strings VERIFIED decompiled/update-main/FUN_024e26b4_024e26b4.c:620-696 Key lookup is visible; values are not recovered.
+random_reaction_keys native_config wildpokemon_random_reaction_frame_min|max present strings VERIFIED decompiled/update-main/FUN_024e26b4_024e26b4.c:1551-1630 Key lookup is visible; values are not recovered.
+escape_reaction_key native_config wildpokemon_reaction_escaping_keep_time present string VERIFIED decompiled/update-main/FUN_024e26b4_024e26b4.c:2622-2633 Key lookup is visible; value is not recovered.
+stealth_gate native_perception tall_grass_or_crouch_in_stealth_volume suppresses awareness static rule VERIFIED reports/function-progress/n2-avatar-locomotion-and-state-machine.md:32-39 Runtime replay was not performed.
+wild_config_file native_config field_wild_pokemon_config.bin 736 bytes UNKNOWN /home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/misc/app_config/field_wild_pokemon_config.bin No schema-backed decoder was available in this task.
+modifier_rows native_config wild_encounter_modifiers.tsv 322 raw rows VERIFIED data/field/wild_encounter_modifiers.tsv:1-6 Raw field widths/count are checked; field meanings remain unknown.
+species_archetypes game_policy passive|timid|aggressive port profiles SUPPOSED docs/briefs-agentes.md:481-485 No species mapping is claimed without evidence.
+default_profile game_policy * passive SUPPOSED crates/pla/src/game/wild_behavior.rs:69-112 Safe runtime fallback when no species record exists.
+vision_and_hearing game_policy 10-14m|6-10m assumed ranges SUPPOSED crates/pla/src/game/wild_behavior.rs:69-112 Port defaults only; not decoded game values.
+sleep_clock game_policy optional window disabled by default UNKNOWN reports/function-progress/n2-entities-and-propagation.md:28-43 Sleep timing keys exist, but clock boundaries are not established.
+encounter_wiring integration battle-start intent exposed but not wired UNKNOWN crates/pla/examples/port_viewer.rs:2234-2305 The viewer lacks a safe stealth/noise input path; no battle engine changes were made.
