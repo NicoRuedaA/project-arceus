@@ -1,7 +1,7 @@
 //! Pause menu (Esc): a Bevy UI overlay navigable with the keyboard (arrows or W/S + Enter) and
 //! the mouse (hover + click).
 //!
-//! Options: Resume, Invert camera X axis, Invert camera Y axis, Volume (master, cycles
+//! Options: Resume, Bag, Invert camera X axis, Invert camera Y axis, Volume (master, cycles
 //! 100/75/50/25/0 %), Back to safe spawn, Save game, Quit.
 //!
 //! While [`Paused`] is `true` the plugin freezes the world by contract: every gameplay system must
@@ -21,6 +21,7 @@ use super::state::Paused;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuOption {
     Resume,
+    Bag,
     InvertX,
     InvertY,
     Volume,
@@ -30,8 +31,9 @@ pub enum MenuOption {
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 7] = [
+pub const OPTIONS: [MenuOption; 8] = [
     MenuOption::Resume,
+    MenuOption::Bag,
     MenuOption::InvertX,
     MenuOption::InvertY,
     MenuOption::Volume,
@@ -45,6 +47,8 @@ pub const OPTIONS: [MenuOption; 7] = [
 pub enum MenuAction {
     /// Close the menu and unfreeze the world.
     Resume,
+    /// Open the bag screen (the bag plugin consumes [`BagOpenRequested`]).
+    OpenBag,
     /// A setting flipped: persist `settings.txt`.
     SettingsChanged,
     /// Teleport the player to the safe spawn of the current area.
@@ -65,6 +69,7 @@ pub fn move_selection(selected: usize, delta: i32) -> usize {
 pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
     match option {
         MenuOption::Resume => MenuAction::Resume,
+        MenuOption::Bag => MenuAction::OpenBag,
         MenuOption::InvertX => {
             settings.invert_camera_x = !settings.invert_camera_x;
             MenuAction::SettingsChanged
@@ -95,6 +100,7 @@ fn on_off(v: bool) -> &'static str {
 pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
     match option {
         MenuOption::Resume => "Resume".into(),
+        MenuOption::Bag => "Bag".into(),
         MenuOption::InvertX => format!("Invert camera X axis: {}", on_off(settings.invert_camera_x)),
         MenuOption::InvertY => format!("Invert camera Y axis: {}", on_off(settings.invert_camera_y)),
         MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
@@ -124,6 +130,15 @@ pub fn toggle_paused(paused: bool) -> bool {
 #[derive(Resource, Debug, Default)]
 pub struct SafeSpawnRequested(pub bool);
 
+/// Set to `true` by the pause menu's `Bag` row; the bag screen consumes it and opens.
+#[derive(Resource, Debug, Default)]
+pub struct BagOpenRequested(pub bool);
+
+/// Set by a fullscreen screen that owns the input while open (the bag/shop screen): the pause
+/// menu hides its root and ignores every key until the flag is cleared.
+#[derive(Resource, Debug, Default)]
+pub struct PauseMenuSuppressed(pub bool);
+
 /// Highlighted row.
 #[derive(Resource, Debug, Default)]
 pub struct PauseMenu {
@@ -152,7 +167,9 @@ impl PauseMenuPlugin {
             .init_resource::<PauseMenu>()
             .init_resource::<SaveToast>()
             .init_resource::<SaveRequested>()
-            .init_resource::<SafeSpawnRequested>();
+            .init_resource::<SafeSpawnRequested>()
+            .init_resource::<BagOpenRequested>()
+            .init_resource::<PauseMenuSuppressed>();
         app.add_systems(Startup, spawn_menu)
             // After the input systems so Esc is seen this frame, before every gameplay system
             // of `Update` so they already observe the new paused flag.
@@ -235,10 +252,16 @@ fn pause_input(
     dir: Res<SettingsDir>,
     mut save_request: ResMut<SaveRequested>,
     mut safe_request: ResMut<SafeSpawnRequested>,
+    mut bag_request: ResMut<BagOpenRequested>,
+    suppressed: Res<PauseMenuSuppressed>,
     mut toast: ResMut<SaveToast>,
     buttons: Query<(&PauseButton, &Interaction), Changed<Interaction>>,
     mut exit: MessageWriter<AppExit>,
 ) {
+    // Another fullscreen screen owns the input (bag/shop): do nothing, it handles Esc itself.
+    if suppressed.0 {
+        return;
+    }
     // Esc toggles. The key is consumed so the battle ("back") never sees it on the same frame.
     if keys.just_pressed(KeyCode::Escape) {
         keys.clear_just_pressed(KeyCode::Escape);
@@ -291,6 +314,10 @@ fn pause_input(
     mouse.clear_just_pressed(MouseButton::Left);
     match activate(OPTIONS[i], &mut settings) {
         MenuAction::Resume => paused.0 = false,
+        MenuAction::OpenBag => {
+            bag_request.0 = true;
+            paused.0 = false;
+        }
         MenuAction::SettingsChanged => {
             if let Err(e) = settings.save_to_dir(&dir.0) {
                 toast.show(format!("Could not save settings: {e}"));
@@ -311,17 +338,18 @@ fn sync_menu(
     paused: Res<Paused>,
     menu: Res<PauseMenu>,
     settings: Res<UserSettings>,
+    suppressed: Res<PauseMenuSuppressed>,
     mut root: Query<&mut Visibility, With<PauseRoot>>,
     mut buttons: Query<(&PauseButton, &mut BackgroundColor)>,
     mut texts: Query<(&PauseButtonText, &mut Text)>,
 ) {
     for mut v in &mut root {
-        let want = if paused.0 { Visibility::Visible } else { Visibility::Hidden };
+        let want = if paused.0 && !suppressed.0 { Visibility::Visible } else { Visibility::Hidden };
         if *v != want {
             *v = want;
         }
     }
-    if !paused.0 {
+    if !paused.0 || suppressed.0 {
         return;
     }
     for (b, mut bg) in &mut buttons {
@@ -369,6 +397,8 @@ mod tests {
     fn other_rows_map_to_actions_without_touching_settings() {
         let mut s = UserSettings::default();
         assert_eq!(activate(MenuOption::Resume, &mut s), MenuAction::Resume);
+        assert_eq!(activate(MenuOption::Bag, &mut s), MenuAction::OpenBag);
+        assert_eq!(option_label(MenuOption::Bag, &s), "Bag");
         assert_eq!(activate(MenuOption::Save, &mut s), MenuAction::Save);
         assert_eq!(activate(MenuOption::SafeSpawn, &mut s), MenuAction::SafeSpawn);
         assert_eq!(option_label(MenuOption::SafeSpawn, &s), "Back to safe spawn");
@@ -379,7 +409,7 @@ mod tests {
     #[test]
     fn safe_spawn_row_is_reachable_by_navigation() {
         let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 7);
+        assert_eq!(OPTIONS.len(), 8);
         assert_eq!(move_selection(i - 1, 1), i);
         assert_eq!(move_selection(i, 1), i + 1);
     }

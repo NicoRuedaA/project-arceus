@@ -884,6 +884,7 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
     app.add_plugins(pla::game::audio::GameAudioPlugin::from_env_and_args());
+    app.add_plugins(pla::game::bag_screen::BagScreenPlugin::from_env_and_args());
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
         app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });
