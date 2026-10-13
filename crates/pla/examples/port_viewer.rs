@@ -31,6 +31,7 @@ use pla::assets::terrain::{
     TerrainScaleOverride,
 };
 use pla::assets::terrain_albedo::{albedo_cache_path, bake_albedo, load_baked_albedo};
+use pla::assets::terrain_normals::{bake_normals, load_baked_normals, normals_cache_path};
 use pla::battle::BattleData;
 use pla::game::{
     battle_input_system, load_spawners_for_area, roll_spawner, setup_game_ui,
@@ -142,6 +143,64 @@ struct PlayerSpawnConfig {
     pos: Vec2,
     #[allow(dead_code)]
     area_idx: u8,
+}
+
+/// Resolves baked terrain tangent-space normals from cache (same search order as
+/// the albedo), else bakes them at startup. `None` when the area has no layer
+/// normals or the bake fails, so the terrain keeps its albedo-only look.
+fn resolve_terrain_normals(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
+    let candidate_dirs = [
+        std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
+        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
+        Some(PathBuf::from("work/cache")),
+        Some(PathBuf::from("/home/nico/work/decompilacion/work")),
+        Some(PathBuf::from("work")),
+    ];
+    for dir in candidate_dirs.into_iter().flatten() {
+        for p in [
+            dir.join("terrain_normals").join(format!("area{area_idx:02}.png")),
+            normals_cache_path(&dir, area_idx),
+        ] {
+            if p.is_file() {
+                match load_baked_normals(&p) {
+                    Ok(tex) => {
+                        println!("Loaded baked terrain normals from {}", p.display());
+                        return Some(tex);
+                    }
+                    Err(e) => eprintln!("Failed to load baked normals from {}: {e}", p.display()),
+                }
+            }
+        }
+    }
+    println!("Baked terrain normals not found in cache for area {area_idx:02}, baking at startup...");
+    match bake_normals(area_data, 2048) {
+        Ok(tex) => Some(tex),
+        Err(e) => {
+            eprintln!("Failed to bake terrain normals: {e}. Continuing without a normal map.");
+            None
+        }
+    }
+}
+
+/// Builds the (linear, non-sRGB) Bevy image for the terrain normal map.
+/// Normal maps must not be sampled as sRGB; a missing area normal map yields `None`.
+fn resolve_terrain_normal_handle(
+    area_idx: u8,
+    area_data: &TerrainArea,
+    images: &mut Assets<Image>,
+) -> Option<Handle<Image>> {
+    let texture = resolve_terrain_normals(area_idx, area_data)?;
+    Some(images.add(Image::new(
+        Extent3d {
+            width: texture.width,
+            height: texture.height,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        texture.rgba,
+        TextureFormat::Rgba8Unorm,
+        RenderAssetUsages::default(),
+    )))
 }
 
 #[derive(Component)]
@@ -1007,6 +1066,7 @@ fn setup_scene(
                 Color::srgb(0.28, 0.42, 0.22)
             },
             base_color_texture: albedo,
+            normal_map_texture: resolve_terrain_normal_handle(terrain.area.area, &terrain.area, &mut images),
             perceptual_roughness: 0.95,
             ..default()
         });
@@ -2443,6 +2503,7 @@ fn switch_terrain_area(
             Color::srgb(0.28, 0.42, 0.22)
         },
         base_color_texture: albedo_handle,
+        normal_map_texture: resolve_terrain_normal_handle(area_idx, &area_data, images),
         perceptual_roughness: 0.95,
         ..default()
     });
