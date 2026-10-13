@@ -116,7 +116,7 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 
 | Punto | Estado | Dif. | Notas |
 |---|---|:-:|---|
-| Instalación sin pasos manuales de extracción ni cachés a mano | Falta | 3 | |
+| Instalación sin pasos manuales de extracción ni cachés a mano | Parcial: `./install.sh` hecho en `feat/install` (sin fusionar); probado de principio a fin en una carpeta desechable, no en otro equipo ni con el visor | 3 | [informe](../reports/data-progress/installer.md), [guía](INSTALL.es.md) |
 | Comparar con el juego original | Continuo | | |
 | Aspectos legales (datos del juego extraídos en un repositorio público) | Hecho (auditoría) | 2 | |
 
@@ -176,7 +176,7 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 37. Subzonas e interiores. **[parcial: datos hechos]**
 38. Monturas. **[falta]**
 39. Eventos del mundo. **[parcial: datos hechos]**
-40. Instalación sin pasos manuales. **[falta]**
+40. Instalación sin pasos manuales. **[parcial: hecho en `feat/install`, sin fusionar; falta que el mantenedor pruebe `./play.sh` tras instalar]**
 
 **Nivel 4, muy grande (meses)**
 41. Habilidades de Pokémon y objetos equipados. **No aplica a este juego** (fase 0 hecha; lo que queda va en el brief D1 de `briefs-agentes.md`). **[cerrada: no aplica]**

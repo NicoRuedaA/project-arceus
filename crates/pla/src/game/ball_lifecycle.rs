@@ -6,10 +6,29 @@
 use bevy::prelude::*;
 
 /// Ball state enum mirroring in-game ball trajectory and capture animation.
+///
+/// A ball that hits a wild Pokémon goes `Absorbing` (energy draw) → `Dropping` (the ball falls
+/// to the ground carrying it) → `Shaking` → `Captured` / `Breakout`. The absorb and drop
+/// timings are ASSUMED presentation values; the shake count comes from the capture roll
+/// (`capture_world::WorldCaptureRoll`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BallLifecycleState {
     InFlight,
     RollingOnGround { roll_timer: f32 },
+    /// Hit landed: the Pokémon is drawn into the ball.
+    Absorbing {
+        timer: f32,
+        ground_y: f32,
+        max_shakes: u8,
+        will_capture: bool,
+    },
+    /// The ball falls from the impact point back to `ground_y`.
+    Dropping {
+        timer: f32,
+        ground_y: f32,
+        max_shakes: u8,
+        will_capture: bool,
+    },
     Shaking {
         shake_count: u8,
         timer: f32,
@@ -49,6 +68,10 @@ pub enum DespawnReason {
 /// Something worth telling the player during one tick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BallEvent {
+    /// The Pokemon was drawn into the ball (absorb finished).
+    Absorbed,
+    /// The ball finished falling to the ground, shakes start next.
+    Dropped,
     /// The n-th shake finished (1-based).
     Shake(u8),
     /// The last shake finished and the Pokemon is caught.
@@ -69,6 +92,12 @@ impl BallSimulation {
     pub const MAX_DISTANCE_FROM_PLAYER: f32 = 150.0;
     pub const GROUND_ROLL_DESPAWN_TIME: f32 = 2.0;
     pub const CAPTURE_AURA_DESPAWN_TIME: f32 = 1.8;
+    /// Time the Pokemon takes to be drawn into the ball. ASSUMED (no decoded clip timing).
+    pub const ABSORB_TIME: f32 = 0.35;
+    /// Safeguard so the drop always ends even with gravity 0. ASSUMED.
+    pub const DROP_MAX_TIME: f32 = 1.5;
+    /// Time between shakes. ASSUMED (viewer value kept).
+    pub const SHAKE_INTERVAL: f32 = 0.65;
 
     pub fn new(position: Vec3, velocity: Vec3, gravity: f32) -> Self {
         Self {
@@ -81,14 +110,15 @@ impl BallSimulation {
         }
     }
 
-    /// Put the ball on a wild Pokemon: it shakes `max_shakes` times, then captures or breaks free.
-    pub fn hit_pokemon(&mut self, at: Vec3, will_capture: bool) {
+    /// Put the ball on a wild Pokemon: it absorbs it at the impact point, drops to `ground_y`,
+    /// shakes `max_shakes` times, then captures or breaks free.
+    pub fn hit_pokemon(&mut self, at: Vec3, ground_y: f32, max_shakes: u8, will_capture: bool) {
         self.position = at;
         self.velocity = Vec3::ZERO;
-        self.state = BallLifecycleState::Shaking {
-            shake_count: 0,
+        self.state = BallLifecycleState::Absorbing {
             timer: 0.0,
-            max_shakes: 3,
+            ground_y,
+            max_shakes: max_shakes.max(1),
             will_capture,
         };
     }
@@ -143,9 +173,49 @@ impl BallSimulation {
                     out.despawn = Some(DespawnReason::RolledOut);
                 }
             }
+            BallLifecycleState::Absorbing {
+                timer,
+                ground_y,
+                max_shakes,
+                will_capture,
+            } => {
+                *timer += dt;
+                if *timer >= Self::ABSORB_TIME {
+                    out.event = Some(BallEvent::Absorbed);
+                    let (ground_y, max_shakes, will_capture) = (*ground_y, *max_shakes, *will_capture);
+                    self.state = BallLifecycleState::Dropping {
+                        timer: 0.0,
+                        ground_y,
+                        max_shakes,
+                        will_capture,
+                    };
+                }
+            }
+            BallLifecycleState::Dropping {
+                timer,
+                ground_y,
+                max_shakes,
+                will_capture,
+            } => {
+                *timer += dt;
+                self.velocity.y += self.gravity * dt;
+                self.position += self.velocity * dt;
+                let floor = *ground_y + 0.12;
+                if self.position.y <= floor || *timer >= Self::DROP_MAX_TIME {
+                    self.position.y = floor;
+                    self.velocity = Vec3::ZERO;
+                    out.event = Some(BallEvent::Dropped);
+                    self.state = BallLifecycleState::Shaking {
+                        shake_count: 0,
+                        timer: 0.0,
+                        max_shakes: *max_shakes,
+                        will_capture: *will_capture,
+                    };
+                }
+            }
             BallLifecycleState::Shaking { shake_count, timer, max_shakes, will_capture } => {
                 *timer += dt;
-                if *timer >= 0.65 {
+                if *timer >= Self::SHAKE_INTERVAL {
                     *timer = 0.0;
                     *shake_count += 1;
                     out.event = Some(BallEvent::Shake(*shake_count));
@@ -294,7 +364,7 @@ mod tests {
     #[test]
     fn test_hit_then_capture_shows_result_then_despawns() {
         let mut ball = BallSimulation::new(Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), -16.0);
-        ball.hit_pokemon(Vec3::new(3.0, 0.15, 0.0), true);
+        ball.hit_pokemon(Vec3::new(3.0, 0.9, 0.0), 0.0, 3, true);
         assert!(!ball.in_flight());
         let mut events = Vec::new();
         let mut reason = None;
@@ -308,23 +378,65 @@ mod tests {
         }
         assert_eq!(
             events,
-            vec![BallEvent::Shake(1), BallEvent::Shake(2), BallEvent::Captured]
+            vec![
+                BallEvent::Absorbed,
+                BallEvent::Dropped,
+                BallEvent::Shake(1),
+                BallEvent::Shake(2),
+                // The 3rd shake interval is the one that ends in the click.
+                BallEvent::Captured
+            ]
         );
         assert_eq!(reason, Some(DespawnReason::CaptureShown));
     }
 
     #[test]
+    fn test_absorb_and_drop_timings_and_landing() {
+        let mut ball = BallSimulation::new(Vec3::ZERO, Vec3::ZERO, -16.0);
+        ball.hit_pokemon(Vec3::new(0.0, 1.2, 0.0), 0.0, 3, false);
+        // Absorb takes ABSORB_TIME (ASSUMED), then the ball starts to drop.
+        let mut t = 0.0;
+        let mut saw_absorb = false;
+        while !saw_absorb {
+            let o = ball.tick_events(0.01, 0.0, Vec3::ZERO);
+            t += 0.01;
+            saw_absorb = o.event == Some(BallEvent::Absorbed);
+        }
+        assert!((t - BallSimulation::ABSORB_TIME).abs() < 0.02, "absorb lasted {t}");
+        // Dropping: ball falls and lands at ground + 0.12 where the shakes start.
+        let mut saw_drop = false;
+        while !saw_drop {
+            let o = ball.tick_events(0.01, 0.0, Vec3::ZERO);
+            saw_drop = o.event == Some(BallEvent::Dropped);
+        }
+        assert!((ball.position.y - 0.12).abs() < 1e-3, "landed at {}", ball.position.y);
+        assert!(matches!(ball.state, BallLifecycleState::Shaking { .. }));
+    }
+
+    #[test]
     fn test_hit_then_failure_breaks_free_and_despawns() {
         let mut ball = BallSimulation::new(Vec3::ZERO, Vec3::ZERO, -16.0);
-        ball.hit_pokemon(Vec3::new(3.0, 0.15, 0.0), false);
+        // A failed roll with one passed check breaks free after two shakes.
+        ball.hit_pokemon(Vec3::new(3.0, 0.9, 0.0), 0.0, 2, false);
+        let mut events = Vec::new();
         let mut last = TickOutcome::default();
         for _ in 0..400 {
             last = ball.tick_events(0.016, 0.0, Vec3::ZERO);
+            events.extend(last.event);
             if last.despawn.is_some() {
                 break;
             }
         }
-        assert_eq!(last.event, Some(BallEvent::BrokeFree));
+        assert_eq!(
+            events,
+            vec![
+                BallEvent::Absorbed,
+                BallEvent::Dropped,
+                BallEvent::Shake(1),
+                // The 2nd shake interval is the one that breaks free.
+                BallEvent::BrokeFree
+            ]
+        );
         assert_eq!(last.despawn, Some(DespawnReason::BrokeFree));
     }
 
@@ -364,8 +476,8 @@ mod tests {
                 -16.0,
             );
             match i % 4 {
-                1 => sim.hit_pokemon(Vec3::new(2.0, 0.15, 2.0), true),
-                2 => sim.hit_pokemon(Vec3::new(2.0, 0.15, 2.0), false),
+                1 => sim.hit_pokemon(Vec3::new(2.0, 0.9, 2.0), 0.0, 3, true),
+                2 => sim.hit_pokemon(Vec3::new(2.0, 0.9, 2.0), 0.0, 2, false),
                 3 => sim.velocity = Vec3::new(400.0, 0.0, 0.0),
                 _ => {}
             }

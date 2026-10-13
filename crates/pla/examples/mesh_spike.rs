@@ -430,9 +430,7 @@ fn setup(
         planar
     };
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uv0);
-    mesh.insert_indices(Indices::U32(
-        trmbf.indices.iter().map(|&i| i as u32).collect(),
-    ));
+    mesh.insert_indices(Indices::U32(trmbf.indices.clone()));
     // No normals ship in the vertex data, so derive them from the geometry.
     mesh.compute_normals();
     let handle = meshes.add(mesh);

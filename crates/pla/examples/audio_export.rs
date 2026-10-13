@@ -44,10 +44,25 @@ extern "C" {
     fn opus_decoder_destroy(st: *mut c_void);
 }
 
-const GAME_ROOT: &str = "/home/nico/work/decompilacion/work/pla/pk2";
+const DEFAULT_GAME_ROOT: &str = "/home/nico/work/decompilacion/work/pla/pk2";
+
+/// Extracted update folder holding `main.elf` and `romfs_patched/`: `$PLA_GAME_ROOT`,
+/// else two levels above `$PLA_BIN_ROOT` (`<game root>/romfs_patched/bin`), else the
+/// maintainer's default. The installer (`install.sh`) sets `PLA_GAME_ROOT`.
+fn game_root() -> PathBuf {
+    if let Some(dir) = std::env::var_os("PLA_GAME_ROOT") {
+        return PathBuf::from(dir);
+    }
+    if let Some(bin) = std::env::var_os("PLA_BIN_ROOT") {
+        if let Some(root) = Path::new(&bin).parent().and_then(Path::parent) {
+            return root.to_path_buf();
+        }
+    }
+    PathBuf::from(DEFAULT_GAME_ROOT)
+}
 
 fn bank_dir() -> PathBuf {
-    PathBuf::from(GAME_ROOT)
+    game_root()
         .join("romfs_patched")
         .join(wwise::SOUND_BANK_DIR)
 }
@@ -651,7 +666,7 @@ fn export(args: &[String]) -> Result<(), String> {
         }
         eprintln!("{m}");
     };
-    let lib = CodebookLibrary::from_elf_file(&format!("{GAME_ROOT}/main.elf"))?;
+    let lib = CodebookLibrary::from_elf_file(&game_root().join("main.elf").to_string_lossy())?;
     log(&format!("codebook library: {} books", lib.books.len()));
     let d = discover()?;
     let selected: Vec<Item> = d
@@ -801,7 +816,7 @@ fn scan_bytes(bytes: &[u8], wanted: &HashSet<u32>, found: &mut HashMap<u32, Stri
 /// Hash-matches game strings against `wanted` ids. Reads the executable, the sound tables and
 /// every data file under `bin/` (except the sound banks themselves) in bounded chunks.
 fn find_names(wanted: &HashSet<u32>, log: &dyn Fn(&str)) -> HashMap<u32, String> {
-    let root = PathBuf::from(GAME_ROOT);
+    let root = game_root();
     let mut files = vec![root.join("main.elf")];
     let mut stack = vec![root.join("romfs_patched/bin")];
     while let Some(d) = stack.pop() {
@@ -1193,7 +1208,7 @@ fn crosscheck(
 // ---------------------------------------------------------------------------------------
 
 fn probe(bank: &str, id: usize) -> Result<(), String> {
-    let lib = CodebookLibrary::from_elf_file(&format!("{GAME_ROOT}/main.elf"))?;
+    let lib = CodebookLibrary::from_elf_file(&game_root().join("main.elf").to_string_lossy())?;
     println!("codebooks: {}", lib.books.len());
     let d = discover()?;
     let bank = bank.trim_end_matches(".bnk");
