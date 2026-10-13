@@ -11,11 +11,11 @@
 6. Las tareas se verifican por separado en cada informe: qué es VERIFICADO, PROBABLE y SUPUESTO. No se escribe «completo».
 
 ## Estado de las 43 tareas (resumen)
-- **Hechas en `main`:** 1, 2, 3 (mando), 4, 5, 6 (bloom y oclusión), 8 (cambio de zona), 11 (agua y nado), 14 (mochila y tiendas), 15 (minimapa y brújula), 16 (seguidor), 20 (medición de rendimiento), 24 (auditoría de contenido publicable), 21 (dinero, tiempo de juego y descanso; guardado v4), 25, 28, 34, 42. **Cerrada (no aplica):** 41.
+- **Hechas en `main`:** 1, 2, 3 (mando), 4, 5, 6 (bloom y oclusión), 8 (cambio de zona), 11 (agua y nado), 14 (mochila y tiendas), 15 (minimapa y brújula), 16 (seguidor), 20 (medición de rendimiento), 24 (auditoría de contenido publicable), 21 (dinero, tiempo de juego y descanso; guardado v4, ahora v5 con la experiencia del equipo; el siguiente cambio es v6), 25, 28, 34, 42. **Cerrada (no aplica):** 41.
 - **Pendiente tras 8:** 8b (ver la cola de DeepSeek).
 - **En proceso (DeepSeek):** 7 (menú principal), 10 (colisiones).
-- **A medias:** 26 y 29 (motor hecho; se están conectando a la pantalla), 37 (datos hechos), 39 (datos hechos).
-- **En investigación de datos (Claude):** 30 (entrenadores y jefes), 31 (personajes no jugables).
+- **A medias:** 26 y 29 (motor hecho y ya conectado al combate del visor; falta mirarlo a ojo, por el usuario), 37 (datos hechos), 39 (datos hechos).
+- **Datos de investigación ya en `main` (sin implementar):** 30 (entrenadores y jefes), 31 (personajes no jugables); falta implementarlos en el juego.
 - **Rama a medias, NO fusionada (commit «wip» por disco lleno; hay que rehacer/continuar):** 18 (`feat/throwing-module`) y 19 (`feat/models-field`).
 - **Faltan:** 9, 12–13, 17–19, 22–23 (nivel 2), 27, 30–33, 35, 36, 38, 40 (nivel 3), 43 (nivel 4).
 
@@ -24,7 +24,7 @@
 
 **Para Claude (niveles 3 y 4):**
 1. Fusionar lo terminado: gamepad, bloom y zone-switch ya están en `main`; faltan menú principal y colisiones.
-2. Conectar 26 y 29 a la pantalla (en curso) → después **30** (implementar combates de entrenador y jefes con los datos de la investigación) → **27** (comportamiento salvaje completo).
+2. 26 y 29 ya están conectados a la pantalla → **30** (implementar combates de entrenador y jefes con los datos de la investigación) → **27** (comportamiento salvaje completo).
 3. **31** (personajes no jugables, tras la investigación de datos y tras 22 de DeepSeek).
 4. **37** (interiores; requiere 8 y 10 fusionadas), **39** (eventos; requiere 9).
 5. **32** (pantallas de equipo y Pokédex básico; después de 3 y 5), **33** (artesanía; requiere 14).
