@@ -10,7 +10,7 @@ Generator: `.tools/events_decode.py` (needs `target/release/gfdump`, see `.tools
 `python3 .tools/tests/test_events_decode.py` (4/4 pass) and `cargo run -q --offline -p sheetty-cli -- check data`
 (0 errors). Labels: **VERIFIED** = exact data link or arithmetic checked by the generator/test; **LIKELY** = strong
 cross-check with known game facts; **ASSUMED** = guess; **UNKNOWN** = not decoded. Nothing here was checked against the
-running game, and no runtime code was ported.
+running game. The runtime port of distortions and outbreaks (Brief 39) is described in [Runtime (Brief 39)](#runtime-brief-39).
 
 ## Sheets
 
@@ -206,3 +206,60 @@ and flag-table bits 2/3.
    spawner and disable the `not_equal` ones listed in `world_events_outbreak_spawners`, spawn 4 alive until 10–15
    (ASSUMED) are done.
 5. Massive outbreaks: blocked on species data; only placeholder species are possible, and they must be labelled.
+
+## Runtime (Brief 39)
+
+**In plain words:** the port now runs space-time distortions and regular mass outbreaks while you walk around. A
+distortion forms at one of the area's dome sites, becomes active for 4 minutes with rare Pokémon and a few items,
+then fades. A mass outbreak puts a group of one species near its decoded spot and switches off the few normal spawners
+the game switches off. Massive mass outbreaks stay out: their species are not in any decoded file, so nothing is
+invented. Nothing is saved; events restart each session.
+
+Code: `crates/pla/src/game/distortion.rs` (pure data + machine), `crates/pla/src/game/outbreak.rs` (pure outbreak
+data, draw rule, massive-outbreak resolution), `crates/pla/src/game/world_events.rs` (sheet helpers, slot weights,
+Bevy plugin). Viewer hook: one plugin line in `examples/port_viewer.rs`. Numbers without a window:
+`cargo run -p pla --example world_events_report -- [--hours 3] [--event-seed N] [--story N]`.
+
+How it reaches the world: each alive event Pokémon is a synthetic spawner (`we:<slot>#<generation>`) added to
+`ActiveAreaSpawners`, so the existing wild streaming spawns, fights and catches it. A defeated or caught one is seen
+through `ConsumedSpawners`; its slot gets a new id after the refill delay (distortions) or counts towards the outbreak
+total (outbreaks).
+
+| Item | Rule in the port | Label |
+|---|---|---|
+| Config | 37/37 values of `wormhole_config_values.tsv` read by key | VERIFIED (test) |
+| Idle (timer A) | 5/10/15/25/40 min, weights 10/20/20/25/25 ("before" table; the event flag is not modelled) | LIKELY (code reading) |
+| Notice | 60 s + distance to the player / 2; appear cue in the last 7 s | LIKELY / cue ASSUMED |
+| Active | 4 min; warnings at 15 s and 7 s before the end | LIKELY / cue ASSUMED |
+| End | 3 s clean-up, then a new timer A | ASSUMED |
+| Site choice | uniform among the area's sites whose story gate matches (one variant per site) | ASSUMED (game weights UNKNOWN) |
+| Distortion contents | main spawner `min..max` (2..3) alive at dome points, 3 sub spheres with 1 alive each, species from the area's own encounter table | links VERIFIED, counts LIKELY, use of points ASSUMED |
+| Refill | a cleared slot spawns again after 15-23 s (`kWhSpawnTimeMin/Max`) | ASSUMED meaning |
+| Items | 6 drops per distortion on distinct dome points, item by weight from the site's 23-entry table; Confirm within 3 m adds 1 to the bag | table VERIFIED, count ASSUMED |
+| Outbreak spawners | the 227 `equal`-gated spawners are off unless their outbreak runs | VERIFIED gates |
+| Switched-off spawners | rebuilt from `field_spawn_table.tsv` (`WSYS_MASS_GANERATION_AREAnn=id` rows other than the outbreak spawner): 227/227 sets match `disabled_spawners`; removed during the outbreak, restored after | VERIFIED (test) |
+| Outbreak draw | one per unlocked area per game day, id uniform in `1..outbreak_count`; ends after 10..15 cleared or at the day change; 4 alive at the decoded centre within its radius | ASSUMED |
+| Massive outbreaks | 166 groups / 334 keys, 0 keys resolve in any decoded table -> 0 usable groups, all skipped | VERIFIED count, species UNKNOWN |
+| Time / weather | slot weight x time multiplier x weather multiplier (0 = never), from the sheets; alpha slots skipped | multipliers LIKELY |
+| Story | `--story <n>`, default 100000 (the port has no story progress) | ASSUMED |
+| Visuals / audio | translucent dome sphere (faint in Notice, stronger in Active), red pillar over an outbreak, glowing item markers; cues as `WorldEventCue` messages, log lines and the HUD toast; no game effect, BGM or sound is used | ASSUMED look |
+
+Viewer flags: `--story <n>`, `--event-seed <u64>`, `--event-time-scale <f>` (only the distortion timers),
+`--distortion-now` (skip the first Idle timer), `--outbreak <id|off>` (force or disable the start area's outbreak),
+`--no-world-events`.
+
+Tests (`cargo test -p pla --lib -- world_events distortion outbreak`, 22 pass): machine sequence and durations,
+threshold cues in one long step, deterministic site sequence per seed, timer A frequencies, real sheet links
+(116 variants, 464 spawners, 4/5/5/5/6 sites per area), area 04 sub table species, outbreak disabled sets 227/227,
+draw determinism and range, outbreak replacing the area spawn table and restoring it, outbreak total and refill ids,
+massive outbreaks 0/334, flags, loot range, and a headless Bevy run on area 01 (notice, materialise with 5-6 event
+spawners, warnings, end, forced outbreak with 4 Pichu, markers).
+
+Native functions marked `partial` in the evidence ledger (relation `distortion-machine`): `024a2030` (timer A
+lottery), `024a5d60` (notice duration), `024a1490` (to Notice), `024a14d8` (to Active, active duration), `024a18b8`
+(pre-end warning), `024a1b64` (end clean-up). `024a1de8` (zone lottery) is not ported (uniform choice instead). No
+behaviour verification or binary matching is claimed.
+
+Still unknown or skipped: the event flag that switches the timer table, the game's site weights, how many items drop,
+the 50 m content despawn rule (the port uses the normal 120/145 m streaming), the distortion weather override, alpha
+event Pokémon (Brief 17), the regular-outbreak values 20 and 25, and every massive-outbreak species.

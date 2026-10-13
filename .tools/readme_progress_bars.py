@@ -39,6 +39,17 @@ def ledger_counts():
     return c
 
 
+def implementation_count():
+    """Rows whose implementation_status is not `unknown` (the ledger, not a hand-kept figure)."""
+    n = 0
+    for ln in LEDGER.read_text().splitlines():
+        if ln.startswith("update_v262144_"):
+            col = ln.split("\t")
+            if len(col) > 6 and col[6] not in ("", "unknown"):
+                n += 1
+    return n
+
+
 def bar(pct):
     n = WIDTH if pct >= 100 else int(pct // (100 / WIDTH))
     return "█" * n + "░" * (WIDTH - n)
@@ -59,6 +70,7 @@ def fmt(pct, lang, est=False):
 def lines(lang):
     c = ledger_counts()
     done = sum(c.values())
+    impl = implementation_count()
     es = lang == "es"
 
     def num(n):
@@ -88,8 +100,9 @@ def lines(lang):
         ("", "  · centralitas de importación" if es else "  · import stubs", 100 * c["stubs"] / TOTAL, False,
          (f"{num(c['stubs'])}: identificadas con los datos de enlace" if es
           else f"{num(c['stubs'])}: identified from link data")),
-        ("7", "Implementación (port)" if es else "Implementation (port)", 100 * 8 / TOTAL, False,
-         "8 de 153.476 con implementación parcial" if es else "8 of 153,476 with a partial implementation"),
+        ("7", "Implementación (port)" if es else "Implementation (port)", 100 * impl / TOTAL, False,
+         (f"{num(impl)} de {num(TOTAL)} con implementación parcial" if es
+          else f"{num(impl)} of {num(TOTAL)} with a partial implementation")),
         ("8", "Verificación de conducta" if es else "Behaviour verification", 0, False, "0 de 153.476" if es else "0 of 153,476"),
         ("9", "Binary matching", 0, False, "0 de 153.476" if es else "0 of 153,476"),
         ("10", "Port jugable" if es else "Playable port", 45, True,
