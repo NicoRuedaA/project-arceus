@@ -826,6 +826,7 @@ fn main() -> ExitCode {
         controls_demo_dir,
     });
 
+    pla::game::play_time::PlayTimePlugin::install(&mut app, wire_start.play_seconds);
     pla::game::save_wire::SaveWirePlugin::install(&mut app, save_game, wire_start, &wire_cli);
     if let Some(p) = safe_spawn_xz {
         app.insert_resource(sp::SafeSpawnPoint(p));

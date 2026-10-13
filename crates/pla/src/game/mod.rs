@@ -22,6 +22,7 @@ pub mod catch_rate;
 pub mod effects;
 pub mod navigation;
 pub mod party_progress;
+pub mod play_time;
 pub mod player_anim;
 pub mod pokemon_anim;
 pub mod pause_menu;

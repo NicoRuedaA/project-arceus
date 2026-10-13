@@ -13,6 +13,7 @@ use bevy::prelude::*;
 
 use super::battle_controller::{ActiveBattleSession, BattleAssets, WILD};
 use super::battle_items;
+use super::play_time::PlayTime;
 use super::save_game::{PartyMember, PlayerSave, SaveFile, SaveGame, MAX_BOX, MAX_PARTY};
 use super::ui::ActiveZoneInfo;
 use super::PlayerAvatar;
@@ -69,7 +70,7 @@ pub struct PlayerProgress {
     /// Up to 6 members, in party order.
     pub party: Vec<PartyMember>,
     /// Caught Pokemon that did not fit in the party. Persisted as `PlayerSave::box_pokemon`
-    /// (save format v3, up to [`MAX_BOX`]).
+    /// (save format v3+, up to [`MAX_BOX`]).
     pub box_list: Vec<PartyMember>,
     /// item id -> quantity.
     pub bag: BTreeMap<u16, u16>,
@@ -123,7 +124,7 @@ impl PlayerProgress {
         }
     }
 
-    /// Add money (saturating). No battle pays money yet: the game data source is not mapped.
+    /// Add money (saturating).
     pub fn add_money(&mut self, amount: u32) {
         self.money = self.money.saturating_add(amount);
     }
@@ -193,6 +194,14 @@ pub fn zone_id(area_idx: u8) -> String {
     format!("ha_area{area_idx:02}")
 }
 
+/// Provisional prize paid when a wild Pokemon faints in battle: `50 + 10 x level` (ASSUMED — the
+/// original game's money rewards are not decoded, and in PLA money comes mostly from requests
+/// and selling, so this port formula is a placeholder). Saturating through
+/// [`PlayerProgress::add_money`].
+pub fn victory_reward(level: u8) -> u32 {
+    50 + 10 * u32::from(level)
+}
+
 /// Inverse of [`zone_id`].
 pub fn parse_zone(zone: &str) -> Option<u8> {
     zone.strip_prefix("ha_area")?.parse().ok()
@@ -239,6 +248,8 @@ pub struct StartupState {
     pub position: Option<[f32; 3]>,
     pub yaw: f32,
     pub time_slot: Option<usize>,
+    /// Play time stored in the save (0 for a new game or a pre-v4 file).
+    pub play_seconds: u64,
     pub loaded: bool,
     pub message: String,
 }
@@ -254,6 +265,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             position: None,
             yaw: 0.0,
             time_slot: None,
+            play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
         };
@@ -264,6 +276,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             position: Some(s.position),
             yaw: s.yaw,
             time_slot: Some(usize::from(s.time_slot.min(3))),
+            play_seconds: s.play_seconds,
             progress: PlayerProgress::from_save(&s),
             loaded: true,
             message: game.message.clone().unwrap_or_default(),
@@ -274,6 +287,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             position: None,
             yaw: 0.0,
             time_slot: None,
+            play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
         },
@@ -383,6 +397,8 @@ pub struct BattleOutcome {
     /// Current quantity of every candidate item id (zero allowed).
     pub bag: BTreeMap<u16, u16>,
     pub wild_dex: u16,
+    /// Level of the wild Pokemon (used by [`victory_reward`]).
+    pub wild_level: u8,
     /// The wild Pokemon fainted and was not caught.
     pub won: bool,
     /// The wild Pokemon as a party member, when it was caught.
@@ -401,6 +417,7 @@ pub fn snapshot(sess: &ActiveBattleSession, roster: &[usize], bag_ids: &[u16]) -
         party,
         bag: bag_ids.iter().map(|&id| (id, sess.bag.count(id))).collect(),
         wild_dex: sess.wild_dex,
+        wild_level: wild.level,
         won: wild.hp == 0 && !wild.caught,
         caught: wild.caught.then(|| PartyMember::from_combatant(wild)),
         rng: sess.rng.0,
@@ -439,8 +456,8 @@ pub fn note_encounter(progress: &mut PlayerProgress, wild_dex: u16) {
     progress.seen.insert(wild_dex);
 }
 
-/// Apply a finished battle: sync, then seen / caught / defeated counters and the caught Pokemon
-/// (party if there is room, otherwise the box list).
+/// Apply a finished battle: sync, then seen / caught / defeated counters, the prize money for a
+/// win and the caught Pokemon (party if there is room, otherwise the box list).
 pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
     apply_sync(progress, out);
     progress.seen.insert(out.wild_dex);
@@ -455,7 +472,54 @@ pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
         }
     } else if out.won {
         progress.defeated = progress.defeated.saturating_add(1);
+        progress.add_money(victory_reward(out.wild_level));
     }
+}
+
+// ---------------------------------------------------------------- rest
+
+/// Outcome of one Rest action.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RestReport {
+    /// Members whose HP, PP and status were restored.
+    pub healed: usize,
+    /// Members that could not be rebuilt from the engine tables (left untouched).
+    pub skipped: usize,
+}
+
+impl RestReport {
+    /// Toast text for the pause menu.
+    pub fn message(&self) -> String {
+        match (self.healed, self.skipped) {
+            (0, 0) => "Rest failed: the party is empty.".into(),
+            (0, n) => format!("Rest failed: {n} party members could not be rebuilt."),
+            (h, 0) => format!("Party fully healed ({h} members)."),
+            (h, s) => format!("Party healed ({h} of {} members).", h + s),
+        }
+    }
+}
+
+/// Fully restore HP, PP and status of the party in place (the pause menu's Rest action). Max HP
+/// and max PP come from the engine tables; a member whose species is unknown is left untouched and
+/// counted as skipped. Fainted members are revived. No clock is advanced: the day/night clock is
+/// Brief 9 and does not exist yet; the original's rest durations are not decoded (UNKNOWN).
+pub fn rest_party(party: &mut [PartyMember], data: &BattleData) -> RestReport {
+    let mut report = RestReport::default();
+    for m in party.iter_mut() {
+        let Some(c) = member_to_combatant(data, m) else {
+            report.skipped += 1;
+            continue;
+        };
+        m.hp = c.max_hp;
+        m.status = None;
+        for saved in &mut m.moves {
+            if let Some(live) = c.moves.iter().find(|bm| bm.data.id == saved.move_id) {
+                saved.pp = live.data.pp;
+            }
+        }
+        report.healed += 1;
+    }
+    report
 }
 
 fn hp_line(party: &[PartyMember]) -> String {
@@ -516,6 +580,10 @@ impl SaveToast {
 #[derive(Resource, Debug, Default)]
 pub struct SaveRequested(pub bool);
 
+/// Set to `true` by the pause menu's Rest row; [`rest_action`] heals the party and clears it.
+#[derive(Resource, Debug, Default)]
+pub struct RestRequested(pub bool);
+
 #[derive(Component)]
 struct ToastRoot;
 #[derive(Component)]
@@ -536,11 +604,16 @@ impl SaveWirePlugin {
             })
             .init_resource::<BattleTracker>()
             .init_resource::<SaveToast>()
-            .init_resource::<SaveRequested>();
+            .init_resource::<SaveRequested>()
+            .init_resource::<RestRequested>()
+            // Seeded by `PlayTimePlugin` at start-up; the default keeps this plugin usable alone.
+            .init_resource::<PlayTime>();
         app.add_systems(Startup, (seed_defaults, spawn_toast))
             .add_systems(PostStartup, apply_loaded_yaw)
             .add_systems(PreUpdate, battle_wire)
-            .add_systems(Update, (save_hotkey, zone_autosave, toast_tick).chain());
+            .add_systems(Update, (save_hotkey, zone_autosave, toast_tick).chain())
+            // Runs even while paused (that is when the menu is open).
+            .add_systems(Update, rest_action);
     }
 }
 
@@ -621,6 +694,7 @@ fn pose(q: &Query<&Transform, With<PlayerAvatar>>) -> Option<([f32; 3], f32)> {
 fn do_save(
     game: &mut SaveGame,
     progress: &PlayerProgress,
+    play: &PlayTime,
     zone: &ActiveZoneInfo,
     player: &Query<&Transform, With<PlayerAvatar>>,
     toast: &mut SaveToast,
@@ -629,16 +703,44 @@ fn do_save(
         toast.show("Save skipped: no player yet.");
         return false;
     };
-    let ok = game.save(progress.to_save(&zone.area, pos, yaw));
+    let mut save = progress.to_save(&zone.area, pos, yaw);
+    save.play_seconds = play.seconds;
+    let ok = game.save(save);
     toast.show(game.message.clone().unwrap_or_default());
     ok
 }
 
+/// Heal the party when the pause menu asked for a Rest. Refused during a battle or when the
+/// battle tables are not loaded; the result is shown as a toast.
+fn rest_action(
+    mut requested: ResMut<RestRequested>,
+    mut progress: ResMut<PlayerProgress>,
+    assets: Option<Res<BattleAssets>>,
+    session: Option<Res<ActiveBattleSession>>,
+    mut toast: ResMut<SaveToast>,
+) {
+    if !std::mem::take(&mut requested.0) {
+        return;
+    }
+    if session.is_some() {
+        toast.show("Can't rest during a battle.");
+        return;
+    }
+    let Some(assets) = assets else {
+        toast.show("Rest needs the battle tables (not loaded).");
+        return;
+    };
+    let report = rest_party(&mut progress.party, &assets.data);
+    toast.show(report.message());
+}
+
+#[allow(clippy::too_many_arguments)]
 fn save_hotkey(
     keys: Res<ButtonInput<KeyCode>>,
     mut requested: ResMut<SaveRequested>,
     mut game: ResMut<SaveGame>,
     progress: Res<PlayerProgress>,
+    play: Res<PlayTime>,
     zone: Res<ActiveZoneInfo>,
     player: Query<&Transform, With<PlayerAvatar>>,
     mut toast: ResMut<SaveToast>,
@@ -652,24 +754,25 @@ fn save_hotkey(
         toast.show("Can't save during a battle.");
         return;
     }
-    do_save(&mut game, &progress, &zone, &player, &mut toast);
+    do_save(&mut game, &progress, &play, &zone, &player, &mut toast);
 }
 
 fn zone_autosave(
     zone: Res<ActiveZoneInfo>,
     mut game: ResMut<SaveGame>,
     progress: Res<PlayerProgress>,
+    play: Res<PlayTime>,
     player: Query<&Transform, With<PlayerAvatar>>,
     mut toast: ResMut<SaveToast>,
     session: Option<Res<ActiveBattleSession>>,
 ) {
     if zone.is_changed() && !zone.is_added() && session.is_none() {
-        do_save(&mut game, &progress, &zone, &player, &mut toast);
+        do_save(&mut game, &progress, &play, &zone, &player, &mut toast);
     }
 }
 
 /// Install the persistent party/bag when a battle starts, mirror its changes every frame, and
-/// finish (counters, caught Pokemon, autosave) once the session is gone.
+/// finish (counters, prize money, caught Pokemon, autosave) once the session is gone.
 #[allow(clippy::too_many_arguments)]
 fn battle_wire(
     session: Option<ResMut<ActiveBattleSession>>,
@@ -678,6 +781,7 @@ fn battle_wire(
     mut tracker: ResMut<BattleTracker>,
     mut game: ResMut<SaveGame>,
     settings: Res<WireSettings>,
+    play: Res<PlayTime>,
     zone: Res<ActiveZoneInfo>,
     player: Query<&Transform, With<PlayerAvatar>>,
     mut toast: ResMut<SaveToast>,
@@ -712,7 +816,7 @@ fn battle_wire(
             if let Some(out) = tracker.last.take() {
                 apply_outcome(&mut progress, &out);
             }
-            let ok = do_save(&mut game, &progress, &zone, &player, &mut toast);
+            let ok = do_save(&mut game, &progress, &play, &zone, &player, &mut toast);
             if ok && settings.selftest {
                 run_selftest(&game, &progress, &tracker.before);
             }
@@ -783,6 +887,7 @@ mod tests {
             party: vec![(0, hurt), (1, member(399, 0, 20))],
             bag: BTreeMap::new(),
             wild_dex: 396,
+            wild_level: 17,
             won: true,
             caught: None,
             rng: 77,
@@ -814,6 +919,7 @@ mod tests {
             party: vec![],
             bag: BTreeMap::from([(10, 4), (11, 0), (12, 0)]),
             wild_dex: 1,
+            wild_level: 5,
             won: false,
             caught: None,
             rng: 0,
@@ -832,19 +938,23 @@ mod tests {
             party: vec![],
             bag: BTreeMap::new(),
             wild_dex: 396,
+            wild_level: 17,
             won: true,
             caught: None,
             rng: 1,
         };
         apply_outcome(&mut p, &base);
         assert_eq!((p.defeated, p.caught_count), (1, 0));
+        assert_eq!(p.money, victory_reward(17), "a win pays the provisional prize");
         let ran = BattleOutcome { won: false, ..base.clone() };
         apply_outcome(&mut p, &ran);
         assert_eq!((p.defeated, p.caught_count), (1, 0), "running changes no counter");
+        assert_eq!(p.money, victory_reward(17), "running pays nothing");
         let catch = BattleOutcome { won: false, caught: Some(member(396, 9, 5)), ..base.clone() };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.caught_count, 1);
         assert!(p.caught.contains(&396));
+        assert_eq!(p.money, victory_reward(17), "catching pays nothing");
         assert_eq!(p.party.len(), 3, "caught goes to the party when there is room");
         for _ in 0..4 {
             apply_outcome(&mut p, &catch);
@@ -858,6 +968,41 @@ mod tests {
     }
 
     #[test]
+    fn victory_prize_saturates_and_grows_with_level() {
+        let mut p = progress2();
+        p.money = u32::MAX - 10;
+        let out = BattleOutcome {
+            party: vec![],
+            bag: BTreeMap::new(),
+            wild_dex: 25,
+            wild_level: 100,
+            won: true,
+            caught: None,
+            rng: 1,
+        };
+        apply_outcome(&mut p, &out);
+        assert_eq!(p.money, u32::MAX, "the prize saturates instead of overflowing");
+        assert!(victory_reward(1) > 0);
+        assert!(victory_reward(50) > victory_reward(49), "the prize grows with the wild level");
+        assert_eq!(victory_reward(0), 50, "ASSUMED formula: 50 + 10 x level");
+    }
+
+    #[test]
+    fn play_seconds_survive_the_save_load_round_trip() {
+        let p = progress2();
+        let dir = tmpdir("playtime");
+        let mut game = SaveGame::new(SaveFile::in_dir(&dir));
+        let mut save = p.to_save("ha_area02", [0.0; 3], 0.0);
+        save.play_seconds = 4242;
+        assert!(game.save(save));
+        let mut game2 = SaveGame::new(SaveFile::in_dir(&dir));
+        let st = load_startup(&mut game2, &WireCli::default());
+        assert!(st.loaded);
+        assert_eq!(st.play_seconds, 4242);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn full_party_catch_goes_to_box_and_survives_the_file() {
         let mut p = progress2();
         p.party = (0..MAX_PARTY).map(|i| member(25 + i as u16, 10, 5)).collect();
@@ -865,6 +1010,7 @@ mod tests {
             party: vec![],
             bag: BTreeMap::new(),
             wild_dex: 396,
+            wild_level: 17,
             won: false,
             caught: Some(member(396, 9, 5)),
             rng: 1,
@@ -873,7 +1019,7 @@ mod tests {
         assert_eq!(p.party.len(), MAX_PARTY, "party stays full");
         assert_eq!(p.box_list.len(), 1, "the catch went to the box");
         assert_eq!(p.box_list[0].species, 396);
-        // format v3 writes it and it reloads identical
+        // format v4 writes it and it reloads identical
         let dir = tmpdir("boxroute");
         let mut game = SaveGame::new(SaveFile::in_dir(&dir));
         assert!(game.save(p.to_save("ha_area01", [1.0, 2.0, 3.0], 0.5)));
@@ -919,6 +1065,7 @@ mod tests {
             party: vec![],
             bag: BTreeMap::new(),
             wild_dex: 396,
+            wild_level: 17,
             won: false,
             caught: Some(member(396, 9, 5)),
             rng: 1,
@@ -1099,5 +1246,90 @@ mod tests {
         assert_eq!(loaded.party, p.party);
         assert_eq!(loaded.box_list, p.box_list);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn win_pays_the_prize_through_the_real_engine_snapshot() {
+        let Some(a) = assets() else { return };
+        let mut p = PlayerProgress::new_game();
+        p.party = default_party(&a);
+        let mut s = fresh(&a);
+        let (roster, _) = install_party(&mut s, &a.data, &p.party).unwrap();
+        let out = snapshot(&s, &roster, &[]);
+        assert!(!out.won, "the wild is still standing at battle start");
+        assert!(out.wild_level > 0, "the wild level travels in the outcome");
+        s.battle.combatants[WILD].hp = 0;
+        let out = snapshot(&s, &roster, &[]);
+        assert!(out.won);
+        apply_outcome(&mut p, &out);
+        assert_eq!(p.money, victory_reward(out.wild_level));
+    }
+
+    #[test]
+    fn rest_heals_hp_pp_and_status_and_keeps_form_and_nickname() {
+        let Some(a) = assets() else { return };
+        let mut party = default_party(&a);
+        party[0].hp = 1;
+        party[0].status = Some(SavedStatus::Burn);
+        party[0].moves[0].pp = 0;
+        party[0].nickname = Some("Lead".into());
+        if party.len() > 1 {
+            party[1].hp = 0;
+        }
+        let report = rest_party(&mut party, &a.data);
+        assert_eq!(report.healed, party.len());
+        assert_eq!(report.skipped, 0);
+        assert!(party.iter().all(|m| m.hp > 0 && m.status.is_none()), "all HP restored, status cleared");
+        assert!(party[0].moves.iter().all(|s| s.pp > 0), "all PP restored");
+        assert_eq!(party[0].nickname.as_deref(), Some("Lead"), "nickname kept");
+        assert!(report.message().contains("fully healed"));
+        // A second rest changes nothing (idempotent).
+        let hp = party[0].hp;
+        let report = rest_party(&mut party, &a.data);
+        assert_eq!((report.healed, party[0].hp), (party.len(), hp));
+    }
+
+    #[test]
+    fn rest_skips_members_with_unknown_species() {
+        let Some(a) = assets() else { return };
+        let mut party = vec![member(65_000, 10, 5)];
+        let report = rest_party(&mut party, &a.data);
+        assert_eq!((report.healed, report.skipped), (0, 1));
+        assert_eq!(party[0].hp, 10, "the member is left untouched");
+        assert!(report.message().contains("could not be rebuilt"));
+    }
+
+    #[test]
+    fn rest_request_is_consumed_and_reported_without_tables() {
+        let mut app = App::new();
+        app.init_resource::<PlayerProgress>()
+            .init_resource::<RestRequested>()
+            .init_resource::<SaveToast>();
+        app.add_systems(Update, rest_action);
+        assert!(!std::mem::take(&mut app.world_mut().resource_mut::<RestRequested>().0), "nothing asked yet");
+        app.world_mut().resource_mut::<RestRequested>().0 = true;
+        app.update();
+        assert!(!app.world().resource::<RestRequested>().0, "the request is consumed");
+        assert!(app.world().resource::<SaveToast>().text.contains("battle tables"));
+    }
+
+    #[test]
+    fn rest_action_heals_the_party_through_the_toast() {
+        let Some(a) = assets() else { return };
+        let mut app = App::new();
+        app.init_resource::<PlayerProgress>()
+            .init_resource::<RestRequested>()
+            .init_resource::<SaveToast>();
+        {
+            let mut progress = app.world_mut().resource_mut::<PlayerProgress>();
+            progress.party = default_party(&a);
+            progress.party[0].hp = 1;
+        }
+        app.insert_resource(a);
+        app.add_systems(Update, rest_action);
+        app.world_mut().resource_mut::<RestRequested>().0 = true;
+        app.update();
+        assert!(app.world().resource::<PlayerProgress>().party[0].hp > 1);
+        assert!(app.world().resource::<SaveToast>().text.contains("healed"));
     }
 }
