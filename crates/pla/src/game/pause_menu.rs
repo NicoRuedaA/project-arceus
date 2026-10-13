@@ -1,15 +1,18 @@
-//! Pause menu (Esc): a Bevy UI overlay navigable with the keyboard (arrows or W/S + Enter) and
-//! the mouse (hover + click).
+//! Pause menu (Esc or gamepad +): a Bevy UI overlay navigable with the keyboard
+//! (arrows or A/D, D-pad, Enter/A) and the mouse (hover + click).
 //!
 //! Options: Resume, Invert camera X axis, Invert camera Y axis, Back to safe spawn, Save game, Quit.
 //!
 //! While [`Paused`] is `true` the plugin freezes the world by contract: every gameplay system must
 //! carry `.run_if(pla::game::state::not_paused)` (the opposite condition is
 //! `pla::game::state::is_paused`). The menu logic lives in plain functions ([`move_selection`],
-//! [`activate`], [`option_label`]) so it is unit tested without a window.
+//! [`activate`], [`option_label`]) so it is unit tested without a window; the input edges come
+//! from [`crate::game::input_map::ActionState`] and are consumed here so the battle does not
+//! also see them on the same frame.
 
 use bevy::prelude::*;
 
+use super::input_map::{Action, ActionState};
 use super::save_wire::{SaveRequested, SaveToast};
 use super::settings::UserSettings;
 use super::state::Paused;
@@ -135,11 +138,20 @@ impl PauseMenuPlugin {
             .init_resource::<PauseMenu>()
             .init_resource::<SaveToast>()
             .init_resource::<SaveRequested>()
-            .init_resource::<SafeSpawnRequested>();
+            .init_resource::<SafeSpawnRequested>()
+            // Also initialised by `InputMapPlugin`; kept here so the menu can live without it.
+            .init_resource::<ActionState>();
         app.add_systems(Startup, spawn_menu)
-            // After the input systems so Esc is seen this frame, before every gameplay system
-            // of `Update` so they already observe the new paused flag.
-            .add_systems(PreUpdate, pause_input.after(bevy::input::InputSystems))
+            // After `InputSystems` (so key/button edges are fresh) and after the action
+            // mapping so the menu can consume its own edges before the gameplay systems of
+            // `Update` read the same frame, and before every gameplay system so they already
+            // observe the new paused flag.
+            .add_systems(
+                PreUpdate,
+                pause_input
+                    .after(bevy::input::InputSystems)
+                    .after(super::input_map::fill_action_state),
+            )
             .add_systems(Update, sync_menu);
     }
 }
@@ -200,7 +212,7 @@ fn spawn_menu(mut commands: Commands) {
                         });
                 }
                 panel.spawn((
-                    Text::new("Up/Down or W/S + Enter, or click. Esc resumes."),
+                    Text::new("Arrows or A/D, D-pad + Enter/A, or click. Esc or + resumes."),
                     TextFont::from_font_size(14.0),
                     TextColor(Color::srgb(0.7, 0.75, 0.8)),
                 ));
@@ -212,6 +224,7 @@ fn spawn_menu(mut commands: Commands) {
 fn pause_input(
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut mouse: ResMut<ButtonInput<MouseButton>>,
+    mut actions: ResMut<ActionState>,
     mut paused: ResMut<Paused>,
     mut menu: ResMut<PauseMenu>,
     mut settings: ResMut<UserSettings>,
@@ -222,9 +235,12 @@ fn pause_input(
     buttons: Query<(&PauseButton, &Interaction), Changed<Interaction>>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    // Esc toggles. The key is consumed so the battle ("back") never sees it on the same frame.
-    if keys.just_pressed(KeyCode::Escape) {
-        keys.clear_just_pressed(KeyCode::Escape);
+    // Menu (Esc or gamepad +) toggles. The action edges are consumed so the battle
+    // ("back") never sees Esc on the same frame; Enter/Space keep their raw readers in the
+    // world (creature encounter, ball throw) so the consumed edge is mirrored there too.
+    if actions.just_pressed(Action::Menu) {
+        actions.consume(Action::Menu);
+        actions.consume(Action::Cancel);
         paused.0 = toggle_paused(paused.0);
         if paused.0 {
             menu.selected = 0;
@@ -237,26 +253,20 @@ fn pause_input(
 
     let mut activated: Option<usize> = None;
     let mut delta: i32 = 0;
-    for k in [KeyCode::ArrowUp, KeyCode::KeyW] {
-        if keys.just_pressed(k) {
-            delta -= 1;
-            keys.clear_just_pressed(k);
-        }
+    if actions.just_pressed(Action::Prev) {
+        actions.consume(Action::Prev);
+        delta -= 1;
     }
-    for k in [KeyCode::ArrowDown, KeyCode::KeyS] {
-        if keys.just_pressed(k) {
-            delta += 1;
-            keys.clear_just_pressed(k);
-        }
+    if actions.just_pressed(Action::Next) {
+        actions.consume(Action::Next);
+        delta += 1;
     }
     if delta != 0 {
         menu.selected = move_selection(menu.selected, delta.signum());
     }
-    for k in [KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space] {
-        if keys.just_pressed(k) {
-            keys.clear_just_pressed(k);
-            activated = Some(menu.selected);
-        }
+    if actions.just_pressed(Action::Confirm) {
+        actions.consume(Action::Confirm);
+        activated = Some(menu.selected);
     }
     for (b, interaction) in &buttons {
         match interaction {
@@ -270,8 +280,12 @@ fn pause_input(
     }
 
     let Some(i) = activated else { return };
-    // The click must not also act on the world (e.g. throw a ball) once the menu closes.
+    // The click must not also act on the world (e.g. throw a ball) once the menu closes;
+    // same for the confirm keys that still have raw readers in the world.
     mouse.clear_just_pressed(MouseButton::Left);
+    for key in [KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space] {
+        keys.clear_just_pressed(key);
+    }
     match activate(OPTIONS[i], &mut settings) {
         MenuAction::Resume => paused.0 = false,
         MenuAction::SettingsChanged => {
@@ -382,6 +396,81 @@ mod tests {
         s.save_to_dir(&dir).unwrap();
         let reloaded = UserSettings::load_from_dir(&dir);
         assert!(reloaded.invert_camera_y && !reloaded.invert_camera_x);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Frame helper for headless runs: refresh key edges, hold `down`, release `up`, update.
+    fn step(app: &mut App, down: &[KeyCode], up: &[KeyCode]) {
+        {
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.clear();
+            for key in down {
+                keys.press(*key);
+            }
+            for key in up {
+                keys.release(*key);
+            }
+        }
+        app.update();
+    }
+
+    #[test]
+    fn headless_app_esc_toggles_and_consumes_its_edges_for_the_battle() {
+        let dir = std::env::temp_dir().join(format!("pla_pause_app_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut app = App::new();
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.add_plugins(crate::game::input_map::InputMapPlugin);
+        PauseMenuPlugin::install(&mut app, UserSettings::default(), dir.clone());
+        step(&mut app, &[], &[]);
+        assert!(!app.world().resource::<Paused>().0);
+
+        step(&mut app, &[KeyCode::Escape], &[]);
+        assert!(app.world().resource::<Paused>().0, "Esc must open the menu");
+        // The battle reads the same ActionState later in the frame: both edges must be gone.
+        let actions = app.world().resource::<ActionState>();
+        assert!(!actions.just_pressed(Action::Menu));
+        assert!(!actions.just_pressed(Action::Cancel));
+
+        // Still held: no new edge, the menu stays open.
+        step(&mut app, &[], &[]);
+        assert!(app.world().resource::<Paused>().0);
+
+        // Release and press again: closes.
+        step(&mut app, &[], &[KeyCode::Escape]);
+        step(&mut app, &[KeyCode::Escape], &[]);
+        assert!(!app.world().resource::<Paused>().0);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn headless_app_navigates_and_confirms_with_consumed_edges() {
+        let dir = std::env::temp_dir().join(format!("pla_pause_nav_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut app = App::new();
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.add_plugins(crate::game::input_map::InputMapPlugin);
+        PauseMenuPlugin::install(&mut app, UserSettings::default(), dir.clone());
+        step(&mut app, &[], &[]);
+
+        step(&mut app, &[KeyCode::Escape], &[]);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 0);
+
+        // D-pad/A-D/arrow navigation reaches the second row (Invert camera X axis).
+        step(&mut app, &[KeyCode::ArrowDown], &[]);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
+
+        step(&mut app, &[KeyCode::Enter], &[]);
+        assert!(app.world().resource::<UserSettings>().invert_camera_x);
+        assert!(
+            app.world().resource::<Paused>().0,
+            "a toggle row keeps the menu open"
+        );
+        // Enter is consumed for the raw world readers (creature encounter reads it directly).
+        assert!(!app
+            .world()
+            .resource::<ButtonInput<KeyCode>>()
+            .just_pressed(KeyCode::Enter));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
