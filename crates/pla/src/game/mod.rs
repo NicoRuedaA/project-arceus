@@ -31,6 +31,8 @@ pub mod effects;
 pub mod follower;
 pub mod navigation;
 pub mod party_progress;
+pub mod party_ops;
+pub mod party_screen;
 pub mod play_time;
 pub mod player_anim;
 pub mod pokemon_anim;
@@ -58,6 +60,7 @@ pub use battle_controller::{ActiveBattleSession, BattleAssets, BattleInput, Batt
 pub use battle_input::battle_input_system;
 pub use navigation::GameNavmeshResource;
 pub use state::GameState;
+pub use party_screen::{PartyScreenData, PartyScreenPlugin, PartyScreenRoot, PartyScreenState};
 pub use ui::{
     setup_game_ui, sync_ui_visibility, update_battle_ui_system, update_world_hud_system,
     ActiveZoneInfo, BattleLogText, BattleMenuOptionBox, BattleMoveBox, BattleMoveDetailText,
