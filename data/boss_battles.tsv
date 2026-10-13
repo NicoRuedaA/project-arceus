@@ -1,0 +1,30 @@
+# sheet: data/boss_battles
+# version: 1
+# generator: .tools/trainer_boss_decode.py
+# target: Pokémon Legends: Arceus update v262144 noble (frenzied boss) battles (bin/pokemon/data/poke_nushi_battle_setting.bin + poke_event_encount.bin)
+# note: One row per entry of poke_nushi_battle_setting (8 first battles + 8 '_r' rematches).
+# note: species..level, nature_raw, moves, iv_raw, gv_raw: from the poke_event_encount entry with the same name (VERIFIED join by name).
+# note: gauge_max: event-encounter slot 16 (1000..15000, absent on rematches); LIKELY the frenzy gauge capacity, not proven by code.
+# note: balm_item: setting slot 26; every value is a 'shizumedama' (balm) row of throwable_param_table (VERIFIED join).
+# note: sound_bank PM_N_<n>.bnk usually names the species; nsi_ex_03 uses PM_N_751.bnk while its Pokémon is 713 (observed, unexplained).
+# note: noble_*: slots 7,8,9 (area-local metres) and 11 (LIKELY radians); anchor2_*: slots 17,18,19 (second position, role UNKNOWN).
+# note: raw_f21/raw_f24/raw_f25 floats, flag_f16/flag_f20 bools, enc_f3/f13/f14/f15/f32: meaning UNKNOWN.
+# note: sex_raw/nature_raw = -1 means not fixed (LIKELY random). iv_raw = slots 26..31 (-1 = not fixed, LIKELY).
+# note: field_attack_count: rows of data/boss_field_attacks with the same ns_key; h_count = names with an 'h' variant segment.
+id:string*	setting_key:string	rematch:bool	ns_key:string	field_script:string	bgm:string	sound_bank:string	species_id:u16?	species:string?	form:i32?	sex_raw:i32?	level:u8?	nature_raw:i32?	gauge_max:u32?	balm_item:u16	balm_in_throwables:bool	noble_x:f32	noble_y:f32	noble_z:f32	noble_rot:f32	anchor2_x:f32	anchor2_y:f32	anchor2_z:f32	raw_f21:f32?	raw_f24:f32?	raw_f25:f32?	flag_f16:bool	flag_f20:bool	move1_id:u16?	move2_id:u16?	move3_id:u16?	move4_id:u16?	moves_mastered:string?	enc_f3:i32?	enc_f13:i32?	enc_f14:i32?	enc_f15:i32?	iv_raw:string?	enc_f32:i32?	gv_raw:string?	field_attack_count:u16	field_attack_h_count:u16
+nsi_ex_01	nsi_ex_01	0	ns02	Ns02FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_900.bnk	900	kleavor	1		18	3	1000	1678	1	916	62.6	898	4.2	906	62.4	892	80	-120	-8.4	1	1						2	64	48	36	-1,-1,-1,-1,-1,-1	3		4	1
+nsi_ex_04	nsi_ex_04	0	ns05	Ns05FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_101.bnk	101	electrode	2		46	15	4000	1722	1	106.5	155.5	440	1.55	122.5	155.5	440	290	90	-8.4	1	1	86	412	85	87	1,1,1,0	2	80	64	52	-1,-1,-1,-1,-1,-1	3		9	2
+nsi_ex_06	nsi_ex_06	0	ns06	Ns06FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_059.bnk	59	arcanine	2		36	3	3000	1721	1	835.5	49.9	127.5	2.47	840.5	49.9	122	321.5	136.2	-8.4	1	1						2	64	48	36	-1,-1,-1,-1,-1,-1	3		11	6
+nsi_ex_03	nsi_ex_03	0	ns03	Ns03FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_751.bnk	713	avalugg	2		56	7	5000	1723	1	228.5	81.5	470	-6.58	216	85.4	510.6	180	-18	-5.5	1	1						2	64	48	36	-1,-1,-1,-1,-1,-1	3		45	2
+dredear01	dredear01	0	ns04	Ns04FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_549.bnk	549	lilligant	2	1	30	3	2000	1639	1	420.62	127.79	121.75	-1.54	411.5	127.8	122.4	90	265.7	-8.4	1	1	78	77	412	249	1,1,1,1	2	80	64	52	-1,-1,-1,-1,-1,-1	3		4	0
+nsi_ex_07	nsi_ex_07	0	ns07	Ns07FieldBattle	PLAY_BGM_VS_BOSS_02	PM_N_483.bnk	483	dialga	1	-1	65	-1	10000	1608	1	150	30.1	300	3.14	150	30	285		180	0.05	1	1						2	64	48	36	-1,-1,-1,-1,-1,-1	3		8	1
+nsi_ex_08	nsi_ex_08	0	ns08	Ns08FieldBattle	PLAY_BGM_VS_BOSS_02	PM_N_484.bnk	484	palkia	1	-1	65	-1	10000	1609	1	150	30.1	300	3.14	150	30	285		180	0.05	1	1						2	64	48	36	-1,-1,-1,-1,-1,-1	3		4	0
+nsi_ex_01_r	nsi_ex_01_r	1	ns02	Ns02FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_900.bnk	900	kleavor	1		70	3		1678	1	916	62.6	898	4.2	906	62.4	892	80	-120	-8.4	1	1	830	403	404	370	1,1,1,1	2	112	96	68	-1,-1,-1,-1,-1,-1		10,10,10,10,10,10	4	1
+nsi_ex_04_r	nsi_ex_04_r	1	ns05	Ns05FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_101.bnk	101	electrode	2		70	15		1722	1	106.5	155.5	440	1.55	122.5	155.5	440	290	90	-8.4	1	1	835	87	63	86	1,1,1,1	2	112	96	68	-1,-1,-1,-1,-1,-1		10,10,10,10,10,10	9	2
+nsi_ex_06_r	nsi_ex_06_r	1	ns06	Ns06FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_059.bnk	59	arcanine	2		70	3		1721	1	835.5	49.9	127.5	2.47	840.5	49.9	122	321.5	136.2	-8.4	1	1	833	444	242	528	1,1,1,1	2	112	96	68	-1,-1,-1,-1,-1,-1		10,10,10,10,10,10	11	6
+nsi_ex_03_r	nsi_ex_03_r	1	ns03	Ns03FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_751.bnk	713	avalugg	2		70	7		1723	1	228.5	81.5	470	-6.58	216	85.4	510.6	180	-18	-5.5	1	1	836	667	444	442	1,1,1,1	2	112	96	68	-1,-1,-1,-1,-1,-1		10,10,10,10,10,10	45	2
+dredear01_r	dredear01_r	1	ns04	Ns04FieldBattle	PLAY_BGM_VS_BOSS_CMN	PM_N_549.bnk	549	lilligant	2	1	70	3		1639	1	420.62	127.79	121.75	-1.54	411.5	127.8	122.4	90	265.7	-8.4	1	1	837	80	409	416	1,1,1,1	2	112	96	68	-1,-1,-1,-1,-1,-1		10,10,10,10,10,10	4	0
+nsi_ex_07_r	nsi_ex_07_r	1	ns07	Ns07FieldBattle	PLAY_BGM_VS_BOSS_02	PM_N_483.bnk	483	dialga	1	-1	85	-1		1608	1	150	30	300	3.14	150	30	285		180	0.05	1	1						2	96	80	52	-1,-1,-1,-1,-1,-1		10,10,10,10,10,10	8	1
+nsi_ex_08_r	nsi_ex_08_r	1	ns08	Ns08FieldBattle	PLAY_BGM_VS_BOSS_02	PM_N_484.bnk	484	palkia	1	-1	85	-1		1609	1	150	30	300	3.14	150	30	285		180	0.05	1	1						2	96	80	52	-1,-1,-1,-1,-1,-1		10,10,10,10,10,10	4	0
+nsi_ex_09	nsi_ex_09	0	ns09	Ns09FieldBattle	PLAY_BGM_VS_BOSS_04	PM_N_493.bnk	493	arceus		-1	75	-1	15000	1610	1	150	100.6	365	3.14	150	100.6	350		180	-0.035	1	1	347	326	449	63	1,1,1,1	2	80	64	52	-1,-1,-1,-1,-1,-1	3		14	0
+nsi_ex_09_r	nsi_ex_09_r	1	ns09	Ns09FieldBattle	PLAY_BGM_VS_BOSS_04	PM_N_493.bnk	493	arceus		-1	100	-1		1610	1	150	100.6	365	3.14	150	100.6	350		180	-0.035	1	1	347	326	449	63	1,1,1,1	2	112	96	68	-1,-1,-1,-1,-1,-1		10,10,10,10,10,10	14	0
