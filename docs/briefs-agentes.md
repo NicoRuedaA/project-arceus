@@ -381,7 +381,7 @@ El enlace `decompiled` es la convención del repo (el directorio de pseudocódig
 #### Brief 21 — Dinero, tiempo de juego y descanso
 **Dificultad:** 2.
 **Objetivo:** el jugador gana dinero (venta de objetos, combates), se cuenta el tiempo jugado y puede descansar para curar al equipo.
-**Estado actual:** `PlayerSave.money`, `PlayerProgress::add_money` (`game/save_wire.rs`), `defeated`, `caught_count`; ningún contador de tiempo de juego. Informe `save_game.md`: «money income» sin hacer. Campamento/descanso: no hay datos decodificados (carpetas `bin/field/` sin `camp`; **desconocido: investigar** `bin/misc/app_config/field_common_config.bin`, `common_general_config.bin`).
+**Estado actual:** `PlayerSave.money`, `PlayerProgress::add_money` (`game/save_wire.rs`), `defeated`, `caught_count`; ningún contador de tiempo de juego. Informe `save_game.md`: «money income» sin hacer. Campamento/descanso: no hay datos decodificados (carpetas `bin/field/` sin `camp`; **desconocido: investigar** `bin/misc/app_config/field_common_config.bin`, `common_general_config.bin`). Evidencia ya leída durante el brief 21: `n2-base-camps-and-travel.md` §2.1 documenta el menú de descanso en tienda (mañana/mediodía/tarde/noche/un rato) y su avance del reloj (`FUN_02499418`); los importes de dinero y la duración exacta de «un rato» siguen sin decodificar.
 **Qué hay que construir:**
 1. `PlayerSave.play_seconds: u64` (versión +1 con migración; coordinar con 5 y 9) y recurso `PlayTime` que acumula solo en `GameState::World`/`Battle` y fuera de pausa (`not_paused`).
 2. Ingresos: fórmula provisional (ASSUMED) por victoria/venta; venta de objetos ligada a la tienda (14).
