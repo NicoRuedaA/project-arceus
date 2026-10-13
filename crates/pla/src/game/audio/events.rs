@@ -343,30 +343,45 @@ pub fn hit_strength(effectiveness: &str, critical: bool) -> HitStrength {
 /// sound lands when the target flinches. `species(i)` returns the national dex number of
 /// combatant `i`.
 pub fn cues_for_battle_events(events: &[Event], species: &dyn Fn(usize) -> Option<u16>) -> Vec<TimedCue> {
-    use super::super::battle_anim::{FAINT_DELAY_S, HIT_DELAY_S, MOVE_STEP_S};
+    cues_for_battle_events_timed(events, species, &|_, _| super::super::battle_anim::MoveTiming::default())
+}
+
+/// [`cues_for_battle_events`] with the per-move pacing `timing(actor, move_name)` the
+/// animations use (`battle_anim::requests_for_events_timed`), so hits stay in sync.
+pub fn cues_for_battle_events_timed(
+    events: &[Event],
+    species: &dyn Fn(usize) -> Option<u16>,
+    timing: &dyn Fn(usize, &str) -> super::super::battle_anim::MoveTiming,
+) -> Vec<TimedCue> {
+    use super::super::battle_anim::{FAINT_DELAY_S, HIT_DELAY_S};
     let mut out = Vec::new();
     let mut cursor = 0.0_f32;
     let mut last_action = 0.0_f32;
+    let mut last_hit = HIT_DELAY_S;
     for ev in events {
         match ev {
-            Event::UsedMove { damage, critical, effectiveness, .. } => {
+            Event::UsedMove { actor, name, damage, critical, effectiveness, .. } => {
+                let t = timing(*actor, name);
                 if *damage > 0 {
                     let s = hit_strength(effectiveness, *critical);
-                    out.extend(sfx_at(GameEvent::Damage(s), cursor + HIT_DELAY_S));
+                    out.extend(sfx_at(GameEvent::Damage(s), cursor + t.hit_s));
                 }
                 last_action = cursor;
-                cursor += MOVE_STEP_S;
+                last_hit = t.hit_s;
+                cursor += t.step_s;
             }
-            Event::Missed { .. } => {
+            Event::Missed { actor, name, .. } => {
+                let t = timing(*actor, name);
                 last_action = cursor;
-                cursor += MOVE_STEP_S;
+                last_hit = t.hit_s;
+                cursor += t.step_s;
             }
             Event::Recoil { .. } => out.extend(sfx_at(GameEvent::Damage(HitStrength::Weak), cursor)),
             Event::StatusApplied { status, .. } => {
-                out.extend(sfx_at(GameEvent::StatusApplied(*status), cursor.max(last_action + HIT_DELAY_S)))
+                out.extend(sfx_at(GameEvent::StatusApplied(*status), cursor.max(last_action + last_hit)))
             }
             Event::KnockedOut(i) => {
-                let t = last_action + FAINT_DELAY_S;
+                let t = last_action + FAINT_DELAY_S + (last_hit - HIT_DELAY_S);
                 if let Some(sp) = species(*i) {
                     out.push(at(Cue::Cry { species: sp, form: 0, faint: true }, t));
                 }

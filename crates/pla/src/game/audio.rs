@@ -34,7 +34,7 @@ use bevy_audio::{AudioPlayer, AudioSink, AudioSinkPlayback, AudioSource, Playbac
 
 use self::catalog::{decodable_header, SoundCatalog};
 use self::events::{
-    ball_events, ball_vanished_events, cues_for_battle_events, cues_for_log_line, music_for_area,
+    ball_events, ball_vanished_events, cues_for_battle_events_timed, cues_for_log_line, music_for_area,
     sfx_for_event, BallSnapshot, Bus, Cue, GameEvent, MusicId, SfxId, TimedCue, VariantPolicy,
 };
 use self::lru::LruCache;
@@ -348,6 +348,7 @@ fn observe_battle_session(
     session: Option<Res<ActiveBattleSession>>,
     mut w: Local<BattleWatch>,
     mut out: MessageWriter<PlayCue>,
+    timings: Option<Res<super::effects::MoveTimingTable>>,
 ) {
     let Some(s) = session else {
         *w = BattleWatch::default();
@@ -381,7 +382,8 @@ fn observe_battle_session(
         send(&mut out, sfx(GameEvent::BattleMoveChosen, 0.0));
     }
     let species = |i: usize| s.battle.combatants.get(i).map(|c| c.species.dex).filter(|d| *d > 0);
-    send(&mut out, cues_for_battle_events(new_events, &species));
+    let timing = |actor: usize, name: &str| super::effects::move_timing_of(timings.as_deref(), &s.battle, actor, name);
+    send(&mut out, cues_for_battle_events_timed(new_events, &species, &timing));
     w.events = s.event_log.len();
     for line in &s.log_lines[w.lines..] {
         send(&mut out, cues_for_log_line(line));

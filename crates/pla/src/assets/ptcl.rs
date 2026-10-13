@@ -204,6 +204,11 @@ pub struct Emitter {
     pub table6_keys: KeyTable,
     /// Texture ids of the three samplers (`None` = unused slot).
     pub texture_ids: [Option<u64>; 3],
+    /// Wrap mode (u, v) of the three samplers: sampler bytes +8/+9. LIKELY 0 = mirror,
+    /// 1 = repeat, 2 = clamp: atlas strips and flip-books read 2, scrolling `flow`
+    /// textures 1, and the quarter-circle `cpt_1_circle*` masks 0 (they only form a full
+    /// circle when mirrored about their corner).
+    pub texture_wrap: [[u8; 2]; 3],
     /// Mesh (primitive) id for mesh particles.
     pub primitive_id: Option<u64>,
     /// Attribute section magics attached to the emitter (`EP03` = stripe/trail, LIKELY).
@@ -460,6 +465,7 @@ fn decode_emitter(b: &[u8], s: &Section, parent: Option<usize>) -> Result<Emitte
             opt_id(rd_u64(d, off::SAMPLERS[2])?),
         ],
         primitive_id: opt_id(rd_u64(d, off::PRIMITIVE_ID)?),
+        texture_wrap: off::SAMPLERS.map(|o| [d[o + 8], d[o + 9]]),
         attributes,
         atlas_div: [f32_at(d, off::ATLAS_DIV), f32_at(d, off::ATLAS_DIV + 4)],
         texture_pattern: {

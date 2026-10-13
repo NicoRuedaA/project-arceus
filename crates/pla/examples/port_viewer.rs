@@ -557,6 +557,7 @@ fn main() -> ExitCode {
                 println!("  --new-game            Ignore the existing save and start fresh");
                 println!("  --save-dir <PATH>     Save directory (sets PLA_SAVE_DIR); F5 saves");
                 println!("  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)");
+                println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
                 return ExitCode::SUCCESS;
             }
             _ => {}
@@ -884,6 +885,7 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
     app.add_plugins(pla::game::audio::GameAudioPlugin::from_env_and_args());
+    app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
         app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });

@@ -14,6 +14,14 @@
 //!
 //! Usage: `effect_preview [particle path under bin/effect/battle/particle] [out.png]`
 //! Default: `ew052/ew052_hit.ptcl` (Ember hit) to `work/effects/preview_<name>.png`.
+//!
+//! Battle mode: `effect_preview --moves 84,52,33 [--frames 20,40,60] [out.png]` (or
+//! `--sequences es002,es003` for named timelines) plays each
+//! move's whole timeline with the game plugin's own code (`pla::game::effects`: timeline
+//! scheduling, `EffectSim`, `build_emitter_quads`, world scale and anchor height) and
+//! rasterises the quads on the CPU from the viewer's battle camera (user at the near slot,
+//! target at the far one; grey discs stand in for the Pokémon). One row per move, one column
+//! per frame. Default output `work/effects/battle_preview.png`.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -231,8 +239,242 @@ fn draw(
     }
 }
 
+mod battle {
+    //! Battle-mode CPU render using the game plugin's simulation and quad builder.
+    use std::collections::HashMap;
+    use std::path::Path;
+    use std::sync::Arc;
+
+    use bevy::math::{Mat4, Quat, Vec3, Vec4};
+    use pla::assets::bntx::TextureData;
+    use pla::assets::ptcl_textures::{default_bin_root, effects_cache_dir};
+    use pla::game::effects::library::{load_particle, load_timeline, LoadedParticle};
+    use pla::game::effects::sim::{build_emitter_quads, BlendMode, EffectSim, Placement, QuadBuffers, Quality, ViewAxes};
+    use pla::game::effects::timeline::PlaySide;
+    use pla::game::effects::{ANCHOR_HEIGHT_M, WORLD_SCALE};
+
+    const W: usize = 400;
+    const H: usize = 260;
+
+    struct Cam {
+        view_proj: Mat4,
+        axes: ViewAxes,
+    }
+
+    /// The viewer's battle framing (port_viewer `update_camera_transform`).
+    fn camera(p: Vec3, w: Vec3) -> Cam {
+        let to_wild = (w - p).normalize();
+        let right_side = Vec3::new(to_wild.z, 0.0, -to_wild.x).normalize();
+        let eye = p - to_wild * 2.3 - right_side * 1.0 + Vec3::new(0.0, 1.35, 0.0);
+        let look = (p + w) * 0.5 + Vec3::new(0.0, 0.35, 0.0) + right_side * 0.2;
+        let view = Mat4::look_at_rh(eye, look, Vec3::Y);
+        let proj = Mat4::perspective_rh(std::f32::consts::FRAC_PI_4, W as f32 / H as f32, 0.1, 100.0);
+        let inv = view.inverse();
+        Cam {
+            view_proj: proj * view,
+            axes: ViewAxes {
+                right: inv.transform_vector3(Vec3::X).normalize(),
+                up: inv.transform_vector3(Vec3::Y).normalize(),
+                forward: inv.transform_vector3(Vec3::NEG_Z).normalize(),
+            },
+        }
+    }
+
+    fn project(c: &Cam, v: Vec3) -> Option<[f32; 2]> {
+        let h = c.view_proj * Vec4::new(v.x, v.y, v.z, 1.0);
+        if h.w <= 0.01 {
+            return None;
+        }
+        Some([(h.x / h.w * 0.5 + 0.5) * W as f32, (0.5 - h.y / h.w * 0.5) * H as f32])
+    }
+
+    fn sample(t: &TextureData, u: f32, v: f32) -> [f32; 4] {
+        let x = ((u * t.width as f32) as i64).clamp(0, t.width as i64 - 1) as usize;
+        let y = ((v * t.height as f32) as i64).clamp(0, t.height as i64 - 1) as usize;
+        let o = (y * t.width as usize + x) * 4;
+        [0, 1, 2, 3].map(|k| t.rgba[o + k] as f32 / 255.0)
+    }
+
+    fn srgb_to_lin(c: f32) -> f32 {
+        if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+    }
+
+    fn lin_to_srgb(c: f32) -> f32 {
+        let c = c.clamp(0.0, 1.0);
+        if c <= 0.0031308 { c * 12.92 } else { 1.055 * c.powf(1.0 / 2.4) - 0.055 }
+    }
+
+    /// Rasterise quads (two triangles each) into a linear-light panel, like the GPU material:
+    /// texel (sRGB decoded) x vertex colour, premultiplied, then alpha / add / subtract blend.
+    /// The shader's `wrap_coord`: 0 mirror, 1 repeat, 2 clamp.
+    fn wrap_coord(x: f32, mode: u8) -> f32 {
+        match mode {
+            0 => {
+                let t = x.abs() % 2.0;
+                if t > 1.0 { 2.0 - t } else { t }
+            }
+            1 => x.rem_euclid(1.0),
+            _ => x.clamp(0.0, 1.0),
+        }
+    }
+
+    fn raster(panel: &mut [[f32; 3]], c: &Cam, q: &QuadBuffers, tex: Option<&TextureData>, blend: BlendMode, wrap: [u8; 2]) {
+        for tri in q.indices.chunks_exact(3) {
+            let idx = [tri[0] as usize, tri[1] as usize, tri[2] as usize];
+            let Some(p0) = project(c, Vec3::from(q.positions[idx[0]])) else { continue };
+            let Some(p1) = project(c, Vec3::from(q.positions[idx[1]])) else { continue };
+            let Some(p2) = project(c, Vec3::from(q.positions[idx[2]])) else { continue };
+            let area = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (p1[1] - p0[1]);
+            if area.abs() < 1e-6 {
+                continue;
+            }
+            let x0 = p0[0].min(p1[0]).min(p2[0]).floor().max(0.0) as usize;
+            let x1 = (p0[0].max(p1[0]).max(p2[0]).ceil() as usize).min(W - 1);
+            let y0 = p0[1].min(p1[1]).min(p2[1]).floor().max(0.0) as usize;
+            let y1 = (p0[1].max(p1[1]).max(p2[1]).ceil() as usize).min(H - 1);
+            for y in y0..=y1 {
+                for x in x0..=x1 {
+                    let (px, py) = (x as f32 + 0.5, y as f32 + 0.5);
+                    let w0 = ((p1[0] - px) * (p2[1] - py) - (p2[0] - px) * (p1[1] - py)) / area;
+                    let w1 = ((p2[0] - px) * (p0[1] - py) - (p0[0] - px) * (p2[1] - py)) / area;
+                    let w2 = 1.0 - w0 - w1;
+                    if w0 < 0.0 || w1 < 0.0 || w2 < 0.0 {
+                        continue;
+                    }
+                    let uv = [0, 1].map(|k| q.uvs[idx[0]][k] * w0 + q.uvs[idx[1]][k] * w1 + q.uvs[idx[2]][k] * w2);
+                    let col = [0, 1, 2, 3].map(|k| q.colors[idx[0]][k] * w0 + q.colors[idx[1]][k] * w1 + q.colors[idx[2]][k] * w2);
+                    let texel = match tex {
+                        Some(t) => {
+                            let s = sample(t, wrap_coord(uv[0], wrap[0]), wrap_coord(uv[1], wrap[1]));
+                            [srgb_to_lin(s[0]), srgb_to_lin(s[1]), srgb_to_lin(s[2]), s[3]]
+                        }
+                        None => {
+                            let d = ((uv[0] - 0.5).hypot(uv[1] - 0.5) * 2.0).min(1.0);
+                            [1.0, 1.0, 1.0, 1.0 - d]
+                        }
+                    };
+                    let a = (texel[3] * col[3]).clamp(0.0, 1.0);
+                    let px = &mut panel[y * W + x];
+                    for k in 0..3 {
+                        let s = texel[k] * col[k] * a;
+                        px[k] = match blend {
+                            BlendMode::Alpha => s + px[k] * (1.0 - a),
+                            BlendMode::Add => px[k] + s,
+                            BlendMode::Sub => (px[k] - s).max(0.0),
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    fn backdrop(c: &Cam, user: Vec3, target: Vec3) -> Vec<[f32; 3]> {
+        let mut panel = vec![[0.0f32; 3]; W * H];
+        for (y, row) in panel.chunks_mut(W).enumerate() {
+            let g = if y > H / 2 { 0.05 + 0.04 * (y - H / 2) as f32 / H as f32 } else { 0.10 };
+            for p in row {
+                *p = [g * 0.8, g, g * 0.8];
+            }
+        }
+        // Grey discs where the Pokémon stand (radius ~0.35 m at anchor height).
+        for (centre, r) in [(user, 0.35f32), (target, 0.4)] {
+            let (Some(a), Some(b)) = (project(c, centre), project(c, centre + c.axes.right * r)) else { continue };
+            let rp = (b[0] - a[0]).hypot(b[1] - a[1]);
+            for (i, px) in panel.iter_mut().enumerate() {
+                let (x, y) = ((i % W) as f32, (i / W) as f32);
+                if (x - a[0]).hypot(y - a[1]) < rp {
+                    *px = [0.18, 0.18, 0.2];
+                }
+            }
+        }
+        panel
+    }
+
+    pub fn run(args: &[String]) {
+        let get = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
+        let moves: Vec<u16> = get("--moves").unwrap_or_else(|| "84,52,33".into()).split(',').filter_map(|s| s.parse().ok()).collect();
+        // `--sequences es002,es003` plays named timelines instead of move ids.
+        let names: Vec<String> = match get("--sequences") {
+            Some(list) => list.split(',').map(str::to_string).collect(),
+            None => moves.iter().map(|m| format!("ew{m:03}")).collect(),
+        };
+        let frames: Vec<u32> = get("--frames").unwrap_or_else(|| "20,40,60".into()).split(',').filter_map(|s| s.parse().ok()).collect();
+        let out = args.iter().rev().find(|a| a.ends_with(".png")).cloned().unwrap_or_else(|| "work/effects/battle_preview.png".into());
+        let root = default_bin_root();
+        let cache = effects_cache_dir();
+        // Viewer arena positions relative to the player (port_viewer `setup_battle_arena`).
+        let (p, w) = (Vec3::new(-0.7, 0.0, -1.8), Vec3::new(0.9, 0.0, -4.4));
+        let (user, target) = (p + Vec3::Y * ANCHOR_HEIGHT_M, w + Vec3::Y * ANCHOR_HEIGHT_M);
+        let cam = camera(p, w);
+        let d = (target - user).with_y(0.0).normalize();
+        let rotation = Quat::from_rotation_y(d.x.atan2(d.z));
+        let mut files: HashMap<String, Option<Arc<LoadedParticle>>> = HashMap::new();
+        let mut rgba = vec![0u8; W * frames.len() * H * names.len() * 4];
+        for (row, name) in names.iter().enumerate() {
+            let Ok(tl) = load_timeline(&root, name) else {
+                println!("[skip] timeline {name} not present");
+                continue;
+            };
+            println!("{name}: {} frames, first target frame {:?}, {} plays", tl.length_frames, tl.first_target_frame, tl.plays.len());
+            for (col, &f) in frames.iter().enumerate() {
+                let mut panel = backdrop(&cam, user, target);
+                let mut live = 0;
+                for (i, play) in tl.plays.iter().enumerate() {
+                    if play.start > f {
+                        continue;
+                    }
+                    let loaded = files
+                        .entry(play.path.clone())
+                        .or_insert_with(|| load_particle(&root, Some(&cache), &play.path).ok().map(Arc::new))
+                        .clone();
+                    let Some(lp) = loaded else { continue };
+                    let mut sim = EffectSim::new(lp.def.clone(), play.emit_frames(), Quality::High, 7 + i as u64);
+                    let mut budget = usize::MAX;
+                    for _ in play.start..f {
+                        sim.step(1.0, Quality::High.per_effect_cap(), &mut budget);
+                    }
+                    live += sim.live();
+                    let origin = match play.side {
+                        PlaySide::User => user,
+                        PlaySide::Target => target,
+                        PlaySide::Field => (user + target) * 0.5,
+                    };
+                    let place = Placement { origin, rotation, scale: WORLD_SCALE };
+                    for (ei, em) in lp.def.emitters.iter().enumerate() {
+                        let mut q = QuadBuffers::default();
+                        build_emitter_quads(&sim, ei, &place, &cam.axes, &mut q);
+                        let tex = em.texture.as_ref().and_then(|t| lp.textures.get(t));
+                        raster(&mut panel, &cam, &q, tex, em.blend, em.wrap());
+                    }
+                }
+                println!("  frame {f}: {live} live particles");
+                for y in 0..H {
+                    for x in 0..W {
+                        let o = ((row * H + y) * W * frames.len() + col * W + x) * 4;
+                        let c = panel[y * W + x];
+                        for k in 0..3 {
+                            rgba[o + k] = (lin_to_srgb(c[k]) * 255.0) as u8;
+                        }
+                        rgba[o + 3] = 255;
+                        if x == 0 || y == 0 {
+                            rgba[o..o + 3].copy_from_slice(&[60, 60, 60]);
+                        }
+                    }
+                }
+            }
+        }
+        let img = TextureData { width: (W * frames.len()) as u32, height: (H * names.len()) as u32, rgba };
+        img.save_png(Path::new(&out)).expect("write png");
+        println!("wrote {out} (rows: {names:?}; columns: frames {frames:?}; world scale {WORLD_SCALE} m/unit, ASSUMED)");
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|a| a == "--moves" || a == "--sequences") {
+        battle::run(&args);
+        return;
+    }
     let rel = args
         .first()
         .cloned()

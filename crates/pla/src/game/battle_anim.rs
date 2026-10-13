@@ -18,6 +18,21 @@ pub const HIT_DELAY_S: f32 = 0.45;
 /// Seconds after the killing move starts until the target falls.
 pub const FAINT_DELAY_S: f32 = 0.65;
 
+/// Pacing of one move inside a turn: how long it occupies the turn and when its target
+/// reacts. The default is the fixed [`MOVE_STEP_S`] / [`HIT_DELAY_S`]; the effects plugin
+/// supplies per-move values from the move's effect timeline (`game::effects`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MoveTiming {
+    pub step_s: f32,
+    pub hit_s: f32,
+}
+
+impl Default for MoveTiming {
+    fn default() -> Self {
+        MoveTiming { step_s: MOVE_STEP_S, hit_s: HIT_DELAY_S }
+    }
+}
+
 /// One request for one combatant, `delay` seconds after the turn's events arrived.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TimedRequest {
@@ -48,31 +63,45 @@ pub fn requests_for_events(
     events: &[Event],
     category: &dyn Fn(usize, &str) -> Option<String>,
 ) -> Vec<TimedRequest> {
+    requests_for_events_timed(events, category, &|_, _| MoveTiming::default())
+}
+
+/// [`requests_for_events`] with a per-move pacing `timing(actor, move_name)`.
+pub fn requests_for_events_timed(
+    events: &[Event],
+    category: &dyn Fn(usize, &str) -> Option<String>,
+    timing: &dyn Fn(usize, &str) -> MoveTiming,
+) -> Vec<TimedRequest> {
     let mut out = Vec::new();
     let mut cursor = 0.0_f32;
     let mut last_action = 0.0_f32;
+    let mut last_hit = HIT_DELAY_S;
     for ev in events {
         match ev {
             Event::UsedMove { actor, target, name, damage, .. } => {
                 let kind = attack_kind(category(*actor, name).as_deref());
+                let t = timing(*actor, name);
                 out.push(TimedRequest { combatant: *actor, request: PokemonAnimRequest::Attack(kind), delay: cursor });
                 if *damage > 0 {
-                    out.push(TimedRequest { combatant: *target, request: PokemonAnimRequest::Hit, delay: cursor + HIT_DELAY_S });
+                    out.push(TimedRequest { combatant: *target, request: PokemonAnimRequest::Hit, delay: cursor + t.hit_s });
                 }
                 last_action = cursor;
-                cursor += MOVE_STEP_S;
+                last_hit = t.hit_s;
+                cursor += t.step_s;
             }
             Event::Missed { actor, name, .. } => {
                 let kind = attack_kind(category(*actor, name).as_deref());
+                let t = timing(*actor, name);
                 out.push(TimedRequest { combatant: *actor, request: PokemonAnimRequest::Attack(kind), delay: cursor });
                 last_action = cursor;
-                cursor += MOVE_STEP_S;
+                last_hit = t.hit_s;
+                cursor += t.step_s;
             }
             Event::Recoil { target, .. } => {
                 out.push(TimedRequest { combatant: *target, request: PokemonAnimRequest::Hit, delay: cursor });
             }
             Event::KnockedOut(i) => {
-                out.push(TimedRequest { combatant: *i, request: PokemonAnimRequest::Faint, delay: last_action + FAINT_DELAY_S });
+                out.push(TimedRequest { combatant: *i, request: PokemonAnimRequest::Faint, delay: last_action + FAINT_DELAY_S + (last_hit - HIT_DELAY_S) });
             }
             Event::Switched { to, .. } => {
                 out.push(TimedRequest { combatant: *to, request: PokemonAnimRequest::Appear, delay: cursor });
@@ -98,6 +127,7 @@ pub fn drive_battle_anims(
     mut cursor: Local<usize>,
     slots: Query<(Entity, &PokemonBattleSlot)>,
     mut out: MessageWriter<PokemonAnimMessage>,
+    timings: Option<Res<crate::game::effects::MoveTimingTable>>,
 ) {
     let Some(sess) = session else {
         *cursor = 0;
@@ -119,7 +149,8 @@ pub fn drive_battle_anims(
             .find(|m| m.data.name == name)
             .map(|m| m.data.category.clone())
     };
-    let requests = requests_for_events(&sess.event_log[*cursor..], &category);
+    let timing = |actor: usize, name: &str| crate::game::effects::move_timing_of(timings.as_deref(), &sess.battle, actor, name);
+    let requests = requests_for_events_timed(&sess.event_log[*cursor..], &category, &timing);
     *cursor = len;
     for r in requests {
         let slot = slot_of(r.combatant);
