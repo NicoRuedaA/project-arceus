@@ -27,6 +27,8 @@ pub mod battle_visibility;
 pub mod battle_items;
 pub mod battle_log;
 pub mod catch_rate;
+pub mod crafting;
+pub mod crafting_ui;
 pub mod effects;
 pub mod follower;
 pub mod navigation;
