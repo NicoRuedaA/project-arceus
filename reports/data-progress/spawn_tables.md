@@ -159,6 +159,10 @@ mapping to the terrain area).
 | form, time, weather | not decoded (empty) |
 
 ### Not decoded
+> **Update (2026-10-13):** time, weather, form and alpha, distortion (`wh_spawner`) spawners, mass outbreaks and
+> `npc_pokemon` are now decoded in [world_events.md](world_events.md). The `companion_count` column above is really
+> the weight of the alpha slot (slots with field 25 = 3 perfect IVs), not a companion count.
+
 Time-of-day and weather conditions (candidate: a block of 12 float modifiers per entry), alpha/boss flag, species form
 (Hisuian forms are ambiguous), wormhole/distortion spawners (`wh_spawner`), fixed overworld Pokemon (`npc_pokemon`), mass
 outbreaks and swarm timing, the real level formula, and spawn/despawn behaviour.
