@@ -3,12 +3,13 @@
 //! The screen deliberately owns no species names, icons, or save-schema logic. It renders numeric
 //! species/form ids from the explicit [`BoxScreenData`] provider and sends party/box mutations
 //! through the existing [`PlayerProgress`] operation boundary (`deposit`, `withdraw`, and `swap`).
-//! The `B` key is only a small standalone opener; callers can also set [`BoxScreenState::open`]
-//! directly from another menu.
+//! It opens from the pause menu's `Pokémon boxes` row ([`BoxOpenRequested`]); callers can also
+//! set [`BoxScreenState::open`] directly. There is no world hotkey: the former standalone `B`
+//! opener collided with the Poké Ball selection key (B) and the battle Capture key (C / B).
 
 use bevy::prelude::*;
 
-use super::pause_menu::PauseMenuSuppressed;
+use super::pause_menu::{BoxOpenRequested, PauseMenuSuppressed};
 use super::save_game::{MAX_BOX, MAX_PARTY, PartyMember};
 use super::save_wire::{BoxError, PlayerProgress};
 use super::state::Paused;
@@ -183,6 +184,7 @@ impl Plugin for BoxScreenPlugin {
             .init_resource::<PlayerProgress>()
             .init_resource::<Paused>()
             .init_resource::<PauseMenuSuppressed>()
+            .init_resource::<BoxOpenRequested>()
             .add_systems(Startup, spawn_box_screen)
             .add_systems(Update, (box_input, sync_box_data, sync_box_screen).chain());
     }
@@ -283,7 +285,7 @@ fn spawn_box_screen(mut commands: Commands) {
                 panel.spawn((
                     BoxText::Hint,
                     Text::new(
-                        "Arrows move | PageUp/PageDown change box | Tab changes side | Enter selects/swaps | D stores party | W withdraws | Esc closes | B opens",
+                        "Arrows move | PageUp/PageDown change box | Tab changes side | Enter selects/swaps | D stores party | W withdraws | Esc closes",
                     ),
                     TextFont::from_font_size(13.0),
                     TextColor(Color::srgb(0.7, 0.75, 0.8)),
@@ -308,16 +310,18 @@ fn set_freeze(
 #[allow(clippy::too_many_arguments)]
 fn box_input(
     keys: Res<ButtonInput<KeyCode>>,
+    mut request: ResMut<BoxOpenRequested>,
     mut state: ResMut<BoxScreenState>,
     mut progress: ResMut<PlayerProgress>,
     mut paused: Option<ResMut<Paused>>,
     mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
 ) {
-    if keys.just_pressed(KeyCode::KeyB) {
-        state.open = !state.open;
+    if request.0 {
+        request.0 = false;
+        state.open = true;
         state.held = None;
         state.message.clear();
-        set_freeze(&mut paused, &mut suppressed, state.open);
+        set_freeze(&mut paused, &mut suppressed, true);
         return;
     }
     if !state.open {
@@ -503,7 +507,7 @@ fn sync_box_screen(
                 party_label(*index, data.party.get(*index), selected, held)
             }
             BoxText::Status => state.message.clone(),
-            BoxText::Hint => "Arrows move | PageUp/PageDown change box | Tab changes side | Enter selects/swaps | D stores party | W withdraws | Esc closes | B opens".into(),
+            BoxText::Hint => "Arrows move | PageUp/PageDown change box | Tab changes side | Enter selects/swaps | D stores party | W withdraws | Esc closes".into(),
         };
         if text.0 != desired {
             text.0 = desired;

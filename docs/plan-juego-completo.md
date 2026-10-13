@@ -163,13 +163,13 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 **Nivel 3, grande (semanas)**
 25. Hierba, flores y arbustos. **[hecho]**
 26. Evolución, experiencia, aprendizaje de movimientos y esfuerzo. **[parcial: motor hecho y conectado al visor]**
-27. Comportamiento salvaje completo. **[falta]**
+27. Comportamiento salvaje completo. **[parcial: máquina de reacciones conectada al visor]** Alerta, huida y persecución mueven a los salvajes (`--wild-behavior on|off|passive|timid|aggressive`, por defecto `on`); arquetipo por criatura, velocidades y umbrales de ruido SUPUESTOS; dormir sin ventana horaria decodificada (no se activa); sin mirar a ojo.
 28. Verificar las reglas de combate «probables». **[hecho]**
 29. Estilos ágil y fuerte y turnos propios. **[parcial: motor hecho y conectado al visor]**
 30. Combates contra jefes y entrenadores. **[parcial: hecho en `feat/trainer-battles`, sin fusionar ni mirar a ojo]**
 31. Personajes no jugables. **[en investigación de datos]**
-32. Pantallas de equipo, cajas y Pokédex básico. **[falta]**
-33. Artesanía y materiales. **[falta]**
+32. Pantallas de equipo, cajas y Pokédex básico. **[parcial: hechas y conectadas al menú de pausa]** Esc > Party / Pokémon boxes / Pokédex; equipo de solo lectura; sin mirar a ojo.
+33. Artesanía y materiales. **[parcial: pantalla conectada al menú de pausa]** Esc > Crafting lista las 43 recetas de `data/crafting_recipes.tsv`; toda receta se rechaza porque su condición de desbloqueo es DESCONOCIDA (no hay campo en MakeList).
 34. Música, efectos y gritos. **[hecho]**
 35. Estilo de dibujo del original. **[falta]**
 36. Personalización del protagonista. **[falta]**

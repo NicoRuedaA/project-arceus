@@ -2,11 +2,18 @@
 //!
 //! The screen owns no save data and opens no window. A caller supplies [`PartyScreenData`] as a
 //! resource, which makes the UI usable by the viewer, a future menu, or a headless Bevy test.
+//!
+//! Viewer wiring: the pause menu's `Party` row raises [`PartyOpenRequested`]; the screen then
+//! refreshes [`PartyScreenData`] from [`PlayerProgress`] (when that resource exists), freezes the
+//! world and closes on Cancel/Menu (Esc, Backspace, gamepad B/+). It is read-only.
 
 use bevy::prelude::*;
 
+use super::input_map::{Action, ActionState};
+use super::pause_menu::{freeze_for_screen, PartyOpenRequested, PauseMenuSuppressed};
 use super::save_game::{PartyMember, MAX_PARTY};
 use super::save_wire::PlayerProgress;
+use super::state::Paused;
 
 /// Explicit snapshot consumed by the party UI. It intentionally contains only party data, not a
 /// `PlayerProgress` resource, so storage operations remain in [`super::party_ops`].
@@ -55,8 +62,12 @@ impl Plugin for PartyScreenPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PartyScreenData>()
             .init_resource::<PartyScreenState>()
+            .init_resource::<PartyOpenRequested>()
             .add_systems(Startup, spawn_party_screen)
-            .add_systems(Update, sync_party_screen);
+            .add_systems(
+                Update,
+                (party_open_close, refresh_party_data, sync_party_screen).chain(),
+            );
     }
 }
 
@@ -136,6 +147,46 @@ fn spawn_party_screen(mut commands: Commands) {
                 ));
             });
         });
+}
+
+/// Opens on the pause menu's request and closes on Cancel/Menu, freezing the world meanwhile.
+fn party_open_close(
+    mut request: ResMut<PartyOpenRequested>,
+    mut state: ResMut<PartyScreenState>,
+    actions: Option<ResMut<ActionState>>,
+    mut paused: Option<ResMut<Paused>>,
+    mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
+) {
+    if request.0 {
+        request.0 = false;
+        state.open = true;
+        freeze_for_screen(&mut paused, &mut suppressed, true);
+        return;
+    }
+    if !state.open {
+        return;
+    }
+    let Some(mut actions) = actions else { return };
+    if actions.just_pressed(Action::Cancel) || actions.just_pressed(Action::Menu) {
+        actions.consume(Action::Cancel);
+        actions.consume(Action::Menu);
+        state.open = false;
+        freeze_for_screen(&mut paused, &mut suppressed, false);
+    }
+}
+
+/// While open, mirror the live party (callers without `PlayerProgress` keep their own data).
+fn refresh_party_data(
+    state: Res<PartyScreenState>,
+    progress: Option<Res<PlayerProgress>>,
+    mut data: ResMut<PartyScreenData>,
+) {
+    let (true, Some(progress)) = (state.open, progress) else {
+        return;
+    };
+    if data.party != progress.party {
+        *data = PartyScreenData::from_progress(&progress);
+    }
 }
 
 fn sync_party_screen(

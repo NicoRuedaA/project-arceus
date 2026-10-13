@@ -17,5 +17,10 @@
 ## Unknown
 
 - This branch does not contain or fabricate game recipe rows. Names and condition semantics remain provider/data work.
-- The viewer is not wired to this plugin. The safe integration boundary is `CraftingPlugin::with_provider(...)` plus insertion of the provider's bag resource by a future viewer owner; no `port_viewer` changes were made.
-- Pause-menu opening is intentionally not added: the current pause selection contract and viewer registration would require a broader cross-screen integration change than this model/UI slice.
+- Every tracked recipe row has condition `UNKNOWN` (MakeList has no unlock-condition field), so the viewer lists the recipes but refuses every craft with "Condition unknown; crafting refused." This is intended until a condition source is decoded.
+
+## Viewer wiring (2026-10-13)
+
+- `TsvRecipeProvider` (in `crafting.rs`) loads `data/crafting_recipes.tsv` (43 rows; names `Unknown recipe`, conditions `Unknown`). The viewer registers `CraftingPlugin::with_provider(...)`.
+- The pause menu's `Crafting` row raises `CraftingOpenRequested`. Opening freezes the world (`Paused` + `PauseMenuSuppressed`) and copies `PlayerProgress::bag` into `CraftingBag`; a successful craft writes the bag back; Esc closes and releases the world. Rows were made compact (14 px) so 43 rows fit a 1080 p window; there is no scrolling (smaller windows cut the list: UNKNOWN layout, not looked at).
+- Verified by headless Bevy tests only (the real sheet loads 43 rows; the pause row opens and Esc closes; the bag copy on open).
