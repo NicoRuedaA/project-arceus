@@ -1,0 +1,66 @@
+# sheet: data/pokemon_variants
+# version: 1
+# generator: .tools/decode_pokemon_variants.py
+# target: Pokémon Legends: Arceus v262144 app-config raw rows
+source_file:string*	kind:enum	key:string*	value:string?	value_min:string?	value_max:string?	type_code:u8?	opaque_id_hex:string*	raw_confidence:enum	meaning_confidence:enum	note:string?
+pokemon_rare.bin	rare	Field_SoundFrame	150	0	1500		7eb05ea826bffefb00000000	VERIFIED	UNKNOWN	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_rare.bin	rare	Field_StartEffectDistance	35	-1	50		a5c98482aa1be12700000000	VERIFIED	UNKNOWN	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_rare.bin	rare	TryCount_Item	3	0	5		7eb05ea826bffefb00000000	VERIFIED	UNKNOWN	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_rare.bin	rare	TryCount_Research100	1	0	5		7eb05ea826bffefb00000000	VERIFIED	UNKNOWN	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_rare.bin	rare	TryCount_ResearchPerfect	2	0	5		7eb05ea826bffefb00000000	VERIFIED	UNKNOWN	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_ai	2.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_battle	2.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_field	2.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_field_capture_effect	2.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_field_pinch_effect	2.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_field_rare_effect	2	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_grass_collision_effect	2.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_on_water_appear_effect	2	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_on_water_ball_out_effect	1.35	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_on_water_jump_effect	2	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_on_water_move_effect	2.7	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_poke_entry_exit_effect	3.9	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_poke_warp_effect	2.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	LL_under_water_effect	1.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_ai	1.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_battle	1.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_field	1.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_field_capture_effect	1.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_field_pinch_effect	1.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_field_rare_effect	1.3	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_grass_collision_effect	1.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_on_water_appear_effect	1.9	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_on_water_ball_out_effect	0.9	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_on_water_jump_effect	1.75	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_on_water_move_effect	2.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_poke_entry_exit_effect	2.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_poke_warp_effect	1.8	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	L_under_water_effect	1.4	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_ai	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_battle	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_field	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_field_capture_effect	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_field_pinch_effect	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_field_rare_effect	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_grass_collision_effect	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_on_water_appear_effect	1.7	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_on_water_ball_out_effect	0.7	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_on_water_jump_effect	1.4	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_on_water_move_effect	2	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_poke_entry_exit_effect	2	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_poke_warp_effect	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	M_under_water_effect	1.1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_ai	0.85	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_battle	0.85	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_field	0.85	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_field_capture_effect	0.85	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_field_pinch_effect	0.85	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_field_rare_effect	0.85	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_grass_collision_effect	0.85	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_on_water_appear_effect	1.4	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_on_water_ball_out_effect	0.5	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_on_water_jump_effect	1.28	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_on_water_move_effect	1.6	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_poke_entry_exit_effect	1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_poke_warp_effect	0.85	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed
+pokemon_size_category_adjust_scale_config.bin	size	S_under_water_effect	1.1	0.01	5	2	a5c98482aa1be12700000000	VERIFIED	PROBABLE	raw FlatBuffer strings; parameter meaning is not claimed

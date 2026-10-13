@@ -70,7 +70,8 @@ pub struct ConsumedSpawners {
 impl ConsumedSpawners {
     /// Marks `spawner_id` as consumed at game time `now_s`.
     pub fn consume(&mut self, spawner_id: &str, now_s: f64) {
-        self.respawn_at.insert(spawner_id.to_string(), now_s + RESPAWN_AFTER_S);
+        self.respawn_at
+            .insert(spawner_id.to_string(), now_s + RESPAWN_AFTER_S);
     }
 
     /// True while the spawner must stay empty.
@@ -107,7 +108,11 @@ pub fn flee_cooldown_step(remaining: f32, dt: f32) -> Option<f32> {
     (left > 0.0).then_some(left)
 }
 
-fn tick_flee_cooldown(time: Res<Time>, mut commands: Commands, mut q: Query<(Entity, &mut FleeCooldown)>) {
+fn tick_flee_cooldown(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut q: Query<(Entity, &mut FleeCooldown)>,
+) {
     for (e, mut c) in &mut q {
         match flee_cooldown_step(c.0, time.delta_secs()) {
             Some(left) => c.0 = left,
@@ -139,9 +144,22 @@ impl Plugin for WildLifecyclePlugin {
 pub struct SpawnSpeciesEntry {
     pub species_id: u16,
     pub species_name: String,
+    /// Encounter form from `field_spawn_conditions.tsv`; zero is the explicit
+    /// fallback when the companion evidence row is absent.
+    pub form: u16,
+    /// Alpha flags are decoded slot facts, not probabilities.
+    pub alpha: bool,
+    pub unique_alpha: bool,
     pub min_level: u8,
     pub max_level: u8,
     pub weight: u16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SpawnVariant {
+    pub form: u16,
+    pub alpha: bool,
+    pub size_scale: f32,
 }
 
 /// Raw spawner definition parsed from `data/field_spawn_table.tsv`.
@@ -205,6 +223,31 @@ pub fn load_spawners_for_area(
     let reader = BufReader::new(file);
 
     let target_area = format!("ha_area{area_idx:02}");
+    let condition_path = path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("field_spawn_conditions.tsv");
+    let mut conditions = HashMap::<(String, String, u16), (u16, bool, bool)>::new();
+    if let Ok(file) = File::open(&condition_path) {
+        let reader = BufReader::new(file);
+        for line_res in reader.lines().skip(9) {
+            let Ok(line) = line_res else { continue };
+            let fields: Vec<&str> = line.split('\t').collect();
+            if fields.len() < 9 || !fields[0].starts_with(&target_area) {
+                continue;
+            }
+            let Ok(species_id) = fields[4].parse::<u16>() else {
+                continue;
+            };
+            let form = fields[6].parse::<u16>().unwrap_or(0);
+            let alpha = fields[7] == "1";
+            let unique_alpha = fields[8] == "1";
+            conditions.insert(
+                (fields[1].to_owned(), fields[2].to_owned(), species_id),
+                (form, alpha, unique_alpha),
+            );
+        }
+    }
     let mut spawner_map: HashMap<String, SpawnerDefinition> = HashMap::new();
 
     for line_res in reader.lines() {
@@ -226,6 +269,7 @@ pub fn load_spawners_for_area(
         }
 
         let spawner_id = parts[1].to_string();
+        let encount_key = parts[8];
         let x: f32 = match parts[2].parse() {
             Ok(v) => v,
             Err(_) => continue,
@@ -248,24 +292,31 @@ pub fn load_spawners_for_area(
         let min_lvl: u8 = parts[12].parse().unwrap_or(5);
         let max_lvl: u8 = parts[13].parse().unwrap_or(min_lvl);
         let weight: u16 = parts[15].parse().unwrap_or(100);
+        let (form, alpha, unique_alpha) = conditions
+            .get(&(spawner_id.clone(), encount_key.to_owned(), species_id))
+            .copied()
+            .unwrap_or((0, false, false));
 
         let entry = SpawnSpeciesEntry {
             species_id,
             species_name,
+            form,
+            alpha,
+            unique_alpha,
             min_level: min_lvl,
             max_level: max_lvl,
             weight: weight.max(1),
         };
 
-        let spawner = spawner_map.entry(spawner_id.clone()).or_insert_with(|| {
-            SpawnerDefinition {
+        let spawner = spawner_map
+            .entry(spawner_id.clone())
+            .or_insert_with(|| SpawnerDefinition {
                 spawner_id,
                 area: area_str.to_string(),
                 pos: Vec3::new(x, y, z),
                 radius,
                 entries: Vec::new(),
-            }
-        });
+            });
 
         spawner.entries.push(entry);
     }
@@ -278,6 +329,17 @@ pub fn load_spawners_for_area(
 
 /// Chooses species and level deterministically for a spawner using seed + spawner_id.
 pub fn roll_spawner(spawner: &SpawnerDefinition, base_seed: u64) -> Option<(u16, String, u8)> {
+    roll_spawner_variant(spawner, base_seed).map(|(dex, name, level, _)| (dex, name, level))
+}
+
+/// Selects one encounter and a deterministic port-side appearance variant.
+/// The original alpha draw probability is not present in the local evidence;
+/// alpha therefore follows only an explicit decoded slot flag, while normal
+/// size categories are a stable hash choice over the decoded S/M/L scales.
+pub fn roll_spawner_variant(
+    spawner: &SpawnerDefinition,
+    base_seed: u64,
+) -> Option<(u16, String, u8, SpawnVariant)> {
     if spawner.entries.is_empty() {
         return None;
     }
@@ -311,7 +373,26 @@ pub fn roll_spawner(spawner: &SpawnerDefinition, base_seed: u64) -> Option<(u16,
         min_lvl
     };
 
-    Some((chosen_entry.species_id, chosen_entry.species_name.clone(), lvl))
+    let alpha = chosen_entry.alpha || chosen_entry.unique_alpha;
+    let size_scale = if alpha {
+        2.5 // LL_field; raw value verified in pokemon_variants.tsv.
+    } else {
+        match splitmix64(&mut rng_state) % 3 {
+            0 => 0.85, // S_field
+            1 => 1.0,  // M_field
+            _ => 1.8,  // L_field
+        }
+    };
+    Some((
+        chosen_entry.species_id,
+        chosen_entry.species_name.clone(),
+        lvl,
+        SpawnVariant {
+            form: chosen_entry.form,
+            alpha,
+            size_scale,
+        },
+    ))
 }
 
 /// Backward compatibility helper for legacy calls.
@@ -351,18 +432,16 @@ pub fn get_wild_spawns_for_area(area: u8, player_spawn: Vec2) -> Vec<WildCreatur
     }
 
     // Default fallback if table missing
-    vec![
-        WildCreature {
-            species_name: "pikachu".into(),
-            national_dex: 25,
-            level: 5,
-            spawn_pos: Vec3::new(player_spawn.x + 6.0, 0.0, player_spawn.y - 5.0),
-            aggro_range: 2.8,
-            in_battle: false,
-            defeated: false,
-            spawner_id: "fallback_pika".into(),
-        },
-    ]
+    vec![WildCreature {
+        species_name: "pikachu".into(),
+        national_dex: 25,
+        level: 5,
+        spawn_pos: Vec3::new(player_spawn.x + 6.0, 0.0, player_spawn.y - 5.0),
+        aggro_range: 2.8,
+        in_battle: false,
+        defeated: false,
+        spawner_id: "fallback_pika".into(),
+    }]
 }
 
 #[cfg(test)]
@@ -407,6 +486,9 @@ mod lifecycle_tests {
     fn flee_cooldown_counts_down_then_ends() {
         assert_eq!(flee_cooldown_step(1.0, 0.25), Some(0.75));
         assert_eq!(flee_cooldown_step(0.2, 0.25), None);
-        assert_eq!(flee_cooldown_step(FLEE_COOLDOWN_S, 0.0), Some(FLEE_COOLDOWN_S));
+        assert_eq!(
+            flee_cooldown_step(FLEE_COOLDOWN_S, 0.0),
+            Some(FLEE_COOLDOWN_S)
+        );
     }
 }

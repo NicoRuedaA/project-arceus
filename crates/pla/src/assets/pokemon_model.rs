@@ -33,6 +33,7 @@ pub struct PokemonTexture {
 #[derive(Debug, Clone)]
 pub struct PokemonMaterial {
     pub entry_index: usize,
+    pub source_name: String,
     pub references: Vec<String>,
     pub parsed: tr::TrMtr,
     /// Decoded material bytes are retained for sized, length-prefixed property readback.
@@ -329,8 +330,17 @@ pub fn assemble_pack_with(
     let descriptor = by_index
         .get(&descriptor_index)
         .ok_or("model descriptor entry did not decode")?;
+    let mut material_files = files_by_extension(&descriptor.references, "trmtr");
+    let rare_file = format!("{}_rare.trmtr", pack_stem(path)?);
+    if names
+        .entry_index(&romfs_path(&base, layout.mdl_dir, &rare_file))
+        .is_ok()
+        && !material_files.iter().any(|file| file == &rare_file)
+    {
+        material_files.push(rare_file);
+    }
     let mut materials = Vec::new();
-    for file in files_by_extension(&descriptor.references, "trmtr") {
+    for file in material_files {
         let entry_index = names.entry_index(&romfs_path(&base, layout.mdl_dir, &file))?;
         let entry = by_index
             .get(&entry_index)
@@ -338,6 +348,7 @@ pub fn assemble_pack_with(
         match tr::TrMtr::parse(&entry.bytes) {
             Ok(parsed) => materials.push(PokemonMaterial {
                 entry_index,
+                source_name: file.clone(),
                 references: entry.references.clone(),
                 parsed,
                 raw_bytes: entry.bytes.clone(),
@@ -592,7 +603,8 @@ pub fn write_static_lod(
         .find(|mesh| mesh.name == mesh_name)
         .ok_or("mesh name is not assembled")?;
     let mut export = gltf_export::GltfExport::default();
-    let material_index = add_static_material(model, mesh, &mut export, gltf_path.as_ref(), None)?;
+    let material_index =
+        add_static_material(model, mesh, &mut export, gltf_path.as_ref(), None, false)?;
     export.primitives.push(gltf_export::primitive_from_tr(
         &mesh.name,
         &mesh.mesh,
@@ -611,7 +623,8 @@ pub fn write_static_lod_level(
 ) -> Result<(), String> {
     let mut export = gltf_export::GltfExport::default();
     for mesh in model.meshes.iter().filter(|mesh| mesh.lod == Some(lod)) {
-        let material = add_static_material(model, mesh, &mut export, gltf_path.as_ref(), None)?;
+        let material =
+            add_static_material(model, mesh, &mut export, gltf_path.as_ref(), None, false)?;
         export.primitives.push(gltf_export::primitive_from_tr(
             &mesh.name,
             &mesh.mesh,
@@ -634,10 +647,29 @@ pub fn write_static_lod_level_baked(
     gltf_path: impl AsRef<Path>,
     formula: LayerBlendFormula,
 ) -> Result<(), String> {
+    write_static_lod_level_baked_variant(model, lod, gltf_path, formula, false)
+}
+
+/// As [`write_static_lod_level_baked`], selecting the pack's `rare` material
+/// when `rare` is true. The geometry and skeleton remain the normal pack's;
+/// only the authored material/texture variant changes.
+pub fn write_static_lod_level_baked_variant(
+    model: &PokemonModel,
+    lod: u32,
+    gltf_path: impl AsRef<Path>,
+    formula: LayerBlendFormula,
+    rare: bool,
+) -> Result<(), String> {
     let mut export = gltf_export::GltfExport::default();
     for mesh in model.meshes.iter().filter(|mesh| mesh.lod == Some(lod)) {
-        let material =
-            add_static_material(model, mesh, &mut export, gltf_path.as_ref(), Some(formula))?;
+        let material = add_static_material(
+            model,
+            mesh,
+            &mut export,
+            gltf_path.as_ref(),
+            Some(formula),
+            rare,
+        )?;
         export.primitives.push(gltf_export::primitive_from_tr(
             &mesh.name,
             &mesh.mesh,
@@ -747,8 +779,36 @@ pub fn write_skinned_lod_level(
     gltf_path: impl AsRef<Path>,
     formula: Option<LayerBlendFormula>,
 ) -> Result<(), String> {
-    write_skinned_lod_level_clips(model, lod, &[clip_name.to_owned()], gltf_path, formula)
-        .map(|_| ())
+    write_skinned_lod_level_clips_variant(
+        model,
+        lod,
+        &[clip_name.to_owned()],
+        gltf_path,
+        formula,
+        false,
+    )
+    .map(|_| ())
+}
+
+/// As [`write_skinned_lod_level`], selecting the authored `rare` material
+/// while keeping the normal material path unchanged when `rare` is false.
+pub fn write_skinned_lod_level_variant(
+    model: &PokemonModel,
+    lod: u32,
+    clip_name: &str,
+    gltf_path: impl AsRef<Path>,
+    formula: Option<LayerBlendFormula>,
+    rare: bool,
+) -> Result<(), String> {
+    write_skinned_lod_level_clips_variant(
+        model,
+        lod,
+        &[clip_name.to_owned()],
+        gltf_path,
+        formula,
+        rare,
+    )
+    .map(|_| ())
 }
 
 /// Like [`write_skinned_lod_level`] but writes several clips as separate glTF animations
@@ -760,6 +820,19 @@ pub fn write_skinned_lod_level_clips(
     clip_names: &[String],
     gltf_path: impl AsRef<Path>,
     formula: Option<LayerBlendFormula>,
+) -> Result<Vec<String>, String> {
+    write_skinned_lod_level_clips_variant(model, lod, clip_names, gltf_path, formula, false)
+}
+
+/// Like [`write_skinned_lod_level_clips`], selecting the authored `rare`
+/// material when requested while preserving the normal export path by default.
+pub fn write_skinned_lod_level_clips_variant(
+    model: &PokemonModel,
+    lod: u32,
+    clip_names: &[String],
+    gltf_path: impl AsRef<Path>,
+    formula: Option<LayerBlendFormula>,
+    rare: bool,
 ) -> Result<Vec<String>, String> {
     let skeleton = model.skeleton.as_ref().ok_or_else(|| {
         format!(
@@ -798,7 +871,8 @@ pub fn write_skinned_lod_level_clips(
     let mut export = gltf_export::GltfExport::default();
     let mut primitive_count = 0;
     for mesh in model.meshes.iter().filter(|mesh| mesh.lod == Some(lod)) {
-        let material = add_static_material(model, mesh, &mut export, gltf_path.as_ref(), formula)?;
+        let material =
+            add_static_material(model, mesh, &mut export, gltf_path.as_ref(), formula, rare)?;
         export.primitives.push(gltf_export::primitive_from_tr(
             &mesh.name,
             &mesh.mesh,
@@ -922,7 +996,7 @@ pub(crate) fn add_static_material_for_player(
     gltf_path: &Path,
     formula: Option<LayerBlendFormula>,
 ) -> Result<Option<usize>, String> {
-    add_static_material(model, mesh, export, gltf_path, formula)
+    add_static_material(model, mesh, export, gltf_path, formula, false)
 }
 
 fn add_mesh_nodes(
@@ -979,11 +1053,20 @@ fn save_texture(
             }
         })
         .collect::<String>();
-    let filename = format!("{safe_name}.png");
+    let filename = format!("{safe_name}{}.png", rare_texture_suffix(gltf_path));
     flip_rows(image)
         .save_png(&output.join(&filename))
         .map_err(|e| e.to_string())?;
     Ok(Some(filename))
+}
+
+fn rare_texture_suffix(gltf_path: &Path) -> &'static str {
+    gltf_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .is_some_and(|stem| stem.contains("_rare_"))
+        .then_some("_rare")
+        .unwrap_or("")
 }
 
 fn add_static_material(
@@ -992,10 +1075,15 @@ fn add_static_material(
     export: &mut gltf_export::GltfExport,
     gltf_path: &Path,
     formula: Option<LayerBlendFormula>,
+    rare: bool,
 ) -> Result<Option<usize>, String> {
-    let material = mesh
-        .material_entry_index
-        .and_then(|index| model.materials.iter().find(|m| m.entry_index == index));
+    let material = material_for_mesh(model, mesh, rare);
+    if rare && material.is_none() {
+        return Err(format!(
+            "rare material has no block for mesh binding {}",
+            mesh.material_binding
+        ));
+    }
     let base_name = material.and_then(|material| {
         let textures = material
             .texture_links
@@ -1054,6 +1142,30 @@ fn add_static_material(
         None
     };
     Ok(material_index)
+}
+
+fn material_for_mesh<'a>(
+    model: &'a PokemonModel,
+    mesh: &PokemonLodMesh,
+    rare: bool,
+) -> Option<&'a PokemonMaterial> {
+    let normal = mesh
+        .material_entry_index
+        .and_then(|index| model.materials.iter().find(|m| m.entry_index == index));
+    if !rare {
+        return normal;
+    }
+    model
+        .materials
+        .iter()
+        .filter(|material| {
+            material.source_name.to_ascii_lowercase().contains("rare")
+        })
+        .find(|material| {
+            super::pokemon_material::parse_blocks(&material.raw_bytes)
+                .iter()
+                .any(|block| block.name.eq_ignore_ascii_case(&mesh.material_binding))
+        })
 }
 
 /// Player eye texture bake. Evidence (p1 `eye` material): `LayerMaskMap` G marks the iris disc
@@ -1181,9 +1293,10 @@ fn save_mask_lerp_base_color(
             .collect::<String>()
     };
     let filename = format!(
-        "{}_{}_color.png",
+        "{}_{}_color{}.png",
         safe(albedo_file.trim_end_matches(".bntx")),
-        safe(binding)
+        safe(binding),
+        rare_texture_suffix(gltf_path)
     );
     let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));
     flip_rows(&baked)
@@ -1236,7 +1349,10 @@ fn save_baked_base_color(
         LayerBlendFormula::SequentialLerp => "sequential_lerp",
         LayerBlendFormula::MaskLerp => "mask_lerp",
     };
-    let filename = format!("{albedo_name}_{suffix}.png");
+    let filename = format!(
+        "{albedo_name}_{suffix}{}.png",
+        rare_texture_suffix(gltf_path)
+    );
     let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));
     baked
         .save_png(&output.join(&filename))
