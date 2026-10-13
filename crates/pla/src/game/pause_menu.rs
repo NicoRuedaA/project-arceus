@@ -1,5 +1,5 @@
 //! Pause menu (Esc or gamepad +): a Bevy UI overlay navigable with the keyboard
-//! (arrows or A/D, D-pad, Enter/A) and the mouse (hover + click).
+//! (arrows, W/S or A/D, D-pad, Enter/A) and the mouse (hover + click).
 //!
 //! Options: Resume, Invert camera X axis, Invert camera Y axis, Volume (master, cycles
 //! 100/75/50/25/0 %), Back to safe spawn, Save game, Quit.
@@ -229,7 +229,7 @@ fn spawn_menu(mut commands: Commands) {
                         });
                 }
                 panel.spawn((
-                    Text::new("Arrows or A/D, D-pad + Enter/A, or click. Esc or + resumes."),
+                    Text::new("Arrows, W/S or D-pad + Enter/A, or click. Esc or + resumes."),
                     TextFont::from_font_size(14.0),
                     TextColor(Color::srgb(0.7, 0.75, 0.8)),
                 ));
@@ -276,6 +276,17 @@ fn pause_input(
     }
     if actions.just_pressed(Action::Next) {
         actions.consume(Action::Next);
+        delta += 1;
+    }
+    // W/S keep navigating the (vertical) menu as before the action layer: they are movement
+    // keys, not Prev/Next actions, and S is also the battle Switch action, so it is consumed.
+    if keys.just_pressed(KeyCode::KeyW) {
+        keys.clear_just_pressed(KeyCode::KeyW);
+        delta -= 1;
+    }
+    if keys.just_pressed(KeyCode::KeyS) {
+        keys.clear_just_pressed(KeyCode::KeyS);
+        actions.consume(Action::OpenSwitch);
         delta += 1;
     }
     if delta != 0 {
@@ -503,6 +514,16 @@ mod tests {
             .world()
             .resource::<ButtonInput<KeyCode>>()
             .just_pressed(KeyCode::Enter));
+
+        // W/S still move through the vertical menu; S does not leak as the battle Switch.
+        step(&mut app, &[KeyCode::KeyS], &[KeyCode::ArrowDown, KeyCode::Enter]);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 2);
+        assert!(!app
+            .world()
+            .resource::<ActionState>()
+            .just_pressed(Action::OpenSwitch));
+        step(&mut app, &[KeyCode::KeyW], &[KeyCode::KeyS]);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

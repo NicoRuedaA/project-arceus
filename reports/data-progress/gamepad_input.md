@@ -14,7 +14,8 @@ Default Switch-style mapping for the Bevy port, pure `ActionState` input layer, 
    and every `Gamepad` component into `ActionState`.
 2. **Consumers replaced.** `player_locomotion` and `camera_controls` (`port_viewer.rs`),
    `battle_input_system` (`game/battle_input.rs`, `map_keys` became `map_actions`) and the pause
-   menu (`game/pause_menu.rs`) no longer read `KeyCode`s; they read `Res<ActionState>`.
+   menu (`game/pause_menu.rs`) read `Res<ActionState>`. Exception (merge fix): the pause menu
+   still reads W/S directly so they keep navigating the vertical menu, as before the action layer.
    `app.add_plugins(pla::game::input_map::InputMapPlugin)` is one line in the viewer.
 3. **Backend.** `bevy_gilrs` added to the `bevy` features in `crates/pla/Cargo.toml` (existing
    features untouched); `Cargo.lock` committed (`gilrs 0.11.2`, `gilrs-core 0.6.8`,
@@ -56,7 +57,8 @@ ZR=throw Poké Ball, dpad = 4 directions.
 
 - `cargo test -p pla input_map` → **12 passed, 0 failed** (`game::input_map::tests::*`).
 - `cargo test -p pla battle_input` → **5 passed, 0 failed**.
-- `cargo test -p pla pause_menu` → **8 passed, 0 failed** (2 new headless Bevy tests).
+- `cargo test -p pla pause_menu` → **8 passed, 0 failed** (2 new headless Bevy tests; on the
+  branch, before the merge into `main`).
 - `cargo test -p pla --lib` → **389 passed, 0 failed**.
 - `cargo test -p pla` (all 15 targets) → **478 passed, 0 failed, 2 ignored**.
 - `cargo build -p pla --example port_viewer` → builds (the viewer was **not** run: never opened).
@@ -75,8 +77,8 @@ ZR=throw Poké Ball, dpad = 4 directions.
 
 - All unit and headless results above, on this machine, from the commands listed.
 - Keyboard behaviour is preserved for movement, look, zoom, sprint and every battle key, except:
-  Space now also confirms in battle menus, and W/S no longer navigate the pause menu (arrows,
-  A/D and the d-pad do).
+  Space now also confirms in battle menus, and A/D now also navigate the pause menu (W/S, arrows
+  and the d-pad do too; W/S were restored at merge time and covered by a headless test).
 - Deadzone, curve, keyboard-over-stick priority and multi-source edge dedupe behave as tested.
 - The project compiles and links with `bevy_gilrs` + `gilrs`/`libudev-sys` (build, not runtime).
 
@@ -107,7 +109,7 @@ ZR=throw Poké Ball, dpad = 4 directions.
    battle (Fight/Switch/Item/Capture/Run).
 2. Confirm stick direction signs (look up/down, walk direction) and that a half-pushed stick
    walks slower.
-3. Confirm W/S no longer navigating the pause menu is acceptable (arrows/A/D remain).
+3. Confirm A/D also moving through the (vertical) pause menu is acceptable.
 
 ## Files
 
