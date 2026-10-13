@@ -6,6 +6,7 @@ use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 pub mod effects;
 pub mod items;
 pub mod progression;
+pub mod rules;
 pub mod statuses;
 use effects::{EffectEvent, MoveEffectsTable, Stages};
 use items::ItemTable;
@@ -243,6 +244,13 @@ pub struct Battle {
     pending_status: Vec<(usize, MajorStatus)>,
     stage_multipliers: bool,
     status: statuses::StatusState,
+    /// Turn-limited major status per combatant: (turns, elapsed end-of-turns). VERIFIED rule.
+    status_turns: Vec<Option<(u8, u8)>>,
+    /// Remaining turns per rank group (Atk/SpA, Def/SpD, Spe/Acc/Eva). VERIFIED rule.
+    stage_turns: Vec<[u8; 3]>,
+    rule_events: Vec<rules::RuleEvent>,
+    /// VERIFIED PLA base damage formula on/off (off = legacy main-series shape).
+    pla_damage: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -299,6 +307,10 @@ impl Battle {
             pending_status: Vec::new(),
             stage_multipliers: false,
             status: statuses::StatusState::default(),
+            status_turns: Vec::new(),
+            stage_turns: Vec::new(),
+            rule_events: Vec::new(),
+            pla_damage: false,
         })
     }
 
@@ -360,12 +372,14 @@ impl Battle {
                     &self.combatants[target],
                     &a.data,
                     &self.type_chart,
+                    self.pla_damage,
                 )
                 .total_cmp(&expected_damage(
                     &self.combatants[actor],
                     &self.combatants[target],
                     &b.data,
                     &self.type_chart,
+                    self.pla_damage,
                 ))
             })
             .map(|(move_slot, _)| Action { actor, move_slot })
@@ -418,7 +432,6 @@ impl Battle {
                         priority,
                         self.weather,
                         self.trick_room,
-                        self.speed_stage_q12(action.actor),
                     ),
                 )
             })
@@ -509,14 +522,13 @@ impl Battle {
             ) {
                 continue;
             }
-            let actor = &self.combatants[action.actor];
-            if !accuracy_hits(
-                accuracy,
-                actor.accuracy_stage,
-                self.combatants[target].evasion_stage,
-                4096,
-                rng,
-            ) {
+            // VERIFIED: accuracy and evasion read the shared Spe/Acc/Eva rank group.
+            let acc_stage = (self.combatants[action.actor].accuracy_stage
+                + self.stages(action.actor).speed)
+                .clamp(-1, 1);
+            let eva_stage =
+                (self.combatants[target].evasion_stage + self.stages(target).speed).clamp(-1, 1);
+            if !accuracy_hits(accuracy, acc_stage, eva_stage, 4096, rng) {
                 events.push(Event::Missed {
                     actor: action.actor,
                     target,
@@ -559,22 +571,17 @@ impl Battle {
                 continue;
             }
             let hits = fx.as_ref().map_or(1, |f| Self::roll_hits(f, rng));
-            let (atk_mod, def_mod) = if self.stage_multipliers {
-                self.stage_modifiers(action.actor, target)
+            // VERIFIED: rank states multiply the base damage (not the stats); see rules.rs.
+            let ranks = if self.stage_multipliers {
+                (
+                    self.stages(action.actor).attack,
+                    self.stages(target).defense,
+                )
             } else {
-                (4096, 4096)
+                (0, 0)
             };
-            // Stage multipliers scale the attacker's Atk and defender's Def stat (3-state, LIKELY).
-            let saved = (
-                self.combatants[action.actor].attack_modifier_q12,
-                self.combatants[target].defense_modifier_q12,
-            );
-            if self.stage_multipliers {
-                let a = &mut self.combatants[action.actor];
-                a.attack_modifier_q12 = q12_mul(u32::from(a.attack_modifier_q12), atk_mod) as u16;
-                let d = &mut self.combatants[target];
-                d.defense_modifier_q12 = q12_mul(u32::from(d.defense_modifier_q12), def_mod) as u16;
-            }
+            let drowsy_bonus = self.status_rules().notes_rates;
+            let pla_formula = self.pla_damage;
             let mut damage = 0;
             let mut dealt = 0;
             let mut critical = false;
@@ -590,6 +597,9 @@ impl Battle {
                     &self.type_chart,
                     self.weather,
                     critical_rank,
+                    ranks,
+                    drowsy_bonus,
+                    pla_formula,
                     rng,
                 );
                 dealt += d.min(self.combatants[target].hp);
@@ -602,8 +612,6 @@ impl Battle {
                     break;
                 }
             }
-            self.combatants[action.actor].attack_modifier_q12 = saved.0;
-            self.combatants[target].defense_modifier_q12 = saved.1;
             if hits > 1 {
                 self.effect_events.push(EffectEvent::Hits {
                     actor: action.actor,
@@ -657,7 +665,7 @@ impl Battle {
                 else {
                     continue;
                 };
-                let damage = (self.combatants[i].max_hp / self.residual_divisor(status)).max(1);
+                let damage = self.residual_damage(i, status);
                 self.combatants[i].hp = self.combatants[i].hp.saturating_sub(damage);
                 events.push(Event::Recoil {
                     target: i,
@@ -673,6 +681,8 @@ impl Battle {
         for index in status_knockouts {
             self.advance_active_for(index);
         }
+        self.status_turns_end_of_turn();
+        self.stage_turns_end_of_turn();
         self.status_end_of_turn(&mut events);
         if let Some(winner) = self.winner_side() {
             self.ended = true;
@@ -878,7 +888,8 @@ pub fn critical_hit(move_rank: u8, stage: u8, rng: &mut impl BattleRng) -> bool 
     rng.below(denominators[rank]) == 0
 }
 
-/// LIKELY PLA accuracy stage mapping. Accuracy 101 is a guaranteed-hit sentinel.
+/// VERIFIED PLA accuracy: three rank states x0.7/x1.0/x1.3, cap 100, Q12 event modifier with
+/// round-half-down, roll in [0, 99]. Accuracy above 100 (101 in data) never misses.
 pub fn accuracy_hits(
     accuracy: u8,
     accuracy_stage: i8,
@@ -890,21 +901,23 @@ pub fn accuracy_hits(
         return true;
     }
     let index = (accuracy_stage + 1 - evasion_stage).clamp(0, 2) as usize;
-    let numerator = [70_u32, 100, 130][index];
-    let chance = ((u32::from(accuracy) * numerator / 100).min(100) * event_q12 / 4096).min(100);
+    let (numerator, denominator) = rules::ACCURACY_TABLE[index];
+    let chance = q12_mul((u32::from(accuracy) * numerator / denominator).min(100), event_q12).min(100);
     rng.below(100) < chance
 }
 
-/// LIKELY speed modifiers plus UNKNOWN action-class encoding. Class and move priority are explicit inputs.
+/// VERIFIED agility: speed x Q12 event modifier (round half down), x133/100 for Grass in sun or
+/// Ice in snow, x50/100 when paralysed, capped at 10000, optionally reversed (10000 - v), then
+/// packed into a 13-bit field. Speed rank states are NOT part of it (they share the accuracy /
+/// evasion group). Ordering is action class, then move priority, then agility; the exact class
+/// numbering stays a caller input (default attack class).
 fn turn_order_key(
     actor: &Combatant,
     priority: i8,
     weather: BattleWeather,
     trick_room: bool,
-    stage_q12: u32,
 ) -> (u8, i8, u32) {
     let mut speed = q12_mul(actor.speed, u32::from(actor.speed_modifier_q12));
-    speed = q12_mul(speed, stage_q12);
     if (weather == BattleWeather::Sun && actor.species.types.iter().any(|t| t == "Grass"))
         || (weather == BattleWeather::Snow && actor.species.types.iter().any(|t| t == "Ice"))
     {
@@ -913,11 +926,11 @@ fn turn_order_key(
     if actor.status == Some(MajorStatus::Paralysis) {
         speed /= 2;
     }
-    speed = speed.min(10_000);
+    speed = speed.min(rules::AGILITY_CAP);
     if trick_room {
-        speed = 10_000 - speed;
+        speed = rules::AGILITY_CAP - speed;
     }
-    (actor.action_class, priority, speed)
+    (actor.action_class, priority, speed & rules::AGILITY_KEY_MASK)
 }
 
 fn expected_damage(
@@ -925,13 +938,15 @@ fn expected_damage(
     target: &Combatant,
     movement: &BattleMove,
     chart: &TypeChart,
+    pla: bool,
 ) -> f32 {
     let (attack, defense) = if movement.category == "Physical" {
         (attacker.attack, target.defense)
     } else {
         (attacker.special_attack, target.special_defense)
     };
-    let base = integer_base_damage(
+    let base = rules::base_damage(
+        pla,
         u32::from(movement.power),
         attack,
         u32::from(attacker.level),
@@ -946,11 +961,10 @@ fn expected_damage(
     base as f32 * if stab { 1.25 } else { 1.0 } * effectiveness * 0.925
 }
 
-fn integer_base_damage(power: u32, attack: u32, level: u32, defense: u32) -> u32 {
-    (((power * attack * ((2 * level / 5) + 2)) / defense.max(1)) / 50) + 2
-}
-
-/// VERIFIED damage core/random/critical/type; rain and status class adjustments are LIKELY.
+/// VERIFIED damage pipeline: PLA base formula (when `pla_formula`) with rank states, Q12 modifier, rain/Fire x0.75,
+/// critical x1.5, 85-100 % roll, STAB x1.25, type category, burn/physical and
+/// frostbite/special x50 %, drowsy defender x133 % (when `drowsy_bonus`), minimum 1.
+#[allow(clippy::too_many_arguments)]
 fn calculate_damage(
     attacker: &Combatant,
     target: &Combatant,
@@ -960,6 +974,9 @@ fn calculate_damage(
     chart: &TypeChart,
     weather: BattleWeather,
     critical_rank: u8,
+    ranks: (i8, i8),
+    drowsy_bonus: bool,
+    pla_formula: bool,
     rng: &mut impl BattleRng,
 ) -> (u32, bool, f32) {
     let (attack, defense) = if category == "Physical" {
@@ -970,7 +987,8 @@ fn calculate_damage(
     let power = q12_mul(u32::from(power), u32::from(attacker.power_modifier_q12));
     let attack = q12_mul(attack, u32::from(attacker.attack_modifier_q12));
     let defense = q12_mul(defense, u32::from(target.defense_modifier_q12));
-    let base = integer_base_damage(power, attack, u32::from(attacker.level), defense);
+    let base = rules::base_damage(pla_formula, power, attack, u32::from(attacker.level), defense);
+    let base = rules::apply_rank_states(base, ranks.0, ranks.1);
     let effectiveness = type_effectiveness(chart, attack_type, &target.species.types);
     let mut damage = q12_mul(base, u32::from(attacker.damage_modifier_q12));
     if weather == BattleWeather::Rain && attack_type == "Fire" {
@@ -988,7 +1006,10 @@ fn calculate_damage(
     if (attacker.status == Some(MajorStatus::Burn) && category == "Physical")
         || (attacker.status == Some(MajorStatus::Frostbite) && category == "Special")
     {
-        damage = damage / 2;
+        damage = damage * rules::BURN_FROSTBITE_DAMAGE_PERCENT / 100;
+    }
+    if drowsy_bonus && target.status == Some(MajorStatus::Drowsy) {
+        damage = damage * rules::DROWSY_DAMAGE_TAKEN_PERCENT / 100;
     }
     (
         if effectiveness == 0.0 {
@@ -1086,7 +1107,8 @@ mod tests {
         assert_eq!(calculate_stat(45, 100, 10, 100, true, false), 297);
         assert_eq!(calculate_stat(50, 100, 10, 110, false, false), 220);
         assert_eq!(calculate_stat(1, 50, 10, 110, true, true), 1);
-        assert_eq!(integer_base_damage(40, 50, 20, 40), 12);
+        // PLA base: 40*(50+100+15*20)=18000; /(40+50)=200; /5=40.
+        assert_eq!(rules::pla_base_damage(40, 50, 20, 40), 40);
         assert_eq!(q12_mul(100, 0x1400), 125);
     }
 
@@ -1158,6 +1180,9 @@ mod tests {
             d.type_chart(),
             BattleWeather::Clear,
             0,
+            (0, 0),
+            false,
+            true,
             &mut Fixed(vec![0, 0]),
         );
         assert!(critical);
@@ -1171,6 +1196,9 @@ mod tests {
             d.type_chart(),
             BattleWeather::Clear,
             0,
+            (0, 0),
+            false,
+            true,
             &mut Fixed(vec![1, 15]),
         );
         assert!(!critical);
@@ -1185,6 +1213,9 @@ mod tests {
             d.type_chart(),
             BattleWeather::Clear,
             0,
+            (0, 0),
+            false,
+            true,
             &mut Fixed(vec![1, 15]),
         );
         assert_eq!(multiplier, 0.0);
@@ -1290,7 +1321,8 @@ mod tests {
         )));
         assert_eq!(
             b.combatants[1].hp,
-            before - (b.combatants[1].max_hp / 8).max(1)
+            before - (b.combatants[1].max_hp / 8).max(1),
+            "legacy rate when notes_rates is off"
         );
     }
     #[test]

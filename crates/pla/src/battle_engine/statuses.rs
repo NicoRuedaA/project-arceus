@@ -6,9 +6,9 @@
 //! separate [`StatusEvent`] list (`Battle::take_status_events`) because the stable `Event`
 //! and `EffectEvent` enums are matched exhaustively by other code.
 //!
-//! Confidence tags (VERIFIED/LIKELY come from `work/scratch-battle/battle_formulas.md` or the
-//! decoded `data/pml_move_effects.tsv` columns; ASSUMED = franchise convention that no
-//! recovered data contradicts, to be replaced when the game's own value is found):
+//! Confidence tags (VERIFIED = read from the game's battle code, see
+//! `reports/data-progress/battle_rules_verified.md`; LIKELY = data column meaning inferred;
+//! ASSUMED = franchise convention that no recovered code or data contradicts):
 //!
 //! * Which moves do what (data columns): confusion = `ailment_id` 8 (LIKELY), trapping =
 //!   `ailment_id` 10 (LIKELY), charge/recharge/protectable flags (LIKELY), Protect-style =
@@ -16,41 +16,46 @@
 //!   `effect_id` in {111, 355, 361, 383, 441} (protect/detect/max-guard, king's-shield,
 //!   spiky-shield, baneful-bunker, obstruct); endure (116), magic-coat (183) and snatch (195)
 //!   share the +4 priority but are not blocking moves and are excluded.
-//! * Confusion: 2..=5 counter, so 1..=4 confused actions; 33 % self-hit; 40-power typeless
-//!   physical hit on own Atk/Def, no crit/STAB/type, 85-100 % roll (all ASSUMED).
-//! * Sleep: 1..=3 skipped actions then wakes and acts (ASSUMED). In PLA the notes only say
-//!   that drowsy fails 33 % (`nemuke_WazaFailPer`); the duration model replaces the engine's
-//!   old 50 % coin flip when enabled.
-//! * Paralysis action failure 33 % (`mahi_WazaFailPer`, LIKELY, notes section 6); poison 1/6,
-//!   burn 1/12, frostbite 1/12 of max HP per round (`*_SlipDamageDenom`, LIKELY, section 7).
-//!   Both are used when `notes_rates` is on; off keeps the old franchise-style 25 % / 1/8.
-//! * Trapping: 4..=5 rounds, 1/8 max HP per round, no switching while the trapper stays active
-//!   and alive (ASSUMED).
-//! * Charge: turn 1 only charges (PP is spent, no accuracy roll), turn 2 attacks with the
-//!   stored move (ASSUMED). The table has no semi-invulnerable flag, so Fly/Dig/Dive/Bounce
-//!   can be hit on the charge turn (UNKNOWN in the game).
-//! * Recharge: after a recharge-flag move connects, the user's next action is skipped (ASSUMED).
+//! * Confusion (VERIFIED): duration rolled in the move's `[raw_f14, raw_f15]` range (2..=5 for
+//!   Confuse Ray), counted per action; the action that reaches it snaps out and acts normally;
+//!   otherwise 33 % self-hit: 40-power hit through the PLA base formula on the user's own
+//!   Atk/Def, rank states ignored, no crit/STAB/type, 85-100 % roll, minimum 1.
+//! * Drowsy (VERIFIED, `sleep_duration` switch): no forced sleep; each action fails 33 %
+//!   (66 % in snow); it lasts the move's turn count (see `rules.rs`). The franchise model of
+//!   1..=3 skipped actions was REFUTED.
+//! * Paralysis action failure 33 % (VERIFIED, `notes_rates`); poison 1/6, burn 1/12, frostbite
+//!   1/12 of max HP per end of turn, rounded up (VERIFIED). Off keeps the old 25 % / 1/8.
+//! * Order of the pre-action checks (VERIFIED): confusion, then paralysis, then drowsiness.
+//! * Trapping: duration rolled in the move's `[raw_f14, raw_f15]` range (5..=6 for Wrap,
+//!   VERIFIED), ceil(1/8) max HP per end of turn (VERIFIED); no switching while the trapper
+//!   stays active and alive (ASSUMED).
+//! * Charge: turn 1 only charges, turn 2 attacks with the stored move (ASSUMED; no move usable
+//!   in PLA carries `flag_charge`, so the rule is not exercised by real PLA moves).
+//! * Recharge: REFUTED as a column meaning. `flag_recharge` is also set on Dire Claw and
+//!   Psyshield Bash, which never recharge, so the engine no longer skips the next action.
 //! * Protect: blocks protectable moves aimed at the protector for the round; success
-//!   chance 1/3^n after n consecutive successes, failure resets the chain (ASSUMED).
-//! * Speed stages: 3 states, x1.5 up / x0.66 down (LIKELY, config coefficients; the notes do
-//!   not show where the game applies them to turn order).
+//!   chance 1/3^n after n consecutive successes (ASSUMED; no Protect-style move is usable in
+//!   PLA's move set, and no chain code was found).
+//! * Speed stages: the game's agility does not read rank states (VERIFIED), so the switch no
+//!   longer changes turn order; the speed rank group drives accuracy/evasion instead.
 
-use super::effects::{MoveEffects, STAGE_DOWN_Q12, STAGE_UP_Q12};
-use super::{Battle, BattleRng, Event, MajorStatus};
-use crate::battle::{integer_base_damage, BaseDamageInput};
+use super::effects::MoveEffects;
+use super::rules;
+use super::{Battle, BattleRng, BattleWeather, Event, MajorStatus};
 
 /// Opt-in switches. `Default` (everything off) leaves the engine unchanged.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct StatusRules {
     /// Confusion, trapping, charge turns, recharge turns, Protect-style moves.
     pub volatile_statuses: bool,
-    /// Sleep lasts 1..=3 skipped actions instead of a 50 % coin flip.
+    /// Drowsy follows the game's rule (33 % fail, 66 % in snow) instead of a 50 % coin flip.
     pub sleep_duration: bool,
-    /// Use the notes' paralysis failure rate (33 %) and slip denominators (6/12/12).
+    /// Game rates: paralysis 33 %, slip damage 1/6, 1/12, 1/12 rounded up, drowsy defender
+    /// x1.33 damage taken, and turn-limited major statuses.
     pub notes_rates: bool,
-    /// Speed stages (x1.5 / x0.66) modify turn order.
+    /// Kept for compatibility: rank states do not change turn order in the game (VERIFIED).
     pub speed_stages: bool,
-    /// Atk/SpA and Def/SpD stages (x1.5 / x0.66) modify damage.
+    /// Rank states multiply the base damage, and rank changes expire after their turns.
     pub stage_multipliers: bool,
 }
 
@@ -95,7 +100,6 @@ struct Trap {
 #[derive(Debug, Clone, Default)]
 pub(super) struct Volatile {
     confusion: u8,
-    sleep: Option<u8>,
     trap: Option<Trap>,
     charging: Option<usize>,
     recharge: bool,
@@ -118,9 +122,9 @@ pub(super) enum PreAction {
 }
 
 const PROTECT_EFFECT_IDS: [u16; 5] = [111, 355, 361, 383, 441];
-pub const CONFUSION_SELF_HIT_PERCENT: u32 = 33;
-pub const CONFUSION_SELF_HIT_POWER: u64 = 40;
-pub const PARALYSIS_FAIL_PERCENT: u32 = 33;
+pub const CONFUSION_SELF_HIT_PERCENT: u32 = rules::CONFUSION_SELF_HIT_PERCENT;
+pub const CONFUSION_SELF_HIT_POWER: u64 = rules::CONFUSION_SELF_HIT_POWER as u64;
+pub const PARALYSIS_FAIL_PERCENT: u32 = rules::PARALYSIS_FAIL_PERCENT;
 
 /// Does this move's data row describe a Protect-style blocking move?
 pub fn is_protect_move(fx: &MoveEffects) -> bool {
@@ -135,6 +139,9 @@ impl Battle {
         self.status.rules = rules;
         if rules.stage_multipliers {
             self.stage_multipliers = true;
+        }
+        if rules.notes_rates {
+            self.pla_damage = true;
         }
     }
 
@@ -177,28 +184,6 @@ impl Battle {
         self.combatants[trap.by].is_alive() && self.active.contains(&trap.by)
     }
 
-    pub(super) fn residual_divisor(&self, status: MajorStatus) -> u32 {
-        if !self.status.rules.notes_rates {
-            return 8;
-        }
-        match status {
-            MajorStatus::Poison => 6,
-            _ => 12,
-        }
-    }
-
-    /// Speed factor from the 3-state speed stage (Q12), 4096 when disabled.
-    pub(super) fn speed_stage_q12(&self, actor: usize) -> u32 {
-        if !self.status.rules.speed_stages {
-            return 4096;
-        }
-        match self.stages(actor).speed {
-            1 => STAGE_UP_Q12,
-            -1 => STAGE_DOWN_Q12,
-            _ => 4096,
-        }
-    }
-
     /// Switch gate; returns false (and logs) when a trap forbids leaving.
     pub(super) fn switch_allowed(&mut self, side: usize, current: usize) -> bool {
         if self.status.rules.volatile_statuses && self.is_trapped(current) {
@@ -225,6 +210,7 @@ impl Battle {
     }
 
     /// Checks that happen when a combatant is about to act (before PP is spent).
+    /// VERIFIED order: confusion, paralysis, drowsiness.
     pub(super) fn status_pre_action(
         &mut self,
         actor: usize,
@@ -235,38 +221,6 @@ impl Battle {
         if rules.volatile_statuses && self.vol(actor).recharge {
             self.vol(actor).recharge = false;
             self.status.events.push(StatusEvent::Recharging { actor });
-            return PreAction::Skip;
-        }
-        let status = self.combatants[actor].status;
-        if rules.sleep_duration && status == Some(MajorStatus::Drowsy) {
-            let left = match self.vol(actor).sleep {
-                Some(n) => n,
-                None => 1 + rng.below(3) as u8,
-            };
-            if left > 0 {
-                self.vol(actor).sleep = Some(left - 1);
-                events.push(Event::UnableToAct {
-                    actor,
-                    status: MajorStatus::Drowsy,
-                });
-                return PreAction::Skip;
-            }
-            self.vol(actor).sleep = None;
-            self.combatants[actor].status = None;
-            self.status
-                .events
-                .push(StatusEvent::WokeUp { target: actor });
-        } else if status != Some(MajorStatus::Drowsy) && !self.status.vol.is_empty() {
-            self.vol(actor).sleep = None;
-        }
-        if rules.notes_rates
-            && self.combatants[actor].status == Some(MajorStatus::Paralysis)
-            && rng.below(100) < PARALYSIS_FAIL_PERCENT
-        {
-            events.push(Event::UnableToAct {
-                actor,
-                status: MajorStatus::Paralysis,
-            });
             return PreAction::Skip;
         }
         if rules.volatile_statuses && self.vol(actor).confusion > 0 {
@@ -290,6 +244,30 @@ impl Battle {
                 return PreAction::Skip;
             }
         }
+        if rules.notes_rates
+            && self.combatants[actor].status == Some(MajorStatus::Paralysis)
+            && rng.below(100) < PARALYSIS_FAIL_PERCENT
+        {
+            events.push(Event::UnableToAct {
+                actor,
+                status: MajorStatus::Paralysis,
+            });
+            return PreAction::Skip;
+        }
+        if rules.sleep_duration && self.combatants[actor].status == Some(MajorStatus::Drowsy) {
+            let fail = if self.weather == BattleWeather::Snow {
+                rules::DROWSY_FAIL_PERCENT * 2
+            } else {
+                rules::DROWSY_FAIL_PERCENT
+            };
+            if rng.below(100) < fail {
+                events.push(Event::UnableToAct {
+                    actor,
+                    status: MajorStatus::Drowsy,
+                });
+                return PreAction::Skip;
+            }
+        }
         if rules.volatile_statuses {
             if let Some(slot) = self.vol(actor).charging.take() {
                 return PreAction::Act(Some(slot));
@@ -298,25 +276,17 @@ impl Battle {
         PreAction::Act(None)
     }
 
-    /// Typeless 40-power physical hit on the user's own Atk/Def (ASSUMED franchise rule).
+    /// VERIFIED confusion self-hit: 40 power through the PLA base formula on the user's own
+    /// Atk and Def (no event modifiers, rank states ignored), 85-100 % roll, minimum 1.
     fn confusion_damage(&self, actor: usize, rng: &mut impl BattleRng) -> u32 {
         let c = &self.combatants[actor];
-        let (mut atk, mut def) = (
-            u64::from(c.attack) * u64::from(c.attack_modifier_q12) / 4096,
-            u64::from(c.defense) * u64::from(c.defense_modifier_q12) / 4096,
+        let base = rules::base_damage(
+            self.pla_damage,
+            rules::CONFUSION_SELF_HIT_POWER,
+            c.attack,
+            u32::from(c.level),
+            c.defense,
         );
-        if self.status.rules.stage_multipliers {
-            let (a, d) = self.stage_modifiers(actor, actor);
-            atk = atk * u64::from(a) / 4096;
-            def = def * u64::from(d) / 4096;
-        }
-        let base = integer_base_damage(BaseDamageInput {
-            power: CONFUSION_SELF_HIT_POWER,
-            level: u64::from(c.level),
-            attack: atk.max(1),
-            defense: def.max(1),
-        })
-        .unwrap_or(1) as u32;
         (base * (85 + rng.below(16)) / 100).max(1)
     }
 
@@ -380,18 +350,14 @@ impl Battle {
             .and_then(|t| t.get(move_name))
             .is_some_and(|f| match flag {
                 Flag::Charge => f.charge,
-                Flag::Recharge => f.recharge,
                 Flag::Protectable => f.protectable,
             })
     }
 
-    /// After a damaging move connected: recharge-flag moves cost the user's next action.
-    pub(super) fn status_post_hit(&mut self, actor: usize, move_name: &str) {
-        if self.status.rules.volatile_statuses && self.effects_flag(move_name, Flag::Recharge) {
-            self.vol(actor).recharge = true;
-            self.status.events.push(StatusEvent::MustRecharge { actor });
-        }
-    }
+    /// After a damaging move connected. The old "recharge flag skips the next action" rule
+    /// was REFUTED (the column is set on Dire Claw and Psyshield Bash too), so nothing happens.
+    /// How PLA delays the user after Hyper Beam-like moves is UNKNOWN (action-order system).
+    pub(super) fn status_post_hit(&mut self, _actor: usize, _move_name: &str) {}
 
     /// Confusion (ailment 8) and trapping (ailment 10) from a move that connected.
     pub(super) fn status_post_effects(
@@ -418,15 +384,17 @@ impl Battle {
         }
         if fx.ailment_id == 8 {
             if self.vol(target).confusion == 0 {
-                self.vol(target).confusion = 2 + rng.below(4) as u8;
+                let (lo, hi) = data_turns(fx, (2, 5));
+                self.vol(target).confusion = rules::roll_turns(lo, hi, rng);
                 self.status
                     .events
                     .push(StatusEvent::Confused { target });
             }
         } else if !self.is_trapped(target) {
+            let (lo, hi) = data_turns(fx, (5, 6));
             self.vol(target).trap = Some(Trap {
                 by: actor,
-                turns: 4 + rng.below(2) as u8,
+                turns: rules::roll_turns(lo, hi, rng),
             });
             self.status
                 .events
@@ -455,7 +423,8 @@ impl Battle {
                 self.status.events.push(StatusEvent::TrapEnded { target: i });
                 continue;
             }
-            let damage = (self.combatants[i].max_hp / 8).max(1).min(self.combatants[i].hp);
+            let damage = rules::ceil_fraction(self.combatants[i].max_hp, rules::TRAP_SLIP_DENOM)
+                .min(self.combatants[i].hp);
             self.combatants[i].hp -= damage;
             self.status
                 .events
@@ -488,8 +457,15 @@ impl Battle {
 #[derive(Clone, Copy)]
 enum Flag {
     Charge,
-    Recharge,
     Protectable,
+}
+
+/// Duration range from the move's ailment columns, or the fallback when absent.
+fn data_turns(fx: &MoveEffects, fallback: (u8, u8)) -> (u8, u8) {
+    match fx.ailment_turns {
+        Some((_, lo, hi)) if hi.max(lo) > 0 => (lo, hi),
+        _ => fallback,
+    }
 }
 
 #[cfg(test)]
@@ -579,7 +555,9 @@ mod tests {
     #[test]
     fn confusion_is_applied_lasts_and_self_hits() {
         let mut b = duel(&["confuse-ray"], &["tackle"], vol_rules());
-        // accuracy roll 0 hits; status move chance 0 = always; duration 2 + 3 = 5.
+        b.combatants[0].max_hp = 5000;
+        b.combatants[0].hp = 5000;
+        // accuracy roll 0 hits; status move chance 0 = always; duration 2 + 3 = 5 (data 2..=5).
         let mut rng = Seq(vec![0, 3], 50);
         pass(&mut b, true, false, &mut rng);
         assert!(b.is_confused(1));
@@ -607,15 +585,13 @@ mod tests {
 
     #[test]
     fn confusion_damage_formula_is_typeless_forty_power() {
-        let b = duel(&["tackle"], &["tackle"], vol_rules());
+        let mut b = duel(&["tackle"], &["tackle"], vol_rules());
+        b.set_pla_damage_formula(true);
         let c = &b.combatants[1];
-        let base = integer_base_damage(BaseDamageInput {
-            power: 40,
-            level: u64::from(c.level),
-            attack: u64::from(c.attack),
-            defense: u64::from(c.defense),
-        })
-        .unwrap() as u32;
+        // PLA base formula: floor(floor(floor(40*(A+100+15L))/(D+50))/5).
+        let l = u32::from(c.level);
+        let base = 40 * (c.attack + 100 + 15 * l) / (c.defense + 50) / 5;
+        assert_eq!(base, rules::pla_base_damage(40, c.attack, l, c.defense));
         let mut rng = Seq(vec![15], 0); // roll 100 %
         assert_eq!(b.confusion_damage(1, &mut rng), base);
         let mut rng = Seq(vec![0], 0); // roll 85 %
@@ -623,25 +599,22 @@ mod tests {
     }
 
     #[test]
-    fn sleep_lasts_a_rolled_number_of_actions_then_wakes() {
+    fn drowsy_fails_a_third_of_actions_and_two_thirds_in_snow() {
         let rules = StatusRules {
             sleep_duration: true,
             ..StatusRules::default()
         };
         let mut b = duel(&["tackle"], &["tackle"], rules);
         b.combatants[1].status = Some(MajorStatus::Drowsy);
-        // rng 1 -> sleeps 1 + 1 = 2 actions.
-        let mut rng = Seq(vec![1], 0);
-        let mut unable = 0;
-        for _ in 0..4 {
-            let ev = pass(&mut b, false, true, &mut rng);
-            if ev.iter().any(|e| matches!(e, Event::UnableToAct { actor: 1, .. })) {
-                unable += 1;
-            }
-        }
-        assert_eq!(unable, 2);
-        assert_eq!(b.combatants[1].status, None);
-        assert!(b.take_status_events().contains(&StatusEvent::WokeUp { target: 1 }));
+        let unable = |ev: &[Event]| ev.iter().any(|e| matches!(e, Event::UnableToAct { actor: 1, .. }));
+        // roll 32 < 33 fails; roll 33 acts (no forced multi-turn sleep, REFUTED).
+        assert!(unable(&pass(&mut b, false, true, &mut Seq(vec![32], 99))));
+        assert!(!unable(&pass(&mut b, false, true, &mut Seq(vec![33], 99))));
+        assert_eq!(b.combatants[1].status, Some(MajorStatus::Drowsy), "no wake-up roll");
+        // Snow doubles the chance: roll 65 < 66 fails, 66 acts.
+        b.weather = BattleWeather::Snow;
+        assert!(unable(&pass(&mut b, false, true, &mut Seq(vec![65], 99))));
+        assert!(!unable(&pass(&mut b, false, true, &mut Seq(vec![66], 99))));
     }
 
     #[test]
@@ -664,14 +637,14 @@ mod tests {
             c.max_hp = 400;
             c.hp = 400;
         }
-        // accuracy roll 0, chance 100 %, duration 4 + 0.
+        // accuracy roll 0, crit/roll draws, then duration 5 + 0 (bind data: 5..=6).
         let mut rng = Seq(vec![0, 0, 0], 0);
         b.play_turn(&[act(0)], &mut rng);
         assert!(b.is_trapped(1));
         let hp_after_hit = b.combatants[1].hp;
         assert!(b.switch(1, 2).is_err(), "cannot leave while trapped");
         assert!(b.take_status_events().iter().any(|e| matches!(e, StatusEvent::CantSwitch { .. })));
-        // Residual damage is 1/8 of 400 = 50 per round; bind itself also damages on its own turn.
+        // Residual damage is ceil(400/8) = 50 per round; bind itself also damages on its own turn.
         let mut rng = Seq(vec![], 99); // bidoof's later binds miss, only trap damage happens
         let mut total = 0;
         let mut rounds = 0;
@@ -682,8 +655,8 @@ mod tests {
             rounds += 1;
         }
         assert!(hp_after_hit > 0);
-        assert_eq!(rounds, 3, "4 rounds of trap in total, one already spent at the first end of turn");
-        assert_eq!(total, 3 * 50);
+        assert_eq!(rounds, 4, "5 rounds of trap in total, one already spent at the first end of turn");
+        assert_eq!(total, 4 * 50);
         assert!(b.switch(1, 2).is_ok());
     }
 
@@ -717,21 +690,19 @@ mod tests {
     }
 
     #[test]
-    fn recharge_move_skips_the_next_action() {
+    fn recharge_flag_no_longer_skips_the_next_action() {
+        // REFUTED: the column is also set on dire-claw and psyshield-bash, which never recharge.
+        let t = MoveEffectsTable::load(root()).unwrap();
+        assert!(t.get("psyshield-bash").unwrap().recharge);
         let mut b = duel(&["hyper-beam"], &["tackle"], vol_rules());
         b.combatants[1].max_hp = 5000;
         b.combatants[1].hp = 5000;
         let mut rng = Seq(vec![], 0);
-        let ev = b.play_turn(&[act(0)], &mut rng);
-        assert!(ev.iter().any(|e| matches!(e, Event::UsedMove { actor: 0, .. })));
-        assert!(b.must_recharge(0));
+        b.play_turn(&[act(0)], &mut rng);
+        assert!(!b.must_recharge(0));
         let hp = b.combatants[1].hp;
         b.play_turn(&[act(0)], &mut rng);
-        assert_eq!(b.combatants[1].hp, hp, "recharge turn deals nothing");
-        assert!(!b.must_recharge(0));
-        assert!(b.take_status_events().contains(&StatusEvent::Recharging { actor: 0 }));
-        b.play_turn(&[act(0)], &mut rng);
-        assert!(b.combatants[1].hp < hp, "attacks again afterwards");
+        assert!(b.combatants[1].hp < hp, "acts again on the next turn");
     }
 
     #[test]
@@ -770,9 +741,9 @@ mod tests {
     }
 
     #[test]
-    fn speed_stages_reorder_turns_only_when_enabled() {
-        // Bidoof (base speed lower) vs pikachu: boost bidoof's speed and compare who acts first.
-        for (enabled, expect_first) in [(false, 1usize), (true, 0usize)] {
+    fn speed_rank_does_not_reorder_turns() {
+        // REFUTED: the game's agility ignores rank states, with or without the switch.
+        for enabled in [false, true] {
             let rules = StatusRules {
                 speed_stages: enabled,
                 ..StatusRules::default()
@@ -780,23 +751,11 @@ mod tests {
             let mut b = duel(&["tackle"], &["tackle"], rules);
             b.combatants[0].speed = 100;
             b.combatants[1].speed = 120;
-            b.stages_mut(0).speed = 1; // 150 vs 120 when enabled
+            b.stages_mut(0).speed = 1;
             let mut rng = Seq(vec![], 99);
             let ev = b.play_turn(&[act(0), act(1)], &mut rng);
-            assert!(ev.contains(&Event::ActedFirst(expect_first)), "enabled={enabled}");
+            assert!(ev.contains(&Event::ActedFirst(1)), "enabled={enabled}");
         }
-        // Down stage: 0.66 * 130 = ~86 < 100.
-        let rules = StatusRules {
-            speed_stages: true,
-            ..StatusRules::default()
-        };
-        let mut b = duel(&["tackle"], &["tackle"], rules);
-        b.combatants[0].speed = 130;
-        b.combatants[1].speed = 100;
-        b.stages_mut(0).speed = -1;
-        let mut rng = Seq(vec![], 99);
-        let ev = b.play_turn(&[act(0), act(1)], &mut rng);
-        assert!(ev.contains(&Event::ActedFirst(1)));
     }
 
     #[test]
@@ -819,14 +778,16 @@ mod tests {
     #[test]
     fn notes_rates_use_recovered_slip_denominators() {
         let mut b = duel(&["tackle"], &["tackle"], StatusRules::default());
-        assert_eq!(b.residual_divisor(MajorStatus::Poison), 8);
+        b.combatants[1].max_hp = 100;
+        assert_eq!(b.residual_damage(1, MajorStatus::Poison), 12, "legacy floor(1/8)");
         b.set_status_rules(StatusRules {
             notes_rates: true,
             ..StatusRules::default()
         });
-        assert_eq!(b.residual_divisor(MajorStatus::Poison), 6);
-        assert_eq!(b.residual_divisor(MajorStatus::Burn), 12);
-        assert_eq!(b.residual_divisor(MajorStatus::Frostbite), 12);
+        // VERIFIED ceil(max/denom): 100/6 -> 17, 100/12 -> 9.
+        assert_eq!(b.residual_damage(1, MajorStatus::Poison), 17);
+        assert_eq!(b.residual_damage(1, MajorStatus::Burn), 9);
+        assert_eq!(b.residual_damage(1, MajorStatus::Frostbite), 9);
         b.combatants[1].max_hp = 120;
         b.combatants[1].hp = 120;
         b.combatants[1].status = Some(MajorStatus::Poison);

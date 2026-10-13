@@ -48,6 +48,8 @@ pub struct StatChange {
     pub stage: i8,
     /// Percent chance; the data stores 0 for "always" on pure status moves.
     pub chance: u8,
+    /// Normal-style duration in turns (`raw_f31..raw_f33`, VERIFIED reader); 0 = no data.
+    pub turns: u8,
 }
 
 /// Which combatant receives stat changes / healing (derived from meta category and target id; LIKELY).
@@ -72,6 +74,9 @@ pub struct MoveEffects {
     pub ailment: Option<MajorStatus>,
     pub ailment_id: u16,
     pub ailment_chance: u8,
+    /// Ailment duration `(kind, min, max)` from `raw_f13..raw_f15` (VERIFIED reader); kinds
+    /// 2 and 4 are turn-limited. `None` when the columns are absent.
+    pub ailment_turns: Option<(u8, u8, u8)>,
     pub meta_category: u8,
     pub target_raw: u8,
     pub stat_changes: Vec<StatChange>,
@@ -149,10 +154,11 @@ impl MoveEffectsTable {
             col("flag_protectable")?,
         );
         let stat_cols = [
-            (col("stat1_id")?, col("stat1_stage")?, col("stat1_chance")?),
-            (col("stat2_id")?, col("stat2_stage")?, col("stat2_chance")?),
-            (col("stat3_id")?, col("stat3_stage")?, col("stat3_chance")?),
+            (col("stat1_id")?, col("stat1_stage")?, col("stat1_chance")?, col("raw_f31").ok()),
+            (col("stat2_id")?, col("stat2_stage")?, col("stat2_chance")?, col("raw_f32").ok()),
+            (col("stat3_id")?, col("stat3_stage")?, col("stat3_chance")?, col("raw_f33").ok()),
         ];
+        let turn_cols = (col("raw_f13").ok(), col("raw_f14").ok(), col("raw_f15").ok());
         let mut by_name = HashMap::new();
         for (n, line) in lines.enumerate() {
             let v: Vec<&str> = line.split('\t').collect();
@@ -165,7 +171,10 @@ impl MoveEffectsTable {
             };
             let ailment_id = num(c_aid)? as u16;
             let mut stat_changes = Vec::new();
-            for (si, sg, sc) in stat_cols {
+            let opt = |c: Option<usize>| -> Result<u8, String> {
+                c.map_or(Ok(0), |i| num(i).map(|x| x as u8))
+            };
+            for (si, sg, sc, st) in stat_cols {
                 if let Some(stat) = Stat::from_id(num(si)? as u8) {
                     let stage = num(sg)? as i8;
                     if stage != 0 {
@@ -173,6 +182,7 @@ impl MoveEffectsTable {
                             stat,
                             stage,
                             chance: num(sc)? as u8,
+                            turns: opt(st)?,
                         });
                     }
                 }
@@ -189,6 +199,12 @@ impl MoveEffectsTable {
                 ailment: ailment_status(ailment_id),
                 ailment_id,
                 ailment_chance: num(c_ach)? as u8,
+                ailment_turns: match turn_cols {
+                    (Some(k), Some(lo), Some(hi)) => {
+                        Some((num(k)? as u8, num(lo)? as u8, num(hi)? as u8))
+                    }
+                    _ => None,
+                },
                 meta_category: num(c_meta)? as u8,
                 target_raw: num(c_tgt)? as u8,
                 stat_changes,
@@ -240,8 +256,9 @@ pub fn ailment_status(id: u16) -> Option<MajorStatus> {
     }
 }
 
-/// PLA stat ranks have only three states per group (LIKELY, static notes): -1 down, 0 neutral, +1 up.
-/// Attack/Special Attack share one state, Defense/Special Defense share one, Speed has its own.
+/// PLA stat ranks have only three states per group (VERIFIED): -1 down, 0 neutral, +1 up.
+/// Attack/Special Attack share one state, Defense/Special Defense share one, and Speed,
+/// accuracy and evasion share the third (`speed`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Stages {
     pub attack: i8,
@@ -290,8 +307,10 @@ pub enum EffectEvent {
     },
 }
 
-pub const STAGE_UP_Q12: u32 = 6144; // 1.5 (LIKELY config coefficient)
-pub const STAGE_DOWN_Q12: u32 = 2703; // 0.66 (LIKELY config coefficient)
+/// Q12 forms of the rank coefficients. The game applies them as floats to the base damage
+/// (see `rules::apply_rank_states`); these constants are kept for API compatibility.
+pub const STAGE_UP_Q12: u32 = 6144; // 1.5 (VERIFIED coefficient)
+pub const STAGE_DOWN_Q12: u32 = 2703; // 0.66 (VERIFIED coefficient)
 
 impl Battle {
     /// Attach the effects table and copy real priority / critical rank into every move slot.
@@ -306,8 +325,9 @@ impl Battle {
         self.effects.as_ref()
     }
 
-    /// Apply the 3-state stage multipliers (Atk x1.5/x0.66, Def incoming x0.66/x1.5) to damage.
-    /// Off by default: the static notes could not show where the game applies them (UNKNOWN).
+    /// Apply the 3-state rank multipliers to the base damage (VERIFIED placement, see
+    /// `rules::apply_rank_states`) and the end-of-turn rank countdown. Off by default to keep
+    /// old callers unchanged; `StatusRules::game_rules()` turns it on.
     pub fn set_stage_multipliers_enabled(&mut self, on: bool) {
         self.stage_multipliers = on;
     }
@@ -341,30 +361,17 @@ impl Battle {
             }
             return;
         }
-        let (old, new) = match stat {
-            Stat::Accuracy => {
-                let c = &mut self.combatants[target];
-                let old = c.accuracy_stage;
-                c.accuracy_stage = (old + delta).clamp(-1, 1);
-                (old, c.accuracy_stage)
-            }
-            Stat::Evasion => {
-                let c = &mut self.combatants[target];
-                let old = c.evasion_stage;
-                c.evasion_stage = (old + delta).clamp(-1, 1);
-                (old, c.evasion_stage)
-            }
-            _ => {
-                let st = self.stages_mut(target);
-                let slot = match stat {
-                    Stat::Attack | Stat::SpecialAttack => &mut st.attack,
-                    Stat::Defense | Stat::SpecialDefense => &mut st.defense,
-                    _ => &mut st.speed,
-                };
-                let old = *slot;
-                *slot = (old + delta).clamp(-1, 1);
-                (old, *slot)
-            }
+        // VERIFIED: Speed, accuracy and evasion changes all move the shared third group.
+        let (old, new) = {
+            let st = self.stages_mut(target);
+            let slot = match stat {
+                Stat::Attack | Stat::SpecialAttack => &mut st.attack,
+                Stat::Defense | Stat::SpecialDefense => &mut st.defense,
+                _ => &mut st.speed,
+            };
+            let old = *slot;
+            *slot = (old + delta).clamp(-1, 1);
+            (old, *slot)
         };
         if old == new {
             self.effect_events
@@ -386,19 +393,6 @@ impl Battle {
             target,
             amount: healed,
         });
-    }
-
-    /// Q12 attack/defense stat modifiers from stages (up x1.5, down x0.66), used around one damage calculation.
-    pub(super) fn stage_modifiers(&self, attacker: usize, target: usize) -> (u32, u32) {
-        let up_down = |s: i8, up: u32, down: u32| match s {
-            1 => up,
-            -1 => down,
-            _ => 4096,
-        };
-        (
-            up_down(self.stages(attacker).attack, STAGE_UP_Q12, STAGE_DOWN_Q12),
-            up_down(self.stages(target).defense, STAGE_UP_Q12, STAGE_DOWN_Q12),
-        )
     }
 
     /// Number of hits (1 without data). Uniform inside [min, max] is a placeholder: the
@@ -482,6 +476,7 @@ impl Battle {
         for change in &fx.stat_changes {
             if alive_receiver && Self::chance_passes(change.chance, !damaging, rng) {
                 self.change_stat(receiver, change.stat, change.stage);
+                self.note_stage_turns(receiver, change.stat, change.turns);
             }
         }
         // Major status.
@@ -491,6 +486,7 @@ impl Battle {
                 && Self::chance_passes(fx.ailment_chance, !damaging, rng)
             {
                 self.combatants[target].status = Some(status);
+                self.start_status_turns(target, fx, rng);
                 self.pending_status.push((target, status));
             }
         }
