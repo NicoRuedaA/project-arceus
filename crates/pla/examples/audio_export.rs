@@ -422,7 +422,17 @@ fn safe_dir(bank: &str) -> String {
     bank.replace('.', "_")
 }
 
-fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes_written: &AtomicU64) -> Row {
+type DedupCache = Mutex<HashMap<(u32, u64), Row>>;
+
+fn content_hash(b: &[u8]) -> u64 {
+    let mut h = 0xcbf29ce484222325u64;
+    for &x in b {
+        h = (h ^ x as u64).wrapping_mul(0x100000001b3);
+    }
+    h
+}
+
+fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes_written: &AtomicU64, cache: &DedupCache) -> Row {
     let mut row = Row {
         key: it.key(),
         bank: it.bank.clone(),
@@ -452,6 +462,16 @@ fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes
             return row;
         }
     };
+    // Several banks carry identical copies of the same media id: decode and write it once.
+    let hash = content_hash(&bytes);
+    if let Some(prev) = cache.lock().unwrap().get(&(it.id, hash)) {
+        let mut r = prev.clone();
+        r.key = it.key();
+        r.bank = it.bank.clone();
+        r.source = it.source;
+        r.reason = if r.reason.is_empty() { "identical copy of an already processed media".into() } else { format!("{}; identical copy of an already processed media", r.reason) };
+        return r;
+    }
     let want_ogg = o.ogg && !o.no_wav;
     let dec = match decode_item(&bytes, lib, want_ogg) {
         Ok(d) => d,
@@ -549,6 +569,7 @@ fn process(it: &Item, lib: &CodebookLibrary, o: &Opts, wavs: &AtomicUsize, bytes
             }
         }
     }
+    cache.lock().unwrap().insert((it.id, hash), row.clone());
     row
 }
 
@@ -575,13 +596,14 @@ fn export(args: &[String]) -> Result<(), String> {
     let wavs = AtomicUsize::new(0);
     let written = AtomicU64::new(0);
     let rows: Mutex<Vec<Row>> = Mutex::new(Vec::with_capacity(selected.len()));
+    let cache: DedupCache = Mutex::new(HashMap::new());
     let t0 = std::time::Instant::now();
     std::thread::scope(|s| {
         for _ in 0..o.threads.max(1) {
             s.spawn(|| loop {
                 let i = next.fetch_add(1, Ordering::SeqCst);
                 let Some(it) = selected.get(i) else { break };
-                let r = process(it, &lib, &o, &wavs, &written);
+                let r = process(it, &lib, &o, &wavs, &written, &cache);
                 rows.lock().unwrap().push(r);
                 if i % 500 == 499 {
                     eprintln!("  {} / {} ({:.0}s)", i + 1, selected.len(), t0.elapsed().as_secs_f32());
@@ -926,7 +948,10 @@ fn crosscheck(items: &[Item], lib: &CodebookLibrary, n: usize, log: &dyn Fn(&str
     let tmp = cache_root().join("audio").join("_crosscheck");
     std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
     let mut done = [0usize; 2];
-    for it in items {
+    let mut order: Vec<&Item> = items.iter().collect();
+    order.sort_by_key(|i| i.id.wrapping_mul(2654435761) ^ (i.offset as u32));
+    let mut summary: [(f64, usize, usize); 2] = [(f64::MAX, 0, 0); 2]; // (min SNR, warnings, frame mismatches)
+    for it in order {
         if it.prefetch_of_pck.is_some() {
             continue;
         }
@@ -941,6 +966,9 @@ fn crosscheck(items: &[Item], lib: &CodebookLibrary, n: usize, log: &dyn Fn(&str
             continue;
         }
         let Ok(dec) = decode_item(&bytes, lib, true) else { continue };
+        if kind == 1 && dec.rate != 48000 {
+            continue; // ffmpeg resamples these to 48 kHz; the comparison would be meaningless
+        }
         let (Some(ogg), Some(pcm)) = (dec.ogg.clone(), dec.pcm.clone()) else { continue };
         let ogg_path = tmp.join(format!("{}_{}.{}", safe_dir(&it.bank), it.id, dec.ogg_ext));
         std::fs::write(&ogg_path, &ogg).map_err(|e| e.to_string())?;
@@ -962,7 +990,8 @@ fn crosscheck(items: &[Item], lib: &CodebookLibrary, n: usize, log: &dyn Fn(&str
                 sig2 += b * b;
             }
         }
-        let snr = if err2 > 0.0 { 10.0 * (sig2 / err2).log10() } else { 200.0 };
+        let ours_peak = pcm.iter().flat_map(|c| c.iter()).fold(0f32, |m, x| m.max(x.abs()));
+        let snr = if err2 > 0.0 && sig2 > 0.0 { 10.0 * (sig2 / err2).log10() } else if err2 == 0.0 || (sig2 == 0.0 && ours_peak < 1e-6) { 200.0 } else { -200.0 };
         log(&format!(
             "crosscheck {} {}: ffmpeg frames {} vs ours {} ; SNR of ours vs ffmpeg {:.1} dB (ffmpeg stderr: {})",
             it.key(),
@@ -972,10 +1001,23 @@ fn crosscheck(items: &[Item], lib: &CodebookLibrary, n: usize, log: &dyn Fn(&str
             snr,
             String::from_utf8_lossy(&out.stderr).trim().chars().take(80).collect::<String>()
         ));
+        if !out.stderr.is_empty() {
+            summary[kind].1 += 1;
+        }
+        if ff.len() / ch.max(1) != pcm[0].len() {
+            summary[kind].2 += 1;
+        }
+        summary[kind].0 = summary[kind].0.min(snr);
         done[kind] += 1;
         if done == [n, n] {
             break;
         }
+    }
+    for (k, name) in ["vorbis", "opus"].iter().enumerate() {
+        log(&format!(
+            "crosscheck summary {name}: {} files, min SNR {:.1} dB, {} with ffmpeg warnings, {} frame-count mismatches",
+            done[k], summary[k].0, summary[k].1, summary[k].2
+        ));
     }
     Ok(())
 }

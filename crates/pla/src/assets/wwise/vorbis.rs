@@ -406,6 +406,10 @@ pub fn convert(wem_bytes: &[u8], lib: &CodebookLibrary) -> Result<StdVorbis, Str
     let setup = convert_setup(&data[so..so + ss], channels, lib)?;
     let mode_count = setup.mode_blockflag.len() as u32;
     let mode_bits = ilog(mode_count - 1);
+    // Wwise always spends at least one bit on the mode number, even with a single mode
+    // (measured: streams with one mode carry a constant 0 bit there); the standard stream
+    // spends none.
+    let wire_mode_bits = mode_bits.max(1);
     // Collect raw audio packets.
     let mut raws: Vec<&[u8]> = Vec::new();
     let mut p = info.first_audio_packet_offset as usize;
@@ -419,7 +423,7 @@ pub fn convert(wem_bytes: &[u8], lib: &CodebookLibrary) -> Result<StdVorbis, Str
     }
     let mode_of = |pk: &[u8]| -> Option<usize> {
         let b = *pk.first()?;
-        Some((b as u32 & ((1u32 << mode_bits) - 1)) as usize)
+        Some((b as u32 & ((1u32 << wire_mode_bits) - 1)) as usize)
     };
     let mut packets = Vec::with_capacity(raws.len());
     let mut prev_long = false;
@@ -446,7 +450,7 @@ pub fn convert(wem_bytes: &[u8], lib: &CodebookLibrary) -> Result<StdVorbis, Str
             w.write(next_long as u32, 1);
         }
         // Remaining bits of the first byte, then the rest verbatim.
-        w.write((pk[0] >> mode_bits) as u32, 8 - mode_bits);
+        w.write((pk[0] >> wire_mode_bits) as u32, 8 - wire_mode_bits);
         w.write_bytes(&pk[1..]);
         let out = w.into_bytes();
         packets.push(out);
