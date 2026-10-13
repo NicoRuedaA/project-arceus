@@ -4,7 +4,7 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 4
+//! PLASAVE 5
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
@@ -12,8 +12,10 @@
 //! ```
 //!
 //! v3 adds `box` lines (the stored Pokemon; the key is lowercase like `member`). v4 adds
-//! `play_seconds` (whole seconds of played time). Older files load via the migration chain: a v2
-//! file gets an empty box, a v1-v3 file a play time of 0.
+//! `play_seconds` (whole seconds of played time). v5 adds a ninth member/box field, the
+//! cumulative experience (`-` = unknown: the member counts as sitting exactly on its level
+//! threshold). Older files load via the migration chain: a v2 file gets an empty box, a v1-v3
+//! file a play time of 0, and a v1-v4 file every experience unknown. The next format bump is v6.
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -30,7 +32,7 @@ use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 4;
+pub const CURRENT_VERSION: u32 = 5;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
@@ -144,7 +146,7 @@ pub struct SavedMove {
 }
 
 /// One party member.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PartyMember {
     /// National dex id.
     pub species: u16,
@@ -156,6 +158,9 @@ pub struct PartyMember {
     /// Effort level per stat (HP/Atk/Def/SpA/SpD/Spe), as in `Combatant::effort`.
     pub effort: [u8; 6],
     pub nickname: Option<String>,
+    /// Cumulative experience (save format v5). `None` = unknown (older saves, fresh members):
+    /// the progression rules then use the threshold of `level`.
+    pub exp: Option<u32>,
 }
 
 impl PartyMember {
@@ -176,6 +181,7 @@ impl PartyMember {
                 .collect(),
             effort: c.effort,
             nickname: None,
+            exp: None,
         }
     }
 
@@ -380,6 +386,7 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
             1 => migrate_v1_to_v2(lines)?,
             2 => migrate_v2_to_v3(lines)?,
             3 => migrate_v3_to_v4(lines)?,
+            4 => migrate_v4_to_v5(lines),
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -413,9 +420,25 @@ fn migrate_v2_to_v3(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
 
 /// v3 saves have no play time; v4 adds `play_seconds`, which starts at 0 (the parser defaults a
 /// missing key). No line has to change, so this step is a documented no-op that keeps the version
-/// chain explicit and reserves v5 for the clock/weather task (Brief 9).
+/// chain explicit. (v5 went to the party experience; the clock/weather task (Brief 9) takes v6.)
 fn migrate_v3_to_v4(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
     Ok(lines)
+}
+
+/// v4 members and box entries have 8 fields; v5 appends the experience. Old entries get `-`
+/// (unknown), which the progression rules read as "exactly the threshold of the saved level".
+/// The next format bump is v6 (reserved for the clock/weather task, Brief 9).
+fn migrate_v4_to_v5(lines: Vec<String>) -> Vec<String> {
+    lines
+        .into_iter()
+        .map(|l| {
+            if l.starts_with("member=") || l.starts_with("box=") {
+                format!("{l}|-")
+            } else {
+                l
+            }
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------- parsing
@@ -470,14 +493,14 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
     Ok(s)
 }
 
-/// One member encoded as the 8-field `species|form|level|hp|status|effort|moves|nickname` text,
-/// shared by `member` (party) and `box` lines.
+/// One member encoded as the 9-field `species|form|level|hp|status|effort|moves|nickname|exp`
+/// text, shared by `member` (party) and `box` lines (`exp` is `-` when unknown).
 fn member_line(m: &PartyMember) -> String {
     let moves = m.moves.iter().map(|s| format!("{}:{}", s.move_id, s.pp)).collect::<Vec<_>>().join(",");
     let eff = m.effort.iter().map(u8::to_string).collect::<Vec<_>>().join(":");
     let nick = m.nickname.as_deref().map(hex_encode).unwrap_or_else(|| "-".into());
     format!(
-        "{}|{}|{}|{}|{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}|{}|{}|{}|{}",
         m.species,
         m.form,
         m.level,
@@ -485,14 +508,15 @@ fn member_line(m: &PartyMember) -> String {
         m.status.map_or("-", SavedStatus::tag),
         eff,
         moves,
-        nick
+        nick,
+        m.exp.map_or_else(|| "-".to_string(), |e| e.to_string())
     )
 }
 
 fn parse_member(v: &str) -> Result<PartyMember, String> {
     let f: Vec<&str> = v.split('|').collect();
-    if f.len() != 8 {
-        return Err("member needs 8 fields".into());
+    if f.len() != 9 {
+        return Err("member needs 9 fields".into());
     }
     let n = |s: &str| s.parse::<u32>().map_err(|_| format!("bad number `{s}`"));
     let eff: Vec<u8> = f[5].split(':').map(|x| x.parse::<u8>().map_err(|_| "bad effort".to_string())).collect::<Result<_, _>>()?;
@@ -510,6 +534,7 @@ fn parse_member(v: &str) -> Result<PartyMember, String> {
         effort: eff.try_into().map_err(|_| "effort needs 6 values")?,
         moves,
         nickname: if f[7] == "-" { None } else { Some(hex_decode(f[7]).ok_or("bad nickname")?) },
+        exp: if f[8] == "-" { None } else { Some(n(f[8])?) },
     })
 }
 
@@ -749,6 +774,7 @@ mod tests {
                     moves: vec![SavedMove { move_id: 33, pp: 20 }, SavedMove { move_id: 10, pp: 3 }],
                     effort: [1, 0, 2, 0, 0, 3],
                     nickname: Some("Rowlé|,=".into()),
+                    exp: Some(4_913),
                 },
                 PartyMember {
                     species: 25,
@@ -759,6 +785,7 @@ mod tests {
                     moves: vec![],
                     effort: [0; 6],
                     nickname: Some(String::new()),
+                    exp: None,
                 },
             ],
             box_pokemon: vec![
@@ -771,6 +798,7 @@ mod tests {
                     moves: vec![SavedMove { move_id: 44, pp: 17 }],
                     effort: [3, 3, 3, 3, 3, 3],
                     nickname: None,
+                    exp: Some(68_921),
                 },
                 PartyMember {
                     species: 415,
@@ -781,6 +809,7 @@ mod tests {
                     moves: vec![],
                     effort: [0; 6],
                     nickname: Some("Comb".into()),
+                    exp: None,
                 },
             ],
             bag: BTreeMap::from([(4, 10), (1, 3)]),
@@ -837,9 +866,10 @@ mod tests {
 
     #[test]
     fn unknown_version_rejected() {
-        let t = sample().encode().unwrap().replacen("PLASAVE 4", "PLASAVE 99", 1);
+        let head = format!("PLASAVE {CURRENT_VERSION}");
+        let t = sample().encode().unwrap().replacen(&head, "PLASAVE 99", 1);
         assert!(matches!(PlayerSave::decode(&t), Err(SaveError::UnknownVersion(99))));
-        let t0 = sample().encode().unwrap().replacen("PLASAVE 4", "PLASAVE 0", 1);
+        let t0 = sample().encode().unwrap().replacen(&head, "PLASAVE 0", 1);
         assert!(matches!(PlayerSave::decode(&t0), Err(SaveError::UnknownVersion(0))));
     }
 
@@ -915,9 +945,10 @@ mod tests {
         assert_eq!(m.effort, [0; 6]);
         assert_eq!(m.moves, vec![SavedMove { move_id: 33, pp: 10 }, SavedMove { move_id: 10, pp: 5 }]);
         assert!(s.box_pokemon.is_empty(), "a v1 save has no box");
+        assert_eq!(m.exp, None, "a v1 save has no experience");
         assert_eq!(s.play_seconds, 0, "a v1 save has no play time");
         // and re-saving writes the current version
-        assert!(s.encode().unwrap().starts_with("PLASAVE 4\n"));
+        assert!(s.encode().unwrap().starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
     }
 
     /// A literal v2 body (8-field members, no `box` lines) loads through v2->v3 with an empty box.
@@ -932,11 +963,11 @@ mod tests {
         assert_eq!(s.party[0].species, 25);
         assert!(s.box_pokemon.is_empty());
         assert_eq!(s.play_seconds, 0, "a v2 save has no play time");
-        assert!(s.encode().unwrap().starts_with("PLASAVE 4\n"));
+        assert!(s.encode().unwrap().starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
     }
 
-    /// A literal v3 body (box lines, no `play_seconds`) loads through v3->v4 with a play time of
-    /// 0 and keeps its box.
+    /// A literal v3 body (box lines, no `play_seconds`) loads through v3->v4->v5 with a play time
+    /// of 0, keeps its box and marks every experience unknown.
     #[test]
     fn migration_v3_to_current_defaults_play_time_and_keeps_the_box() {
         let body = "zone=ha_area00\npos=0,0,0\nyaw=0\ntime_slot=1\nmoney=10\nrng_seed=2\n\
@@ -947,9 +978,32 @@ mod tests {
         assert_eq!(s.play_seconds, 0, "a v3 save has no play time");
         assert_eq!(s.box_pokemon.len(), 1);
         assert_eq!(s.box_pokemon[0].species, 133);
+        assert_eq!((s.party[0].exp, s.box_pokemon[0].exp), (None, None), "a v3 save has no experience");
         let out = s.encode().unwrap();
-        assert!(out.starts_with("PLASAVE 4\n"));
+        assert!(out.starts_with("PLASAVE 5\n"));
         assert!(out.contains("\nplay_seconds=0\n"), "the new field is written on re-save");
+    }
+
+    /// A literal v4 body (8-field members and box lines, with `play_seconds`) loads through
+    /// v4->v5 with every experience unknown and keeps its play time; re-saving writes v5 with the
+    /// ninth field.
+    #[test]
+    fn migration_v4_to_v5_marks_experience_unknown() {
+        let body = "zone=ha_area01\npos=1,0,1\nyaw=0\ntime_slot=1\nmoney=10\nrng_seed=3\nplay_seconds=77\n\
+                    member=403|0|14|40|-|0:0:0:0:0:0|33:35|-\nbox=25|0|5|10|-|0:0:0:0:0:0|33:5|-\nEND\n";
+        let text = format!("PLASAVE 4\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let s = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s.version, CURRENT_VERSION);
+        assert_eq!(s.play_seconds, 77);
+        assert_eq!((s.party[0].species, s.party[0].level, s.party[0].exp), (403, 14, None));
+        assert_eq!(s.box_pokemon[0].exp, None);
+        let again = s.encode().unwrap();
+        assert!(again.starts_with("PLASAVE 5\n"));
+        assert!(again.contains("member=403|0|14|40|-|0:0:0:0:0:0|33:35|-|-\n"), "{again}");
+        let mut with_exp = s.clone();
+        with_exp.party[0].exp = Some(2_700);
+        let back = PlayerSave::decode(&with_exp.encode().unwrap()).unwrap();
+        assert_eq!(back.party[0].exp, Some(2_700));
     }
 
     /// `play_seconds` is a u64 and survives the largest value.

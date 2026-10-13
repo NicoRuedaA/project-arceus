@@ -1,6 +1,21 @@
 //! Scripted battle beats for the headless `--auto-demo` run (inputs, optional HP setup, frame).
+//!
+//! The beats were written for the once-per-round flow, so the script runs the battle in the
+//! classic flow unless `--pla-turns` (or `PLA_TURNS=pla`) is given explicitly
+//! ([`demo_turn_mode`]); the game itself defaults to the PLA action queue.
 
-use super::battle_controller::{ActiveBattleSession, BattleInput};
+use super::battle_controller::{ActiveBattleSession, BattleInput, TurnMode};
+
+/// Turn flow of the scripted demo: classic unless PLA turns were asked for explicitly.
+pub fn demo_turn_mode() -> TurnMode {
+    let explicit = std::env::var("PLA_TURNS").ok().as_deref() == Some("pla")
+        || std::env::args().any(|a| a == "--pla-turns");
+    if explicit {
+        TurnMode::Pla
+    } else {
+        TurnMode::Classic
+    }
+}
 
 /// One scripted beat: optional setup, then inputs, then (later) a screenshot.
 pub struct DemoBeat {
@@ -43,6 +58,7 @@ pub const BEATS: [DemoBeat; 4] = [
 /// Run the setup and inputs of `beat` on the session; returns the log lines it added.
 pub fn run_beat(sess: &mut ActiveBattleSession, beat: &DemoBeat) -> Vec<String> {
     let before = sess.log_lines.len();
+    sess.turn_mode = demo_turn_mode();
     if let Some(pct) = beat.player_hp_percent {
         let i = sess.active_player();
         let c = &mut sess.battle.combatants[i];

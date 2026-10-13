@@ -63,7 +63,12 @@ Hand example (`queue_starts_with_base_waits_and_picks_the_fastest`): agility 100
 - `play_turn_styled` with every style `Normal`, no table and no queue returns exactly what `play_turn` returns (unit test). Styled power/accuracy (and optionally the strong crit rank) apply to the move only and the slot is restored. Styled heal, durations, chances and drain are exposed but not applied yet.
 - Not done: the engine's existing round model (`play_turn` with both sides' actions) is unchanged; a PLA-faithful loop calls `next_actor()` and passes only that actor's action.
 
-## Hook points in the game (not edited; for the controller/UI owner)
+## Hook points in the game
+
+**Now wired** (default PLA turns, `--classic-turns` for the old flow): see
+[`progression_wired.md`](progression_wired.md). The list below is the original hand-off, kept
+for reference; the opponent's style rule lives in `game/battle_style_ai.rs` (ASSUMED), not in
+`battle_ai.rs`.
 
 - `crates/pla/src/game/battle_controller.rs`
   - `BattleAssets` (struct ~line 58, `load` ~67): add `move_styles: MoveStyleTable::load(root)?`.

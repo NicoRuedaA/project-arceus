@@ -1,9 +1,9 @@
 //! Conversions between the save's `PartyMember` / the engine's `Combatant` and the pure
 //! progression type. No Bevy, no side effects.
 //!
-//! The save format has no experience field yet, so a member loaded from it starts at the
-//! exact threshold of its level (ASSUMED; extending the save is a follow-up for the wiring
-//! phase). `PartyMember` is rebuilt without touching HP/status/nickname.
+//! Save format v5 stores the cumulative experience (`PartyMember::exp`); a member whose
+//! experience is unknown (older saves, fresh members) starts at the exact threshold of its
+//! level (ASSUMED). `PartyMember` is rebuilt without touching HP/status/nickname.
 
 use super::save_game::{PartyMember, SavedMove, MAX_MOVES};
 use crate::battle_engine::progression::{
@@ -12,10 +12,12 @@ use crate::battle_engine::progression::{
 use crate::battle_engine::Combatant;
 
 impl ProgressMember {
-    /// Build from a save entry; `exp` falls back to the level threshold.
+    /// Build from a save entry; `exp` (else the saved `p.exp`) falls back to the level
+    /// threshold.
     pub fn from_party(t: &ProgressionTables, p: &PartyMember, exp: Option<u32>) -> Self {
         let group = t.growth_group(p.species, p.form);
         let floor = exp_for_level(t, group, p.level);
+        let exp = exp.or(p.exp);
         Self {
             species: p.species,
             form: p.form,
@@ -49,6 +51,7 @@ impl ProgressMember {
         p.form = self.form;
         p.level = self.level;
         p.effort = self.effort;
+        p.exp = Some(self.exp);
         if p.hp > 0 {
             p.hp = p.hp.saturating_add(hp_gain);
         }
@@ -88,6 +91,7 @@ mod tests {
             moves: vec![SavedMove { move_id: 33, pp: 7 }],
             effort: [1, 0, 0, 0, 0, 0],
             nickname: Some("zu".into()),
+            exp: None,
         };
         let mut m = ProgressMember::from_party(&t, &p, None);
         assert_eq!(m.exp, 10_648);
@@ -97,5 +101,11 @@ mod tests {
         assert_eq!((p.species, p.hp), (42, 35));
         assert_eq!(p.moves, vec![SavedMove { move_id: 33, pp: 7 }, SavedMove { move_id: 45, pp: 20 }]);
         assert_eq!(p.nickname.as_deref(), Some("zu"));
+        assert_eq!(p.exp, Some(10_648), "the experience is written back (save v5)");
+        // a saved experience is used when present
+        let saved = ProgressMember::from_party(&t, &p, None);
+        assert_eq!(saved.exp, 10_648);
+        p.exp = Some(11_000);
+        assert_eq!(ProgressMember::from_party(&t, &p, None).exp, 11_000);
     }
 }

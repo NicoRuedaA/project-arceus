@@ -28,6 +28,7 @@
 //! | Battle Item | I | L |
 //! | Battle Capture | C / B | ZR |
 //! | Battle Run | R | R |
+//! | Battle style Agile / Strong | Q / E (just pressed; Q / E also turn the camera) | not mapped |
 //!
 //! Priority: keyboard wins per axis over the stick ([`combine_axis`]); digital edges from
 //! both sources merge without duplicates.
@@ -65,6 +66,10 @@ pub enum Action {
     OpenItem,
     OpenCapture,
     OpenRun,
+    /// Battle: use the highlighted move in agile style (keyboard Q).
+    StyleAgile,
+    /// Battle: use the highlighted move in strong style (keyboard E).
+    StyleStrong,
 }
 
 /// Stick movement below this magnitude is ignored.
@@ -202,6 +207,12 @@ impl RawInput {
         }
         if keys.just_pressed(KeyCode::KeyR) {
             key_pressed.push(Action::OpenRun);
+        }
+        if keys.just_pressed(KeyCode::KeyQ) {
+            key_pressed.push(Action::StyleAgile);
+        }
+        if keys.just_pressed(KeyCode::KeyE) {
+            key_pressed.push(Action::StyleStrong);
         }
         if keys.any_just_pressed([KeyCode::KeyZ, KeyCode::Tab]) {
             key_pressed.push(Action::Aim);

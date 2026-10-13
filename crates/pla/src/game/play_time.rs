@@ -5,7 +5,7 @@
 //! time-of-day code in `reports/function-progress/n2-base-camps-and-travel.md` is a frame
 //! accumulator that drives the lighting blend, not a real-time counter), so this port simply
 //! counts real seconds. It does not advance the day/night slot; Brief 9 (clock/weather) owns
-//! that and will take save format v5.
+//! that and will take save format v6 (v5 holds the party experience).
 
 use bevy::prelude::*;
 

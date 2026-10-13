@@ -1076,6 +1076,7 @@ mod tests {
             moves: vec![],
             effort: [0; 6],
             nickname: None,
+            exp: None,
         }
     }
 

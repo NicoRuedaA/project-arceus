@@ -14,7 +14,8 @@ use super::wild::{wild_fate, ActiveAreaSpawners, ConsumedSpawners, FleeCooldown,
 /// Map the logical actions pressed this frame to a battle input, if any.
 /// Digits pick a move or list entry; F / S / I / C / R open the fight, switch, item,
 /// capture and run actions (gamepad: Y / X / L / ZR / R); D-pad, arrows or A / D scroll;
-/// Enter / Space / A confirm; Escape / Backspace / B go back.
+/// Enter / Space / A confirm; Escape / Backspace / B go back; Q / E use the highlighted move in
+/// agile / strong style (PLA turn flow).
 pub fn map_actions(input: &ActionState) -> Option<BattleInput> {
     for slot in 0..4u8 {
         if input.just_pressed(Action::Slot(slot)) {
@@ -39,6 +40,10 @@ pub fn map_actions(input: &ActionState) -> Option<BattleInput> {
         Some(BattleInput::Capture)
     } else if input.just_pressed(Action::OpenRun) {
         Some(BattleInput::Run)
+    } else if input.just_pressed(Action::StyleAgile) {
+        Some(BattleInput::StyleAgile)
+    } else if input.just_pressed(Action::StyleStrong) {
+        Some(BattleInput::StyleStrong)
     } else {
         None
     }
@@ -59,6 +64,16 @@ pub fn battle_input_system(
         return;
     };
     sess.turn_timer += time.delta_secs();
+
+    if sess.battle.ended && sess.progress.busy() {
+        // After-battle steps (move prompt, evolution) keep the battle screen up.
+        sess.tick_progress(time.delta_secs());
+        if let Some(input) = map_actions(&input) {
+            sess.handle_input(input);
+        }
+        sess.turn_timer = 0.0;
+        return;
+    }
 
     if sess.battle.ended {
         if sess.turn_timer >= 1.5 || input.just_pressed(Action::Confirm) {
@@ -90,13 +105,17 @@ pub fn battle_input_system(
         return;
     }
 
+    // PLA turn flow: the opponent acts as soon as the queue picks it.
+    if sess.poll_ai() {
+        sess.turn_timer = 0.0;
+    }
     if let Some(input) = map_actions(&input) {
         if sess.handle_input(input) {
             sess.turn_timer = 0.0;
         }
-        if sess.battle.ended {
-            sess.turn_timer = 0.0;
-        }
+    }
+    if sess.battle.ended {
+        sess.turn_timer = 0.0;
     }
 }
 
@@ -171,6 +190,8 @@ mod tests {
             map_actions(&state_with(&[Action::OpenRun])),
             Some(BattleInput::Run)
         );
+        assert_eq!(map_actions(&state_with(&[Action::StyleAgile])), Some(BattleInput::StyleAgile));
+        assert_eq!(map_actions(&state_with(&[Action::StyleStrong])), Some(BattleInput::StyleStrong));
     }
 
     #[test]

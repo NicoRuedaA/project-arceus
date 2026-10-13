@@ -3,6 +3,7 @@
 use crate::battle_engine::effects::{EffectEvent, Stat};
 use crate::battle_engine::rules::RuleEvent;
 use crate::battle_engine::statuses::StatusEvent;
+use crate::battle_engine::styles::{Style, StyleEvent};
 use crate::battle_engine::{Event, MajorStatus};
 
 /// How many log lines the battle box keeps on screen.
@@ -239,6 +240,52 @@ pub fn short_stat(stat: Stat) -> &'static str {
     }
 }
 
+/// One log line for a style event (PLA turn flow), or `None` for a normal-style use.
+/// - `StyleUsed` agile/strong: "X used an Agile Style move!" / "X used a Strong Style move!";
+/// - `StyleUnavailable`: the move has no agile/strong version, so it was used normally;
+/// - `ActionPoints`: how much later (or sooner) the combatant's next turn comes.
+pub fn format_style(name: &dyn Fn(usize) -> String, e: &StyleEvent) -> Option<String> {
+    Some(match e {
+        StyleEvent::StyleUsed { actor, style: Style::Agile, .. } => format!("{} used an Agile Style move!", name(*actor)),
+        StyleEvent::StyleUsed { actor, style: Style::Strong, .. } => format!("{} used a Strong Style move!", name(*actor)),
+        StyleEvent::StyleUsed { style: Style::Normal, .. } => return None,
+        StyleEvent::StyleUnavailable { actor, style } => format!(
+            "{} can't use this move in {} Style; it used it normally.",
+            name(*actor),
+            if *style == Style::Agile { "Agile" } else { "Strong" }
+        ),
+        StyleEvent::ActionPoints { combatant, points } if *points > 0 => {
+            format!("{}'s next turn was pushed back ({points:+}).", name(*combatant))
+        }
+        StyleEvent::ActionPoints { combatant, points } => {
+            format!("{}'s next turn comes sooner ({points:+}).", name(*combatant))
+        }
+    })
+}
+
+/// Insert the style lines of one single-actor turn: each "used a ... Style move!" line goes
+/// right before the first line where that combatant uses a move (`"{name} used "`), the
+/// action-point lines go after the turn's other lines but before the end-of-battle line.
+pub fn insert_style_lines(lines: &mut Vec<String>, name: &dyn Fn(usize) -> String, events: &[StyleEvent]) {
+    let end_at = |lines: &Vec<String>| {
+        lines.iter().position(|l| l.starts_with("Battle over")).unwrap_or(lines.len())
+    };
+    for e in events {
+        let Some(text) = format_style(name, e) else { continue };
+        match e {
+            StyleEvent::StyleUsed { actor, .. } | StyleEvent::StyleUnavailable { actor, .. } => {
+                let prefix = format!("{} used ", name(*actor));
+                let at = lines.iter().position(|l| l.starts_with(&prefix)).unwrap_or_else(|| end_at(lines));
+                lines.insert(at, text);
+            }
+            StyleEvent::ActionPoints { .. } => {
+                let at = end_at(lines);
+                lines.insert(at, text);
+            }
+        }
+    }
+}
+
 /// Keep only the newest `LOG_VISIBLE_LINES` lines for the on-screen box.
 pub fn tail(lines: &[String]) -> String {
     let start = lines.len().saturating_sub(LOG_VISIBLE_LINES);
@@ -390,6 +437,43 @@ mod tests {
         assert_eq!(format_effect(&names, &up).unwrap(), "PIKACHU's Speed rose! [SPE+]");
         assert_eq!(format_effect(&names, &down).unwrap(), "Wild BIDOOF's Defense fell! [DEF-]");
         assert!(format_effect(&names, &EffectEvent::Hits { actor: 0, count: 1 }).is_none());
+    }
+
+    #[test]
+    fn style_lines_sit_before_the_move_and_points_before_the_end() {
+        let mut lines = vec![
+            "-- Turn 3 --".to_string(),
+            "PIKACHU used thunderbolt! (40 dmg, normal)".to_string(),
+            "Wild BIDOOF fainted!".to_string(),
+            "Battle over: you won!".to_string(),
+        ];
+        let events = [
+            StyleEvent::StyleUsed { actor: 0, style: Style::Strong, streak: 0 },
+            StyleEvent::ActionPoints { combatant: 0, points: 5 },
+        ];
+        insert_style_lines(&mut lines, &names, &events);
+        assert_eq!(lines[1], "PIKACHU used a Strong Style move!");
+        assert_eq!(lines[2], "PIKACHU used thunderbolt! (40 dmg, normal)");
+        assert_eq!(lines[4], "PIKACHU's next turn was pushed back (+5).");
+        assert_eq!(lines[5], "Battle over: you won!");
+        // normal style adds nothing; an unavailable style and a sooner turn are explained
+        let mut plain = vec!["Wild BIDOOF used tackle! (3 dmg, normal)".to_string()];
+        insert_style_lines(
+            &mut plain,
+            &names,
+            &[
+                StyleEvent::StyleUsed { actor: 1, style: Style::Normal, streak: 0 },
+                StyleEvent::StyleUnavailable { actor: 1, style: Style::Agile },
+                StyleEvent::ActionPoints { combatant: 1, points: -4 },
+            ],
+        );
+        assert_eq!(plain[0], "Wild BIDOOF can't use this move in Agile Style; it used it normally.");
+        assert_eq!(plain[2], "Wild BIDOOF's next turn comes sooner (-4).");
+        assert_eq!(plain.len(), 3);
+        assert_eq!(
+            format_style(&names, &StyleEvent::StyleUsed { actor: 0, style: Style::Agile, streak: 2 }).unwrap(),
+            "PIKACHU used an Agile Style move!"
+        );
     }
 
     #[test]
