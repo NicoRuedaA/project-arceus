@@ -200,6 +200,8 @@ Aporta tus propios volcados del juego base (`pk1.nsz`), de la actualización v1.
 `./install.sh --check` muestra todos los pasos sin cambiar nada. Requisitos, espacio en
 disco, opciones y solución de problemas: [`docs/INSTALL.es.md`](docs/INSTALL.es.md).
 
+Para probar el visor jugando: guía de pruebas para no programadores en [`docs/GUIA-DE-PRUEBAS.md`](docs/GUIA-DE-PRUEBAS.md).
+
 ## Inicio rápido
 
 ```bash

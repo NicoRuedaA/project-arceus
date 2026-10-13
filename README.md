@@ -198,6 +198,8 @@ console's `prod.keys`, then:
 `./install.sh --check` shows every step without changing anything. Requirements, disk
 space, options and troubleshooting: [`docs/INSTALL.md`](docs/INSTALL.md).
 
+Play-testing the viewer: a checklist for non-programmers (in Spanish) is in [`docs/GUIA-DE-PRUEBAS.md`](docs/GUIA-DE-PRUEBAS.md).
+
 ## Quickstart
 
 ```bash
