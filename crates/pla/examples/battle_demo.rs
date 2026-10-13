@@ -42,7 +42,7 @@ fn main() -> Result<(), String> {
         "Partial PLA battle-rules demo (not complete). Commands: move <slot>, switch <party slot>, heal, quit."
     );
     println!(
-        "Verified formulas: damage core/order, effort stats, critical probabilities, type categories. Likely: weather/status damage, accuracy, capture, agility."
+        "Verified (see reports/data-progress/battle_rules_verified.md): effort stats, critical probabilities, type categories. Damage formula: the real game formula is available but OFF by default (this demo uses the old series formula, which the game does not use). Rules checked against the game code: 18 verified, 7 corrected, 4 unknown."
     );
     println!(
         "Nature mapping, native action classes/AI, and catch rates are unknown inputs; defaults are neutral. Healing amount and party controls are demo-only."

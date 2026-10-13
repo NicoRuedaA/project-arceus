@@ -583,7 +583,8 @@ pub const DAMAGE_UNKNOWN_MODIFIERS: &[DamageUnknownModifier] = &[
     DamageUnknownModifier::FinalRoundingOrder,
 ];
 
-/// Inputs to the recovered integer base-damage expression.
+/// Inputs to the older integer base-damage expression (the main-series
+/// shape). This is NOT the formula the game uses; see `integer_base_damage`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BaseDamageInput {
     pub power: u64,
@@ -592,7 +593,12 @@ pub struct BaseDamageInput {
     pub defense: u64,
 }
 
-/// Compute the reported integer damage core using widened integer arithmetic.
+/// Compute the older main-series style damage core with widened integer
+/// arithmetic. The old series formula is NOT what the game uses (REFUTED, see
+/// `reports/data-progress/battle_rules_verified.md`): the game's real base
+/// damage is `P*(Atk+100+15*Level)/(Def+50)/5`, implemented in
+/// `battle_engine::rules` behind the opt-in flag
+/// `Battle::set_pla_damage_formula(true)` (off by default).
 pub fn integer_base_damage(input: BaseDamageInput) -> Result<u64, String> {
     if input.defense == 0 {
         return Err("defense must be nonzero".into());
