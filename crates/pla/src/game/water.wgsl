@@ -13,11 +13,10 @@
 
 #import bevy_pbr::{
     forward_io::{FragmentOutput, VertexOutput},
-    mesh_view_bindings::view,
+    mesh_view_bindings::{globals, view},
     pbr_fragment::pbr_input_from_standard_material,
     pbr_functions::{alpha_discard, apply_pbr_lighting, main_pass_post_lighting_processing},
 }
-#import bevy_render::globals::globals
 
 struct WaterUniform {
     // deep-water colour (linear rgb) + alpha on the far side
