@@ -73,6 +73,11 @@ mod off {
     pub const BASE_SCALE: usize = 0x9C0;
     /// Three samplers of 0x20 bytes, each starting with a u64 texture id.
     pub const SAMPLERS: [usize; 3] = [0x9F0, 0xA10, 0xA30];
+    /// Sampler 0 texture-pattern block: f32 entry count, then 32 u32 cell indices.
+    pub const PATTERN_COUNT: usize = 0x110;
+    pub const PATTERN_TABLE: usize = 0x120;
+    /// Sampler 0 atlas divisions (u, v) as f32 pair; samplers 1/2 at +0x50/+0xA0.
+    pub const ATLAS_DIV: usize = 0x308;
 }
 
 /// How a particle is drawn (byte 0x8AA). LIKELY names; values 0-7 occur.
@@ -203,12 +208,46 @@ pub struct Emitter {
     pub primitive_id: Option<u64>,
     /// Attribute section magics attached to the emitter (`EP03` = stripe/trail, LIKELY).
     pub attributes: Vec<String>,
+    /// Texture-pattern (flip-book) cell indices of sampler 0, RAW/ASSUMED:
+    /// the list length is the f32 at 0x110 when it is 1..=32 (fire flip-books
+    /// such as `ew052_hit/fire` hold 5-8 entries), empty otherwise.
+    pub texture_pattern: Vec<u32>,
+    /// Sampler 0 atlas cells across u and v (LIKELY: `cpt_2_fire0004`, 1024x128,
+    /// has 8 x 1, i.e. square 128 px cells; most textures have 1 x 1).
+    pub atlas_div: [f32; 2],
 }
 
 impl Emitter {
     /// LIKELY: emitters with an `EP03` attribute draw a ribbon (stripe/trail).
     pub fn is_stripe(&self) -> bool {
         self.attributes.iter().any(|a| a == "EP03")
+    }
+
+    /// Spawn schedule `(frame, particle count)` up to `max_frames`.
+    ///
+    /// ASSUMED model (the emission fields are not proven): emission starts at
+    /// `emit_start_frame`; a one-time emitter emits `emit_rate` particles once;
+    /// a looping emitter emits `emit_rate` particles every `emit_interval_frames`
+    /// (at least 1) for `emit_duration_frames` frames (0 = until `max_frames`).
+    pub fn emission_schedule(&self, max_frames: u32) -> Vec<(u32, u32)> {
+        let start = self.emit_start_frame.max(0) as u32;
+        let count = self.emit_rate.max(0.0).round() as u32;
+        if count == 0 || start >= max_frames {
+            return Vec::new();
+        }
+        if self.one_time {
+            return vec![(start, count)];
+        }
+        let step = self.emit_interval_frames.max(1) as u32;
+        let end = if self.emit_duration_frames > 0 {
+            (start + self.emit_duration_frames as u32).min(max_frames)
+        } else {
+            max_frames
+        };
+        (start..end)
+            .step_by(step as usize)
+            .map(|f| (f, count))
+            .collect()
     }
 
     /// Broad drawing shape used by the playback plan.
@@ -422,6 +461,17 @@ fn decode_emitter(b: &[u8], s: &Section, parent: Option<usize>) -> Result<Emitte
         ],
         primitive_id: opt_id(rd_u64(d, off::PRIMITIVE_ID)?),
         attributes,
+        atlas_div: [f32_at(d, off::ATLAS_DIV), f32_at(d, off::ATLAS_DIV + 4)],
+        texture_pattern: {
+            let n = f32_at(d, off::PATTERN_COUNT);
+            if (1.0..=32.0).contains(&n) {
+                (0..n as usize)
+                    .map(|i| rd_u32(d, off::PATTERN_TABLE + 4 * i))
+                    .collect::<Result<_, _>>()?
+            } else {
+                Vec::new()
+            }
+        },
     })
 }
 
@@ -664,6 +714,30 @@ mod tests {
     }
 
     #[test]
+    fn synthetic_emitter_spawns_expected_particle_counts() {
+        let mut e = PtclFile::parse(&synthetic()).unwrap().emitters.remove(0);
+        // One-time burst of 3 at frame 0.
+        e.one_time = true;
+        assert_eq!(e.emission_schedule(60), vec![(0, 3)]);
+        // Looping: 1 particle every 2 frames for 10 frames from frame 4.
+        e.one_time = false;
+        e.emit_rate = 1.0;
+        e.emit_start_frame = 4;
+        e.emit_interval_frames = 2;
+        e.emit_duration_frames = 10;
+        let s = e.emission_schedule(60);
+        assert_eq!(s.iter().map(|(_, n)| n).sum::<u32>(), 5);
+        assert_eq!(s.first(), Some(&(4, 1)));
+        assert_eq!(s.last(), Some(&(12, 1)));
+        // Duration 0 loops until the end of the window.
+        e.emit_duration_frames = 0;
+        assert_eq!(e.emission_schedule(10).len(), 3);
+        // Emission past the window yields nothing.
+        e.emit_start_frame = 90;
+        assert!(e.emission_schedule(60).is_empty());
+    }
+
+    #[test]
     fn rejects_other_versions_and_truncation() {
         let mut b = synthetic();
         b[0x0A] = 0x15;
@@ -707,7 +781,17 @@ mod tests {
     }
 
     /// (file, emitters, textures, first emitter name, its display byte, blend byte, life, first texture)
-    const REAL: [(&str, usize, usize, &str, DisplayType, BlendType, i32, &str); 5] = [
+    type RealCase = (
+        &'static str,
+        usize,
+        usize,
+        &'static str,
+        DisplayType,
+        BlendType,
+        i32,
+        &'static str,
+    );
+    const REAL: [RealCase; 5] = [
         (
             "ew033/ew033_df_hit.ptcl",
             2,
