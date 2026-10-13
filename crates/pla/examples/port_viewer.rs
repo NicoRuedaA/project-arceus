@@ -791,6 +791,7 @@ fn main() -> ExitCode {
         // Continue is enabled only when a valid save was loaded at start-up.
         MainMenuPlugin::install(&mut app, wire_start.loaded, settings_dir);
     }
+    app.add_plugins(pla::game::bag_screen::BagScreenPlugin::from_env_and_args());
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
         app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });

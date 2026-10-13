@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 pub mod audio;
+pub mod bag_screen;
 pub mod battle_ai;
 pub mod battle_anim;
 pub mod battle_controller;
@@ -31,6 +32,7 @@ pub mod save_wire;
 pub mod spawn_point;
 pub mod ball_lifecycle;
 pub mod settings;
+pub mod shop;
 pub mod state;
 pub mod ui;
 pub mod vegetation;

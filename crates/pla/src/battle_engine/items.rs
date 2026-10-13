@@ -54,6 +54,9 @@ pub struct ItemEffect {
     pub max_quantity: u16,
     /// VERIFIED: 1 selects the medicine-style parameter block.
     pub effect_kind: u8,
+    /// LIKELY pocket code (raw field; 2 = balls, 6 = medicine, 7 = berries in the decoded
+    /// shop stock, 0 = misc/other). Only used to group the bag screen.
+    pub pocket_code: u8,
     /// Capture table category (`Regular`, `Great`, `Ultra`, `Feather`, ...); `None` when
     /// the ball has no verified capture row.
     pub ball_category: Option<String>,
@@ -109,6 +112,7 @@ impl ItemTable {
         let c_price = col("price")?;
         let c_max = col("max_quantity")?;
         let c_kind = col("effect_kind")?;
+        let c_pocket = col("pocket_code")?;
         let c_ball = col("ball_category")?;
         let c_heal = col("hp_heal")?;
         let c_cures = [
@@ -140,6 +144,7 @@ impl ItemTable {
                 price: num(c_price)? as u32,
                 max_quantity: num(c_max)? as u16,
                 effect_kind: num(c_kind)? as u8,
+                pocket_code: num(c_pocket)? as u8,
                 ball_category: match v[c_ball] {
                     "none" | "" => None,
                     s => Some(s.to_owned()),
