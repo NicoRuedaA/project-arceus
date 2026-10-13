@@ -33,6 +33,7 @@ pub mod vegetation;
 pub mod world_objects;
 pub mod wild;
 pub mod wild_wander;
+pub mod zone;
 
 pub use battle_controller::{ActiveBattleSession, BattleAssets, BattleInput, BattleMenuState};
 pub use battle_input::battle_input_system;

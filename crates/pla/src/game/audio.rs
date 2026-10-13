@@ -459,16 +459,17 @@ fn observe_zone_music(
         return;
     }
     let Some(z) = zone else { return };
-    if *last == Some(z.area_idx) {
+    let area_idx = z.area_idx();
+    if *last == area_idx {
         return;
     }
-    *last = Some(z.area_idx);
-    match music_for_area(z.area_idx) {
+    *last = area_idx;
+    match area_idx.and_then(music_for_area) {
         Some(m) => {
             out.write(PlayCue { cue: Cue::Music(m), delay: 0.0 });
         }
         None => {
-            rt.warn_once(format!("no field music identified for area {}", z.area_idx));
+            rt.warn_once(format!("no field music identified for zone {}", z.area));
             out.write(PlayCue { cue: Cue::StopMusic, delay: 0.0 });
         }
     }
@@ -949,10 +950,10 @@ BGM/3\tBGM\t3\tbank\tpcm\t1\t8000\t0.5\t10\tok\t\t0.5\t0.01\t1\twork/cache/audio
     fn zone_music_follows_the_area() {
         let dir = temp("zone");
         let mut app = app(&dir);
-        app.insert_resource(ActiveZoneInfo { area_idx: 0, name: "a".into() });
+        app.insert_resource(ActiveZoneInfo { area: "ha_area00".into(), name: "a".into() });
         app.update();
         app.update();
-        app.world_mut().resource_mut::<ActiveZoneInfo>().area_idx = 9;
+        app.world_mut().resource_mut::<ActiveZoneInfo>().area = "ha_area09".into();
         app.update();
         let recent: Vec<String> = app.world().resource::<AudioStats>().recent.iter().cloned().collect();
         assert_eq!(recent, vec!["PLAY_BGM_HA_FI_AREA00", "<stop music>"]);

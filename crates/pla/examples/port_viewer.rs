@@ -24,14 +24,10 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy::window::WindowResolution;
 
-use pla::assets::bntx::TextureData;
 use pla::assets::navmesh::AreaNavigation;
 use pla::assets::terrain::{
-    build_mesh_chunks, TerrainArea, TerrainMeshChunk, TerrainMeshSettings,
-    TerrainScaleOverride,
+    build_mesh_chunks, TerrainArea, TerrainScaleOverride,
 };
-use pla::assets::terrain_albedo::{albedo_cache_path, bake_albedo, load_baked_albedo};
-use pla::assets::terrain_normals::{bake_normals, load_baked_normals, normals_cache_path};
 use pla::battle::BattleData;
 use pla::game::{
     battle_input_system, load_spawners_for_area, roll_spawner, setup_game_ui,
@@ -43,22 +39,11 @@ use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleSta
 use pla::game::pause_menu::PauseMenuPlugin;
 use pla::game::settings::UserSettings;
 use pla::game::state::{not_paused, Paused};
+use pla::game::zone::{TerrainChunkMarker, TerrainResource};
 use pla::pml::{calculate_hp, PmlDatabase};
-
-#[derive(Component)]
-struct TerrainChunkMarker;
 
 #[derive(Resource, Clone)]
 struct BinRootResource(PathBuf);
-
-#[derive(Resource)]
-struct TerrainResource {
-    area: Arc<TerrainArea>,
-    chunks: Vec<TerrainMeshChunk>,
-    blended_albedo: Option<TextureData>,
-    #[allow(dead_code)]
-    settings: TerrainMeshSettings,
-}
 
 #[derive(Resource)]
 struct TreeCatalogResource {
@@ -93,114 +78,11 @@ fn resolve_pokemon_gltf_rel(dex: u16) -> Option<String> {
     None
 }
 
-/// Resolves baked terrain albedo texture for the given area from cache or bakes at startup.
-fn resolve_terrain_albedo(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
-    let candidate_dirs = [
-        std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
-        Some(PathBuf::from("work/cache")),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work")),
-        Some(PathBuf::from("work")),
-    ];
-    for dir in candidate_dirs.into_iter().flatten() {
-        let p1 = dir.join("terrain_albedo").join(format!("area{area_idx:02}.png"));
-        if p1.is_file() {
-            match load_baked_albedo(&p1) {
-                Ok(tex) => {
-                    println!("Loaded baked terrain albedo from {}", p1.display());
-                    return Some(tex);
-                }
-                Err(e) => eprintln!("Failed to load baked albedo from {}: {e}", p1.display()),
-            }
-        }
-        let p2 = albedo_cache_path(&dir, area_idx);
-        if p2.is_file() {
-            match load_baked_albedo(&p2) {
-                Ok(tex) => {
-                    println!("Loaded baked terrain albedo from {}", p2.display());
-                    return Some(tex);
-                }
-                Err(e) => eprintln!("Failed to load baked albedo from {}: {e}", p2.display()),
-            }
-        }
-    }
-
-    println!("Baked terrain albedo not found in cache for area {:02}, baking at startup...", area_idx);
-    match bake_albedo(area_data, 2048, true) {
-        Ok(tex) => {
-            println!("Successfully baked terrain albedo for area {:02} (2048x2048)", area_idx);
-            Some(tex)
-        }
-        Err(e) => {
-            eprintln!("Failed to bake terrain albedo: {e}. Falling back to slot order hypothesis.");
-            area_data.blend_splat_by_slot_order_hypothesis().ok()
-        }
-    }
-}
-
 #[derive(Resource)]
 struct PlayerSpawnConfig {
     pos: Vec2,
     #[allow(dead_code)]
     area_idx: u8,
-}
-
-/// Resolves baked terrain tangent-space normals from cache (same search order as
-/// the albedo), else bakes them at startup. `None` when the area has no layer
-/// normals or the bake fails, so the terrain keeps its albedo-only look.
-fn resolve_terrain_normals(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
-    let candidate_dirs = [
-        std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
-        Some(PathBuf::from("work/cache")),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work")),
-        Some(PathBuf::from("work")),
-    ];
-    for dir in candidate_dirs.into_iter().flatten() {
-        for p in [
-            dir.join("terrain_normals").join(format!("area{area_idx:02}.png")),
-            normals_cache_path(&dir, area_idx),
-        ] {
-            if p.is_file() {
-                match load_baked_normals(&p) {
-                    Ok(tex) => {
-                        println!("Loaded baked terrain normals from {}", p.display());
-                        return Some(tex);
-                    }
-                    Err(e) => eprintln!("Failed to load baked normals from {}: {e}", p.display()),
-                }
-            }
-        }
-    }
-    println!("Baked terrain normals not found in cache for area {area_idx:02}, baking at startup...");
-    match bake_normals(area_data, 2048) {
-        Ok(tex) => Some(tex),
-        Err(e) => {
-            eprintln!("Failed to bake terrain normals: {e}. Continuing without a normal map.");
-            None
-        }
-    }
-}
-
-/// Builds the (linear, non-sRGB) Bevy image for the terrain normal map.
-/// Normal maps must not be sampled as sRGB; a missing area normal map yields `None`.
-fn resolve_terrain_normal_handle(
-    area_idx: u8,
-    area_data: &TerrainArea,
-    images: &mut Assets<Image>,
-) -> Option<Handle<Image>> {
-    let texture = resolve_terrain_normals(area_idx, area_data)?;
-    Some(images.add(Image::new(
-        Extent3d {
-            width: texture.width,
-            height: texture.height,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        texture.rgba,
-        TextureFormat::Rgba8Unorm,
-        RenderAssetUsages::default(),
-    )))
 }
 
 #[derive(Component)]
@@ -435,6 +317,7 @@ fn main() -> ExitCode {
     let mut demo_output_dir = None;
     let mut controls_demo_dir: Option<PathBuf> = None;
     let mut player_variant = String::from("p1");
+    let mut debug_zone_links = false;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -513,6 +396,9 @@ fn main() -> ExitCode {
                     player_variant = v.to_lowercase();
                 }
             }
+            "--debug-zone-links" => {
+                debug_zone_links = true;
+            }
             "--ticks" => {
                 if let Some(ticks) = args.next().and_then(|t| t.parse().ok()) {
                     max_ticks = Some(ticks);
@@ -551,6 +437,7 @@ fn main() -> ExitCode {
                 println!("  --screenshot <PATH>   Capture window screenshot and exit");
                 println!("  --ticks <COUNT>       Run for COUNT frames and exit");
                 println!("  --player-variant <p1|p2>  Player glTF from $PLA_CACHE_ROOT/player (default p1; capsule if missing)");
+                println!("  --debug-zone-links    P prints decoded door links near the player; T fast-travels to the next main area");
                 println!("  --mode <orbit|aim>    Initial camera mode (default: orbit)");
                 println!("  --species <DEX>       National dex species ID to spawn (default: 25 Pikachu)");
                 println!("  --throw               Automatically throw Poké Ball on tick 20");
@@ -617,7 +504,7 @@ fn main() -> ExitCode {
                 Ok(settings) => match build_mesh_chunks(&area_data.heightmap, settings) {
                     Ok(chunks) => {
                         println!("Built {} terrain mesh chunks (cell size {:.3}m)", chunks.len(), settings.horizontal_cell_size);
-                        let blended_albedo = resolve_terrain_albedo(area_idx, &area_data);
+                        let blended_albedo = pla::game::zone::resolve_terrain_albedo(area_idx, &area_data);
                         Some(TerrainResource {
                             area: Arc::new(area_data),
                             chunks,
@@ -800,18 +687,9 @@ fn main() -> ExitCode {
         pos: player_spawn_pos,
         area_idx,
     });
-    let zone_name = match area_idx {
-        0 => "Jubilife Village (ha_area00)".to_string(),
-        1 => "Obsidian Fieldlands (ha_area01)".to_string(),
-        2 => "Crimson Mirelands (ha_area02)".to_string(),
-        3 => "Cobalt Coastlands (ha_area03)".to_string(),
-        4 => "Coronet Highlands (ha_area04)".to_string(),
-        5 => "Alabaster Icelands (ha_area05)".to_string(),
-        _ => format!("Hisui Sector (ha_area{:02})", area_idx),
-    };
     app.insert_resource(pla::game::ActiveZoneInfo {
-        area_idx,
-        name: zone_name,
+        area: format!("ha_area{area_idx:02}"),
+        name: pla::game::zone::display_name_for_index(area_idx),
     });
     app.insert_resource(TreeCatalogResource {
         handles: HashMap::new(),
@@ -898,6 +776,12 @@ fn main() -> ExitCode {
         app.insert_resource(assets);
     }
     app.insert_resource(BinRootResource(bin_root.clone()));
+    // Zone switching (Brief 8): decoded door / fast-travel links, fade and scene swap.
+    app.insert_resource(pla::game::zone::ZoneBinRoot(bin_root.clone()));
+    app.add_plugins(pla::game::zone::ZonePlugin {
+        links_path: None,
+        debug_links: debug_zone_links,
+    });
     app.insert_resource(AutomationOptions {
         screenshot_path,
         max_ticks,
@@ -1068,7 +952,7 @@ fn setup_scene(
                 Color::srgb(0.28, 0.42, 0.22)
             },
             base_color_texture: albedo,
-            normal_map_texture: resolve_terrain_normal_handle(terrain.area.area, &terrain.area, &mut images),
+            normal_map_texture: pla::game::zone::resolve_terrain_normal_handle(terrain.area.area, &terrain.area, &mut images),
             perceptual_roughness: 0.95,
             ..default()
         });
@@ -2424,6 +2308,7 @@ fn update_hud_and_telemetry(
 
     let state_str = match game_state.get() {
         GameState::World => "WORLD",
+        GameState::Loading => "LOADING",
         GameState::Battle => "BATTLE",
         GameState::BattleEnded => "POST-BATTLE",
     };
@@ -2457,6 +2342,8 @@ fn update_hud_and_telemetry(
     }
 }
 
+/// Thin wrapper kept for the auto-demo: the real implementation lives in `game::zone`.
+#[allow(clippy::too_many_arguments)]
 fn switch_terrain_area(
     area_idx: u8,
     bin_root: &std::path::Path,
@@ -2468,72 +2355,17 @@ fn switch_terrain_area(
     images: &mut ResMut<Assets<Image>>,
     zone_info: &mut ResMut<pla::game::ActiveZoneInfo>,
 ) -> bool {
-    println!("Switching active terrain to Area {:02}...", area_idx);
-    for entity in chunk_query.iter() {
-        commands.entity(entity).despawn();
-    }
-    let Ok(area_data) = TerrainArea::load(bin_root, area_idx) else {
-        eprintln!("Failed to load TerrainArea for area {:02}", area_idx);
-        return false;
-    };
-    let Ok(settings) = area_data.mesh_settings(TerrainScaleOverride::default(), 64) else {
-        eprintln!("Failed to resolve mesh settings for area {:02}", area_idx);
-        return false;
-    };
-    let Ok(chunks) = build_mesh_chunks(&area_data.heightmap, settings) else {
-        eprintln!("Failed to build mesh chunks for area {:02}", area_idx);
-        return false;
-    };
-    let albedo_tex = resolve_terrain_albedo(area_idx, &area_data);
-    let albedo_handle = albedo_tex.as_ref().map(|texture| {
-        images.add(Image::new(
-            Extent3d {
-                width: texture.width,
-                height: texture.height,
-                depth_or_array_layers: 1,
-            },
-            TextureDimension::D2,
-            texture.rgba.clone(),
-            TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::default(),
-        ))
-    });
-    let terrain_material = materials.add(StandardMaterial {
-        base_color: if albedo_handle.is_some() {
-            Color::WHITE
-        } else {
-            Color::srgb(0.28, 0.42, 0.22)
-        },
-        base_color_texture: albedo_handle,
-        normal_map_texture: resolve_terrain_normal_handle(area_idx, &area_data, images),
-        perceptual_roughness: 0.95,
-        ..default()
-    });
-    for chunk in &chunks {
-        commands.spawn((
-            TerrainChunkMarker,
-            Mesh3d(meshes.add(chunk.mesh.clone())),
-            MeshMaterial3d(terrain_material.clone()),
-            Transform::IDENTITY,
-        ));
-    }
-    terrain_res.area = Arc::new(area_data);
-    terrain_res.chunks = chunks;
-    terrain_res.blended_albedo = albedo_tex;
-    terrain_res.settings = settings;
-
-    zone_info.area_idx = area_idx;
-    zone_info.name = match area_idx {
-        0 => "Jubilife Village (ha_area00)".to_string(),
-        1 => "Obsidian Fieldlands (ha_area01)".to_string(),
-        2 => "Crimson Mirelands (ha_area02)".to_string(),
-        3 => "Cobalt Coastlands (ha_area03)".to_string(),
-        4 => "Coronet Highlands (ha_area04)".to_string(),
-        5 => "Alabaster Icelands (ha_area05)".to_string(),
-        _ => format!("Hisui Sector (ha_area{:02})", area_idx),
-    };
-    println!("Successfully switched terrain to Area {:02} ({})", area_idx, zone_info.name);
-    true
+    pla::game::zone::switch_terrain_area(
+        area_idx,
+        bin_root,
+        commands,
+        terrain_res,
+        chunk_query,
+        meshes,
+        materials,
+        images,
+        Some(&mut **zone_info),
+    )
 }
 
 /// Automated headless tick driver and screenshot capturer for test verification.

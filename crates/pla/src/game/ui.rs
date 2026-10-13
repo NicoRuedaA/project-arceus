@@ -22,8 +22,16 @@ pub struct WorldRadarText;
 
 #[derive(Resource, Debug, Clone)]
 pub struct ActiveZoneInfo {
-    pub area_idx: u8,
+    /// Zone id: main area (`ha_area00`) or sub-area (`ha_area00_s03_a`).
+    pub area: String,
     pub name: String,
+}
+
+impl ActiveZoneInfo {
+    /// Main-area index of the current zone (`ha_area00` -> 0); `None` for sub-area ids.
+    pub fn area_idx(&self) -> Option<u8> {
+        crate::game::save_wire::parse_zone(&self.area)
+    }
 }
 
 #[derive(Component)]
@@ -517,7 +525,7 @@ pub fn sync_ui_visibility(
     }
 
     match game_state.get() {
-        GameState::World => {
+        GameState::World | GameState::Loading => {
             for mut v in &mut world_query {
                 *v = Visibility::Visible;
             }
