@@ -12,6 +12,7 @@ pub mod lighting;
 pub mod render_look;
 pub mod battle_demo;
 pub mod battle_input;
+pub mod input_map;
 pub mod battle_visibility;
 pub mod battle_items;
 pub mod battle_log;
