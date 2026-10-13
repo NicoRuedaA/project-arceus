@@ -272,7 +272,7 @@ fn veg_track_area(
     mut st: ResMut<VegetationState>,
     mut stats: ResMut<VegetationStats>,
 ) {
-    let want = zone.map_or(cfg.area, |z| z.area_idx);
+    let want = zone.and_then(|z| z.area_idx()).unwrap_or(cfg.area);
     if st.area == Some(want) {
         return;
     }

@@ -102,10 +102,11 @@ impl PlayerProgress {
         }
     }
 
-    /// Snapshot for the file. `zone` is the area index, `position`/`yaw` the player's pose.
-    pub fn to_save(&self, area_idx: u8, position: [f32; 3], yaw: f32) -> PlayerSave {
+    /// Snapshot for the file. `zone` is the zone id (`ha_area00`, `ha_area00_s03_a`),
+    /// `position`/`yaw` the player's pose.
+    pub fn to_save(&self, zone: &str, position: [f32; 3], yaw: f32) -> PlayerSave {
         PlayerSave {
-            zone: zone_id(area_idx),
+            zone: zone.to_string(),
             position,
             yaw,
             time_slot: self.time_slot,
@@ -628,7 +629,7 @@ fn do_save(
         toast.show("Save skipped: no player yet.");
         return false;
     };
-    let ok = game.save(progress.to_save(zone.area_idx, pos, yaw));
+    let ok = game.save(progress.to_save(&zone.area, pos, yaw));
     toast.show(game.message.clone().unwrap_or_default());
     ok
 }
@@ -796,7 +797,7 @@ mod tests {
         // survives the file
         let dir = tmpdir("party");
         let mut game = SaveGame::new(SaveFile::in_dir(&dir));
-        assert!(game.save(p.to_save(1, [1.0, 2.0, 3.0], 0.5)));
+        assert!(game.save(p.to_save("ha_area01", [1.0, 2.0, 3.0], 0.5)));
         let mut game2 = SaveGame::new(SaveFile::in_dir(&dir));
         let st = load_startup(&mut game2, &WireCli::default());
         assert!(st.loaded);
@@ -875,7 +876,7 @@ mod tests {
         // format v3 writes it and it reloads identical
         let dir = tmpdir("boxroute");
         let mut game = SaveGame::new(SaveFile::in_dir(&dir));
-        assert!(game.save(p.to_save(1, [1.0, 2.0, 3.0], 0.5)));
+        assert!(game.save(p.to_save("ha_area01", [1.0, 2.0, 3.0], 0.5)));
         let mut game2 = SaveGame::new(SaveFile::in_dir(&dir));
         let st = load_startup(&mut game2, &WireCli::default());
         assert!(st.loaded);
@@ -935,7 +936,7 @@ mod tests {
         let st = load_startup(&mut game, &WireCli::default());
         assert!(!st.loaded);
         assert!(st.message.to_lowercase().contains("no saved game"), "{}", st.message);
-        assert!(game.save(progress2().to_save(2, [0.0; 3], 0.0)));
+        assert!(game.save(progress2().to_save("ha_area02", [0.0; 3], 0.0)));
         let mut again = SaveGame::new(SaveFile::in_dir(&dir));
         let cli = WireCli { new_game: true, ..WireCli::default() };
         let st = load_startup(&mut again, &cli);
@@ -949,8 +950,8 @@ mod tests {
     fn damaged_main_file_restores_backup_with_message() {
         let dir = tmpdir("damaged");
         let mut game = SaveGame::new(SaveFile::in_dir(&dir));
-        assert!(game.save(progress2().to_save(1, [0.0; 3], 0.0)));
-        assert!(game.save(progress2().to_save(1, [1.0, 0.0, 0.0], 0.0))); // creates .bak
+        assert!(game.save(progress2().to_save("ha_area01", [0.0; 3], 0.0)));
+        assert!(game.save(progress2().to_save("ha_area01", [1.0, 0.0, 0.0], 0.0))); // creates .bak
         std::fs::write(dir.join("save.plasave"), "garbage").unwrap();
         let mut g = SaveGame::new(SaveFile::in_dir(&dir));
         let st = load_startup(&mut g, &WireCli::default());
@@ -1023,7 +1024,7 @@ mod tests {
         // file round trip, then a second battle starts from the loaded state
         let dir = tmpdir("real");
         let mut game = SaveGame::new(SaveFile::in_dir(&dir));
-        assert!(game.save(p.to_save(1, [5.0, 1.0, 5.0], 1.0)));
+        assert!(game.save(p.to_save("ha_area01", [5.0, 1.0, 5.0], 1.0)));
         let mut g2 = SaveGame::new(SaveFile::in_dir(&dir));
         let loaded = load_startup(&mut g2, &WireCli::default()).progress;
         assert_eq!(loaded.party, p.party);
@@ -1092,7 +1093,7 @@ mod tests {
         // and it survives a save/reload with a 6-member party plus the box
         let dir = tmpdir("realbox");
         let mut game = SaveGame::new(SaveFile::in_dir(&dir));
-        assert!(game.save(p.to_save(1, [0.0; 3], 0.0)));
+        assert!(game.save(p.to_save("ha_area01", [0.0; 3], 0.0)));
         let mut g2 = SaveGame::new(SaveFile::in_dir(&dir));
         let loaded = load_startup(&mut g2, &WireCli::default()).progress;
         assert_eq!(loaded.party, p.party);

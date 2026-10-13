@@ -8,6 +8,8 @@ pub enum GameState {
     /// Overworld exploration: real terrain heightmap, navmesh sliding locomotion, wild creature encounters.
     #[default]
     World,
+    /// Zone change in flight (screen fading, old scene unloading, new scene loading).
+    Loading,
     /// Active turn-based Pokémon battle against a wild creature.
     Battle,
     /// Post-battle summary or transition screen returning to World.
