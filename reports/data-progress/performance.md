@@ -6,7 +6,7 @@ offscreen image, so the measurement never touches the desktop. The numbers below
 CPU-side wall-clock costs on the measurement machine. **The GPU frame time of the real
 windowed viewer is UNKNOWN**: it cannot be measured without a window and is not faked here.
 
-- Command: `target/release/examples/perf_report --areas 0,1,2,3,4,5 --render-areas 0,1 --bake-area 1 --render-warmup 600 --render-frames 600 --raw work/perf/baseline.tsv --out reports/data-progress/performance.md`
+- Command: `target/release/examples/perf_report --areas 0,1,2,3,4,5 --render-areas 0,1 --bake-area 1 --render-warmup 600 --render-frames 600 --raw work/perf/after.tsv --compare work/perf/baseline.tsv --out reports/data-progress/performance.md`
 - Profile: release (`play.sh` runs the viewer with `cargo run --release`)
 - CPU: AMD Ryzen 5 7600X 6-Core Processor
 - Area packs: `/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin`
@@ -23,12 +23,12 @@ below). `mesh MiB` is the decoded attribute+index bytes handed to Bevy, not GPU 
 
 | area | pack MiB | load ms | chunks ms | nav ms | albedo ms | chunks | vertices | triangles | mesh MiB | trins inst | placements (gltf) | spawners | RSS Δ MiB |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 00 | 9.4 | 368.8 | 1652.9 | 61.4 | 38.5 | 256 | 1081600 | 2097152 | 73.5 | 60 | 195 (195) | 3 | 109 |
-| 01 | 14.1 | 413.2 | 1646.9 | 105.6 | 173.6 | 256 | 1081600 | 2097152 | 73.5 | 1430 | 458 (458) | 357 | 21 |
-| 02 | 26.1 | 789.5 | 6737.6 | 165.7 | 48.5 | 1024 | 4326400 | 8388608 | 294.0 | 2204 | 399 (399) | 448 | 62 |
-| 03 | 23.1 | 608.8 | 6446.7 | 149.8 | 39.9 | 1024 | 4326400 | 8388608 | 294.0 | 788 | 52 (52) | 460 | 0 |
-| 04 | 19.1 | 509.3 | 1645.6 | 116.6 | 41.3 | 256 | 1081600 | 2097152 | 73.5 | 901 | 387 (387) | 320 | 0 |
-| 05 | 23.4 | 620.4 | 7073.6 | 140.8 | 31.0 | 1024 | 4326400 | 8388608 | 294.0 | 828 | 299 (299) | 363 | 8 |
+| 00 | 9.4 | 361.2 | 550.4 | 55.9 | 40.0 | 256 | 1081600 | 2097152 | 73.5 | 60 | 195 (195) | 3 | 109 |
+| 01 | 14.1 | 464.4 | 542.6 | 91.6 | 187.0 | 256 | 1081600 | 2097152 | 73.5 | 1430 | 458 (458) | 357 | 116 |
+| 02 | 26.1 | 798.3 | 2200.5 | 159.0 | 62.8 | 1024 | 4326400 | 8388608 | 294.0 | 2204 | 399 (399) | 448 | 163 |
+| 03 | 23.1 | 692.8 | 2158.4 | 137.9 | 53.6 | 1024 | 4326400 | 8388608 | 294.0 | 788 | 52 (52) | 460 | 186 |
+| 04 | 19.1 | 530.9 | 540.5 | 112.2 | 56.7 | 256 | 1081600 | 2097152 | 73.5 | 901 | 387 (387) | 320 | 93 |
+| 05 | 23.4 | 645.8 | 2171.3 | 135.6 | 50.0 | 1024 | 4326400 | 8388608 | 294.0 | 828 | 299 (299) | 363 | 146 |
 
 - area 00: heightmap 1025×1025, extent 1025.0 m, `world_height` 185.0, 3 `.trins` models, 3 masks — albedo: cached png 8.3 MiB
 - area 01: heightmap 1025×1025, extent 1025.0 m, `world_height` 121.8, 9 `.trins` models, 5 masks — albedo: cached png 27.7 MiB
@@ -37,27 +37,42 @@ below). `mesh MiB` is the decoded attribute+index bytes handed to Bevy, not GPU 
 - area 04: heightmap 1025×1025, extent 1025.0 m, `world_height` 302.0, 5 `.trins` models, 3 masks — albedo: cached png 8.5 MiB
 - area 05: heightmap 2049×2049, extent 1025.0 m, `world_height` 168.0, 6 `.trins` models, 2 masks — albedo: cached png 6.1 MiB
 
-Process `VmHWM` peak after the data phase: 424 MiB.
+Process `VmHWM` peak after the data phase: 553 MiB.
 
 ## Albedo bake (in-memory, one area)
 
-- area 01: **1173 ms** `bake_albedo_with` (4096², detail, up to 3 threads; result not written to disk).
+- area 01: **1167 ms** `bake_albedo_with` (4096², detail, up to 3 threads; result not written to disk).
 
 ## Offscreen frame loop (one process per area, no window)
 
 | area | frames | mean ms | p50 ms | p95 ms | p99 ms | min ms | max ms | entities | mesh entities |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 00 | 600 | 2.12 | 2.12 | 2.16 | 2.25 | 1.45 | 3.23 | 1052 | 624 |
-| 01 | 600 | 1.55 | 1.47 | 2.22 | 2.98 | 1.14 | 3.57 | 1004 | 593 |
+| 00 | 600 | 2.03 | 2.10 | 3.17 | 4.43 | 1.15 | 4.98 | 1052 | 624 |
+| 01 | 600 | 1.55 | 1.47 | 2.30 | 2.85 | 1.12 | 5.51 | 1004 | 593 |
 
-- area 00: terrain mesh + baked albedo + `ZoneLightingPlugin` + streamed `.trins` trees, 37 tree instances from 3 of 3 models loaded, vegetation 70 chunks / 58 draw calls / 44455 tris / 19296 instances; 600 frames sampled after warm-up + settle (entity count stable for 60 frames). Setup inside the app: chunks 1579.1 ms, navmesh 69.6 ms (anchor snap), albedo 43.6 ms; anchor (448,652).
-  - `FrameTimeDiagnosticsPlugin` smoothed frame time at exit: **2.12 ms**, 471.1 fps.
-- area 01: terrain mesh + baked albedo + `ZoneLightingPlugin` + streamed `.trins` trees, 63 tree instances from 3 of 3 models loaded, vegetation 56 chunks / 51 draw calls / 52366 tris / 26183 instances; 600 frames sampled after warm-up + settle (entity count stable for 60 frames). Setup inside the app: chunks 1613.4 ms, navmesh 95.3 ms (anchor snap), albedo 128.4 ms; anchor (512,512).
-  - `FrameTimeDiagnosticsPlugin` smoothed frame time at exit: **1.21 ms**, 824.2 fps.
+- area 00: terrain mesh + baked albedo + `ZoneLightingPlugin` + streamed `.trins` trees, 37 tree instances from 3 of 3 models loaded, vegetation 70 chunks / 58 draw calls / 44455 tris / 19296 instances; 600 frames sampled after warm-up + settle (entity count stable for 60 frames). Setup inside the app: chunks 553.3 ms, navmesh 71.9 ms (anchor snap), albedo 47.2 ms; anchor (448,652).
+  - `FrameTimeDiagnosticsPlugin` smoothed frame time at exit: **2.12 ms**, 470.7 fps.
+- area 01: terrain mesh + baked albedo + `ZoneLightingPlugin` + streamed `.trins` trees, 63 tree instances from 3 of 3 models loaded, vegetation 56 chunks / 51 draw calls / 52366 tris / 26183 instances; 600 frames sampled after warm-up + settle (entity count stable for 60 frames). Setup inside the app: chunks 546.4 ms, navmesh 93.0 ms (anchor snap), albedo 129.1 ms; anchor (512,512).
+  - `FrameTimeDiagnosticsPlugin` smoothed frame time at exit: **1.66 ms**, 602.5 fps.
 
 This offscreen render measures the CPU loop (extract + render graph submission).
 With pipelined rendering the GPU work is asynchronous, so these numbers do NOT bound
 the GPU frame time; the real viewer's GPU frame time is **UNKNOWN** here.
+
+## Before/after (same measurement, same machine)
+
+Baseline: `work/perf/baseline.tsv`.
+Sub-second phases (load, navmesh, cached-albedo read) vary between runs with IO and
+allocator state; the targeted phase is the one with the large, reproducible delta.
+
+- area 00: load 368.8 → 361.2 ms (-2.1 %), chunks 1652.9 → 550.4 ms (-66.7 %), nav 61.4 → 55.9 ms (-8.9 %), albedo 38.5 → 40.0 ms (+3.9 %)
+- area 01: load 413.2 → 464.4 ms (+12.4 %), chunks 1646.9 → 542.6 ms (-67.1 %), nav 105.6 → 91.6 ms (-13.3 %), albedo 173.6 → 187.0 ms (+7.7 %)
+- area 02: load 789.5 → 798.3 ms (+1.1 %), chunks 6737.6 → 2200.5 ms (-67.3 %), nav 165.7 → 159.0 ms (-4.0 %), albedo 48.5 → 62.8 ms (+29.4 %)
+- area 03: load 608.8 → 692.8 ms (+13.8 %), chunks 6446.7 → 2158.4 ms (-66.5 %), nav 149.8 → 137.9 ms (-8.0 %), albedo 39.9 → 53.6 ms (+34.2 %)
+- area 04: load 509.3 → 530.9 ms (+4.2 %), chunks 1645.6 → 540.5 ms (-67.2 %), nav 116.6 → 112.2 ms (-3.8 %), albedo 41.3 → 56.7 ms (+37.3 %)
+- area 05: load 620.4 → 645.8 ms (+4.1 %), chunks 7073.6 → 2171.3 ms (-69.3 %), nav 140.8 → 135.6 ms (-3.7 %), albedo 31.0 → 50.0 ms (+61.2 %)
+- area 00 render frame loop mean: 2.12 → 2.03 ms (-4.1 %)
+- area 01 render frame loop mean: 1.55 → 1.55 ms (+0.4 %)
 
 ## Verified / Assumed / Unknown
 

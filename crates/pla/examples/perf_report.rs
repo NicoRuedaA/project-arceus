@@ -389,11 +389,14 @@ struct RenderSummary {
 #[derive(Resource, Clone)]
 struct SummaryCell(Arc<Mutex<Option<RenderSummary>>>);
 
+/// One glTF primitive: mesh handle + the material this harness assigned to it.
+type Prims = Vec<(Handle<Mesh>, Handle<StandardMaterial>)>;
+
 #[derive(Resource)]
 struct TreeStream {
     handles: HashMap<String, Handle<Gltf>>,
     instances: HashMap<String, Vec<Mat4>>,
-    prims: HashMap<String, Vec<(Handle<Mesh>, Handle<StandardMaterial>)>>,
+    prims: HashMap<String, Prims>,
     spawned: bool,
     spawned_instances: usize,
     requested_models: usize,
@@ -1208,6 +1211,10 @@ fn write_report(
     if let Some(cmp) = compare {
         out.push_str("## Before/after (same measurement, same machine)\n\n");
         let _ = writeln!(out, "Baseline: {}.", cmp.title);
+        out.push_str(
+            "Sub-second phases (load, navmesh, cached-albedo read) vary between runs with IO and\n\
+             allocator state; the targeted phase is the one with the large, reproducible delta.\n\n",
+        );
         let mut any = false;
         for m in metrics {
             let Some(before) = cmp.area.get(&m.area) else {
