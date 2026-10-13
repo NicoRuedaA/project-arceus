@@ -8,6 +8,7 @@ pub mod items;
 pub mod progression;
 pub mod rules;
 pub mod statuses;
+pub mod styles;
 use effects::{EffectEvent, MoveEffectsTable, Stages};
 use items::ItemTable;
 
@@ -251,6 +252,8 @@ pub struct Battle {
     rule_events: Vec<rules::RuleEvent>,
     /// VERIFIED PLA base damage formula on/off (off = legacy main-series shape).
     pla_damage: bool,
+    /// Agile/Strong styles, the PLA action-order queue and Fixated (all opt-in; see styles.rs).
+    styles: styles::StyleState,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -311,6 +314,7 @@ impl Battle {
             stage_turns: Vec::new(),
             rule_events: Vec::new(),
             pla_damage: false,
+            styles: styles::StyleState::default(),
         })
     }
 
@@ -602,6 +606,8 @@ impl Battle {
                     pla_formula,
                     rng,
                 );
+                // Opt-in Fixated multipliers (no-op unless `set_fixated` was used).
+                let d = self.fixated_damage(action.actor, target, &move_name, d);
                 dealt += d.min(self.combatants[target].hp);
                 self.combatants[target].hp = self.combatants[target].hp.saturating_sub(d);
                 damage += d;
@@ -917,6 +923,13 @@ fn turn_order_key(
     weather: BattleWeather,
     trick_room: bool,
 ) -> (u8, i8, u32) {
+    let speed = agility(actor, weather, trick_room);
+    (actor.action_class, priority, speed & rules::AGILITY_KEY_MASK)
+}
+
+/// VERIFIED agility value (see `turn_order_key`) before it is packed into the 13-bit key.
+/// The PLA action-order queue reads the same value without the reversal (`reverse = false`).
+pub(crate) fn agility(actor: &Combatant, weather: BattleWeather, reverse: bool) -> u32 {
     let mut speed = q12_mul(actor.speed, u32::from(actor.speed_modifier_q12));
     if (weather == BattleWeather::Sun && actor.species.types.iter().any(|t| t == "Grass"))
         || (weather == BattleWeather::Snow && actor.species.types.iter().any(|t| t == "Ice"))
@@ -927,10 +940,10 @@ fn turn_order_key(
         speed /= 2;
     }
     speed = speed.min(rules::AGILITY_CAP);
-    if trick_room {
+    if reverse {
         speed = rules::AGILITY_CAP - speed;
     }
-    (actor.action_class, priority, speed & rules::AGILITY_KEY_MASK)
+    speed
 }
 
 fn expected_damage(
