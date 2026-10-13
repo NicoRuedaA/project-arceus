@@ -18,3 +18,4 @@ pub mod terrain;
 pub mod terrain_albedo;
 pub mod tr;
 pub mod vfxb;
+pub mod wwise;
