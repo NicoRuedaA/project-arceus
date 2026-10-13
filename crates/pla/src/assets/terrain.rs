@@ -14,9 +14,6 @@ use super::bntx::{Bntx, FloatTextureData, TextureData};
 use super::gfpak::GfPak;
 use super::tr::TrMtr;
 
-const MASK_HEADER_SIZE: usize = 72;
-const MASK_SIDE: usize = 4096;
-const MASK_PAYLOAD_SIZE: usize = MASK_SIDE * MASK_SIDE;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaterialParameterCandidate {
@@ -57,9 +54,11 @@ pub fn splat_tiling_from_trmtr(bytes: &[u8]) -> Vec<[f32; 2]> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawTerrainMask {
     pub source_entry_index: usize,
+    /// Texels per row/column (2048 in every area; `parse_detail_mask` validates it).
     pub width: u32,
     pub height: u32,
-    /// Raw 0/255 mask payload, excluding its observed 72-byte header.
+    /// RGBA8 texel payload (4 interleaved 0/255 channels), 28-byte header and 44-byte
+    /// trailer removed. NOT a 4096x4096 single-channel map (earlier assumption, refuted).
     pub bytes: Vec<u8>,
 }
 
@@ -391,12 +390,12 @@ impl TerrainArea {
             let path = format!("{pack_prefix}{file_name}");
             let index = required_entry_index(&pack, &path)?;
             let decoded = pack.decoded_data(&bytes, &pack.entries[index])?;
-            if decoded.len() == MASK_HEADER_SIZE + MASK_PAYLOAD_SIZE {
+            if let Ok(mask) = super::vegetation::parse_detail_mask(&decoded) {
                 masks.push(RawTerrainMask {
                     source_entry_index: index,
-                    width: MASK_SIDE as u32,
-                    height: MASK_SIDE as u32,
-                    bytes: decoded[MASK_HEADER_SIZE..].to_vec(),
+                    width: mask.width,
+                    height: mask.height,
+                    bytes: mask.rgba,
                 });
             }
         }

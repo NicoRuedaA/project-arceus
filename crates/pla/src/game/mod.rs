@@ -28,6 +28,7 @@ pub mod ball_lifecycle;
 pub mod settings;
 pub mod state;
 pub mod ui;
+pub mod vegetation;
 pub mod world_objects;
 pub mod wild;
 pub mod wild_wander;

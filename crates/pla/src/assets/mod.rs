@@ -17,4 +17,5 @@ pub mod sarc;
 pub mod terrain;
 pub mod terrain_albedo;
 pub mod tr;
+pub mod vegetation;
 pub mod vfxb;
