@@ -543,11 +543,11 @@ mod tests {
 
         app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
-            .press(KeyCode::KeyX);
+            .press(KeyCode::KeyK);
         app.update();
 
         let state = *app.world().get::<PlayerMotionState>(e).unwrap();
-        assert_eq!(state.mode, MotionMode::Airborne, "KeyX starts the jump");
+        assert_eq!(state.mode, MotionMode::Airborne, "KeyK starts the jump");
         assert!(state.vertical_speed <= JUMP_SPEED);
         let y = app.world().get::<Transform>(e).unwrap().translation.y;
         assert!(y > 0.0, "airborne avatar left the ground: {y}");
@@ -556,7 +556,7 @@ mod tests {
         // below the take-off point (no ground data here, it keeps falling).
         app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
-            .release(KeyCode::KeyX);
+            .release(KeyCode::KeyK);
         let v0 = app
             .world()
             .get::<PlayerMotionState>(e)
@@ -651,7 +651,7 @@ mod tests {
 
         app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
-            .press(KeyCode::KeyX);
+            .press(KeyCode::KeyK);
         app.update();
         let state = *app.world().get::<PlayerMotionState>(e).unwrap();
         assert_eq!(state.mode, MotionMode::Airborne);
@@ -815,11 +815,11 @@ mod tests {
         app.update();
         app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
-            .press(KeyCode::KeyX);
+            .press(KeyCode::KeyK);
         app.update();
         app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
-            .release(KeyCode::KeyX);
+            .release(KeyCode::KeyK);
         assert!(state_of(&app, e).airborne());
         let mut apex = 0.0_f32;
         for _ in 0..120 {

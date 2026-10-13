@@ -17,7 +17,7 @@
 //! | Sprint | Shift (held) | L3, left stick click (held) |
 //! | Aim toggle | Z / Tab | ZL |
 //! | Dodge | not mapped | Y |
-//! | Jump / grab climbable | X | X (west; the original jumps only while riding; port choice) |
+//! | Jump / grab climbable | K | X (west; the original jumps only while riding; port choice) |
 //! | Throw | not mapped | ZR |
 //! | Confirm | Enter / NumpadEnter / Space | A (south) |
 //! | Cancel | Escape / Backspace | B (east) |
@@ -221,7 +221,8 @@ impl RawInput {
         if keys.any_just_pressed([KeyCode::KeyZ, KeyCode::Tab]) {
             key_pressed.push(Action::Aim);
         }
-        if keys.just_pressed(KeyCode::KeyX) {
+        // K, not X: the viewer already uses X to throw bait while aiming.
+        if keys.just_pressed(KeyCode::KeyK) {
             key_pressed.push(Action::Jump);
         }
 
@@ -527,8 +528,8 @@ mod tests {
     }
 
     #[test]
-    fn jump_maps_to_keyboard_x_and_pad_west() {
-        let raw = RawInput::from_keyboard(&keyboard(&[KeyCode::KeyX]));
+    fn jump_maps_to_keyboard_k_and_pad_west() {
+        let raw = RawInput::from_keyboard(&keyboard(&[KeyCode::KeyK]));
         assert_eq!(raw.key_pressed, vec![Action::Jump]);
         let mut raw = RawInput::default();
         raw.merge_gamepad(&gamepad(&[GamepadButton::West]));

@@ -54,7 +54,7 @@ entries decode with a non-empty name; 258/261 numeric values lie inside the file
   the top steps off (falls back if there is no platform, as with the debug ladder).
 - Swimming (`game::water`) wins over the whole machine; teleports (arena, save load, zone change)
   reset it. Systems run only in `GameState::World` and when not paused.
-- Bindings: Jump = keyboard `X` / gamepad west button. The gamepad north button stays the dodge.
+- Bindings: Jump = keyboard `K` (`X` is taken by the bait throw in aim mode) / gamepad west button. The gamepad north button stays the dodge.
 
 ## Not derived from data
 
