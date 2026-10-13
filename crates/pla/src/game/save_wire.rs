@@ -80,12 +80,13 @@ pub struct PlayerProgress {
     pub defeated: u32,
     pub caught_count: u32,
     pub rng_seed: u32,
-    pub time_slot: u8,
+    /// Game clock time of day in minutes since midnight (save format v6; the clock owns it).
+    pub time_minutes: u16,
 }
 
 impl PlayerProgress {
     pub fn new_game() -> Self {
-        Self { rng_seed: 0x5ca1_e001, time_slot: 1, ..Self::default() }
+        Self { rng_seed: 0x5ca1_e001, time_minutes: super::clock::DEFAULT_START_MINUTES, ..Self::default() }
     }
 
     pub fn from_save(s: &PlayerSave) -> Self {
@@ -99,7 +100,7 @@ impl PlayerProgress {
             defeated: s.defeated,
             caught_count: s.caught_count,
             rng_seed: if s.rng_seed == 0 { 0x5ca1_e001 } else { s.rng_seed },
-            time_slot: s.time_slot,
+            time_minutes: s.time_minutes,
         }
     }
 
@@ -110,7 +111,7 @@ impl PlayerProgress {
             zone: zone.to_string(),
             position,
             yaw,
-            time_slot: self.time_slot,
+            time_minutes: self.time_minutes,
             party: self.party.iter().take(MAX_PARTY).cloned().collect(),
             box_pokemon: self.box_list.iter().take(MAX_BOX).cloned().collect(),
             bag: self.bag.iter().filter(|(_, n)| **n > 0).map(|(i, n)| (*i, *n)).collect(),
@@ -247,7 +248,8 @@ pub struct StartupState {
     pub area: Option<u8>,
     pub position: Option<[f32; 3]>,
     pub yaw: f32,
-    pub time_slot: Option<usize>,
+    /// Minute of day stored in the save (None for a new game or a file without one).
+    pub time_minutes: Option<u16>,
     /// Play time stored in the save (0 for a new game or a pre-v4 file).
     pub play_seconds: u64,
     pub loaded: bool,
@@ -264,7 +266,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             area: None,
             position: None,
             yaw: 0.0,
-            time_slot: None,
+            time_minutes: None,
             play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
@@ -275,7 +277,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             area: parse_zone(&s.zone),
             position: Some(s.position),
             yaw: s.yaw,
-            time_slot: Some(usize::from(s.time_slot.min(3))),
+            time_minutes: Some(s.time_minutes),
             play_seconds: s.play_seconds,
             progress: PlayerProgress::from_save(&s),
             loaded: true,
@@ -286,7 +288,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             area: None,
             position: None,
             yaw: 0.0,
-            time_slot: None,
+            time_minutes: None,
             play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
@@ -555,8 +557,9 @@ impl RestReport {
 
 /// Fully restore HP, PP and status of the party in place (the pause menu's Rest action). Max HP
 /// and max PP come from the engine tables; a member whose species is unknown is left untouched and
-/// counted as skipped. Fainted members are revived. No clock is advanced: the day/night clock is
-/// Brief 9 and does not exist yet; the original's rest durations are not decoded (UNKNOWN).
+/// counted as skipped. Fainted members are revived. The day/night clock is advanced by the caller
+/// ([`rest_action`] jumps to the next slot, ASSUMED; the original's rest menu advances to a chosen
+/// phase, `n2-base-camps-and-travel.md` §2, and its durations are UNKNOWN).
 pub fn rest_party(party: &mut [PartyMember], data: &BattleData) -> RestReport {
     let mut report = RestReport::default();
     for m in party.iter_mut() {
@@ -783,12 +786,14 @@ fn do_save(
 }
 
 /// Heal the party when the pause menu asked for a Rest. Refused during a battle or when the
-/// battle tables are not loaded; the result is shown as a toast.
+/// battle tables are not loaded; the result is shown as a toast. With a [`GameClock`] present the
+/// rest also advances the clock to the next slot (ASSUMED; see `clock.rs`).
 fn rest_action(
     mut requested: ResMut<RestRequested>,
     mut progress: ResMut<PlayerProgress>,
     assets: Option<Res<BattleAssets>>,
     session: Option<Res<ActiveBattleSession>>,
+    clock: Option<ResMut<super::clock::GameClock>>,
     mut toast: ResMut<SaveToast>,
 ) {
     if !std::mem::take(&mut requested.0) {
@@ -803,6 +808,13 @@ fn rest_action(
         return;
     };
     let report = rest_party(&mut progress.party, &assets.data);
+    if report.healed > 0 {
+        if let Some(mut clock) = clock {
+            clock.advance_to_next_slot();
+            toast.show(format!("{} The clock advanced to {}.", report.message(), clock.hhmm()));
+            return;
+        }
+    }
     toast.show(report.message());
 }
 
@@ -1406,10 +1418,14 @@ mod tests {
             progress.party[0].hp = 1;
         }
         app.insert_resource(a);
+        // Brief 9's clock: a rest advances it to the next slot (13:00 -> 18:00, ASSUMED).
+        app.insert_resource(crate::game::clock::GameClock::from_minutes(1.0, 13 * 60));
         app.add_systems(Update, rest_action);
         app.world_mut().resource_mut::<RestRequested>().0 = true;
         app.update();
         assert!(app.world().resource::<PlayerProgress>().party[0].hp > 1);
         assert!(app.world().resource::<SaveToast>().text.contains("healed"));
+        assert_eq!(app.world().resource::<crate::game::clock::GameClock>().hhmm(), "18:00", "rest advances the clock");
+        assert!(app.world().resource::<SaveToast>().text.contains("18:00"), "the toast tells the new time");
     }
 }

@@ -1,7 +1,7 @@
 //! Headless Bevy test of a whole battle session with the real systems (no window, no
 //! renderer): the save wiring installs the saved party, `battle_input_system` drives the
 //! battle from logical actions, and after the win the experience, level-up, move prompt and
-//! evolution run before the session closes; the autosave then writes them to a v5 save file
+//! evolution run before the session closes; the autosave then writes them to a current-format (v6) save file
 //! that is read back.
 
 use std::path::{Path, PathBuf};
@@ -14,7 +14,7 @@ use bevy::time::TimeUpdateStrategy;
 use super::battle_controller::{ActiveBattleSession, BattleAssets, BattleMenuState, TurnMode, WILD};
 use super::battle_input::battle_input_system;
 use super::input_map::{actions, Action, ActionState, RawInput};
-use super::save_game::{PartyMember, SaveFile, SaveGame, SavedMove};
+use super::save_game::{PartyMember, CURRENT_VERSION, SaveFile, SaveGame, SavedMove};
 use super::save_wire::{PlayerProgress, SaveWirePlugin, StartupState, WireCli};
 use super::ui::ActiveZoneInfo;
 use super::{GameState, PlayerAvatar};
@@ -71,7 +71,7 @@ fn app_with_save(assets: &BattleAssets, dir: &Path, party: Vec<PartyMember>) -> 
         area: Some(1),
         position: None,
         yaw: 0.0,
-        time_slot: None,
+        time_minutes: None,
         loaded: false,
         message: String::new(),
         play_seconds: 0,
@@ -164,7 +164,7 @@ fn win_exp_level_up_move_prompt_evolution_and_save_round_trip() {
     assert_eq!(progress.defeated, 1);
 
     let loaded = SaveFile::in_dir(&dir).read().expect("autosave written");
-    assert_eq!(loaded.version, 5);
+    assert_eq!(loaded.version, CURRENT_VERSION);
     assert_eq!(loaded.party[0], *m, "the file holds exactly the in-memory member");
     let _ = std::fs::remove_dir_all(&dir);
 }

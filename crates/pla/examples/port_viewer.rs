@@ -466,7 +466,8 @@ fn main() -> ExitCode {
     let mut save_game = pla::game::save_game::SaveGame::from_env();
     let mut wire_start = pla::game::save_wire::load_startup(&mut save_game, &wire_cli);
     if wire_cli.has_time_slot {
-        wire_start.progress.time_slot = pla::game::lighting::time_slot_from_args(&cli_args) as u8;
+        wire_start.progress.time_minutes =
+            pla::game::clock::slot_centre_minutes(pla::game::lighting::time_slot_from_args(&cli_args));
     }
     if !wire_cli.has_area {
         if let Some(a) = wire_start.area {
@@ -767,11 +768,13 @@ fn main() -> ExitCode {
             },
             pla::game::lighting::ZoneLightingPlugin {
                 area: area_idx,
-                slot: match wire_start.time_slot {
-                    Some(t) if !wire_cli.has_time_slot => t,
+                slot: match wire_start.time_minutes {
+                    Some(m) if !wire_cli.has_time_slot => pla::game::clock::slot_of_minutes(m),
                     _ => pla::game::lighting::time_slot_from_args(&cli),
                 },
             },
+            // Weather lottery + rain/snow particles (game::weather): follows the game clock.
+            pla::game::weather::WeatherPlugin::from_args(area_idx, &cli),
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
@@ -833,6 +836,8 @@ fn main() -> ExitCode {
     });
 
     pla::game::play_time::PlayTimePlugin::install(&mut app, wire_start.play_seconds);
+    // Day/night clock: --time-slot pins it, --time-scale speeds it, the save supplies the start.
+    pla::game::clock::GameClockPlugin::install(&mut app, &cli_args, wire_start.time_minutes);
     pla::game::save_wire::SaveWirePlugin::install(&mut app, save_game, wire_start, &wire_cli);
     if let Some(p) = safe_spawn_xz {
         app.insert_resource(sp::SafeSpawnPoint(p));

@@ -386,7 +386,7 @@ mod tests {
             area: Some(1),
             position: None,
             yaw: 0.0,
-            time_slot: None,
+            time_minutes: None,
             loaded: false,
             message: String::new(),
             play_seconds: 0,

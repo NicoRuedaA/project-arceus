@@ -18,6 +18,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use super::lighting::ZoneEnv;
+use super::weather::WeatherVisual;
 
 /// Which look is applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -332,6 +333,29 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
             }
         }
     }
+}
+
+/// Apply a weather's ASSUMED multipliers to derived look parameters: `light_mult` scales the sun,
+/// the ambient and the clouds, `fog_mult` thickens the falloff (a shorter linear range / denser
+/// exponential-squared fog) and dims the fog and cloud colours by `0.65 + 0.35 x light_mult` (so a
+/// `WeatherVisual::CLEAR` is exactly neutral). Pure; non-finite multipliers fall back to neutral.
+pub fn apply_weather(p: &LookParams, w: &WeatherVisual) -> LookParams {
+    let light = if w.light_mult.is_finite() { w.light_mult.clamp(0.0, 2.0) } else { 1.0 };
+    let fog = if w.fog_mult.is_finite() { w.fog_mult.clamp(0.05, 10.0) } else { 1.0 };
+    let dim = (0.65 + 0.35 * light).clamp(0.0, 1.0);
+    let mut q = p.clone();
+    q.sun_lux = p.sun_lux * light;
+    q.ambient_brightness = p.ambient_brightness * light;
+    q.fog = match p.fog {
+        FogSpec::Linear { start, end } => {
+            let e = (end / fog).max(1.0);
+            FogSpec::Linear { start: (start / fog).min(e), end: e }
+        }
+        FogSpec::ExpSquared { density } => FogSpec::ExpSquared { density: density * fog },
+    };
+    q.fog_color = [p.fog_color[0] * dim, p.fog_color[1] * dim, p.fog_color[2] * dim, p.fog_color[3]];
+    q.cloud_color = [p.cloud_color[0] * dim, p.cloud_color[1] * dim, p.cloud_color[2] * dim];
+    q
 }
 
 // ---------------------------------------------------------------- clouds
@@ -675,6 +699,38 @@ mod tests {
             }
             assert!(p.ambient_brightness >= NIGHT_AMBIENT_MIN - 1e-3, "ambient floor not honoured at sun {sun}");
         }
+    }
+
+    #[test]
+    fn weather_multipliers_are_applied_and_clear_is_neutral() {
+        let env = env(2.8);
+        let base = look_params(&env, LookSettings::default());
+        assert_eq!(apply_weather(&base, &WeatherVisual::CLEAR), base, "clear weather changes nothing");
+        let rain = apply_weather(&base, &WeatherVisual::for_id(4));
+        let FogSpec::ExpSquared { density: d0 } = base.fog else { panic!() };
+        let FogSpec::ExpSquared { density: d1 } = rain.fog else { panic!() };
+        assert!(d1 > d0, "rain thickens the fog");
+        assert!(rain.sun_lux < base.sun_lux && rain.ambient_brightness < base.ambient_brightness, "rain darkens");
+        let lum3 = |c: [f32; 4]| luminance([c[0], c[1], c[2]]);
+        assert!(lum3(rain.fog_color) < lum3(base.fog_color));
+        let drought = apply_weather(&base, &WeatherVisual::for_id(6));
+        let FogSpec::ExpSquared { density: d2 } = drought.fog else { panic!() };
+        assert!(d2 < d0 && drought.sun_lux > base.sun_lux, "drought is brighter and clearer");
+        // Linear (classic) fog: a heavier weather pulls the end closer.
+        let classic = look_params(&env, LookSettings { look: Look::Classic, ..Default::default() });
+        let FogSpec::Linear { start, end } = apply_weather(&classic, &WeatherVisual::for_id(8)).fog else { panic!() };
+        assert!(end < 650.0 && start <= end);
+        // Sane in every weather and immune to a non-finite multiplier.
+        for id in 2..=9u8 {
+            let p = apply_weather(&base, &WeatherVisual::for_id(id));
+            for v in p.ambient_color.iter().chain(p.cloud_color.iter()).chain([&p.sun_lux, &p.ambient_brightness]) {
+                assert!(v.is_finite());
+            }
+        }
+        let bad = WeatherVisual { id: 2, fog_mult: f32::NAN, light_mult: f32::INFINITY, precip: super::super::weather::Precip::None };
+        let p = apply_weather(&base, &bad);
+        assert!(p.sun_lux.is_finite() && p.ambient_brightness.is_finite());
+        assert_eq!(apply_weather(&base, &WeatherVisual { light_mult: 1.0, fog_mult: 1.0, ..bad }).sun_lux, base.sun_lux);
     }
 
     /// Measures ambient/sun/scene luminance for the six real areas x four time slots from the sheet.
