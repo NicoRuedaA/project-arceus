@@ -265,11 +265,17 @@ fn attach_wander(
     }
 }
 
+/// The player position creatures can react to: none while the player is hidden.
+pub fn noticeable_player(player: Option<(f32, f32)>, hidden: bool) -> Option<(f32, f32)> {
+    player.filter(|_| !hidden)
+}
+
 fn wander_system(
     time: Res<Time>,
     nav: Option<Res<GameNavmeshResource>>,
     wall_collision: Option<Res<super::world_collision::WorldCollision>>,
     player: Query<&Transform, (With<PlayerAvatar>, Without<WanderState>)>,
+    stealth: Option<Res<super::player_skills::PlayerStealth>>,
     mut q: Query<(
         &mut Transform,
         &mut WanderState,
@@ -281,7 +287,13 @@ fn wander_system(
     // Without a navmesh walkability is unknown: stay put rather than risk walking off the map.
     let Some(nav) = nav else { return };
     let dt = time.delta_secs().min(0.1);
-    let pl = player.single().ok().map(|t| (t.translation.x, t.translation.z));
+    // A hidden player (tall grass, or crouching in a stealth volume) is not noticed: the
+    // creatures wander as if nobody were there (game::player_skills::PlayerStealth).
+    let hidden = stealth.is_some_and(|s| s.hidden);
+    let pl = noticeable_player(
+        player.single().ok().map(|t| (t.translation.x, t.translation.z)),
+        hidden,
+    );
     let walkable = |x: f32, z: f32| nav.is_walkable(x, z);
     for (mut tf, mut st, home, wild, behavior) in &mut q {
         if wild.in_battle || wild.defeated {
@@ -451,6 +463,26 @@ mod tests {
         };
         assert_eq!(run("x"), run("x"));
         assert_ne!(run("x"), run("y"));
+    }
+
+    #[test]
+    fn a_hidden_player_is_not_noticed() {
+        assert_eq!(noticeable_player(Some((1.0, 2.0)), false), Some((1.0, 2.0)));
+        assert_eq!(noticeable_player(Some((1.0, 2.0)), true), None);
+        assert_eq!(noticeable_player(None, false), None);
+        // A creature that alerts to a visible player 4 m away ignores a hidden one.
+        let p = params();
+        for hidden in [false, true] {
+            let mut st = fresh("e");
+            for _ in 0..600 {
+                step(&mut st, &p, DT, None, &all);
+            }
+            let player = (st.pos.0 + 4.0, st.pos.1);
+            for _ in 0..120 {
+                step(&mut st, &p, DT, noticeable_player(Some(player), hidden), &all);
+            }
+            assert_eq!(st.alert, !hidden, "hidden = {hidden}");
+        }
     }
 
     #[test]

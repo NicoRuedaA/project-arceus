@@ -787,6 +787,10 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
+    app.add_plugins(pla::game::player_motion::PlayerMotionPlugin);
+    app.add_plugins(pla::game::player_skills::PlayerSkillsPlugin);
+    app.add_plugins(pla::game::blink::BlinkPlugin);
+    app.add_plugins(pla::game::interact::InteractPlugin);
     // Installed after InputMapPlugin: MainMenuPlugin adds that plugin itself when it is
     // missing, and Bevy panics when the same plugin is added twice.
     if main_menu {
@@ -888,7 +892,11 @@ fn main() -> ExitCode {
             automated_tick_driver,
             controls_demo_driver,
         )
-            .chain(),
+            .chain()
+            // Crouch/dodge state is final before the movement reads it; jump/fall/climb
+            // integrate after the horizontal locomotion of the frame.
+            .after(pla::game::player_skills::PlayerSkillsSet)
+            .before(pla::game::player_motion::PlayerMotionSet),
     );
     // Separate registration: the world tuple is already at Bevy's 20-system limit.
     app.add_systems(
@@ -1754,9 +1762,12 @@ fn player_locomotion(
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
+    motion_query: Query<&pla::game::player_motion::PlayerMotionState, With<PlayerAvatar>>,
+    mut skills_query: Query<&mut pla::game::player_skills::PlayerSkillState, With<PlayerAvatar>>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
     mut swim_query: Query<&mut PlayerSwim, With<PlayerAvatar>>,
 ) {
+    use pla::game::player_motion::MotionMode;
     let Ok(mut transform) = player_query.single_mut() else {
         return;
     };
@@ -1765,11 +1776,40 @@ fn player_locomotion(
         .single()
         .map(|s| s.state == SwimState::Swimming)
         .unwrap_or(false);
+    let motion_mode = motion_query.single().map(|m| m.mode).unwrap_or_default();
 
     let dt = time.delta_secs();
     let input_dir = input.move_axis();
 
-    if input_dir.length_squared() > 0.0 {
+    // Camera yaw defines the forward direction on the XZ plane.
+    let yaw = camera_ctrl.yaw;
+    let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
+    let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
+
+    // Dodge roll (game::player_skills): starts on a press (or a press buffered while airborne),
+    // towards the held direction or the facing; the skills module keeps the timer and the state.
+    if let Ok(mut sk) = skills_query.single_mut() {
+        if (input.just_pressed(Action::Dodge) || sk.dodge_buffer > 0.0) && !sk.dodging() {
+            let n = if input_dir.length() > 1.0 { input_dir.normalize() } else { input_dir };
+            let want = forward * n.y + right * n.x;
+            let facing3 = transform.rotation * Vec3::Z;
+            let can_roll = motion_mode == MotionMode::Grounded && !was_swimming;
+            let started = sk.begin_dodge(
+                can_roll,
+                Vec2::new(want.x, want.z),
+                Vec2::new(facing3.x, facing3.z),
+            );
+            if started == Some(pla::game::player_skills::DodgeDir::Forward) {
+                if let Some(d) = sk.dodge {
+                    transform.rotation = Quat::from_rotation_y(d.world_dir.x.atan2(d.world_dir.y));
+                }
+            }
+        }
+    }
+    let dodge = skills_query.single().ok().and_then(|s| s.dodge);
+    let crouching = skills_query.single().is_ok_and(|s| s.crouching());
+
+    if input_dir.length_squared() > 0.0 || dodge.is_some() {
         // Keyboard is digital (normalising a diagonal keeps full speed); the stick stays analog.
         let input_norm = if input_dir.length() > 1.0 {
             input_dir.normalize()
@@ -1777,22 +1817,33 @@ fn player_locomotion(
             input_dir
         };
         let is_sprinting = input.pressed(Action::Sprint);
-        // Sprinting is not allowed in water; swimming is slower than walking.
-        let speed = if was_swimming {
-            SWIM_SPEED
-        } else if is_sprinting {
-            8.0
+        // Sprinting is not allowed in water; swimming is slower than walking. In the air the
+        // ground speed is scaled by the decoded control_airMoveRate (game::player_motion);
+        // while climbing the vertical system holds the avatar in place horizontally.
+        let ground_speed = if is_sprinting { 8.0 } else { 4.5 };
+        let ground_speed = if crouching {
+            pla::game::player_skills::crouch_speed(ground_speed)
         } else {
-            4.5
+            ground_speed
+        };
+        let speed = if dodge.is_some() {
+            pla::game::player_skills::roll_speed()
+        } else if was_swimming {
+            SWIM_SPEED
+        } else if motion_mode == MotionMode::Airborne {
+            pla::game::player_motion::air_speed(ground_speed)
+        } else if motion_mode == MotionMode::Climbing {
+            0.0
+        } else {
+            ground_speed
         };
 
-        // Camera yaw defines the forward direction on the XZ plane.
-        let yaw = camera_ctrl.yaw;
-        let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
-        let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
-
-        // Orthonormal basis: the vector magnitude is the input deflection (1 for keys).
-        let move_vec = forward * input_norm.y + right * input_norm.x;
+        // Orthonormal basis: the vector magnitude is the input deflection (1 for keys). A dodge
+        // roll ignores the stick and travels along its own direction.
+        let move_vec = match dodge {
+            Some(d) => Vec3::new(d.world_dir.x, 0.0, d.world_dir.y),
+            None => forward * input_norm.y + right * input_norm.x,
+        };
         let delta_xz = Vec2::new(move_vec.x * speed * dt, move_vec.z * speed * dt);
         let current_xz = Vec2::new(transform.translation.x, transform.translation.z);
         let target_xz = current_xz + delta_xz;
@@ -1848,12 +1899,15 @@ fn player_locomotion(
         transform.translation.x = final_xz.x;
         transform.translation.z = final_xz.y;
 
-        // Smoothly orient player avatar towards movement direction.
-        transform.rotation = pla::game::player_anim::step_facing(
-            transform.rotation,
-            Vec2::new(move_vec.x, move_vec.z),
-            dt,
-        );
+        // Smoothly orient player avatar towards movement direction (a side or back roll keeps
+        // the facing, the roll clip supplies the sidestep).
+        if dodge.is_none_or(|d| d.dir == pla::game::player_skills::DodgeDir::Forward) {
+            transform.rotation = pla::game::player_anim::step_facing(
+                transform.rotation,
+                Vec2::new(move_vec.x, move_vec.z),
+                dt,
+            );
+        }
     } else {
         stuck.blocked_secs = 0.0;
     }
@@ -1867,29 +1921,38 @@ fn player_locomotion(
             .sample_world_height(transform.translation.x, transform.translation.z)
     });
 
-    if let Some(surface_y) = nav_h.or(terrain_h) {
-        // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
-        let level = water_bodies.as_ref().and_then(|w| {
-            pla::game::water::grounded_level_at(
-                w,
-                Vec2::new(transform.translation.x, transform.translation.z),
+    // Ground snapping (and the water probe) only run while grounded: in the air or on a
+    // climbable the vertical system (game::player_motion) owns Y, and a jump over water
+    // must not snap the avatar down to the surface mid-flight.
+    if motion_mode == MotionMode::Grounded {
+        if let Some(surface_y) = nav_h.or(terrain_h) {
+            // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
+            let level = water_bodies.as_ref().and_then(|w| {
+                pla::game::water::grounded_level_at(
+                    w,
+                    Vec2::new(transform.translation.x, transform.translation.z),
+                    surface_y,
+                    pla::game::water::SWIM_MAX_GROUND_OFFSET,
+                )
+            });
+            let state = pla::game::water::step_swim(
+                swim_query.single().map(|s| s.state).unwrap_or_default(),
+                level,
                 surface_y,
-                pla::game::water::SWIM_MAX_GROUND_OFFSET,
-            )
-        });
-        let state = pla::game::water::step_swim(
-            swim_query.single().map(|s| s.state).unwrap_or_default(),
-            level,
-            surface_y,
-        );
-        if let Ok(mut swim) = swim_query.single_mut() {
-            swim.state = state;
+            );
+            if let Ok(mut swim) = swim_query.single_mut() {
+                swim.state = state;
+            }
+            transform.translation.y = if state == SwimState::Swimming {
+                pla::game::water::swim_root_y(level.unwrap_or(surface_y))
+            } else if pla::game::player_motion::is_ledge_drop(transform.translation.y, surface_y + 0.9)
+            {
+                // A drop longer than a step is a ledge: game::player_motion makes the avatar fall.
+                transform.translation.y
+            } else {
+                surface_y + 0.9
+            };
         }
-        transform.translation.y = if state == SwimState::Swimming {
-            pla::game::water::swim_root_y(level.unwrap_or(surface_y))
-        } else {
-            surface_y + 0.9
-        };
     }
 }
 

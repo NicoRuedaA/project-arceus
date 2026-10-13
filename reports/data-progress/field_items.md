@@ -118,11 +118,19 @@ unit of the margin 40 is unknown (minutes? distance?). The port uses a fixed ASS
   the game models are not exported; colors differ per kind.
 - `Action::Confirm` (Enter/Space) collects the nearest spawn within 3 m.
 - Resource nodes: one weighted loot row, count `loot_min..=loot_max`, added to the bag up to the
-  item's stack ceiling (`item_effects.tsv` 999; `BattleAssets` table when loaded); the marker
-  shakes for 0.6 s and disappears.
+  item's stack ceiling (`item_effects.tsv` 999; `BattleAssets` table when loaded). Harvest
+  triggers: the interact key within 3 m, or a **thrown ball in flight passing through the node**
+  (PROBABLE: the native evidence report describes harvesting by throwing; the hit volume, a
+  1.5 m radius cylinder 5 m tall over a tree / 1.8 m over an ore, is ASSUMED). Reaction by model
+  name (`node_kind`): trees, bushes and leaf piles (`tree*`, `yachi*`, `leaves*`: 567 of the 1,238 nodes)
+  stay standing and sway for 1.2 s (damped, ASSUMED), then stay inert until the respawn; crystals,
+  rocks, snow piles and boxes (the other 671 nodes) shrink away in 0.6 s and come back at the respawn. Before this change every node
+  vanished after a 0.6 s shake.
 - Collected ids persist in `PlayerProgress.picked` (save format v7, key `picked`, hex u64);
   respawn removes the id. Direct items and collectibles grant no item (above).
-- Verified by unit tests (parse, nearest, weights, stack cap, collect-once, persistence) and the
+- Verified by unit tests (parse, nearest, weights, stack cap, collect-once, persistence, ball hit
+  volume, sway/break curves, headless harvest by a thrown ball: a tree harvested stays standing and
+  cannot be harvested twice, a crystal breaks) and the
   headless `item_spawn_check` example; **not** seen in a window by anyone.
 
 ## Unknowns

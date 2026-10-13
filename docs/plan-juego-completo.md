@@ -146,8 +146,8 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 9. Clima y ciclo de día y noche con reloj. **[en proceso]**
 10. Colisiones con edificios y rocas. **[hecho]**
 11. Agua (reflejos, olas) y nadar. **[hecho]**
-12. Objetos del suelo y recursos. **[en proceso]**
-13. Puertas, cuerdas, escaleras, saltos y trepar. **[en proceso]**
+12. Objetos del suelo y recursos. **[terminado en `feat/player-moves`, sin fusionar]** Datos y recolección ya estaban en `main`; esta rama añade el golpe con bola lanzada (volumen SUPUESTO) y que los árboles se sacudan y sigan en pie. Los objetos del suelo siguen sin dar nada (su id de objeto no está en los datos).
+13. Puertas, cuerdas, escaleras, saltos y trepar. **[parte hecha en `feat/player-moves`, sin fusionar]** Saltar, caer por bordes, aterrizar y trepar (parámetros decodificados en `data/player_controller.tsv`); no hay colocaciones de escaleras/cuerdas decodificadas (solo prueba y escalera de depuración). Las puertas y las cuerdas de zona van en el worktree `zone-reload` (8b).
 14. Mochila con pantalla, tiendas y precios. **[en unión]**
 15. Mapa, minimapa y brújula. **[hecho]**
 16. Que te siga tu Pokémon. **[hecho]**
@@ -156,7 +156,7 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 19. Modelos bloqueados y Pokémon sin esqueleto. **[pendiente de unir]**
 20. Rendimiento. **[hecho]**
 21. Dinero, tiempo de juego y descanso. **[en unión]**
-22. Habilidades del personaje y expresiones de los Pokémon. **[en proceso]**
+22. Habilidades del personaje y expresiones de los Pokémon. **[parte hecha en `feat/player-moves`, sin fusionar]** Esquivar (voltereta), agacharse y esconderse (agachado + regla de sigilo; no existe clip de esconderse) y parpadeo del jugador; el parpadeo de los Pokémon (`eye01`, 0,35 s, huesos de párpados) está localizado pero no se reproduce todavía.
 23. Discos y objetos clave. **[en cola]**
 24. Temas legales. **[hecho]**
 

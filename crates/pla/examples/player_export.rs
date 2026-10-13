@@ -37,6 +37,17 @@ const CLIPS: &[(&str, &str)] = &[
     ("02064_jump01_fallloop", "jump_fall"),
     ("02081_land01", "land"),
     ("02093_swim01_loop", "swim"),
+    // Brief 22: dodge roll (four directions), crouch idle / walk / enter / exit. Names are
+    // exact `.tranm` names from the pack (see reports/data-progress/player_skills.md); that
+    // `rolling01_*` is the dodge and `sq*` the crouch is a reading of the names (PROBABLE).
+    ("05011_rolling01_f", "roll_f"),
+    ("05012_rolling01_b", "roll_b"),
+    ("05013_rolling01_l", "roll_l"),
+    ("05014_rolling01_r", "roll_r"),
+    ("02031_squat01_l_loop", "crouch"),
+    ("02105_sqwalk01_loop", "crouch_walk"),
+    ("02033_sqwait01_l_start", "crouch_start"),
+    ("02034_sqwait01_l_end", "crouch_end"),
 ];
 
 fn category_dir(stem: &str) -> Result<&'static str, String> {
@@ -341,6 +352,17 @@ fn main() -> Result<(), String> {
                 }
                 clip.tracks.retain(|t| t.name != "chara_root_exp");
                 println!("clip {file} -> {export_name}: {} frames @ {} fps, {} tracks", clip.frame_count, clip.frame_rate, clip.tracks.len());
+                // Root motion of the `origin` bone (the exporter keeps it; the game pins it):
+                // first/last translation, used to size the dodge roll and the crouch walk.
+                if let Some(t) = clip.tracks.iter().find(|t| t.name == "origin") {
+                    if let (Some(a), Some(b)) = (t.translation.keys.first(), t.translation.keys.last()) {
+                        let d = [b.value[0] - a.value[0], b.value[1] - a.value[1], b.value[2] - a.value[2]];
+                        println!(
+                            "  origin root motion {export_name}: dx {:.3} dy {:.3} dz {:.3} m over {:.3} s",
+                            d[0], d[1], d[2], clip.frame_count as f32 / clip.frame_rate.max(1) as f32
+                        );
+                    }
+                }
                 clips.push(((*export_name).to_owned(), clip));
             }
             Err(e) => println!("clip {file}: {e}"),
