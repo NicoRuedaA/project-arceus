@@ -696,6 +696,7 @@ El enlace `decompiled` es la convención del repo (el directorio de pseudocódig
 ### Nivel 4 — muy grande
 
 #### Brief 41 — Habilidades de Pokémon y objetos equipados
+**Resultado de la fase 0 (2026-10-13): no aplicable a este juego.** Los datos guardan 3 habilidades por especie (318 de 318), pero el código de combate solo registra efecto para 2 (Inicio Lento, id 112; Don Floral, id 122, solo cambio de forma de Cherrim) y nunca para objetos equipados; no hay que construir el sistema general descrito abajo. Evidencias en [`reports/data-progress/abilities_held_items.md`](../reports/data-progress/abilities_held_items.md); la parte pequeña que queda es el brief D1.
 **Dificultad:** 4 (meses) — **y posiblemente no aplicable**.
 **Objetivo:** si el juego usa habilidades y objetos equipados en combate, implementarlos.
 **Estado actual:** `data/pml_personal.tsv` no tiene columnas de habilidad (columnas: dex, forma, estadísticas, tipos, género, `base_exp`, `exp_growth`, `growth_group`…; `schemas/pml_personal_fields.tsv` no contiene «ability»/«tokusei»). Es posible que **este juego no tenga habilidades ni objetos equipados** (**desconocido: investigar primero**); si existen, estarían en la lógica de combate (ver `n2-battle-and-damage-mechanics.md`, `n2-combat-tactical-ai.md`) o en tablas aún no vistas (`bin/pml/`, `battle_logic_config.bin`). El motor no tiene ganchos de habilidad.
@@ -793,5 +794,145 @@ Regla de oro de cada tanda: ningún par de tareas edita el mismo archivo salvo l
 2. Tras cada fusión a `main`: etiqueta `pre-merge-*`, `cargo test --offline -p pla`, y **regenerar el perfil fix2** (`python3 .tools/function_progress_treemap.py --build update-v262144-fix2`) si cambió Rust o el registro de evidencias. Mantener README.md y README.es.md sincronizados.
 3. El visor lo prueba el usuario a ojo; cada informe de agente debe listar qué mirar.
 4. Cualquier agente que descubra que «lo desconocido» ya está resuelto en un informe existente debe actualizar su brief aquí (una línea) en su propio commit de documentación.
+
+---
+
+## D. Briefs adicionales descubiertos
+
+Añadidos el 2026-10-13 por la fase 0 del brief 41 ([`reports/data-progress/abilities_held_items.md`](../reports/data-progress/abilities_held_items.md)). Son funciones de combate de este juego que el motor todavía no tiene. Usan la numeración D1-D6 para no mover la 1-43. Mismas reglas del preámbulo A.
+
+#### Brief D1 — Las dos habilidades que sí funcionan: Inicio Lento y Don Floral
+**Dificultad:** 1 (1-2 días).
+**Objetivo:**
+- Regigigas actúa a medio gas durante sus primeros turnos (Inicio Lento).
+- Cherrim cambia a su forma soleada cuando hay sol (Don Floral).
+
+Son las únicas 2 habilidades con efecto en el código de combate del juego.
+**Estado actual:**
+- La tabla de habilidades del juego (`0x0417cdc0`) tiene 2 entradas: 112 Inicio Lento y 122 Don Floral (VERIFICADO; ver informe).
+- Inicio Lento reduce a la mitad la velocidad y el ataque de los movimientos físicos mientras dura un contador que se compara con 4. Que esto equivalga a 5 turnos es PROBABLE.
+- Don Floral solo pide el cambio de forma de Cherrim (especie 421) con sol. No hay ningún manejador que suba estadísticas (PROBABLE).
+- El motor no tiene habilidades, y `data/pml_personal.tsv` no exporta los campos 5-7 de habilidad.
+- El combate del motor no tiene clima.
+**Qué hay que construir:**
+1. Exportar los campos 5, 6 y 7 del archivo de especies a una hoja `data/pml_personal_abilities.tsv` (a crear) con `.tools/decode_pml_tables.py`.
+2. Crear `crates/pla/src/battle_engine/abilities.rs` con solo las 2 reglas: velocidad y potencia física ×0,5 con el redondeo Q12 del juego mientras el contador sea menor que 5; cambio de forma de Cherrim con sol.
+3. Activarlo de forma opcional con `Battle::set_abilities(...)`; sin activarlo, el motor se comporta como ahora.
+**Archivos:** nuevo `battle_engine/abilities.rs` (+ una línea `pub mod`), `.tools/decode_pml_tables.py`, hoja nueva. El enganche en el orden de turnos y en el daño toca `battle_engine.rs`, así que hay que coordinarlo con el brief 28.
+**Datos de entrada:**
+- `bin/pml/personal/personal_data_total.perbin`, campos 5-7.
+- El informe citado arriba.
+- `.tools/audit_abilities_held_items.py`.
+**Aceptación:**
+- La hoja tiene 318 filas presentes con habilidad distinta de 0.
+- Pruebas unitarias: Regigigas a velocidad mitad en los turnos 1-5 y normal en el 6; ataque físico a la mitad y especial sin cambio; Cherrim cambia de forma solo con sol.
+- Cada regla lleva su nivel de confianza.
+**Riesgos:**
+- La duración exacta y el significado de los eventos son DESCONOCIDOS.
+- El cambio de forma con sol depende del clima en combate (brief 9) y del modelo de la forma (brief 17).
+**Reparto:** un agente.
+**Lanzamiento:** «Ejecuta el brief D1 de docs/briefs-agentes.md (worktree `abilities-live`).»
+
+#### Brief D2 — Multiplicador de los Pokémon Alfa en combate
+**Dificultad:** 1-2.
+**Objetivo:** un Pokémon Alfa pega y aguanta más en combate, con el mismo multiplicador que el juego.
+**Estado actual:**
+- Según las notas estáticas (`work/scratch-battle/battle_formulas.md`, sección 1), `FUN_0285084c` multiplica las estadísticas que se leen (ataque, defensa, ataque especial, defensa especial y velocidad) por un coeficiente según el modo del Pokémon. El modo lo da `FUN_02848d48`: normal ×1,0 y Alfa ×1,5 (`oybnPowerCoef` = 1,5 en `battle_logic_config.bin`). Confianza PROBABLE.
+- Existe también `oybnQuotDamageCoef` = 0,5, pero no se encontró qué lo usa (DESCONOCIDO).
+- El indicador Alfa de los puntos de aparición no está decodificado (brief 17).
+- El motor no distingue los Alfa.
+**Qué hay que construir:**
+1. Verificar en el código la lectura del modo y del coeficiente, y si hay otros modos (jefe, «grtn»).
+2. Añadir al motor un modo de combatiente con multiplicador Q12 sobre la lectura de estadísticas, opcional.
+3. Al empezar un combate contra un salvaje Alfa, activar el modo.
+**Archivos:** `battle_engine.rs` (después del brief 28) o un módulo nuevo; `game/battle_controller.rs` solo para pasar el indicador.
+**Datos de entrada:** `bin/misc/app_config/battle_logic_config.bin` (claves `oybn*`, `grtn*`), `FUN_0285084c`, `FUN_02848d48`, `FUN_02b6d5b0`.
+**Aceptación:** prueba de cálculo a mano (mismo ataque, normal frente a Alfa, daño escalado según el redondeo del juego) y confianza declarada.
+**Riesgos:** depende del indicador Alfa del brief 17; choca con el brief 28 en `battle_engine.rs`.
+**Reparto:** un agente.
+**Lanzamiento:** «Ejecuta el brief D2 de docs/briefs-agentes.md (worktree `alpha-battle`).»
+
+#### Brief D3 — Dominio de movimientos (maestría)
+**Dificultad:** 2.
+**Objetivo:** los estilos ágil y fuerte de un movimiento solo se pueden usar cuando el Pokémon lo domina, al nivel que marca su lista de movimientos o con el objeto que enseña el dominio.
+**Estado actual:**
+- `data/pml_learnsets.tsv` trae `level_master`: nivel de dominio en 2.288 de 6.877 entradas por nivel. Es un dato del juego verificado contra los bytes.
+- La regla «sin dominio no hay estilo» viene de la saga y está SUPUESTA hasta comprobarla en el código.
+- El objeto de dominio no está identificado en `data/item_effects.tsv` (DESCONOCIDO).
+- No hay estado de dominio en el guardado.
+**Qué hay que construir:**
+1. Localizar en el código dónde se comprueba el dominio antes de permitir un estilo, y qué objeto lo concede.
+2. Añadir a `PartyMember` un indicador de dominio por movimiento, con migración del guardado.
+3. Dar el dominio al subir de nivel (con el brief 26) y con el objeto.
+4. En la interfaz del brief 29, bloquear los estilos que el Pokémon no domina.
+**Archivos:** `game/save_game.rs`, `battle_engine/progression.rs` (brief 26), `battle_engine/styles.rs` (brief 29).
+**Datos de entrada:** `data/pml_learnsets.tsv` (`level_master`), `data/item_effects.tsv`, pseudocódigo de combate.
+**Aceptación:**
+- Pruebas: un movimiento sin dominar rechaza el estilo y uno dominado lo permite.
+- Al subir al nivel de dominio, el movimiento queda dominado.
+- El guardado antiguo se migra.
+**Riesgos:** depende de los briefs 26 y 29.
+**Reparto:** (a) investigación, (b) modelo y guardado.
+**Lanzamiento:** «Ejecuta el brief D3 de docs/briefs-agentes.md (worktree `move-mastery`).»
+
+#### Brief D4 — Objetos que sueltan los Pokémon al vencerlos o capturarlos
+**Dificultad:** 2.
+**Objetivo:** al derrotar o capturar un Pokémon se obtienen sus materiales, que es como este juego da objetos en lugar de los objetos equipados de la saga.
+**Estado actual:**
+- `bin/pokemon/data/poke_drop_item.bin` (1.760 bytes) y `poke_drop_item_battle.bin` (352 bytes) están sin decodificar.
+- Los campos 38 y 39 del archivo de especies (objetos equipados de la saga) parecen sin uso (PROBABLE).
+- El motor no da objetos al terminar un combate.
+**Qué hay que construir:**
+1. Decodificar los dos archivos con `.tools/fbtree.py` y crear la hoja `data/poke_drop_items.tsv` (a crear): especie y forma, objeto, cantidad, probabilidad, y si es en combate o en el mundo.
+2. Una función pura de sorteo con RNG inyectado.
+3. Conexión con el resultado del combate y de la captura, y con la mochila (brief 14).
+**Archivos:** `.tools/decode_drop_items.py` (a crear), hoja, módulo puro nuevo; para la conexión, `game/save_wire.rs`.
+**Datos de entrada:** los dos `.bin`, `data/item_effects.tsv`.
+**Aceptación:**
+- Recuento de filas decodificadas y 3-5 especies comprobadas a mano contra conocimiento público con fuente citada (si no hay fuente, se marca SUPUESTO).
+- Pruebas del sorteo con semilla.
+**Riesgos:** formato desconocido; depende del brief 14 para la interfaz.
+**Reparto:** un agente.
+**Lanzamiento:** «Ejecuta el brief D4 de docs/briefs-agentes.md (worktree `drop-items`).»
+
+#### Brief D5 — Combate contra Nobles (frenesí y bálsamos)
+**Dificultad:** 3.
+**Objetivo:** el combate de acción contra un Noble frenético: esquivar sus ataques, lanzarle bálsamos que vacían su barra de frenesí, y las fases de aturdimiento con combate por turnos.
+**Estado actual:**
+- `reports/function-progress/n2-noble-boss-battles.md` describe el director (`FUN_01de8018`), la barra de frenesí y el evento `result_nushi` por lectura de código.
+- Datos sin decodificar: `bin/pokemon/data/poke_nushi_battle_setting.bin` (3.416 bytes) y `bin/misc/app_config/battle_vsns_config.bin` (3.400 bytes).
+- El brief 30 trata a los jefes como un combate genérico por turnos y no cubre esta parte de acción.
+- La historia sigue fuera de alcance; solo se replica el sistema.
+**Qué hay que construir:**
+1. Decodificar las dos tablas y crear la hoja `data/noble_battle.tsv` (a crear).
+2. Un modelo puro de la barra de frenesí: daño de los bálsamos, aturdimiento, fases.
+3. Un sistema Bevy con los ataques del Noble en el mundo (sin efectos visuales al principio), los impactos de los bálsamos (reutiliza el lanzamiento del brief 18) y el paso a combate por turnos durante el aturdimiento.
+**Archivos:** nuevos `game/noble_battle.rs` y `.tools/decode_noble.py`; una línea de plugin.
+**Datos de entrada:** las tablas citadas, el informe n2, el brief 18 (lanzamiento) y el brief 13 (esquivar).
+**Aceptación:**
+- Pruebas del modelo: N bálsamos vacían la barra según la tabla; el aturdimiento abre el combate.
+- Prueba sin ventana del sistema.
+- El mantenedor lo mira a ojo.
+**Riesgos:** depende de los briefs 13, 18 y 30; sin animaciones (brief 42) se verá muy pobre.
+**Reparto:** (a) datos y modelo, (b) sistema en el mundo.
+**Lanzamiento:** «Ejecuta el brief D5 de docs/briefs-agentes.md (worktrees `noble-data`, `noble-battle`).»
+
+#### Brief D6 — Uso de objetos por el rival
+**Dificultad:** 2.
+**Objetivo:** si el juego lo hace, que los entrenadores rivales usen objetos (pociones, curas) en combate con las reglas de su IA.
+**Estado actual:**
+- El guion de IA `battle.blua` tiene un bloque `ItemUseAI` con reglas `itemAI_001`, `itemAI_023`, `itemAI_027` e `itemAI_057`, elegidas por número de objeto (decompilado en local en `work/scratch-battle/battle.lua`, fuera de git).
+- No se sabe si los entrenadores de este juego llevan objetos: depende de decodificar `bin/trainer/` (brief 30). DESCONOCIDO.
+- El motor ya sabe usar objetos (`battle_engine/items.rs`), pero solo para el jugador.
+**Qué hay que construir:**
+1. Leer las 4 reglas y escribirlas como datos en `data/ai/item_use_rules.tsv` (a crear), sin copiar el guion.
+2. Comprobar en el brief 30 si los entrenadores llevan objetos.
+3. Si los llevan: el rival puede elegir «usar objeto» con esas reglas.
+**Archivos:** hoja nueva, `game/battle_ai.rs` (después del brief 30).
+**Datos de entrada:** `battle.blua` decompilado localmente, `data/item_effects.tsv`, datos del brief 30.
+**Aceptación:** pruebas con un rival con poca vida y una poción, según la regla; si los entrenadores no llevan objetos, se cierra como «no aplica» con su prueba.
+**Riesgos:** puede ser otra tarea sin objeto, como la 41. Depende del brief 30.
+**Reparto:** un agente, después del brief 30.
+**Lanzamiento:** «Ejecuta el brief D6 de docs/briefs-agentes.md (worktree `rival-items`).»
 
 *Documento generado por agentes; las afirmaciones sobre datos del juego están ancladas a los informes citados y a comprobaciones de archivos del 2026-10-12. Nada de lo descrito se ha ejecutado en el visor.*
