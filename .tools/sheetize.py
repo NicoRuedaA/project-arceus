@@ -85,6 +85,9 @@ _add("data/pml_move_effects", ".tools/decode_waza_effects.py", "move (waza) effe
      requires="bin/pml/waza/waza*.wazabin")
 _add("data/item_effects", ".tools/decode_item_effects.py", "item records: price, stack limit, medicine/ball/boost effects",
      requires="bin/pml/item/item.dat", key="item_id")
+_add("data/shop_stock", ".tools/decode_shop_data.py",
+     "shop stock rows (Field_00 hash, slot, Field_01 hash, item id; hash meaning unknown)",
+     requires="bin/appli/shop/bin/ha_shop_data.bin")
 _add("data/pml_learnsets", PML, "level-up and tutor learnsets", requires="bin/pml/waza_oboe/waza_oboe_total.wazaoboe")
 
 # --- schemas / trace (hand curated) -----------------------------------------------------
