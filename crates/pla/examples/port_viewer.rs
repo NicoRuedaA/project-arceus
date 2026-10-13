@@ -1740,13 +1740,7 @@ fn player_locomotion(
         };
         // Wall collision of placed objects (houses, fences, rocks) after the navmesh slide.
         let final_xz = wall_collision.as_ref().map_or(final_xz, |w| {
-            w.push_out_xz(
-                final_xz.x,
-                transform.translation.y,
-                final_xz.y,
-                pla::game::world_collision::PLAYER_RADIUS,
-                pla::game::world_collision::PLAYER_HEIGHT,
-            )
+            w.push_player_out(final_xz, transform.translation.y)
         });
 
         transform.translation.x = final_xz.x;

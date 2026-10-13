@@ -641,6 +641,11 @@ impl WorldCollision {
         Vec2::new(out.x, out.z)
     }
 
+    /// Push the player capsule out of walls (`PLAYER_RADIUS` × `PLAYER_HEIGHT`).
+    pub fn push_player_out(&self, xz: Vec2, y: f32) -> Vec2 {
+        self.push_out_xz(xz.x, y, xz.y, PLAYER_RADIUS, PLAYER_HEIGHT)
+    }
+
     /// Number of live collision instances (for tests/probes).
     pub fn instance_count(&self) -> usize {
         self.grid.len()
