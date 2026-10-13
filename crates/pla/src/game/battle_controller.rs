@@ -62,9 +62,11 @@ pub struct BattleAssets {
     pub move_effects: MoveEffectsTable,
     pub items: ItemTable,
     pub catch_rates: CatchRateTable,
-    /// Volatile-status rules applied when a session starts. Defaults to `StatusRules::game_rules()`
-    /// (confusion, trapping, charge/recharge, Protect, sleep duration, speed stages); set it to
-    /// `StatusRules::default()` to turn every rule off.
+    /// Battle rules applied when a session starts. Defaults to `StatusRules::game_rules()`
+    /// (confusion, trapping, charge turns, Protect, drowsiness, the game's status rates and rank
+    /// multipliers). `notes_rates` in it also selects the VERIFIED PLA damage formula, so in-game
+    /// damage is roughly three times the old main-series numbers. Set it to
+    /// `StatusRules::default()` to turn every rule off (legacy formula).
     pub status_rules: StatusRules,
 }
 
@@ -405,8 +407,16 @@ impl ActiveBattleSession {
         let events = self.battle.play_turn(&actions, &mut self.rng);
         let effects = self.battle.take_effect_events();
         let statuses = self.battle.take_status_events();
+        let rules = self.battle.take_rule_events();
         let names = self.names();
-        let mut lines = battle_log::format_turn(&|i| names[i].clone(), &events, &effects, &statuses, &status_moves);
+        let mut lines = battle_log::format_turn(
+            &|i| names[i].clone(),
+            &events,
+            &effects,
+            &statuses,
+            &rules,
+            &status_moves,
+        );
         let after_active = self.active_player();
         if after_active != before_active && !self.battle.ended {
             let at = lines
@@ -989,6 +999,13 @@ mod tests {
         assert_eq!(s.stages_of(WILD).attack, -1);
         assert!(s.card_tags(WILD).contains("ATK-"));
         assert!(s.log_lines.iter().any(|l| l.contains("Attack fell")));
+        // With the game rules on, the PLA damage formula applies. Hand calculation (effort 0,
+        // neutral nature): Pikachu L25 Atk 65; Bidoof L5 HP 68, Def 31. Double Kick base damage
+        // floor(floor(floor(30*(65+100+15*25))/(31+50))/5) = floor(floor(16200/81)/5) = 40, x2
+        // Fighting vs Normal = 80, roll 85-100 % = 68..80 per kick, so the first kick always
+        // faints a 68 HP Bidoof and "Hit 2 times!" never shows. The old formula gave 28..34 per
+        // kick. Give the wild Bidoof a 500 HP pool so both kicks (at most 160) connect.
+        s.battle.combatants[WILD].max_hp = 500;
         for _ in 0..8 {
             s.battle.combatants[WILD].hp = s.battle.combatants[WILD].max_hp;
             s.battle.combatants[0].hp = s.battle.combatants[0].max_hp;

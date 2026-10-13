@@ -1,6 +1,7 @@
 //! Battle log text built from engine events (pure, no Bevy).
 
 use crate::battle_engine::effects::{EffectEvent, Stat};
+use crate::battle_engine::rules::RuleEvent;
 use crate::battle_engine::statuses::StatusEvent;
 use crate::battle_engine::{Event, MajorStatus};
 
@@ -35,10 +36,12 @@ pub fn stat_name(stat: Stat) -> &'static str {
 /// follow the main events of the turn; the end-of-battle line stays last.
 ///
 /// `statuses` are the volatile-status events (`Battle::take_status_events`) recorded during the
-/// same turn: confusion, trapping, charge/recharge, Protect and sleep. The engine stores them on a
+/// same turn: confusion, trapping, charge turns and Protect. The engine stores them on a
 /// separate stream with no position inside `events`, so exact interleaving is not possible; their
 /// own emission order is kept and they print after the main and effect lines, before the
-/// end-of-battle line.
+/// end-of-battle line. `rules` are the rule notifications (`Battle::take_rule_events`, status
+/// expiry at the end of the turn); they print after the status lines, before the end-of-battle
+/// line.
 ///
 /// The engine emits no `UsedMove` event for moves without power, so `status_moves` lists the
 /// `(actor, move name)` pairs of such moves chosen this turn; each is announced at the first
@@ -49,6 +52,7 @@ pub fn format_turn(
     events: &[Event],
     effects: &[EffectEvent],
     statuses: &[StatusEvent],
+    rules: &[RuleEvent],
     status_moves: &[(usize, String)],
 ) -> Vec<String> {
     let mut lines = Vec::new();
@@ -147,6 +151,7 @@ pub fn format_turn(
     announce(&mut lines, &mut pending, &|_| true);
     lines.extend(effects.iter().filter_map(|e| format_effect(name, e)));
     lines.extend(statuses.iter().filter_map(|e| format_status(name, e)));
+    lines.extend(rules.iter().map(|e| format_rule(name, e)));
     lines.extend(ended);
     lines
 }
@@ -154,7 +159,9 @@ pub fn format_turn(
 /// One log line for a volatile-status event, or `None` when nothing should be shown.
 /// `name(i)` gives the display name of combatant `i`. Failed actions that already have a main
 /// `Event` (paralysis/drowsiness `UnableToAct`) are not repeated here; the remaining status events
-/// have no main-event counterpart, so each maps to exactly one line.
+/// have no main-event counterpart, so each maps to exactly one line. `WokeUp`, `MustRecharge` and
+/// `Recharging` are still part of the engine enum but are no longer emitted (drowsiness is not a
+/// multi-turn sleep and the recharge rule was refuted); they keep a line so the match stays total.
 pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<String> {
     Some(match e {
         StatusEvent::Confused { target } => format!("{} became confused!", name(*target)),
@@ -172,6 +179,15 @@ pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<
         StatusEvent::ProtectFailed { actor } => format!("{}'s protection failed!", name(*actor)),
         StatusEvent::ProtectedFrom { target, attacker, move_name } => format!("{} protected itself from {}'s {move_name}!", name(*target), name(*attacker)),
     })
+}
+
+/// One log line for a rule notification, e.g. a turn-limited major status running out.
+pub fn format_rule(name: &dyn Fn(usize) -> String, e: &RuleEvent) -> String {
+    match e {
+        RuleEvent::StatusExpired { target, status } => {
+            format!("{} is no longer {}.", name(*target), status_name(*status))
+        }
+    }
 }
 
 pub fn format_effect(name: &dyn Fn(usize) -> String, e: &EffectEvent) -> Option<String> {
@@ -261,7 +277,7 @@ mod tests {
             EffectEvent::Hits { actor: 0, count: 2 },
             EffectEvent::Drained { actor: 0, amount: 3 },
         ];
-        let lines = format_turn(&names, &events, &fx, &[], &[]);
+        let lines = format_turn(&names, &events, &fx, &[], &[], &[]);
         assert_eq!(lines[0], "-- Turn 2 --");
         assert_eq!(
             lines[1],
@@ -291,12 +307,12 @@ mod tests {
                 effectiveness: "normal".into(),
             },
         ];
-        let lines = format_turn(&names, &events, &[], &[], &[(0, "thunder-wave".into())]);
+        let lines = format_turn(&names, &events, &[], &[], &[], &[(0, "thunder-wave".into())]);
         assert_eq!(lines[1], "PIKACHU used thunder-wave!");
         assert_eq!(lines[2], "Wild BIDOOF was paralyzed! [PAR]");
         // a missed status move is reported by the engine, not announced twice
         let missed = vec![Event::TurnStarted(1), Event::Missed { actor: 0, target: 1, name: "thunder-wave".into() }];
-        let lines = format_turn(&names, &missed, &[], &[], &[(0, "thunder-wave".into())]);
+        let lines = format_turn(&names, &missed, &[], &[], &[], &[(0, "thunder-wave".into())]);
         assert_eq!(lines.len(), 2);
     }
 
@@ -344,7 +360,8 @@ mod tests {
             StatusEvent::HurtByTrap { target: 1, damage: 5 },
         ];
         let fx = [EffectEvent::Hits { actor: 0, count: 2 }];
-        let lines = format_turn(&names, &events, &fx, &statuses, &[]);
+        let rules = [RuleEvent::StatusExpired { target: 0, status: MajorStatus::Paralysis }];
+        let lines = format_turn(&names, &events, &fx, &statuses, &rules, &[]);
         assert_eq!(
             lines,
             vec![
@@ -353,6 +370,7 @@ mod tests {
                 "Hit 2 times!".to_string(),
                 "Wild BIDOOF became confused!".to_string(),
                 "Wild BIDOOF is hurt by the trap! (-5 HP)".to_string(),
+                "PIKACHU is no longer paralyzed.".to_string(),
             ]
         );
     }

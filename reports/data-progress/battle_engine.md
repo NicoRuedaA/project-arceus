@@ -75,26 +75,37 @@ Unsupported: semi-invulnerable charge turns (Fly/Dig have no flag in the table),
 The rules above used to be engine-only. `game/battle_controller.rs` now turns them on for the
 game loop: `BattleAssets::load` sets `status_rules: StatusRules::game_rules()` and
 `ActiveBattleSession::build` calls `Battle::set_status_rules(a.status_rules)`, so a full session
-(the one the viewer, the save loop and `game::battle_demo` use) runs confusion, trapping,
-charge/recharge, Protect, sleep duration, the notes' paralysis/slip rates and the speed/stage
-multipliers. The plain `ActiveBattleSession::new` (no data tables, kept for callers with only a
+(the one the viewer and the save loop use) runs confusion, trapping, charge turns, Protect,
+drowsiness, the game's paralysis/slip rates and the rank multipliers. `notes_rates` also selects
+the VERIFIED PLA damage formula, so in-game battles now deal roughly three times the damage of
+the old main-series formula (the engine default stays the old formula). The plain `ActiveBattleSession::new` (no data tables, kept for callers with only a
 `BattleData`) leaves `StatusRules::default()` (everything off).
 
 After each turn the controller drains `Battle::take_status_events()` and `battle_log::format_status`
-maps all 14 `StatusEvent` variants to English log lines; they are appended in engine order after
-the turn's main and effect lines and before the end-of-battle line. The engine records status
+maps all 14 `StatusEvent` variants to English log lines (`WokeUp`, `MustRecharge` and `Recharging`
+are no longer emitted by the engine); it also drains `Battle::take_rule_events()` and
+`battle_log::format_rule` prints status expiry (`... is no longer paralyzed.`). They are appended in
+engine order after the turn's main and effect lines and before the end-of-battle line. The engine records status
 events on a stream with no position inside `Event`, so exact interleaving is not possible and the
 lines are grouped, not woven between the main events. A switch refused outside a turn also drains
 them. The HP cards add `CNF`/`TRAP` next to the existing status and stage tags. The headless
-`examples/battle_demo.rs` enables the rules and prints the new lines; a run with `move 3`
-(confuse-ray) and `move 4` (solar-beam) printed `staraptor became confused!`, `pikachu is charging
-solar-beam!` and `staraptor snapped out of confusion!`.
+`examples/battle_demo.rs` enables the rules and prints the new lines. On the branch (old damage
+formula) a run with `move 3` (confuse-ray) and `move 4` (solar-beam) printed `staraptor became
+confused!`, `pikachu is charging solar-beam!` and `staraptor snapped out of confusion!`. After the
+merge (real formula) the same input printed `staraptor became confused!`, then Staraptor's two
+quick-attacks (41 and 37 damage) knocked out the 55 HP Pikachu before solar-beam was used.
 
-Confidence is unchanged by the wiring: which moves confuse/trap/charge comes from the effects-table
-columns (LIKELY); durations, the 33 % confusion self-hit, trap damage and the Protect chain are
-ASSUMED franchise conventions; paralysis failure 33 % and the slip denominators come from the
-static notes (LIKELY). None of this is verified against the real game: the enabled rules are the
-engine's approximation, not the game's own values. **Verified** only by unit tests and the
+Confidence is unchanged by the wiring: confusion, trapping, drowsiness, paralysis 33 %, slip
+damage and rank multipliers are VERIFIED by static reading of the game's code (see
+[battle_rules_verified.md](battle_rules_verified.md)); the charge flow and the Protect chain stay
+ASSUMED. Nothing was checked against a running game.
+
+Test expectation changed by enabling the real formula: `stat_stage_and_multi_hit_effects_reach_log_and_card`
+expected two Double Kick hits on a L5 Bidoof. Hand calculation (effort 0, neutral nature):
+Pikachu L25 Atk 65, Bidoof L5 HP 68 and Def 31; base damage
+`floor(floor(floor(30*(65+100+15*25))/(31+50))/5) = 40`, x2 Fighting vs Normal = 80, roll 85-100 %
+= 68..80, so the first kick always faints it (the old formula gave 28..34 per kick). The test now
+gives the wild Bidoof a 500 HP pool so both kicks connect. **Verified** only by unit tests and the
 non-windowed example (`cargo test -p pla statuses battle_log battle_controller`; full
 `cargo test -p pla`).
 

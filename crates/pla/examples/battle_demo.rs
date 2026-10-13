@@ -53,13 +53,13 @@ fn main() -> Result<(), String> {
         "Partial PLA battle-rules demo (not complete). Commands: move <slot>, switch <party slot>, heal, quit."
     );
     println!(
-        "Verified (see reports/data-progress/battle_rules_verified.md): effort stats, critical probabilities, type categories. Damage formula: the real game formula is available but OFF by default (this demo uses the old series formula, which the game does not use). Rules checked against the game code: 18 verified, 7 corrected, 4 unknown."
+        "Verified (see reports/data-progress/battle_rules_verified.md): effort stats, critical probabilities, type categories. Damage formula: this demo enables the game rules, which select the real game formula (the engine default is still the old series formula, which the game does not use). Rules checked against the game code: 18 verified, 7 corrected, 4 unknown."
     );
     println!(
         "Nature mapping, native action classes/AI, and catch rates are unknown inputs; defaults are neutral. Healing amount and party controls are demo-only."
     );
     println!(
-        "Status rules are ON (confusion, trapping, charge/recharge, Protect, sleep). Pikachu slots 3/4 are confuse-ray and solar-beam."
+        "Game rules are ON (confusion, trapping, charge turns, Protect, drowsiness, status rates, rank multipliers, real damage formula). Pikachu slots 3/4 are confuse-ray and solar-beam."
     );
 
     while !battle.ended {
@@ -196,11 +196,15 @@ fn main() -> Result<(), String> {
             }
         }
         let statuses = battle.take_status_events();
+        let rules = battle.take_rule_events();
         let names = |i: usize| battle.combatants[i].species.name.clone();
         for event in &statuses {
             if let Some(line) = battle_log::format_status(&names, event) {
                 println!("{line}");
             }
+        }
+        for event in &rules {
+            println!("{}", battle_log::format_rule(&names, event));
         }
     }
     Ok(())
