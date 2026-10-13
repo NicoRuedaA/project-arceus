@@ -5,6 +5,7 @@
 
 use bevy::prelude::*;
 
+pub mod art_style;
 pub mod audio;
 pub mod bag_screen;
 pub mod battle_ai;
