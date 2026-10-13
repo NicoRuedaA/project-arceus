@@ -853,6 +853,11 @@ pub struct TerrainMeshChunk {
 
 /// Generate independently renderable mesh patches, sharing identical world
 /// coordinates and height-derived normals at patch boundaries.
+///
+/// Chunks are independent, so they are built in parallel (up to 3 threads, the
+/// same cap `bake_albedo_with` uses) and written back in the original nested-loop
+/// order: the output is identical to a sequential build, only faster. Zone-load
+/// measurement: `reports/data-progress/performance.md`.
 pub fn build_mesh_chunks(
     heightmap: &FloatTextureData,
     settings: TerrainMeshSettings,
@@ -879,78 +884,128 @@ pub fn build_mesh_chunks(
     }
 
     let chunk_cells = settings.chunk_cells as usize;
-    let mut chunks = Vec::new();
+    let mut origins = Vec::new();
     for z0 in (0..height - 1).step_by(chunk_cells) {
-        let z1 = (z0 + chunk_cells).min(height - 1);
         for x0 in (0..width - 1).step_by(chunk_cells) {
-            let x1 = (x0 + chunk_cells).min(width - 1);
-            let patch_width = x1 - x0 + 1;
-            let patch_height = z1 - z0 + 1;
-            let mut positions = Vec::with_capacity(patch_width * patch_height);
-            let mut normals = Vec::with_capacity(patch_width * patch_height);
-            let mut uvs = Vec::with_capacity(patch_width * patch_height);
-            for z in z0..=z1 {
-                for x in x0..=x1 {
-                    let sample = heightmap.samples[z * width + x];
-                    // The descriptor origin is the local terrain corner, not its center.
-                    let world_x = x as f32 * settings.horizontal_cell_size;
-                    let world_z = z as f32 * settings.horizontal_cell_size;
-                    positions.push([world_x, sample * settings.vertical_scale, world_z]);
-                    let left = heightmap.samples[z * width + x.saturating_sub(1)];
-                    let right = heightmap.samples[z * width + (x + 1).min(width - 1)];
-                    let up = heightmap.samples[z.saturating_sub(1) * width + x];
-                    let down = heightmap.samples[(z + 1).min(height - 1) * width + x];
-                    let dx = (right - left) * settings.vertical_scale
-                        / (settings.horizontal_cell_size
-                            * if x == 0 || x + 1 == width { 1.0 } else { 2.0 });
-                    let dz = (down - up) * settings.vertical_scale
-                        / (settings.horizontal_cell_size
-                            * if z == 0 || z + 1 == height { 1.0 } else { 2.0 });
-                    normals.push(Vec3::new(-dx, 1.0, -dz).normalize().to_array());
-                    uvs.push([
-                        x as f32 / (width - 1) as f32,
-                        z as f32 / (height - 1) as f32,
-                    ]);
-                }
-            }
-            let mut indices = Vec::with_capacity((patch_width - 1) * (patch_height - 1) * 6);
-            for z in 0..patch_height - 1 {
-                for x in 0..patch_width - 1 {
-                    let top_left = (z * patch_width + x) as u32;
-                    let top_right = top_left + 1;
-                    let bottom_left = top_left + patch_width as u32;
-                    let bottom_right = bottom_left + 1;
-                    indices.extend_from_slice(&[
-                        top_left,
-                        bottom_left,
-                        top_right,
-                        top_right,
-                        bottom_left,
-                        bottom_right,
-                    ]);
-                }
-            }
-            let mut mesh = Mesh::new(
-                PrimitiveTopology::TriangleList,
-                RenderAssetUsages::default(),
-            );
-            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-            mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-            mesh.insert_indices(Indices::U32(indices));
-            // Tangent frame for the normal map (mikktspace); UVs are
-            // (x / extent, z / extent), so this matches the baked normal map.
-            // A failure only drops the normal map, not the albedo.
-            if let Err(error) = mesh.generate_tangents() {
-                eprintln!("terrain chunk at {x0},{z0}: generate_tangents failed: {error:?}");
-            }
-            chunks.push(TerrainMeshChunk {
-                sample_origin: [x0 as u32, z0 as u32],
-                mesh,
-            });
+            origins.push((z0, x0));
         }
     }
-    Ok(chunks)
+
+    let mut slots: Vec<Option<TerrainMeshChunk>> = std::iter::repeat_with(|| None)
+        .take(origins.len())
+        .collect();
+    let threads = chunk_build_threads(origins.len());
+    if threads <= 1 {
+        for (slot, &(z0, x0)) in slots.iter_mut().zip(origins.iter()) {
+            *slot = Some(build_chunk(heightmap, settings, x0, z0));
+        }
+    } else {
+        let per_band = origins.len().div_ceil(threads);
+        std::thread::scope(|scope| {
+            for (band_index, band) in slots.chunks_mut(per_band).enumerate() {
+                let start = band_index * per_band;
+                let band_origins = &origins[start..start + band.len()];
+                scope.spawn(move || {
+                    for (slot, &(z0, x0)) in band.iter_mut().zip(band_origins.iter()) {
+                        *slot = Some(build_chunk(heightmap, settings, x0, z0));
+                    }
+                });
+            }
+        });
+    }
+    Ok(slots
+        .into_iter()
+        .map(|slot| slot.expect("every chunk slot is filled before returning"))
+        .collect())
+}
+
+/// Worker count for [`build_mesh_chunks`]: up to 3, like `bake_albedo_with`.
+fn chunk_build_threads(chunk_count: usize) -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .min(3)
+        .min(chunk_count.max(1))
+        .max(1)
+}
+
+/// Build one patch. No failure mode: the heightmap and settings are validated by
+/// the caller, and a tangent failure only drops the normal map.
+fn build_chunk(
+    heightmap: &FloatTextureData,
+    settings: TerrainMeshSettings,
+    x0: usize,
+    z0: usize,
+) -> TerrainMeshChunk {
+    let width = heightmap.width as usize;
+    let height = heightmap.height as usize;
+    let chunk_cells = settings.chunk_cells as usize;
+    let z1 = (z0 + chunk_cells).min(height - 1);
+    let x1 = (x0 + chunk_cells).min(width - 1);
+    let patch_width = x1 - x0 + 1;
+    let patch_height = z1 - z0 + 1;
+    let mut positions = Vec::with_capacity(patch_width * patch_height);
+    let mut normals = Vec::with_capacity(patch_width * patch_height);
+    let mut uvs = Vec::with_capacity(patch_width * patch_height);
+    for z in z0..=z1 {
+        for x in x0..=x1 {
+            let sample = heightmap.samples[z * width + x];
+            // The descriptor origin is the local terrain corner, not its center.
+            let world_x = x as f32 * settings.horizontal_cell_size;
+            let world_z = z as f32 * settings.horizontal_cell_size;
+            positions.push([world_x, sample * settings.vertical_scale, world_z]);
+            let left = heightmap.samples[z * width + x.saturating_sub(1)];
+            let right = heightmap.samples[z * width + (x + 1).min(width - 1)];
+            let up = heightmap.samples[z.saturating_sub(1) * width + x];
+            let down = heightmap.samples[(z + 1).min(height - 1) * width + x];
+            let dx = (right - left) * settings.vertical_scale
+                / (settings.horizontal_cell_size
+                    * if x == 0 || x + 1 == width { 1.0 } else { 2.0 });
+            let dz = (down - up) * settings.vertical_scale
+                / (settings.horizontal_cell_size
+                    * if z == 0 || z + 1 == height { 1.0 } else { 2.0 });
+            normals.push(Vec3::new(-dx, 1.0, -dz).normalize().to_array());
+            uvs.push([
+                x as f32 / (width - 1) as f32,
+                z as f32 / (height - 1) as f32,
+            ]);
+        }
+    }
+    let mut indices = Vec::with_capacity((patch_width - 1) * (patch_height - 1) * 6);
+    for z in 0..patch_height - 1 {
+        for x in 0..patch_width - 1 {
+            let top_left = (z * patch_width + x) as u32;
+            let top_right = top_left + 1;
+            let bottom_left = top_left + patch_width as u32;
+            let bottom_right = bottom_left + 1;
+            indices.extend_from_slice(&[
+                top_left,
+                bottom_left,
+                top_right,
+                top_right,
+                bottom_left,
+                bottom_right,
+            ]);
+        }
+    }
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_indices(Indices::U32(indices));
+    // Tangent frame for the normal map (mikktspace); UVs are
+    // (x / extent, z / extent), so this matches the baked normal map.
+    // A failure only drops the normal map, not the albedo.
+    if let Err(error) = mesh.generate_tangents() {
+        eprintln!("terrain chunk at {x0},{z0}: generate_tangents failed: {error:?}");
+    }
+    TerrainMeshChunk {
+        sample_origin: [x0 as u32, z0 as u32],
+        mesh,
+    }
 }
 
 #[cfg(test)]
@@ -1001,6 +1056,57 @@ mod tests {
                 chunk.mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_some(),
                 "terrain chunk is missing tangents for normal mapping"
             );
+        }
+    }
+
+    #[test]
+    fn parallel_chunk_build_keeps_order_and_matches_the_single_chunk_builder() {
+        // 100x70 with 32-cell chunks -> 12 chunks over 3 worker bands on this host, so the
+        // parallel path is exercised; on 1-core hosts the sequential path builds the same order.
+        let heightmap = FloatTextureData {
+            width: 100,
+            height: 70,
+            samples: (0..100 * 70)
+                .map(|n| ((n * 37) % 251) as f32 / 251.0)
+                .collect(),
+        };
+        let settings = TerrainMeshSettings {
+            horizontal_cell_size: 0.5,
+            vertical_scale: 40.0,
+            chunk_cells: 32,
+        };
+        let chunks = build_mesh_chunks(&heightmap, settings).unwrap();
+        assert_eq!(chunks.len(), 12);
+
+        // The nested-loop order is part of the contract (callers index chunk grids by it).
+        let expected_origins: Vec<[u32; 2]> = [0usize, 32, 64]
+            .iter()
+            .flat_map(|&z0| [0usize, 32, 64, 96].iter().map(move |&x0| [x0 as u32, z0 as u32]))
+            .collect();
+        assert_eq!(
+            chunks.iter().map(|c| c.sample_origin).collect::<Vec<_>>(),
+            expected_origins
+        );
+
+        // Every returned chunk must carry exactly the bytes a direct single-chunk build produces,
+        // including the chunks at worker-band boundaries and the right/bottom edge patches.
+        let positions = |mesh: &Mesh| match mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
+            Some(bevy::mesh::VertexAttributeValues::Float32x3(values)) => values.clone(),
+            other => panic!("unexpected position attribute: {other:?}"),
+        };
+        let indices = |mesh: &Mesh| {
+            mesh.indices()
+                .expect("chunk indices")
+                .iter()
+                .map(|i| i as u32)
+                .collect::<Vec<u32>>()
+        };
+        for index in [0usize, 3, 4, 6, 8, 11] {
+            let [x0, z0] = chunks[index].sample_origin;
+            let direct = build_chunk(&heightmap, settings, x0 as usize, z0 as usize);
+            assert_eq!(direct.sample_origin, chunks[index].sample_origin);
+            assert_eq!(positions(&direct.mesh), positions(&chunks[index].mesh));
+            assert_eq!(indices(&direct.mesh), indices(&chunks[index].mesh));
         }
     }
 
