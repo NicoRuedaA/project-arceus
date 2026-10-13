@@ -7,16 +7,22 @@ decompressed section payload WITHOUT re-encryption, which yields plaintext
 ExeFS/RomFS data even without title keys (the NCZ stores section keys).
 
 Usage:
-    python ncz_extract.py <file.nsz> <outdir>
+    python ncz_extract.py <file.nsz> <outdir> [--no-entries]
 
 Writes:
-    <outdir>/entries/<name>            raw stored entry bytes
+    <outdir>/entries/<name>            raw stored entry bytes (skipped with --no-entries;
+                                       the entries are still hashed into the manifest)
     <outdir>/sections/<name>/sXX.bin   decrypted NCZ section payloads
     <outdir>/manifest.json             offsets, sizes, crypto types, hashes
+
+Sections are streamed to disk (never held whole in memory) and every output file
+is written to a temporary name and renamed into place, so an existing symlink at
+a destination is replaced, never written through (see safe_io.py).
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -26,6 +32,8 @@ from pathlib import Path
 
 from nsz.Fs import Nsp
 from zstandard import ZstdDecompressor
+
+from safe_io import atomic_write_text, atomic_writer, ensure_real_dir
 
 HEADER_SIZE = 0x4000  # incompressible NCA header region inside an NCZ
 CHUNK = 0x400000
@@ -76,48 +84,62 @@ def parse_ncz_sections(ncz) -> tuple[list[dict], int]:
 
 
 def decompress_sections(ncz, sections: list[dict], outdir: Path) -> list[dict]:
-    """Stream the solid zstd payload and split it into section files."""
+    """Stream the solid zstd payload and split it into section files.
+
+    Each section is written while it is decompressed (bounded memory: one CHUNK at a
+    time) and hashed on the fly; the gap pseudo-section is hashed but not written.
+    """
     total = sum(s["size"] for s in sections)
     stream = ZstdDecompressor().stream_reader(ncz)
     written = 0
-    blobs = []
-    for s in sections:
+    next_report = 512 * 1024 * 1024
+    info = []
+    for i, s in enumerate(sections):
         remaining = s["size"]
-        parts = []
-        while remaining > 0:
-            chunk = stream.read(min(CHUNK, remaining))
-            if not chunk:
-                raise EOFError(
-                    f"zstd stream ended early: {written} of {total} bytes"
-                )
-            parts.append(chunk)
-            remaining -= len(chunk)
-            written += len(chunk)
-        blobs.append(b"".join(parts))
+        digest = hashlib.sha256()
+        first32 = b""
+        dest = outdir / f"s{i:02d}_{s['offset']:x}.bin"
+        writer = contextlib.nullcontext(None) if "fake" in s else atomic_writer(dest)
+        with writer as fh:
+            while remaining > 0:
+                chunk = stream.read(min(CHUNK, remaining))
+                if not chunk:
+                    raise EOFError(
+                        f"zstd stream ended early: {written} of {total} bytes"
+                    )
+                if len(first32) < 32:
+                    first32 += chunk[: 32 - len(first32)]
+                digest.update(chunk)
+                if fh is not None:
+                    fh.write(chunk)
+                remaining -= len(chunk)
+                written += len(chunk)
+                if written >= next_report:
+                    print(f"[progress] {written / total:6.1%} of sections "
+                          f"({written >> 20} / {total >> 20} MiB)", flush=True)
+                    next_report += 512 * 1024 * 1024
+        meta = dict(s)
+        meta["sha256"] = digest.hexdigest()
+        meta["first32"] = first32.hex()
+        info.append(meta)
     extra = stream.read(1)
     if extra:
         raise ValueError("zstd stream has trailing data")
-    info = []
-    for i, (s, blob) in enumerate(zip(sections, blobs)):
-        meta = dict(s)
-        meta["sha256"] = hashlib.sha256(blob).hexdigest()
-        meta["first32"] = blob[:32].hex()
-        info.append(meta)
-        if "fake" in s:
-            continue
-        (outdir / f"s{i:02d}_{s['offset']:x}.bin").write_bytes(blob)
     return info
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
+    args = [a for a in sys.argv[1:] if a != "--no-entries"]
+    write_entries = "--no-entries" not in sys.argv[1:]
+    if len(args) != 2:
         print(__doc__)
         return 2
-    src = Path(sys.argv[1]).resolve()
-    outdir = Path(sys.argv[2]).resolve()
-    outdir.mkdir(parents=True, exist_ok=True)
+    src = Path(args[0]).resolve()
+    outdir = Path(os.path.abspath(args[1]))
+    ensure_real_dir(outdir)
     entries_dir = outdir / "entries"
-    entries_dir.mkdir(exist_ok=True)
+    if write_entries:
+        ensure_real_dir(entries_dir)
 
     manifest = {
         "source": str(src),
@@ -135,12 +157,14 @@ def main() -> int:
         dest = entries_dir / name
         h = hashlib.sha256()
         size = 0
-        with open(dest, "wb") as fh:
+        writer = atomic_writer(dest) if write_entries else contextlib.nullcontext(None)
+        with writer as fh:
             while True:
                 chunk = entry.read(CHUNK)
                 if not chunk:
                     break
-                fh.write(chunk)
+                if fh is not None:
+                    fh.write(chunk)
                 h.update(chunk)
                 size += len(chunk)
         print(f"[entry] {name} {size} bytes")
@@ -148,8 +172,7 @@ def main() -> int:
         manifest["entries"].append(record)
 
         if name.endswith(".ncz"):
-            ncz_dir = outdir / "sections" / Path(name).stem
-            ncz_dir.mkdir(parents=True, exist_ok=True)
+            ncz_dir = ensure_real_dir(outdir / "sections" / Path(name).stem)
             entry.rewind()
             sections, stream_pos = parse_ncz_sections(entry)
             record["ncz_sections"] = decompress_sections(entry, sections, ncz_dir)
@@ -162,7 +185,7 @@ def main() -> int:
                     f"first32={s['first32']}"
                 )
 
-    (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    atomic_write_text(outdir / "manifest.json", json.dumps(manifest, indent=2))
     print(f"[done] manifest: {outdir / 'manifest.json'}")
     return 0
 

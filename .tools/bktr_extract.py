@@ -11,12 +11,23 @@ subsection CTR values, per the switchbrew NCA spec and hactool's nca.c.
 
 Usage: bktr_extract.py <update_nsz> <update_sections_dir> <base_section.bin>
                        <base_romfs_offset> <out_dir> [--list out.tsv]
+                       [--keys prod.keys] [--resume]
+
+  --keys PATH   your prod.keys (default: ProdKeys.-v22.5.0/prod.keys, then nsz's
+                usual places such as ~/.switch/prod.keys)
+  --resume      skip files already present in <out_dir> with the right size (safe
+                because every file is written to a temporary name and renamed into
+                place, so a present file is a complete file)
+
+The base section is memory-mapped (never read whole into memory), and outputs are
+never written through symlinks (see safe_io.py).
 """
 
 from __future__ import annotations
 
 import bisect
 import glob
+import mmap
 import os
 import struct
 import sys
@@ -27,6 +38,8 @@ from Crypto.Util import Counter
 
 from nsz.Fs import Nsp
 from nsz.nut import Keys
+
+from safe_io import atomic_writer, ensure_real_dir
 
 HEADER_SIZE = 0xC00
 
@@ -184,8 +197,13 @@ def main() -> int:
     if "--list" in args:
         list_path = args[args.index("--list") + 1]
 
-    Keys.load_default("ProdKeys.-v22.5.0/prod.keys")
+    keys_path = args[args.index("--keys") + 1] if "--keys" in args else "ProdKeys.-v22.5.0/prod.keys"
+    resume = "--resume" in args
+    if not Keys.load_default(keys_path):
+        raise SystemExit(f"could not load your keys from {keys_path}")
     hk = Keys.get("header_key")
+    if not hk:
+        raise SystemExit(f"{keys_path} has no header_key line; dump prod.keys again from your console")
     hk = bytes.fromhex(hk) if isinstance(hk, str) else hk
 
     nsp = Nsp.Nsp()
@@ -230,7 +248,8 @@ def main() -> int:
     # BKTR base offsets are relative to the base *section* start (verified:
     # the base dir table at image 0x17D734AD4 resolves to section 0x17E338AD4
     # = 0xC04000 + 0x17D734AD4). Keep the whole section, ignore base_off.
-    base_image = open(base_section, "rb").read()
+    base_fh = open(base_section, "rb")
+    base_image = mmap.mmap(base_fh.fileno(), 0, access=mmap.ACCESS_READ)
     # The relocation virtual space is the whole *section image* (IVFC tables +
     # romfs): the romfs image starts at the IVFC level-5 offset, exactly like a
     # normal section. RomFS-internal offsets are relative to that image start.
@@ -239,21 +258,36 @@ def main() -> int:
     files = walk(rom)
     print(f"virtual romfs files: {len(files)}")
     if list_path:
-        with open(list_path, "w") as fh:
-            fh.write("path\toffset\tsize\n")
+        with atomic_writer(Path(list_path)) as fh:
+            fh.write(b"path\toffset\tsize\n")
             for e in files:
-                fh.write(f"{e['path']}\t{e['offset']:#x}\t{e['size']}\n")
+                fh.write(f"{e['path']}\t{e['offset']:#x}\t{e['size']}\n".encode("utf-8"))
         print(f"listing -> {list_path}")
 
-    outdir = Path(out_dir)
+    outdir = ensure_real_dir(Path(out_dir))
     total = 0
-    for e in files:
-        dest = outdir / e["path"].lstrip("/")
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        data = rom.read_virtual(rom.romfs_offset + e["offset"], e["size"])
-        dest.write_bytes(data)
-        total += len(data)
-    print(f"extracted {len(files)} files ({total} bytes) -> {outdir}")
+    skipped = 0
+    grand = sum(e["size"] for e in files) or 1
+    for n, e in enumerate(files, 1):
+        rel = e["path"].lstrip("/")
+        if rel.startswith("/") or ".." in Path(rel).parts:
+            raise SystemExit(f"unsafe path in romfs table: {e['path']!r}")
+        dest = outdir / rel
+        if resume and dest.is_file() and not dest.is_symlink() and dest.stat().st_size == e["size"]:
+            skipped += 1
+            total += e["size"]
+        else:
+            data = rom.read_virtual(rom.romfs_offset + e["offset"], e["size"])
+            if len(data) != e["size"]:
+                raise SystemExit(f"short read for {e['path']}: {len(data)} of {e['size']} bytes")
+            with atomic_writer(dest, root=outdir) as fh:
+                fh.write(data)
+            total += len(data)
+        if n % 1000 == 0 or n == len(files):
+            print(f"[progress] {n}/{len(files)} files, {total / grand:6.1%} of bytes", flush=True)
+    base_image.close()
+    base_fh.close()
+    print(f"extracted {len(files)} files ({total} bytes, {skipped} already present) -> {outdir}")
     return 0
 
 

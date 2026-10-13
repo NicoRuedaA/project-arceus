@@ -4,6 +4,11 @@ Everything heavy is **regenerable** from your own game files + keys + the
 committed tooling. This document is the exact pipeline, with the parity check
 that proves each step.
 
+> **Only want to play?** `./install.sh --base <pk1.nsz> --update <pk2.nsz> --keys <prod.keys>`
+> runs steps 1, 2 (only `main`), 5 and every cache the viewer needs, idempotently and with
+> hash checks; see [`docs/INSTALL.md`](docs/INSTALL.md). The rest of this document (Ghidra,
+> Lua, gameDB, sheets) is for reverse engineering and is not needed to play.
+
 ## 0. Prerequisites
 
 - Your own copy of the game: `pk1.nsz` (base) and `pk2.nsz` (update). The update
@@ -28,6 +33,10 @@ NSZ/NCZ embeds the section keys, so this step needs **no keys**:
 .tools/venv/bin/python .tools/ncz_extract.py pk1.nsz /home/nico/work/pla/pk1
 .tools/venv/bin/python .tools/ncz_extract.py pk2.nsz /home/nico/work/pla/pk2
 ```
+
+`--no-entries` skips the raw copy of each container entry (2.2 GB for the base); the
+sections and the manifest are written either way. Sections are streamed to disk and
+every file is written under a temporary name and renamed into place.
 
 **Parity:** the `nsz` tool's own reconstruction reproduces the content-addressed
 NCZ filenames (SHA-256 of the reconstructed NCA == the entry name prefix).
@@ -91,8 +100,12 @@ Game updates ship an AesCtrEx/BKTR patch. The tool rebuilds the **virtual**
 
 ```bash
 .tools/venv/bin/python .tools/bktr_extract.py pk2.nsz <pk2-sections-dir> \
-  <base-section>.bin 0xC04000 <work>/romfs_patched --list <work>/romfs_patched.tsv
+  <base-section>.bin 0xC04000 <work>/romfs_patched --list <work>/romfs_patched.tsv \
+  --keys <your prod.keys> [--resume]
 ```
+
+The base section is memory-mapped (not read whole into memory); `--resume` skips files
+already written by an interrupted run.
 
 **Parity:** every file the patch does *not* touch is byte-identical to the base
 extraction (400/400 sampled). The update adds 725 files and changes 465.
