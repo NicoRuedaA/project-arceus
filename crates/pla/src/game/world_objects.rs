@@ -4,14 +4,22 @@
 //! Only main-terrain areas (00..05) are used; sub-area frames are unknown and ignored. Rotation is
 //! interpreted as degrees, yaw about Y taken from `rot_y` (UNVERIFIED, see world_viewer.md). Model
 //! glTF scenes are shared (one handle per model) and released when no instance of a model is alive.
+//!
+//! Water planes (`ground_*water*`, the game's undecoded `Water` shader) go through
+//! `game::water`: they get the `WaterMaterial` and their world footprint/level is recorded in
+//! `WaterBodies` so the locomotion can decide swimming.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use bevy::camera::primitives::MeshAabb;
 use bevy::prelude::*;
 use bevy::gltf::{Gltf, GltfMaterial, GltfMesh};
 
 use super::PlayerAvatar;
+use super::water::{
+    is_water_model, water_body_from, water_material, WaterBodies, WaterExt, WaterMaterial,
+};
 
 /// Objects closer than this to the player are alive.
 pub const LOAD_RADIUS: f32 = 200.0;
@@ -155,10 +163,19 @@ struct WorldObjects {
     alive: HashMap<usize, Entity>,
     handles: HashMap<String, Handle<Gltf>>,
     prims: HashMap<String, Prims>,
+    /// Local-space mesh bounds of the water models, for the world water rectangles.
+    water_aabbs: HashMap<String, (Vec3, Vec3)>,
     rot_mode: RotMode,
 }
 
-type Prims = Vec<(Handle<Mesh>, Handle<StandardMaterial>)>;
+/// One primitive of a model and the material it must be drawn with.
+#[derive(Clone)]
+enum PrimMaterial {
+    Standard(Handle<StandardMaterial>),
+    Water(Handle<WaterMaterial>),
+}
+
+type Prims = Vec<(Handle<Mesh>, PrimMaterial)>;
 
 impl Plugin for WorldObjectsPlugin {
     fn build(&self, app: &mut App) {
@@ -188,6 +205,7 @@ impl Plugin for WorldObjectsPlugin {
             alive: HashMap::new(),
             handles: HashMap::new(),
             prims: HashMap::new(),
+            water_aabbs: HashMap::new(),
             rot_mode: self.rot_mode,
         });
         app.add_systems(Update, stream_objects);
@@ -206,7 +224,10 @@ fn stream_objects(
     gltfs: Res<Assets<Gltf>>,
     gltf_meshes: Res<Assets<GltfMesh>>,
     gltf_materials: Res<Assets<GltfMaterial>>,
+    meshes: Res<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
+    mut water_materials: ResMut<Assets<WaterMaterial>>,
+    mut water_bodies: Option<ResMut<WaterBodies>>,
 ) {
     let Some(pt) = player.iter().next() else { return };
     let pxz = Vec2::new(pt.translation.x, pt.translation.z);
@@ -264,24 +285,25 @@ fn stream_objects(
             }
 
             let mut prims = Vec::new();
+            let is_water = is_water_model(&p.model);
+            let mut water_bounds: Option<(Vec3, Vec3)> = None;
             for mh in &gltf.meshes {
                 let Some(gm) = gltf_meshes.get(mh) else { continue };
                 for prim in &gm.primitives {
-                    let is_water = p.model.contains("water");
                     let is_plant = p.model.starts_with("plants_");
-                    let sm = if is_water {
-                        // Canal/river water plane: styled as transparent water rather than flat white foam
-                        StandardMaterial {
-                            base_color: Color::srgba(0.12, 0.32, 0.50, 0.72),
-                            perceptual_roughness: 0.15,
-                            metallic: 0.1,
-                            alpha_mode: AlphaMode::Blend,
-                            cull_mode: None,
-                            ..default()
+                    let pm = if is_water {
+                        // Water planes use the water shader (game::water) instead of a flat colour.
+                        if let Some(a) = meshes.get(&prim.mesh).and_then(|m| m.compute_aabb()) {
+                            let (lo, hi) = (Vec3::from(a.min()), Vec3::from(a.max()));
+                            water_bounds = Some(match water_bounds {
+                                Some((blo, bhi)) => (blo.min(lo), bhi.max(hi)),
+                                None => (lo, hi),
+                            });
                         }
+                        PrimMaterial::Water(water_materials.add(water_material(WaterExt::default())))
                     } else {
                         let mat = prim.material.as_ref().and_then(|h| gltf_materials.get(h));
-                        match mat {
+                        let sm = match mat {
                             Some(m) => StandardMaterial {
                                 base_color: m.base_color,
                                 base_color_texture: m.base_color_texture.clone(),
@@ -300,27 +322,49 @@ fn stream_objects(
                                 cull_mode: None,
                                 ..default()
                             },
-                        }
+                        };
+                        PrimMaterial::Standard(standard_materials.add(sm))
                     };
-                    prims.push((prim.mesh.clone(), standard_materials.add(sm)));
+                    prims.push((prim.mesh.clone(), pm));
                 }
+            }
+            if let Some(bounds) = water_bounds {
+                wo.water_aabbs.insert(p.model.clone(), bounds);
             }
             wo.prims.insert(p.model.clone(), prims);
         }
         let prims = wo.prims[&p.model].clone();
+        let transform = Transform {
+            translation: Vec3::from(p.pos),
+            rotation: placement_rotation(&p, wo.rot_mode),
+            scale: Vec3::from(p.scale),
+        };
+        // Record where the water surface is so the locomotion can start swimming there.
+        if let Some((lo, hi)) = wo.water_aabbs.get(&p.model) {
+            if let Some(bodies) = water_bodies.as_deref_mut() {
+                let body = water_body_from(*lo, *hi, &transform);
+                if !bodies.insert(body) {
+                    println!(
+                        "Water: body of {} not recorded ({} bodies is the cap, {} dropped)",
+                        p.model,
+                        WaterBodies::MAX_BODIES,
+                        bodies.dropped
+                    );
+                }
+            }
+        }
         let e = commands
-            .spawn((
-                PlacedObject(i),
-                Transform {
-                    translation: Vec3::from(p.pos),
-                    rotation: placement_rotation(&p, wo.rot_mode),
-                    scale: Vec3::from(p.scale),
-                },
-                Visibility::default(),
-            ))
+            .spawn((PlacedObject(i), transform, Visibility::default()))
             .with_children(|c| {
                 for (m, mat) in prims {
-                    c.spawn((Mesh3d(m), MeshMaterial3d(mat), Transform::IDENTITY));
+                    match mat {
+                        PrimMaterial::Standard(mat) => {
+                            c.spawn((Mesh3d(m), MeshMaterial3d(mat), Transform::IDENTITY));
+                        }
+                        PrimMaterial::Water(mat) => {
+                            c.spawn((Mesh3d(m), MeshMaterial3d(mat), Transform::IDENTITY));
+                        }
+                    }
                 }
             })
             .id();

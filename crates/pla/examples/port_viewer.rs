@@ -43,6 +43,7 @@ use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleSta
 use pla::game::pause_menu::PauseMenuPlugin;
 use pla::game::settings::UserSettings;
 use pla::game::state::{not_paused, Paused};
+use pla::game::water::{PlayerSwim, SwimState, WaterBodies, SWIM_ENTER_DEPTH, SWIM_SPEED};
 use pla::pml::{calculate_hp, PmlDatabase};
 
 #[derive(Component)]
@@ -880,6 +881,7 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
     app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
+    app.add_plugins(pla::game::water::WaterPlugin);
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
@@ -1137,6 +1139,7 @@ fn setup_scene(
     let player_body = commands
         .spawn((
             PlayerAvatar,
+            PlayerSwim::default(),
             Transform::from_xyz(spawn_x, player_y, spawn_z),
             Visibility::default(),
         ))
@@ -1670,14 +1673,21 @@ fn player_locomotion(
     camera_ctrl: Res<CameraController>,
     terrain_res: Option<Res<TerrainResource>>,
     navmesh_res: Option<Res<GameNavmeshResource>>,
+    water_bodies: Option<Res<WaterBodies>>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
+    mut swim_query: Query<&mut PlayerSwim, With<PlayerAvatar>>,
 ) {
     let Ok(mut transform) = player_query.single_mut() else {
         return;
     };
+    // The state written at the end of the previous frame drives the speed and the clip today.
+    let was_swimming = swim_query
+        .single()
+        .map(|s| s.state == SwimState::Swimming)
+        .unwrap_or(false);
 
     let dt = time.delta_secs();
     let mut input_dir = Vec2::ZERO;
@@ -1698,7 +1708,14 @@ fn player_locomotion(
     if input_dir.length_squared() > 0.0 {
         let input_norm = input_dir.normalize();
         let is_sprinting = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
-        let speed = if is_sprinting { 8.0 } else { 4.5 };
+        // Sprinting is not allowed in water; swimming is slower than walking.
+        let speed = if was_swimming {
+            SWIM_SPEED
+        } else if is_sprinting {
+            8.0
+        } else {
+            4.5
+        };
 
         // Camera yaw defines the forward direction on the XZ plane.
         let yaw = camera_ctrl.yaw;
@@ -1708,9 +1725,22 @@ fn player_locomotion(
         let move_vec = (forward * input_norm.y + right * input_norm.x).normalize();
         let delta_xz = Vec2::new(move_vec.x * speed * dt, move_vec.z * speed * dt);
         let current_xz = Vec2::new(transform.translation.x, transform.translation.z);
+        let target_xz = current_xz + delta_xz;
+
+        // Stepping into water deep enough to swim bypasses the navmesh: the river edge is not a
+        // walkable face, so a walker could otherwise never reach the water at all (ASSUMED: the
+        // game's own rule for entering water is not decoded).
+        let water_entry = water_bodies.as_ref().and_then(|w| w.level_near(target_xz, 0.5)).is_some_and(|level| {
+            terrain_res
+                .as_ref()
+                .and_then(|t| t.area.sample_world_height(target_xz.x, target_xz.y))
+                .is_some_and(|ground| level - ground > SWIM_ENTER_DEPTH)
+        });
 
         // Apply navmesh collision sliding if real navmesh is loaded
-        let final_xz = if let Some(ref nav) = navmesh_res {
+        let final_xz = if water_entry {
+            target_xz
+        } else if let Some(ref nav) = navmesh_res {
             use pla::game::spawn_point as sp;
             let walk = |p: Vec2| nav.is_walkable(p.x, p.y);
             // Off the navmesh: walk toward the nearest walkable point instead of rejecting every move.
@@ -1752,7 +1782,23 @@ fn player_locomotion(
         .and_then(|t| t.area.sample_world_height(transform.translation.x, transform.translation.z));
 
     if let Some(surface_y) = nav_h.or(terrain_h) {
-        transform.translation.y = surface_y + 0.9;
+        // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
+        let level = water_bodies
+            .as_ref()
+            .and_then(|w| w.level_at(Vec2::new(transform.translation.x, transform.translation.z)));
+        let state = pla::game::water::step_swim(
+            swim_query.single().map(|s| s.state).unwrap_or_default(),
+            level,
+            surface_y,
+        );
+        if let Ok(mut swim) = swim_query.single_mut() {
+            swim.state = state;
+        }
+        transform.translation.y = if state == SwimState::Swimming {
+            pla::game::water::swim_root_y(level.unwrap_or(surface_y))
+        } else {
+            surface_y + 0.9
+        };
     }
 }
 
