@@ -2,9 +2,9 @@
 //! dark outlines, on top of the viewer's normal PBR lighting. This is OUR rendering, written for
 //! Bevy; it does not translate the game's renderer (whose shaders are not in the extracted data).
 //!
-//! Switch: `--style original|plain`. Default: `original` with the vivid look, `plain` with
-//! `--look classic` (classic reproduces the old flat mapping, like its post-processing default).
-//! `--look toon` is accepted as an alias of `--style original`. `--no-outlines` keeps the banded
+//! Switch: `--style original|plain`. Default: `plain` (no change to the current look) until the
+//! maintainer has looked at the result by eye; the default will be reconsidered then.
+//! `--style original` and `--look toon` (alias) enable it; `--look classic` stays `plain`. `--no-outlines` keeps the banded
 //! shading but drops the outline shells. With `plain` this module does nothing at all.
 //!
 //! What it touches: only the meshes under a Pokémon (`PokemonAnimState`), the player
@@ -107,13 +107,13 @@ pub struct StyleSettings {
 
 impl Default for StyleSettings {
     fn default() -> Self {
-        Self { style: ArtStyle::Original, outlines: true }
+        Self { style: ArtStyle::Plain, outlines: true }
     }
 }
 
 impl StyleSettings {
-    /// `--style original|plain` (unknown values keep the default), `--look toon` (alias of
-    /// original), `--no-outlines`. Without `--style`, `--look classic` selects `plain`.
+    /// `--style original|plain` (unknown values keep the default `plain`), `--look toon` (alias of
+    /// original), `--no-outlines`. Without `--style` or `--look toon` the style is `plain`.
     pub fn from_args(args: &[String]) -> Self {
         let value = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1));
         let look = value("--look").map(|s| s.to_ascii_lowercase());
@@ -127,8 +127,8 @@ impl StyleSettings {
             }
         });
         let style = explicit.unwrap_or(match look.as_deref() {
-            Some("classic") => ArtStyle::Plain,
-            _ => ArtStyle::Original,
+            Some("toon") => ArtStyle::Original,
+            _ => ArtStyle::Plain,
         });
         Self { style, outlines: !args.iter().any(|a| a == "--no-outlines") }
     }
@@ -572,17 +572,17 @@ mod tests {
     #[test]
     fn cli_default_and_flags() {
         assert_eq!(StyleSettings::from_args(&a(&[])), StyleSettings::default());
-        assert_eq!(StyleSettings::default().style, ArtStyle::Original);
+        assert_eq!(StyleSettings::default().style, ArtStyle::Plain);
         assert_eq!(StyleSettings::from_args(&a(&["--style", "plain"])).style, ArtStyle::Plain);
         assert_eq!(StyleSettings::from_args(&a(&["--style", "ORIGINAL"])).style, ArtStyle::Original);
-        // Classic look defaults to plain, an explicit style wins.
+        // Classic look stays plain, an explicit style wins.
         assert_eq!(StyleSettings::from_args(&a(&["--look", "classic"])).style, ArtStyle::Plain);
         assert_eq!(
             StyleSettings::from_args(&a(&["--look", "classic", "--style", "original"])).style,
             ArtStyle::Original
         );
         assert_eq!(StyleSettings::from_args(&a(&["--look", "toon"])).style, ArtStyle::Original);
-        assert_eq!(StyleSettings::from_args(&a(&["--style", "nonsense"])).style, ArtStyle::Original);
+        assert_eq!(StyleSettings::from_args(&a(&["--style", "nonsense"])).style, ArtStyle::Plain);
         assert!(!StyleSettings::from_args(&a(&["--no-outlines"])).outlines);
     }
 

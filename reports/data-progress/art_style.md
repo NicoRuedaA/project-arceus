@@ -32,11 +32,12 @@ parameter sheet gives numbers that look like shading parameters.
 3. **Who gets it**: every mesh below an entity with `PokemonAnimState` (wild, follower, battle),
    `PlayerAnimState` (the player) or the opt-in tag `ArtStyleTarget`. Terrain, vegetation,
    buildings, water and effects are unchanged (the brief asks outlines for characters only).
-4. **Switch**: `--style original|plain`. **Default decision: `original`** with the default vivid
-   look (the brief's goal is to look closer to the game; the shader compiled and rendered on this
-   machine's GPU in the windowless run), `plain` when `--look classic` is given (classic reproduces
-   the old flat mapping). An explicit `--style` always wins; `--look toon` is an alias of
-   `--style original`; `--no-outlines` keeps the shading without shells. Decoded data is unchanged.
+4. **Switch**: `--style original|plain`. **Default: `plain`** (no change to the current look) until
+   the maintainer has looked at the result by eye; the default will be reconsidered after that
+   (the shader compiled and rendered on this machine's GPU in the windowless run, but it has not
+   been seen in the real viewer). `--style original` and `--look toon` (alias) enable it;
+   `--look classic` stays `plain`; `--no-outlines` keeps the shading without shells. An explicit
+   `--style` always wins. Decoded data is unchanged.
 
 Every strength, tint, width, fade distance and the shadow banding is SUPUESTO (tuned by eye on one
 synthetic render, not derived from data).
