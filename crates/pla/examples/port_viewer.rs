@@ -868,6 +868,11 @@ fn main() -> ExitCode {
                 exclude_models: tree_models,
                 rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
             },
+            pla::game::world_collision::WorldCollisionPlugin {
+                area: area_idx,
+                bin_root: bin_root.clone(),
+                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
+            },
             pla::game::lighting::ZoneLightingPlugin {
                 area: area_idx,
                 slot: match wire_start.time_slot {
@@ -1670,6 +1675,7 @@ fn player_locomotion(
     camera_ctrl: Res<CameraController>,
     terrain_res: Option<Res<TerrainResource>>,
     navmesh_res: Option<Res<GameNavmeshResource>>,
+    wall_collision: Option<Res<pla::game::world_collision::WorldCollision>>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
@@ -1732,6 +1738,16 @@ fn player_locomotion(
         } else {
             current_xz + delta_xz
         };
+        // Wall collision of placed objects (houses, fences, rocks) after the navmesh slide.
+        let final_xz = wall_collision.as_ref().map_or(final_xz, |w| {
+            w.push_out_xz(
+                final_xz.x,
+                transform.translation.y,
+                final_xz.y,
+                pla::game::world_collision::PLAYER_RADIUS,
+                pla::game::world_collision::PLAYER_HEIGHT,
+            )
+        });
 
         transform.translation.x = final_xz.x;
         transform.translation.z = final_xz.y;

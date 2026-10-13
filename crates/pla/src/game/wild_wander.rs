@@ -266,6 +266,7 @@ fn attach_wander(
 fn wander_system(
     time: Res<Time>,
     nav: Option<Res<GameNavmeshResource>>,
+    wall_collision: Option<Res<super::world_collision::WorldCollision>>,
     player: Query<&Transform, (With<PlayerAvatar>, Without<WanderState>)>,
     mut q: Query<(&mut Transform, &mut WanderState, &WanderHome, &WildCreature)>,
 ) {
@@ -279,6 +280,13 @@ fn wander_system(
             continue;
         }
         step(&mut st, &home.params, dt, pl, &walkable);
+        // Placed-object collision after the wander step, keeping the creature on the navmesh.
+        if let Some(wc) = wall_collision.as_ref() {
+            let pushed = wc.push_out_xz(st.pos.0, tf.translation.y + 0.6, st.pos.1, 0.4, 1.2);
+            if nav.is_walkable(pushed.x, pushed.y) {
+                st.pos = (pushed.x, pushed.y);
+            }
+        }
         tf.translation.x = st.pos.0;
         tf.translation.z = st.pos.1;
         if let (Some(off), Some(h)) = (home.y_offset, nav.height_at(st.pos.0, st.pos.1)) {
