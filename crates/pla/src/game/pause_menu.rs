@@ -16,7 +16,7 @@ use bevy::prelude::*;
 use super::input_map::{Action, ActionState};
 use super::save_wire::{SaveRequested, SaveToast};
 use super::settings::UserSettings;
-use super::state::Paused;
+use super::state::{GameState, Paused};
 
 // ---------------------------------------------------------------- pure logic
 
@@ -251,7 +251,13 @@ fn pause_input(
     mut toast: ResMut<SaveToast>,
     buttons: Query<(&PauseButton, &Interaction), Changed<Interaction>>,
     mut exit: MessageWriter<AppExit>,
+    state: Option<Res<State<GameState>>>,
 ) {
+    // The main menu owns the input while it is open (Escape backs out of its options
+    // page); never show the pause overlay on top of it.
+    if state.is_some_and(|s| *s.get() == GameState::MainMenu) {
+        return;
+    }
     // Menu (Esc or gamepad +) toggles. The action edges are consumed so the battle
     // ("back") never sees Esc on the same frame; Enter/Space keep their raw readers in the
     // world (creature encounter, ball throw) so the consumed edge is mirrored there too.

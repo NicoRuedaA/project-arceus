@@ -37,6 +37,7 @@ use pla::game::{
 };
 use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleState, BallSimulation};
 use pla::game::input_map::{Action, ActionState};
+use pla::game::main_menu::MainMenuPlugin;
 use pla::game::pause_menu::PauseMenuPlugin;
 use pla::game::settings::UserSettings;
 use pla::game::state::{not_paused, Paused};
@@ -319,9 +320,13 @@ fn main() -> ExitCode {
     let mut controls_demo_dir: Option<PathBuf> = None;
     let mut player_variant = String::from("p1");
     let mut debug_zone_links = false;
+    let mut main_menu = false;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--menu" => {
+                main_menu = true;
+            }
             "--bin-root" => {
                 if let Some(path) = args.next() {
                     bin_root = PathBuf::from(path);
@@ -443,6 +448,7 @@ fn main() -> ExitCode {
                 println!("  --species <DEX>       National dex species ID to spawn (default: 25 Pikachu)");
                 println!("  --throw               Automatically throw Poké Ball on tick 20");
                 println!("  --new-game            Ignore the existing save and start fresh");
+                println!("  --menu                Start in the main menu (Continue / New game / Options / Exit)");
                 println!("  --save-dir <PATH>     Save directory (sets PLA_SAVE_DIR); F5 saves");
                 println!("  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)");
                 println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
@@ -629,6 +635,11 @@ fn main() -> ExitCode {
             }),
     );
     app.init_state::<GameState>();
+    // The main menu is opt-in (`--menu`) so the direct start and the automated runs
+    // (`--auto-demo`, `--script`, ...) keep booting into GameState::World.
+    if main_menu {
+        app.insert_state(GameState::MainMenu);
+    }
 
     // Real player model from the exporter cache; capsule avatar if the file is missing.
     let player_cache_root = std::env::var_os("PLA_CACHE_ROOT")
@@ -660,7 +671,11 @@ fn main() -> ExitCode {
     }
     app.insert_resource(camera_ctrl);
     let settings_dir = UserSettings::default_dir();
-    PauseMenuPlugin::install(&mut app, UserSettings::load_from_dir(&settings_dir), settings_dir);
+    PauseMenuPlugin::install(&mut app, UserSettings::load_from_dir(&settings_dir), settings_dir.clone());
+    if main_menu {
+        // Continue is enabled only when a valid save was loaded at start-up.
+        MainMenuPlugin::install(&mut app, wire_start.loaded, settings_dir);
+    }
 
     let mut dex_list = vec![25, 501, 722, 155, 448]; // Pikachu, Oshawott, Rowlet, Cyndaquil, Lucario
     let mut current_index = 0;
@@ -2306,6 +2321,7 @@ fn update_hud_and_telemetry(
     let state_str = match game_state.get() {
         GameState::World => "WORLD",
         GameState::Loading => "LOADING",
+        GameState::MainMenu => "MAIN MENU",
         GameState::Battle => "BATTLE",
         GameState::BattleEnded => "POST-BATTLE",
     };
