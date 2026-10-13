@@ -691,7 +691,8 @@ pub fn update_battle_ui_system(
 
     let p_idx = sess.active_player();
     let p_com = &sess.battle.combatants[p_idx];
-    let w_com = &sess.battle.combatants[1];
+    let w_idx = sess.opponent();
+    let w_com = &sess.battle.combatants[w_idx];
     let with_tags = |base: String, tags: String| {
         if tags.is_empty() {
             base
@@ -702,10 +703,7 @@ pub fn update_battle_ui_system(
 
     // 1. Wild Pokémon Card (name, level, status tag; HP line also shows stat stages)
     for mut text in &mut texts.p0() {
-        text.0 = with_tags(
-            format!("WILD {}  Lv. {}", w_com.species.name.to_uppercase(), w_com.level),
-            sess.card_tags(1),
-        );
+        text.0 = with_tags(sess.opponent_card_title(), sess.card_tags(w_idx));
     }
     for mut text in &mut texts.p1() {
         text.0 = format!("HP: {} / {}", w_com.hp, w_com.max_hp);
@@ -717,10 +715,7 @@ pub fn update_battle_ui_system(
 
     // 2. Player Pokémon Card (active party member)
     for mut text in &mut texts.p2() {
-        text.0 = with_tags(
-            format!("PLAYER {}  Lv. {}", p_com.species.name.to_uppercase(), p_com.level),
-            sess.card_tags(p_idx),
-        );
+        text.0 = with_tags(sess.player_card_title(), sess.card_tags(p_idx));
     }
     for mut text in &mut texts.p3() {
         text.0 = format!("HP: {} / {}", p_com.hp, p_com.max_hp);
