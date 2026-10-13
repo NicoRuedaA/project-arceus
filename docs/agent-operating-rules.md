@@ -21,3 +21,5 @@ These rules apply to every agent and session working on this repository (Claude,
 ## Data and reports
 9. Game files, pseudocode and heavy outputs stay out of git (`work/`, gitignored). Only small typed indexes (`data/`), code and reports are committed.
 10. Unproven things stay unknown and are named as such; a valid output file is not proof that the content is right.
+
+**Disk hygiene (rule added 2026-10-13 after the /home disk filled up at 64 KB free).** Each worktree builds into its own `target/` (6-49 GB). When a worker's branch is finished and its working tree is clean, the worker (or the orchestrator at hand-off) must delete that worktree's `target/` (`rm -rf -- "${W:?}/target"`); the orchestrator also removes it again when the worktree is retired. At most 4 worktrees may hold a `target/` at the same time; before starting a heavy build check `df -h /home` and stop if less than 40 GB is free (report it instead of deleting other people's data).
