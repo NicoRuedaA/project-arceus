@@ -29,6 +29,7 @@ pub mod battle_items;
 pub mod battle_log;
 pub mod catch_rate;
 pub mod clock;
+pub mod dex_screen;
 pub mod effects;
 pub mod follower;
 pub mod navigation;
