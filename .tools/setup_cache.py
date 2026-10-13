@@ -55,6 +55,7 @@ from safe_io import (  # noqa: E402
     dir_size,
     ensure_real_dir,
     publish_tree,
+    remove_stale_temps,
     remove_tree,
 )
 
@@ -446,6 +447,10 @@ def fresh_stage(ctx: Context, step: Step, *, keep: bool = False) -> Path:
     stage = step.stage_dir(ctx)
     if stage.exists() and not keep:
         remove_tree(stage)
+    elif stage.exists():
+        stale = remove_stale_temps(stage)
+        if stale:
+            ctx.log(f"  resuming: removed {stale} half-written file(s) left by an interrupted run")
     return ensure_real_dir(stage, root=ctx.layout.work)
 
 

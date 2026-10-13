@@ -17,6 +17,7 @@ from safe_io import (  # noqa: E402
     dir_size,
     ensure_real_dir,
     publish_tree,
+    remove_stale_temps,
     remove_tree,
 )
 
@@ -102,6 +103,14 @@ class SafeIoTests(unittest.TestCase):
         remove_tree(tree)
         self.assertFalse(tree.exists())
         self.assertTrue((keep / "data").exists())
+
+    def test_remove_stale_temps_only_removes_writer_temporaries(self) -> None:
+        (self.root / "d").mkdir()
+        (self.root / "d" / ".x.bntx.tmp-1234").write_bytes(b"half")
+        (self.root / "d" / "x.bntx").write_bytes(b"full")
+        (self.root / "d" / ".hidden").write_bytes(b"keep")
+        self.assertEqual(remove_stale_temps(self.root), 1)
+        self.assertEqual(sorted(p.name for p in (self.root / "d").iterdir()), [".hidden", "x.bntx"])
 
     def test_dir_size_ignores_links(self) -> None:
         (self.root / "d").mkdir()
