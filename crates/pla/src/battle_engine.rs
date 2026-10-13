@@ -5,6 +5,7 @@ use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 
 pub mod effects;
 pub mod items;
+pub mod progression;
 pub mod statuses;
 use effects::{EffectEvent, MoveEffectsTable, Stages};
 use items::ItemTable;

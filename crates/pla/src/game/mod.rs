@@ -17,6 +17,7 @@ pub mod battle_items;
 pub mod battle_log;
 pub mod catch_rate;
 pub mod navigation;
+pub mod party_progress;
 pub mod player_anim;
 pub mod pokemon_anim;
 pub mod pause_menu;
