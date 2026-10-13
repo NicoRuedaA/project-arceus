@@ -11,12 +11,12 @@
 6. Las tareas se verifican por separado en cada informe: qué es VERIFICADO, PROBABLE y SUPUESTO. No se escribe «completo».
 
 ## Estado de las 43 tareas (resumen)
-- **Hechas en `main`:** 1, 2, 3 (mando), 4, 5, 6 (bloom y oclusión), 8 (cambio de zona), 25, 28, 34, 42. **Cerrada (no aplica):** 41.
+- **Hechas en `main`:** 1, 2, 3 (mando), 4, 5, 6 (bloom y oclusión), 8 (cambio de zona), 11 (agua y nado), 14 (mochila y tiendas), 21 (dinero, tiempo de juego y descanso; guardado v4), 25, 28, 34, 42. **Cerrada (no aplica):** 41.
 - **Pendiente tras 8:** 8b (ver la cola de DeepSeek).
 - **En proceso (DeepSeek):** 7 (menú principal), 10 (colisiones).
 - **A medias:** 26 y 29 (motor hecho; se están conectando a la pantalla), 37 (datos hechos), 39 (datos hechos).
 - **En investigación de datos (Claude):** 30 (entrenadores y jefes), 31 (personajes no jugables).
-- **Faltan:** 9, 11–24 (nivel 2), 27, 30–33, 35, 36, 38, 40 (nivel 3), 43 (nivel 4).
+- **Faltan:** 9, 12–13, 15–20, 22–24 (nivel 2), 27, 30–33, 35, 36, 38, 40 (nivel 3), 43 (nivel 4).
 
 ## Cola siguiente (por orden, con dependencias)
 **Para DeepSeek (niveles 1 y 2), tras 7 y 10:** 8b (tras un cambio de zona, la iluminación y el cielo decodificados, los objetos colocados y los árboles `.trins` siguen siendo los de la zona inicial; continuación de `zone.rs`: recargar la iluminación, `world_objects` y los árboles al cambiar de zona; ver `reports/data-progress/zone_links.md`), 9 (clima y reloj; datos ya en `data/field_spawn_conditions.tsv`), 11 (agua y nadar), 12 (objetos del suelo), 13 (puertas, cuerdas, saltos; después de 10 y 11), 14 (mochila y tiendas), 15 (mapa y minimapa; después de 3), 16 (seguidor), 17 (Alfa, formas, brillantes), 18 (bolas y captura), 19 (modelos bloqueados; antes que 17 si comparten exportador), 20 (rendimiento), 21 (dinero y tiempo), 22 (habilidades del personaje; una a la vez con 31 y 36), 23 (discos y objetos clave), 24 (legal).
