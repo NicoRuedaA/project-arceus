@@ -593,6 +593,14 @@ pub fn sync_ui_visibility(
                 *v = Visibility::Hidden;
             }
         }
+        GameState::MainMenu => {
+            for mut v in &mut world_query {
+                *v = Visibility::Hidden;
+            }
+            for mut v in &mut battle_query {
+                *v = Visibility::Hidden;
+            }
+        }
     }
 }
 

@@ -3,6 +3,10 @@
 use bevy::prelude::*;
 
 /// Top-level state of the interactive game loop.
+///
+/// [`GameState::MainMenu`] is opt-in: the viewer starts there only with `--menu`, so
+/// `--auto-demo` / `--script` and the normal direct start keep booting into
+/// [`GameState::World`]. The state enum itself is unchanged for every other tool.
 #[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GameState {
     /// Overworld exploration: real terrain heightmap, navmesh sliding locomotion, wild creature encounters.
@@ -10,6 +14,8 @@ pub enum GameState {
     World,
     /// Zone change in flight (screen fading, old scene unloading, new scene loading).
     Loading,
+    /// Main menu (`--menu`): Continue / New game / Options / Exit before the world runs.
+    MainMenu,
     /// Active turn-based Pokémon battle against a wild creature.
     Battle,
     /// Post-battle summary or transition screen returning to World.

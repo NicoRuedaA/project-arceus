@@ -37,6 +37,7 @@ use pla::game::{
 };
 use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleState, BallSimulation};
 use pla::game::input_map::{Action, ActionState};
+use pla::game::main_menu::MainMenuPlugin;
 use pla::game::pause_menu::PauseMenuPlugin;
 use pla::game::settings::UserSettings;
 use pla::game::state::{not_paused, Paused};
@@ -319,9 +320,13 @@ fn main() -> ExitCode {
     let mut controls_demo_dir: Option<PathBuf> = None;
     let mut player_variant = String::from("p1");
     let mut debug_zone_links = false;
+    let mut main_menu = false;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--menu" => {
+                main_menu = true;
+            }
             "--bin-root" => {
                 if let Some(path) = args.next() {
                     bin_root = PathBuf::from(path);
@@ -443,6 +448,7 @@ fn main() -> ExitCode {
                 println!("  --species <DEX>       National dex species ID to spawn (default: 25 Pikachu)");
                 println!("  --throw               Automatically throw Poké Ball on tick 20");
                 println!("  --new-game            Ignore the existing save and start fresh");
+                println!("  --menu                Start in the main menu (Continue / New game / Options / Exit)");
                 println!("  --save-dir <PATH>     Save directory (sets PLA_SAVE_DIR); F5 saves");
                 println!("  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)");
                 println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
@@ -629,6 +635,11 @@ fn main() -> ExitCode {
             }),
     );
     app.init_state::<GameState>();
+    // The main menu is opt-in (`--menu`) so the direct start and the automated runs
+    // (`--auto-demo`, `--script`, ...) keep booting into GameState::World.
+    if main_menu {
+        app.insert_state(GameState::MainMenu);
+    }
 
     // Real player model from the exporter cache; capsule avatar if the file is missing.
     let player_cache_root = std::env::var_os("PLA_CACHE_ROOT")
@@ -660,7 +671,7 @@ fn main() -> ExitCode {
     }
     app.insert_resource(camera_ctrl);
     let settings_dir = UserSettings::default_dir();
-    PauseMenuPlugin::install(&mut app, UserSettings::load_from_dir(&settings_dir), settings_dir);
+    PauseMenuPlugin::install(&mut app, UserSettings::load_from_dir(&settings_dir), settings_dir.clone());
 
     let mut dex_list = vec![25, 501, 722, 155, 448]; // Pikachu, Oshawott, Rowlet, Cyndaquil, Lucario
     let mut current_index = 0;
@@ -748,6 +759,11 @@ fn main() -> ExitCode {
                 exclude_models: tree_models,
                 rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
             },
+            pla::game::world_collision::WorldCollisionPlugin {
+                area: area_idx,
+                bin_root: bin_root.clone(),
+                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
+            },
             pla::game::lighting::ZoneLightingPlugin {
                 area: area_idx,
                 slot: match wire_start.time_slot {
@@ -767,6 +783,12 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
+    // Installed after InputMapPlugin: MainMenuPlugin adds that plugin itself when it is
+    // missing, and Bevy panics when the same plugin is added twice.
+    if main_menu {
+        // Continue is enabled only when a valid save was loaded at start-up.
+        MainMenuPlugin::install(&mut app, wire_start.loaded, settings_dir);
+    }
     // Scripted / automated runs need static wild positions (deterministic frames).
     if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
         app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });
@@ -1561,6 +1583,7 @@ fn player_locomotion(
     camera_ctrl: Res<CameraController>,
     terrain_res: Option<Res<TerrainResource>>,
     navmesh_res: Option<Res<GameNavmeshResource>>,
+    wall_collision: Option<Res<pla::game::world_collision::WorldCollision>>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
@@ -1616,6 +1639,10 @@ fn player_locomotion(
         } else {
             current_xz + delta_xz
         };
+        // Wall collision of placed objects (houses, fences, rocks) after the navmesh slide.
+        let final_xz = wall_collision.as_ref().map_or(final_xz, |w| {
+            w.push_player_out(final_xz, transform.translation.y)
+        });
 
         transform.translation.x = final_xz.x;
         transform.translation.z = final_xz.y;
@@ -2306,6 +2333,7 @@ fn update_hud_and_telemetry(
     let state_str = match game_state.get() {
         GameState::World => "WORLD",
         GameState::Loading => "LOADING",
+        GameState::MainMenu => "MAIN MENU",
         GameState::Battle => "BATTLE",
         GameState::BattleEnded => "POST-BATTLE",
     };
