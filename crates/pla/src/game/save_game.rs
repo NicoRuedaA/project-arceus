@@ -4,12 +4,15 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 2
+//! PLASAVE 3
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
 //! END
 //! ```
+//!
+//! v3 adds `box` lines (the stored Pokemon; the key is lowercase like `member`). v2 files load
+//! via the migration chain with an empty box.
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -26,11 +29,14 @@ use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 2;
+pub const CURRENT_VERSION: u32 = 3;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
 pub const MAX_MOVES: usize = 4;
+/// Maximum stored (non-party) Pokemon. The real game's box capacity is **unknown**; 30 boxes of
+/// 32 slots (960) is the documented, reasonable ceiling this port uses.
+pub const MAX_BOX: usize = 960;
 const MAGIC: &str = "PLASAVE";
 const FILE_NAME: &str = "save.plasave";
 const MAX_FILE_BYTES: u64 = 1 << 20;
@@ -204,6 +210,8 @@ pub struct PlayerSave {
     pub yaw: f32,
     pub time_slot: u8,
     pub party: Vec<PartyMember>,
+    /// Pokemon caught while the party was full. Persisted as `box` lines (format v3, see [`MAX_BOX`]).
+    pub box_pokemon: Vec<PartyMember>,
     /// item id -> quantity (zero entries are dropped).
     pub bag: BTreeMap<u16, u16>,
     pub money: u32,
@@ -223,6 +231,7 @@ impl Default for PlayerSave {
             yaw: 0.0,
             time_slot: 0,
             party: Vec::new(),
+            box_pokemon: Vec::new(),
             bag: BTreeMap::new(),
             money: 0,
             seen: BTreeSet::new(),
@@ -244,12 +253,20 @@ impl PlayerSave {
         if self.party.len() > MAX_PARTY {
             return bad(format!("party has {} members (max {MAX_PARTY})", self.party.len()));
         }
+        if self.box_pokemon.len() > MAX_BOX {
+            return bad(format!("box has {} Pokemon (max {MAX_BOX})", self.box_pokemon.len()));
+        }
         if !self.position.iter().chain([&self.yaw]).all(|v| v.is_finite()) {
             return bad("position/yaw must be finite numbers".into());
         }
         for (i, m) in self.party.iter().enumerate() {
             if m.level == 0 || m.moves.len() > MAX_MOVES {
                 return bad(format!("party member {i}: level 0 or more than {MAX_MOVES} moves"));
+            }
+        }
+        for (i, m) in self.box_pokemon.iter().enumerate() {
+            if m.level == 0 || m.moves.len() > MAX_MOVES {
+                return bad(format!("box member {i}: level 0 or more than {MAX_MOVES} moves"));
             }
         }
         Ok(())
@@ -305,23 +322,10 @@ impl PlayerSave {
                 .join(","),
         );
         for m in &self.party {
-            let moves = m.moves.iter().map(|s| format!("{}:{}", s.move_id, s.pp)).collect::<Vec<_>>().join(",");
-            let eff = m.effort.iter().map(u8::to_string).collect::<Vec<_>>().join(":");
-            let nick = m.nickname.as_deref().map(hex_encode).unwrap_or_else(|| "-".into());
-            kv(
-                "member",
-                format!(
-                    "{}|{}|{}|{}|{}|{}|{}|{}",
-                    m.species,
-                    m.form,
-                    m.level,
-                    m.hp,
-                    m.status.map_or("-", SavedStatus::tag),
-                    eff,
-                    moves,
-                    nick
-                ),
-            );
+            kv("member", member_line(m));
+        }
+        for m in &self.box_pokemon {
+            kv("box", member_line(m));
         }
         let sum = fnv1a64(b.as_bytes());
         // `END` sits inside the checksummed body so truncation is always detected.
@@ -368,6 +372,7 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
     while v < CURRENT_VERSION {
         lines = match v {
             1 => migrate_v1_to_v2(lines)?,
+            2 => migrate_v2_to_v3(lines)?,
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -393,6 +398,12 @@ fn migrate_v1_to_v2(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
         .collect()
 }
 
+/// v2 saves have no box; v3 adds `box_pokemon`, which starts empty. No line has to change, so
+/// this step is a documented no-op that keeps the version chain explicit.
+fn migrate_v2_to_v3(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
+    Ok(lines)
+}
+
 // ---------------------------------------------------------------- parsing
 
 fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
@@ -402,7 +413,7 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
         let ln = i + 3;
         let err = |msg: &str| SaveError::Parse { line: ln, msg: msg.to_owned() };
         let (k, v) = line.split_once('=').ok_or_else(|| err("expected key=value"))?;
-        if k != "member" && !seen_keys.insert(k) {
+        if k != "member" && k != "box" && !seen_keys.insert(k) {
             return Err(err("duplicate key"));
         }
         match k {
@@ -430,6 +441,7 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
                 }
             }
             "member" => s.party.push(parse_member(v).map_err(|m| err(&m))?),
+            "box" => s.box_pokemon.push(parse_member(v).map_err(|m| err(&m))?),
             _ => return Err(err("unknown key")),
         }
     }
@@ -441,6 +453,25 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
     s.version = CURRENT_VERSION;
     s.validate()?;
     Ok(s)
+}
+
+/// One member encoded as the 8-field `species|form|level|hp|status|effort|moves|nickname` text,
+/// shared by `member` (party) and `box` lines.
+fn member_line(m: &PartyMember) -> String {
+    let moves = m.moves.iter().map(|s| format!("{}:{}", s.move_id, s.pp)).collect::<Vec<_>>().join(",");
+    let eff = m.effort.iter().map(u8::to_string).collect::<Vec<_>>().join(":");
+    let nick = m.nickname.as_deref().map(hex_encode).unwrap_or_else(|| "-".into());
+    format!(
+        "{}|{}|{}|{}|{}|{}|{}|{}",
+        m.species,
+        m.form,
+        m.level,
+        m.hp,
+        m.status.map_or("-", SavedStatus::tag),
+        eff,
+        moves,
+        nick
+    )
 }
 
 fn parse_member(v: &str) -> Result<PartyMember, String> {
@@ -715,6 +746,28 @@ mod tests {
                     nickname: Some(String::new()),
                 },
             ],
+            box_pokemon: vec![
+                PartyMember {
+                    species: 405,
+                    form: 2,
+                    level: 41,
+                    hp: 130,
+                    status: None,
+                    moves: vec![SavedMove { move_id: 44, pp: 17 }],
+                    effort: [3, 3, 3, 3, 3, 3],
+                    nickname: None,
+                },
+                PartyMember {
+                    species: 415,
+                    form: 0,
+                    level: 3,
+                    hp: 1,
+                    status: Some(SavedStatus::Poison),
+                    moves: vec![],
+                    effort: [0; 6],
+                    nickname: Some("Comb".into()),
+                },
+            ],
             bag: BTreeMap::from([(4, 10), (1, 3)]),
             money: 1234,
             seen: BTreeSet::from([25, 722, 1]),
@@ -768,9 +821,9 @@ mod tests {
 
     #[test]
     fn unknown_version_rejected() {
-        let t = sample().encode().unwrap().replacen("PLASAVE 2", "PLASAVE 99", 1);
+        let t = sample().encode().unwrap().replacen("PLASAVE 3", "PLASAVE 99", 1);
         assert!(matches!(PlayerSave::decode(&t), Err(SaveError::UnknownVersion(99))));
-        let t0 = sample().encode().unwrap().replacen("PLASAVE 2", "PLASAVE 0", 1);
+        let t0 = sample().encode().unwrap().replacen("PLASAVE 3", "PLASAVE 0", 1);
         assert!(matches!(PlayerSave::decode(&t0), Err(SaveError::UnknownVersion(0))));
     }
 
@@ -845,8 +898,55 @@ mod tests {
         assert_eq!(m.status, Some(SavedStatus::Paralysis));
         assert_eq!(m.effort, [0; 6]);
         assert_eq!(m.moves, vec![SavedMove { move_id: 33, pp: 10 }, SavedMove { move_id: 10, pp: 5 }]);
+        assert!(s.box_pokemon.is_empty(), "a v1 save has no box");
         // and re-saving writes the current version
-        assert!(s.encode().unwrap().starts_with("PLASAVE 2\n"));
+        assert!(s.encode().unwrap().starts_with("PLASAVE 3\n"));
+    }
+
+    /// A literal v2 body (8-field members, no `box` lines) loads through v2->v3 with an empty box.
+    #[test]
+    fn migration_v2_to_current_keeps_party_and_empty_box() {
+        let body = "zone=ha_area02\npos=3,0,4\nyaw=0.5\ntime_slot=2\nmoney=777\nrng_seed=5\n\
+                    seen=25,396\ncaught=25\nbag=4:3\nmember=25|0|15|22|drowsy|0:0:0:0:0:0|33:15|-\nEND\n";
+        let text = format!("PLASAVE 2\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let s = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s.version, CURRENT_VERSION);
+        assert_eq!(s.party.len(), 1);
+        assert_eq!(s.party[0].species, 25);
+        assert!(s.box_pokemon.is_empty());
+        assert!(s.encode().unwrap().starts_with("PLASAVE 3\n"));
+    }
+
+    /// The box survives encode/decode and the parser enforces `MAX_BOX`.
+    #[test]
+    fn box_round_trip_and_limit() {
+        let s = sample();
+        assert_eq!(s.box_pokemon.len(), 2, "sample carries a box");
+        let text = s.encode().unwrap();
+        assert!(text.contains("\nbox="), "box lines are written");
+        let back = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s, back);
+        // exactly at the limit is accepted; one more is refused on write...
+        let mut at_limit = sample();
+        at_limit.box_pokemon = vec![s.box_pokemon[0].clone(); MAX_BOX];
+        assert!(at_limit.encode().is_ok());
+        at_limit.box_pokemon.push(s.box_pokemon[1].clone());
+        assert!(matches!(at_limit.encode(), Err(SaveError::Invalid(_))));
+        // ...and rejected on read (checksum valid, content over the limit).
+        let body = format!(
+            "zone=z\npos=0,0,0\nyaw=0\ntime_slot=0\nmoney=0\nrng_seed=1\n{}END\n",
+            "box=25|0|5|10|-|0:0:0:0:0:0|33:5|-\n".repeat(MAX_BOX + 1)
+        );
+        let text = format!("PLASAVE 3\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        assert!(matches!(PlayerSave::decode(&text), Err(SaveError::Invalid(_))));
+    }
+
+    /// A malformed box member is refused like a malformed party member.
+    #[test]
+    fn malformed_box_member_rejected() {
+        let body = "zone=z\npos=0,0,0\nyaw=0\ntime_slot=0\nmoney=0\nrng_seed=1\nbox=not-a-member\nEND\n";
+        let text = format!("PLASAVE 3\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        assert!(matches!(PlayerSave::decode(&text), Err(SaveError::Parse { .. })));
     }
 
     #[test]
