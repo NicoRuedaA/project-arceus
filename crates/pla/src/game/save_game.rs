@@ -4,15 +4,16 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 3
+//! PLASAVE 4
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
 //! END
 //! ```
 //!
-//! v3 adds `box` lines (the stored Pokemon; the key is lowercase like `member`). v2 files load
-//! via the migration chain with an empty box.
+//! v3 adds `box` lines (the stored Pokemon; the key is lowercase like `member`). v4 adds
+//! `play_seconds` (whole seconds of played time). Older files load via the migration chain: a v2
+//! file gets an empty box, a v1-v3 file a play time of 0.
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -29,7 +30,7 @@ use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 3;
+pub const CURRENT_VERSION: u32 = 4;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
@@ -220,6 +221,9 @@ pub struct PlayerSave {
     pub defeated: u32,
     pub caught_count: u32,
     pub rng_seed: u32,
+    /// Whole seconds played while in the world or a battle, not paused (format v4). How the
+    /// original game counts play time is **unknown**; this is wall-clock time of the port.
+    pub play_seconds: u64,
 }
 
 impl Default for PlayerSave {
@@ -239,6 +243,7 @@ impl Default for PlayerSave {
             defeated: 0,
             caught_count: 0,
             rng_seed: 1,
+            play_seconds: 0,
         }
     }
 }
@@ -310,6 +315,7 @@ impl PlayerSave {
         kv("defeated", self.defeated.to_string());
         kv("caught_count", self.caught_count.to_string());
         kv("rng_seed", self.rng_seed.to_string());
+        kv("play_seconds", self.play_seconds.to_string());
         kv("seen", join_set(&self.seen));
         kv("caught", join_set(&self.caught));
         kv(
@@ -373,6 +379,7 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
         lines = match v {
             1 => migrate_v1_to_v2(lines)?,
             2 => migrate_v2_to_v3(lines)?,
+            3 => migrate_v3_to_v4(lines)?,
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -404,6 +411,13 @@ fn migrate_v2_to_v3(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
     Ok(lines)
 }
 
+/// v3 saves have no play time; v4 adds `play_seconds`, which starts at 0 (the parser defaults a
+/// missing key). No line has to change, so this step is a documented no-op that keeps the version
+/// chain explicit and reserves v5 for the clock/weather task (Brief 9).
+fn migrate_v3_to_v4(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
+    Ok(lines)
+}
+
 // ---------------------------------------------------------------- parsing
 
 fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
@@ -428,6 +442,7 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
             "defeated" => s.defeated = v.parse().map_err(|_| err("bad defeated"))?,
             "caught_count" => s.caught_count = v.parse().map_err(|_| err("bad caught_count"))?,
             "rng_seed" => s.rng_seed = v.parse().map_err(|_| err("bad rng_seed"))?,
+            "play_seconds" => s.play_seconds = v.parse().map_err(|_| err("bad play_seconds"))?,
             "seen" => s.seen = parse_set(v).ok_or_else(|| err("bad seen list"))?,
             "caught" => s.caught = parse_set(v).ok_or_else(|| err("bad caught list"))?,
             "bag" => {
@@ -775,6 +790,7 @@ mod tests {
             defeated: 7,
             caught_count: 2,
             rng_seed: 0xdead_beef,
+            play_seconds: 12_345,
             ..PlayerSave::default()
         }
     }
@@ -821,9 +837,9 @@ mod tests {
 
     #[test]
     fn unknown_version_rejected() {
-        let t = sample().encode().unwrap().replacen("PLASAVE 3", "PLASAVE 99", 1);
+        let t = sample().encode().unwrap().replacen("PLASAVE 4", "PLASAVE 99", 1);
         assert!(matches!(PlayerSave::decode(&t), Err(SaveError::UnknownVersion(99))));
-        let t0 = sample().encode().unwrap().replacen("PLASAVE 3", "PLASAVE 0", 1);
+        let t0 = sample().encode().unwrap().replacen("PLASAVE 4", "PLASAVE 0", 1);
         assert!(matches!(PlayerSave::decode(&t0), Err(SaveError::UnknownVersion(0))));
     }
 
@@ -899,8 +915,9 @@ mod tests {
         assert_eq!(m.effort, [0; 6]);
         assert_eq!(m.moves, vec![SavedMove { move_id: 33, pp: 10 }, SavedMove { move_id: 10, pp: 5 }]);
         assert!(s.box_pokemon.is_empty(), "a v1 save has no box");
+        assert_eq!(s.play_seconds, 0, "a v1 save has no play time");
         // and re-saving writes the current version
-        assert!(s.encode().unwrap().starts_with("PLASAVE 3\n"));
+        assert!(s.encode().unwrap().starts_with("PLASAVE 4\n"));
     }
 
     /// A literal v2 body (8-field members, no `box` lines) loads through v2->v3 with an empty box.
@@ -914,7 +931,34 @@ mod tests {
         assert_eq!(s.party.len(), 1);
         assert_eq!(s.party[0].species, 25);
         assert!(s.box_pokemon.is_empty());
-        assert!(s.encode().unwrap().starts_with("PLASAVE 3\n"));
+        assert_eq!(s.play_seconds, 0, "a v2 save has no play time");
+        assert!(s.encode().unwrap().starts_with("PLASAVE 4\n"));
+    }
+
+    /// A literal v3 body (box lines, no `play_seconds`) loads through v3->v4 with a play time of
+    /// 0 and keeps its box.
+    #[test]
+    fn migration_v3_to_current_defaults_play_time_and_keeps_the_box() {
+        let body = "zone=ha_area00\npos=0,0,0\nyaw=0\ntime_slot=1\nmoney=10\nrng_seed=2\n\
+                    member=25|0|5|10|-|0:0:0:0:0:0|33:5|-\nbox=133|1|3|9|-|0:0:0:0:0:0||-\nEND\n";
+        let text = format!("PLASAVE 3\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let s = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s.version, CURRENT_VERSION);
+        assert_eq!(s.play_seconds, 0, "a v3 save has no play time");
+        assert_eq!(s.box_pokemon.len(), 1);
+        assert_eq!(s.box_pokemon[0].species, 133);
+        let out = s.encode().unwrap();
+        assert!(out.starts_with("PLASAVE 4\n"));
+        assert!(out.contains("\nplay_seconds=0\n"), "the new field is written on re-save");
+    }
+
+    /// `play_seconds` is a u64 and survives the largest value.
+    #[test]
+    fn play_time_round_trips_at_u64_max() {
+        let mut s = sample();
+        s.play_seconds = u64::MAX;
+        let back = PlayerSave::decode(&s.encode().unwrap()).unwrap();
+        assert_eq!(back.play_seconds, u64::MAX);
     }
 
     /// The box survives encode/decode and the parser enforces `MAX_BOX`.

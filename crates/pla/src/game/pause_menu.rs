@@ -2,16 +2,18 @@
 //! the mouse (hover + click).
 //!
 //! Options: Resume, Invert camera X axis, Invert camera Y axis, Volume (master, cycles
-//! 100/75/50/25/0 %), Back to safe spawn, Save game, Quit.
+//! 100/75/50/25/0 %), Back to safe spawn, Save game, Rest (heals the party, no clock yet), Quit.
+//! The panel also shows the player's money and play time (from `PlayerProgress` and `PlayTime`).
 //!
 //! While [`Paused`] is `true` the plugin freezes the world by contract: every gameplay system must
 //! carry `.run_if(pla::game::state::not_paused)` (the opposite condition is
 //! `pla::game::state::is_paused`). The menu logic lives in plain functions ([`move_selection`],
-//! [`activate`], [`option_label`]) so it is unit tested without a window.
+//! [`activate`], [`option_label`], [`menu_info_text`]) so it is unit tested without a window.
 
 use bevy::prelude::*;
 
-use super::save_wire::{SaveRequested, SaveToast};
+use super::play_time::{format_play_time, PlayTime};
+use super::save_wire::{PlayerProgress, RestRequested, SaveRequested, SaveToast};
 use super::settings::UserSettings;
 use super::state::Paused;
 
@@ -26,17 +28,19 @@ pub enum MenuOption {
     Volume,
     SafeSpawn,
     Save,
+    Rest,
     Quit,
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 7] = [
+pub const OPTIONS: [MenuOption; 8] = [
     MenuOption::Resume,
     MenuOption::InvertX,
     MenuOption::InvertY,
     MenuOption::Volume,
     MenuOption::SafeSpawn,
     MenuOption::Save,
+    MenuOption::Rest,
     MenuOption::Quit,
 ];
 
@@ -51,6 +55,8 @@ pub enum MenuAction {
     SafeSpawn,
     /// Save the game exactly like F5.
     Save,
+    /// Heal the party (refused during a battle; no clock advance yet, Brief 9 owns the clock).
+    Rest,
     /// Leave the program.
     Quit,
 }
@@ -79,6 +85,7 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
         }
         MenuOption::SafeSpawn => MenuAction::SafeSpawn,
         MenuOption::Save => MenuAction::Save,
+        MenuOption::Rest => MenuAction::Rest,
         MenuOption::Quit => MenuAction::Quit,
     }
 }
@@ -100,8 +107,14 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
         MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
         MenuOption::SafeSpawn => "Back to safe spawn".into(),
         MenuOption::Save => "Save game".into(),
+        MenuOption::Rest => "Rest (heal party)".into(),
         MenuOption::Quit => "Quit".into(),
     }
+}
+
+/// One-line player summary shown under the rows: money and play time.
+pub fn menu_info_text(money: u32, play_seconds: u64) -> String {
+    format!("Money: {money}   ·   Play time: {}", format_play_time(play_seconds))
 }
 
 /// Next master volume of the Volume row: 100 -> 75 -> 50 -> 25 -> 0 -> 100 (a value between
@@ -140,6 +153,8 @@ struct PauseRoot;
 struct PauseButton(usize);
 #[derive(Component)]
 struct PauseButtonText(usize);
+#[derive(Component)]
+struct PauseInfoText;
 
 pub struct PauseMenuPlugin;
 
@@ -152,6 +167,7 @@ impl PauseMenuPlugin {
             .init_resource::<PauseMenu>()
             .init_resource::<SaveToast>()
             .init_resource::<SaveRequested>()
+            .init_resource::<RestRequested>()
             .init_resource::<SafeSpawnRequested>();
         app.add_systems(Startup, spawn_menu)
             // After the input systems so Esc is seen this frame, before every gameplay system
@@ -217,6 +233,12 @@ fn spawn_menu(mut commands: Commands) {
                         });
                 }
                 panel.spawn((
+                    PauseInfoText,
+                    Text::new(""),
+                    TextFont::from_font_size(16.0),
+                    TextColor(Color::srgb(0.85, 0.85, 0.6)),
+                ));
+                panel.spawn((
                     Text::new("Up/Down or W/S + Enter, or click. Esc resumes."),
                     TextFont::from_font_size(14.0),
                     TextColor(Color::srgb(0.7, 0.75, 0.8)),
@@ -234,6 +256,7 @@ fn pause_input(
     mut settings: ResMut<UserSettings>,
     dir: Res<SettingsDir>,
     mut save_request: ResMut<SaveRequested>,
+    mut rest_request: ResMut<RestRequested>,
     mut safe_request: ResMut<SafeSpawnRequested>,
     mut toast: ResMut<SaveToast>,
     buttons: Query<(&PauseButton, &Interaction), Changed<Interaction>>,
@@ -301,19 +324,24 @@ fn pause_input(
             paused.0 = false;
         }
         MenuAction::Save => save_request.0 = true,
+        MenuAction::Rest => rest_request.0 = true,
         MenuAction::Quit => {
             exit.write(AppExit::Success);
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn sync_menu(
     paused: Res<Paused>,
     menu: Res<PauseMenu>,
     settings: Res<UserSettings>,
+    progress: Option<Res<PlayerProgress>>,
+    play: Option<Res<PlayTime>>,
     mut root: Query<&mut Visibility, With<PauseRoot>>,
     mut buttons: Query<(&PauseButton, &mut BackgroundColor)>,
     mut texts: Query<(&PauseButtonText, &mut Text)>,
+    mut info: Query<&mut Text, (With<PauseInfoText>, Without<PauseButtonText>)>,
 ) {
     for mut v in &mut root {
         let want = if paused.0 { Visibility::Visible } else { Visibility::Hidden };
@@ -335,6 +363,15 @@ fn sync_menu(
         let label = option_label(OPTIONS[t.0], &settings);
         if text.0 != label {
             text.0 = label;
+        }
+    }
+    let label = menu_info_text(
+        progress.as_ref().map_or(0, |p| p.money),
+        play.as_ref().map_or(0, |p| p.seconds),
+    );
+    for mut text in &mut info {
+        if text.0 != label {
+            text.0 = label.clone();
         }
     }
 }
@@ -372,6 +409,8 @@ mod tests {
         assert_eq!(activate(MenuOption::Save, &mut s), MenuAction::Save);
         assert_eq!(activate(MenuOption::SafeSpawn, &mut s), MenuAction::SafeSpawn);
         assert_eq!(option_label(MenuOption::SafeSpawn, &s), "Back to safe spawn");
+        assert_eq!(activate(MenuOption::Rest, &mut s), MenuAction::Rest);
+        assert_eq!(option_label(MenuOption::Rest, &s), "Rest (heal party)");
         assert_eq!(activate(MenuOption::Quit, &mut s), MenuAction::Quit);
         assert_eq!(s, UserSettings::default());
     }
@@ -379,9 +418,22 @@ mod tests {
     #[test]
     fn safe_spawn_row_is_reachable_by_navigation() {
         let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 7);
+        assert_eq!(OPTIONS.len(), 8);
         assert_eq!(move_selection(i - 1, 1), i);
         assert_eq!(move_selection(i, 1), i + 1);
+    }
+
+    #[test]
+    fn rest_row_sits_between_save_and_quit() {
+        let rest = OPTIONS.iter().position(|o| *o == MenuOption::Rest).unwrap();
+        assert_eq!(OPTIONS[rest - 1], MenuOption::Save);
+        assert_eq!(OPTIONS[rest + 1], MenuOption::Quit);
+    }
+
+    #[test]
+    fn info_line_shows_money_and_play_time() {
+        assert_eq!(menu_info_text(1234, 3661), "Money: 1234   ·   Play time: 1:01:01");
+        assert_eq!(menu_info_text(0, 0), "Money: 0   ·   Play time: 0:00:00");
     }
 
     #[test]
