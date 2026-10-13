@@ -35,8 +35,21 @@ use pla::game::{
     ActiveBattleSession, BattleAssets, GameNavmeshResource, GameState, PlayerAvatar,
     WildCreature,
 };
-use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleState, BallSimulation};
+use pla::battle_engine::{CaptureModifiers, XorShift32};
+use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleState};
+use pla::game::capture_world::{
+    bait_in_range, bait_multiplier, build_caught_member, is_backstrike, roll_capture, spawn_bait,
+    store_caught, suitable_range, BaitObject, BaitTable, CatchStorage, WorldCaptureInput,
+    BAIT_FEED_RADIUS,
+};
+use pla::game::catch_rate::CAPTURE_CATCH_RATE_PLACEHOLDER;
 use pla::game::input_map::{Action, ActionState};
+use pla::game::save_wire::{note_encounter, PlayerProgress};
+use pla::game::throwing::{
+    consume_ball, consume_item, launch_velocity, pick_aim_point, spawn_ball, BallInventory,
+    BallKind, BallVisuals, PokeBall, ThrowParams, ThrowableTable,
+};
+use pla::game::wild::ConsumedSpawners;
 use pla::game::main_menu::MainMenuPlugin;
 use pla::game::pause_menu::PauseMenuPlugin;
 use pla::game::settings::UserSettings;
@@ -103,133 +116,9 @@ struct BattleArenaMarker;
 #[derive(Component)]
 struct Reticle;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BallKind {
-    PokeBall,
-    GreatBall,
-    UltraBall,
-    FeatherBall,
-    HeavyBall,
-}
-
-impl BallKind {
-    fn display_name(&self) -> &'static str {
-        match self {
-            Self::PokeBall => "Poké Ball",
-            Self::GreatBall => "Great Ball",
-            Self::UltraBall => "Ultra Ball",
-            Self::FeatherBall => "Feather Ball",
-            Self::HeavyBall => "Heavy Ball",
-        }
-    }
-
-    fn ball_multiplier(&self) -> f64 {
-        match self {
-            Self::PokeBall => 0.75,
-            Self::GreatBall => 1.5,
-            Self::UltraBall => 2.25,
-            Self::FeatherBall => 1.25,
-            Self::HeavyBall => 1.25,
-        }
-    }
-
-    fn initial_velocity(&self) -> f32 {
-        match self {
-            Self::FeatherBall => 42.0,
-            Self::HeavyBall => 18.0,
-            _ => 30.0,
-        }
-    }
-
-    fn gravity(&self) -> f32 {
-        match self {
-            Self::FeatherBall => -8.0,
-            Self::HeavyBall => -24.0,
-            _ => -16.0,
-        }
-    }
-
-    fn top_color(&self) -> Color {
-        match self {
-            Self::PokeBall => Color::srgb(0.85, 0.15, 0.15),
-            Self::GreatBall => Color::srgb(0.15, 0.35, 0.85),
-            Self::UltraBall => Color::srgb(0.2, 0.2, 0.2),
-            Self::FeatherBall => Color::srgb(0.3, 0.75, 0.85),
-            Self::HeavyBall => Color::srgb(0.35, 0.35, 0.38),
-        }
-    }
-}
-
-/// Viewer-side data of a thrown ball. The motion and lifecycle live in `BallBody`
-/// (`pla::game::ball_lifecycle`), which `ball_ballistics_and_physics` steps every frame.
-#[derive(Component)]
-struct PokeBall {
-    kind: BallKind,
-    /// Wild Pokémon entity the ball is holding (hidden while it shakes).
-    target: Option<Entity>,
-}
-
-/// Mesh and material handles shared by every thrown ball (built once, never per throw).
-struct BallVisuals {
-    upper: Handle<Mesh>,
-    lower: Handle<Mesh>,
-    latch: Handle<Mesh>,
-    tops: Vec<Handle<StandardMaterial>>,
-    bottom: Handle<StandardMaterial>,
-    latch_mat: Handle<StandardMaterial>,
-}
-
-const ALL_BALL_KINDS: [BallKind; 5] = [
-    BallKind::PokeBall,
-    BallKind::GreatBall,
-    BallKind::UltraBall,
-    BallKind::FeatherBall,
-    BallKind::HeavyBall,
-];
-
-impl BallVisuals {
-    fn new(meshes: &mut Assets<Mesh>, materials: &mut Assets<StandardMaterial>) -> Self {
-        Self {
-            upper: meshes.add(Mesh::from(Sphere::new(0.12))),
-            lower: meshes.add(Mesh::from(Sphere::new(0.115))),
-            latch: meshes.add(Mesh::from(Cylinder::new(0.03, 0.02))),
-            tops: ALL_BALL_KINDS
-                .iter()
-                .map(|k| {
-                    materials.add(StandardMaterial {
-                        base_color: k.top_color(),
-                        perceptual_roughness: 0.4,
-                        ..default()
-                    })
-                })
-                .collect(),
-            // Hisui wood/cream lower hemisphere
-            bottom: materials.add(StandardMaterial {
-                base_color: Color::srgb(0.9, 0.88, 0.82),
-                perceptual_roughness: 0.7,
-                ..default()
-            }),
-            // Bronze latch
-            latch_mat: materials.add(StandardMaterial {
-                base_color: Color::srgb(0.7, 0.6, 0.3),
-                metallic: 0.8,
-                perceptual_roughness: 0.3,
-                ..default()
-            }),
-        }
-    }
-}
-
 /// Screen-space hint shown only while aiming.
 #[derive(Component)]
 struct AimHint;
-
-#[derive(Resource)]
-struct BallInventory {
-    selected: BallKind,
-    balls_thrown: u32,
-    last_capture_status: Option<String>,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CameraMode {
@@ -470,6 +359,16 @@ fn main() -> ExitCode {
         wire_start.progress.time_minutes =
             pla::game::clock::slot_centre_minutes(pla::game::lighting::time_slot_from_args(&cli_args));
     }
+    // Scripted runs have no save to shop with: stock the demo bag so --throw and the
+    // controls demo still exercise the real bag counters (Brief 18).
+    if auto_demo || controls_demo_dir.is_some() || auto_throw_tick.is_some() {
+        for id in [1710u16, 1711, 1712, 1713, 1746, 1747, 1748, 1749, 1750] {
+            *wire_start.progress.bag.entry(id).or_insert(0) += 30;
+        }
+        for id in [149u16, 164] {
+            *wire_start.progress.bag.entry(id).or_insert(0) += 10;
+        }
+    }
     if !wire_cli.has_area {
         if let Some(a) = wire_start.area {
             area_idx = a;
@@ -694,11 +593,20 @@ fn main() -> ExitCode {
     });
     app.insert_resource(LoadedPml(pml_db));
     app.insert_resource(LoadedBattle(battle_db));
-    app.insert_resource(BallInventory {
-        selected: BallKind::PokeBall,
-        balls_thrown: 0,
-        last_capture_status: None,
-    });
+    // Decoded throwables / baits (Brief 18); empty tables fall back to the hardcoded values.
+    app.insert_resource(
+        data_dir
+            .as_ref()
+            .and_then(|dir| ThrowableTable::load(dir).ok())
+            .unwrap_or_default(),
+    );
+    app.insert_resource(
+        data_dir
+            .as_ref()
+            .and_then(|dir| BaitTable::load(dir).ok())
+            .unwrap_or_default(),
+    );
+    app.insert_resource(BallInventory::default());
     app.insert_resource(PlayerSpawnConfig {
         pos: player_spawn_pos,
         area_idx,
@@ -789,6 +697,7 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
     app.add_plugins(pla::game::follower::FollowerPlugin);
+    app.add_plugins(pla::game::capture_world::CaptureWorldPlugin);
     app.add_plugins(pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args());
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
     app.add_plugins(pla::game::audio::GameAudioPlugin::from_env_and_args());
@@ -876,6 +785,11 @@ fn main() -> ExitCode {
             controls_demo_driver,
         )
             .chain(),
+    );
+    // Separate registration: the world tuple is already at Bevy's 20-system limit.
+    app.add_systems(
+        Update,
+        bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
     );
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
     app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
@@ -1932,30 +1846,54 @@ fn update_camera_transform(
     cam_xf.look_at(look_target, Vec3::Y);
 }
 
-/// Selects active Poké Ball type using keyboard shortcuts:
-/// B: Standard Poké Ball | G: Great Ball | U: Ultra Ball | F: Feather Ball | H: Heavy Ball
-fn ball_selection_controls(keys: Res<ButtonInput<KeyCode>>, mut inventory: ResMut<BallInventory>) {
-    if keys.just_pressed(KeyCode::KeyB) {
-        inventory.selected = BallKind::PokeBall;
-        println!("Selected Ball: {}", inventory.selected.display_name());
+/// Selects the active throwable with keyboard shortcuts:
+/// B: Poké Ball | G: Great | U: Ultra | F: Feather | N: Wing | J: Jet | L: Leaden | T: Gigaton
+/// | V: cycle the bait (bag items from `bait_parameters.tsv`); X throws it while aiming.
+fn ball_selection_controls(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut inventory: ResMut<BallInventory>,
+    baits: Res<BaitTable>,
+    progress: Res<PlayerProgress>,
+) {
+    let pick = if keys.just_pressed(KeyCode::KeyB) {
+        Some(BallKind::PokeBall)
     } else if keys.just_pressed(KeyCode::KeyG) {
-        inventory.selected = BallKind::GreatBall;
-        println!("Selected Ball: {}", inventory.selected.display_name());
+        Some(BallKind::GreatBall)
     } else if keys.just_pressed(KeyCode::KeyU) {
-        inventory.selected = BallKind::UltraBall;
-        println!("Selected Ball: {}", inventory.selected.display_name());
+        Some(BallKind::UltraBall)
     } else if keys.just_pressed(KeyCode::KeyF) {
-        inventory.selected = BallKind::FeatherBall;
-        println!("Selected Ball: {}", inventory.selected.display_name());
-    } else if keys.just_pressed(KeyCode::KeyH) {
-        inventory.selected = BallKind::HeavyBall;
-        println!("Selected Ball: {}", inventory.selected.display_name());
+        Some(BallKind::FeatherBall)
+    } else if keys.just_pressed(KeyCode::KeyN) {
+        Some(BallKind::WingBall)
+    } else if keys.just_pressed(KeyCode::KeyJ) {
+        Some(BallKind::JetBall)
+    } else if keys.just_pressed(KeyCode::KeyL) {
+        Some(BallKind::LeadenBall)
+    } else if keys.just_pressed(KeyCode::KeyT) {
+        Some(BallKind::GigatonBall)
+    } else {
+        None
+    };
+    if let Some(kind) = pick {
+        inventory.selected = kind;
+        println!("Selected Ball: {}", kind.display_name());
+    }
+    if keys.just_pressed(KeyCode::KeyV) {
+        let available = baits.present_in(&progress.bag);
+        match inventory.cycle_bait(&available) {
+            Some(id) => println!(
+                "Selected bait: item #{id} ({} left) — X throws it while aiming",
+                progress.bag.get(&id).copied().unwrap_or(0)
+            ),
+            None => println!("Bait selection cleared"),
+        }
     }
 }
 
 /// Spawns a thrown Poké Ball along the aim vector towards the reticle focal point.
 /// Left click (or Space) throws ONLY while the camera is in `AimOverShoulder`; the scripted
 /// `--throw` demo keeps its explicit path and works in any mode.
+#[allow(clippy::too_many_arguments)]
 fn ball_throw_input(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -1964,6 +1902,9 @@ fn ball_throw_input(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut inventory: ResMut<BallInventory>,
+    mut progress: ResMut<PlayerProgress>,
+    assets: Option<Res<BattleAssets>>,
+    throwables: Res<ThrowableTable>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
     camera_query: Query<&Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
     pokemon_query: Query<&Transform, (With<PokemonSpawn>, Without<PlayerAvatar>, Without<Camera3d>)>,
@@ -1991,8 +1932,17 @@ fn ball_throw_input(
         return;
     };
 
-    inventory.balls_thrown += 1;
     let ball_kind = inventory.selected;
+    // Bag counters (Brief 18): consume one ball of that category when the item table is loaded.
+    if let Some(a) = assets.as_deref() {
+        if !consume_ball(&mut progress, &a.items, ball_kind) {
+            let msg = format!("No {} left in the bag", ball_kind.display_name());
+            println!("{msg}");
+            inventory.last_capture_status = Some(msg);
+            return;
+        }
+    }
+    inventory.balls_thrown += 1;
 
     let yaw = camera_ctrl.yaw;
     let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
@@ -2001,98 +1951,101 @@ fn ball_throw_input(
     // Spawn origin: right hand of player
     let spawn_pos = player_xf.translation + right * 0.4 + Vec3::new(0.0, 0.9, 0.0);
 
-    // Aim convergence point: raycast from camera along camera look vector
-    let cam_pos = cam_xf.translation;
-    let cam_forward = *cam_xf.forward();
+    // Aim convergence point: camera ray lock / ground intersection (pure, game::throwing)
+    let targets: Vec<Vec3> = pokemon_query.iter().map(|t| t.translation).collect();
+    let target_aim_point = pick_aim_point(
+        cam_xf.translation,
+        *cam_xf.forward(),
+        player_xf.translation,
+        forward_horiz,
+        &targets,
+    );
 
-    // 1. Check if camera aim ray directly targets any wild Pokémon
-    let mut best_target: Option<Vec3> = None;
-    let mut closest_pkmn_dist = f32::INFINITY;
-
-    for pkmn_xf in &pokemon_query {
-        let pkmn_pos = pkmn_xf.translation;
-        let to_pkmn = pkmn_pos - cam_pos;
-        let proj = to_pkmn.dot(cam_forward);
-        if proj > 0.0 {
-            let closest_point_on_ray = cam_pos + cam_forward * proj;
-            let ray_pkmn_dist = (pkmn_pos - closest_point_on_ray).length();
-            if ray_pkmn_dist < 1.0 && proj < closest_pkmn_dist {
-                closest_pkmn_dist = proj;
-                best_target = Some(pkmn_pos);
-            }
-        }
-    }
-
-    // 2. If not locked onto a Pokémon, check ground intersection
-    let target_aim_point = if let Some(target) = best_target {
-        target
-    } else if cam_forward.y < -0.01 {
-        let t_ground = (-cam_pos.y) / cam_forward.y;
-        if t_ground > 0.0 && t_ground < 60.0 {
-            let ground_pt = cam_pos + cam_forward * t_ground;
-            if (ground_pt - player_xf.translation).dot(forward_horiz) > 0.5 {
-                ground_pt
-            } else {
-                player_xf.translation + forward_horiz * 8.0 + Vec3::new(0.0, 0.5, 0.0)
-            }
-        } else {
-            cam_pos + cam_forward * 15.0
-        }
-    } else {
-        cam_pos + cam_forward * 20.0
-    };
-
-    let init_speed = ball_kind.initial_velocity();
-    let gravity = ball_kind.gravity();
-
-    // Calculate ballistic trajectory from spawn_pos to target_aim_point with arc loft compensation
-    let to_target = target_aim_point - spawn_pos;
-    let target_dist = to_target.length().max(1.0);
-    let flight_time = target_dist / init_speed;
-    let arc_loft = 0.5 * gravity.abs() * flight_time * flight_time;
-    let compensated_target = target_aim_point + Vec3::new(0.0, arc_loft, 0.0);
-    let aim_dir = (compensated_target - spawn_pos).normalize();
-    let velocity = aim_dir * init_speed;
+    let params = ThrowParams::for_ball(ball_kind, Some(&*throwables));
+    let velocity = launch_velocity(spawn_pos, target_aim_point, params.speed, params.gravity);
 
     println!(
         "Throwing {} #{}: Speed: {:.1} m/s, Gravity: {:.1} m/s²",
         ball_kind.display_name(),
         inventory.balls_thrown,
-        init_speed,
-        gravity
+        params.speed,
+        params.gravity
     );
 
     let vis = visuals.get_or_insert_with(|| BallVisuals::new(&mut meshes, &mut materials));
-    let top_mat = vis.tops[ALL_BALL_KINDS.iter().position(|k| *k == ball_kind).unwrap_or(0)].clone();
-
-    commands
-        .spawn((
-            PokeBall { kind: ball_kind, target: None },
-            BallBody(BallSimulation::new(spawn_pos, velocity, gravity)),
-            Transform::from_translation(spawn_pos),
-            Visibility::default(),
-        ))
-        .with_children(|parent| {
-            // Ball upper hemisphere
-            parent.spawn((
-                Mesh3d(vis.upper.clone()),
-                MeshMaterial3d(top_mat),
-                Transform::from_xyz(0.0, 0.04, 0.0),
-            ));
-            // Ball lower hemisphere
-            parent.spawn((
-                Mesh3d(vis.lower.clone()),
-                MeshMaterial3d(vis.bottom.clone()),
-                Transform::from_xyz(0.0, -0.04, 0.0),
-            ));
-            // Center latch / button
-            parent.spawn((
-                Mesh3d(vis.latch.clone()),
-                MeshMaterial3d(vis.latch_mat.clone()),
-                Transform::from_xyz(0.0, 0.0, 0.11).with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
-            ));
-        });
+    spawn_ball(
+        &mut commands,
+        vis,
+        ball_kind,
+        spawn_pos,
+        velocity,
+        params.gravity,
+    );
 }
+
+/// Throws the selected bait (V cycles the selection) towards the aim point while aiming.
+fn bait_throw_input(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut inventory: ResMut<BallInventory>,
+    mut progress: ResMut<PlayerProgress>,
+    baits: Res<BaitTable>,
+    throwables: Res<ThrowableTable>,
+    player_query: Query<&Transform, With<PlayerAvatar>>,
+    camera_query: Query<&Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
+    pokemon_query: Query<&Transform, (With<PokemonSpawn>, Without<PlayerAvatar>, Without<Camera3d>)>,
+    camera_ctrl: Res<CameraController>,
+) {
+    if camera_ctrl.mode != CameraMode::AimOverShoulder || !keys.just_pressed(KeyCode::KeyX) {
+        return;
+    }
+    let Some(item_id) = inventory.selected_bait else {
+        println!("No bait selected: V cycles the bait items in the bag");
+        return;
+    };
+    let Ok(player_xf) = player_query.single() else {
+        return;
+    };
+    let Ok(cam_xf) = camera_query.single() else {
+        return;
+    };
+    if !consume_item(&mut progress, item_id) {
+        println!("No bait item #{item_id} left in the bag");
+        inventory.selected_bait = None;
+        return;
+    }
+    let yaw = camera_ctrl.yaw;
+    let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
+    let forward_horiz = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
+    let spawn_pos = player_xf.translation + right * 0.4 + Vec3::new(0.0, 0.9, 0.0);
+    let targets: Vec<Vec3> = pokemon_query.iter().map(|t| t.translation).collect();
+    let target_aim_point = pick_aim_point(
+        cam_xf.translation,
+        *cam_xf.forward(),
+        player_xf.translation,
+        forward_horiz,
+        &targets,
+    );
+    let params = ThrowParams::for_throwable(item_id, Some(&*throwables));
+    let velocity = launch_velocity(spawn_pos, target_aim_point, params.speed, params.gravity);
+    let Some(row) = baits.get(item_id) else {
+        println!("Bait item #{item_id} has no decoded row; bait not thrown");
+        return;
+    };
+    spawn_bait(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        row,
+        spawn_pos,
+        velocity,
+        params.gravity,
+    );
+    println!("Threw bait item #{item_id} ({} left)", progress.bag.get(&item_id).copied().unwrap_or(0));
+}
+
 
 /// Steps every thrown ball through its lifecycle (`pla::game::ball_lifecycle`): flight, ground
 /// roll, shaking, capture result. Every end of the lifecycle despawns the ball entity.
@@ -2104,11 +2057,17 @@ fn ball_ballistics_and_physics(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut aura: Local<Option<(Handle<Mesh>, Handle<StandardMaterial>)>>,
     mut ball_query: Query<(Entity, &mut Transform, &mut BallBody, &mut PokeBall), Without<PokemonSpawn>>,
-    mut pkmn_query: Query<(Entity, &Transform, &mut Visibility), (With<PokemonSpawn>, Without<PokeBall>)>,
+    mut pkmn_query: Query<
+        (Entity, &Transform, &mut Visibility, Option<&WildCreature>),
+        (With<PokemonSpawn>, Without<PokeBall>),
+    >,
+    bait_query: Query<&Transform, (With<BaitObject>, Without<PokeBall>)>,
     player_query: Query<&Transform, (With<PlayerAvatar>, Without<PokeBall>, Without<PokemonSpawn>)>,
-    pml: Res<LoadedPml>,
     battle: Res<LoadedBattle>,
-    pkmn_state: Res<ActivePokemonState>,
+    assets: Option<Res<BattleAssets>>,
+    mut progress: ResMut<PlayerProgress>,
+    mut consumed: Option<ResMut<ConsumedSpawners>>,
+    mut active_spawners: Option<ResMut<ActiveAreaSpawners>>,
     terrain_res: Option<Res<TerrainResource>>,
     mut inventory: ResMut<BallInventory>,
 ) {
@@ -2129,7 +2088,13 @@ fn ball_ballistics_and_physics(
             println!("Ball despawned: {reason:?}");
         }
         match out.event {
-            Some(BallEvent::Shake(n)) => println!("Ball Shake {n} / 3..."),
+            Some(BallEvent::Absorbed) => {
+                println!("Ball absorbed the Pokémon (energy draw)...");
+            }
+            Some(BallEvent::Dropped) => {
+                println!("Ball fell to the ground; starting the shake sequence");
+            }
+            Some(BallEvent::Shake(n)) => println!("Ball Shake {n}..."),
             Some(BallEvent::Captured) => {
                 println!("*** CAPTURED! The wild Pokémon was caught! ***");
                 inventory.last_capture_status = Some("Captured! ⭐".into());
@@ -2149,12 +2114,49 @@ fn ball_ballistics_and_physics(
                 commands.entity(ball_entity).with_children(|p| {
                     p.spawn((Mesh3d(mesh), MeshMaterial3d(mat), Transform::from_xyz(0.0, 0.35, 0.0)));
                 });
+                // Record the catch (party -> box -> recorded only) and empty the spawner.
+                if let Some(target) = ball.target.take() {
+                    if let Ok((_, _, _, Some(wild))) = pkmn_query.get_mut(target) {
+                        let (species_name, level, dex, spawner_id) = (
+                            wild.species_name.clone(),
+                            wild.level,
+                            wild.national_dex,
+                            wild.spawner_id.clone(),
+                        );
+                        if let Some(db) = battle.0.as_ref() {
+                            match build_caught_member(db, &species_name, level) {
+                                Ok(member) => {
+                                    let storage = store_caught(&mut progress, member);
+                                    match storage {
+                                        CatchStorage::Party => {
+                                            println!("  #{dex} {species_name} stored in the party")
+                                        }
+                                        CatchStorage::Box => println!(
+                                            "  #{dex} {species_name} sent to the box (party full)"
+                                        ),
+                                        CatchStorage::Full => println!(
+                                            "  #{dex} {species_name} recorded as caught (party and box full)"
+                                        ),
+                                    }
+                                }
+                                Err(e) => eprintln!("Caught member not built: {e}"),
+                            }
+                        }
+                        if let Some(c) = consumed.as_deref_mut() {
+                            c.consume(&spawner_id, time.elapsed_secs_f64());
+                        }
+                        if let Some(s) = active_spawners.as_deref_mut() {
+                            s.spawned_entities.remove(&spawner_id);
+                        }
+                        commands.entity(target).despawn();
+                    }
+                }
             }
             Some(BallEvent::BrokeFree) => {
                 println!("*** BREAKOUT! The Pokémon broke free! ***");
                 inventory.last_capture_status = Some("Broke out!".into());
                 if let Some(target) = ball.target.take() {
-                    if let Ok((_, _, mut vis)) = pkmn_query.get_mut(target) {
+                    if let Ok((_, _, mut vis, _)) = pkmn_query.get_mut(target) {
                         *vis = Visibility::Visible;
                     }
                 }
@@ -2178,7 +2180,7 @@ fn ball_ballistics_and_physics(
         let next_pos = body.0.position;
         let seg = next_pos - prev_pos;
         let seg_len_sq = seg.length_squared();
-        for (pkmn_entity, pkmn_xf, mut pkmn_vis) in &mut pkmn_query {
+        for (pkmn_entity, pkmn_xf, mut pkmn_vis, wild_opt) in &mut pkmn_query {
             let to_pkmn = pkmn_xf.translation - prev_pos;
             let t = if seg_len_sq > 1e-6 {
                 (to_pkmn.dot(seg) / seg_len_sq).clamp(0.0, 1.0)
@@ -2196,53 +2198,68 @@ fn ball_ballistics_and_physics(
             *pkmn_vis = Visibility::Hidden;
             ball.target = Some(pkmn_entity);
 
-            // Evaluate capture roll using PLA formula & tables
-            let dex = pkmn_state.dex_list[pkmn_state.current_index];
-            let ball_mod = ball.kind.ball_multiplier();
-
-            let base_catch_rate = if let Some(db) = &pml.0 {
-                if let Some(entry) = db.personal.iter().find(|p| p.national_dex == dex) {
-                    // Typical catch rate proxy
-                    match entry.national_dex {
-                        25 => 190.0,
-                        501 => 45.0,
-                        722 => 45.0,
-                        155 => 45.0,
-                        448 => 45.0,
-                        _ => 100.0,
-                    }
-                } else {
-                    100.0
-                }
-            } else {
-                100.0
+            // Overworld capture roll: the engine tables, the ball category and the save RNG
+            // seed (Brief 18). Ranks and a full-HP target are ASSUMED overworld inputs.
+            let category = ball.kind.category();
+            let (species, level, dex) = match wild_opt {
+                Some(w) => (Some(w.species_name.as_str()), w.level, w.national_dex),
+                None => (None, 5, 0),
             };
-
-            let level_factor = (100.0 - pkmn_state.level as f64).max(10.0) / 100.0;
-            let basic_coef = battle
-                .0
-                .as_ref()
-                .and_then(|b| b.capture_constant("capture_index_basic_coef").ok().flatten())
-                .unwrap_or(30.0);
-
-            let final_rate = (base_catch_rate * ball_mod * level_factor + basic_coef) / 255.0;
-            let will_capture = final_rate >= 0.45;
-
-            println!(
-                "Capture Roll Evaluated: BaseRate={:.0}, BallMod={:.2}, FinalOdds={:.1}%, Outcome={}",
-                base_catch_rate,
-                ball_mod,
-                (final_rate * 100.0).min(100.0),
-                if will_capture { "SUCCESS" } else { "BREAKOUT" }
+            if dex != 0 {
+                note_encounter(&mut progress, dex);
+            }
+            let catch_rate = match (&assets, species) {
+                (Some(a), Some(name)) => a.catch_rates.lookup(name).0,
+                _ => CAPTURE_CATCH_RATE_PLACEHOLDER,
+            };
+            let throw_distance = pkmn_xf.translation.distance(player_pos);
+            let backstrike = is_backstrike(*pkmn_xf.forward(), body.0.velocity);
+            let bait = bait_multiplier(
+                bait_in_range(
+                    (pkmn_xf.translation.x, pkmn_xf.translation.z),
+                    bait_query.iter().map(|t| (t.translation.x, t.translation.z)),
+                    BAIT_FEED_RADIUS,
+                ),
+                battle.0.as_ref(),
             );
+            let input = WorldCaptureInput {
+                ball_category: category,
+                suitable_range: suitable_range(ball.kind, throw_distance, backstrike),
+                backstrike,
+                catch_rate,
+                hp_ratio: 1.0,
+                player_rank: 1,
+                pokemon_rank: 1,
+                modifiers: CaptureModifiers { bait, ..CaptureModifiers::default() },
+            };
+            let mut rng = XorShift32(progress.rng_seed);
+            let (shakes, will_capture) = match roll_capture(battle.0.as_ref(), input, &mut rng) {
+                Ok(roll) => {
+                    println!(
+                        "Capture Roll: Category={category}, Rate={catch_rate}, SuitableRange={}, Backstrike={backstrike}, Bait={bait:.2}, Odds={:.1}%, Outcome={}",
+                        input.suitable_range,
+                        (roll.probability * 100.0).min(100.0),
+                        if roll.caught { "SUCCESS" } else { "BREAKOUT" }
+                    );
+                    (roll.shakes, roll.caught)
+                }
+                Err(e) => {
+                    eprintln!("Capture roll unavailable ({e}); the ball breaks out");
+                    (1, false)
+                }
+            };
+            progress.rng_seed = rng.0;
+            if level > 0 && dex != 0 {
+                println!("Target: #{dex} {species:?} Lv{level}");
+            }
 
-            // Place ball at Pokémon base on ground and start the shake sequence
-            let base_y = terrain_res
+            // Impact point: the creature; the ball then drops to the terrain height there.
+            let ground_at_hit = terrain_res
                 .as_ref()
                 .and_then(|t| t.area.sample_world_height(pkmn_xf.translation.x, pkmn_xf.translation.z))
-                .unwrap_or(0.0)
-                + 0.15;
-            body.0.hit_pokemon(Vec3::new(pkmn_xf.translation.x, base_y, pkmn_xf.translation.z), will_capture);
+                .unwrap_or(0.0);
+            body.0
+                .hit_pokemon(pkmn_xf.translation, ground_at_hit, shakes, will_capture);
             ball_xf.translation = body.0.position;
             break;
         }
