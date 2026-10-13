@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 214,
+    "file_count": 219,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -197,7 +197,7 @@
       },
       {
         "path": "crates/pla/examples/player_export.rs",
-        "sha256": "de0d9f685a1b3cab34724a45b341bed4dde6a495400c81786adb9a581a31e8fb"
+        "sha256": "36884ac7f825f002b2dc642d9ecc840a799dc2cb12ac46e35d3f6f1a42fb9d5a"
       },
       {
         "path": "crates/pla/examples/pokemon_assemble.rs",
@@ -209,7 +209,7 @@
       },
       {
         "path": "crates/pla/examples/pokemon_clip_census.rs",
-        "sha256": "50c10257e36beb865fc56b6c6540dee0b30323760af64dbbdff5ee54bfaf928f"
+        "sha256": "7f69603a36566dfc7dc4cf946b208fa6b24254d4b228c17e206d7bd20bfdeb8e"
       },
       {
         "path": "crates/pla/examples/pokemon_gfpak_census.rs",
@@ -225,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "c5c2fba1eb0416ec964d3d7077c170d4c3725ccca55011d6c079099234d6d410"
+        "sha256": "7d55cc9e20f88ba2aefc1a71a060d407b9f2552f363379a3f2d4c5e7d27f1cc0"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
@@ -588,6 +588,10 @@
         "sha256": "fc6f6963e29fe0327b369b99be841c84bde21f853662d8ba52688d4b52ed5388"
       },
       {
+        "path": "crates/pla/src/game/blink.rs",
+        "sha256": "b77b2eec80499e0f7541e83dfe4cbb3138c37546a87c75285e65f72728e1d3e4"
+      },
+      {
         "path": "crates/pla/src/game/box_screen.rs",
         "sha256": "e05e90e123bc8e5c1118d96a0299f3b4205faae97933255c74267bd04b38381a"
       },
@@ -653,7 +657,11 @@
       },
       {
         "path": "crates/pla/src/game/input_map.rs",
-        "sha256": "63586ed248ca5cd696a1009821e8200f00418f2117c9edb0cb95c86a9bf93cfc"
+        "sha256": "c1a0982cfa0332b35d10fd9dadbd31a6355652c6a1da32eda949f6b1a7b71fe2"
+      },
+      {
+        "path": "crates/pla/src/game/interact.rs",
+        "sha256": "03f489aa8f80563a30e9826e3efd0c1e2345415a353e1a55e776c7018ad9b28d"
       },
       {
         "path": "crates/pla/src/game/lighting.rs",
@@ -669,11 +677,15 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "889bb0b40592a8e79a6d26ac1bc10b8e7ac43c5ec6c73ec92e3dd34d129b316e"
+        "sha256": "df0bfe728194ba4b67d57a4745e213bfa9386d681c7871d479ff8f4dff5f5fe1"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
         "sha256": "472fc88dfc720cb713566a304ed1b7823e4a4850caa871661e0a39b78ab51ef2"
+      },
+      {
+        "path": "crates/pla/src/game/npc.rs",
+        "sha256": "400227bd1b7b35c9a4e274f37e459aa00754ef23e8200ffa7ea4aa40bf33173e"
       },
       {
         "path": "crates/pla/src/game/outbreak.rs",
@@ -697,7 +709,7 @@
       },
       {
         "path": "crates/pla/src/game/pickups.rs",
-        "sha256": "37fcc1f674c9243e4c4b4b92d39ec13662218876f48d51d270113aa0ec3c5f03"
+        "sha256": "3d03b4b14bc7b4f489c9bfc6490a680891d88f6005325f248e0c4f2dab4daddd"
       },
       {
         "path": "crates/pla/src/game/play_time.rs",
@@ -705,7 +717,15 @@
       },
       {
         "path": "crates/pla/src/game/player_anim.rs",
-        "sha256": "a748af0105e6f2122b3c2baa48fbc105d06acc85f4c980939bd80fc74edfe947"
+        "sha256": "ae1f781f686bc83fee19466ee2d0b12d0f4f8bb7fa7dcee0dd2302343aed0db0"
+      },
+      {
+        "path": "crates/pla/src/game/player_motion.rs",
+        "sha256": "873cb93e1a00eb9626da3e8ec660a96cfbb34d0bd6c1e52a94c806c3149c5dc4"
+      },
+      {
+        "path": "crates/pla/src/game/player_skills.rs",
+        "sha256": "987e0a9a67fd0a5112f9aa5b7e03dab0f49cb5a2f286da824d50bf5e1b829661"
       },
       {
         "path": "crates/pla/src/game/pokemon_anim.rs",
@@ -781,7 +801,7 @@
       },
       {
         "path": "crates/pla/src/game/wild_wander.rs",
-        "sha256": "4a442709d6086bc9e3bb6a1a9704ba5e3dde26c4e4b48c029dcf64b291b8b1a2"
+        "sha256": "6a8c8f86e1e7c31a492eef8d2333d9abc7747418db98dc411aa5c4d343bdf2e8"
       },
       {
         "path": "crates/pla/src/game/world_collision.rs",
@@ -933,7 +953,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "3382fa7bc65fc3786191f159255a13c7f648c4b1ce32e38262e5c13fe88b515e"
+    "sha256": "547fcdf5e33027bc9bf78e308903d3b60b9a09d74c494df0bdfab6a28ebedc32"
   },
   "state_partitions": {
     "analysis_documentation_status": {
