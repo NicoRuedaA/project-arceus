@@ -4,10 +4,10 @@
 # target: Pokémon Legends: Arceus update v262144 noble/legend field attacks (bin/pokemon/data/poke_field_obstruction_waza_ns_legend.bin)
 # note: attack_key: slot 0. ns_key = name prefix (nsNN matches the setting script NsNNFieldBattle; 'sl' = legend attacks).
 # note: kind: slot 2 string (bombing/throwing/charge_attack/barrier/following/hyper_beam) VERIFIED as stored; behaviour UNKNOWN.
-# note: knock: slot 44 string (down_strong/down_weak) LIKELY the knock-down strength on the player; status: slot 46 string.
+# note: knock: slot 44 string (down_strong/down_weak) LIKELY the knock-down strength on the player; status_effect: slot 46 string.
 # note: h_variant: name has an 'h' segment (e.g. ns02_sp03h) - ASSUMED a harder / second-phase variant.
 # note: raw_f8/raw_f11 floats, raw_f17 int, raw_f18 int (nan shown as empty): meaning UNKNOWN.
-id:string*	attack_key:string	ns_key:string	kind:string	knock:string?	status:string?	h_variant:bool	raw_f8:f32?	raw_f11:f32?	raw_f17:u32?	raw_f18:string?
+id:string*	attack_key:string	ns_key:string	kind:string	knock:string?	status_effect:string?	h_variant:bool	raw_f8:f32?	raw_f11:f32?	raw_f17:u32?	raw_f18:string?
 ns01_jump_shockwave	ns01_jump_shockwave	ns01	bombing	down_strong		0	25	2		15
 ns01_horn_aura	ns01_horn_aura	ns01	bombing	down_strong		0	25	5		15
 ns02_sp01	ns02_sp01	ns02	bombing	down_strong		0	30	9		8

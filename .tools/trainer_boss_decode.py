@@ -39,7 +39,7 @@ BOSS_COLS = [
     "gv_raw:string?", "field_attack_count:u16", "field_attack_h_count:u16",
 ]
 ATTACK_COLS = [
-    "id:string*", "attack_key:string", "ns_key:string", "kind:string", "knock:string?", "status:string?",
+    "id:string*", "attack_key:string", "ns_key:string", "kind:string", "knock:string?", "status_effect:string?",
     "h_variant:bool", "raw_f8:f32?", "raw_f11:f32?", "raw_f17:u32?", "raw_f18:string?",
 ]
 BOSS_NOTES = [
@@ -56,7 +56,7 @@ BOSS_NOTES = [
 ATTACK_NOTES = [
     "attack_key: slot 0. ns_key = name prefix (nsNN matches the setting script NsNNFieldBattle; 'sl' = legend attacks).",
     "kind: slot 2 string (bombing/throwing/charge_attack/barrier/following/hyper_beam) VERIFIED as stored; behaviour UNKNOWN.",
-    "knock: slot 44 string (down_strong/down_weak) LIKELY the knock-down strength on the player; status: slot 46 string.",
+    "knock: slot 44 string (down_strong/down_weak) LIKELY the knock-down strength on the player; status_effect: slot 46 string.",
     "h_variant: name has an 'h' segment (e.g. ns02_sp03h) - ASSUMED a harder / second-phase variant.",
     "raw_f8/raw_f11 floats, raw_f17 int, raw_f18 int (nan shown as empty): meaning UNKNOWN.",
 ]
