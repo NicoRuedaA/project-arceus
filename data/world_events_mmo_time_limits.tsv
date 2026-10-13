@@ -1,0 +1,10 @@
+# sheet: data/world_events_mmo_time_limits
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 new_huge_outbreak_time_limit.bin
+# note: weight sums to 100 over the rows (VERIFIED arithmetic). f0 (420/540/660) ASSUMED seconds; thresholds/values are the two
+# note: parallel u32 vectors (fields 2 and 3) verbatim, meaning UNKNOWN.
+record_index:u8*	f0_raw:u32	weight:u8	thresholds:string	values:string
+0	420	75	300,150,60,0	3,5,7,9
+1	540	15	420,300,150,60,0	3,3,5,7,9
+2	660	10	540,420,300,150,60,0	3,3,3,5,7,9

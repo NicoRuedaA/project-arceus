@@ -1,0 +1,175 @@
+# sheet: data/world_events_distortion_encounters
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 distortion encounter tables (bin/encount/<area>/encount_data.bin, keys used by wh_spawner)
+# note: Same key in different areas has different contents; always resolve a key in the spawner's own area file.
+# note: alpha = slot has 3 guaranteed perfect IVs (field 25); weight is the slot lottery weight within its table.
+# note: time_*/weather_* are the effective multipliers (slot -1 -> species default from poke_encount.bin -> -1 = 1.0; 0 = never). LIKELY.
+# note: slot_raw = the slot's 12 stored floats (4 time + 8 weather, absent = 0).
+area:string*	encount_key:string*	roles:string	slot_index:u16	species_id:u16	species:string	form:u16	alpha:bool	unique_alpha:bool	weight:u16	min_level:u8	max_level:u8	level_source:enum	time_morning:f32	time_day:f32	time_evening:f32	time_night:f32	weather_sunny:f32	weather_cloudy:f32	weather_rain:f32	weather_snow:f32	weather_drought:f32	weather_fog:f32	weather_rainstorm:f32	weather_snowstorm:f32	slot_raw:string	condition:string?
+ha_area01	64aecfc1e9c3d9f1	main	0	95	onix	0	0	0	75	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	1	95	onix	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	2	208	steelix	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	3	208	steelix	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	4	93	haunter	0	0	0	100	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	5	93	haunter	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	6	94	gengar	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	7	94	gengar	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	8	108	lickitung	0	0	0	100	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	9	108	lickitung	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	10	463	lickilicky	0	0	0	50	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	11	463	lickilicky	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	12	217	ursaring	0	0	0	100	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	13	217	ursaring	0	1	0	1	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	14	454	toxicroak	0	0	0	20	37	40	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	15	454	toxicroak	0	1	0	1	37	40	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	16	133	eevee	0	0	0	50	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	17	133	eevee	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	18	470	leafeon	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	19	470	leafeon	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	64aecfc1e9c3d9f1	main	20	700	sylveon	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	64aecfc1e9c3d9f1	main	21	700	sylveon	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	e36683b13a120647	sub	0	215	sneasel	0	0	0	100	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	e36683b13a120647	sub	1	215	sneasel	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area01	e36683b13a120647	sub	2	461	weavile	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area01	e36683b13a120647	sub	3	461	weavile	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_01_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	0	419	floatzel	0	0	0	100	26	29	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	1	419	floatzel	0	1	0	1	26	29	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	2	143	snorlax	0	0	0	10	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	3	143	snorlax	0	1	0	1	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	4	426	drifblim	0	0	0	100	28	31	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	5	426	drifblim	0	1	0	1	28	31	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	6	428	lopunny	0	0	0	20	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	7	428	lopunny	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	8	404	luxio	0	0	0	100	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	9	404	luxio	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	10	405	luxray	0	0	0	40	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	11	405	luxray	0	1	0	1	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	12	214	heracross	0	0	0	30	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	13	214	heracross	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	14	133	eevee	0	0	0	50	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	15	133	eevee	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	16	197	umbreon	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	17	197	umbreon	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	64aecfc1e9c3d9f1	main	18	136	flareon	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	64aecfc1e9c3d9f1	main	19	136	flareon	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36682b13a120494	sub	0	137	porygon	0	0	0	100	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36682b13a120494	sub	1	137	porygon	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36682b13a120494	sub	2	233	porygon2	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36682b13a120494	sub	3	233	porygon2	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36682b13a120494	sub	4	474	porygon-z	0	0	0	5	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36682b13a120494	sub	5	474	porygon-z	0	1	0	1	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36682b13a120494	sub	6	155	cyndaquil	0	0	0	100	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36682b13a120494	sub	7	155	cyndaquil	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36682b13a120494	sub	8	156	quilava	0	0	0	50	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36682b13a120494	sub	9	156	quilava	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36682b13a120494	sub	10	157	typhlosion	1	0	0	5	36	39	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36682b13a120494	sub	11	157	typhlosion	1	1	0	1	36	39	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36683b13a120647	sub	0	137	porygon	0	0	0	100	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36683b13a120647	sub	1	137	porygon	0	1	0	1	20	23	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36683b13a120647	sub	2	233	porygon2	0	0	0	10	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36683b13a120647	sub	3	233	porygon2	0	1	0	1	25	28	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area02	e36683b13a120647	sub	4	474	porygon-z	0	0	0	5	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area02	e36683b13a120647	sub	5	474	porygon-z	0	1	0	1	30	33	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_02_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	0	64	kadabra	0	0	0	100	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	1	64	kadabra	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	2	65	alakazam	0	0	0	10	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	3	65	alakazam	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	4	112	rhydon	0	0	0	100	42	45	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	5	112	rhydon	0	1	0	1	42	45	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	6	464	rhyperior	0	0	0	10	42	45	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	7	464	rhyperior	0	1	0	1	42	45	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	8	435	skuntank	0	0	0	100	34	37	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	9	435	skuntank	0	1	0	1	34	37	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	10	455	carnivine	0	0	0	100	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	11	455	carnivine	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	12	122	mr-mime	0	0	0	100	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	13	122	mr-mime	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	14	133	eevee	0	0	0	50	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	15	133	eevee	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	16	134	vaporeon	0	0	0	10	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	17	134	vaporeon	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	64aecfc1e9c3d9f1	main	18	136	flareon	0	0	0	10	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	64aecfc1e9c3d9f1	main	19	136	flareon	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	e36683b13a120647	sub	0	81	magnemite	0	0	0	100	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	e36683b13a120647	sub	1	81	magnemite	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	e36683b13a120647	sub	2	82	magneton	0	0	0	50	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	e36683b13a120647	sub	3	82	magneton	0	1	0	1	30	33	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area03	e36683b13a120647	sub	4	462	magnezone	0	0	0	10	35	38	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area03	e36683b13a120647	sub	5	462	magnezone	0	1	0	1	35	38	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_03_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	0	126	magmar	0	0	0	100	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	1	126	magmar	0	1	0	1	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	2	467	magmortar	0	0	0	10	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	3	467	magmortar	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	4	356	dusclops	0	0	0	100	37	40	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	5	356	dusclops	0	1	0	1	37	40	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	6	477	dusknoir	0	0	0	10	45	48	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	7	477	dusknoir	0	1	0	1	45	48	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	8	224	octillery	0	0	0	100	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	9	224	octillery	0	1	0	1	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	10	452	drapion	0	0	0	100	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	11	452	drapion	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	12	424	ambipom	0	0	0	40	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	13	424	ambipom	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	14	133	eevee	0	0	0	50	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	15	133	eevee	0	1	0	1	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	16	135	jolteon	0	0	0	10	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	17	135	jolteon	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	64aecfc1e9c3d9f1	main	18	700	sylveon	0	0	0	10	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	64aecfc1e9c3d9f1	main	19	700	sylveon	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36682b13a120494	sub	0	408	cranidos	0	0	0	100	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36682b13a120494	sub	1	408	cranidos	0	1	0	1	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36682b13a120494	sub	2	409	rampardos	0	0	0	10	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36682b13a120494	sub	3	409	rampardos	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36682b13a120494	sub	4	410	shieldon	0	0	0	100	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36682b13a120494	sub	5	410	shieldon	0	1	0	1	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36682b13a120494	sub	6	411	bastiodon	0	0	0	10	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36682b13a120494	sub	7	411	bastiodon	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36682b13a120494	sub	8	722	rowlet	0	0	0	100	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36682b13a120494	sub	9	722	rowlet	0	1	0	1	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36682b13a120494	sub	10	723	dartrix	0	0	0	50	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36682b13a120494	sub	11	723	dartrix	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36682b13a120494	sub	12	724	decidueye	1	0	0	5	45	48	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36682b13a120494	sub	13	724	decidueye	1	1	0	1	45	48	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36683b13a120647	sub	0	408	cranidos	0	0	0	100	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36683b13a120647	sub	1	408	cranidos	0	1	0	1	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36683b13a120647	sub	2	409	rampardos	0	0	0	10	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36683b13a120647	sub	3	409	rampardos	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36683b13a120647	sub	4	410	shieldon	0	0	0	100	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36683b13a120647	sub	5	410	shieldon	0	1	0	1	35	38	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area04	e36683b13a120647	sub	6	411	bastiodon	0	0	0	10	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area04	e36683b13a120647	sub	7	411	bastiodon	0	1	0	1	40	43	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	0	125	electabuzz	0	0	0	100	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	1	125	electabuzz	0	1	0	2	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	2	466	electivire	0	0	0	10	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	3	466	electivire	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	4	25	pikachu	0	0	0	60	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	5	25	pikachu	0	1	0	2	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	6	26	raichu	0	0	0	20	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	7	26	raichu	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	8	364	sealeo	0	0	0	100	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	9	364	sealeo	0	1	0	2	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	10	365	walrein	0	0	0	80	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	11	365	walrein	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	12	78	rapidash	0	0	0	80	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	13	78	rapidash	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	14	465	tangrowth	0	0	0	40	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	15	465	tangrowth	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	16	123	scyther	0	0	0	100	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	17	123	scyther	0	1	0	1	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	18	133	eevee	0	0	0	50	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	19	133	eevee	0	1	0	1	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	20	471	glaceon	0	0	0	10	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	21	471	glaceon	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	64aecfc1e9c3d9f1	main	22	196	espeon	0	0	0	10	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	64aecfc1e9c3d9f1	main	23	196	espeon	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	e36682b13a120494	sub	0	212	scizor	0	0	0	100	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	e36682b13a120494	sub	1	212	scizor	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED
+ha_area05	e36682b13a120494	sub	2	501	oshawott	0	0	0	100	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	e36682b13a120494	sub	3	501	oshawott	0	1	0	1	45	48	group	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area05	e36682b13a120494	sub	4	502	dewott	0	0	0	50	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	e36682b13a120494	sub	5	502	dewott	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area05	e36682b13a120494	sub	6	503	samurott	1	0	0	5	55	58	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	e36682b13a120494	sub	7	503	samurott	1	1	0	1	55	58	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_04_CLEARED
+ha_area05	e36683b13a120647	sub	0	212	scizor	0	0	0	100	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	
+ha_area05	e36683b13a120647	sub	1	212	scizor	0	1	0	1	50	53	species	1	1	1	1	1	1	1	1	1	1	1	1	1,1,1,1,1,1,1,1,1,1,1,1	flag_condition?:equal:FSYS_NS_05_CLEARED

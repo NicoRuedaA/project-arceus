@@ -1,0 +1,125 @@
+# sheet: data/world_events_distortion_sites
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 space-time distortion sites (bin/field/param/placement/<area>/wormhole/wormhole.bin in bin/archive/field/resident_release.gfpak)
+# note: One row per record; `site` (Wormhole<site>_<variant>) is one dome location, `variant` one story stage. x,y,z: dome centre (area-local metres).
+# note: story_*: the record's phase_condition gate on WPHA_STORY (comparator unresolved when empty; min only on first/last variant).
+# note: item_table_key links world_events_distortion_items (VERIFIED: every key resolves). f4_raw/f5_raw are unexplained u32 fields.
+# note: spawners: main_/sub_ spawner names; FNV-1a 64 of each name equals a wh_spawner id (VERIFIED).
+area:string*	name:string*	site:string	variant:string	x:f32	y:f32	z:f32	story_flag:string	story_cmp:string?	story_min:string?	story_max:string?	item_table_key:string	f4_raw:u32	f5_raw:u32	point_count:u16	spawners:string
+ha_area01	Wormhole01_01	01	01	523.30	33.60	169.40	WPHA_STORY	less_than_equal	39999		fa126be4163aa9c0	1	30	127	main_whSpawner0101_01;sub_whSpawner0101_01;sub_whSpawner0102_01;sub_whSpawner0103_01
+ha_area01	Wormhole01_02	01	02	523.30	33.60	169.40	WPHA_STORY	between	40000	49999	fa126ee4163aaed9	1	30	127	main_whSpawner0101_02;sub_whSpawner0101_02;sub_whSpawner0102_02;sub_whSpawner0103_02
+ha_area01	Wormhole01_03	01	03	523.30	33.60	169.40	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	127	main_whSpawner0101_03;sub_whSpawner0101_03;sub_whSpawner0102_03;sub_whSpawner0103_03
+ha_area01	Wormhole01_04	01	04	523.30	33.60	169.40	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	127	main_whSpawner0101_04;sub_whSpawner0101_04;sub_whSpawner0102_04;sub_whSpawner0103_04
+ha_area01	Wormhole01_05	01	05	523.30	33.60	169.40	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	127	main_whSpawner0101_05;sub_whSpawner0101_05;sub_whSpawner0102_05;sub_whSpawner0103_05
+ha_area01	Wormhole01_06	01	06	523.30	33.60	169.40	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	127	main_whSpawner0101_06;sub_whSpawner0101_06;sub_whSpawner0102_06;sub_whSpawner0103_06
+ha_area01	Wormhole02_01	02	01	444.10	28.90	498.90	WPHA_STORY	less_than_equal	39999		fa126be4163aa9c0	1	30	125	main_whSpawner0201_01;sub_whSpawner0201_01;sub_whSpawner0202_01;sub_whSpawner0203_01
+ha_area01	Wormhole02_02	02	02	444.10	28.90	498.90	WPHA_STORY	between	40000	49999	fa126ee4163aaed9	1	30	125	main_whSpawner0201_02;sub_whSpawner0201_02;sub_whSpawner0202_02;sub_whSpawner0203_02
+ha_area01	Wormhole02_03	02	03	444.10	28.90	498.90	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	125	main_whSpawner0201_03;sub_whSpawner0201_03;sub_whSpawner0202_03;sub_whSpawner0203_03
+ha_area01	Wormhole02_04	02	04	444.10	28.90	498.90	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	125	main_whSpawner0201_04;sub_whSpawner0201_04;sub_whSpawner0202_04;sub_whSpawner0203_04
+ha_area01	Wormhole02_05	02	05	444.10	28.90	498.90	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	125	main_whSpawner0201_05;sub_whSpawner0201_05;sub_whSpawner0202_05;sub_whSpawner0203_05
+ha_area01	Wormhole02_06	02	06	444.10	28.90	498.90	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	125	main_whSpawner0201_06;sub_whSpawner0201_06;sub_whSpawner0202_06;sub_whSpawner0203_06
+ha_area01	Wormhole03_01	03	01	641.60	33.70	706.80	WPHA_STORY	less_than_equal	39999		fa126be4163aa9c0	1	30	128	main_whSpawner0301_01;sub_whSpawner0301_01;sub_whSpawner0302_01;sub_whSpawner0303_01
+ha_area01	Wormhole03_02	03	02	641.60	33.70	706.80	WPHA_STORY	between	40000	49999	fa126ee4163aaed9	1	30	128	main_whSpawner0301_02;sub_whSpawner0301_02;sub_whSpawner0302_02;sub_whSpawner0303_02
+ha_area01	Wormhole03_03	03	03	641.60	33.70	706.80	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	128	main_whSpawner0301_03;sub_whSpawner0301_03;sub_whSpawner0302_03;sub_whSpawner0303_03
+ha_area01	Wormhole03_04	03	04	641.60	33.70	706.80	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	128	main_whSpawner0301_04;sub_whSpawner0301_04;sub_whSpawner0302_04;sub_whSpawner0303_04
+ha_area01	Wormhole03_05	03	05	641.60	33.70	706.80	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	128	main_whSpawner0301_05;sub_whSpawner0301_05;sub_whSpawner0302_05;sub_whSpawner0303_05
+ha_area01	Wormhole03_06	03	06	641.60	33.70	706.80	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	128	main_whSpawner0301_06;sub_whSpawner0301_06;sub_whSpawner0302_06;sub_whSpawner0303_06
+ha_area01	Wormhole05_01	05	01	149.30	34.10	760.80	WPHA_STORY	less_than_equal	39999		fa126be4163aa9c0	1	30	128	main_whSpawner0501_01;sub_whSpawner0501_01;sub_whSpawner0502_01;sub_whSpawner0503_01
+ha_area01	Wormhole05_02	05	02	149.30	34.10	760.80	WPHA_STORY	between	40000	49999	fa126ee4163aaed9	1	30	128	main_whSpawner0501_02;sub_whSpawner0501_02;sub_whSpawner0502_02;sub_whSpawner0503_02
+ha_area01	Wormhole05_03	05	03	149.30	34.10	760.80	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	128	main_whSpawner0501_03;sub_whSpawner0501_03;sub_whSpawner0502_03;sub_whSpawner0503_03
+ha_area01	Wormhole05_04	05	04	149.30	34.10	760.80	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	128	main_whSpawner0501_04;sub_whSpawner0501_04;sub_whSpawner0502_04;sub_whSpawner0503_04
+ha_area01	Wormhole05_05	05	05	149.30	34.10	760.80	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	128	main_whSpawner0501_05;sub_whSpawner0501_05;sub_whSpawner0502_05;sub_whSpawner0503_05
+ha_area01	Wormhole05_06	05	06	149.30	34.10	760.80	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	128	main_whSpawner0501_06;sub_whSpawner0501_06;sub_whSpawner0502_06;sub_whSpawner0503_06
+ha_area02	Wormhole01_01	01	01	852.80	37.49	719.50	WPHA_STORY	less_than_equal	39999		fa126be4163aa9c0	1	30	124	main_whSpawner0101_01;sub_whSpawner0101_01;sub_whSpawner0102_01;sub_whSpawner0103_01
+ha_area02	Wormhole01_02	01	02	852.80	37.49	719.50	WPHA_STORY	between	40000	49999	fa126ee4163aaed9	1	30	124	main_whSpawner0101_02;sub_whSpawner0101_02;sub_whSpawner0102_02;sub_whSpawner0103_02
+ha_area02	Wormhole01_03	01	03	852.80	37.49	719.50	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	124	main_whSpawner0101_03;sub_whSpawner0101_03;sub_whSpawner0102_03;sub_whSpawner0103_03
+ha_area02	Wormhole01_04	01	04	852.80	37.49	719.50	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	124	main_whSpawner0101_04;sub_whSpawner0101_04;sub_whSpawner0102_04;sub_whSpawner0103_04
+ha_area02	Wormhole01_05	01	05	852.80	37.49	719.50	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	124	main_whSpawner0101_05;sub_whSpawner0101_05;sub_whSpawner0102_05;sub_whSpawner0103_05
+ha_area02	Wormhole01_06	01	06	852.80	37.49	719.50	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	124	main_whSpawner0101_06;sub_whSpawner0101_06;sub_whSpawner0102_06;sub_whSpawner0103_06
+ha_area02	Wormhole03_01	03	01	435.70	37.20	887.60	WPHA_STORY	between	45000	49999	fa126ee4163aaed9	1	30	128	main_whSpawner0301_01;sub_whSpawner0301_01;sub_whSpawner0302_01;sub_whSpawner0303_01
+ha_area02	Wormhole03_02	03	02	435.70	37.20	887.60	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	128	main_whSpawner0301_02;sub_whSpawner0301_02;sub_whSpawner0302_02;sub_whSpawner0303_02
+ha_area02	Wormhole03_03	03	03	435.70	37.20	887.60	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	128	main_whSpawner0301_03;sub_whSpawner0301_03;sub_whSpawner0302_03;sub_whSpawner0303_03
+ha_area02	Wormhole03_04	03	04	435.70	37.20	887.60	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	128	main_whSpawner0301_04;sub_whSpawner0301_04;sub_whSpawner0302_04;sub_whSpawner0303_04
+ha_area02	Wormhole03_05	03	05	435.70	37.20	887.60	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	128	main_whSpawner0301_05;sub_whSpawner0301_05;sub_whSpawner0302_05;sub_whSpawner0303_05
+ha_area02	Wormhole04_01	04	01	733.10	37.10	807.70	WPHA_STORY	less_than_equal	39999		fa126be4163aa9c0	1	30	126	main_whSpawner0401_01;sub_whSpawner0401_01;sub_whSpawner0402_01;sub_whSpawner0403_01
+ha_area02	Wormhole04_02	04	02	733.10	37.10	807.70	WPHA_STORY	between	40000	49999	fa126ee4163aaed9	1	30	126	main_whSpawner0401_02;sub_whSpawner0401_02;sub_whSpawner0402_02;sub_whSpawner0403_02
+ha_area02	Wormhole04_03	04	03	733.10	37.10	807.70	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	126	main_whSpawner0401_03;sub_whSpawner0401_03;sub_whSpawner0402_03;sub_whSpawner0403_03
+ha_area02	Wormhole04_04	04	04	733.10	37.10	807.70	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	126	main_whSpawner0401_04;sub_whSpawner0401_04;sub_whSpawner0402_04;sub_whSpawner0403_04
+ha_area02	Wormhole04_05	04	05	733.10	37.10	807.70	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	126	main_whSpawner0401_05;sub_whSpawner0401_05;sub_whSpawner0402_05;sub_whSpawner0403_05
+ha_area02	Wormhole04_06	04	06	733.10	37.10	807.70	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	126	main_whSpawner0401_06;sub_whSpawner0401_06;sub_whSpawner0402_06;sub_whSpawner0403_06
+ha_area02	Wormhole05_01	05	01	814.00	67.60	462.30	WPHA_STORY	less_than_equal	39999		fa126be4163aa9c0	1	30	124	main_whSpawner0501_01;sub_whSpawner0501_01;sub_whSpawner0502_01;sub_whSpawner0503_01
+ha_area02	Wormhole05_02	05	02	814.00	67.60	462.30	WPHA_STORY	between	40000	49999	fa126ee4163aaed9	1	30	124	main_whSpawner0501_02;sub_whSpawner0501_02;sub_whSpawner0502_02;sub_whSpawner0503_02
+ha_area02	Wormhole05_03	05	03	814.00	67.60	462.30	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	124	main_whSpawner0501_03;sub_whSpawner0501_03;sub_whSpawner0502_03;sub_whSpawner0503_03
+ha_area02	Wormhole05_04	05	04	814.00	67.60	462.30	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	124	main_whSpawner0501_04;sub_whSpawner0501_04;sub_whSpawner0502_04;sub_whSpawner0503_04
+ha_area02	Wormhole05_05	05	05	814.00	67.60	462.30	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	124	main_whSpawner0501_05;sub_whSpawner0501_05;sub_whSpawner0502_05;sub_whSpawner0503_05
+ha_area02	Wormhole05_06	05	06	814.00	67.60	462.30	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	124	main_whSpawner0501_06;sub_whSpawner0501_06;sub_whSpawner0502_06;sub_whSpawner0503_06
+ha_area02	Wormhole06_01	06	01	278.40	41.40	640.10	WPHA_STORY	less_than_equal	39999		fa126be4163aa9c0	1	30	125	main_whSpawner0601_01;sub_whSpawner0601_01;sub_whSpawner0602_01;sub_whSpawner0603_01
+ha_area02	Wormhole06_02	06	02	278.40	41.40	640.10	WPHA_STORY	between	40000	49999	fa126ee4163aaed9	1	30	125	main_whSpawner0601_02;sub_whSpawner0601_02;sub_whSpawner0602_02;sub_whSpawner0603_02
+ha_area02	Wormhole06_03	06	03	278.40	41.40	640.10	WPHA_STORY	between	50000	59999	fa126de4163aad26	1	30	125	main_whSpawner0601_03;sub_whSpawner0601_03;sub_whSpawner0602_03;sub_whSpawner0603_03
+ha_area02	Wormhole06_04	06	04	278.40	41.40	640.10	WPHA_STORY	between	60000	69999	fa1270e4163ab23f	1	30	125	main_whSpawner0601_04;sub_whSpawner0601_04;sub_whSpawner0602_04;sub_whSpawner0603_04
+ha_area02	Wormhole06_05	06	05	278.40	41.40	640.10	WPHA_STORY	between	70000	99999	fa126fe4163ab08c	1	30	125	main_whSpawner0601_05;sub_whSpawner0601_05;sub_whSpawner0602_05;sub_whSpawner0603_05
+ha_area02	Wormhole06_06	06	06	278.40	41.40	640.10	WPHA_STORY	greater_than_equal	100000		fa1272e4163ab5a5	1	30	125	main_whSpawner0601_06;sub_whSpawner0601_06;sub_whSpawner0602_06;sub_whSpawner0603_06
+ha_area03	Wormhole01_01	01	01	231.70	27.30	517.20	WPHA_STORY	less_than_equal	49999		fa126be4163aa9c0	1	30	126	main_whSpawner0101_01;sub_whSpawner0101_01;sub_whSpawner0102_01;sub_whSpawner0103_01
+ha_area03	Wormhole01_02	01	02	231.70	27.30	517.20	WPHA_STORY	between	50000	59999	fa126ee4163aaed9	1	30	126	main_whSpawner0101_02;sub_whSpawner0101_02;sub_whSpawner0102_02;sub_whSpawner0103_02
+ha_area03	Wormhole01_03	01	03	231.70	27.30	517.20	WPHA_STORY	between	60000	69999	fa126de4163aad26	1	30	126	main_whSpawner0101_03;sub_whSpawner0101_03;sub_whSpawner0102_03;sub_whSpawner0103_03
+ha_area03	Wormhole01_04	01	04	231.70	27.30	517.20	WPHA_STORY	between	70000	99999	fa1270e4163ab23f	1	30	126	main_whSpawner0101_04;sub_whSpawner0101_04;sub_whSpawner0102_04;sub_whSpawner0103_04
+ha_area03	Wormhole01_05	01	05	231.70	27.30	517.20	WPHA_STORY	greater_than_equal	100000		fa126fe4163ab08c	1	30	126	main_whSpawner0101_05;sub_whSpawner0101_05;sub_whSpawner0102_05;sub_whSpawner0103_05
+ha_area03	Wormhole02_01	02	01	243.80	27.80	742.40	WPHA_STORY	less_than_equal	49999		fa126be4163aa9c0	1	30	127	main_whSpawner0201_01;sub_whSpawner0201_01;sub_whSpawner0202_01;sub_whSpawner0203_01
+ha_area03	Wormhole02_02	02	02	243.80	27.80	742.40	WPHA_STORY	between	50000	59999	fa126ee4163aaed9	1	30	127	main_whSpawner0201_02;sub_whSpawner0201_02;sub_whSpawner0202_02;sub_whSpawner0203_02
+ha_area03	Wormhole02_03	02	03	243.80	27.80	742.40	WPHA_STORY	between	60000	69999	fa126de4163aad26	1	30	127	main_whSpawner0201_03;sub_whSpawner0201_03;sub_whSpawner0202_03;sub_whSpawner0203_03
+ha_area03	Wormhole02_04	02	04	243.80	27.80	742.40	WPHA_STORY	between	70000	99999	fa1270e4163ab23f	1	30	127	main_whSpawner0201_04;sub_whSpawner0201_04;sub_whSpawner0202_04;sub_whSpawner0203_04
+ha_area03	Wormhole02_05	02	05	243.80	27.80	742.40	WPHA_STORY	greater_than_equal	100000		fa126fe4163ab08c	1	30	127	main_whSpawner0201_05;sub_whSpawner0201_05;sub_whSpawner0202_05;sub_whSpawner0203_05
+ha_area03	Wormhole03_01	03	01	609.61	29.46	886.07	WPHA_STORY	less_than_equal	49999		fa126be4163aa9c0	1	30	87	main_whSpawner0301_01;sub_whSpawner0301_01;sub_whSpawner0302_01;sub_whSpawner0303_01
+ha_area03	Wormhole03_02	03	02	609.61	29.46	886.07	WPHA_STORY	between	50000	59999	fa126ee4163aaed9	1	30	87	main_whSpawner0301_02;sub_whSpawner0301_02;sub_whSpawner0302_02;sub_whSpawner0303_02
+ha_area03	Wormhole03_03	03	03	609.61	29.46	886.07	WPHA_STORY	between	60000	69999	fa126de4163aad26	1	30	87	main_whSpawner0301_03;sub_whSpawner0301_03;sub_whSpawner0302_03;sub_whSpawner0303_03
+ha_area03	Wormhole03_04	03	04	609.61	29.46	886.07	WPHA_STORY	between	70000	99999	fa1270e4163ab23f	1	30	87	main_whSpawner0301_04;sub_whSpawner0301_04;sub_whSpawner0302_04;sub_whSpawner0303_04
+ha_area03	Wormhole03_05	03	05	609.61	29.46	886.07	WPHA_STORY	greater_than_equal	100000		fa126fe4163ab08c	1	30	87	main_whSpawner0301_05;sub_whSpawner0301_05;sub_whSpawner0302_05;sub_whSpawner0303_05
+ha_area03	Wormhole04_01	04	01	277.50	39.10	174.30	WPHA_STORY	between	45000	49999	fa126be4163aa9c0	1	30	127	main_whSpawner0401_01;sub_whSpawner0401_01;sub_whSpawner0402_01;sub_whSpawner0403_01
+ha_area03	Wormhole04_02	04	02	277.50	39.10	174.30	WPHA_STORY	between	50000	59999	fa126ee4163aaed9	1	30	128	main_whSpawner0401_02;sub_whSpawner0401_02;sub_whSpawner0402_02;sub_whSpawner0403_02
+ha_area03	Wormhole04_03	04	03	277.50	39.10	174.30	WPHA_STORY	between	60000	69999	fa126de4163aad26	1	30	128	main_whSpawner0401_03;sub_whSpawner0401_03;sub_whSpawner0402_03;sub_whSpawner0403_03
+ha_area03	Wormhole04_04	04	04	277.50	39.10	174.30	WPHA_STORY	between	70000	99999	fa1270e4163ab23f	1	30	128	main_whSpawner0401_04;sub_whSpawner0401_04;sub_whSpawner0402_04;sub_whSpawner0403_04
+ha_area03	Wormhole04_05	04	05	277.50	39.10	174.30	WPHA_STORY	greater_than_equal	100000		fa126fe4163ab08c	1	30	128	main_whSpawner0401_05;sub_whSpawner0401_05;sub_whSpawner0402_05;sub_whSpawner0403_05
+ha_area03	Wormhole05_01	05	01	322.30	72.80	352.30	WPHA_STORY	less_than_equal	49999		fa126be4163aa9c0	1	30	127	main_whSpawner0501_01;sub_whSpawner0501_01;sub_whSpawner0502_01;sub_whSpawner0503_01
+ha_area03	Wormhole05_02	05	02	322.30	72.80	352.30	WPHA_STORY	between	50000	59999	fa126ee4163aaed9	1	30	127	main_whSpawner0501_02;sub_whSpawner0501_02;sub_whSpawner0502_02;sub_whSpawner0503_02
+ha_area03	Wormhole05_03	05	03	322.30	72.80	352.30	WPHA_STORY	between	60000	69999	fa126de4163aad26	1	30	127	main_whSpawner0501_03;sub_whSpawner0501_03;sub_whSpawner0502_03;sub_whSpawner0503_03
+ha_area03	Wormhole05_04	05	04	322.30	72.80	352.30	WPHA_STORY	between	70000	99999	fa1270e4163ab23f	1	30	127	main_whSpawner0501_04;sub_whSpawner0501_04;sub_whSpawner0502_04;sub_whSpawner0503_04
+ha_area03	Wormhole05_05	05	05	322.30	72.80	352.30	WPHA_STORY	greater_than_equal	100000		fa126fe4163ab08c	1	30	127	main_whSpawner0501_05;sub_whSpawner0501_05;sub_whSpawner0502_05;sub_whSpawner0503_05
+ha_area04	Wormhole01_01	01	01	601.50	70.00	691.30	WPHA_STORY	less_than_equal	59999		fa126be4163aa9c0	1	30	123	main_whSpawner0101_01;sub_whSpawner0101_01;sub_whSpawner0102_01;sub_whSpawner0103_01
+ha_area04	Wormhole01_02	01	02	601.50	70.00	691.30	WPHA_STORY	between	60000	69999	fa126ee4163aaed9	1	30	123	main_whSpawner0101_02;sub_whSpawner0101_02;sub_whSpawner0102_02;sub_whSpawner0103_02
+ha_area04	Wormhole01_03	01	03	601.50	70.00	691.30	WPHA_STORY	between	70000	99999	fa126de4163aad26	1	30	123	main_whSpawner0101_03;sub_whSpawner0101_03;sub_whSpawner0102_03;sub_whSpawner0103_03
+ha_area04	Wormhole01_04	01	04	601.50	70.00	691.30	WPHA_STORY	greater_than_equal	100000		fa1270e4163ab23f	1	30	123	main_whSpawner0101_04;sub_whSpawner0101_04;sub_whSpawner0102_04;sub_whSpawner0103_04
+ha_area04	Wormhole02_01	02	01	530.00	86.10	818.90	WPHA_STORY	between	55000	59999	fa126be4163aa9c0	1	30	120	main_whSpawner0201_01;sub_whSpawner0201_01;sub_whSpawner0202_01;sub_whSpawner0203_01
+ha_area04	Wormhole02_02	02	02	530.00	86.10	818.90	WPHA_STORY	between	60000	69999	fa126ee4163aaed9	1	30	120	main_whSpawner0201_02;sub_whSpawner0201_02;sub_whSpawner0202_02;sub_whSpawner0203_02
+ha_area04	Wormhole02_03	02	03	530.00	86.10	818.90	WPHA_STORY	between	70000	99999	fa126de4163aad26	1	30	120	main_whSpawner0201_03;sub_whSpawner0201_03;sub_whSpawner0202_03;sub_whSpawner0203_03
+ha_area04	Wormhole02_04	02	04	530.00	86.10	818.90	WPHA_STORY	greater_than_equal	100000		fa1270e4163ab23f	1	30	120	main_whSpawner0201_04;sub_whSpawner0201_04;sub_whSpawner0202_04;sub_whSpawner0203_04
+ha_area04	Wormhole03_01	03	01	463.33	124.25	498.05	WPHA_STORY	less_than_equal	59999		fa126be4163aa9c0	1	30	123	main_whSpawner0301_01;sub_whSpawner0301_01;sub_whSpawner0302_01;sub_whSpawner0303_01
+ha_area04	Wormhole03_02	03	02	463.33	124.25	498.05	WPHA_STORY	between	60000	69999	fa126ee4163aaed9	1	30	123	main_whSpawner0301_02;sub_whSpawner0301_02;sub_whSpawner0302_02;sub_whSpawner0303_02
+ha_area04	Wormhole03_03	03	03	463.33	124.25	498.05	WPHA_STORY	between	70000	99999	fa126de4163aad26	1	30	123	main_whSpawner0301_03;sub_whSpawner0301_03;sub_whSpawner0302_03;sub_whSpawner0303_03
+ha_area04	Wormhole03_04	03	04	463.33	124.25	498.05	WPHA_STORY	greater_than_equal	100000		fa1270e4163ab23f	1	30	123	main_whSpawner0301_04;sub_whSpawner0301_04;sub_whSpawner0302_04;sub_whSpawner0303_04
+ha_area04	Wormhole05_01	05	01	308.52	136.11	598.43	WPHA_STORY	less_than_equal	59999		fa126be4163aa9c0	1	30	125	main_whSpawner0501_01;sub_whSpawner0501_01;sub_whSpawner0502_01;sub_whSpawner0503_01
+ha_area04	Wormhole05_02	05	02	308.52	136.11	598.43	WPHA_STORY	between	60000	69999	fa126ee4163aaed9	1	30	125	main_whSpawner0501_02;sub_whSpawner0501_02;sub_whSpawner0502_02;sub_whSpawner0503_02
+ha_area04	Wormhole05_03	05	03	308.52	136.11	598.43	WPHA_STORY	between	70000	99999	fa126de4163aad26	1	30	125	main_whSpawner0501_03;sub_whSpawner0501_03;sub_whSpawner0502_03;sub_whSpawner0503_03
+ha_area04	Wormhole05_04	05	04	308.52	136.11	598.43	WPHA_STORY	greater_than_equal	100000		fa1270e4163ab23f	1	30	125	main_whSpawner0501_04;sub_whSpawner0501_04;sub_whSpawner0502_04;sub_whSpawner0503_04
+ha_area04	Wormhole06_01	06	01	194.40	117.30	644.30	WPHA_STORY	less_than_equal	59999		fa126be4163aa9c0	1	30	124	main_whSpawner0601_01;sub_whSpawner0601_01;sub_whSpawner0602_01;sub_whSpawner0603_01
+ha_area04	Wormhole06_02	06	02	194.40	117.30	644.30	WPHA_STORY	between	60000	69999	fa126ee4163aaed9	1	30	124	main_whSpawner0601_02;sub_whSpawner0601_02;sub_whSpawner0602_02;sub_whSpawner0603_02
+ha_area04	Wormhole06_03	06	03	194.40	117.30	644.30	WPHA_STORY	between	70000	99999	fa126de4163aad26	1	30	124	main_whSpawner0601_03;sub_whSpawner0601_03;sub_whSpawner0602_03;sub_whSpawner0603_03
+ha_area04	Wormhole06_04	06	04	194.40	117.30	644.30	WPHA_STORY	greater_than_equal	100000		fa1270e4163ab23f	1	30	124	main_whSpawner0601_04;sub_whSpawner0601_04;sub_whSpawner0602_04;sub_whSpawner0603_04
+ha_area05	Wormhole01_01	01	01	671.80	36.00	535.00	WPHA_STORY	less_than_equal	69999		fa126be4163aa9c0	1	30	126	main_whSpawner0101_01;sub_whSpawner0101_01;sub_whSpawner0102_01;sub_whSpawner0103_01
+ha_area05	Wormhole01_02	01	02	671.80	36.00	535.00	WPHA_STORY	between	70000	99999	fa126ee4163aaed9	1	30	126	main_whSpawner0101_02;sub_whSpawner0101_02;sub_whSpawner0102_02;sub_whSpawner0103_02
+ha_area05	Wormhole01_03	01	03	671.80	36.00	535.00	WPHA_STORY	greater_than_equal	100000		fa126de4163aad26	1	30	126	main_whSpawner0101_03;sub_whSpawner0101_03;sub_whSpawner0102_03;sub_whSpawner0103_03
+ha_area05	Wormhole02_01	02	01	464.70	35.00	495.50	WPHA_STORY	less_than_equal	69999		fa126be4163aa9c0	1	30	124	main_whSpawner0201_01;sub_whSpawner0201_01;sub_whSpawner0202_01;sub_whSpawner0203_01
+ha_area05	Wormhole02_02	02	02	464.70	35.00	495.50	WPHA_STORY	between	70000	99999	fa126ee4163aaed9	1	30	124	main_whSpawner0201_02;sub_whSpawner0201_02;sub_whSpawner0202_02;sub_whSpawner0203_02
+ha_area05	Wormhole02_03	02	03	464.70	35.00	495.50	WPHA_STORY	greater_than_equal	100000		fa126de4163aad26	1	30	124	main_whSpawner0201_03;sub_whSpawner0201_03;sub_whSpawner0202_03;sub_whSpawner0203_03
+ha_area05	Wormhole03_01	03	01	570.50	31.60	727.00	WPHA_STORY	less_than_equal	69999		fa126be4163aa9c0	1	30	124	main_whSpawner0301_01;sub_whSpawner0301_01;sub_whSpawner0302_01;sub_whSpawner0303_01
+ha_area05	Wormhole03_02	03	02	570.50	31.60	727.00	WPHA_STORY	between	70000	99999	fa126ee4163aaed9	1	30	124	main_whSpawner0301_02;sub_whSpawner0301_02;sub_whSpawner0302_02;sub_whSpawner0303_02
+ha_area05	Wormhole03_03	03	03	570.50	31.60	727.00	WPHA_STORY	greater_than_equal	100000		fa126de4163aad26	1	30	124	main_whSpawner0301_03;sub_whSpawner0301_03;sub_whSpawner0302_03;sub_whSpawner0303_03
+ha_area05	Wormhole04_01	04	01	365.40	33.60	650.40	WPHA_STORY	less_than_equal	69999		fa126be4163aa9c0	1	30	122	main_whSpawner0401_01;sub_whSpawner0401_01;sub_whSpawner0402_01;sub_whSpawner0403_01
+ha_area05	Wormhole04_02	04	02	365.40	33.60	650.40	WPHA_STORY	between	70000	99999	fa126ee4163aaed9	1	30	122	main_whSpawner0401_02;sub_whSpawner0401_02;sub_whSpawner0402_02;sub_whSpawner0403_02
+ha_area05	Wormhole04_03	04	03	365.40	33.60	650.40	WPHA_STORY	greater_than_equal	100000		fa126de4163aad26	1	30	122	main_whSpawner0401_03;sub_whSpawner0401_03;sub_whSpawner0402_03;sub_whSpawner0403_03
+ha_area05	Wormhole06_01	06	01	830.40	30.10	382.80	WPHA_STORY	less_than_equal	69999		fa126be4163aa9c0	1	30	128	main_whSpawner0601_01;sub_whSpawner0601_01;sub_whSpawner0602_01;sub_whSpawner0603_01
+ha_area05	Wormhole06_02	06	02	830.40	30.10	382.80	WPHA_STORY	between	70000	99999	fa126ee4163aaed9	1	30	128	main_whSpawner0601_02;sub_whSpawner0601_02;sub_whSpawner0602_02;sub_whSpawner0603_02
+ha_area05	Wormhole06_03	06	03	830.40	30.10	382.80	WPHA_STORY	greater_than_equal	100000		fa126de4163aad26	1	30	128	main_whSpawner0601_03;sub_whSpawner0601_03;sub_whSpawner0602_03;sub_whSpawner0603_03
+ha_area05	Wormhole07_01	07	01	190.80	33.45	672.40	WPHA_STORY	less_than_equal	69999		fa126be4163aa9c0	1	30	123	main_whSpawner0701_01;sub_whSpawner0701_01;sub_whSpawner0702_01;sub_whSpawner0703_01
+ha_area05	Wormhole07_02	07	02	190.80	33.45	672.40	WPHA_STORY	between	70000	99999	fa126ee4163aaed9	1	30	123	main_whSpawner0701_02;sub_whSpawner0701_02;sub_whSpawner0702_02;sub_whSpawner0703_02
+ha_area05	Wormhole07_03	07	03	190.80	33.45	672.40	WPHA_STORY	greater_than_equal	100000		fa126de4163aad26	1	30	123	main_whSpawner0701_03;sub_whSpawner0701_03;sub_whSpawner0702_03;sub_whSpawner0703_03
