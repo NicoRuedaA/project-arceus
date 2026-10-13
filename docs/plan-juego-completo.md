@@ -36,7 +36,7 @@ Documento escrito el 2026-10-12. Está en español porque lo pidió el usuario p
 | Terreno con color real, sombras, cielo y nubes | Hecho | | Valores de la iluminación aproximados por nosotros |
 | Relieve (normales) del terreno | Falta | 1 | Ya se exportan, el visor no las usa |
 | Bloom, oclusión ambiental, reflejos | Falta | 1 a 2 | Una dependencia no está disponible sin conexión |
-| Noche más oscura | Parcial | 1 | |
+| Noche más oscura | Hecho | | Respuesta nocturna en `render_look.rs`, valores SUPUESTOS; medido en un render sin ventana de una escena sintética, pendiente de que el mantenedor lo mire a ojo |
 | Estilo de dibujo del original (sombreado, contornos) | Falta | 3 | |
 | Efectos de movimientos y partículas | Falta | 4 | Hay una carpeta `effect` sin explorar |
 | Modelos bloqueados (215 de escenario, 9 Pokémon sin esqueleto, 2 sin exportar) | Parcial | 2 | |
