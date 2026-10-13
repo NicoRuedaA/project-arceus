@@ -773,7 +773,7 @@
       },
       {
         "path": "crates/pla/src/game/world_events.rs",
-        "sha256": "ec5a6d27e3d54b0f3568bac808e68021d8ab6ecb42f454ba0de429e724bbca64"
+        "sha256": "6301abbf2367d78f5e24048d7f02108060d3f2f88f6c50a1df46f6b4131c5685"
       },
       {
         "path": "crates/pla/src/game/world_objects.rs",
@@ -917,7 +917,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "ed517e3cf6c522b85b8699febe372b36786e85cc1cb87929e9171ddfcb64d39f"
+    "sha256": "05c7bbba421edd5894cf74622dc89afdd4499a5ce5ce720d58cab28a32e32275"
   },
   "state_partitions": {
     "analysis_documentation_status": {
