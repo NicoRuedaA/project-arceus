@@ -704,6 +704,12 @@ fn main() -> ExitCode {
     app.add_plugins(pla::game::follower::FollowerPlugin);
     app.add_plugins(pla::game::capture_world::CaptureWorldPlugin);
     app.add_plugins(pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args());
+    app.add_plugins(pla::game::npc::NpcPlugin {
+        data_dir: None,
+        cache_root: std::env::var_os("PLA_CACHE_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT)),
+    });
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
     app.add_plugins(pla::game::audio::GameAudioPlugin::from_env_and_args());
     app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
