@@ -88,9 +88,9 @@ class FB:
 
     def strings(s, o): return [s.string(e) for e in s.vec(o)]
 
-    def triple(s, o):
+    def triple(s, o, default=0.0):
         f = s.fields(s.tab(o))
-        return [s.f32(f[k]) if k in f else 0.0 for k in range(3)]
+        return [s.f32(f[k]) if k in f else default for k in range(3)]
 
 
 def opt_str(f, fl, k): return f.string(fl[k]) if k in fl else ""
@@ -290,7 +290,8 @@ def decode_npcs(area, b, kind, recipes, names, pokes):
             il = f.fields(ins)
             pos = f.triple(il[7]) if 7 in il else [0.0] * 3
             rot = f.triple(il[8]) if 8 in il else [0.0] * 3
-            sc = f.triple(il[9]) if 9 in il else [1.0] * 3
+            # absent scale components = FlatBuffers default; 1.0 ASSUMED (every present component is 1.0)
+            sc = f.triple(il[9], 1.0) if 9 in il else [1.0] * 3
             ck, co = opt_u64(f, il, 0), opt_u64(f, il, 1)
             row = {
                 "area": area, "kind": kind, "key": key, "variant": vi, "variants": len(insts),
