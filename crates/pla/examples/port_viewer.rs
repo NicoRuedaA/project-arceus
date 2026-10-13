@@ -705,6 +705,8 @@ fn main() -> ExitCode {
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
     app.add_plugins(pla::game::player_motion::PlayerMotionPlugin);
+    app.add_plugins(pla::game::player_skills::PlayerSkillsPlugin);
+    app.add_plugins(pla::game::blink::BlinkPlugin);
     app.add_plugins(pla::game::interact::InteractPlugin);
     // Installed after InputMapPlugin: MainMenuPlugin adds that plugin itself when it is
     // missing, and Bevy panics when the same plugin is added twice.
@@ -787,7 +789,9 @@ fn main() -> ExitCode {
             controls_demo_driver,
         )
             .chain()
-            // Jump/fall/climb integrate after the horizontal locomotion of the frame.
+            // Crouch/dodge state is final before the movement reads it; jump/fall/climb
+            // integrate after the horizontal locomotion of the frame.
+            .after(pla::game::player_skills::PlayerSkillsSet)
             .before(pla::game::player_motion::PlayerMotionSet),
     );
     // Separate registration: the world tuple is already at Bevy's 20-system limit.
@@ -1530,6 +1534,7 @@ fn player_locomotion(
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
     motion_query: Query<&pla::game::player_motion::PlayerMotionState, With<PlayerAvatar>>,
+    mut skills_query: Query<&mut pla::game::player_skills::PlayerSkillState, With<PlayerAvatar>>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
     mut swim_query: Query<&mut PlayerSwim, With<PlayerAvatar>>,
 ) {
@@ -1547,7 +1552,35 @@ fn player_locomotion(
     let dt = time.delta_secs();
     let input_dir = input.move_axis();
 
-    if input_dir.length_squared() > 0.0 {
+    // Camera yaw defines the forward direction on the XZ plane.
+    let yaw = camera_ctrl.yaw;
+    let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
+    let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
+
+    // Dodge roll (game::player_skills): starts on a press (or a press buffered while airborne),
+    // towards the held direction or the facing; the skills module keeps the timer and the state.
+    if let Ok(mut sk) = skills_query.single_mut() {
+        if (input.just_pressed(Action::Dodge) || sk.dodge_buffer > 0.0) && !sk.dodging() {
+            let n = if input_dir.length() > 1.0 { input_dir.normalize() } else { input_dir };
+            let want = forward * n.y + right * n.x;
+            let facing3 = transform.rotation * Vec3::Z;
+            let can_roll = motion_mode == MotionMode::Grounded && !was_swimming;
+            let started = sk.begin_dodge(
+                can_roll,
+                Vec2::new(want.x, want.z),
+                Vec2::new(facing3.x, facing3.z),
+            );
+            if started == Some(pla::game::player_skills::DodgeDir::Forward) {
+                if let Some(d) = sk.dodge {
+                    transform.rotation = Quat::from_rotation_y(d.world_dir.x.atan2(d.world_dir.y));
+                }
+            }
+        }
+    }
+    let dodge = skills_query.single().ok().and_then(|s| s.dodge);
+    let crouching = skills_query.single().is_ok_and(|s| s.crouching());
+
+    if input_dir.length_squared() > 0.0 || dodge.is_some() {
         // Keyboard is digital (normalising a diagonal keeps full speed); the stick stays analog.
         let input_norm = if input_dir.length() > 1.0 {
             input_dir.normalize()
@@ -1559,7 +1592,14 @@ fn player_locomotion(
         // ground speed is scaled by the decoded control_airMoveRate (game::player_motion);
         // while climbing the vertical system holds the avatar in place horizontally.
         let ground_speed = if is_sprinting { 8.0 } else { 4.5 };
-        let speed = if was_swimming {
+        let ground_speed = if crouching {
+            pla::game::player_skills::crouch_speed(ground_speed)
+        } else {
+            ground_speed
+        };
+        let speed = if dodge.is_some() {
+            pla::game::player_skills::roll_speed()
+        } else if was_swimming {
             SWIM_SPEED
         } else if motion_mode == MotionMode::Airborne {
             pla::game::player_motion::air_speed(ground_speed)
@@ -1569,13 +1609,12 @@ fn player_locomotion(
             ground_speed
         };
 
-        // Camera yaw defines the forward direction on the XZ plane.
-        let yaw = camera_ctrl.yaw;
-        let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
-        let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
-
-        // Orthonormal basis: the vector magnitude is the input deflection (1 for keys).
-        let move_vec = forward * input_norm.y + right * input_norm.x;
+        // Orthonormal basis: the vector magnitude is the input deflection (1 for keys). A dodge
+        // roll ignores the stick and travels along its own direction.
+        let move_vec = match dodge {
+            Some(d) => Vec3::new(d.world_dir.x, 0.0, d.world_dir.y),
+            None => forward * input_norm.y + right * input_norm.x,
+        };
         let delta_xz = Vec2::new(move_vec.x * speed * dt, move_vec.z * speed * dt);
         let current_xz = Vec2::new(transform.translation.x, transform.translation.z);
         let target_xz = current_xz + delta_xz;
@@ -1628,9 +1667,15 @@ fn player_locomotion(
         transform.translation.x = final_xz.x;
         transform.translation.z = final_xz.y;
 
-        // Smoothly orient player avatar towards movement direction.
-        transform.rotation =
-            pla::game::player_anim::step_facing(transform.rotation, Vec2::new(move_vec.x, move_vec.z), dt);
+        // Smoothly orient player avatar towards movement direction (a side or back roll keeps
+        // the facing, the roll clip supplies the sidestep).
+        if dodge.is_none_or(|d| d.dir == pla::game::player_skills::DodgeDir::Forward) {
+            transform.rotation = pla::game::player_anim::step_facing(
+                transform.rotation,
+                Vec2::new(move_vec.x, move_vec.z),
+                dt,
+            );
+        }
     } else {
         stuck.blocked_secs = 0.0;
     }

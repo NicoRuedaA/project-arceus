@@ -29,8 +29,15 @@ bin/field/player/player_stamina_parameter.bin uses a different schema (two table
 of bare u64 hashes + numeric fields, no names); it is reported raw in
 reports/data-progress/player_moves.md, not in this sheet.
 
+A second sheet, data/character_face.tsv, holds the same layout for
+    bin/misc/app_config/character_blink_config.bin   (blink intervals, frames)
+    bin/misc/app_config/player_face_config.bin       (named facial expressions per situation)
+    bin/misc/app_config/character_look_at_config.bin (head / eye turn speeds)
+These three files decode with the identical walker (10 + 93 + 55 rows, all names non-empty).
+
 Usage:
     python3 .tools/player_config_decode.py [--root BIN_ROOT] [--out data/player_controller.tsv]
+                                           [--face-out data/character_face.tsv]
 """
 from __future__ import annotations
 
@@ -122,10 +129,50 @@ def decode(path: Path) -> list[dict[str, object]]:
     return rows
 
 
+FACE_FILES = [
+    ("misc/app_config/character_blink_config.bin", "character_blink_config"),
+    ("misc/app_config/player_face_config.bin", "player_face_config"),
+    ("misc/app_config/character_look_at_config.bin", "character_look_at_config"),
+]
+
+
+def write_sheet(path: Path, sheet: str, target: str, files, root: Path) -> int:
+    out = [
+        f"# sheet: {sheet}",
+        "# version: 1",
+        "# generator: .tools/player_config_decode.py",
+        f"# target: Pokemon Legends: Arceus v262144 {target}",
+        "# note: values are byte-exact strings from the file; `kind_hash` is the parameter table's u64",
+        "# note: field 1 (meaning UNKNOWN); `type_code` is the file's own type tag.",
+        "# note: units are LIKELY from the names (`*_frame` / `*_interval_*` are frames of an unknown tick",
+        "# note: rate; the port assumes 30 per second), not proven (reports/data-progress/player_skills.md).",
+        "\t".join(COLUMNS),
+    ]
+    n = 0
+    for rel, stem in files:
+        for row in decode(root / rel):
+            n += 1
+            out.append(
+                "\t".join(
+                    [stem, str(row["name"]), str(row["value"]).strip(), str(row["kind_hash"]),
+                     str(row["type_code"]), str(row["min"]), str(row["max"])]
+                )
+            )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(out) + "\n", encoding="utf8")
+    return n
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", type=Path, default=DEFAULT_BIN)
     ap.add_argument("--out", type=Path, default=Path("data/player_controller.tsv"))
+    ap.add_argument(
+        "--face-out",
+        type=Path,
+        default=Path("data/character_face.tsv"),
+        help="second sheet: blink intervals, player facial expressions, look-at speeds",
+    )
     a = ap.parse_args()
 
     missing = [rel for rel, _ in FILES if not (a.root / rel).is_file()]
@@ -167,6 +214,19 @@ def main() -> int:
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text("\n".join(out) + "\n", encoding="utf8")
     print(f"wrote {a.out} ({numeric} rows)")
+    missing = [rel for rel, _ in FACE_FILES if not (a.root / rel).is_file()]
+    if missing:
+        print(f"missing game files under {a.root}: {missing}", file=sys.stderr)
+        return 1
+    n = write_sheet(
+        a.face_out,
+        "data/character_face",
+        "character blink, player facial expression and look-at parameters "
+        "(bin/misc/app_config/character_blink_config.bin, player_face_config.bin, character_look_at_config.bin)",
+        FACE_FILES,
+        a.root,
+    )
+    print(f"wrote {a.face_out} ({n} rows)")
     return 0
 
 

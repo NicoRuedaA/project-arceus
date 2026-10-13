@@ -3,5 +3,5 @@
 # generator: crates/pla/examples/player_export.rs
 # target: Pokémon Legends: Arceus v262144 player character (default outfit parts merged onto the shared biped skeleton)
 model:string*	variant:string	status:enum	reason:string?	part_count:u8	primitive_count:u16	clip_count:u8	height_m:f32
-p1_default	p1	ok		6	26	9	1.493
-p2_default	p2	ok		6	32	9	1.459
+p1_default	p1	ok		6	26	17	1.493
+p2_default	p2	ok		6	32	17	1.459

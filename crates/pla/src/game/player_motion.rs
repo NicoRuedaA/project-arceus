@@ -506,7 +506,7 @@ mod tests {
         assert!(s.climbing() && s.climb == Some(c));
         s.end_climb();
         assert!(s.mode == MotionMode::Grounded && s.climb.is_none());
-        assert!(s.airborne() == false && s.climbing() == false);
+        assert!(!s.airborne() && !s.climbing());
     }
 
     // ---------------------------------------------------------- headless bevy

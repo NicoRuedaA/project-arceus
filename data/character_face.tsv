@@ -1,0 +1,167 @@
+# sheet: data/character_face
+# version: 1
+# generator: .tools/player_config_decode.py
+# target: Pokemon Legends: Arceus v262144 character blink, player facial expression and look-at parameters (bin/misc/app_config/character_blink_config.bin, player_face_config.bin, character_look_at_config.bin)
+# note: values are byte-exact strings from the file; `kind_hash` is the parameter table's u64
+# note: field 1 (meaning UNKNOWN); `type_code` is the file's own type tag.
+# note: units are LIKELY from the names (`*_frame` / `*_interval_*` are frames of an unknown tick
+# note: rate; the port assumes 30 per second), not proven (reports/data-progress/player_skills.md).
+file:string*	name:string*	value:string?	kind_hash:string	type_code:u32	min:string?	max:string?
+character_blink_config	player_blink_interval_min	30	7eb05ea826bffefb	18	0	600
+character_blink_config	player_blink_interval_max	150	7eb05ea826bffefb	4294967170	0	600
+character_blink_config	player_pinch_blink_interval_min	30	7eb05ea826bffefb	18	0	600
+character_blink_config	player_pinch_blink_interval_max	90	7eb05ea826bffefb	4294966882	0	600
+character_blink_config	pokemon_blink_interval_min	30	7eb05ea826bffefb	4294966754	0	600
+character_blink_config	pokemon_blink_interval_max	150	7eb05ea826bffefb	4294966626	0	600
+character_blink_config	npc_blink_interval_min	30	7eb05ea826bffefb	4294966778	0	600
+character_blink_config	npc_blink_interval_max	150	7eb05ea826bffefb	4294966650	0	600
+character_blink_config	ride_blink_interval_min	30	7eb05ea826bffefb	4294966522	0	600
+character_blink_config	ride_blink_interval_max	150	7eb05ea826bffefb	4294966394	0	600
+player_face_config	face_pinch_hard	anger	51ca52fdbbb50776	18		
+player_face_config	face_pinch_very_hard	trouble	51ca52fdbbb50776	4294967170		
+player_face_config	face_pinch_game_over	trouble	51ca52fdbbb50776	4294967042		
+player_face_config	face_bad_status_sleepy	unique2	51ca52fdbbb50776	4294966914		
+player_face_config	face_bad_status_confuse	trouble	51ca52fdbbb50776	4294966786		
+player_face_config	face_bad_status_ice	trouble	51ca52fdbbb50776	18		
+player_face_config	face_bad_status_paralysis	trouble	51ca52fdbbb50776	4294967162		
+player_face_config	face_bad_status_fire	anger	51ca52fdbbb50776	4294966378		
+player_face_config	face_vigilance	serious	51ca52fdbbb50776	4294966258		
+player_face_config	face_wild_poke_sleep_base	unique1	51ca52fdbbb50776	4294966778		
+player_face_config	face_wild_poke_reaction_base	unique1	51ca52fdbbb50776	4294965986		
+player_face_config	face_town_relax	unique1	51ca52fdbbb50776	4294965866		
+player_face_config	face_buddy_talk	unique1	51ca52fdbbb50776	4294965746		
+player_face_config	face_look_player_mode_buddy	unique1	51ca52fdbbb50776	4294966266		
+player_face_config	face_bad_status_poison	anger	51ca52fdbbb50776	4294965482		
+player_face_config	face_move_dirt_hard	trouble	51ca52fdbbb50776	4294966010		
+player_face_config	face_hide	serious	51ca52fdbbb50776	4294965890		
+player_face_config	face_look_warlike	serious	51ca52fdbbb50776	4294965762		
+player_face_config	face_look_capturing	serious	51ca52fdbbb50776	4294965634		
+player_face_config	face_damage	damage	51ca52fdbbb50776	4294965514		
+player_face_config	item_get_s_keep_frame	60	7eb05ea826bffefb	4294965386	1	300
+player_face_config	item_get_m_keep_frame	33	7eb05ea826bffefb	4294965258	1	300
+player_face_config	damage_keep_frame	20	7eb05ea826bffefb	4294964482	1	300
+player_face_config	damage_ride_keep_frame	75	7eb05ea826bffefb	4294965010	1	300
+player_face_config	ground_damage_keep_frame	60	7eb05ea826bffefb	4294964226	1	300
+player_face_config	face_battle_result_win	rejoice	51ca52fdbbb50776	4294964098		
+player_face_config	face_battle_result_lose	trouble	51ca52fdbbb50776	4294963970		
+player_face_config	capture_result_win_keep_frame	150	7eb05ea826bffefb	4294964490	1	300
+player_face_config	battle_result_win_keep_frame	90	7eb05ea826bffefb	4294964354	1	300
+player_face_config	battle_result_enemy_escape_keep_frame	90	7eb05ea826bffefb	4294964210	1	300
+player_face_config	battle_result_lose_keep_frame	120	7eb05ea826bffefb	4294964074	1	300
+player_face_config	dig_result_success_frame	150	7eb05ea826bffefb	4294963290	1	300
+player_face_config	dig_result_failure_frame	90	7eb05ea826bffefb	4294963162	1	300
+player_face_config	wormhole_in_keep_frame	150	7eb05ea826bffefb	4294963690	1	300
+player_face_config	face_wormhole_out	relief	51ca52fdbbb50776	4294963562		
+player_face_config	wormhole_out_keep_frame	30	7eb05ea826bffefb	4294963434	1	300
+player_face_config	surprise_keep_frame	20	7eb05ea826bffefb	4294962658	1	300
+player_face_config	happy_surprise_end_to_face	smile	51ca52fdbbb50776	4294963178		
+player_face_config	unhappy_surprise_end_to_face	sad	51ca52fdbbb50776	4294963042		
+player_face_config	rejoice_keep_frame	20	7eb05ea826bffefb	4294962266	1	300
+player_face_config	rejoice_end_to_face	unique1	51ca52fdbbb50776	4294962794		
+player_face_config	laugh_end_to_face	smile	51ca52fdbbb50776	4294962666		
+player_face_config	face_change_event_default_frame	90	7eb05ea826bffefb	4294962530	1	300
+player_face_config	face_default	normal	51ca52fdbbb50776	4294961754		
+player_face_config	buddy_ballout_action_result_success_keep_frame	30	7eb05ea826bffefb	4294962258	1	300
+player_face_config	buddy_ballout_action_result_failure_keep_frame	60	7eb05ea826bffefb	4294962106	1	300
+player_face_config	buddy_return_keep_frame	60	7eb05ea826bffefb	4294961978	1	300
+player_face_config	buddy_return_reaction_rate	0.7	a5c98482aa1be127	4294961194	0	1
+player_face_config	town_smile_percent	30	7eb05ea826bffefb	4294961074	0	100
+player_face_config	town_smile_look_keep_time	30	7eb05ea826bffefb	4294960946	0	100
+player_face_config	town_smile_keep_time	30	7eb05ea826bffefb	4294961474	0	100
+player_face_config	town_smile_random_reaction_keep_time	45	7eb05ea826bffefb	4294961330	0	100
+player_face_config	town_smile_random_reaction_frame_min	90	7eb05ea826bffefb	4294961186	0	100
+player_face_config	town_smile_random_reaction_frame_max	300	7eb05ea826bffefb	4294961042	0	100
+player_face_config	wildpokemon_reaction_distance	5	a5c98482aa1be127	4294960906	0	20
+player_face_config	wildpokemon_coward_reaction_distance	7	a5c98482aa1be127	4294960762	0	20
+player_face_config	wildpokemon_mild_reaction_distance	5	a5c98482aa1be127	4294959970	0	20
+player_face_config	wildpokemon_mild_reaction_percent	100	7eb05ea826bffefb	4294959834	0	100
+player_face_config	wildpokemon_reaction_escaping_keep_time	90	7eb05ea826bffefb	4294960346	0	100
+player_face_config	wildpokemon_reaction_mild_keep_time	30	7eb05ea826bffefb	4294959554	0	100
+player_face_config	wildpokemon_reaction_warning_keep_time	60	7eb05ea826bffefb	4294960066	0	100
+player_face_config	wildpokemon_random_reaction_keep_frame	30	7eb05ea826bffefb	4294959922	1	300
+player_face_config	wildpokemon_random_reaction_frame_min	120	7eb05ea826bffefb	4294959778	1	300
+player_face_config	wildpokemon_random_reaction_frame_max	180	7eb05ea826bffefb	4294959634	1	500
+player_face_config	wildpokemon_sleep_reaction_keep_frame	30	7eb05ea826bffefb	4294959490	1	300
+player_face_config	wildpokemon_sleep_reaction_frame_min	90	7eb05ea826bffefb	4294959346	1	300
+player_face_config	wildpokemon_sleep_reaction_frame_max	210	7eb05ea826bffefb	4294959202	1	500
+player_face_config	face_vigilance_end	relief	51ca52fdbbb50776	4294959074		
+player_face_config	vigilance_end_keep_frame	60	7eb05ea826bffefb	4294958290	1	300
+player_face_config	vigilance_end_delay_frame	90	7eb05ea826bffefb	4294958162	1	300
+player_face_config	face_pinch_end	relief	51ca52fdbbb50776	4294958042		
+player_face_config	pinch_end_keep_frame	30	7eb05ea826bffefb	4294958570	1	300
+player_face_config	buddy_call_keep_frame	30	7eb05ea826bffefb	4294958442	1	300
+player_face_config	buddy_call_lip_sync_frame	30	7eb05ea826bffefb	4294957658	1	300
+player_face_config	look_player_mode_buddy_keep_frame	90	7eb05ea826bffefb	4294957522	1	300
+player_face_config	buddy_talk_smile_keep_time	30	7eb05ea826bffefb	4294957394	0	100
+player_face_config	buddy_talk_failure_keep_time	30	7eb05ea826bffefb	4294957914	0	100
+player_face_config	buddy_talk_trouble_keep_time	30	7eb05ea826bffefb	4294957778	0	100
+player_face_config	buddy_talk_surprise_keep_time	50	7eb05ea826bffefb	4294957642	0	100
+player_face_config	buddy_talk_attack_reaction_keep_time	60	7eb05ea826bffefb	4294957498	0	100
+player_face_config	buddy_talk_yuragi_time	30	7eb05ea826bffefb	4294957370	0	100
+player_face_config	buddy_talk_action_yuragi_time	10	7eb05ea826bffefb	4294957234	0	100
+player_face_config	buddy_smile_keep_time	30	7eb05ea826bffefb	4294957106	0	100
+player_face_config	buddy_failure_keep_time	30	7eb05ea826bffefb	4294956978	0	100
+player_face_config	buddy_trouble_keep_time	30	7eb05ea826bffefb	4294956850	0	100
+player_face_config	buddy_surprise_keep_time	50	7eb05ea826bffefb	4294956066	0	100
+player_face_config	buddy_attack_reaction_keep_time	60	7eb05ea826bffefb	4294956586	0	100
+player_face_config	buddy_yuragi_time	30	7eb05ea826bffefb	4294955810	0	100
+player_face_config	buddy_talk_end_defalut_keep_frame	90	7eb05ea826bffefb	4294955674	1	300
+player_face_config	look_buddy_face_delay_frame	10	7eb05ea826bffefb	4294955546	1	300
+player_face_config	look_buddy_return_face_delay_frame	0	7eb05ea826bffefb	4294955410	1	300
+player_face_config	look_capture_face_delay_frame	0	7eb05ea826bffefb	4294955930	1	300
+player_face_config	look_wild_face_delay_frame	5	7eb05ea826bffefb	4294955146	1	300
+character_look_at_config	eye_controll_state_speed_rate	0.01	a5c98482aa1be127	2	0	1
+character_look_at_config	look_position_interpolation_start_radius	0.25	a5c98482aa1be127	2	0	5
+character_look_at_config	look_position_delay_rate	0.1	a5c98482aa1be127	2	0	1
+character_look_at_config	look_position_interpolation_end_radius	0.025	a5c98482aa1be127	2	0	1
+character_look_at_config	look_position_changed_target_radius	0.4	a5c98482aa1be127	2	0	5
+character_look_at_config	look_angle_changed_yaw_deg	5	a5c98482aa1be127	2	0	180
+character_look_at_config	look_angle_changed_pitch_deg	5	a5c98482aa1be127	2	0	180
+character_look_at_config	look_start_keep_frame	30	7eb05ea826bffefb	18	0	60
+character_look_at_config	look_behind_angle_deg	135	a5c98482aa1be127	2	0	180
+character_look_at_config	npc_head_rotation_speed_per_sec	60	a5c98482aa1be127	2	0	180
+character_look_at_config	npc_head_start_rotation_speed_per_sec	140	a5c98482aa1be127	2	0	180
+character_look_at_config	npc_head_rotation_speed_ease_time	0.5	a5c98482aa1be127	2	0	180
+character_look_at_config	npc_head_rotation_speed_ease_func	5	7eb05ea826bffefb	18	0	5
+character_look_at_config	npc_head_disable_rotation_speed_per_sec	80	a5c98482aa1be127	2	0	180
+character_look_at_config	npc_eye_rotation_speed_per_sec	60	a5c98482aa1be127	2	0	180
+character_look_at_config	npc_eye_rotation_speed_ease_time	0.1	a5c98482aa1be127	2	0	180
+character_look_at_config	npc_eye_rotation_speed_ease_func	5	7eb05ea826bffefb	4294966730	0	5
+character_look_at_config	npc_eye_start_rotation_speed_per_sec	180	a5c98482aa1be127	2	0	180
+character_look_at_config	npc_eye_disable_rotation_speed_per_sec	80	a5c98482aa1be127	2	0	180
+character_look_at_config	pc_head_rotation_speed_per_sec	60	a5c98482aa1be127	2	0	180
+character_look_at_config	pc_head_start_rotation_speed_per_sec	140	a5c98482aa1be127	2	0	180
+character_look_at_config	pc_head_rotation_speed_ease_time	0.5	a5c98482aa1be127	2	0	180
+character_look_at_config	pc_head_rotation_speed_ease_func	5	7eb05ea826bffefb	4294965874	0	5
+character_look_at_config	pc_head_disable_rotation_speed_per_sec	80	a5c98482aa1be127	2	0	180
+character_look_at_config	pc_eye_rotation_speed_per_sec	60	a5c98482aa1be127	2	0	180
+character_look_at_config	pc_eye_rotation_speed_ease_time	0.1	a5c98482aa1be127	2	0	180
+character_look_at_config	pc_eye_rotation_speed_ease_func	5	7eb05ea826bffefb	4294964610	0	5
+character_look_at_config	pc_eye_start_rotation_speed_per_sec	180	a5c98482aa1be127	2	0	180
+character_look_at_config	pc_eye_disable_rotation_speed_per_sec	80	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_enable_rotation_mode		fddf046586eb1768	4294964194		
+character_look_at_config	pokemon_head_rotation_speed_per_sec	60	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_head_start_rotation_speed_per_sec	140	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_head_rotation_speed_ease_time	0.5	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_head_rotation_speed_ease_func	5	7eb05ea826bffefb	4294963618	0	5
+character_look_at_config	pokemon_head_disable_rotation_speed_per_sec	80	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_eye_rotation_speed_per_sec	60	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_eye_rotation_speed_ease_time	0.1	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_eye_rotation_speed_ease_func	5	7eb05ea826bffefb	4294963042	0	5
+character_look_at_config	pokemon_eye_start_rotation_speed_per_sec	180	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_eye_disable_rotation_speed_per_sec	80	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_eye_uv_rotation_speed_per_sec	300	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_eye_uv_rotation_speed_ease_time	0.1	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_eye_uv_rotation_speed_ease_func	5	7eb05ea826bffefb	4294962314	0	5
+character_look_at_config	pokemon_eye_uv_start_rotation_speed_per_sec	300	a5c98482aa1be127	2	0	180
+character_look_at_config	pokemon_eye_uv_disable_rotation_speed_per_sec	300	a5c98482aa1be127	2	0	180
+character_look_at_config	default_head_rotation_speed_per_sec	60	a5c98482aa1be127	2	0	180
+character_look_at_config	default_head_start_rotation_speed_per_sec	140	a5c98482aa1be127	2	0	180
+character_look_at_config	default_head_rotation_speed_ease_time	0.5	a5c98482aa1be127	2	0	180
+character_look_at_config	default_head_rotation_speed_ease_func	5	7eb05ea826bffefb	4294961434	0	5
+character_look_at_config	default_head_disable_rotation_speed_per_sec	80	a5c98482aa1be127	2	0	180
+character_look_at_config	default_eye_rotation_speed_per_sec	60	a5c98482aa1be127	2	0	180
+character_look_at_config	default_eye_rotation_speed_ease_time	0.1	a5c98482aa1be127	2	0	180
+character_look_at_config	default_eye_rotation_speed_ease_func	5	7eb05ea826bffefb	4294960858	0	5
+character_look_at_config	default_eye_start_rotation_speed_per_sec	180	a5c98482aa1be127	2	0	180
+character_look_at_config	default_eye_disable_rotation_speed_per_sec	80	a5c98482aa1be127	2	0	180

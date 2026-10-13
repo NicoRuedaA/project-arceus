@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::player_motion::{MotionMode, PlayerMotionState};
+use super::player_skills::{CrouchPhase, DodgeDir, PlayerSkillState};
 use super::PlayerAvatar;
 use super::water::{PlayerSwim, SwimState};
 
@@ -62,7 +63,41 @@ pub enum PlayerClip {
     JumpFall,
     /// Short clip after touchdown; played while `PlayerMotionState::land_timer` runs.
     Land,
+    /// Dodge roll in the facing direction / backwards / to the left / to the right
+    /// (`rolling01_{f,b,l,r}`, Brief 22). One-shots as long as the roll lasts.
+    RollF,
+    RollB,
+    RollL,
+    RollR,
+    /// Crouched idle (`squat01_l_loop`).
+    Crouch,
+    /// Crouched walk (`sqwalk01_loop`).
+    CrouchWalk,
+    /// Standing to crouched (`sqwait01_l_start`).
+    CrouchStart,
+    /// Crouched to standing (`sqwait01_l_end`).
+    CrouchEnd,
 }
+
+/// Every clip with its own slot, in slot order (`clip as usize`).
+pub const ALL_CLIPS: [PlayerClip; CLIP_SLOTS] = [
+    PlayerClip::Idle,
+    PlayerClip::Walk,
+    PlayerClip::Run,
+    PlayerClip::Dash,
+    PlayerClip::Swim,
+    PlayerClip::JumpStart,
+    PlayerClip::JumpFall,
+    PlayerClip::Land,
+    PlayerClip::RollF,
+    PlayerClip::RollB,
+    PlayerClip::RollL,
+    PlayerClip::RollR,
+    PlayerClip::Crouch,
+    PlayerClip::CrouchWalk,
+    PlayerClip::CrouchStart,
+    PlayerClip::CrouchEnd,
+];
 
 impl PlayerClip {
     /// Clip name inside the exported glTF.
@@ -76,6 +111,14 @@ impl PlayerClip {
             Self::JumpStart => "jump_start",
             Self::JumpFall => "jump_fall",
             Self::Land => "land",
+            Self::RollF => "roll_f",
+            Self::RollB => "roll_b",
+            Self::RollL => "roll_l",
+            Self::RollR => "roll_r",
+            Self::Crouch => "crouch",
+            Self::CrouchWalk => "crouch_walk",
+            Self::CrouchStart => "crouch_start",
+            Self::CrouchEnd => "crouch_end",
         }
     }
 }
@@ -113,24 +156,36 @@ pub fn select_clip_full(current: PlayerClip, speed: f32, swimming: bool) -> Play
     }
     use PlayerClip::*;
     let base = match current {
-        Swim | JumpStart | JumpFall | Land => Idle,
-        other => other,
+        // Walk/run/dash states are the only ones the speed tiers can continue from.
+        Idle | Walk | Run | Dash => current,
+        _ => Idle,
     };
     select_clip(base, speed)
 }
 
-/// Clip for a frame from the vertical motion state (Brief 13): airborne uses `jump_start`
-/// while rising and `jump_fall` while descending, touchdown frames use `land`, and climbing
-/// reuses `walk` as a placeholder (the export has no climb clip). Everything else falls back
-/// to [`select_clip_full`].
+/// Clip for a frame from the vertical motion state (Brief 13) and the skill state (Brief 22).
+///
+/// Priority: swimming, then a running dodge roll, then the air (`jump_start` while rising,
+/// `jump_fall` while descending), `land` while its timer runs, climbing (`walk` as a placeholder:
+/// the export has no climb clip), the crouch cycle (enter, hold or crouched walk, leave) and
+/// finally the speed tiers of [`select_clip_full`].
 pub fn select_clip_motion(
     current: PlayerClip,
     speed: f32,
     swimming: bool,
     motion: Option<&PlayerMotionState>,
+    skills: Option<&PlayerSkillState>,
 ) -> PlayerClip {
     if swimming {
         return PlayerClip::Swim;
+    }
+    if let Some(d) = skills.and_then(|s| s.dodge) {
+        return match d.dir {
+            DodgeDir::Forward => PlayerClip::RollF,
+            DodgeDir::Back => PlayerClip::RollB,
+            DodgeDir::Left => PlayerClip::RollL,
+            DodgeDir::Right => PlayerClip::RollR,
+        };
     }
     if let Some(m) = motion {
         match m.mode {
@@ -149,7 +204,37 @@ pub fn select_clip_motion(
             }
         }
     }
+    if let Some(s) = skills {
+        match s.crouch {
+            CrouchPhase::Entering(_) => return PlayerClip::CrouchStart,
+            CrouchPhase::Leaving(_) => return PlayerClip::CrouchEnd,
+            CrouchPhase::Crouched => {
+                return if speed > WALK_UP {
+                    PlayerClip::CrouchWalk
+                } else {
+                    PlayerClip::Crouch
+                };
+            }
+            CrouchPhase::Standing => {}
+        }
+    }
     select_clip_full(current, speed, swimming)
+}
+
+/// The clip to use when `c` is missing from the exported file: roll variants fall back to the
+/// forward roll, then to the dash; crouch variants to their standing equivalents; the speed
+/// tiers to the next slower one. `Idle` is the end of every chain.
+pub fn fallback_clip(c: PlayerClip) -> PlayerClip {
+    use PlayerClip::*;
+    match c {
+        Dash => Run,
+        Run => Walk,
+        RollB | RollL | RollR => RollF,
+        RollF => Dash,
+        CrouchWalk => Crouch,
+        Crouch | CrouchStart | CrouchEnd => Idle,
+        _ => Idle,
+    }
 }
 
 /// Returns `translation` with the horizontal root motion removed: x/z pinned to the rest
@@ -210,8 +295,8 @@ pub struct PlayerMotion {
     pub speed: f32,
 }
 
-/// Number of clip slots ([`PlayerClip`] covers all nine exported clips except `idle2`).
-pub const CLIP_SLOTS: usize = 8;
+/// Number of clip slots ([`PlayerClip`] covers all 17 exported clips except `idle2`).
+pub const CLIP_SLOTS: usize = 16;
 
 /// Runtime animation state once the model has been wired.
 #[derive(Component)]
@@ -270,15 +355,7 @@ fn wire_player(
         let (mut graph, idle_node) = AnimationGraph::from_clip(idle);
         let mut nodes = [None; CLIP_SLOTS];
         nodes[slot(PlayerClip::Idle)] = Some(idle_node);
-        for c in [
-            PlayerClip::Walk,
-            PlayerClip::Run,
-            PlayerClip::Dash,
-            PlayerClip::Swim,
-            PlayerClip::JumpStart,
-            PlayerClip::JumpFall,
-            PlayerClip::Land,
-        ] {
+        for c in ALL_CLIPS.into_iter().filter(|c| *c != PlayerClip::Idle) {
             nodes[slot(c)] = clip(c).map(|h| graph.add_clip(h, 1.0, graph.root));
         }
         let graph_h = graphs.add(graph);
@@ -320,25 +397,25 @@ fn track_motion(time: Res<Time>, mut q: Query<(&Transform, &mut PlayerMotion), W
     }
 }
 
+/// Everything `switch_clips` reads to pick a clip.
+type ClipInputs = (
+    &'static mut PlayerAnimState,
+    &'static PlayerMotion,
+    Option<&'static PlayerSwim>,
+    Option<&'static PlayerMotionState>,
+    Option<&'static PlayerSkillState>,
+);
+
 fn switch_clips(
-    mut q: Query<(
-        &mut PlayerAnimState,
-        &PlayerMotion,
-        Option<&PlayerSwim>,
-        Option<&PlayerMotionState>,
-    )>,
+    mut q: Query<ClipInputs>,
     mut players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
 ) {
-    for (mut st, motion, swim, air) in &mut q {
+    for (mut st, motion, swim, air, skills) in &mut q {
         let swimming = swim.is_some_and(|s| s.state == SwimState::Swimming);
-        let mut want = select_clip_motion(st.current, motion.speed, swimming, air);
-        // A clip missing from the file falls back to the next slower one.
+        let mut want = select_clip_motion(st.current, motion.speed, swimming, air, skills);
+        // A clip missing from the file (an older cached export) falls back along `fallback_clip`.
         while st.nodes[slot(want)].is_none() && want != PlayerClip::Idle {
-            want = match want {
-                PlayerClip::Dash => PlayerClip::Run,
-                PlayerClip::Run => PlayerClip::Walk,
-                _ => PlayerClip::Idle,
-            };
+            want = fallback_clip(want);
         }
         if want == st.current {
             continue;
@@ -437,27 +514,27 @@ mod tests {
             vertical_speed: 2.0,
             ..default()
         };
-        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), JumpStart);
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m), None), JumpStart);
         m.vertical_speed = 0.0;
-        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), JumpFall);
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m), None), JumpFall);
         m.vertical_speed = -4.0;
-        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), JumpFall);
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m), None), JumpFall);
         // Touchdown plays the land clip while its timer runs.
         m.mode = MotionMode::Grounded;
         m.vertical_speed = 0.0;
         m.land_timer = crate::game::player_motion::LAND_TIME;
-        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), Land);
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m), None), Land);
         m.land_timer = 0.0;
-        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), Idle);
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m), None), Idle);
         // Climbing reuses walk (no climb clip exists in the export).
         m.mode = MotionMode::Climbing;
-        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m)), Walk);
+        assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&m), None), Walk);
         // Water beats every motion state.
         m.mode = MotionMode::Airborne;
         m.vertical_speed = 1.0;
-        assert_eq!(select_clip_motion(Walk, 4.0, true, Some(&m)), Swim);
+        assert_eq!(select_clip_motion(Walk, 4.0, true, Some(&m), None), Swim);
         // Without a motion state the speed rules are unchanged.
-        assert_eq!(select_clip_motion(Idle, 4.5, false, None), Run);
+        assert_eq!(select_clip_motion(Idle, 4.5, false, None, None), Run);
         // All new clip names are real glTF animation names.
         for (clip, name) in [
             (JumpStart, "jump_start"),
@@ -466,6 +543,75 @@ mod tests {
         ] {
             assert_eq!(clip.gltf_name(), name);
         }
+    }
+
+    #[test]
+    fn clip_slots_match_the_enum_and_the_gltf_names_are_unique() {
+        assert_eq!(ALL_CLIPS.len(), CLIP_SLOTS);
+        for (i, c) in ALL_CLIPS.iter().enumerate() {
+            assert_eq!(*c as usize, i, "{c:?} sits in slot {i}");
+        }
+        let mut names: Vec<_> = ALL_CLIPS.iter().map(|c| c.gltf_name()).collect();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), CLIP_SLOTS);
+    }
+
+    #[test]
+    fn dodge_crouch_and_priority_rules() {
+        use crate::game::player_skills::{ActiveDodge, PlayerSkillState, ROLL_DURATION};
+        let mut sk = PlayerSkillState::default();
+        // Crouch cycle: enter, hold (idle and walking), leave.
+        sk.toggle_crouch();
+        assert_eq!(select_clip_motion(Idle, 0.0, false, None, Some(&sk)), CrouchStart);
+        sk.tick(1.0);
+        assert_eq!(select_clip_motion(Idle, 0.0, false, None, Some(&sk)), Crouch);
+        assert_eq!(select_clip_motion(Crouch, 1.5, false, None, Some(&sk)), CrouchWalk);
+        sk.toggle_crouch();
+        assert_eq!(select_clip_motion(Crouch, 0.0, false, None, Some(&sk)), CrouchEnd);
+        sk.tick(1.0);
+        assert_eq!(select_clip_motion(CrouchEnd, 0.0, false, None, Some(&sk)), Idle);
+
+        // Rolls pick their clip from the direction and beat the crouch and the air.
+        for (dir, clip) in [
+            (DodgeDir::Forward, RollF),
+            (DodgeDir::Back, RollB),
+            (DodgeDir::Left, RollL),
+            (DodgeDir::Right, RollR),
+        ] {
+            let mut sk = PlayerSkillState::default();
+            sk.toggle_crouch();
+            sk.dodge = Some(ActiveDodge { dir, world_dir: Vec2::Y, elapsed: 0.0 });
+            let air = PlayerMotionState { mode: MotionMode::Airborne, ..default() };
+            assert_eq!(select_clip_motion(Idle, 0.0, false, Some(&air), Some(&sk)), clip);
+        }
+        // Water still wins over everything.
+        let mut sk = PlayerSkillState {
+            dodge: Some(ActiveDodge { dir: DodgeDir::Forward, world_dir: Vec2::Y, elapsed: 0.0 }),
+            ..default()
+        };
+        assert_eq!(select_clip_motion(Idle, 0.0, true, None, Some(&sk)), Swim);
+        // The roll ends after the clip length and the speed tiers take over again.
+        sk.tick(ROLL_DURATION + 0.01);
+        assert_eq!(select_clip_motion(RollF, 4.5, false, None, Some(&sk)), Run);
+    }
+
+    #[test]
+    fn missing_clips_fall_back_to_something_that_exists() {
+        // Every chain ends at Idle and never loops.
+        for c in ALL_CLIPS {
+            let mut x = c;
+            for _ in 0..6 {
+                if x == Idle {
+                    break;
+                }
+                x = fallback_clip(x);
+            }
+            assert_eq!(x, Idle, "{c:?} never reaches idle");
+        }
+        assert_eq!(fallback_clip(RollL), RollF);
+        assert_eq!(fallback_clip(RollF), Dash);
+        assert_eq!(fallback_clip(CrouchWalk), Crouch);
     }
 
     #[test]

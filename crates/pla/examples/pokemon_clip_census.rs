@@ -1,13 +1,24 @@
 //! Lists the animation clips of Pokémon packs and the bones whose translation moves
 //! horizontally (root motion) in idle/walk clips.
 //!
-//! Usage: pokemon_clip_census <pm....gfpak>...
+//! Usage: pokemon_clip_census [--tracks <name substring>] <pm....gfpak>...
+//!
+//! `--tracks eye01` additionally lists, for every clip whose name contains the substring, the
+//! bone tracks it animates (name, number of rotation / translation / scale keys).
 
 use pla::assets::pokemon_model::assemble_pack;
 use std::env;
 
 fn main() -> Result<(), String> {
-    for path in env::args().skip(1) {
+    let mut args: Vec<String> = env::args().skip(1).collect();
+    let mut show_tracks: Option<String> = None;
+    if let Some(i) = args.iter().position(|a| a == "--tracks") {
+        if i + 1 < args.len() {
+            show_tracks = Some(args.remove(i + 1));
+        }
+        args.remove(i);
+    }
+    for path in args {
         let model = assemble_pack(&path)?;
         println!("== {path}: {} clips", model.clips.len());
         for clip in &model.clips {
@@ -33,6 +44,17 @@ fn main() -> Result<(), String> {
                 }
             }
             println!("  {} {:.2}s loops={}{}", clip.name, dur, p.loops, motion);
+            if show_tracks.as_deref().is_some_and(|sub| clip.name.contains(sub)) {
+                for t in &p.tracks {
+                    println!(
+                        "      track {} rot={} trans={} scale={}",
+                        t.name,
+                        t.rotation.keys.len(),
+                        t.translation.keys.len(),
+                        t.scale.keys.len()
+                    );
+                }
+            }
         }
     }
     Ok(())
