@@ -115,7 +115,7 @@ pub fn rot_mode_from_args(args: &[String]) -> RotMode {
     }
 }
 
-fn find_data_file(name: &str) -> Option<PathBuf> {
+pub fn find_data_file(name: &str) -> Option<PathBuf> {
     [PathBuf::from("data"), PathBuf::from("../../data"), PathBuf::from("/home/nico/work/decompilacion/data")]
         .into_iter()
         .map(|d| d.join(name))
