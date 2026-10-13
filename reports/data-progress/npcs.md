@@ -133,27 +133,32 @@ hair/skin/eye colours, held item, hide-mesh rule, face animation, IK, spring bon
   2 m indoor within 75°, medium 1.5 m, close 0.95 m, reset 4 m; look-at: head 60°/s (start 140°/s), eyes 60°/s,
   gives up behind 135°; controller: walk 1.5 m/s, run 5, dash 7, capsule radius 0.35 m, height 0.75 m.
 
-## 4. Implementation plan for Brief 31 (runtime, not done here)
+## 4. Brief 31 runtime status (first DS2-2 task)
 
 Hook points read in `crates/pla/src/game/` (read-only): `world_objects.rs` (distance streaming
 `should_be_alive`, 200/230 m), `zone.rs` (zone change despawns area content), `navigation.rs` (`height_at`,
 `nearest`), `player_anim.rs` (`select_clip`, root-motion pinning, `step_facing`), `wild_wander.rs` (`yaw_for`,
 `turn_towards`), `input_map.rs` (`Action::Confirm`), `PlayerAvatar` in `game/mod.rs`.
 
-1. **Data load** `game/npc.rs`: parse `npc_placements.tsv` + `npc_appearance.tsv` (pure functions, unit-tested).
+1. **Data load** `game/npc.rs`: parse `npc_placements.tsv` + `npc_appearance.tsv` (pure functions, unit-tested). The runtime also loads the animation census and tuning values from `npc_animations.tsv` and `npc_config.tsv`.
    Variant choice per record: drop (0,0,0) variants; prefer `time_zone*` variants matching the clock (0..3 ASSUMED
    morning/day/evening/night), else `default`, else the first story variant with a configured story level
    (`WPHA_STORY` value, e.g. post-game); keep it switchable because story semantics are not decoded.
-2. **Models**: batch `npc_export` over the 164 placed ids (cc + tr) into `work/cache/npc/`; `senpai` -> pick
-   `tr0036`/`tr0037` by player variant. Ground snap with `navigation.height_at` when |dy| > 0.5 m (fixes the 5 %).
-3. **Spawn** by distance like `world_objects` (NPCs only for the active area/sub-area; despawn in the zone
-   change system); yaw = `rot_y` degrees (same convention as `bg_parts`, unverified).
-4. **Idle/walk loops**: play `idle` (first `wait01_loop` of the controller list); random additive `idling0N` every
-   few seconds (ASSUMED, `.tracs` not decoded); no walking routes exist in data, so a stationary NPC is faithful.
-5. **Look-at player**: within 3.5 m (2 m indoors) and ±75° in front, rotate the `head` bone towards the player at
-   60°/s, clamp at 135° behind (values from `npc_config`); unit tests on angle clamping.
-6. **Interaction prompt (no text)**: when within `CloseReaction`/`Forward` range and facing, show a generic prompt;
-   `Action::Confirm` plays `speak01`/`yes01` and the `face_a` expression; never shows dialogue.
+2. **Models**: `game/npc.rs` requests existing `work/cache/npc/<id>/npc.gltf` exports through the same
+   Bevy glTF scene and animation asset path used by the player. Missing exports use a neutral capsule only;
+   clothing, hair and skin colours remain **SUPPOSED** and are not fabricated.
+3. **Spawn** is distance-instanced like `world_objects` (200 m load / 230 m unload hysteresis), selected for
+   the active area and time slot, and ground-snapped with `navigation.height_at` when |dy| > 0.5 m. Trainer
+   red capsule markers remain owned by `trainer_encounter.rs` and are not replaced.
+4. **Idle** selects a stable `wait*_loop` candidate from the decoded controller list and plays the exported
+   `idle` clip. NPC routes remain **UNKNOWN**: `npc_paths.tsv` is wild-Pokémon path data and is not used.
+5. **Look-at player** uses only bounded root yaw (forward reaction range/angle, close range, 60°/s and 135°
+   behind from `npc_config`). Head/torso bones are not guessed because the existing player/model API exposes
+   no stable NPC rig contract. Pure tests cover clamping and determinism.
+6. **Interaction prompt/dialogue** remains out of scope; talk ids, text and story gates are still UNKNOWN.
+
+Headless coverage for this runtime is in `game::npc` unit tests; no viewer/window/audio run is required for
+the implementation evidence.
 
 ## Verified / Assumed / Unknown
 
