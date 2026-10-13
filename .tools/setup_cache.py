@@ -394,6 +394,12 @@ class Step:
     # Output bytes are checked against pinned hashes, so re-running this step reproduces them
     # exactly and never makes later steps out of date.
     pinned_output: bool = False
+    # folders whose size is reported (default: the outputs themselves)
+    size_roots: Callable[[Context], list[Path]] | None = None
+
+    def output_bytes(self, ctx: Context) -> int:
+        roots = self.size_roots(ctx) if self.size_roots else self.outputs(ctx)
+        return sum(dir_size(p) for p in roots)
 
     def fingerprint(self, ctx: Context) -> dict:
         src = {}
@@ -432,7 +438,7 @@ def step_status(ctx: Context, step: Step) -> str:
 
 
 def write_stamp(ctx: Context, step: Step, seconds: float) -> None:
-    size = sum(dir_size(p) for p in step.outputs(ctx))
+    size = step.output_bytes(ctx)
     stamp = {
         "step": step.name,
         "fingerprint": step.fingerprint(ctx),
@@ -699,6 +705,15 @@ def run_pokemon(ctx: Context, step: Step) -> None:
     run_cmd(ctx, pokemon_cmd(ctx, stage))
     publish_tree(stage / "pokemon_batch", ctx.layout.cache / "pokemon_batch", root=ctx.layout.work)
     remove_tree(stage)
+    if not ctx.args.pokemon_only:
+        idx = REPO / "data" / "pokemon_model_export_index.tsv"
+        stems = []
+        if idx.is_file():
+            for line in idx.read_text(encoding="utf-8").splitlines():
+                cols = line.split("\t")
+                if not line.startswith("#") and len(cols) > 2 and cols[2] == "ok":
+                    stems.append("pokemon_batch/" + cols[0].removesuffix(".gfpak"))
+        report_coverage(ctx, "Pokémon models", stems)
 
 
 def player_cmd(ctx: Context, stage: Path) -> list[str]:
@@ -750,12 +765,14 @@ def build_steps() -> list[Step]:
              base_sections_outputs,
              lambda ctx: [show_cmd(py(ctx, "ncz_extract.py") + [str(ctx.inputs.get("base") or "<your pk1.nsz>"),
                                                                  str(stg(ctx, "base-sections")), "--no-entries"])],
-             run_base_sections, inputs=("base",), pinned_output=True),
+             run_base_sections, inputs=("base",), pinned_output=True,
+             size_roots=lambda ctx: [ctx.layout.pk1 / "sections", ctx.layout.pk1 / "manifest.json"]),
         Step("update-sections", "Unpack the update (decompress its sections)", [], int(0.1 * GB), "~5 s",
              lambda ctx: [ctx.layout.pk2 / "manifest.json"] + ([exefs_section_file(ctx)] if exefs_section_file(ctx) else []),
              lambda ctx: [show_cmd(py(ctx, "ncz_extract.py") + [str(ctx.inputs.get("update") or "<your pk2.nsz>"),
                                                                  str(stg(ctx, "update-sections")), "--no-entries"])],
-             run_update_sections, inputs=("update",), pinned_output=True),
+             run_update_sections, inputs=("update",), pinned_output=True,
+             size_roots=lambda ctx: [ctx.layout.pk2 / "sections", ctx.layout.pk2 / "manifest.json"]),
         Step("romfs", "Rebuild the game data folder (base + update overlay)", ["base-sections", "update-sections"],
              int(6.5 * GB), "~5-15 min",
              lambda ctx: [ctx.layout.bin_root, ctx.layout.listing],
@@ -797,7 +814,7 @@ def build_steps() -> list[Step]:
              lambda ctx: [ctx.layout.cache / "player" / "p1_default" / "player.gltf",
                           ctx.layout.cache / "player" / "p2_default" / "player.gltf"],
              lambda ctx: [show_cmd(player_cmd(ctx, stg(ctx, "player-model")))],
-             run_player, sources=[ex("player_export")]),
+             run_player, sources=[ex("player_export")], size_roots=lambda ctx: [ctx.layout.cache / "player"]),
         Step("audio", "Decode music, sound effects and cries", ["romfs", "main-elf"], int(5.6 * GB), "~2-5 min",
              lambda ctx: [ctx.layout.cache / "audio"],
              lambda ctx: [show_cmd(audio_cmd(ctx), {"PLA_CACHE_ROOT": str(stg(ctx, "audio"))})],
@@ -1175,7 +1192,7 @@ def install(ctx: Context, steps: list[Step]) -> int:
         step.run(ctx, step)
         secs = time.monotonic() - t0
         write_stamp(ctx, step, secs)
-        size = sum(dir_size(p) for p in step.outputs(ctx))
+        size = step.output_bytes(ctx)
         timings.append((step.name, secs, size))
         log(f"  done in {human_secs(secs)}, output {human_bytes(size)}")
     if ctx.args.prune_sections:
