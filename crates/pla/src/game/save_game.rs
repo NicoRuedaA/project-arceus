@@ -4,7 +4,7 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 4
+//! PLASAVE 6
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
@@ -12,8 +12,11 @@
 //! ```
 //!
 //! v3 adds `box` lines (the stored Pokemon; the key is lowercase like `member`). v4 adds
-//! `play_seconds` (whole seconds of played time). Older files load via the migration chain: a v2
-//! file gets an empty box, a v1-v3 file a play time of 0.
+//! `play_seconds` (whole seconds of played time). v5 is reserved for the game clock in minutes
+//! (Brief 9; the step below is a documented no-op placeholder until that task lands and carries
+//! its own key). v6 adds `picked`, the ids of collected field-item spawns (`data/field_item_spawns.tsv`,
+//! Brief 12). Older files load via the migration chain: a v2 file gets an empty box, a v1-v3 file a
+//! play time of 0, and every file below v6 an empty picked set.
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -30,7 +33,7 @@ use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 4;
+pub const CURRENT_VERSION: u32 = 6;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
@@ -224,6 +227,10 @@ pub struct PlayerSave {
     /// Whole seconds played while in the world or a battle, not paused (format v4). How the
     /// original game counts play time is **unknown**; this is wall-clock time of the port.
     pub play_seconds: u64,
+    /// Ids of already-collected field-item spawns (`GameProgress.picked`, format v6, Brief 12).
+    /// Ids are the placement hashes in `data/field_item_spawns.tsv`; a respawned spawn is removed
+    /// again.
+    pub picked: BTreeSet<u64>,
 }
 
 impl Default for PlayerSave {
@@ -244,6 +251,7 @@ impl Default for PlayerSave {
             caught_count: 0,
             rng_seed: 1,
             play_seconds: 0,
+            picked: BTreeSet::new(),
         }
     }
 }
@@ -318,6 +326,7 @@ impl PlayerSave {
         kv("play_seconds", self.play_seconds.to_string());
         kv("seen", join_set(&self.seen));
         kv("caught", join_set(&self.caught));
+        kv("picked", join_set_u64(&self.picked));
         kv(
             "bag",
             self.bag
@@ -380,6 +389,8 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
             1 => migrate_v1_to_v2(lines)?,
             2 => migrate_v2_to_v3(lines)?,
             3 => migrate_v3_to_v4(lines)?,
+            4 => migrate_v4_to_v5(lines)?,
+            5 => migrate_v5_to_v6(lines)?,
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -418,6 +429,21 @@ fn migrate_v3_to_v4(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
     Ok(lines)
 }
 
+/// v4 -> v5 is the clock/weather task (Brief 9: the game time in minutes). Independent worker,
+/// independent arm: until Brief 9 lands this arm is a documented no-op placeholder and carries no
+/// key. When it lands, keep the step (its real body replaces this one) and keep its parse arm;
+/// nothing else in this chain has to be renumbered.
+fn migrate_v4_to_v5(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
+    Ok(lines)
+}
+
+/// v5 -> v6 is this task (Brief 12): v6 adds `picked` (collected field-item spawn ids). The key
+/// defaults to an empty set when missing, so no line has to change; this arm documents the step
+/// and is the only version bump Brief 12 owns.
+fn migrate_v5_to_v6(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
+    Ok(lines)
+}
+
 // ---------------------------------------------------------------- parsing
 
 fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
@@ -445,6 +471,7 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
             "play_seconds" => s.play_seconds = v.parse().map_err(|_| err("bad play_seconds"))?,
             "seen" => s.seen = parse_set(v).ok_or_else(|| err("bad seen list"))?,
             "caught" => s.caught = parse_set(v).ok_or_else(|| err("bad caught list"))?,
+            "picked" => s.picked = parse_set_u64(v).ok_or_else(|| err("bad picked list"))?,
             "bag" => {
                 for e in v.split(',').filter(|e| !e.is_empty()) {
                     let (a, b) = e.split_once(':').ok_or_else(|| err("bad bag entry"))?;
@@ -518,6 +545,13 @@ fn join_set(s: &BTreeSet<u16>) -> String {
 }
 fn parse_set(v: &str) -> Option<BTreeSet<u16>> {
     v.split(',').filter(|e| !e.is_empty()).map(|e| e.parse().ok()).collect()
+}
+/// `picked` ids are 64-bit placement hashes; written in hexadecimal for compactness.
+fn join_set_u64(s: &BTreeSet<u64>) -> String {
+    s.iter().map(|v| format!("{v:016x}")).collect::<Vec<_>>().join(",")
+}
+fn parse_set_u64(v: &str) -> Option<BTreeSet<u64>> {
+    v.split(',').filter(|e| !e.is_empty()).map(|e| u64::from_str_radix(e, 16).ok()).collect()
 }
 /// Nicknames are hex-encoded so no separator can ever appear; `~` marks the empty string
 /// (`-` means "no nickname").
@@ -791,6 +825,7 @@ mod tests {
             caught_count: 2,
             rng_seed: 0xdead_beef,
             play_seconds: 12_345,
+            picked: BTreeSet::from([0xbe63_6c89_f1de_0b4c, 0x0000_0000_0000_0001]),
             ..PlayerSave::default()
         }
     }
@@ -837,9 +872,9 @@ mod tests {
 
     #[test]
     fn unknown_version_rejected() {
-        let t = sample().encode().unwrap().replacen("PLASAVE 4", "PLASAVE 99", 1);
+        let t = sample().encode().unwrap().replacen("PLASAVE 6", "PLASAVE 99", 1);
         assert!(matches!(PlayerSave::decode(&t), Err(SaveError::UnknownVersion(99))));
-        let t0 = sample().encode().unwrap().replacen("PLASAVE 4", "PLASAVE 0", 1);
+        let t0 = sample().encode().unwrap().replacen("PLASAVE 6", "PLASAVE 0", 1);
         assert!(matches!(PlayerSave::decode(&t0), Err(SaveError::UnknownVersion(0))));
     }
 
@@ -916,8 +951,9 @@ mod tests {
         assert_eq!(m.moves, vec![SavedMove { move_id: 33, pp: 10 }, SavedMove { move_id: 10, pp: 5 }]);
         assert!(s.box_pokemon.is_empty(), "a v1 save has no box");
         assert_eq!(s.play_seconds, 0, "a v1 save has no play time");
+        assert!(s.picked.is_empty(), "a v1 save has no picked spawns");
         // and re-saving writes the current version
-        assert!(s.encode().unwrap().starts_with("PLASAVE 4\n"));
+        assert!(s.encode().unwrap().starts_with("PLASAVE 6\n"));
     }
 
     /// A literal v2 body (8-field members, no `box` lines) loads through v2->v3 with an empty box.
@@ -932,7 +968,8 @@ mod tests {
         assert_eq!(s.party[0].species, 25);
         assert!(s.box_pokemon.is_empty());
         assert_eq!(s.play_seconds, 0, "a v2 save has no play time");
-        assert!(s.encode().unwrap().starts_with("PLASAVE 4\n"));
+        assert!(s.picked.is_empty());
+        assert!(s.encode().unwrap().starts_with("PLASAVE 6\n"));
     }
 
     /// A literal v3 body (box lines, no `play_seconds`) loads through v3->v4 with a play time of
@@ -945,11 +982,59 @@ mod tests {
         let s = PlayerSave::decode(&text).unwrap();
         assert_eq!(s.version, CURRENT_VERSION);
         assert_eq!(s.play_seconds, 0, "a v3 save has no play time");
+        assert!(s.picked.is_empty(), "a v3 save has no picked spawns");
         assert_eq!(s.box_pokemon.len(), 1);
         assert_eq!(s.box_pokemon[0].species, 133);
         let out = s.encode().unwrap();
-        assert!(out.starts_with("PLASAVE 4\n"));
+        assert!(out.starts_with("PLASAVE 6\n"));
         assert!(out.contains("\nplay_seconds=0\n"), "the new field is written on re-save");
+    }
+
+    /// A literal v4 body (`play_seconds`, no `picked`) loads through the v4->v5 placeholder and the
+    /// v5->v6 step with an empty picked set and keeps the play time.
+    #[test]
+    fn migration_v4_to_current_keeps_play_time_and_defaults_picked() {
+        let body = "zone=ha_area01\npos=1,2,3\nyaw=0\ntime_slot=1\nmoney=10\nrng_seed=2\n\
+                    play_seconds=999\nmember=25|0|5|10|-|0:0:0:0:0:0|33:5|-\nEND\n";
+        let text = format!("PLASAVE 4\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let s = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s.version, CURRENT_VERSION);
+        assert_eq!(s.play_seconds, 999, "a v4 save keeps its play time");
+        assert!(s.picked.is_empty(), "a v4 save has no picked spawns");
+        let out = s.encode().unwrap();
+        assert!(out.starts_with("PLASAVE 6\n"));
+        assert!(out.contains("\npicked=\n"), "the empty set is written on re-save");
+    }
+
+    /// A literal v5 body with the placeholder clock key absent loads through v5->v6 (the clock
+    /// step is Brief 9's and stays a no-op here until that task merges its own key).
+    #[test]
+    fn migration_v5_placeholder_loads() {
+        let body = "zone=ha_area01\npos=1,2,3\nyaw=0\ntime_slot=1\nmoney=10\nrng_seed=2\n\
+                    play_seconds=5\nmember=25|0|5|10|-|0:0:0:0:0:0|33:5|-\nEND\n";
+        let text = format!("PLASAVE 5\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let s = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s.version, CURRENT_VERSION);
+        assert!(s.picked.is_empty());
+    }
+
+    /// `picked` survives encode/decode as hexadecimal u64 ids and is written sorted.
+    #[test]
+    fn picked_round_trips() {
+        let mut s = sample();
+        assert_eq!(s.picked.len(), 2, "sample carries picked spawns");
+        let text = s.encode().unwrap();
+        assert!(text.contains("\npicked=0000000000000001,be636c89f1de0b4c\n"), "{text}");
+        let back = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s, back);
+    }
+
+    /// A malformed picked id is refused.
+    #[test]
+    fn malformed_picked_rejected() {
+        let body = "zone=z\npos=0,0,0\nyaw=0\ntime_slot=0\nmoney=0\nrng_seed=1\npicked=not-hex\nEND\n";
+        let text = format!("PLASAVE 6\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        assert!(matches!(PlayerSave::decode(&text), Err(SaveError::Parse { .. })));
     }
 
     /// `play_seconds` is a u64 and survives the largest value.
