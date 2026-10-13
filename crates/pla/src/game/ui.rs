@@ -597,24 +597,8 @@ pub fn update_world_hud_system(
         let diff = w_xf.translation - p_xf.translation;
         let dist = diff.length();
         if closest_info.as_ref().map_or(true, |(d, _, _)| dist < *d) {
-            let angle = diff.x.atan2(diff.z);
-            let dir = if angle.abs() < 0.39 {
-                "S"
-            } else if angle > 0.39 && angle < 1.18 {
-                "SW"
-            } else if angle >= 1.18 && angle < 1.96 {
-                "W"
-            } else if angle >= 1.96 && angle < 2.75 {
-                "NW"
-            } else if angle <= -0.39 && angle > -1.18 {
-                "SE"
-            } else if angle <= -1.18 && angle > -1.96 {
-                "E"
-            } else if angle <= -1.96 && angle > -2.75 {
-                "NE"
-            } else {
-                "N"
-            };
+            // Shared with the minimap compass so the radar and the compass cannot disagree.
+            let dir = crate::game::minimap::compass_dir(diff.x, diff.z).label();
             closest_info = Some((dist, wild, dir));
         }
     }

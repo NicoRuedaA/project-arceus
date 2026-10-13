@@ -809,6 +809,8 @@ fn main() -> ExitCode {
         links_path: None,
         debug_links: debug_zone_links,
     });
+    // Minimap, compass and full-screen map (Brief 15); `--no-minimap` / `--game-map`.
+    app.add_plugins(pla::game::minimap::MinimapPlugin::from_env_and_args(bin_root.clone()));
     app.insert_resource(AutomationOptions {
         screenshot_path,
         max_ticks,
