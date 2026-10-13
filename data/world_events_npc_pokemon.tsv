@@ -1,0 +1,138 @@
+# sheet: data/world_events_npc_pokemon
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 fixed overworld Pokemon (bin/field/param/placement/<area>/npc_pokemon/npc_pokemon.bin)
+# note: model_key (field 2) resolves in bin/field/param/placement/common/pokemon_model_set.bin for species/form/gender/scale (empty when not).
+# note: rot_y LIKELY degrees. Most rows are story/quest props (out of port scope); `oyabun` (alpha) in a name is a naming hint only. scale_raw: model-set field 8, LIKELY a 0..255 size scalar (127 typical; *_big prop 255, *_small prop 1).
+area:string*	name:string*	x:f32	y:f32	z:f32	rot_y:f32?	gate_flag:string?	gate_cmp:string?	gate_min:string?	gate_max:string?	model_key:string	species_id:u16?	species:string?	form:u16?	gender:string?	scale_raw:u8?	model_f6:bool?	model_f7:bool?
+ha_area00	area00_poke_s3_kusa	561.88	62.09	618.89	-96.91	WPHA_STORY	less_than_equal	600		9ecc7b26ea9e99a0	722	rowlet	0		127	0	0
+ha_area00	area00_poke_s3_honoo	544.79	60.62	623.90	107.22	WPHA_STORY	less_than_equal	600		89d4ab3b91e4193e	155	cyndaquil	0		127	0	0
+ha_area00	area00_poke_s3_mizu	555.34	60.92	604.13	-85.40	WPHA_STORY	less_than_equal	600		af4985cd1d218afc	501	oshawott	0		127	0	0
+ha_area00	area00_poke_ouji	483.57	60.29	452.39	180.00	WPHA_STORY	equal	50065		c68bd7fdeaaced3a	470	leafeon	0		127	0	0
+ha_area00	area00_poke_save_01	445.36	62.47	519.71	-114.96	WSYS_FARM_UPDATE_COUNT	greater_than_equal	1		cbf29ce484222645							
+ha_area00	area00_poke_save_02	429.24	62.47	528.85	-168.20	WSYS_FARM_UPDATE_COUNT	greater_than_equal	2		cbf29ce484222645							
+ha_area00	area00_poke_save_03	426.89	62.65	492.37	8.96	WSYS_FARM_UPDATE_COUNT	greater_than_equal	3		cbf29ce484222645							
+ha_area00	area00_poke_debug_kabarudon_01	445.36	62.47	519.71	-114.96	FEVE_DEBUG_NPC_CHECK	equal			1955d84e92121d4d	450	hippowdon	0	Male	127	0	0
+ha_area00	area00_poke_debug_gyaradosu_01	429.24	62.47	528.85	-168.20	FEVE_DEBUG_NPC_CHECK	equal			3d953062b5d32036	130	gyarados	0	Male	127	0	0
+ha_area00	area00_poke_debug_haganeeru_01	426.89	62.65	492.37	8.96	FEVE_DEBUG_NPC_CHECK	equal			27198363be073d43	208	steelix	0	Male	127	0	0
+ha_area00	area00_poke_save_05	0.00	0.00	0.00	0.00	FEVE_SUB012_BIPPA_01	equal			dd75c52f7283e9bb	399	bidoof	0	Famale	127	0	0
+ha_area00	area00_poke_save_06	0.00	0.00	0.00	0.00	FEVE_SUB012_BIPPA_02	equal			a1bb2dd9130a46f2	399	bidoof	0	Male	127	0	0
+ha_area00	area00_poke_save_07	0.00	0.00	0.00	0.00	FEVE_SUB012_BIPPA_03	equal			a1bb2dd9130a46f2	399	bidoof	0	Male	127	0	0
+ha_area00	area00_poke_save_09	479.25	60.65	555.88	54.62	sub_004	between	1	10	219a868593e0f143	418	buizel	0	Male	1	0	0
+ha_area00	area00_poke_save_10	0.00	0.00	0.00	0.00	sub_004	equal	10		cbf29ce484222645							
+ha_area00	area00_poke_debug_buizeru_01	479.52	60.61	558.36	126.50	FEVE_DEBUG_NPC_CHECK	equal			219a868593e0f143	418	buizel	0	Male	1	0	0
+ha_area00	area00_poke_save_11	522.18	60.55	462.04	171.50	sub_084	equal	255		cbf29ce484222645							
+ha_area00	area00_poke_debug_ishitubute_01	522.67	61.16	463.12	180.00	FEVE_DEBUG_NPC_CHECK	equal			af552936a4e91a20	74	geodude	0		127	0	0
+ha_area00	area00_poke_save_12	518.85	62.27	493.95	92.10	sub_094	between	1	80	f75d819c39b27ec6	358	chimecho	0		127	0	0
+ha_area00	area00_poke_save_13	481.13	60.25	446.67	55.90	WEVE_SUB005_KEMUSSO_NOW	equal	2		cbf29ce484222645							
+ha_area00	area00_poke_debug_kemusso_01	481.13	60.25	446.67	55.90	FEVE_DEBUG_NPC_CHECK	equal			754c295fb5f44d9b	265	wurmple	0		127	0	0
+ha_area00	area00_poke_save_14	0.00	0.00	0.00	0.00	sub_019	equal	20		5c60998f55a4c354	425	drifloon	0		127	0	0
+ha_area00	area00_poke_save_15	470.13	60.90	503.54	-180.00	sub_036	equal	20		5dfed77e3ef484e6	122	mr-mime	0		127	0	0
+ha_area00	area00_poke_zubatto	0.00	0.00	0.00	0.00	sub_007	equal	255		329d6d72a5ee893e	41	zubat	0	Famale	127	0	0
+ha_area00	area00_poke_save_17	0.00	0.00	0.00	0.00	WPHA_STORY	less_than_equal	15200		6bf855fae859f756	417	pachirisu	0	Male	127	0	0
+ha_area00	area00_poke_save_18	0.00	0.00	0.00	0.00	WPHA_STORY	less_than_equal	15200		7e3796c48490e2f4	396	starly	0	Famale	127	0	0
+ha_area00	area00_poke_save_19	0.00	0.00	0.00	0.00	sub_019	not_equal	1		5f4117769e95a4e2	397	staravia	0	Famale	127	0	0
+ha_area00	area00_poke_rukario	415.40	63.16	454.08	63.40	sub_098	equal	10		17d0c6d90344c370	448	lucario	0		127	0	0
+ha_area00	npc_poke_farm_1_1	530.52	60.70	511.21	-111.90					cbf29ce484222645							
+ha_area00	npc_poke_farm_1_2	532.97	60.78	514.22	-48.60					cbf29ce484222645							
+ha_area00	npc_poke_farm_1_3	530.05	60.72	505.83	104.60					cbf29ce484222645							
+ha_area00	npc_poke_farm_2_1	539.32	60.80	497.42	-121.60					cbf29ce484222645							
+ha_area00	npc_poke_farm_2_2	535.87	60.77	499.42	-97.30					cbf29ce484222645							
+ha_area00	npc_poke_farm_2_3	540.00	60.89	502.71	-7.30					cbf29ce484222645							
+ha_area00	npc_poke_farm_3_1	531.25	60.80	523.03	-46.20					cbf29ce484222645							
+ha_area00	npc_poke_farm_3_2	535.28	61.37	525.53	-87.60					cbf29ce484222645							
+ha_area00	npc_poke_farm_3_3	529.10	60.82	519.53	-87.60					cbf29ce484222645							
+ha_area00	npc_poke_farm_4_1	531.40	60.80	539.54	-99.70					cbf29ce484222645							
+ha_area00	npc_poke_farm_4_2	531.03	60.75	543.35	-180.00					cbf29ce484222645							
+ha_area00	npc_poke_farm_4_3	532.28	60.76	536.62	-53.50					cbf29ce484222645							
+ha_area00	npc_poke_farm_5_1	549.04	60.79	501.62	-178.42					cbf29ce484222645							
+ha_area00	npc_poke_farm_5_2	550.44	60.73	496.76	70.50					cbf29ce484222645							
+ha_area00	npc_poke_farm_5_3	549.00	60.93	506.61	-29.20					cbf29ce484222645							
+ha_area00	area00_poke_debug_saanaito_01	0.00	0.00	0.00	0.00					21cfef4845d0131b	282	gardevoir	0		127	0	0
+ha_area00	area00_poke_debug_namazun_01	0.00	0.00	0.00	0.00					733df163257691e4	340	whiscash	0		127	0	0
+ha_area00	area00_poke_debug_gaburiasu_01	0.00	0.00	0.00	0.00					8fd0138aed004409	445	garchomp	0	Male	127	0	0
+ha_area00	area00_poke_debug_manyuura_01	0.00	0.00	0.00	0.00					98b23602ac81c150	461	weavile	0	Male	127	0	0
+ha_area00	area00_poke_debug_teppouo_01	0.00	0.00	0.00	0.00					557ea5e216d1eb04	223	remoraid	0		127	0	0
+ha_area00_s01	area00_s01_poke_s3_kusa	46.09	10.05	67.99	180.00	WPHA_STORY	equal	12200		9ecc7b26ea9e99a0	722	rowlet	0		127	0	0
+ha_area00_s01	area00_s01_poke_s3_honoo	47.09	10.05	67.94	180.00	WPHA_STORY	equal	12200		89d4ab3b91e4193e	155	cyndaquil	0		127	0	0
+ha_area00_s01	area00_s01_poke_s3_mizu	44.99	10.05	67.75	180.00	WPHA_STORY	equal	12200		af4985cd1d218afc	501	oshawott	0		127	0	0
+ha_area00_s01	area00_s01_poke_save_02	0.00	0.00	0.00	0.00	sub_015	equal	0		6684c6b1de87286a	133	eevee	0	Male	127	0	0
+ha_area00_s01	area00_s01_poke_save_01	60.78	15.50	78.14	-115.57	sub_015	equal	10		11a4b28c3399fcae	197	umbreon	0		127	0	0
+ha_area00_s01	area00_s01_poke_save_03	50.49	10.00	85.36	-146.37					3bfe00c60aaa4629	63	abra	0		127	0	0
+ha_area00_s01	area00_s01_poke_save_07	63.62	15.50	73.40	-117.50	sub_065	equal	255		0adc40fe7471c28f	67	machoke	0		127	0	0
+ha_area00_s01	area00_s01_poke_save_001	32.37	10.03	82.06	174.90	sub_058	equal	255		cbf29ce484222645							
+ha_area00_s01	area00_poke_debug_guregguru_01	32.37	10.03	82.06	174.90	FEVE_DEBUG_NPC_CHECK	equal			317c95e85c275d22	453	croagunk	0	Male	127	0	0
+ha_area00_s01	area00_s01_poke_rukario	40.20	10.03	66.58	85.70	sub_098	equal	1		17d0c6d90344c370	448	lucario	0		127	0	0
+ha_area00_s01	area00_s01_poke_huwante	0.00	0.00	0.00	0.00	sub_019	not_equal	10		5c60998f55a4c354	425	drifloon	0		127	0	0
+ha_area00_s01	area00_s01_poke_pottyama	0.00	0.00	0.00	0.00	1	equal			89d04ad6ec6542b5	393	piplup	0		127	0	0
+ha_area00_s03_e	area00_s03_e_poke_save_18	0.00	0.00	0.00	0.00	WPHA_STORY	less_than_equal	39999		7e3796c48490e2f4	396	starly	0	Famale	127	0	0
+ha_area00_s03_e	area00_S03_e_poke_save_19	0.00	0.00	0.00	0.00	WPHA_STORY	greater_than_equal	40000		5f4117769e95a4e2	397	staravia	0	Famale	127	0	0
+ha_area00_s03_h	area00_s03_h_poke_sub_053	0.00	0.00	0.00	0.00					6bf855fae859f756	417	pachirisu	0	Male	127	0	0
+ha_area00_s03_j	area00_poke_save_11	8.30	3.05	12.03	33.70	sub_009	equal	10		cbf29ce484222645							
+ha_area00_s03_l	area00_poke_save_sub_066	0.00	0.00	0.00	0.00	sub_066	equal	255		cbf29ce484222645							
+ha_area00_s03_m	area00_s03_k_save_01	10.53	2.28	19.34	174.11	sub_017	equal	255		cbf29ce484222645							
+ha_area00_s03_o	area00_s03_o_sub014	13.60	2.25	22.92	34.10	sub_014	equal	40		2f3677acad0b264f	172	pichu	0		127	0	0
+ha_area00_s03_q	area00_s03_q_poke_save_01	8.61	2.29	15.76	139.40	sub_030	between	1	10	6684c6b1de87286a	133	eevee	0	Male	127	0	0
+ha_area00_s03_q	area00_s03_q_poke_save_02	0.00	0.00	0.00	0.00	sub_015	equal	255		11a4b28c3399fcae	197	umbreon	0		127	0	0
+ha_area00_s03_s	area00_poke_save_sub_025	9.68	2.30	22.71	180.00	sub_025	equal	255		cbf29ce484222645							
+ha_area00_s09	npc_poke_photo_studio	20.51	2.00	9.53	-88.44					cbf29ce484222645							
+ha_area01	area01_poke_oyabun01	603.06	60.50	525.40	-167.56	WPHA_STORY	equal	22200		96c22933a5e58e3b	402	kricketune	0	Male	127	1	1
+ha_area01	area01_poke_cap1	467.10	27.69	309.21	140.30	WPHA_STORY	between	19200	20099	a0047eeb132ed1d6	446	munchlax	0		127	0	0
+ha_area01	area01_poke_sub_077_A	679.55	40.95	599.45	-120.80	sub_077	between	10	11	3c3d26ba3c4d928b	46	paras	0		127	0	0
+ha_area01	area01_poke_sub_077_B	680.18	41.09	598.63	-95.50	sub_077	between	10	11	3c3d26ba3c4d928b	46	paras	0		127	0	0
+ha_area01	area01_poke_sub_077_C	677.89	40.94	599.08	-149.60	sub_077	between	10	11	3c3d26ba3c4d928b	46	paras	0		127	0	0
+ha_area01_s01	area01_s01_poke_oyabun01	40.00	10.20	40.00	180.00	chap7a	between	20	30	b480f619b5f3ae80	706	goodra	1		127	1	1
+ha_area01_s01	area01_s01_poke_m01	41.30	12.00	42.59	-180.00	chap7a	equal	40		8c9946681252830b	481	mesprit	0		127	0	0
+ha_area02	area02_poke_biidaru	449.84	59.22	352.05	-133.73	WPHA_STORY	equal	31200		c8f7d5bf4173ce93	400	bibarel	0	Male	127	0	0
+ha_area02	area02_poke_ringuma	590.16	40.07	826.33	-115.50	WPHA_STORY	equal	32201		5e18a362db785c35	901	ursaluna	0		127	0	0
+ha_area02	area02_poke_sukanpuu	639.79	45.47	730.53	-75.60	sub_031	between	10	20	19ee4ea3adf0b902	434	stunky	0		127	0	0
+ha_area02	area02_poke_sukanpuu_2	639.05	45.47	728.85	-75.60	sub_031	between	10	20	19ee4ea3adf0b902	434	stunky	0		127	0	0
+ha_area02	area02_poke_sukanpuu_3	638.46	45.42	730.95	-180.00	sub_031	between	10	20	19ee4ea3adf0b902	434	stunky	0		127	0	0
+ha_area02	area02_poke_usokkii	624.20	48.59	717.26	4.20	sub_032	equal	20		56ebf2b961d8c2f0	185	sudowoodo	0	Male	127	0	0
+ha_area02	area02_poke_sub_026_1	613.89	80.00	333.62	-68.50	sub_026	between	1	30	780cf5544a1ba14e	54	psyduck	0		127	0	0
+ha_area02	area02_poke_sub_026_2	613.21	80.00	332.91	-16.10	sub_026	between	1	30	780cf5544a1ba14e	54	psyduck	0		127	0	0
+ha_area02	area02_poke_sub_026_3	614.16	80.01	334.68	-119.20	sub_026	between	1	30	780cf5544a1ba14e	54	psyduck	0		127	0	0
+ha_area02	area02_poke_sub_053	255.60	55.22	443.33	-24.73	sub_053	between	10	20	6bf855fae859f756	417	pachirisu	0	Male	127	0	0
+ha_area02_s01	npc_poke_saihoon_01	9.89	5.61	17.19	19.31					b06192701c4cd0bf	111	rhyhorn	0	Male	127	0	0
+ha_area02_s01_a	npc_poke_beroringa_01	8.67	5.61	17.81	150.54					f76ab6efc7b2ef31	108	lickitung	0		127	0	0
+ha_area02_s01_c	area02_s01_c_npc_poke_kodakku_01	7.56	7.42	15.76	124.20					780cf5544a1ba14e	54	psyduck	0		127	0	0
+ha_area02_s01_c	area02_s01_c_npc_poke_kodakku_02	7.31	7.42	14.97	85.90					780cf5544a1ba14e	54	psyduck	0		127	0	0
+ha_area02_s01_c	area02_s01_c_npc_poke_kodakku_03	7.36	7.42	14.35	-76.90					780cf5544a1ba14e	54	psyduck	0		127	0	0
+ha_area02_s01_d	npc_poke_himeguma_01	11.06	5.64	14.22	2.50					e0c3b017f309db7f	216	teddiursa	0		127	0	0
+ha_area02_s02	area02_s02_poke_oyabun01	40.00	10.20	40.00	180.00	chap7b	between	20	30	00177ec637e0f547	904	overqwil	0		127	1	1
+ha_area03	area03_pnpc_gaadhi_big	781.33	76.24	417.46	115.80	WPHA_STORY	equal	41000		5abd56e662a3af06	58	growlithe	1		255	0	0
+ha_area03	area03_pnpc_gaadhi_small	781.91	76.21	415.34	60.00	WPHA_STORY	equal	41000		31b695d92696c535	58	growlithe	1		1	0	0
+ha_area03	area03_pnpc_genger	831.40	49.87	132.64	-46.50	WPHA_STORY	between	45200	45201	fe46add5a3c9e59d	94	gengar	0		127	0	0
+ha_area03	area03_pnpc_perappu	937.28	25.50	821.89	115.80	sub_051	between	20	21	6f92ea1dc51cabcf	441	chatot	0		127	0	0
+ha_area03	area03_pnpc_sub_056	907.90	25.83	861.04	-87.00	sub_056	between	1	10	89d04ad6ec6542b5	393	piplup	0		127	0	0
+ha_area03	area03_pnpc_sub_049_1	307.44	73.40	348.24	151.30	sub_049	equal	31		04eff829ae5a9cae	190	aipom	0	Male	127	0	0
+ha_area03	area03_pnpc_sub_049_2	306.69	73.45	347.82	151.30	sub_049	equal	31		b924fa5e88cbf499	190	aipom	0	Famale	127	0	0
+ha_area03_s02	area03_s02_poke_gira	0.00	0.00	0.00	0.00	sub_110	equal	20		2e7b41bce75826f6	487	giratina	1		127	0	0
+ha_area04	area04_sukatanku	179.05	154.82	470.92	44.80	WPHA_STORY	between	55000	55400	584af50a97d6e1d6	435	skuntank	0		127	0	0
+ha_area04	area04_pnpc_dhiaruga	0.00	0.00	0.00	0.00	WPHA_STORY	equal	87005		106e7182195c260f	483	dialga	0		127	0	0
+ha_area04	area04_pnpc_parukia	0.00	0.00	0.00	0.00	WPHA_STORY	equal	87005		a055d9b805436a0c	484	palkia	0		127	0	0
+ha_area04	area04_pnpc_sub_071_1	833.15	48.36	683.20	-74.30	sub_071	equal	10		b03300749e45bb04	436	bronzor	0		127	0	0
+ha_area04	area04_pnpc_sub_071_2	900.69	50.46	673.26	-62.51	sub_071	equal	10		b03300749e45bb04	436	bronzor	0		127	0	0
+ha_area04	area00_poke_save_sub_066	0.00	0.00	0.00	0.00	sub_066	equal	255		cbf29ce484222645							
+ha_area04	area00_poke_TAMAZARASHI_sub_099	215.58	120.49	624.60	17.96	sub_099	equal	10		9e3d34369c67db99	363	spheal	0		127	0	0
+ha_area04_s02	area04_s02_oyabun	107.41	11.72	71.00	143.05	WPHA_STORY	between	51400	51440	884cae4f264e7c53	169	crobat	0		127	1	1
+ha_area05	area05_npc_pokemon_whooguru	642.29	38.55	442.84	14.40	WPHA_STORY	equal	60400		b496c9bc67bd78ce	628	braviary	1		127	0	0
+ha_area05	area05_poke_rokon_01	0.00	0.00	0.00	0.00	sub_092	between	20	60	295e0f613e5b2e99	37	vulpix	1		127	0	0
+ha_area05	area05_poke_rokon_02	0.00	0.00	0.00	0.00	sub_092	between	20	60	295e0f613e5b2e99	37	vulpix	1		127	0	0
+ha_area05	area05_poke_rokon_03	0.00	0.00	0.00	0.00	sub_092	between	20	60	295e0f613e5b2e99	37	vulpix	1		127	0	0
+ha_area05	area05_poke_rokon_04	0.00	0.00	0.00	0.00	sub_092	between	20	60	295e0f613e5b2e99	37	vulpix	1		127	0	0
+ha_area05	area05_poke_rokon_05	0.00	0.00	0.00	0.00	sub_092	between	20	60	295e0f613e5b2e99	37	vulpix	1		127	0	0
+ha_area05	area05_poke_rokon_06	540.93	31.13	892.21	44.80	sub_092	between	20	70	295e0f613e5b2e99	37	vulpix	1		127	0	0
+ha_area05	area05_poke_sub_096	378.62	19.75	494.92	-27.90	sub_096	equal	11		0e3f241026905b7f	362	glalie	0	Male	127	1	1
+ha_area05	area05_poke_yukiwarasi_01	186.93	31.36	612.77	-41.40	sub_086	equal	10		7f59a6b1a057aaec	361	snorunt	0		127	0	0
+ha_area05	area05_poke_yukiwarasi_02	186.06	31.30	612.43	19.40	sub_086	equal	10		7f59a6b1a057aaec	361	snorunt	0		127	0	0
+ha_area05	area05_poke_INOMUU_01	788.41	56.19	143.70	-139.40					00ffec5427c03217	221	piloswine	0	Male	127	0	0
+ha_area05	area05_poke_INOMUU_02	790.07	56.09	142.30	-109.00					00ffec5427c03217	221	piloswine	0	Male	127	0	0
+ha_area05	area05_poke_URIMUU	788.54	56.80	141.81	14.40					c513f3a8b387ce60	220	swinub	0		127	0	0
+ha_area05_s01	area05_s01_poke_giga	438.95	14.03	552.42	86.09	chap10d	between	30	40	bfa4299e98fb33d9	486	regigigas	0		127	0	0
+ha_area05_s03	area05_s03_poke_oyabun01	40.00	10.20	40.00	180.00	chap7c	between	20	30	119437a2c563161a	571	zoroark	1		127	1	1
+ha_area05_s03	area05_s03_poke_u01	39.86	12.00	41.66	-180.00	chap7c	equal	40		97cc9929eddbd5f8	480	uxie	0		127	0	0
+ha_area05_s04_a	npc_poke_wanriki_01	9.98	5.61	15.33	158.00					dd8d4287cd69b2b1	66	machop	0		127	0	0
+ha_area05_s04_c	npc_poke_katikooru_01	8.72	5.61	13.51	117.50					4984c3c7710b2afc	712	bergmite	0		127	0	0
+ha_area05_s04_d	npc_poke_guraigaa_01	7.97	6.16	17.02	-54.90					18223b561661afaa	207	gligar	0	Famale	127	0	0
+ha_area06	area06_pnpc_keeshi	508.92	10.46	508.35	-5.90	WPHA_STORY	between	72200	80000	3bfe00c60aaa4629	63	abra	0		127	0	0

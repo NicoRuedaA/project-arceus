@@ -1,0 +1,18 @@
+# sheet: data/world_events_alpha_settings
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 alpha (oybn) settings per area (bin/encount/common/oybn_setting.bin)
+# note: Raw u32 fields 1..5 (15,15,15,20,20 everywhere); meaning UNKNOWN.
+area:string*	f1_raw:u32	f2_raw:u32	f3_raw:u32	f4_raw:u32	f5_raw:u32
+ha_area01	15	15	15	20	20
+ha_area02	15	15	15	20	20
+ha_area03	15	15	15	20	20
+ha_area04	15	15	15	20	20
+ha_area05	15	15	15	20	20
+ha_area01_s01	15	15	15	20	20
+ha_area02_s02	15	15	15	20	20
+ha_area03_s03	15	15	15	20	20
+ha_area03_s04	15	15	15	20	20
+ha_area04_s02	15	15	15	20	20
+ha_area05_s01	15	15	15	20	20
+ha_area05_s03	15	15	15	20	20

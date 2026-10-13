@@ -1,0 +1,13 @@
+# sheet: data/world_events_outbreak_areas
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 mass outbreak settings per area (bin/field/encount/huge_outbreak.bin)
+# note: work = the save work whose value selects the active outbreak; outbreak_count = number of outbreak ids (VERIFIED: equals the highest
+# note: WSYS_MASS_GANERATION_AREAnn value gating a spawner). story_*: unlock gate. f1_raw: unknown. total_min/total_max (10/15) ASSUMED
+# note: = Pokemon per outbreak; f7_raw (25) ASSUMED = extra shiny rolls. Not confirmed by code.
+area:string*	work:string	story_flag:string	story_cmp:string?	story_value:string?	f1_raw:u32	outbreak_count:u16	total_min:u16	total_max:u16	f7_raw:u32
+ha_area01	WSYS_MASS_GANERATION_AREA01	WPHA_STORY	greater_than_equal	14800	20	46	10	15	25
+ha_area02	WSYS_MASS_GANERATION_AREA02	WPHA_STORY	greater_than_equal	31200	20	44	10	15	25
+ha_area03	WSYS_MASS_GANERATION_AREA03	WPHA_STORY	greater_than_equal	40800	20	44	10	15	25
+ha_area04	WSYS_MASS_GANERATION_AREA04	WPHA_STORY	greater_than_equal	51200	20	48	10	15	25
+ha_area05	WSYS_MASS_GANERATION_AREA05	WPHA_STORY	greater_than_equal	60200	20	45	10	15	25

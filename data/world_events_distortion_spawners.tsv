@@ -1,0 +1,471 @@
+# sheet: data/world_events_distortion_spawners
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 distortion spawners (bin/field/param/placement/<area>/wh_spawner/spawner_data.bin)
+# note: role main = the dome-wide spawner (shape/sphere radius 50, count 2..3); sub = small spheres (radius 6, count 1). Counts are spawner fields 7/8 (LIKELY min/max alive).
+# note: encount_key resolves in the same area's bin/encount/<area>/encount_data.bin (VERIFIED for all 464).
+area:string*	spawner_name:string*	spawner_id:string	site:string	variant:string	role:enum	x:f32	y:f32	z:f32	shape:string	radius:f32?	min_count:u16?	max_count:u16?	encount_key:string	gate_flag:string?	gate_cmp:string?	gate_min:string?	gate_max:string?
+ha_area01	main_whSpawner0101_01	8c37c48184f177ac	01	01	main	523.30	33.69	169.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0101_01	fb0ff2a1480ce49f	01	01	sub	508.00	39.00	145.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0102_01	285cfaa7aa8bb988	01	01	sub	501.80	35.20	195.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0103_01	fddf06b2f3f47d9d	01	01	sub	561.10	29.70	157.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	main_whSpawner0101_02	8c37c78184f17cc5	01	02	main	523.30	33.69	169.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0101_02	fb0ff3a1480ce652	01	02	sub	508.00	39.00	145.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0102_02	285cfda7aa8bbea1	01	02	sub	501.80	35.20	195.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0103_02	fddf03b2f3f47884	01	02	sub	561.10	29.70	157.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	main_whSpawner0101_03	8c37c68184f17b12	01	03	main	523.30	33.69	169.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0101_03	fb0ff4a1480ce805	01	03	sub	508.00	39.00	145.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0102_03	285cfca7aa8bbcee	01	03	sub	501.80	35.20	195.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0103_03	fddf04b2f3f47a37	01	03	sub	561.10	29.70	157.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	main_whSpawner0101_04	8c37c18184f17293	01	04	main	523.30	33.69	169.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0101_04	fb0feda1480cdc20	01	04	sub	508.00	39.00	145.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0102_04	285cffa7aa8bc207	01	04	sub	501.80	35.20	195.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0103_04	fddf01b2f3f4751e	01	04	sub	561.10	29.70	157.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	main_whSpawner0101_05	8c37c08184f170e0	01	05	main	523.30	33.69	169.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0101_05	fb0feea1480cddd3	01	05	sub	508.00	39.00	145.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0102_05	285cfea7aa8bc054	01	05	sub	501.80	35.20	195.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0103_05	fddf02b2f3f476d1	01	05	sub	561.10	29.70	157.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	main_whSpawner0101_06	8c37c38184f175f9	01	06	main	523.30	33.69	169.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0101_06	fb0fefa1480cdf86	01	06	sub	508.00	39.00	145.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0102_06	285d01a7aa8bc56d	01	06	sub	501.80	35.20	195.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0103_06	fddeffb2f3f471b8	01	06	sub	561.10	29.70	157.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	main_whSpawner0201_01	719e96223a1e79db	02	01	main	444.10	29.16	498.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0201_01	7c9d688a43651550	02	01	sub	428.20	29.60	523.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0202_01	cfc74080328aa4a7	02	01	sub	410.60	29.80	487.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0203_01	a42cb479d17c83f2	02	01	sub	469.80	42.20	476.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	main_whSpawner0201_02	719e97223a1e7b8e	02	02	main	444.10	29.16	498.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0201_02	7c9d6b8a43651a69	02	02	sub	428.20	29.60	523.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0202_02	cfc74180328aa65a	02	02	sub	410.60	29.80	487.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0203_02	a42cb379d17c823f	02	02	sub	469.80	42.20	476.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	main_whSpawner0201_03	719e98223a1e7d41	02	03	main	444.10	29.16	498.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0201_03	7c9d6a8a436518b6	02	03	sub	428.20	29.60	523.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0202_03	cfc74280328aa80d	02	03	sub	410.60	29.80	487.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0203_03	a42cb279d17c808c	02	03	sub	469.80	42.20	476.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	main_whSpawner0201_04	719e99223a1e7ef4	02	04	main	444.10	29.16	498.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0201_04	7c9d6d8a43651dcf	02	04	sub	428.20	29.60	523.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0202_04	cfc73b80328a9c28	02	04	sub	410.60	29.80	487.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0203_04	a42cb179d17c7ed9	02	04	sub	469.80	42.20	476.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	main_whSpawner0201_05	719e9a223a1e80a7	02	05	main	444.10	29.16	498.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0201_05	7c9d6c8a43651c1c	02	05	sub	428.20	29.60	523.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0202_05	cfc73c80328a9ddb	02	05	sub	410.60	29.80	487.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0203_05	a42cb079d17c7d26	02	05	sub	469.80	42.20	476.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	main_whSpawner0201_06	719e9b223a1e825a	02	06	main	444.10	29.16	498.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0201_06	7c9d6f8a43652135	02	06	sub	428.20	29.60	523.30	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0202_06	cfc73d80328a9f8e	02	06	sub	410.60	29.80	487.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0203_06	a42caf79d17c7b73	02	06	sub	469.80	42.20	476.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	main_whSpawner0301_01	4e2756892dc9e7fe	03	01	main	641.60	33.92	706.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0301_01	e1ae6b5af77e9fad	03	01	sub	661.50	32.80	706.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0302_01	8879ab41b02d793a	03	01	sub	649.30	28.50	741.50	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0303_01	5dfb974cf99606ef	03	01	sub	612.90	37.30	702.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	main_whSpawner0301_02	4e2755892dc9e64b	03	02	main	641.60	33.92	706.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0301_02	e1ae685af77e9a94	03	02	sub	661.50	32.80	706.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0302_02	8879aa41b02d7787	03	02	sub	649.30	28.50	741.50	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0303_02	5dfb984cf99608a2	03	02	sub	612.90	37.30	702.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	main_whSpawner0301_03	4e2754892dc9e498	03	03	main	641.60	33.92	706.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0301_03	e1ae695af77e9c47	03	03	sub	661.50	32.80	706.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0302_03	8879a941b02d75d4	03	03	sub	649.30	28.50	741.50	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0303_03	5dfb994cf9960a55	03	03	sub	612.90	37.30	702.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	main_whSpawner0301_04	4e275b892dc9f07d	03	04	main	641.60	33.92	706.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0301_04	e1ae665af77e972e	03	04	sub	661.50	32.80	706.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0302_04	8879a841b02d7421	03	04	sub	649.30	28.50	741.50	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0303_04	5dfb924cf995fe70	03	04	sub	612.90	37.30	702.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	main_whSpawner0301_05	4e275a892dc9eeca	03	05	main	641.60	33.92	706.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0301_05	e1ae675af77e98e1	03	05	sub	661.50	32.80	706.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0302_05	8879a741b02d726e	03	05	sub	649.30	28.50	741.50	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0303_05	5dfb934cf9960023	03	05	sub	612.90	37.30	702.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	main_whSpawner0301_06	4e2759892dc9ed17	03	06	main	641.60	33.92	706.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0301_06	e1ae645af77e93c8	03	06	sub	661.50	32.80	706.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0302_06	8879a641b02d70bb	03	06	sub	649.30	28.50	741.50	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0303_06	5dfb944cf99601d6	03	06	sub	612.90	37.30	702.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	main_whSpawner0501_01	be0dddca965981f0	05	01	main	149.30	34.32	760.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0501_01	de24361ba6dfba3b	05	01	sub	153.30	33.90	734.40	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0502_01	3489fe2342497744	05	01	sub	166.70	31.90	770.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	sub_whSpawner0503_01	099eea2e8b553319	05	01	sub	122.10	33.80	773.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area01	main_whSpawner0501_02	be0de0ca96598709	05	02	main	149.30	34.32	760.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0501_02	de24371ba6dfbbee	05	02	sub	153.30	33.90	734.40	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0502_02	348a012342497c5d	05	02	sub	166.70	31.90	770.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	sub_whSpawner0503_02	099ee72e8b552e00	05	02	sub	122.10	33.80	773.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area01	main_whSpawner0501_03	be0ddfca96598556	05	03	main	149.30	34.32	760.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0501_03	de24381ba6dfbda1	05	03	sub	153.30	33.90	734.40	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0502_03	348a002342497aaa	05	03	sub	166.70	31.90	770.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	sub_whSpawner0503_03	099ee82e8b552fb3	05	03	sub	122.10	33.80	773.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area01	main_whSpawner0501_04	be0de2ca96598a6f	05	04	main	149.30	34.32	760.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0501_04	de24391ba6dfbf54	05	04	sub	153.30	33.90	734.40	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0502_04	3489fb234249722b	05	04	sub	166.70	31.90	770.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	sub_whSpawner0503_04	099eed2e8b553832	05	04	sub	122.10	33.80	773.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area01	main_whSpawner0501_05	be0de1ca965988bc	05	05	main	149.30	34.32	760.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0501_05	de243a1ba6dfc107	05	05	sub	153.30	33.90	734.40	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0502_05	3489fa2342497078	05	05	sub	166.70	31.90	770.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	sub_whSpawner0503_05	099eee2e8b5539e5	05	05	sub	122.10	33.80	773.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area01	main_whSpawner0501_06	be0de4ca96598dd5	05	06	main	149.30	34.32	760.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0501_06	de243b1ba6dfc2ba	05	06	sub	153.30	33.90	734.40	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0502_06	3489fd2342497591	05	06	sub	166.70	31.90	770.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area01	sub_whSpawner0503_06	099eeb2e8b5534cc	05	06	sub	122.10	33.80	773.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area02	main_whSpawner0101_01	8c37c48184f177ac	01	01	main	852.80	37.62	719.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0101_01	fb0ff2a1480ce49f	01	01	sub	849.90	37.53	742.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0102_01	285cfaa7aa8bb988	01	01	sub	887.50	38.08	705.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0103_01	fddf06b2f3f47d9d	01	01	sub	830.30	38.40	693.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	main_whSpawner0101_02	8c37c78184f17cc5	01	02	main	852.80	37.62	719.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0101_02	fb0ff3a1480ce652	01	02	sub	849.90	37.53	742.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0102_02	285cfda7aa8bbea1	01	02	sub	887.50	38.08	705.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0103_02	fddf03b2f3f47884	01	02	sub	830.30	38.40	693.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	main_whSpawner0101_03	8c37c68184f17b12	01	03	main	852.80	37.62	719.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0101_03	fb0ff4a1480ce805	01	03	sub	849.90	37.53	742.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0102_03	285cfca7aa8bbcee	01	03	sub	887.50	38.08	705.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0103_03	fddf04b2f3f47a37	01	03	sub	830.30	38.40	693.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	main_whSpawner0101_04	8c37c18184f17293	01	04	main	852.80	37.62	719.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0101_04	fb0feda1480cdc20	01	04	sub	849.90	37.53	742.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0102_04	285cffa7aa8bc207	01	04	sub	887.50	38.08	705.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0103_04	fddf01b2f3f4751e	01	04	sub	830.30	38.40	693.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	main_whSpawner0101_05	8c37c08184f170e0	01	05	main	852.80	37.62	719.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0101_05	fb0feea1480cddd3	01	05	sub	849.90	37.53	742.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0102_05	285cfea7aa8bc054	01	05	sub	887.50	38.08	705.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0103_05	fddf02b2f3f476d1	01	05	sub	830.30	38.40	693.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	main_whSpawner0101_06	8c37c38184f175f9	01	06	main	852.80	37.62	719.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0101_06	fb0fefa1480cdf86	01	06	sub	849.90	37.53	742.00	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0102_06	285d01a7aa8bc56d	01	06	sub	887.50	38.08	705.60	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0103_06	fddeffb2f3f471b8	01	06	sub	830.30	38.40	693.70	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	main_whSpawner0301_01	4e2756892dc9e7fe	03	01	main	435.70	37.38	887.60	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	45000	49999
+ha_area02	sub_whSpawner0301_01	e1ae6b5af77e9fad	03	01	sub	435.10	36.75	899.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	45000	49999
+ha_area02	sub_whSpawner0302_01	8879ab41b02d793a	03	01	sub	465.50	37.17	909.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	45000	49999
+ha_area02	sub_whSpawner0303_01	5dfb974cf99606ef	03	01	sub	424.50	37.30	864.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	45000	49999
+ha_area02	main_whSpawner0301_02	4e2755892dc9e64b	03	02	main	435.70	37.38	887.60	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0301_02	e1ae685af77e9a94	03	02	sub	435.10	36.75	899.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0302_02	8879aa41b02d7787	03	02	sub	465.50	37.17	909.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0303_02	5dfb984cf99608a2	03	02	sub	424.50	37.30	864.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	main_whSpawner0301_03	4e2754892dc9e498	03	03	main	435.70	37.38	887.60	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0301_03	e1ae695af77e9c47	03	03	sub	435.10	36.75	899.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0302_03	8879a941b02d75d4	03	03	sub	465.50	37.17	909.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0303_03	5dfb994cf9960a55	03	03	sub	424.50	37.30	864.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	main_whSpawner0301_04	4e275b892dc9f07d	03	04	main	435.70	37.38	887.60	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0301_04	e1ae665af77e972e	03	04	sub	435.10	36.75	899.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0302_04	8879a841b02d7421	03	04	sub	465.50	37.17	909.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0303_04	5dfb924cf995fe70	03	04	sub	424.50	37.30	864.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	main_whSpawner0301_05	4e275a892dc9eeca	03	05	main	435.70	37.38	887.60	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0301_05	e1ae675af77e98e1	03	05	sub	435.10	36.75	899.70	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0302_05	8879a741b02d726e	03	05	sub	465.50	37.17	909.80	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0303_05	5dfb934cf9960023	03	05	sub	424.50	37.30	864.60	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	main_whSpawner0401_01	798fe09dbfe4cfcd	04	01	main	733.10	37.22	807.70	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0401_01	baad76829a8c01de	04	01	sub	722.10	36.50	775.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0402_01	13e2369be1dd2851	04	01	sub	752.80	37.70	812.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0403_01	e6282a957f017abc	04	01	sub	710.20	37.80	810.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	main_whSpawner0401_02	798fdd9dbfe4cab4	04	02	main	733.10	37.22	807.70	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0401_02	baad75829a8c002b	04	02	sub	722.10	36.50	775.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0402_02	13e2339be1dd2338	04	02	sub	752.80	37.70	812.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0403_02	e6282d957f017fd5	04	02	sub	710.20	37.80	810.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	main_whSpawner0401_03	798fde9dbfe4cc67	04	03	main	733.10	37.22	807.70	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0401_03	baad74829a8bfe78	04	03	sub	722.10	36.50	775.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0402_03	13e2349be1dd24eb	04	03	sub	752.80	37.70	812.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0403_03	e6282c957f017e22	04	03	sub	710.20	37.80	810.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	main_whSpawner0401_04	798fdb9dbfe4c74e	04	04	main	733.10	37.22	807.70	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0401_04	baad7b829a8c0a5d	04	04	sub	722.10	36.50	775.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0402_04	13e2399be1dd2d6a	04	04	sub	752.80	37.70	812.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0403_04	e62827957f0175a3	04	04	sub	710.20	37.80	810.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	main_whSpawner0401_05	798fdc9dbfe4c901	04	05	main	733.10	37.22	807.70	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	70000	
+ha_area02	sub_whSpawner0401_05	baad7a829a8c08aa	04	05	sub	722.10	36.50	775.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	70000	
+ha_area02	sub_whSpawner0402_05	13e23a9be1dd2f1d	04	05	sub	752.80	37.70	812.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	70000	
+ha_area02	sub_whSpawner0403_05	e62826957f0173f0	04	05	sub	710.20	37.80	810.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	70000	
+ha_area02	main_whSpawner0401_06	798fd99dbfe4c3e8	04	06	main	733.10	37.22	807.70	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	70000	
+ha_area02	sub_whSpawner0401_06	baad79829a8c06f7	04	06	sub	722.10	36.50	775.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	70000	
+ha_area02	sub_whSpawner0402_06	13e2379be1dd2a04	04	06	sub	752.80	37.70	812.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	70000	
+ha_area02	sub_whSpawner0403_06	e62829957f017909	04	06	sub	710.20	37.80	810.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	70000	
+ha_area02	main_whSpawner0501_01	be0dddca965981f0	05	01	main	814.00	67.69	462.30	sphere	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0501_01	de24361ba6dfba3b	05	01	sub	829.50	67.60	477.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0502_01	3489fe2342497744	05	01	sub	803.00	61.80	494.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0503_01	099eea2e8b553319	05	01	sub	824.70	70.10	444.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	main_whSpawner0501_02	be0de0ca96598709	05	02	main	814.00	67.69	462.30	sphere	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0501_02	de24371ba6dfbbee	05	02	sub	829.50	67.60	477.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0502_02	348a012342497c5d	05	02	sub	803.00	61.80	494.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0503_02	099ee72e8b552e00	05	02	sub	824.70	70.10	444.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	main_whSpawner0501_03	be0ddfca96598556	05	03	main	814.00	67.69	462.30	sphere	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0501_03	de24381ba6dfbda1	05	03	sub	829.50	67.60	477.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0502_03	348a002342497aaa	05	03	sub	803.00	61.80	494.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0503_03	099ee82e8b552fb3	05	03	sub	824.70	70.10	444.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	main_whSpawner0501_04	be0de2ca96598a6f	05	04	main	814.00	67.69	462.30	sphere	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0501_04	de24391ba6dfbf54	05	04	sub	829.50	67.60	477.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0502_04	3489fb234249722b	05	04	sub	803.00	61.80	494.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0503_04	099eed2e8b553832	05	04	sub	824.70	70.10	444.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	main_whSpawner0501_05	be0de1ca965988bc	05	05	main	814.00	67.69	462.30	sphere	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0501_05	de243a1ba6dfc107	05	05	sub	829.50	67.60	477.10	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0502_05	3489fa2342497078	05	05	sub	803.00	61.80	494.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0503_05	099eee2e8b5539e5	05	05	sub	824.70	70.10	444.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	main_whSpawner0501_06	be0de4ca96598dd5	05	06	main	814.00	67.69	462.30	sphere	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0501_06	de243b1ba6dfc2ba	05	06	sub	829.50	67.60	477.10	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0502_06	3489fd2342497591	05	06	sub	803.00	61.80	494.70	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0503_06	099eeb2e8b5534cc	05	06	sub	824.70	70.10	444.80	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	main_whSpawner0601_01	3b7f52a568bd09bf	06	01	main	278.40	41.57	640.10	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0601_01	481cd36c4cda7a0c	06	01	sub	287.10	41.22	616.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0602_01	70e84b61020101c3	06	01	sub	250.40	41.30	645.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	sub_whSpawner0603_01	454ddf5aa0f3176e	06	01	sub	300.70	41.40	669.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	39999	
+ha_area02	main_whSpawner0601_02	3b7f53a568bd0b72	06	02	main	278.40	41.57	640.10	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0601_02	481cd66c4cda7f25	06	02	sub	287.10	41.22	616.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0602_02	70e84c6102010376	06	02	sub	250.40	41.30	645.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	sub_whSpawner0603_02	454dde5aa0f315bb	06	02	sub	300.70	41.40	669.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	40000	49999
+ha_area02	main_whSpawner0601_03	3b7f54a568bd0d25	06	03	main	278.40	41.57	640.10	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0601_03	481cd56c4cda7d72	06	03	sub	287.10	41.22	616.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0602_03	70e84d6102010529	06	03	sub	250.40	41.30	645.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	sub_whSpawner0603_03	454ddd5aa0f31408	06	03	sub	300.70	41.40	669.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area02	main_whSpawner0601_04	3b7f4da568bd0140	06	04	main	278.40	41.57	640.10	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0601_04	481cd06c4cda74f3	06	04	sub	287.10	41.22	616.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0602_04	70e84e61020106dc	06	04	sub	250.40	41.30	645.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	sub_whSpawner0603_04	454de45aa0f31fed	06	04	sub	300.70	41.40	669.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area02	main_whSpawner0601_05	3b7f4ea568bd02f3	06	05	main	278.40	41.57	640.10	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0601_05	481ccf6c4cda7340	06	05	sub	287.10	41.22	616.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0602_05	70e84f610201088f	06	05	sub	250.40	41.30	645.90	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	sub_whSpawner0603_05	454de35aa0f31e3a	06	05	sub	300.70	41.40	669.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area02	main_whSpawner0601_06	3b7f4fa568bd04a6	06	06	main	278.40	41.57	640.10	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0601_06	481cd26c4cda7859	06	06	sub	287.10	41.22	616.80	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0602_06	70e8506102010a42	06	06	sub	250.40	41.30	645.90	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area02	sub_whSpawner0603_06	454de25aa0f31c87	06	06	sub	300.70	41.40	669.80	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area03	main_whSpawner0101_01	8c37c48184f177ac	01	01	main	231.70	27.30	517.20	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0101_01	fb0ff2a1480ce49f	01	01	sub	230.25	28.09	536.71	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0102_01	285cfaa7aa8bb988	01	01	sub	210.88	27.04	505.56	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0103_01	fddf06b2f3f47d9d	01	01	sub	260.74	28.34	508.38	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	main_whSpawner0101_02	8c37c78184f17cc5	01	02	main	231.70	27.30	517.20	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0101_02	fb0ff3a1480ce652	01	02	sub	230.25	28.09	536.71	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0102_02	285cfda7aa8bbea1	01	02	sub	210.88	27.04	505.56	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0103_02	fddf03b2f3f47884	01	02	sub	260.74	28.34	508.38	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	main_whSpawner0101_03	8c37c68184f17b12	01	03	main	231.70	27.30	517.20	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0101_03	fb0ff4a1480ce805	01	03	sub	230.25	28.09	536.71	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0102_03	285cfca7aa8bbcee	01	03	sub	210.88	27.04	505.56	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0103_03	fddf04b2f3f47a37	01	03	sub	260.74	28.34	508.38	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	main_whSpawner0101_04	8c37c18184f17293	01	04	main	231.70	27.30	517.20	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0101_04	fb0feda1480cdc20	01	04	sub	230.25	28.09	536.71	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0102_04	285cffa7aa8bc207	01	04	sub	210.88	27.04	505.56	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0103_04	fddf01b2f3f4751e	01	04	sub	260.74	28.34	508.38	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	main_whSpawner0101_05	8c37c08184f170e0	01	05	main	231.70	27.30	517.20	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0101_05	fb0feea1480cddd3	01	05	sub	230.25	28.09	536.71	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0102_05	285cfea7aa8bc054	01	05	sub	210.88	27.04	505.56	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0103_05	fddf02b2f3f476d1	01	05	sub	260.74	28.34	508.38	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	main_whSpawner0201_01	719e96223a1e79db	02	01	main	243.80	27.95	742.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0201_01	7c9d688a43651550	02	01	sub	246.61	28.72	764.83	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0202_01	cfc74080328aa4a7	02	01	sub	275.40	27.45	733.87	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0203_01	a42cb479d17c83f2	02	01	sub	217.35	28.03	733.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	main_whSpawner0201_02	719e97223a1e7b8e	02	02	main	243.80	27.95	742.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0201_02	7c9d6b8a43651a69	02	02	sub	246.61	28.72	764.83	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0202_02	cfc74180328aa65a	02	02	sub	275.40	27.45	733.87	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0203_02	a42cb379d17c823f	02	02	sub	217.35	28.03	733.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	main_whSpawner0201_03	719e98223a1e7d41	02	03	main	243.80	27.95	742.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0201_03	7c9d6a8a436518b6	02	03	sub	246.61	28.72	764.83	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0202_03	cfc74280328aa80d	02	03	sub	275.40	27.45	733.87	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0203_03	a42cb279d17c808c	02	03	sub	217.35	28.03	733.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	main_whSpawner0201_04	719e99223a1e7ef4	02	04	main	243.80	27.95	742.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0201_04	7c9d6d8a43651dcf	02	04	sub	246.61	28.72	764.83	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0202_04	cfc73b80328a9c28	02	04	sub	275.40	27.45	733.87	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0203_04	a42cb179d17c7ed9	02	04	sub	217.35	28.03	733.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	main_whSpawner0201_05	719e9a223a1e80a7	02	05	main	243.80	27.95	742.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0201_05	7c9d6c8a43651c1c	02	05	sub	246.61	28.72	764.83	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0202_05	cfc73c80328a9ddb	02	05	sub	275.40	27.45	733.87	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0203_05	a42cb079d17c7d26	02	05	sub	217.35	28.03	733.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	main_whSpawner0301_01	4e2756892dc9e7fe	03	01	main	609.61	29.46	886.07	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0301_01	e1ae6b5af77e9fad	03	01	sub	635.79	28.94	871.41	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0302_01	8879ab41b02d793a	03	01	sub	585.30	29.46	905.03	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0303_01	5dfb974cf99606ef	03	01	sub	624.74	28.10	912.21	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	main_whSpawner0301_02	4e2755892dc9e64b	03	02	main	609.61	29.46	886.07	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0301_02	e1ae685af77e9a94	03	02	sub	635.79	28.94	871.41	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0302_02	8879aa41b02d7787	03	02	sub	585.30	29.46	905.03	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0303_02	5dfb984cf99608a2	03	02	sub	624.74	28.10	912.21	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	main_whSpawner0301_03	4e2754892dc9e498	03	03	main	609.61	29.46	886.07	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0301_03	e1ae695af77e9c47	03	03	sub	635.79	28.94	871.41	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0302_03	8879a941b02d75d4	03	03	sub	585.30	29.46	905.03	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0303_03	5dfb994cf9960a55	03	03	sub	624.74	28.10	912.21	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	main_whSpawner0301_04	4e275b892dc9f07d	03	04	main	609.61	29.46	886.07	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0301_04	e1ae665af77e972e	03	04	sub	635.79	28.94	871.41	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0302_04	8879a841b02d7421	03	04	sub	585.30	29.46	905.03	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0303_04	5dfb924cf995fe70	03	04	sub	624.74	28.10	912.21	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	main_whSpawner0301_05	4e275a892dc9eeca	03	05	main	609.61	29.46	886.07	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0301_05	e1ae675af77e98e1	03	05	sub	635.79	28.94	871.41	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0302_05	8879a741b02d726e	03	05	sub	585.30	29.46	905.03	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0303_05	5dfb934cf9960023	03	05	sub	624.74	28.10	912.21	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	main_whSpawner0401_01	798fe09dbfe4cfcd	04	01	main	277.50	39.19	174.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	45000	49999
+ha_area03	sub_whSpawner0401_01	baad76829a8c01de	04	01	sub	265.89	45.46	141.75	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	45000	49999
+ha_area03	sub_whSpawner0402_01	13e2369be1dd2851	04	01	sub	249.88	42.37	190.85	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	45000	49999
+ha_area03	sub_whSpawner0403_01	e6282a957f017abc	04	01	sub	305.02	32.26	168.47	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	45000	49999
+ha_area03	main_whSpawner0401_02	798fdd9dbfe4cab4	04	02	main	277.50	39.19	174.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0401_02	baad75829a8c002b	04	02	sub	265.89	45.46	141.75	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0402_02	13e2339be1dd2338	04	02	sub	249.88	42.37	190.85	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0403_02	e6282d957f017fd5	04	02	sub	305.02	32.26	168.47	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	main_whSpawner0401_03	798fde9dbfe4cc67	04	03	main	277.50	39.19	174.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0401_03	baad74829a8bfe78	04	03	sub	265.89	45.46	141.75	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0402_03	13e2349be1dd24eb	04	03	sub	249.88	42.37	190.85	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0403_03	e6282c957f017e22	04	03	sub	305.02	32.26	168.47	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	main_whSpawner0401_04	798fdb9dbfe4c74e	04	04	main	277.50	39.19	174.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0401_04	baad7b829a8c0a5d	04	04	sub	265.89	45.46	141.75	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0402_04	13e2399be1dd2d6a	04	04	sub	249.88	42.37	190.85	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0403_04	e62827957f0175a3	04	04	sub	305.02	32.26	168.47	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	main_whSpawner0401_05	798fdc9dbfe4c901	04	05	main	277.50	39.19	174.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0401_05	baad7a829a8c08aa	04	05	sub	265.89	45.46	141.75	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0402_05	13e23a9be1dd2f1d	04	05	sub	249.88	42.37	190.85	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0403_05	e62826957f0173f0	04	05	sub	305.02	32.26	168.47	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	main_whSpawner0501_01	be0dddca965981f0	05	01	main	322.30	72.85	352.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0501_01	de24361ba6dfba3b	05	01	sub	321.09	63.58	378.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0502_01	3489fe2342497744	05	01	sub	321.82	72.83	331.39	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	sub_whSpawner0503_01	099eea2e8b553319	05	01	sub	354.29	72.30	333.77	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	49999	
+ha_area03	main_whSpawner0501_02	be0de0ca96598709	05	02	main	322.30	72.85	352.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0501_02	de24371ba6dfbbee	05	02	sub	321.09	63.58	378.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0502_02	348a012342497c5d	05	02	sub	321.82	72.83	331.39	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	sub_whSpawner0503_02	099ee72e8b552e00	05	02	sub	354.29	72.30	333.77	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	50000	59999
+ha_area03	main_whSpawner0501_03	be0ddfca96598556	05	03	main	322.30	72.85	352.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0501_03	de24381ba6dfbda1	05	03	sub	321.09	63.58	378.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0502_03	348a002342497aaa	05	03	sub	321.82	72.83	331.39	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	sub_whSpawner0503_03	099ee82e8b552fb3	05	03	sub	354.29	72.30	333.77	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area03	main_whSpawner0501_04	be0de2ca96598a6f	05	04	main	322.30	72.85	352.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0501_04	de24391ba6dfbf54	05	04	sub	321.09	63.58	378.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0502_04	3489fb234249722b	05	04	sub	321.82	72.83	331.39	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	sub_whSpawner0503_04	099eed2e8b553832	05	04	sub	354.29	72.30	333.77	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area03	main_whSpawner0501_05	be0de1ca965988bc	05	05	main	322.30	72.85	352.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0501_05	de243a1ba6dfc107	05	05	sub	321.09	63.58	378.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0502_05	3489fa2342497078	05	05	sub	321.82	72.83	331.39	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area03	sub_whSpawner0503_05	099eee2e8b5539e5	05	05	sub	354.29	72.30	333.77	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	greater_than_equal	100000	
+ha_area04	main_whSpawner0101_01	8c37c48184f177ac	01	01	main	601.50	70.09	691.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0101_01	fb0ff2a1480ce49f	01	01	sub	573.49	73.08	701.07	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0102_01	285cfaa7aa8bb988	01	01	sub	615.68	69.80	711.73	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0103_01	fddf06b2f3f47d9d	01	01	sub	632.85	67.96	677.59	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	main_whSpawner0101_02	8c37c78184f17cc5	01	02	main	601.50	70.09	691.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0101_02	fb0ff3a1480ce652	01	02	sub	573.49	73.08	701.07	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0102_02	285cfda7aa8bbea1	01	02	sub	615.68	69.80	711.73	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0103_02	fddf03b2f3f47884	01	02	sub	632.85	67.96	677.59	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	main_whSpawner0101_03	8c37c68184f17b12	01	03	main	601.50	70.09	691.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0101_03	fb0ff4a1480ce805	01	03	sub	573.49	73.08	701.07	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0102_03	285cfca7aa8bbcee	01	03	sub	615.68	69.80	711.73	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0103_03	fddf04b2f3f47a37	01	03	sub	632.85	67.96	677.59	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	main_whSpawner0101_04	8c37c18184f17293	01	04	main	601.50	70.09	691.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0101_04	fb0feda1480cdc20	01	04	sub	573.49	73.08	701.07	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0102_04	285cffa7aa8bc207	01	04	sub	615.68	69.80	711.73	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0103_04	fddf01b2f3f4751e	01	04	sub	632.85	67.96	677.59	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	main_whSpawner0201_01	719e96223a1e79db	02	01	main	530.00	86.28	818.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	55000	59999
+ha_area04	sub_whSpawner0201_01	7c9d688a43651550	02	01	sub	519.10	87.01	835.93	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	55000	59999
+ha_area04	sub_whSpawner0202_01	cfc74080328aa4a7	02	01	sub	557.40	82.57	801.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	55000	59999
+ha_area04	sub_whSpawner0203_01	a42cb479d17c83f2	02	01	sub	501.00	77.79	788.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	55000	59999
+ha_area04	main_whSpawner0201_02	719e97223a1e7b8e	02	02	main	530.00	86.28	818.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0201_02	7c9d6b8a43651a69	02	02	sub	519.10	87.01	835.93	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0202_02	cfc74180328aa65a	02	02	sub	557.40	82.57	801.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0203_02	a42cb379d17c823f	02	02	sub	501.00	77.79	788.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	main_whSpawner0201_03	719e98223a1e7d41	02	03	main	530.00	86.28	818.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0201_03	7c9d6a8a436518b6	02	03	sub	519.10	87.01	835.93	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0202_03	cfc74280328aa80d	02	03	sub	557.40	82.57	801.70	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0203_03	a42cb279d17c808c	02	03	sub	501.00	77.79	788.60	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	main_whSpawner0201_04	719e99223a1e7ef4	02	04	main	530.00	86.28	818.90	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0201_04	7c9d6d8a43651dcf	02	04	sub	519.10	87.01	835.93	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0202_04	cfc73b80328a9c28	02	04	sub	557.40	82.57	801.70	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0203_04	a42cb179d17c7ed9	02	04	sub	501.00	77.79	788.60	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	main_whSpawner0301_01	4e2756892dc9e7fe	03	01	main	463.33	130.28	498.05	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0301_01	e1ae6b5af77e9fad	03	01	sub	487.68	128.56	507.04	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0302_01	8879ab41b02d793a	03	01	sub	436.07	132.80	493.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0303_01	5dfb974cf99606ef	03	01	sub	484.55	129.17	467.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	main_whSpawner0301_02	4e2755892dc9e64b	03	02	main	463.33	130.28	498.05	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0301_02	e1ae685af77e9a94	03	02	sub	487.68	128.56	507.04	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0302_02	8879aa41b02d7787	03	02	sub	436.07	132.80	493.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0303_02	5dfb984cf99608a2	03	02	sub	484.55	129.17	467.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	main_whSpawner0301_03	4e2754892dc9e498	03	03	main	463.33	130.28	498.05	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0301_03	e1ae695af77e9c47	03	03	sub	487.68	128.56	507.04	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0302_03	8879a941b02d75d4	03	03	sub	436.07	132.80	493.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0303_03	5dfb994cf9960a55	03	03	sub	484.55	129.17	467.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	main_whSpawner0301_04	4e275b892dc9f07d	03	04	main	463.33	130.28	498.05	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0301_04	e1ae665af77e972e	03	04	sub	487.68	128.56	507.04	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0302_04	8879a841b02d7421	03	04	sub	436.07	132.80	493.29	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0303_04	5dfb924cf995fe70	03	04	sub	484.55	129.17	467.88	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	main_whSpawner0501_01	be0dddca965981f0	05	01	main	308.52	136.02	598.43	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0501_01	de24361ba6dfba3b	05	01	sub	272.92	130.31	615.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0502_01	3489fe2342497744	05	01	sub	307.42	128.74	582.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0503_01	099eea2e8b553319	05	01	sub	311.84	126.86	640.89	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	main_whSpawner0501_02	be0de0ca96598709	05	02	main	308.52	136.02	598.43	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0501_02	de24371ba6dfbbee	05	02	sub	272.92	130.31	615.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0502_02	348a012342497c5d	05	02	sub	307.42	128.74	582.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0503_02	099ee72e8b552e00	05	02	sub	311.84	126.86	640.89	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	main_whSpawner0501_03	be0ddfca96598556	05	03	main	308.52	136.02	598.43	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0501_03	de24381ba6dfbda1	05	03	sub	272.92	130.31	615.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0502_03	348a002342497aaa	05	03	sub	307.42	128.74	582.29	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0503_03	099ee82e8b552fb3	05	03	sub	311.84	126.86	640.89	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	main_whSpawner0501_04	be0de2ca96598a6f	05	04	main	308.52	136.02	598.43	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0501_04	de24391ba6dfbf54	05	04	sub	272.92	130.31	615.29	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0502_04	3489fb234249722b	05	04	sub	307.42	128.74	582.29	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0503_04	099eed2e8b553832	05	04	sub	311.84	126.86	640.89	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	main_whSpawner0601_01	3b7f52a568bd09bf	06	01	main	194.40	117.50	644.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0601_01	481cd36c4cda7a0c	06	01	sub	158.45	113.43	644.48	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0602_01	70e84b61020101c3	06	01	sub	206.77	121.04	673.14	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	sub_whSpawner0603_01	454ddf5aa0f3176e	06	01	sub	202.92	122.31	619.99	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	59999	
+ha_area04	main_whSpawner0601_02	3b7f53a568bd0b72	06	02	main	194.40	117.50	644.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0601_02	481cd66c4cda7f25	06	02	sub	158.45	113.43	644.48	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0602_02	70e84c6102010376	06	02	sub	206.77	121.04	673.14	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	sub_whSpawner0603_02	454dde5aa0f315bb	06	02	sub	202.92	122.31	619.99	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	60000	69999
+ha_area04	main_whSpawner0601_03	3b7f54a568bd0d25	06	03	main	194.40	117.50	644.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0601_03	481cd56c4cda7d72	06	03	sub	158.45	113.43	644.48	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0602_03	70e84d6102010529	06	03	sub	206.77	121.04	673.14	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	sub_whSpawner0603_03	454ddd5aa0f31408	06	03	sub	202.92	122.31	619.99	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area04	main_whSpawner0601_04	3b7f4da568bd0140	06	04	main	194.40	117.50	644.30	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0601_04	481cd06c4cda74f3	06	04	sub	158.45	113.43	644.48	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0602_04	70e84e61020106dc	06	04	sub	206.77	121.04	673.14	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area04	sub_whSpawner0603_04	454de45aa0f31fed	06	04	sub	202.92	122.31	619.99	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	main_whSpawner0101_01	8c37c48184f177ac	01	01	main	671.80	36.10	535.00	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0101_01	fb0ff2a1480ce49f	01	01	sub	645.92	32.85	510.56	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0102_01	285cfaa7aa8bb988	01	01	sub	688.22	30.08	518.63	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0103_01	fddf06b2f3f47d9d	01	01	sub	660.62	32.47	573.66	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	main_whSpawner0101_02	8c37c78184f17cc5	01	02	main	671.80	36.10	535.00	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0101_02	fb0ff3a1480ce652	01	02	sub	645.92	32.85	510.56	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0102_02	285cfda7aa8bbea1	01	02	sub	688.22	30.08	518.63	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0103_02	fddf03b2f3f47884	01	02	sub	660.62	32.47	573.66	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	main_whSpawner0101_03	8c37c68184f17b12	01	03	main	671.80	36.10	535.00	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0101_03	fb0ff4a1480ce805	01	03	sub	645.92	32.85	510.56	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0102_03	285cfca7aa8bbcee	01	03	sub	688.22	30.08	518.63	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0103_03	fddf04b2f3f47a37	01	03	sub	660.62	32.47	573.66	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	main_whSpawner0201_01	719e96223a1e79db	02	01	main	464.70	35.17	495.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0201_01	7c9d688a43651550	02	01	sub	488.40	32.25	476.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0202_01	cfc74080328aa4a7	02	01	sub	426.70	30.18	478.94	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0203_01	a42cb479d17c83f2	02	01	sub	465.40	28.13	528.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	main_whSpawner0201_02	719e97223a1e7b8e	02	02	main	464.70	35.17	495.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0201_02	7c9d6b8a43651a69	02	02	sub	488.40	32.25	476.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0202_02	cfc74180328aa65a	02	02	sub	426.70	30.18	478.94	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0203_02	a42cb379d17c823f	02	02	sub	465.40	28.13	528.00	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	main_whSpawner0201_03	719e98223a1e7d41	02	03	main	464.70	35.17	495.50	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0201_03	7c9d6a8a436518b6	02	03	sub	488.40	32.25	476.80	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0202_03	cfc74280328aa80d	02	03	sub	426.70	30.18	478.94	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0203_03	a42cb279d17c808c	02	03	sub	465.40	28.13	528.00	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	main_whSpawner0301_01	4e2756892dc9e7fe	03	01	main	570.50	31.82	727.00	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0301_01	e1ae6b5af77e9fad	03	01	sub	575.40	37.99	698.50	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0302_01	8879ab41b02d793a	03	01	sub	608.07	33.22	724.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0303_01	5dfb974cf99606ef	03	01	sub	553.79	37.64	757.41	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	main_whSpawner0301_02	4e2755892dc9e64b	03	02	main	570.50	31.82	727.00	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0301_02	e1ae685af77e9a94	03	02	sub	575.40	37.99	698.50	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0302_02	8879aa41b02d7787	03	02	sub	608.07	33.22	724.88	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0303_02	5dfb984cf99608a2	03	02	sub	553.79	37.64	757.41	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	main_whSpawner0301_03	4e2754892dc9e498	03	03	main	570.50	31.82	727.00	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0301_03	e1ae695af77e9c47	03	03	sub	575.40	37.99	698.50	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0302_03	8879a941b02d75d4	03	03	sub	608.07	33.22	724.88	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0303_03	5dfb994cf9960a55	03	03	sub	553.79	37.64	757.41	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	main_whSpawner0401_01	798fe09dbfe4cfcd	04	01	main	365.40	33.80	650.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0401_01	baad76829a8c01de	04	01	sub	379.38	35.61	672.39	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0402_01	13e2369be1dd2851	04	01	sub	371.74	31.98	619.28	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0403_01	e6282a957f017abc	04	01	sub	330.98	30.19	644.36	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	main_whSpawner0401_02	798fdd9dbfe4cab4	04	02	main	365.40	33.80	650.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0401_02	baad75829a8c002b	04	02	sub	379.38	35.61	672.39	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0402_02	13e2339be1dd2338	04	02	sub	371.74	31.98	619.28	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0403_02	e6282d957f017fd5	04	02	sub	330.98	30.19	644.36	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	main_whSpawner0401_03	798fde9dbfe4cc67	04	03	main	365.40	33.80	650.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0401_03	baad74829a8bfe78	04	03	sub	379.38	35.61	672.39	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0402_03	13e2349be1dd24eb	04	03	sub	371.74	31.98	619.28	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0403_03	e6282c957f017e22	04	03	sub	330.98	30.19	644.36	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	main_whSpawner0601_01	3b7f52a568bd09bf	06	01	main	830.40	30.15	382.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0601_01	481cd36c4cda7a0c	06	01	sub	806.41	28.17	363.21	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0602_01	70e84b61020101c3	06	01	sub	837.67	29.16	406.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0603_01	454ddf5aa0f3176e	06	01	sub	790.90	32.12	400.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	main_whSpawner0601_02	3b7f53a568bd0b72	06	02	main	830.40	30.15	382.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0601_02	481cd66c4cda7f25	06	02	sub	806.41	28.17	363.21	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0602_02	70e84c6102010376	06	02	sub	837.67	29.16	406.80	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0603_02	454dde5aa0f315bb	06	02	sub	790.90	32.12	400.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	main_whSpawner0601_03	3b7f54a568bd0d25	06	03	main	830.40	30.15	382.80	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0601_03	481cd56c4cda7d72	06	03	sub	806.41	28.17	363.21	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0602_03	70e84d6102010529	06	03	sub	837.67	29.16	406.80	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0603_03	454ddd5aa0f31408	06	03	sub	790.90	32.12	400.13	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	main_whSpawner0701_01	4267530d9668fc22	07	01	main	190.80	33.58	672.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0701_01	ef21ced69051c329	07	01	sub	176.62	30.45	711.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0702_01	c04bcebe83004776	07	01	sub	170.69	30.83	666.59	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	sub_whSpawner0703_01	6b6e9ac89268874b	07	01	sub	206.47	32.86	655.79	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	less_than_equal	69999	
+ha_area05	main_whSpawner0701_02	4267520d9668fa6f	07	02	main	190.80	33.58	672.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0701_02	ef21cbd69051be10	07	02	sub	176.62	30.45	711.13	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0702_02	c04bcdbe830045c3	07	02	sub	170.69	30.83	666.59	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	sub_whSpawner0703_02	6b6e9bc8926888fe	07	02	sub	206.47	32.86	655.79	s_sphere	6	1	1	e36683b13a120647	WPHA_STORY	between	70000	99999
+ha_area05	main_whSpawner0701_03	4267510d9668f8bc	07	03	main	190.80	33.58	672.40	shape	50	2	3	64aecfc1e9c3d9f1	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0701_03	ef21ccd69051bfc3	07	03	sub	176.62	30.45	711.13	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0702_03	c04bccbe83004410	07	03	sub	170.69	30.83	666.59	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	
+ha_area05	sub_whSpawner0703_03	6b6e9cc892688ab1	07	03	sub	206.47	32.86	655.79	s_sphere	6	1	1	e36682b13a120494	WPHA_STORY	greater_than_equal	100000	

@@ -1,0 +1,11 @@
+# sheet: data/world_events_mmo_areas
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 massive mass outbreak settings per area (bin/field/encount/new_huge_outbreak_lottery.bin)
+# note: open_flag enables massive outbreaks in the area. f02..f17 are raw u32 scalars; meanings are UNKNOWN (see report for hypotheses).
+area:string*	open_flag:string	f02_raw:u32	f03_raw:u32	f04_raw:u32	f05_raw:u32	f06_raw:u32	f07_raw:u32	f08_raw:u32	f09_raw:u32	f10_raw:u32	f11_raw:u32	f12_raw:u32	f13_raw:u32	f14_raw:u32	f15_raw:u32	f16_raw:u32	f17_raw:u32
+ha_area01	FSYS_NEW_OUTBREAK_OPEN_AREA01	25	11	15	1	1	8	10	6	7	15	20	10	12	228	120	12
+ha_area02	FSYS_NEW_OUTBREAK_OPEN_AREA02	25	11	15	1	1	8	10	6	7	15	20	10	12	236	124	12
+ha_area03	FSYS_NEW_OUTBREAK_OPEN_AREA03	25	11	15	1	1	8	10	6	7	15	20	10	12	228	120	12
+ha_area04	FSYS_NEW_OUTBREAK_OPEN_AREA04	25	11	15	1	1	8	10	6	7	15	20	10	12	228	120	12
+ha_area05	FSYS_NEW_OUTBREAK_OPEN_AREA05	25	11	15	1	1	8	10	6	7	15	20	10	12	220	116	12

@@ -1,0 +1,16 @@
+# sheet: data/world_events_area_weather
+# version: 1
+# generator: .tools/events_decode.py
+# target: Pokémon Legends: Arceus v262144 per-area weather lottery (bin/field/weather/weather_table.bin in bin/archive/field/resident_release.gfpak)
+# note: weight_* follow the weather id order 2..9 (sunny, cloudy, rain, snow, drought, fog, rainstorm, snowstorm); every row sums to 100.
+# note: Order LIKELY (fits area climates and species weather gating). f1/f2 (2/4 or 4/6) UNKNOWN, possibly a duration range.
+area:string*	f1_raw:u32	f2_raw:u32	weight_sunny:u8	weight_cloudy:u8	weight_rain:u8	weight_snow:u8	weight_drought:u8	weight_fog:u8	weight_rainstorm:u8	weight_snowstorm:u8	total:u16
+ha_area00	2	4	100	0	0	0	0	0	0	0	100
+ha_area01	4	6	60	15	15	0	4	3	3	0	100
+ha_area02	4	6	50	15	25	0	0	5	5	0	100
+ha_area03	4	6	50	5	10	0	20	5	10	0	100
+ha_area04	2	4	45	15	15	10	0	5	5	5	100
+ha_area05	2	4	40	15	0	25	0	0	0	20	100
+ha_area06	2	4	100	0	0	0	0	0	0	0	100
+ha_test_battle_00	2	4	50	0	50	0	0	0	0	0	100
+ha_terrain_workflow_test_01	2	4	60	0	50	0	0	0	0	0	110
