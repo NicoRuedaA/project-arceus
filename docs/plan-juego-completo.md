@@ -93,7 +93,7 @@ Documento escrito el 2026-10-12. Está en español porque lo pidió el usuario p
 |---|---|:-:|---|
 | Menú de combate y menú de pausa | Hecho | | |
 | Menú principal, pantalla de inicio y opciones | Falta | 1 a 2 | |
-| Mapa del mundo, minimapa y brújula | Falta | 2 | |
+| Mapa del mundo, minimapa y brújula | Hecho | | Minimapa de 200 px, brújula de 8 direcciones (comparte el cálculo de rumbo del radar) y mapa a pantalla completa con M. El mapa se genera del albedo horneado + alturas (1024², 96-162 ms medidos por área; el nivel del agua se estima del histograma: 24,5 % de agua en el área 00 y 10,4 % en el 01). Norte = −Z SUPUESTO. Opciones `--no-minimap` y `--game-map` (imágenes del juego; su alineación no está verificada y el área 05 está teselada, así que vuelve al mapa generado). Verificado solo con 16 pruebas unitarias/headless y datos reales; pendiente de que el mantenedor lo mire a ojo ([informe](reports/data-progress/minimap.md)) |
 | Pantallas de equipo, mochila, Pokédex y cajas | Falta | 3 | |
 | Soporte de mando | Falta | 1 | |
 
