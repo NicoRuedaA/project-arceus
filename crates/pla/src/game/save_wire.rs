@@ -82,6 +82,8 @@ pub struct PlayerProgress {
     pub rng_seed: u32,
     /// Game clock time of day in minutes since midnight (save format v6; the clock owns it).
     pub time_minutes: u16,
+    /// Ids of collected field-item spawns (`data/field_item_spawns.tsv`, save format v7, Brief 12).
+    pub picked: BTreeSet<u64>,
 }
 
 impl PlayerProgress {
@@ -101,6 +103,7 @@ impl PlayerProgress {
             caught_count: s.caught_count,
             rng_seed: if s.rng_seed == 0 { 0x5ca1_e001 } else { s.rng_seed },
             time_minutes: s.time_minutes,
+            picked: s.picked.clone(),
         }
     }
 
@@ -121,6 +124,7 @@ impl PlayerProgress {
             defeated: self.defeated,
             caught_count: self.caught_count,
             rng_seed: self.rng_seed,
+            picked: self.picked.clone(),
             ..PlayerSave::default()
         }
     }
@@ -1075,6 +1079,20 @@ mod tests {
         assert!(victory_reward(1) > 0);
         assert!(victory_reward(50) > victory_reward(49), "the prize grows with the wild level");
         assert_eq!(victory_reward(0), 50, "ASSUMED formula: 50 + 10 x level");
+    }
+
+    #[test]
+    fn picked_spawns_survive_the_save_load_round_trip() {
+        let mut p = progress2();
+        p.picked = BTreeSet::from([0xbe63_6c89_f1de_0b4c, 1]);
+        let dir = tmpdir("picked");
+        let mut game = SaveGame::new(SaveFile::in_dir(&dir));
+        assert!(game.save(p.to_save("ha_area01", [0.0; 3], 0.0)));
+        let mut game2 = SaveGame::new(SaveFile::in_dir(&dir));
+        let st = load_startup(&mut game2, &WireCli::default());
+        assert!(st.loaded);
+        assert_eq!(st.progress.picked, p.picked);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

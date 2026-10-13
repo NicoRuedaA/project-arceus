@@ -43,6 +43,7 @@ pub mod play_time;
 pub mod player_anim;
 pub mod pokemon_anim;
 pub mod pause_menu;
+pub mod pickups;
 pub mod save_game;
 pub mod save_wire;
 pub mod spawn_point;

@@ -755,6 +755,7 @@ fn main() -> ExitCode {
             quality: pla::assets::vegetation::GrassQuality::from_args(&cli),
         });
         app.add_plugins((
+            pla::game::pickups::PickupsPlugin { area: area_idx },
             pla::game::world_objects::WorldObjectsPlugin {
                 area: area_idx,
                 cache_root,
