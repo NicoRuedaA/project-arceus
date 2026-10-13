@@ -13,7 +13,7 @@ use bevy::prelude::*;
 
 use super::save_wire::{SaveRequested, SaveToast};
 use super::settings::UserSettings;
-use super::state::Paused;
+use super::state::{GameState, Paused};
 
 // ---------------------------------------------------------------- pure logic
 
@@ -238,7 +238,13 @@ fn pause_input(
     mut toast: ResMut<SaveToast>,
     buttons: Query<(&PauseButton, &Interaction), Changed<Interaction>>,
     mut exit: MessageWriter<AppExit>,
+    state: Option<Res<State<GameState>>>,
 ) {
+    // The main menu owns the keyboard while it is open (Escape backs out of its options
+    // page); never show the pause overlay on top of it.
+    if state.is_some_and(|s| *s.get() == GameState::MainMenu) {
+        return;
+    }
     // Esc toggles. The key is consumed so the battle ("back") never sees it on the same frame.
     if keys.just_pressed(KeyCode::Escape) {
         keys.clear_just_pressed(KeyCode::Escape);

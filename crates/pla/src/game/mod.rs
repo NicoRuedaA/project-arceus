@@ -10,6 +10,7 @@ pub mod battle_ai;
 pub mod battle_anim;
 pub mod battle_controller;
 pub mod lighting;
+pub mod main_menu;
 pub mod render_look;
 pub mod battle_demo;
 pub mod battle_input;
