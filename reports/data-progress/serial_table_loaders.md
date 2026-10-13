@@ -30,14 +30,15 @@ and 226 empty values. This contradiction is why F01 is represented as
 
 - `bin/pml/item/item.dat`: 0x3c records, 807 rows by size arithmetic, but no
   decoded local per-item TSV; no item record loader or item-name join added.
-- `bin/utility/ha_shop_data.bin` and `bin/utility/makelist.bin`: schemas exist,
-  but no decoded TSV or checked-in row count. No Shop/Crafting APIs were
-  invented from layout-only evidence.
+- `bin/appli/shop/bin/ha_shop_data.bin`: the schema exists, but no decoded
+  semantic shop loader is added. `bin/appli/table/making/makelist.bin` now has
+  a checked-in numeric TSV with 43 rows; no Crafting API is invented from the
+  data-only result.
 - `shop_data_fields.tsv` supports only root-vector layout, raw F00/F01 `ulong`
   shape, and F02's narrow item-ID domain mapping; it does not establish shop
-  behavior. `crafting_recipes_fields.tsv` names F00–F11 as structural
-  field-order/type candidates, but has no local decoded recipe rows, counts,
-  or item-name/recipe joins.
+  behavior. `crafting_recipes_fields.tsv` maps F00–F11 to 43 decoded rows. All
+  127 distinct referenced numeric IDs join `data/item_effects.tsv`; item-name
+  and unlock-condition joins remain unknown.
 - `pokemon/data/poke_event_encount.bin` has a schema mapping, but no local
   decoded TSV to load or row-count/record-value compare.
 - `field/encount/field_huge_outbreak.bin`: current schema evidence records an
