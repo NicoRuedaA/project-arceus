@@ -26,6 +26,7 @@ pub mod input_map;
 pub mod battle_visibility;
 pub mod battle_items;
 pub mod battle_log;
+pub mod box_screen;
 pub mod catch_rate;
 pub mod effects;
 pub mod follower;
