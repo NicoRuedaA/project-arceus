@@ -4,7 +4,7 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 4
+//! PLASAVE 5
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
@@ -12,8 +12,10 @@
 //! ```
 //!
 //! v3 adds `box` lines (the stored Pokemon; the key is lowercase like `member`). v4 adds
-//! `play_seconds` (whole seconds of played time). Older files load via the migration chain: a v2
-//! file gets an empty box, a v1-v3 file a play time of 0.
+//! `play_seconds` (whole seconds of played time). v5 replaces the coarse `time_slot` with
+//! `time_minutes` (the game clock's minute of day, 0..1439; Brief 9). Older files load via the
+//! migration chain: a v2 file gets an empty box, a v1-v3 file a play time of 0, and a v4 file's
+//! `time_slot=N` becomes the centre minute of that slot (ASSUMED slot hours).
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -25,12 +27,13 @@ use std::path::{Path, PathBuf};
 
 use bevy::prelude::Resource;
 
+use super::clock::{slot_centre_minutes, DEFAULT_START_MINUTES, MINUTES_PER_DAY};
 use crate::battle::{BattleMove, BattleSpecies};
 use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 4;
+pub const CURRENT_VERSION: u32 = 5;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
@@ -209,7 +212,9 @@ pub struct PlayerSave {
     pub zone: String,
     pub position: [f32; 3],
     pub yaw: f32,
-    pub time_slot: u8,
+    /// Game clock time of day in minutes since midnight, 0..1439 (format v5). v4 and older stored
+    /// the coarse `time_slot` 0..3, migrated to the centre minute of that slot.
+    pub time_minutes: u16,
     pub party: Vec<PartyMember>,
     /// Pokemon caught while the party was full. Persisted as `box` lines (format v3, see [`MAX_BOX`]).
     pub box_pokemon: Vec<PartyMember>,
@@ -233,7 +238,7 @@ impl Default for PlayerSave {
             zone: "ha_area00".into(),
             position: [0.0; 3],
             yaw: 0.0,
-            time_slot: 0,
+            time_minutes: DEFAULT_START_MINUTES,
             party: Vec::new(),
             box_pokemon: Vec::new(),
             bag: BTreeMap::new(),
@@ -263,6 +268,9 @@ impl PlayerSave {
         }
         if !self.position.iter().chain([&self.yaw]).all(|v| v.is_finite()) {
             return bad("position/yaw must be finite numbers".into());
+        }
+        if u32::from(self.time_minutes) >= MINUTES_PER_DAY {
+            return bad(format!("time_minutes {} is not a minute of day (< {MINUTES_PER_DAY})", self.time_minutes));
         }
         for (i, m) in self.party.iter().enumerate() {
             if m.level == 0 || m.moves.len() > MAX_MOVES {
@@ -310,7 +318,7 @@ impl PlayerSave {
         kv("zone", self.zone.clone());
         kv("pos", format!("{},{},{}", self.position[0], self.position[1], self.position[2]));
         kv("yaw", self.yaw.to_string());
-        kv("time_slot", self.time_slot.to_string());
+        kv("time_minutes", self.time_minutes.to_string());
         kv("money", self.money.to_string());
         kv("defeated", self.defeated.to_string());
         kv("caught_count", self.caught_count.to_string());
@@ -380,6 +388,7 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
             1 => migrate_v1_to_v2(lines)?,
             2 => migrate_v2_to_v3(lines)?,
             3 => migrate_v3_to_v4(lines)?,
+            4 => migrate_v4_to_v5(lines)?,
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -413,8 +422,27 @@ fn migrate_v2_to_v3(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
 
 /// v3 saves have no play time; v4 adds `play_seconds`, which starts at 0 (the parser defaults a
 /// missing key). No line has to change, so this step is a documented no-op that keeps the version
-/// chain explicit and reserves v5 for the clock/weather task (Brief 9).
+/// chain explicit.
 fn migrate_v3_to_v4(lines: Vec<String>) -> Result<Vec<String>, SaveError> {
+    Ok(lines)
+}
+
+/// v4 saves store the coarse `time_slot` 0..3; v5 stores `time_minutes` (Brief 9's game clock). The
+/// slot becomes the centre minute of its 6-hour segment (03:00/09:00/15:00/21:00; the slot hours are
+/// ASSUMED). A v4 file without the line (it was a required field, but be defensive) gets the
+/// default start time.
+fn migrate_v4_to_v5(mut lines: Vec<String>) -> Result<Vec<String>, SaveError> {
+    let mut found = false;
+    for (i, l) in lines.iter_mut().enumerate() {
+        if let Some(rest) = l.strip_prefix("time_slot=") {
+            let slot: usize = rest.parse().map_err(|_| SaveError::Parse { line: i + 3, msg: "bad time_slot".into() })?;
+            *l = format!("time_minutes={}", slot_centre_minutes(slot));
+            found = true;
+        }
+    }
+    if !found {
+        lines.push(format!("time_minutes={DEFAULT_START_MINUTES}"));
+    }
     Ok(lines)
 }
 
@@ -437,7 +465,7 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
                 s.position = p.try_into().map_err(|_| err("pos needs 3 numbers"))?;
             }
             "yaw" => s.yaw = v.parse().map_err(|_| err("bad yaw"))?,
-            "time_slot" => s.time_slot = v.parse().map_err(|_| err("bad time_slot"))?,
+            "time_minutes" => s.time_minutes = v.parse().map_err(|_| err("bad time_minutes"))?,
             "money" => s.money = v.parse().map_err(|_| err("bad money"))?,
             "defeated" => s.defeated = v.parse().map_err(|_| err("bad defeated"))?,
             "caught_count" => s.caught_count = v.parse().map_err(|_| err("bad caught_count"))?,
@@ -460,7 +488,7 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
             _ => return Err(err("unknown key")),
         }
     }
-    for required in ["zone", "pos", "yaw", "time_slot", "money", "rng_seed"] {
+    for required in ["zone", "pos", "yaw", "time_minutes", "money", "rng_seed"] {
         if !seen_keys.contains(required) {
             return Err(SaveError::Invalid(format!("missing field `{required}`")));
         }
@@ -738,7 +766,7 @@ mod tests {
             zone: "ha_area01".into(),
             position: [12.5, -3.25, 100.125],
             yaw: 1.5,
-            time_slot: 3,
+            time_minutes: 3 * 60 + 15,
             party: vec![
                 PartyMember {
                     species: 722,
@@ -837,9 +865,9 @@ mod tests {
 
     #[test]
     fn unknown_version_rejected() {
-        let t = sample().encode().unwrap().replacen("PLASAVE 4", "PLASAVE 99", 1);
+        let t = sample().encode().unwrap().replacen("PLASAVE 5", "PLASAVE 99", 1);
         assert!(matches!(PlayerSave::decode(&t), Err(SaveError::UnknownVersion(99))));
-        let t0 = sample().encode().unwrap().replacen("PLASAVE 4", "PLASAVE 0", 1);
+        let t0 = sample().encode().unwrap().replacen("PLASAVE 5", "PLASAVE 0", 1);
         assert!(matches!(PlayerSave::decode(&t0), Err(SaveError::UnknownVersion(0))));
     }
 
@@ -917,7 +945,7 @@ mod tests {
         assert!(s.box_pokemon.is_empty(), "a v1 save has no box");
         assert_eq!(s.play_seconds, 0, "a v1 save has no play time");
         // and re-saving writes the current version
-        assert!(s.encode().unwrap().starts_with("PLASAVE 4\n"));
+        assert!(s.encode().unwrap().starts_with("PLASAVE 5\n"));
     }
 
     /// A literal v2 body (8-field members, no `box` lines) loads through v2->v3 with an empty box.
@@ -932,7 +960,7 @@ mod tests {
         assert_eq!(s.party[0].species, 25);
         assert!(s.box_pokemon.is_empty());
         assert_eq!(s.play_seconds, 0, "a v2 save has no play time");
-        assert!(s.encode().unwrap().starts_with("PLASAVE 4\n"));
+        assert!(s.encode().unwrap().starts_with("PLASAVE 5\n"));
     }
 
     /// A literal v3 body (box lines, no `play_seconds`) loads through v3->v4 with a play time of
@@ -948,14 +976,54 @@ mod tests {
         assert_eq!(s.box_pokemon.len(), 1);
         assert_eq!(s.box_pokemon[0].species, 133);
         let out = s.encode().unwrap();
-        assert!(out.starts_with("PLASAVE 4\n"));
+        assert!(out.starts_with("PLASAVE 5\n"));
         assert!(out.contains("\nplay_seconds=0\n"), "the new field is written on re-save");
+    }
+
+    /// A literal v4 body (`time_slot`, `play_seconds`) loads through v4->v5: the slot becomes the
+    /// centre minute of its 6-hour segment (03:00/09:00/15:00/21:00; slot hours ASSUMED).
+    #[test]
+    fn migration_v4_to_current_turns_the_slot_into_minutes() {
+        let body = "zone=ha_area03\npos=7,0,-2\nyaw=2.0\ntime_slot=3\nplay_seconds=456\nmoney=99\nrng_seed=8\n\
+                    seen=25\ncaught=25\nbag=4:1\nmember=25|0|9|20|-|0:0:0:0:0:0|33:5|-\nEND\n";
+        let text = format!("PLASAVE 4\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let s = PlayerSave::decode(&text).unwrap();
+        assert_eq!(s.version, CURRENT_VERSION);
+        assert_eq!(s.time_minutes, 3 * 60, "night slot -> 03:00");
+        assert_eq!(s.play_seconds, 456, "v4 data survives");
+        let out = s.encode().unwrap();
+        assert!(out.starts_with("PLASAVE 5\n"));
+        assert!(out.contains("\ntime_minutes=180\n"), "the new field is written on re-save");
+        assert!(!out.contains("time_slot="), "the old key is gone");
+        // Every slot maps to its centre: 0 -> 09:00, 1 -> 15:00, 2 -> 21:00.
+        for (slot, minutes) in [(0u32, 540u32), (1, 900), (2, 1260)] {
+            let body = format!("zone=z\npos=0,0,0\nyaw=0\ntime_slot={slot}\nmoney=0\nrng_seed=1\nEND\n");
+            let text = format!("PLASAVE 4\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+            assert_eq!(u32::from(PlayerSave::decode(&text).unwrap().time_minutes), minutes, "slot {slot}");
+        }
+        // A v4 body without the (required) line still migrates to the default start time.
+        let body = "zone=z\npos=0,0,0\nyaw=0\nmoney=0\nrng_seed=1\nEND\n";
+        let text = format!("PLASAVE 4\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        assert_eq!(PlayerSave::decode(&text).unwrap().time_minutes, DEFAULT_START_MINUTES);
+    }
+
+    /// `time_minutes` round-trips and is validated to be a real minute of day.
+    #[test]
+    fn time_minutes_round_trip_and_range() {
+        let mut s = sample();
+        s.time_minutes = 1439;
+        assert_eq!(PlayerSave::decode(&s.encode().unwrap()).unwrap().time_minutes, 1439);
+        let mut bad = sample();
+        bad.time_minutes = 1440;
+        assert!(matches!(bad.encode(), Err(SaveError::Invalid(_))));
+        let body = "zone=z\npos=0,0,0\nyaw=0\ntime_minutes=1440\nmoney=0\nrng_seed=1\nEND\n";
+        let text = format!("PLASAVE 5\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        assert!(matches!(PlayerSave::decode(&text), Err(SaveError::Invalid(_))), "out-of-range minutes refused");
     }
 
     /// `play_seconds` is a u64 and survives the largest value.
     #[test]
-    fn play_time_round_trips_at_u64_max() {
-        let mut s = sample();
+    fn play_time_round_trips_at_u64_max() {        let mut s = sample();
         s.play_seconds = u64::MAX;
         let back = PlayerSave::decode(&s.encode().unwrap()).unwrap();
         assert_eq!(back.play_seconds, u64::MAX);

@@ -1,9 +1,13 @@
 //! Zone lighting from the decoded game environment (`data/field_lighting_env.tsv`).
 //!
 //! Replaces the viewer's placeholder lights/sky with: one directional light, ambient light, a sky
-//! gradient dome, a clear colour and distance fog taken from the sheet for a chosen time slot.
+//! gradient dome, a clear colour and distance fog taken from the sheet. Since Brief 9 the four
+//! decoded time slots are blended over a running [`GameClock`] (see `clock.rs`): the environment
+//! follows the clock every frame (throttled to [`BLEND_STEPS`] steps per slot segment), and the
+//! current weather (`weather.rs`) scales its fog and light.
 //! The Bevy-side look (shadows, grading, clouds, `--look classic|vivid`) lives in `render_look.rs`.
-//! Slot meaning (s0 morning, s1 day, s2 evening, s3 night) is INFERRED from colours, not proven.
+//! Slot meaning (s0 morning, s1 day, s2 evening, s3 night) is INFERRED from colours and the spawn
+//! multipliers (slot 3 = night VERIFIED by spawn data), not proven.
 //! The mapping of the sheet numbers to Bevy units (lux, cd/m2) is this module's own interpretation.
 //! If the sheet or the zone is missing, nothing is changed (the old placeholder stays).
 
@@ -22,9 +26,11 @@ use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
 
+use super::clock::{blend_env, time_slot_arg, GameClock};
 use super::render_look::{
-    cloud_dome_mesh, cloud_image, cloud_scroll, look_params, FogSpec, LookParams, LookSettings,
+    apply_weather, cloud_dome_mesh, cloud_image, cloud_scroll, look_params, FogSpec, LookParams, LookSettings,
 };
+use super::weather::WeatherVisual;
 
 /// Default slot: "day" (s1, bright white-yellow sun, sky cyan at the zenith).
 pub const DEFAULT_TIME_SLOT: usize = 1;
@@ -33,6 +39,10 @@ pub const LUX_PER_INTENSITY: f32 = 2400.0;
 /// Sheet ambient (SubColor) -> Bevy ambient brightness (cd/m2), multiplied by SubColor alpha.
 pub const AMBIENT_BRIGHTNESS: f32 = 250.0;
 const SKY_RADIUS: f32 = 900.0;
+/// Environment refresh resolution: 64 steps per 6 h slot segment (one step ~5.6 s at the default
+/// clock speed). The sky dome mesh is rebuilt at most this often; sun/ambient/fog follow the same
+/// steps. ASSUMED smoothness/CPU compromise.
+pub const BLEND_STEPS: u32 = 64;
 
 /// Decoded environment of one zone and one time slot.
 #[derive(Debug, Clone, PartialEq)]
@@ -139,12 +149,7 @@ pub fn find_lighting_sheet() -> Option<PathBuf> {
 
 /// Value of `--time-slot N` in the process arguments (default [`DEFAULT_TIME_SLOT`]).
 pub fn time_slot_from_args(args: &[String]) -> usize {
-    args.iter()
-        .position(|a| a == "--time-slot")
-        .and_then(|i| args.get(i + 1))
-        .and_then(|s| s.parse::<usize>().ok())
-        .filter(|s| *s <= 3)
-        .unwrap_or(DEFAULT_TIME_SLOT)
+    time_slot_arg(args).unwrap_or(DEFAULT_TIME_SLOT)
 }
 
 /// SSAO camera component plus the MSAA override it requires, for a look: `None` when SSAO is off.
@@ -166,17 +171,35 @@ pub fn bloom_camera_component(params: &LookParams) -> Option<Bloom> {
 /// Plugin: applies the decoded environment of `area` (index) at `slot`; no-op without the sheet.
 pub struct ZoneLightingPlugin {
     pub area: u8,
+    /// Fallback slot when the app has no [`GameClock`] resource: the examples pin to it. With a
+    /// clock resource (the viewer) the environment follows the clock instead.
     pub slot: usize,
 }
 
+/// The four decoded slot environments of the zone plus where the blend currently is.
 #[derive(Resource)]
-struct LoadedZoneEnv(ZoneEnv);
+struct LoadedZoneEnv {
+    slots: [ZoneEnv; 4],
+    fallback_slot: usize,
+    current: ZoneEnv,
+    pair: (usize, usize),
+    factor: f32,
+}
 
-#[derive(Resource)]
-struct LoadedLook(LookParams);
+/// The look settings the plugin works with (resource or process arguments), kept for the refresh.
+#[derive(Resource, Clone, Copy)]
+struct ActiveLookSettings(LookSettings);
+
+/// Key of the environment currently applied to the scene: (slot a, slot b, blend step, weather id).
+#[derive(Resource, Default)]
+struct AppliedLook(Option<(usize, usize, u32, u8)>);
 
 #[derive(Component)]
 struct SkyDome;
+
+/// Marker of the gradient dome only (clouds share [`SkyDome`] for the follow system).
+#[derive(Component)]
+struct SkyGradient;
 
 #[derive(Component)]
 struct CloudDome;
@@ -184,26 +207,59 @@ struct CloudDome;
 #[derive(Resource)]
 struct CloudMaterial(Handle<StandardMaterial>);
 
+/// The environment of `loaded` at the clock's time; without a clock, exactly `fallback_slot`.
+fn current_env(loaded: &LoadedZoneEnv, clock: Option<&GameClock>) -> (ZoneEnv, (usize, usize), f32) {
+    match clock {
+        Some(c) => {
+            let (a, b, f) = c.blend();
+            (blend_env(&loaded.slots[a], &loaded.slots[b], f), (a, b), f)
+        }
+        None => (loaded.slots[loaded.fallback_slot].clone(), (loaded.fallback_slot, loaded.fallback_slot), 0.0),
+    }
+}
+
+/// Render parameters of one environment: the decoded look plus the current weather (if any).
+fn look_for(env: &ZoneEnv, settings: LookSettings, weather: Option<&WeatherVisual>) -> LookParams {
+    let p = look_params(env, settings);
+    match weather {
+        Some(w) => apply_weather(&p, w),
+        None => p,
+    }
+}
+
+/// Throttling key of the applied environment.
+fn blend_key(pair: (usize, usize), f: f32, weather: u8) -> (usize, usize, u32, u8) {
+    (pair.0, pair.1, (f.clamp(0.0, 1.0) * BLEND_STEPS as f32).round() as u32, weather)
+}
+
 impl Plugin for ZoneLightingPlugin {
     fn build(&self, app: &mut App) {
         let area = format!("ha_area{:02}", self.area);
-        let env = find_lighting_sheet()
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .and_then(|t| parse_zone_env(&t, &area, self.slot));
-        let Some(env) = env else {
+        let text = find_lighting_sheet().and_then(|p| std::fs::read_to_string(p).ok());
+        // The four slots of the area; a missing slot falls back to the plugin's own slot (the sheet
+        // is complete for the real areas, this is only defensive).
+        let parse = |t: &str, s: usize| parse_zone_env(t, &area, s);
+        let Some(anchor) = text.as_deref().and_then(|t| parse(t, self.slot)) else {
             println!("Lighting: no decoded environment for {area}; keeping the placeholder lights.");
             return;
         };
+        let slots: [ZoneEnv; 4] = std::array::from_fn(|s| {
+            text.as_deref().and_then(|t| parse(t, s)).unwrap_or_else(|| anchor.clone())
+        });
         let settings = app.world().get_resource::<LookSettings>().copied().unwrap_or_else(|| {
             LookSettings::from_args(&std::env::args().collect::<Vec<_>>())
         });
-        let params = look_params(&env, settings);
+        let params = look_params(&slots[self.slot], settings);
         println!(
-            "Lighting: decoded environment {area} slot {} (sun {:.2}, fog {:.0}-{:.0} m); look {:?}, shadows {}, sun {:.0} lux",
-            self.slot, env.sun_intensity, env.fog_near, env.fog_far, settings.look, params.shadows, params.sun_lux
+            "Lighting: decoded 4 slots for {area} (slot {} sun {:.2}, fog {:.0}-{:.0} m); look {:?}, shadows {}, sun {:.0} lux",
+            self.slot, slots[self.slot].sun_intensity, slots[self.slot].fog_near, slots[self.slot].fog_far,
+            settings.look, params.shadows, params.sun_lux
         );
-        let sky0 = env.sky[0].0;
-        app.insert_resource(ClearColor(Color::linear_rgb(sky0[0], sky0[1], sky0[2])));
+        app.insert_resource(ClearColor(Color::linear_rgb(
+            slots[self.slot].sky[0].0[0],
+            slots[self.slot].sky[0].0[1],
+            slots[self.slot].sky[0].0[2],
+        )));
         app.insert_resource(GlobalAmbientLight {
             color: Color::linear_rgb(params.ambient_color[0], params.ambient_color[1], params.ambient_color[2]),
             brightness: params.ambient_brightness,
@@ -213,9 +269,17 @@ impl Plugin for ZoneLightingPlugin {
             // ASSUMED: 2048 per cascade x 4 cascades is the cost/quality compromise.
             app.insert_resource(DirectionalLightShadowMap { size: 2048 });
         }
-        app.insert_resource(LoadedZoneEnv(env));
-        app.insert_resource(LoadedLook(params));
+        app.insert_resource(LoadedZoneEnv {
+            slots,
+            fallback_slot: self.slot,
+            current: anchor.clone(),
+            pair: (self.slot, self.slot),
+            factor: 0.0,
+        });
+        app.insert_resource(ActiveLookSettings(settings));
+        app.init_resource::<AppliedLook>();
         app.add_systems(PostStartup, apply_environment);
+        app.add_systems(Update, sync_environment);
         app.add_systems(Update, scroll_clouds);
         app.add_systems(
             PostUpdate,
@@ -227,16 +291,23 @@ impl Plugin for ZoneLightingPlugin {
 #[allow(clippy::too_many_arguments)]
 fn apply_environment(
     mut commands: Commands,
-    env: Res<LoadedZoneEnv>,
-    look: Res<LoadedLook>,
+    mut loaded: ResMut<LoadedZoneEnv>,
+    settings: Res<ActiveLookSettings>,
+    weather: Option<Res<WeatherVisual>>,
+    clock: Option<Res<GameClock>>,
+    mut applied: ResMut<AppliedLook>,
     old_lights: Query<Entity, With<DirectionalLight>>,
     cameras: Query<Entity, With<Camera3d>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let env = &env.0;
-    let p = &look.0;
+    let (env, pair, factor) = current_env(&loaded, clock.as_deref());
+    let p = &look_for(&env, settings.0, weather.as_deref());
+    loaded.current = env.clone();
+    loaded.pair = pair;
+    loaded.factor = factor;
+    applied.0 = Some(blend_key(pair, factor, weather.as_ref().map(|w| w.id).unwrap_or(0)));
     for e in &old_lights {
         commands.entity(e).despawn();
     }
@@ -299,9 +370,10 @@ fn apply_environment(
     }
     commands.spawn((
         SkyDome,
+        SkyGradient,
         NotShadowCaster,
         NotShadowReceiver,
-        Mesh3d(meshes.add(sky_dome_mesh(env))),
+        Mesh3d(meshes.add(sky_dome_mesh(&env))),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: Color::WHITE,
             unlit: true,
@@ -332,6 +404,68 @@ fn apply_environment(
             Transform::IDENTITY,
         ));
     }
+}
+
+/// Follow the clock (and the weather) every frame, but only re-apply the scene state when the
+/// blend moved a [`BLEND_STEPS`] step or the weather changed: sun colour/intensity/direction,
+/// ambient light, clear colour, camera fog and the sky gradient mesh are all refreshed together.
+#[allow(clippy::too_many_arguments)]
+fn sync_environment(
+    mut loaded: ResMut<LoadedZoneEnv>,
+    settings: Res<ActiveLookSettings>,
+    mut applied: ResMut<AppliedLook>,
+    clock: Option<Res<GameClock>>,
+    weather: Option<Res<WeatherVisual>>,
+    mut ambient: ResMut<GlobalAmbientLight>,
+    mut clear: ResMut<ClearColor>,
+    mut sun: Query<(&mut DirectionalLight, &mut Transform)>,
+    mut fog: Query<&mut DistanceFog, With<Camera3d>>,
+    mut sky: Query<&mut Mesh3d, (With<SkyGradient>, Without<CloudDome>)>,
+    cloud: Option<Res<CloudMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let (env, pair, factor) = current_env(&loaded, clock.as_deref());
+    let wid = weather.as_ref().map(|w| w.id).unwrap_or(0);
+    let key = blend_key(pair, factor, wid);
+    if applied.0 == Some(key) {
+        return;
+    }
+    let p = look_for(&env, settings.0, weather.as_deref());
+    for (mut l, mut t) in &mut sun {
+        l.color = Color::linear_rgb(env.sun_color[0], env.sun_color[1], env.sun_color[2]);
+        l.illuminance = p.sun_lux;
+        *t = Transform::IDENTITY.looking_to(Vec3::from(env.sun_dir), Vec3::Y);
+    }
+    ambient.color = Color::linear_rgb(p.ambient_color[0], p.ambient_color[1], p.ambient_color[2]);
+    ambient.brightness = p.ambient_brightness;
+    clear.0 = Color::linear_rgb(env.sky[0].0[0], env.sky[0].0[1], env.sky[0].0[2]);
+    let falloff = match p.fog {
+        FogSpec::Linear { start, end } => FogFalloff::Linear { start, end },
+        FogSpec::ExpSquared { density } => FogFalloff::ExponentialSquared { density },
+    };
+    for mut f in &mut fog {
+        f.color = Color::linear_rgba(p.fog_color[0], p.fog_color[1], p.fog_color[2], p.fog_color[3]);
+        f.falloff = falloff.clone();
+    }
+    let new_mesh = meshes.add(sky_dome_mesh(&env));
+    for mut m in &mut sky {
+        let old = m.0.clone();
+        m.0 = new_mesh.clone();
+        // The dome is the only user of that mesh; drop the old asset so the swap does not leak.
+        if old != new_mesh {
+            meshes.remove(&old);
+        }
+    }
+    if let Some(cm) = cloud {
+        if let Some(mut mat) = materials.get_mut(&cm.0) {
+            mat.base_color = Color::linear_rgba(p.cloud_color[0], p.cloud_color[1], p.cloud_color[2], p.cloud_opacity);
+        }
+    }
+    loaded.current = env;
+    loaded.pair = pair;
+    loaded.factor = factor;
+    applied.0 = Some(key);
 }
 
 fn scroll_clouds(
