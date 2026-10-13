@@ -16,10 +16,11 @@
 - **Fusionadas en `main` (segunda tanda de DeepSeek, 2026-10-13):** 27 (comportamiento salvaje, acotado por evidencia: arquetipos provisionales SUPUESTO, verifican la política del port, no la paridad nativa), 33 (artesanía: datos de recetas y pantalla sin ventana; los tests verifican reglas del port) y las partes de 32 ya hechas: pantalla de equipo (`party_screen`, `party_ops`) y pantalla de cajas (`box_screen`). **32:** `screens-dex` se fusionó después (ver la tercera tanda); falta mirar las pantallas a ojo (lo hace el usuario). Guardado sin cambios (sigue v6).
 - **Pendiente tras 8:** 8b (ver la cola de DeepSeek).
 - **En proceso (DeepSeek):** 7 (menú principal), 10 (colisiones).
-- **A medias:** 26 y 29 (motor hecho y ya conectado al combate del visor; falta mirarlo a ojo, por el usuario), 37 (datos hechos), 39 (datos hechos).
+- **A medias:** 26 y 29 (motor hecho y ya conectado al combate del visor; falta mirarlo a ojo, por el usuario), 37 (datos hechos).
 - **Datos de investigación ya en `main` (sin implementar):** 31 (personajes no jugables); falta implementarlos en el juego.
 - **Implementada y fusionada en `main`:** 30 (combates de entrenador y jefes). La fórmula de recompensa es SUPUESTO; faltan la IA experta y la fase de campo noble; los entrenadores derrotados no se guardan hasta el guardado v7.
 - **Fusionadas en `main` (tercera tanda, 2026-10-13):** 40 (instalador `install.sh`, guía en `docs/INSTALL.md`/`INSTALL.es.md`), 32 parte Pokédex (`dex_screen`, acotada por evidencia), 23 (objetos del suelo: datos, recogida y reaparición; guardado v7 con los objetos recogidos) y 19 (modelos bloqueados y sin esqueleto; guardia del exportador pm0025/pm0026 verde con los ficheros reales). Los modelos recuperados se verifican con la herramienta sin ventana; mirarlos a ojo lo hace el usuario.
+- **Fusionada en `main` (cuarta tanda, 2026-10-13):** 39 (eventos del mundo: distorsiones y brotes normales, solo durante la sesión; no cambia el guardado, sigue v7). La especie de los brotes masivos es DESCONOCIDA (el reparto del informe es SUPUESTO). Los espacios de Alfa quedan a la espera del encargo 17.
 - **Rama a medias, NO fusionada (commit «wip» por disco lleno; hay que rehacer/continuar):** 18 (`feat/throwing-module`).
 - **Faltan:** 13, 17–18, 22 (nivel 2), 31, 36, 38 (nivel 3), 43 (nivel 4). 32 queda a falta de la revisión a ojo del usuario.
 
@@ -30,7 +31,7 @@
 1. Fusionar lo terminado: gamepad, bloom y zone-switch ya están en `main`; faltan menú principal y colisiones.
 2. 26 y 29 ya están conectados a la pantalla → ~~30~~ (hecho y fusionado) → ~~27~~ (hecho y fusionado, acotado por evidencia).
 3. **31** (personajes no jugables, tras la investigación de datos y tras 22 de DeepSeek).
-4. **37** (interiores; requiere 8 y 10 fusionadas), **39** (eventos; requiere 9).
+4. **37** (interiores; requiere 8 y 10 fusionadas), ~~39~~ (hecho y fusionado; faltan especie de brotes masivos y Alfas, ver 17).
 5. **32** (equipo y cajas hechas y fusionadas; Pokédex básico = `screens-dex`, fusionado; falta revisión a ojo), ~~33~~ (hecho y fusionado).
 6. **38** (monturas; requiere 11, 13 y 16), ~~35~~ (hecho y fusionado), **36** (personalización; tras 22 y 31).
 7. **43** (Pokédex con investigación; requiere 32, 5, 18 y 26).
