@@ -30,7 +30,8 @@ use crate::game::box_screen::{
 };
 use crate::game::dex_screen::{visibility, DexCatalog, DexRoot, DexUi, DexVisibility};
 use crate::game::minimap::{FullMapRoot, MinimapState};
-use crate::game::party_screen::{PartyScreenRoot, PartyScreenState};
+use crate::game::party_screen::{PartyCursor, PartyScreenRoot, PartyScreenState};
+use crate::game::summary_screen::SummaryState;
 use crate::game::pause_menu::{
     menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, OPTIONS,
 };
@@ -62,7 +63,7 @@ pub fn option_icon(o: MenuOption) -> &'static str {
     match o {
         MenuOption::Resume | MenuOption::Quit => "help",
         MenuOption::Bag => "bag",
-        MenuOption::Party => "pokelist",
+        MenuOption::Party | MenuOption::Summary => "pokelist",
         MenuOption::Boxes => "ibox",
         MenuOption::Pokedex | MenuOption::Save | MenuOption::Load => "report",
         MenuOption::Crafting => "making",
@@ -266,6 +267,8 @@ fn move_info(assets: Option<&BattleAssets>, id: u16) -> (String, Option<u8>, Str
 pub fn bind_party_screen(
     config: Res<OrigUiConfig>,
     state: Option<Res<PartyScreenState>>,
+    cursor: Option<Res<PartyCursor>>,
+    summary: Option<Res<SummaryState>>,
     progress: Option<Res<PlayerProgress>>,
     assets: Option<Res<BattleAssets>>,
     icons: Res<IconIndex>,
@@ -277,7 +280,9 @@ pub fn bind_party_screen(
     let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::Party) else {
         return;
     };
-    let open = state.is_some_and(|st| st.open);
+    // The summary opened from this list replaces it while open.
+    let open = state.is_some_and(|st| st.open) && !summary.is_some_and(|x| x.open);
+    let sel = cursor.map_or(0, |c| c.0);
     s.shown = open;
     let Some(progress) = progress.filter(|_| open) else {
         return;
@@ -345,18 +350,21 @@ pub fn bind_party_screen(
                     o.image = icon;
                 });
             }
-            let tag = if i == 0 { "select" } else { "unselect" };
+            let tag = if i == sel { "select" } else { "unselect" };
             s.freeze_end(inst, tag, "sel");
         }
     }
-    // Right panel: the lead member.
-    if let Some(lead) = progress.party.first() {
+    // Right panel: the highlighted member.
+    if let Some(lead) = progress.party.get(sel).or(progress.party.first()) {
         let (name, _) = member_info(assets, lead);
         s.set("T_name_poke_00", |o| {
             o.text = Some(name);
             o.text_color = Some([0.16, 0.2, 0.26, 1.0]);
         });
-        s.set_text("T_situation_00", "Party leader");
+        s.set_text(
+            "T_situation_00",
+            if sel == 0 { "Party leader" } else { "Party member" },
+        );
         for k in 0..4 {
             let part = format!("L_status_button_skill_0{k}");
             match lead.moves.get(k) {
@@ -381,7 +389,7 @@ pub fn bind_party_screen(
     }
     s.set_text(
         "T_info_00",
-        "Party order is the stored order. HP 0 means fainted. Esc closes.",
+        "Up / Down: choose   Enter: summary   Esc: close",
     );
 }
 

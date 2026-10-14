@@ -27,6 +27,7 @@ pub mod layout;
 pub mod material;
 pub mod menus;
 pub mod scene;
+pub mod summary;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -663,6 +664,7 @@ impl Plugin for OrigUiPlugin {
         battle::install(app);
         field::install(app);
         menus::install(app);
+        summary::install(app);
     }
 }
 
@@ -710,11 +712,27 @@ pub fn spawn_screen(commands: &mut Commands, id: ScreenId, scene: Arc<Scene>) ->
                 ..default()
             },
             GlobalZIndex(id.z()),
-            BackgroundColor(id.backdrop()),
             Visibility::Hidden,
+        ))
+        // The backdrop is the first child, so every quad (added later) draws over it.
+        .with_child((
+            OrigBackdrop,
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                ..default()
+            },
+            BackgroundColor(id.backdrop()),
         ))
         .id()
 }
+
+/// Full-screen backdrop node of a screen (first child of its root).
+#[derive(Component, Debug)]
+pub struct OrigBackdrop;
 
 fn pct(v: f32, of: f32) -> Val {
     Val::Percent(v / of * 100.0)

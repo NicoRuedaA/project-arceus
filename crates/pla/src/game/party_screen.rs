@@ -14,6 +14,7 @@ use super::pause_menu::{freeze_for_screen, PartyOpenRequested, PauseMenuSuppress
 use super::save_game::{PartyMember, MAX_PARTY};
 use super::save_wire::PlayerProgress;
 use super::state::Paused;
+use super::summary_screen::{SummaryFromParty, SummaryState};
 
 /// Explicit snapshot consumed by the party UI. It intentionally contains only party data, not a
 /// `PlayerProgress` resource, so storage operations remain in [`super::party_ops`].
@@ -42,6 +43,10 @@ impl Default for PartyScreenState {
     }
 }
 
+/// Highlighted party row (Up / Down); Enter opens its summary (`game::summary_screen`).
+#[derive(Resource, Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PartyCursor(pub usize);
+
 /// Root marker, public so a headless caller can assert that the screen was installed.
 #[derive(Component, Debug, Clone, Copy)]
 pub struct PartyScreenRoot;
@@ -63,6 +68,7 @@ impl Plugin for PartyScreenPlugin {
         app.init_resource::<PartyScreenData>()
             .init_resource::<PartyScreenState>()
             .init_resource::<PartyOpenRequested>()
+            .init_resource::<PartyCursor>()
             .add_systems(Startup, spawn_party_screen)
             .add_systems(
                 Update,
@@ -150,9 +156,16 @@ fn spawn_party_screen(mut commands: Commands) {
 }
 
 /// Opens on the pause menu's request and closes on Cancel/Menu, freezing the world meanwhile.
+/// Prev / Next move the cursor and Confirm opens the highlighted member's summary; while the
+/// summary is open it owns the input.
+#[allow(clippy::too_many_arguments)]
 fn party_open_close(
     mut request: ResMut<PartyOpenRequested>,
     mut state: ResMut<PartyScreenState>,
+    mut cursor: ResMut<PartyCursor>,
+    progress: Option<Res<PlayerProgress>>,
+    summary: Option<Res<SummaryState>>,
+    mut to_summary: Option<ResMut<SummaryFromParty>>,
     actions: Option<ResMut<ActionState>>,
     mut paused: Option<ResMut<Paused>>,
     mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
@@ -160,13 +173,30 @@ fn party_open_close(
     if request.0 {
         request.0 = false;
         state.open = true;
+        cursor.0 = 0;
         freeze_for_screen(&mut paused, &mut suppressed, true);
         return;
     }
-    if !state.open {
+    if !state.open || summary.is_some_and(|s| s.open) {
         return;
     }
     let Some(mut actions) = actions else { return };
+    let len = progress.as_ref().map_or(0, |p| p.party.len());
+    if len > 0 {
+        if actions.just_pressed(Action::Next) {
+            cursor.0 = (cursor.0 + 1) % len;
+        } else if actions.just_pressed(Action::Prev) {
+            cursor.0 = (cursor.0 + len - 1) % len;
+        }
+        cursor.0 = cursor.0.min(len - 1);
+        if actions.just_pressed(Action::Confirm) {
+            if let Some(req) = to_summary.as_deref_mut() {
+                actions.consume(Action::Confirm);
+                req.0 = Some(cursor.0);
+                return;
+            }
+        }
+    }
     if actions.just_pressed(Action::Cancel) || actions.just_pressed(Action::Menu) {
         actions.consume(Action::Cancel);
         actions.consume(Action::Menu);
@@ -192,6 +222,7 @@ fn refresh_party_data(
 fn sync_party_screen(
     data: Res<PartyScreenData>,
     state: Res<PartyScreenState>,
+    cursor: Option<Res<PartyCursor>>,
     mut root: Query<&mut Visibility, With<PartyScreenRoot>>,
     mut texts: Query<(&PartyText, &mut Text)>,
 ) {
@@ -209,10 +240,16 @@ fn sync_party_screen(
     for (marker, mut text) in &mut texts {
         let desired = match marker {
             PartyText::Title => "PARTY".to_string(),
-            PartyText::Name(index) => data.party.get(*index).map(member_name).unwrap_or_default(),
+            PartyText::Name(index) => {
+                let mark = if cursor.as_ref().is_some_and(|c| c.0 == *index) { "> " } else { "" };
+                data.party
+                    .get(*index)
+                    .map(|m| format!("{mark}{}", member_name(m)))
+                    .unwrap_or_default()
+            }
             PartyText::Stats(index) => data.party.get(*index).map(member_stats).unwrap_or_default(),
             PartyText::Moves(index) => data.party.get(*index).map(member_moves).unwrap_or_default(),
-            PartyText::Hint => "Party order is the stored order. HP 0 means fainted.".to_string(),
+            PartyText::Hint => "Up / Down: choose   Enter: summary   Esc: close".to_string(),
         };
         if text.0 != desired {
             text.0 = desired;

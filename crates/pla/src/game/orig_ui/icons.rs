@@ -20,6 +20,8 @@ const POKE_DIR: &str = "png/res_pokemon/icon_pokemon_s";
 const POKE_L_DIR: &str = "png/res_pokemon/icon_pokemon_l";
 const ITEM_DIR: &str = "png/res_item/icon_item";
 const TYPE_DIR: &str = "png/icon_type/arc/type_dummy_tch";
+/// Type badges with the type name drawn in (English pack): `typeIconText_<NN>_<name>_00^u.png`.
+const TYPE_TEXT_DIR: &str = "png/icon_type/arc/type_dummy_eng";
 
 /// The game's type order (index = icon number).
 pub const TYPE_ORDER: [&str; 18] = [
@@ -68,6 +70,7 @@ pub struct IconIndex {
     pokemon_large: HashMap<(u16, u16), String>,
     items: HashMap<u16, String>,
     types: HashMap<usize, String>,
+    type_texts: HashMap<usize, String>,
 }
 
 /// Parse `pokeicon_s_0025_001_000_n_00000000_fn_n.png` into (dex, form, gender, rare).
@@ -138,6 +141,16 @@ impl IconIndex {
                 }
             }
         }
+        if let Ok(rd) = std::fs::read_dir(root.join(TYPE_TEXT_DIR)) {
+            for e in rd.flatten() {
+                let name = e.file_name().to_string_lossy().to_string();
+                if let Some(rest) = name.strip_prefix("typeIconText_") {
+                    if let Some(n) = rest.get(..2).and_then(|s| s.parse::<usize>().ok()) {
+                        self.type_texts.insert(n, format!("{TYPE_TEXT_DIR}/{name}"));
+                    }
+                }
+            }
+        }
         info!(
             "original UI icons: {} Pokémon, {} items, {} types",
             self.pokemon.len(),
@@ -175,6 +188,17 @@ impl IconIndex {
             png: self.items.get(&id)?.clone(),
             uv: [0.0, 0.0, 1.0, 1.0],
         })
+    }
+
+    /// Type badge with the type's name (falls back to the plain type icon).
+    pub fn type_text(&self, type_name: &str) -> Option<ExternalImage> {
+        match self.type_texts.get(&type_index(type_name)?) {
+            Some(p) => Some(ExternalImage {
+                png: p.clone(),
+                uv: [0.0, 0.0, 1.0, 1.0],
+            }),
+            None => self.type_icon(type_name),
+        }
     }
 
     pub fn type_icon(&self, type_name: &str) -> Option<ExternalImage> {

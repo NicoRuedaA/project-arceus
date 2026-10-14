@@ -1040,6 +1040,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     // Installed after SaveWirePlugin so they read the live `PlayerProgress`.
     app.add_plugins((
         pla::game::party_screen::PartyScreenPlugin,
+        pla::game::summary_screen::SummaryScreenPlugin,
         pla::game::box_screen::BoxScreenPlugin,
         pla::game::dex_screen::DexScreenPlugin::default(),
         crafting_plugin(),
