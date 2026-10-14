@@ -504,6 +504,7 @@ fn wander_system(
     wall_collision: Option<Res<super::world_collision::WorldCollision>>,
     player: Query<&Transform, (With<PlayerAvatar>, Without<WanderState>)>,
     stealth: Option<Res<super::player_skills::PlayerStealth>>,
+    safety: Option<Res<super::wild::EncounterSafety>>,
     mut q: Query<(
         &mut Transform,
         &mut WanderState,
@@ -519,7 +520,9 @@ fn wander_system(
     // creatures wander as if nobody were there (game::player_skills::PlayerStealth).
     let hidden = stealth.is_some_and(|s| s.hidden);
     let raw_player = player.single().ok().map(|t| (t.translation.x, t.translation.z));
-    let pl = noticeable_player(raw_player, hidden);
+    // During the arrival grace period nobody notices the player: no alert, no aggressive chase.
+    let grace = safety.is_some_and(|s| s.grace_active());
+    let pl = noticeable_player(raw_player, hidden || grace);
     // Player noise from its planar speed since the last frame (a teleport reads as one frame of
     // running noise at most).
     let player_speed = match (raw_player, *last_player) {

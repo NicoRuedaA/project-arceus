@@ -313,6 +313,14 @@ fn drive_battle_effects(
                 }
             }
         }
+        let absent = library.take_new_absent();
+        if !absent.is_empty() {
+            info!(
+                "effects: {} move timeline file(s) do not exist in the game data and are skipped: {}",
+                absent.len(),
+                absent.join(", ")
+            );
+        }
     }
     let len = sess.event_log.len();
     if len < *cursor {
@@ -642,6 +650,34 @@ mod tests {
         }
         assert_eq!(count::<EffectSequenceInstance>(&mut app), 0);
         assert!(app.world().get_resource::<MoveTimingTable>().is_none(), "off keeps the fixed pacing");
+    }
+
+    #[test]
+    fn absent_timeline_files_are_reported_once_in_a_summary() {
+        let mut lib = EffectLibrary::new(PathBuf::from("/nonexistent"), None, true);
+        assert!(lib.timeline("ew045").is_none());
+        assert!(lib.timeline("ew036").is_none());
+        assert!(lib.timeline("ew045").is_none(), "cached: not counted twice");
+        assert_eq!(lib.take_new_absent(), vec!["ew045".to_string(), "ew036".to_string()]);
+        assert!(lib.take_new_absent().is_empty(), "each name is returned once");
+        assert_eq!(lib.stats.timelines_missing, 2);
+    }
+
+    /// Real data: the `point_light` emitters were drawn as a big opaque white disc and the
+    /// `..._normal_n` ground-rock emitters as an opaque coloured rectangle.
+    #[test]
+    fn real_lights_and_normal_maps_are_not_drawn() {
+        use sim::Skip;
+        let Some(root) = real_root() else { return };
+        let load = |p: &str| library::load_particle(&root, None, p).expect(p).def;
+        let thunder = load("ew085/ew085_df_hit01.ptcl");
+        assert!(thunder.skipped.iter().any(|(n, s)| n == "point_light" && *s == Skip::Light));
+        assert!(!thunder.emitters.iter().any(|e| e.emitter.name == "point_light"));
+        assert!(thunder.emitters.iter().any(|e| e.emitter.name == "ring_add"), "real emitters stay");
+        let rock = load("ew414/ew414_rock.ptcl");
+        assert!(rock.skipped.iter().any(|(n, s)| n == "gloundpillar" && *s == Skip::NormalMap));
+        assert!(!rock.emitters.iter().any(|e| e.texture.as_deref().is_some_and(sim::is_normal_map)));
+        assert!(rock.emitters.iter().any(|e| e.emitter.name == "lava_main"), "smoke and lava stay");
     }
 
     #[test]
