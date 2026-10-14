@@ -490,8 +490,9 @@ pub const PRESETS: &[Preset] = &[
     Preset {
         name: "high",
         label: "High",
+        // Shadow quality stays medium: "high" (4096 px maps) cost ~1.5 ms at 1440p in the forest
+        // and pushed this preset past 8.33 ms (120 fps) on the reference RTX 4060 (measured).
         overrides: &[
-            (id::SHADOW_QUALITY, 2),
             (id::GRASS, 3),
             (id::EFFECTS, 2),
             (id::MIPMAPS, 1),
