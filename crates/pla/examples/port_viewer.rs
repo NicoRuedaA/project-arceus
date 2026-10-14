@@ -1041,6 +1041,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     // Installed after SaveWirePlugin so they read the live `PlayerProgress`.
     app.add_plugins((
         pla::game::party_screen::PartyScreenPlugin,
+        pla::game::summary_screen::SummaryScreenPlugin,
         pla::game::box_screen::BoxScreenPlugin,
         pla::game::dex_screen::DexScreenPlugin::default(),
         crafting_plugin(),
@@ -1133,7 +1134,9 @@ fn add_viewer_systems(app: &mut App) {
     app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
     app.add_systems(
         Update,
-        measure_arena_models.run_if(in_state(GameState::Battle)),
+        (measure_arena_models, publish_foe_height)
+            .chain()
+            .run_if(in_state(GameState::Battle)),
     );
     app.add_systems(
         Update,
@@ -3786,6 +3789,18 @@ fn sync_arena_player_model(
         // The old model's size no longer applies; the new one is measured once it is loaded.
         extents.size[slot.0] = pla::game::battle_camera::ModelSize::default();
         println!("Arena slot {} now shows #{want}", slot.0);
+    }
+}
+
+/// Hands the opponent's measured model height to the original UI (its plate floats above it).
+fn publish_foe_height(
+    extents: Res<ArenaExtents>,
+    foe: Option<ResMut<pla::game::orig_ui::battle::BattleFoeHeight>>,
+) {
+    let Some(mut foe) = foe else { return };
+    let h = extents.size[1].height;
+    if foe.0 != h {
+        foe.0 = h;
     }
 }
 

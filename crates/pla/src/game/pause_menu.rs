@@ -37,6 +37,8 @@ pub enum MenuOption {
     Resume,
     Bag,
     Party,
+    /// The Pokémon summary (`game::summary_screen`), on the first party member.
+    Summary,
     Boxes,
     Pokedex,
     Crafting,
@@ -53,10 +55,11 @@ pub enum MenuOption {
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 16] = [
+pub const OPTIONS: [MenuOption; 17] = [
     MenuOption::Resume,
     MenuOption::Bag,
     MenuOption::Party,
+    MenuOption::Summary,
     MenuOption::Boxes,
     MenuOption::Pokedex,
     MenuOption::Crafting,
@@ -99,6 +102,8 @@ pub enum MenuAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
     Party,
+    /// The Pokémon summary (`game::summary_screen`).
+    Summary,
     Boxes,
     Pokedex,
     Crafting,
@@ -120,6 +125,7 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
         MenuOption::Resume => MenuAction::Resume,
         MenuOption::Bag => MenuAction::OpenBag,
         MenuOption::Party => MenuAction::OpenScreen(Screen::Party),
+        MenuOption::Summary => MenuAction::OpenScreen(Screen::Summary),
         MenuOption::Boxes => MenuAction::OpenScreen(Screen::Boxes),
         MenuOption::Pokedex => MenuAction::OpenScreen(Screen::Pokedex),
         MenuOption::Crafting => MenuAction::OpenScreen(Screen::Crafting),
@@ -159,6 +165,7 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
         MenuOption::Resume => "Resume".into(),
         MenuOption::Bag => "Bag".into(),
         MenuOption::Party => "Party".into(),
+        MenuOption::Summary => "Summary".into(),
         MenuOption::Boxes => "Pokémon boxes".into(),
         MenuOption::Pokedex => "Pokédex".into(),
         MenuOption::Crafting => "Crafting".into(),
@@ -239,6 +246,7 @@ pub struct ActionRequests<'w> {
 pub struct ScreenRequests<'w> {
     bag: ResMut<'w, BagOpenRequested>,
     party: Option<ResMut<'w, PartyOpenRequested>>,
+    summary: Option<ResMut<'w, crate::game::summary_screen::SummaryOpenRequested>>,
     boxes: Option<ResMut<'w, BoxOpenRequested>>,
     dex: Option<ResMut<'w, DexOpenRequested>>,
     crafting: Option<ResMut<'w, CraftingOpenRequested>>,
@@ -251,6 +259,7 @@ impl ScreenRequests<'_> {
     fn request(&mut self, screen: Screen) -> bool {
         let flag = match screen {
             Screen::Party => self.party.as_deref_mut().map(|r| &mut r.0),
+            Screen::Summary => self.summary.as_deref_mut().map(|r| &mut r.0),
             Screen::Boxes => self.boxes.as_deref_mut().map(|r| &mut r.0),
             Screen::Pokedex => self.dex.as_deref_mut().map(|r| &mut r.0),
             Screen::Crafting => self.crafting.as_deref_mut().map(|r| &mut r.0),
@@ -271,6 +280,7 @@ impl ScreenRequests<'_> {
 pub fn screen_unavailable_text(screen: Screen, in_world: bool) -> String {
     let name = match screen {
         Screen::Party => "Party",
+        Screen::Summary => "Summary",
         Screen::Boxes => "Pokémon boxes",
         Screen::Pokedex => "Pokédex",
         Screen::Crafting => "Crafting",
@@ -654,7 +664,7 @@ mod tests {
     #[test]
     fn safe_spawn_row_is_reachable_by_navigation() {
         let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 16);
+        assert_eq!(OPTIONS.len(), 17);
         assert_eq!(move_selection(i - 1, 1), i);
         assert_eq!(move_selection(i, 1), i + 1);
     }
@@ -663,16 +673,19 @@ mod tests {
     fn screen_rows_follow_the_bag_row_in_order() {
         let bag = OPTIONS.iter().position(|o| *o == MenuOption::Bag).unwrap();
         assert_eq!(
-            OPTIONS[bag + 1..bag + 6],
+            OPTIONS[bag + 1..bag + 7],
             [
                 MenuOption::Party,
+                MenuOption::Summary,
                 MenuOption::Boxes,
                 MenuOption::Pokedex,
                 MenuOption::Crafting,
                 MenuOption::Shop
             ]
         );
-        assert_eq!(OPTIONS[bag + 6], MenuOption::InvertX);
+        assert_eq!(OPTIONS[bag + 7], MenuOption::InvertX);
+        let mut s = UserSettings::default();
+        assert_eq!(activate(MenuOption::Summary, &mut s), MenuAction::OpenScreen(Screen::Summary));
         assert!(screen_unavailable_text(Screen::Boxes, false).contains("only while exploring"));
         assert!(screen_unavailable_text(Screen::Party, true).contains("not available"));
     }
@@ -796,6 +809,7 @@ mod tests {
         let recipes = TsvRecipeProvider::load(data_root()).unwrap();
         app.add_plugins((
             crate::game::party_screen::PartyScreenPlugin,
+            crate::game::summary_screen::SummaryScreenPlugin,
             crate::game::box_screen::BoxScreenPlugin,
             crate::game::dex_screen::DexScreenPlugin::with_data_dir(data_root()),
             crate::game::crafting_ui::CraftingPlugin::with_provider(&recipes, Bag::default()),
@@ -818,6 +832,7 @@ mod tests {
         let w = app.world();
         match row {
             MenuOption::Party => w.resource::<crate::game::party_screen::PartyScreenState>().open,
+            MenuOption::Summary => w.resource::<crate::game::summary_screen::SummaryState>().open,
             MenuOption::Boxes => w.resource::<crate::game::box_screen::BoxScreenState>().open,
             MenuOption::Pokedex => w.resource::<crate::game::dex_screen::DexUi>().open,
             MenuOption::Crafting => w.resource::<crate::game::crafting_ui::CraftingUi>().open,
@@ -840,6 +855,7 @@ mod tests {
     fn headless_every_screen_row_opens_its_screen_and_esc_returns_to_the_world() {
         let rows = [
             MenuOption::Party,
+            MenuOption::Summary,
             MenuOption::Boxes,
             MenuOption::Pokedex,
             MenuOption::Crafting,

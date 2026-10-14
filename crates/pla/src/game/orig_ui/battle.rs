@@ -4,7 +4,7 @@
 //! | Original layout | Shows |
 //! |---|---|
 //! | `battle_top_02` | player plate (name, level, HP gauge and numbers), party balls, Y / + guides |
-//! | `cmn_pokeplate_enemy_02` | opponent plate (name, level, HP gauge), placed at the top centre |
+//! | `cmn_pokeplate_enemy_02` | opponent plate (name, level, HP gauge), floating above the opponent's head on screen (clamped to the screen) |
 //! | `battle_tl_00` | action order (PLA turn flow): next 6 turns with names and Pokémon icons |
 //! | `battle_command_03` | Fight (A) / Items + Pokémon (D-pad) / Run (B) diamond while the player chooses |
 //! | `battle_command_waza_00` | the 4 rows of the port's grid: moves (type colour, type icon, PP), bag items or party |
@@ -24,14 +24,43 @@ use crate::game::{ActiveBattleSession, BattleMenuState, BattleUiRoot, GameState}
 
 pub fn install(app: &mut App) {
     app.init_resource::<BattleUiMemo>();
+    app.init_resource::<BattleFoeHeight>();
     app.add_systems(Update, bind_battle.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<BattleUiRoot>(app, ScreenId::BattleHud);
-    app.add_systems(
-        PostUpdate,
-        minimap_off_in_battle
-            .after(super::render_screens)
-            .in_set(OrigUiSystems::Render),
-    );
+}
+
+/// Height (metres) of the opponent's loaded model in the battle arena, published by the viewer
+/// once it has measured the model (0 = not measured yet: a default height is used).
+#[derive(Resource, Debug, Default, Clone, Copy)]
+pub struct BattleFoeHeight(pub f32);
+
+/// Height used before the opponent's model is measured (metres).
+pub const DEFAULT_FOE_HEIGHT: f32 = 1.0;
+
+/// Half extents of the opponent plate (layout pixels) kept on screen by [`plate_translate`].
+pub const PLATE_HALF: Vec2 = Vec2::new(190.0, 60.0);
+
+/// Translation of the plate's `all` pane (layout pixels from the centre, y up) that puts the
+/// plate just above screen point `head` (layout pixels, top-left origin), clamped so the whole
+/// plate stays on screen with a margin.
+pub fn plate_translate(head: Vec2) -> [f32; 2] {
+    let x = head.x - 960.0;
+    // The plate's lower edge a little above the head.
+    let y = 540.0 - head.y + PLATE_HALF.y + 20.0;
+    let mx = 960.0 - PLATE_HALF.x - 20.0;
+    let my = 540.0 - PLATE_HALF.y - 20.0;
+    [x.clamp(-mx, mx), y.clamp(-my, my)]
+}
+
+/// Screen point (layout pixels, 1920 x 1080, top-left origin) of world point `world` seen by
+/// `camera`, or `None` behind the camera.
+pub fn layout_point(camera: &Camera, cam: &GlobalTransform, world: Vec3) -> Option<Vec2> {
+    let vp = camera.world_to_viewport(cam, world).ok()?;
+    let size = camera.logical_viewport_size()?;
+    if size.x <= 0.0 || size.y <= 0.0 {
+        return None;
+    }
+    Some(Vec2::new(vp.x / size.x * 1920.0, vp.y / size.y * 1080.0))
 }
 
 /// What the bindings showed last frame (to start one-shot animations on changes only).
@@ -101,7 +130,7 @@ fn bind_hud(s: &mut OrigScreen, sess: &ActiveBattleSession) {
     s.set_visible("L_ball_01", sess.trainer.is_some());
 }
 
-fn bind_enemy(s: &mut OrigScreen, sess: &ActiveBattleSession) {
+fn bind_enemy(s: &mut OrigScreen, sess: &ActiveBattleSession, head: Option<Vec2>) {
     let w = sess.opponent();
     let c = &sess.battle.combatants[w];
     s.set_visible("A_alignment_02", true);
@@ -112,8 +141,10 @@ fn bind_enemy(s: &mut OrigScreen, sess: &ActiveBattleSession) {
     s.set_visible("P_rare_00", false);
     s.set_visible("P_bspoke_00", false);
     s.set_visible("L_seibetsu_00", false);
-    // The game floats this plate over the opponent; the port pins it at the top centre.
-    s.set("all", |o| o.translate = Some([0.0, 330.0]));
+    // Floats over the opponent (its head on screen, clamped to the screen); top centre until the
+    // arena camera and model are known.
+    let t = head.map_or([0.0, 330.0], plate_translate);
+    s.set("all", |o| o.translate = Some(t));
 }
 
 fn bind_timeline(s: &mut OrigScreen, sess: &ActiveBattleSession, icons: &IconIndex) -> bool {
@@ -306,7 +337,28 @@ fn bind_rows(s: &mut OrigScreen, sess: &ActiveBattleSession, icons: &IconIndex) 
     s.set_text("T_option_00", "Back (Backspace)");
 }
 
+/// Source rectangle the port samples for the message strip's long piece (`P_base_00`).
+///
+/// UNKNOWN mechanism: its material generates the texture coordinates from the pane's projected
+/// position (`tex_coord_gens` source 4) and then applies a half-scale / -0.5 SRT; read the usual
+/// way that samples only the transparent start of the brush texture, which is why the strip was
+/// almost invisible. APPROXIMATION (port choice): sample the brush from 30 % to its opaque end,
+/// so the strip fades in from the left and is solid under the text, with the material's own
+/// colour (dark, half transparent).
+pub const MESSAGE_STRIP_UV: [f32; 4] = [0.3, 0.0, 1.0, 1.0];
+
 fn bind_message(s: &mut OrigScreen, sess: &ActiveBattleSession) {
+    let strip = s
+        .scene
+        .archive()
+        .textures
+        .get("btl_sys_bg_00^s")
+        .and_then(|t| t.png.clone())
+        .map(|png| super::scene::ExternalImage {
+            png,
+            uv: MESSAGE_STRIP_UV,
+        });
+    s.set("P_base_00", |o| o.image = strip);
     let n = sess.log_lines.len();
     let a = if n >= 2 {
         sess.log_lines[n - 2].clone()
@@ -319,32 +371,6 @@ fn bind_message(s: &mut OrigScreen, sess: &ActiveBattleSession) {
     s.set_visible("L_timer_00", false);
 }
 
-/// The port's minimap would cover the player plate (the game shows no map in battle): hidden
-/// while the original battle HUD is shown, shown again afterwards.
-fn minimap_off_in_battle(
-    screens: Query<&OrigScreen>,
-    mut hidden: Local<bool>,
-    mut minimap: Query<
-        &mut Visibility,
-        (With<crate::game::minimap::MinimapRoot>, Without<OrigScreen>),
-    >,
-) {
-    let battle = screens
-        .iter()
-        .any(|s| s.id == ScreenId::BattleHud && s.shown);
-    if battle == *hidden {
-        return;
-    }
-    *hidden = battle;
-    for mut v in &mut minimap {
-        *v = if battle {
-            Visibility::Hidden
-        } else {
-            Visibility::Inherited
-        };
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 pub fn bind_battle(
     config: Res<OrigUiConfig>,
@@ -353,6 +379,9 @@ pub fn bind_battle(
     paused: Option<Res<crate::game::state::Paused>>,
     icons: Res<IconIndex>,
     mut memo: ResMut<BattleUiMemo>,
+    foe_height: Res<BattleFoeHeight>,
+    slots: Query<(&crate::game::pokemon_anim::PokemonBattleSlot, &GlobalTransform)>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     mut screens: Query<&mut OrigScreen>,
 ) {
     if !config.enabled() {
@@ -380,6 +409,19 @@ pub fn bind_battle(
         memo.tab = None;
         return;
     };
+    // The opponent's head on screen (arena slot 1, measured model height).
+    let head = slots
+        .iter()
+        .find(|(slot, _)| slot.0 == 1)
+        .and_then(|(_, gt)| {
+            let (cam, cgt) = cameras.iter().find(|(c, _)| c.is_active)?;
+            let h = if foe_height.0 > 0.0 {
+                foe_height.0
+            } else {
+                DEFAULT_FOE_HEIGHT
+            };
+            layout_point(cam, cgt, gt.translation() + Vec3::Y * h)
+        });
     let choosing = awaiting_input(sess);
     let rows = choosing || sess.menu_state == BattleMenuState::LearnMove;
     for mut s in &mut screens {
@@ -390,7 +432,7 @@ pub fn bind_battle(
             }
             ScreenId::BattleEnemyPlate => {
                 s.shown = true;
-                bind_enemy(&mut s, sess);
+                bind_enemy(&mut s, sess, head);
             }
             ScreenId::BattleTimeline => {
                 s.shown = bind_timeline(&mut s, sess, &icons);
@@ -421,6 +463,19 @@ pub fn bind_battle(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plate_follows_the_head_and_stays_on_screen() {
+        // Head at the centre: the plate sits right above it.
+        let t = plate_translate(Vec2::new(960.0, 540.0));
+        assert_eq!(t[0], 0.0);
+        assert!(t[1] > 0.0 && t[1] < 200.0);
+        // Far off the corners: clamped inside the screen with the plate fully visible.
+        for head in [Vec2::new(-500.0, -400.0), Vec2::new(4000.0, 3000.0)] {
+            let [x, y] = plate_translate(head);
+            assert!(x.abs() + PLATE_HALF.x <= 960.0 && y.abs() + PLATE_HALF.y <= 540.0);
+        }
+    }
 
     #[test]
     fn names_and_prefixes() {

@@ -70,6 +70,7 @@ pub mod settings;
 pub mod shop;
 pub mod state;
 pub mod terrain_splat;
+pub mod summary_screen;
 pub mod throwing;
 pub mod trainer_battle;
 pub mod trainer_data;

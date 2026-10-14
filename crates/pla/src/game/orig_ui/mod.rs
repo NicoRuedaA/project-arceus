@@ -27,6 +27,7 @@ pub mod layout;
 pub mod material;
 pub mod menus;
 pub mod scene;
+pub mod summary;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -267,6 +268,9 @@ pub struct OrigScreen {
     pub last: Option<Frame>,
     /// Port text not tied to a text pane (lists the game fills at run time).
     free_texts: Vec<scene::TextSlot>,
+    /// Images not tied to a picture pane (map markers, the summary's Pokémon picture), drawn
+    /// after the layout's own quads.
+    free_quads: Vec<scene::Quad>,
 }
 
 impl OrigScreen {
@@ -283,6 +287,7 @@ impl OrigScreen {
             texts: HashMap::new(),
             last: None,
             free_texts: Vec::new(),
+            free_quads: Vec::new(),
         };
         s.rest();
         s.opening(false);
@@ -430,6 +435,27 @@ impl OrigScreen {
         }
     }
 
+    /// Replace the free images (drawn above the layout, in list order).
+    pub fn set_free_quads(&mut self, mut quads: Vec<scene::Quad>) {
+        for (i, q) in quads.iter_mut().enumerate() {
+            q.key = FREE_QUAD_BASE + i as u32;
+        }
+        if quads != self.free_quads {
+            self.free_quads = quads;
+            self.dirty = true;
+        }
+    }
+
+    /// Free images currently set (tests).
+    pub fn free_quads(&self) -> &[scene::Quad] {
+        &self.free_quads
+    }
+
+    /// Free texts currently set (tests).
+    pub fn free_texts(&self) -> &[scene::TextSlot] {
+        &self.free_texts
+    }
+
     /// Length (frames) of `<instance layout>_<tag>`.
     pub fn anim_len(&self, inst: usize, tag: &str) -> Option<f32> {
         let name = self.scene.anim_name(inst, tag)?;
@@ -483,6 +509,45 @@ pub const TEXT_SCALE: f32 = 0.68;
 /// Text keys at or above this value are free texts, below are text panes.
 pub const FREE_TEXT_BASE: usize = 1 << 24;
 
+/// Quad keys at or above this value are free images (layout quads use node × 16 + piece).
+pub const FREE_QUAD_BASE: u32 = 1 << 28;
+
+/// A free image: PNG `png` (relative to the UI root, `uv` its source rectangle) centred at
+/// layout pixel `center` (top-left origin) with size `size`, multiplied by `tint` (0-1 RGBA).
+pub fn free_image(png: &str, uv: [f32; 4], center: Vec2, size: Vec2, tint: [f32; 4]) -> scene::Quad {
+    let [u0, v0, u1, v1] = uv;
+    scene::Quad {
+        key: 0,
+        node: 0,
+        visible: true,
+        center,
+        size,
+        angle: 0.0,
+        uv: [
+            Vec2::new(u0, v0),
+            Vec2::new(u1, v0),
+            Vec2::new(u0, v1),
+            Vec2::new(u1, v1),
+        ],
+        vcol: [Vec4::from_array(tint); 4],
+        texture: Some(png.to_string()),
+        black: Vec4::ZERO,
+        white: Vec4::ONE,
+        srt: layout::TexSrt::default(),
+        wrap: [0, 0],
+        alpha: 1.0,
+        additive: false,
+        multiply: false,
+    }
+}
+
+/// A free untextured rectangle of colour `rgba` (0-1).
+pub fn free_rect(center: Vec2, size: Vec2, rgba: [f32; 4]) -> scene::Quad {
+    let mut q = free_image("", [0.0, 0.0, 1.0, 1.0], center, size, rgba);
+    q.texture = None;
+    q
+}
+
 /// A free text at layout pixel `(x, y)` (top-left origin) of size `w`×`h`.
 pub fn free_text(
     x: f32,
@@ -525,7 +590,6 @@ pub struct OrigQuad {
     pub key: u32,
     params: OrigUiParams,
     texture: Option<String>,
-    additive: bool,
 }
 
 /// Marker of a text box node (child of a screen root).
@@ -590,16 +654,18 @@ impl Plugin for OrigUiPlugin {
                     .before(bevy::ui::UiSystems::Prepare)
                     .before(bevy::camera::visibility::VisibilitySystems::VisibilityPropagate),
             )
-            .add_systems(Startup, spawn_screens)
+            .init_resource::<OrigUiFont>()
+            .add_systems(Startup, (load_ui_font, spawn_screens).chain())
             .add_systems(
                 PostUpdate,
-                (render_screens, hide_provisional)
+                (render_screens, hide_provisional, minimap_off_under_screens)
                     .chain()
                     .in_set(OrigUiSystems::Render),
             );
         battle::install(app);
         field::install(app);
         menus::install(app);
+        summary::install(app);
     }
 }
 
@@ -647,11 +713,27 @@ pub fn spawn_screen(commands: &mut Commands, id: ScreenId, scene: Arc<Scene>) ->
                 ..default()
             },
             GlobalZIndex(id.z()),
-            BackgroundColor(id.backdrop()),
             Visibility::Hidden,
+        ))
+        // The backdrop is the first child, so every quad (added later) draws over it.
+        .with_child((
+            OrigBackdrop,
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                ..default()
+            },
+            BackgroundColor(id.backdrop()),
         ))
         .id()
 }
+
+/// Full-screen backdrop node of a screen (first child of its root).
+#[derive(Component, Debug)]
+pub struct OrigBackdrop;
 
 fn pct(v: f32, of: f32) -> Val {
     Val::Percent(v / of * 100.0)
@@ -681,8 +763,10 @@ pub fn render_screens(
     mut materials: ResMut<Assets<OrigUiMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut cache: ResMut<UiTextureCache>,
+    ui_font: Option<Res<OrigUiFont>>,
 ) {
     let dt = time.delta_secs();
+    let font_handle = ui_font.as_ref().and_then(|f| f.handle.clone());
     for (root, mut screen, mut vis) in &mut screens {
         let want = if screen.shown {
             Visibility::Inherited
@@ -711,10 +795,14 @@ pub fn render_screens(
                 let path = &screen.scene.nodes[q.node].path;
                 if path.contains(&pat) {
                     info!(
-                        "orig_ui debug {:?}: {path} at {:?} visible={} key={} entity={:?}",
+                        "orig_ui debug {:?}: {path} at {:?} visible={} alpha={:.2} add={} mul={} tex={:?} key={} entity={:?}",
                         screen.id,
                         q.center,
                         q.visible,
+                        q.alpha,
+                        q.additive,
+                        q.multiply,
+                        q.texture,
                         q.key,
                         screen.quads.get(&q.key)
                     );
@@ -722,8 +810,12 @@ pub fn render_screens(
             }
         }
         let (w, h) = (screen.scene.width, screen.scene.height);
-        // Quads: one node per stable key, spawned on first evaluation in draw order.
-        for q in &frame.quads {
+        // Quads: one node per stable key, spawned on first evaluation in draw order (free images
+        // after the layout's quads, so they draw on top).
+        let free_quads = screen.free_quads.clone();
+        let mut seen_quads = Vec::with_capacity(frame.quads.len() + free_quads.len());
+        for q in frame.quads.iter().chain(free_quads.iter()) {
+            seen_quads.push(q.key);
             let tex_handle = q.texture.as_ref().and_then(|t| cache.get(&mut images, t));
             let params = OrigUiParams::from_quad(q, tex_handle.is_some());
             let node = Node {
@@ -752,18 +844,13 @@ pub fn render_screens(
                         v.set_if_neq(quad_vis);
                         n.set_if_neq(node);
                         t.set_if_neq(xf);
-                        if oq.params != params
-                            || oq.texture != q.texture
-                            || oq.additive != q.additive
-                        {
+                        if oq.params != params || oq.texture != q.texture {
                             if let Some(mut m) = materials.get_mut(&mat.0) {
                                 m.params = params;
                                 m.texture = tex_handle;
-                                m.additive = q.additive;
                             }
                             oq.params = params;
                             oq.texture = q.texture.clone();
-                            oq.additive = q.additive;
                         }
                     }
                 }
@@ -771,7 +858,6 @@ pub fn render_screens(
                     let mat = materials.add(OrigUiMaterial {
                         params,
                         texture: tex_handle,
-                        additive: q.additive,
                     });
                     let e = commands
                         .spawn((
@@ -779,7 +865,6 @@ pub fn render_screens(
                                 key: q.key,
                                 params,
                                 texture: q.texture.clone(),
-                                additive: q.additive,
                             },
                             node,
                             xf,
@@ -792,11 +877,32 @@ pub fn render_screens(
                 }
             }
         }
+        // Free images that were removed.
+        let stale_quads: Vec<Entity> = screen
+            .quads
+            .iter()
+            .filter(|(k, _)| **k >= FREE_QUAD_BASE && !seen_quads.contains(k))
+            .map(|(_, e)| *e)
+            .collect();
+        for e in stale_quads {
+            if let Ok((_, mut n, _, _, mut v)) = quads.get_mut(e) {
+                v.set_if_neq(Visibility::Hidden);
+                if n.display != Display::None {
+                    n.display = Display::None;
+                }
+            }
+        }
         // Text slots: a box at the pane rectangle with the port's own string inside.
         let mut seen = Vec::new();
         let free = screen.free_texts.clone();
         for t in frame.texts.iter().chain(free.iter()) {
-            let shown_text = fold_for_default_font(&t.text);
+            // Accented letters stay when a font that has them was found; the default font lacks
+            // them, so they are folded to plain letters then.
+            let shown_text = if font_handle.is_some() {
+                t.text.clone()
+            } else {
+                fold_for_default_font(&t.text)
+            };
             seen.push(t.node);
             let justify = match t.align {
                 TextAlign::Left => (JustifyContent::FlexStart, Justify::Left),
@@ -839,6 +945,12 @@ pub fn render_screens(
                         if text.0 != shown_text {
                             text.0 = shown_text;
                         }
+                        if let Some(handle) = font_handle.clone() {
+                            let source = bevy::text::FontSource::Handle(handle);
+                            if tf.font != source {
+                                tf.font = source;
+                            }
+                        }
                         if tf.font_size != font {
                             tf.font_size = font;
                         }
@@ -850,14 +962,18 @@ pub fn render_screens(
                     }
                 }
                 None => {
+                    let mut text_font = TextFont {
+                        font_size: font,
+                        ..default()
+                    };
+                    if let Some(handle) = font_handle.clone() {
+                        text_font.font = bevy::text::FontSource::Handle(handle);
+                    }
                     let txt = commands
                         .spawn((
                             OrigText,
                             Text::new(shown_text),
-                            TextFont {
-                                font_size: font,
-                                ..default()
-                            },
+                            text_font,
                             TextColor(color),
                             TextLayout::new(justify.1, wrap),
                         ))
@@ -883,6 +999,77 @@ pub fn render_screens(
             }
         }
         screen.last = Some(frame);
+    }
+}
+
+/// Existing Noto Sans system locations, in order. Noto Sans is distributed under the SIL Open
+/// Font License 1.1; arbitrary paths are deliberately not accepted because the game's font and
+/// game-derived font files must never enter the port.
+pub const UI_FONT_CANDIDATES: [&str; 5] = [
+    "/usr/share/fonts/noto/NotoSans-Medium.ttf",
+    "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Medium.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/google-noto/NotoSans-Regular.ttf",
+];
+
+/// The font the original UI draws its text with (`None`: Bevy's default font, without accents).
+#[derive(Resource, Debug, Default)]
+pub struct OrigUiFont {
+    pub handle: Option<Handle<Font>>,
+    pub path: Option<PathBuf>,
+}
+
+/// First readable, pre-verified free font among [`UI_FONT_CANDIDATES`]. The argument is retained
+/// for source compatibility with the earlier lookup API, but arbitrary environment paths are
+/// ignored so a game-derived font cannot be selected accidentally.
+pub fn find_ui_font(_env: Option<PathBuf>) -> Option<PathBuf> {
+    UI_FONT_CANDIDATES
+        .iter()
+        .map(PathBuf::from)
+        .find(|p| p.is_file())
+}
+
+/// Load the UI font once at start-up (original UI only; missing or unreadable: default font).
+pub fn load_ui_font(
+    config: Res<OrigUiConfig>,
+    fonts: Option<ResMut<Assets<Font>>>,
+    mut ui_font: ResMut<OrigUiFont>,
+) {
+    let Some(mut fonts) = fonts.filter(|_| config.enabled()) else {
+        return;
+    };
+    let Some(path) = find_ui_font(None) else {
+        info!("original UI: no free font with accents found; accented letters are shown plain");
+        return;
+    };
+    match std::fs::read(&path)
+        .map_err(|e| e.to_string())
+        .and_then(|bytes| system_font_from_bytes(bytes).map_err(str::to_owned))
+    {
+        Ok(font) => {
+            info!("original UI: text font {}", path.display());
+            ui_font.handle = Some(fonts.add(font));
+            ui_font.path = Some(path);
+        }
+        Err(e) => warn!("original UI: cannot read font {}: {e}", path.display()),
+    }
+}
+
+/// Validate the container signature before handing bytes to Bevy's font asset.
+///
+/// Bevy 0.19's [`Font::from_bytes`] stores the bytes and returns `Font`; it does not parse a
+/// typeface or return a `Result`. Face parsing happens when Bevy registers the asset, so this
+/// helper rejects unrelated files without pretending to prove a valid glyph table here.
+fn system_font_from_bytes(bytes: Vec<u8>) -> Result<Font, &'static str> {
+    if bytes.len() < 12 {
+        return Err("font file is shorter than its table directory header");
+    }
+    let sig = bytes.get(..4).ok_or("font file is shorter than its signature")?;
+    if matches!(sig, [0, 1, 0, 0] | b"OTTO" | b"true") {
+        Ok(Font::from_bytes(bytes))
+    } else {
+        Err("not a TrueType / OpenType font")
     }
 }
 
@@ -927,6 +1114,46 @@ pub fn hide_provisional(
         if shown.get(*e).is_ok_and(|s| s.shown) {
             vis.set_if_neq(Visibility::Hidden);
         }
+    }
+}
+
+/// Original screens the port's corner minimap must not cover: the battle HUD (the game shows no
+/// map in battle) and every menu (the minimap sits on the pause list's footer and the menus'
+/// bottom-left panels).
+pub fn hides_minimap(id: ScreenId) -> bool {
+    matches!(
+        id,
+        ScreenId::BattleHud
+            | ScreenId::PauseMenu
+            | ScreenId::Party
+            | ScreenId::Summary
+            | ScreenId::Bag
+            | ScreenId::Box
+            | ScreenId::Dex
+    )
+}
+
+/// Hide the corner minimap while a screen of [`hides_minimap`] is shown, show it again after
+/// (only on a change, so nothing else fights over its visibility).
+pub fn minimap_off_under_screens(
+    screens: Query<&OrigScreen>,
+    mut hidden: Local<bool>,
+    mut minimap: Query<
+        &mut Visibility,
+        (With<crate::game::minimap::MinimapRoot>, Without<OrigScreen>),
+    >,
+) {
+    let covered = screens.iter().any(|s| s.shown && hides_minimap(s.id));
+    if covered == *hidden {
+        return;
+    }
+    *hidden = covered;
+    for mut v in &mut minimap {
+        *v = if covered {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
     }
 }
 
