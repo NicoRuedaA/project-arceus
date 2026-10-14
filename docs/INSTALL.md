@@ -93,6 +93,10 @@ pinned digest of every file's content; `main.elf` must match its pinned SHA-256.
   (`--memory-max 4G` to lower it, `--no-memory-limit` to disable it).
 - Outputs that already exist but were not made by the installer are kept as they are
   (`present` in `--check`). `--force STEP` rebuilds one step; `--force all` everything.
+- The original interface data (step `ui`) live in `work/cache/ui` (`layouts/` + `png/`): the
+  installer writes it there and the viewer (`--ui-root`, `PLA_UI_ROOT`, then `<cache>/ui`) reads it
+  first. A folder `work/ui` made by hand before the installer is still read by the viewer as a
+  fallback, and `--check` counts it as `present` (no re-export); `--force ui` rebuilds into `work/cache/ui`.
 - Two installers on the same `work/` folder are refused.
 
 ## Useful options
