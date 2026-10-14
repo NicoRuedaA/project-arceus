@@ -1808,6 +1808,7 @@ mod tests {
         );
         assert_eq!(parse_command(r#"{"cmd":"start_battle","wild":"nearest"}"#), Ok(Command::StartBattle(BattleSpec::NearestWild)));
         assert_eq!(parse_command(r#"{"cmd":"open_screen","screen":"Pokedex"}"#), Ok(Command::OpenScreen(ScreenName::Dex)));
+        assert_eq!(parse_command(r#"{"cmd":"open_screen","screen":"graphics"}"#), Ok(Command::OpenScreen(ScreenName::Graphics)));
         assert_eq!(
             parse_command(r#"{"cmd":"entities","filter":"npc","limit":5}"#),
             Ok(Command::Entities { kind: EntityKind::Npc, limit: 5 })

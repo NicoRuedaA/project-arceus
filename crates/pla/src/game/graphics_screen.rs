@@ -751,6 +751,7 @@ fn graphics_input(
         request.0 = false;
         state.open = true;
         state.selected = 0;
+        state.page = 0;
         state.scroll = 0;
         super::pause_menu::freeze_for_screen(&mut paused, &mut suppressed, true);
         return;
@@ -814,6 +815,8 @@ fn graphics_input(
     }
     if any(&keys, &[KeyCode::Tab, KeyCode::PageDown]) {
         page_move = 1;
+        // Tab is also the aim toggle of the action layer: do not let it leak to the world.
+        actions.consume(Action::Aim);
     }
     if any(&keys, &[KeyCode::PageUp]) {
         page_move = -1;
@@ -1302,7 +1305,12 @@ mod tests {
         let (mut app, dir) = gfx_app("pages");
         app.world_mut().resource_mut::<GraphicsOpenRequested>().0 = true;
         step(&mut app, &[], &[]);
-        press(&mut app, KeyCode::Tab);
+        step(&mut app, &[KeyCode::Tab], &[]);
+        assert!(
+            !app.world().resource::<ActionState>().just_pressed(Action::Aim),
+            "Tab (page switch) must not leak as the aim toggle"
+        );
+        step(&mut app, &[], &[KeyCode::Tab]);
         assert_eq!(app.world().resource::<GraphicsScreenState>().page, 1);
         // Quality page: Preset, Shadows, Grass, Effects.
         press(&mut app, KeyCode::ArrowDown);
