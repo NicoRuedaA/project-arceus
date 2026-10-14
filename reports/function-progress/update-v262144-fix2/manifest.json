@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 225,
+    "file_count": 226,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -225,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "3bb13e2b7a34e3346c3149829171c03cbef920092ff582f393a0d4b6f41dd570"
+        "sha256": "b01ad2b093283b172f205763a68eb2502ac16898ebeeb9efdc72536dcf89f543"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -513,7 +513,7 @@
       },
       {
         "path": "crates/pla/src/game/art_style.rs",
-        "sha256": "d05745a2f35c9a15c05b29cf94a04e0c97c370c42815b54989aaf0037782b503"
+        "sha256": "9dde8464f703f164960a17d3eb387c07a13fe0a6e8d294a792537763b8b6821b"
       },
       {
         "path": "crates/pla/src/game/audio/catalog.rs",
@@ -665,7 +665,7 @@
       },
       {
         "path": "crates/pla/src/game/follower.rs",
-        "sha256": "5462ab911ec7bc10928b73e05fbeb329354fc28e3ab039c21b61fb0c9f4c3bbb"
+        "sha256": "58b716fa5ab67c29f04a6860691f3b4f6f51db6091526cc2e02c8f611efb10bf"
       },
       {
         "path": "crates/pla/src/game/input_map.rs",
@@ -693,11 +693,15 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "67fb8df6a1f1f6646718e111e3dfeaa1d7bacb640e18e0a356d6afdee9c41a39"
+        "sha256": "dd5986bffbee88ee22a6ca0a784212718c51fd0b382c6ca1271f46a6fd1e6dd3"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
         "sha256": "472fc88dfc720cb713566a304ed1b7823e4a4850caa871661e0a39b78ab51ef2"
+      },
+      {
+        "path": "crates/pla/src/game/normal_fix.rs",
+        "sha256": "ae97583ed0047d6dacb91b2b33a0dc0a34cde4183832c525d4b84f9ee2897325"
       },
       {
         "path": "crates/pla/src/game/npc.rs",
@@ -745,7 +749,7 @@
       },
       {
         "path": "crates/pla/src/game/pokemon_anim.rs",
-        "sha256": "0cd169e453a7d87b40eb4abd76fd43b8b8ec0f69422cc180811a6dac88266e14"
+        "sha256": "0bbf520f8126e8e7e1b35f49556b7443eae10268d829b38af3b5d78f04e6117f"
       },
       {
         "path": "crates/pla/src/game/pokemon_resource.rs",
@@ -977,7 +981,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "fa6588c83a60c467884326bbeffea65a09535c3b07458786bf8295967d718934"
+    "sha256": "6c370016a272f7cf8b3cf97de232e77a3e1f15f3a135a22f509c741173a262af"
   },
   "state_partitions": {
     "analysis_documentation_status": {
