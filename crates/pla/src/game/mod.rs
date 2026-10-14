@@ -22,6 +22,7 @@ pub mod battle_progress;
 pub mod battle_style_ai;
 pub mod battle_turns;
 pub mod evolution_fx;
+pub mod ledge;
 pub mod lighting;
 pub mod main_menu;
 pub mod minimap;

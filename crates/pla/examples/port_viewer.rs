@@ -1929,6 +1929,7 @@ fn player_locomotion(
     water_bodies: Option<Res<WaterBodies>>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
+    mut ledge_drop: Local<Option<pla::game::ledge::LedgeDrop>>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
     motion_query: Query<&pla::game::player_motion::PlayerMotionState, With<PlayerAvatar>>,
     mut skills_query: Query<&mut pla::game::player_skills::PlayerSkillState, With<PlayerAvatar>>,
@@ -2034,9 +2035,63 @@ fn player_locomotion(
                     })
             });
 
+        // Walking off a ledge (game::ledge): a drop already in progress keeps the player in
+        // its corridor until it stands on the navmesh again; a new move off the walkable edge
+        // starts one when the ground below is a legal drop (1 step .. 6 m, no wall, no water).
+        if let (Some(d), Some(nav)) = (ledge_drop.as_mut(), navmesh_res.as_ref()) {
+            d.elapsed += dt;
+            let back_on_mesh = motion_mode == MotionMode::Grounded
+                && nav.is_walkable(current_xz.x, current_xz.y);
+            if back_on_mesh || d.elapsed > pla::game::ledge::DROP_TIMEOUT {
+                *ledge_drop = None;
+            }
+        }
+        let ledge_start = match (&navmesh_res, *ledge_drop) {
+            (Some(nav), None)
+                if !water_entry
+                    && dodge.is_none()
+                    && motion_mode == MotionMode::Grounded
+                    && !nav.is_walkable(target_xz.x, target_xz.y) =>
+            {
+                nav.height_at(current_xz.x, current_xz.y).and_then(|start_y| {
+                    pla::game::ledge::find_ledge_drop(
+                        current_xz,
+                        start_y,
+                        delta_xz,
+                        |p| nav.height_at(p.x, p.y),
+                        |p| terrain_res.as_ref().and_then(|t| t.area.sample_world_height(p.x, p.y)),
+                        |p| {
+                            let ground = terrain_res
+                                .as_ref()
+                                .and_then(|t| t.area.sample_world_height(p.x, p.y));
+                            water_bodies
+                                .as_ref()
+                                .and_then(|w| w.level_near(p, 0.5))
+                                .zip(ground)
+                                .is_some_and(|(level, g)| level - g > SWIM_ENTER_DEPTH)
+                        },
+                    )
+                })
+            }
+            _ => None,
+        };
+        if let Some(d) = ledge_start {
+            println!(
+                "Ledge drop: {:.1} m from ({:.1}, {:.1}) toward ({:.1}, {:.1})",
+                d.drop_height(),
+                d.start.x,
+                d.start.y,
+                d.landing.x,
+                d.landing.y
+            );
+            *ledge_drop = Some(d);
+        }
+
         // Apply navmesh collision sliding if real navmesh is loaded
         let final_xz = if water_entry {
             target_xz
+        } else if let (Some(d), Some(nav)) = (ledge_drop.as_ref(), navmesh_res.as_ref()) {
+            pla::game::ledge::drop_move(d, current_xz, target_xz, |p| nav.is_walkable(p.x, p.y))
         } else if let Some(ref nav) = navmesh_res {
             use pla::game::spawn_point as sp;
             let walk = |p: Vec2| nav.is_walkable(p.x, p.y);
