@@ -44,6 +44,7 @@ pub enum MenuOption {
     InvertX,
     InvertY,
     Volume,
+    Graphics,
     SafeSpawn,
     Save,
     Load,
@@ -52,7 +53,7 @@ pub enum MenuOption {
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 15] = [
+pub const OPTIONS: [MenuOption; 16] = [
     MenuOption::Resume,
     MenuOption::Bag,
     MenuOption::Party,
@@ -63,6 +64,7 @@ pub const OPTIONS: [MenuOption; 15] = [
     MenuOption::InvertX,
     MenuOption::InvertY,
     MenuOption::Volume,
+    MenuOption::Graphics,
     MenuOption::SafeSpawn,
     MenuOption::Save,
     MenuOption::Load,
@@ -100,6 +102,8 @@ pub enum Screen {
     Boxes,
     Pokedex,
     Crafting,
+    /// The graphics settings screen (`game::graphics_screen`).
+    Graphics,
     /// The bag plugin's shop mode on shop 0 (the same test shop as `--debug-shop`).
     Shop,
 }
@@ -120,6 +124,7 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
         MenuOption::Pokedex => MenuAction::OpenScreen(Screen::Pokedex),
         MenuOption::Crafting => MenuAction::OpenScreen(Screen::Crafting),
         MenuOption::Shop => MenuAction::OpenScreen(Screen::Shop),
+        MenuOption::Graphics => MenuAction::OpenScreen(Screen::Graphics),
         MenuOption::InvertX => {
             settings.invert_camera_x = !settings.invert_camera_x;
             MenuAction::SettingsChanged
@@ -161,6 +166,7 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
         MenuOption::InvertX => format!("Invert camera X axis: {}", on_off(settings.invert_camera_x)),
         MenuOption::InvertY => format!("Invert camera Y axis: {}", on_off(settings.invert_camera_y)),
         MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
+        MenuOption::Graphics => "Graphics...".into(),
         MenuOption::SafeSpawn => "Back to safe spawn".into(),
         MenuOption::Save => "Save game".into(),
         MenuOption::Load => "Load game".into(),
@@ -214,6 +220,10 @@ pub struct DexOpenRequested(pub bool);
 #[derive(Resource, Debug, Default)]
 pub struct ShopOpenRequested(pub bool);
 
+/// Set to `true` by the pause menu's `Graphics` row; the graphics screen consumes it and opens.
+#[derive(Resource, Debug, Default)]
+pub struct GraphicsOpenRequested(pub bool);
+
 /// One-shot requests of the action rows (save, load, rest, back to the safe spawn).
 #[derive(SystemParam)]
 pub struct ActionRequests<'w> {
@@ -233,6 +243,7 @@ pub struct ScreenRequests<'w> {
     dex: Option<ResMut<'w, DexOpenRequested>>,
     crafting: Option<ResMut<'w, CraftingOpenRequested>>,
     shop: Option<ResMut<'w, ShopOpenRequested>>,
+    graphics: Option<ResMut<'w, GraphicsOpenRequested>>,
 }
 
 impl ScreenRequests<'_> {
@@ -244,6 +255,7 @@ impl ScreenRequests<'_> {
             Screen::Pokedex => self.dex.as_deref_mut().map(|r| &mut r.0),
             Screen::Crafting => self.crafting.as_deref_mut().map(|r| &mut r.0),
             Screen::Shop => self.shop.as_deref_mut().map(|r| &mut r.0),
+            Screen::Graphics => self.graphics.as_deref_mut().map(|r| &mut r.0),
         };
         match flag {
             Some(flag) => {
@@ -263,6 +275,7 @@ pub fn screen_unavailable_text(screen: Screen, in_world: bool) -> String {
         Screen::Pokedex => "Pokédex",
         Screen::Crafting => "Crafting",
         Screen::Shop => "Shop",
+        Screen::Graphics => "Graphics",
     };
     if in_world {
         format!("{name} is not available in this build.")
@@ -365,7 +378,7 @@ fn spawn_menu(mut commands: Commands) {
                 Node {
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
-                    // 15 rows must fit a 720 px window: about 36 px per row plus the title.
+                    // 16 rows must fit a 720 px window: about 36 px per row plus the title.
                     padding: UiRect::all(Val::Px(16.0)),
                     row_gap: Val::Px(4.0),
                     ..default()
@@ -640,7 +653,7 @@ mod tests {
     #[test]
     fn safe_spawn_row_is_reachable_by_navigation() {
         let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 15);
+        assert_eq!(OPTIONS.len(), 16);
         assert_eq!(move_selection(i - 1, 1), i);
         assert_eq!(move_selection(i, 1), i + 1);
     }
@@ -690,6 +703,18 @@ mod tests {
         assert_eq!(next_volume_step(60), 50);
         assert_eq!(next_volume_step(1), 0);
         assert_eq!(s.music_volume, 100, "only the master volume changes");
+    }
+
+    #[test]
+    fn graphics_row_sits_after_volume_and_opens_the_graphics_screen() {
+        let mut s = UserSettings::default();
+        let vol = OPTIONS.iter().position(|o| *o == MenuOption::Volume).unwrap();
+        assert_eq!(OPTIONS[vol + 1], MenuOption::Graphics);
+        assert_eq!(OPTIONS[vol + 2], MenuOption::SafeSpawn);
+        assert_eq!(activate(MenuOption::Graphics, &mut s), MenuAction::OpenScreen(Screen::Graphics));
+        assert_eq!(option_label(MenuOption::Graphics, &s), "Graphics...");
+        assert_eq!(s, UserSettings::default());
+        assert!(screen_unavailable_text(Screen::Graphics, true).contains("Graphics"));
     }
 
     #[test]

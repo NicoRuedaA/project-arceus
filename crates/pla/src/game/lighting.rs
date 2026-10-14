@@ -482,6 +482,35 @@ pub fn reload_zone_environment(world: &mut World, area: &str) -> bool {
     true
 }
 
+/// Apply the current [`LookSettings`] resource to the running scene (graphics screen): the sun
+/// light and its shadows, the sky and clouds, the fog and ambient light are rebuilt for the new
+/// look, and the camera's SSAO, bloom and colour grading are added or removed. Returns `false`
+/// without touching anything when the app has no [`ZoneLightingPlugin`].
+pub fn reapply_look(world: &mut World) -> bool {
+    if world.get_resource::<LoadedZoneEnv>().is_none() {
+        return false;
+    }
+    let settings = world.get_resource::<LookSettings>().copied().unwrap_or_default();
+    world.insert_resource(ActiveLookSettings(settings));
+    // `apply_environment` only adds components; take the ones that are now off away first.
+    let cams: Vec<Entity> = world.query_filtered::<Entity, With<Camera3d>>().iter(world).collect();
+    for cam in cams {
+        let mut e = world.entity_mut(cam);
+        if !settings.ssao {
+            e.remove::<ScreenSpaceAmbientOcclusion>();
+            e.insert(Msaa::default());
+        }
+        if !settings.bloom {
+            e.remove::<Bloom>();
+        }
+        if settings.look == super::render_look::Look::Classic {
+            e.insert(ColorGrading::default());
+        }
+    }
+    world.resource_mut::<AppliedLook>().0 = None;
+    world.run_system_once(apply_environment).is_ok()
+}
+
 /// Follow the clock (and the weather) every frame, but only re-apply the scene state when the
 /// blend moved a [`BLEND_STEPS`] step or the weather changed: sun colour/intensity/direction,
 /// ambient light, clear colour, camera fog and the sky gradient mesh are all refreshed together.

@@ -41,6 +41,17 @@ pub fn report_bad_value(flag: &str, raw: &str, expected: &str, fallback: impl Di
     }
 }
 
+/// Remember an informational note (for example "a flag overrides a saved setting") for the
+/// start-up toast, like [`report_bad_value`] (printed to stderr, each text once).
+pub fn report_note(msg: impl Into<String>) {
+    let msg = msg.into();
+    let mut list = WARNINGS.lock().unwrap_or_else(|e| e.into_inner());
+    if !list.contains(&msg) {
+        eprintln!("{msg}");
+        list.push(msg);
+    }
+}
+
 /// `Some(value)` when `flag` is present and its value parses and passes `valid`; a present but
 /// malformed or invalid value is reported (see [`report_bad_value`]) and gives `None`, so the
 /// caller's default applies. `expected` describes the accepted values ("a number > 0").
