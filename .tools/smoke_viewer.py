@@ -84,10 +84,13 @@ class Smoke:
             command["camera"] = camera
         if not self.gpu:
             # Logic-only: the viewer must answer "unavailable", not crash.
-            self.step(f"screenshot {file} (expect unavailable)", command, None)
-            r = self.results.pop()
-            ok = not r[1] and "unavailable" in r[2]
-            self.record(f"screenshot {file} reported unavailable (no GPU)", ok, r[2])
+            try:
+                reply = self.cmd(command)
+            except gamectl.ViewerDead as e:
+                self.record(f"screenshot {file} (no GPU)", False, f"viewer died: {e}")
+                return
+            ok = not reply.get("ok") and str(reply.get("error", "")).startswith("unavailable")
+            self.record(f"screenshot {file} reported unavailable (no GPU)", ok, reply.get("error", "unexpected ok"))
             return
 
         def check(reply: dict):
