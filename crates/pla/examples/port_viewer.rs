@@ -216,6 +216,9 @@ struct AutomationOptions {
 }
 
 fn main() -> ExitCode {
+    // `--automation`: windowless, socket-driven run (crates/pla/src/game/automation.rs).
+    let automation_cfg =
+        pla::game::automation::AutomationConfig::from_args(&std::env::args().collect::<Vec<_>>());
     let mut args = std::env::args().skip(1);
     let mut bin_root = std::env::var_os("PLA_BIN_ROOT")
         .map(PathBuf::from)
@@ -379,6 +382,7 @@ fn main() -> ExitCode {
                     "  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)"
                 );
                 println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
+                println!("  --automation          No window: offscreen render + JSON control socket (docs/AUTOMATION.md)");
                 println!("  --story <N> --event-time-scale <F> --distortion-now --outbreak <ID|off> --no-world-events  World events (Brief 39)");
                 return ExitCode::SUCCESS;
             }
@@ -387,7 +391,10 @@ fn main() -> ExitCode {
     }
 
     // Player save: --new-game / --save-dir; a loaded save supplies zone and position unless given.
-    let cli_args: Vec<String> = std::env::args().collect();
+    let mut cli_args: Vec<String> = std::env::args().collect();
+    if let Some(cfg) = &automation_cfg {
+        cli_args = pla::game::automation::effective_args(cli_args, cfg);
+    }
     let wire_cli = pla::game::save_wire::WireCli::from_args(&cli_args);
     wire_cli.apply_env();
     let mut save_game = pla::game::save_game::SaveGame::from_env();
@@ -458,7 +465,12 @@ fn main() -> ExitCode {
     );
 
     let mut app = App::new();
-    app.add_plugins(
+    // Automation never creates a window: its own DefaultPlugins set (no winit, no gamepad).
+    let remote = automation_cfg.map(|cfg| pla::game::automation::AutomationPlugin {
+        gpu: pla::game::automation::add_default_plugins(&mut app, work_abs.to_string_lossy().to_string(), &cfg),
+        config: cfg,
+    });
+    if remote.is_none() { app.add_plugins(
         DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
@@ -474,7 +486,7 @@ fn main() -> ExitCode {
                 unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
                 ..default()
             }),
-    );
+    ); }
 
     // Real player model from the exporter cache; capsule avatar if the file is missing.
     let cache_root = std::env::var_os("PLA_CACHE_ROOT")
@@ -490,7 +502,8 @@ fn main() -> ExitCode {
             cache_root.display()
         ),
     }
-    let settings_dir = UserSettings::default_dir();
+    let settings_dir =
+        remote.as_ref().map_or_else(UserSettings::default_dir, |r| r.config.settings_dir());
     configure_viewer(
         &mut app,
         ViewerSetup {
@@ -536,10 +549,15 @@ fn main() -> ExitCode {
             wire_cli,
             art_style: pla::game::art_style::ArtStylePlugin::from_env_and_args(),
             trainers: pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args(),
-            audio: pla::game::audio::GameAudioPlugin::from_env_and_args(),
+            audio: match remote {
+                // Automation is always silent: no audio device is opened.
+                Some(_) => pla::game::audio::GameAudioPlugin::with_mode(pla::game::audio::AudioMode::Null),
+                None => pla::game::audio::GameAudioPlugin::from_env_and_args(),
+            },
             effects: pla::game::effects::EffectsPlugin::from_env_and_args(),
             bag: pla::game::bag_screen::BagScreenPlugin::from_env_and_args(),
             minimap: pla::game::minimap::MinimapPlugin::from_env_and_args(bin_root.clone()),
+            remote,
             cli_args,
         },
     );
@@ -752,6 +770,8 @@ struct ViewerSetup {
     effects: pla::game::effects::EffectsPlugin,
     bag: pla::game::bag_screen::BagScreenPlugin,
     minimap: pla::game::minimap::MinimapPlugin,
+    /// `--automation`: socket-driven, windowless runner (added last).
+    remote: Option<pla::game::automation::AutomationPlugin>,
 }
 
 /// Everything the viewer registers after `DefaultPlugins`: states, resources, game plugins and
@@ -789,6 +809,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         effects,
         bag,
         minimap,
+        remote,
     } = setup;
     use pla::game::spawn_point as sp;
 
@@ -1013,6 +1034,9 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
             .show(msg);
     }
     add_viewer_systems(app);
+    if let Some(remote) = remote {
+        app.add_plugins(remote);
+    }
 }
 
 /// The viewer's own systems (the game plugins are added by [`configure_viewer`]).
@@ -3636,6 +3660,10 @@ fn sync_arena_player_model(
 /// later (state changes such as entering a battle, input, streaming far away) is initialised in
 /// step 1 but never run.
 #[cfg(test)]
+#[path = "port_viewer_tests/automation.rs"]
+mod automation_tests;
+
+#[cfg(test)]
 mod startup_schedule_guard {
     use super::*;
     use bevy::render::settings::WgpuSettings;
@@ -3650,7 +3678,7 @@ mod startup_schedule_guard {
     }
 
     /// The setup `main` would resolve for `args`, without touching the player's save or settings.
-    fn setup_for(args: &[&str], scratch: &std::path::Path) -> ViewerSetup {
+    pub(super) fn setup_for(args: &[&str], scratch: &std::path::Path) -> ViewerSetup {
         let cli_args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
         let has = |f: &str| cli_args.iter().any(|a| a == f);
         let area_idx: u8 = cli_args
@@ -3734,6 +3762,7 @@ mod startup_schedule_guard {
                 game_map: has("--game-map"),
                 size: pla::game::minimap::DEFAULT_MAP_SIZE,
             },
+            remote: None,
             cli_args,
         }
     }

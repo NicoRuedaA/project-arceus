@@ -315,10 +315,10 @@ pub fn describe_pickup(spawn: &ItemSpawn, result: &PickupResult) -> String {
 
 // ---------------------------------------------------------------- Bevy side
 
-/// Generic marker for one alive spawn.
+/// Generic marker for one alive spawn (public so tools such as the automation mode can count them).
 #[derive(Component)]
 #[allow(dead_code)]
-struct SpawnMarker(u64);
+pub struct SpawnMarker(pub u64);
 
 /// A resource node that was harvested and is swaying (tree) or breaking (ore).
 #[derive(Component)]

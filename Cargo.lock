@@ -4220,6 +4220,7 @@ dependencies = [
  "serde_json",
  "sheetty",
  "tegra_swizzle",
+ "wgpu",
 ]
 
 [[package]]
