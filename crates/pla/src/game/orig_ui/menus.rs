@@ -28,6 +28,7 @@ use crate::game::battle_items::label;
 use crate::game::box_screen::{
     BoxFocus, BoxScreenRoot, BoxScreenState, GRID_COLUMNS, SLOTS_PER_BOX,
 };
+use crate::game::dex_screen::{visibility, DexCatalog, DexRoot, DexUi, DexVisibility};
 use crate::game::party_screen::{PartyScreenRoot, PartyScreenState};
 use crate::game::pause_menu::{
     menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, OPTIONS,
@@ -47,6 +48,8 @@ pub fn install(app: &mut App) {
     super::hide_when_shown::<BagRoot>(app, ScreenId::Bag);
     app.add_systems(Update, bind_box_screen.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<BoxScreenRoot>(app, ScreenId::Box);
+    app.add_systems(Update, bind_dex_screen.in_set(OrigUiSystems::Bind));
+    super::hide_when_shown::<DexRoot>(app, ScreenId::Dex);
 }
 
 /// The game's menu icon (texture base name) the port uses for each option. Only icons the
@@ -643,5 +646,159 @@ pub fn bind_box_screen(
         msg,
     ));
     s.set_free_texts(lines);
+}
+
+// ------------------------------------------------------------------------------------ pokédex
+
+/// Plates of the game's list shown at once (the layout holds 9; the last two sit off screen).
+const DEX_PLATES: usize = 7;
+
+/// Pokédex (`pokedex_detail_00`): the game's notebook page for the selected species (number,
+/// name once caught, seen / caught state and the port's counters as text) and the game's list
+/// plates on the right (Pokémon icon once seen, black silhouette when only seen, the game's
+/// "undiscovered" icon otherwise). Research tasks, forms, sizes and the description of the
+/// game are not used (no research data in the port; game text is out of scope).
+#[allow(clippy::too_many_arguments)]
+pub fn bind_dex_screen(
+    config: Res<OrigUiConfig>,
+    ui: Option<Res<DexUi>>,
+    catalog: Option<Res<DexCatalog>>,
+    progress: Option<Res<PlayerProgress>>,
+    assets: Option<Res<BattleAssets>>,
+    icons: Res<IconIndex>,
+    mut names: Local<crate::game::orig_ui::field::NameCache>,
+    mut screens: Query<&mut OrigScreen>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::Dex) else {
+        return;
+    };
+    let open = ui.as_ref().is_some_and(|u| u.open);
+    s.shown = open;
+    let (Some(ui), Some(catalog), Some(progress)) = (ui.filter(|_| open), catalog, progress) else {
+        return;
+    };
+    let assets = assets.as_deref();
+    let entries = &catalog.entries;
+    let sel = ui.selected.min(entries.len().saturating_sub(1));
+    let start = sel
+        .saturating_sub(DEX_PLATES / 2)
+        .min(entries.len().saturating_sub(DEX_PLATES));
+    for k in 0..9 {
+        let part = format!("L_list_poke_0{k}");
+        let Some(inst) = s.scene.part_instance(&part) else {
+            continue;
+        };
+        let Some(e) = entries.get(start + k).filter(|_| k < DEX_PLATES) else {
+            s.set_visible(&part, false);
+            continue;
+        };
+        s.set_visible(&part, true);
+        let state = visibility(e.id, &progress.seen, &progress.caught);
+        let name = match state {
+            DexVisibility::Caught => names.get(assets, e.id, 0),
+            _ => "??????".to_string(),
+        };
+        let icon = (state != DexVisibility::Hidden)
+            .then(|| icons.pokemon(e.id, 0))
+            .flatten();
+        let silhouette = state == DexVisibility::SeenSilhouette;
+        let num = format!("{:03}", e.id);
+        let set = |s: &mut OrigScreen, pane: &str, f: &dyn Fn(&mut NodeOverride)| {
+            if let Some(n) = s.node_in_instance(inst, pane) {
+                s.set_node(n, |o| f(o));
+            }
+        };
+        set(&mut s, "T_dexnum_00", &|o| o.text = Some(num.clone()));
+        set(&mut s, "T_pokerace_00", &|o| o.text = Some(name.clone()));
+        let has_icon = icon.is_some();
+        set(&mut s, "P_loader_icon_poke_00", &|o| {
+            o.visible = Some(has_icon);
+            o.image = icon.clone();
+            o.tint = silhouette.then_some([0.0, 0.0, 0.0, 1.0]);
+        });
+        set(&mut s, "N_icon_undiscovered_00", &|o| {
+            o.visible = Some(!has_icon)
+        });
+        for hidden in ["P_icon_complete_00", "P_icon_perfect_00"] {
+            set(&mut s, hidden, &|o| o.visible = Some(false));
+        }
+        let tag = if start + k == sel {
+            "select"
+        } else {
+            "unselect"
+        };
+        s.freeze_end(inst, tag, "sel");
+    }
+    // Notebook page of the selected species (main layout instance 0).
+    if let Some(e) = entries.get(sel) {
+        let state = visibility(e.id, &progress.seen, &progress.caught);
+        let name = match state {
+            DexVisibility::Caught => names.get(assets, e.id, 0),
+            _ => "??????".to_string(),
+        };
+        let status = match state {
+            DexVisibility::Caught => "Caught",
+            DexVisibility::SeenSilhouette => "Seen, not caught yet",
+            DexVisibility::Hidden => "Not seen yet",
+        };
+        let set0 = |s: &mut OrigScreen, pane: &str, text: Option<String>| {
+            if let Some(n) = s.node_in_instance(0, pane) {
+                s.set_node(n, |o| o.text = text);
+            }
+        };
+        set0(&mut s, "T_pokerace_00", Some(name));
+        set0(&mut s, "T_dexnum_00", Some(format!("No. {:03}", e.id)));
+        set0(
+            &mut s,
+            "T_description_00",
+            Some(format!(
+                "{status}.  Seen {}, caught {} of {} species.",
+                progress.seen.len(),
+                progress.caught.len(),
+                catalog.distinct_species_count()
+            )),
+        );
+        let pic = (state != DexVisibility::Hidden)
+            .then(|| icons.pokemon_large(e.id, 0))
+            .flatten();
+        let has_pic = pic.is_some();
+        let dark = state == DexVisibility::SeenSilhouette;
+        if let Some(n) = s.node_in_instance(0, "P_loader_poke_00") {
+            s.set_node(n, |o| {
+                o.visible = Some(has_pic);
+                o.image = pic;
+                o.tint = dark.then_some([0.0, 0.0, 0.0, 1.0]);
+            });
+        }
+        if let Some(n) = s.node_in_instance(0, "N_discovered_00") {
+            s.set_node(n, |o| o.visible = Some(!has_pic));
+        }
+        if let Some(n) = s.node_in_instance(0, "N_gender_00") {
+            s.set_node(n, |o| o.visible = Some(false));
+        }
+        for pane in [
+            "T_classification_00",
+            "T_form_name_00",
+            "T_h_form_num_00",
+            "T_param_form_num_00",
+            "T_h_like_00",
+            "T_h_item_00",
+        ] {
+            set0(&mut s, pane, None);
+        }
+    }
+    s.set_free_texts(vec![free_text(
+        60.0,
+        1020.0,
+        1800.0,
+        44.0,
+        26.0,
+        [0.92, 0.9, 0.82, 1.0],
+        TextAlign::Left,
+        "Up / Down: select   Esc: close",
+    )]);
 }
 
