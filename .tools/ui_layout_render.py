@@ -317,45 +317,73 @@ class Renderer:
         return apply_material_anim(m, anim_state.get(("material", m["name"])))
 
     def draw_window(self, layout, pane, m, alpha, anim_state):
+        """Window pane (nine-slice style frame). Placement PROBABLE, see ui_layouts.md.
+
+        window_flags: bit1 vertex colours on frames too, bits 2-3 kind
+        (0 around, 1 horizontal, 2 horizontal without content), bit4 content
+        not drawn. Each frame quad samples its texture at native frame size
+        (UV beyond 1 clamps or wraps per material), so long edges stretch the
+        texture's last row/column like the game's frame textures expect.
+        """
         win = pane["window"]
         left, top, w, h = pane_rect(pane)
         fs = win["frame_size"]
-        fl, fr, ft, fb = fs["left"], fs["right"], fs["top"], fs["bottom"]
-        kind = (win["window_flags"] >> 2) & 3
+        fl, fr, ft, fb = (max(1, fs[k]) for k in ("left", "right", "top", "bottom"))
+        flags = win["window_flags"]
+        kind = (flags >> 2) & 3
+        draw_content = kind != 2 and not flags & 16
         vc = pane.get("vertex_colors", [[255] * 4] * 4)
+        frame_vc = vc if flags & 2 else [[255, 255, 255, 255]] * 4
         content_mat = self.material(layout, pane.get("material"), anim_state)
         inf = win["inflation"]
-        frames = win.get("frames", [])
-        white_vc = [[255, 255, 255, 255]] * 4
-        if kind in (1, 2):  # horizontal: left / right frames, content between
-            cl, cr = left + fl - inf["left"], left + w - fr + inf["right"]
-            if kind == 1 and content_mat:
-                self.draw_quad(m, (cl, top, cr - cl, h), pane.get("uv"), content_mat, vc, alpha)
-            if frames:
-                self.draw_quad(m, (left, top, fl, h), None,
-                               self.material(layout, frames[0]["material"], anim_state), vc, alpha,
-                               frames[0]["flip"])
-                f1 = frames[1] if len(frames) > 1 else dict(frames[0], flip=1)
-                self.draw_quad(m, (left + w - fr, top, fr, h), None,
-                               self.material(layout, f1["material"], anim_state), vc, alpha, f1["flip"])
-        else:  # around: content, then the four corners in a pinwheel
-            if content_mat:
-                self.draw_quad(m, (left + fl - inf["left"], top - ft + inf["top"],
-                                   w - fl - fr + inf["left"] + inf["right"],
-                                   h - ft - fb + inf["top"] + inf["bottom"]),
-                               pane.get("uv"), content_mat, vc, alpha)
+        frames = [dict(f) for f in win.get("frames", [])]
+
+        def quad(rect, frame, su=1.0, sv=1.0, flip=None):
+            uv = [[[0, 0], [su, 0], [0, sv], [su, sv]]]
+            self.draw_quad(m, rect, uv, self.material(layout, frame["material"], anim_state), frame_vc,
+                           alpha, frame["flip"] if flip is None else flip)
+
+        if kind in (1, 2):  # horizontal
+            if len(frames) == 1:
+                frames.append(dict(frames[0], flip=1))
             if not frames:
                 return
-            if len(frames) == 1:
-                f = frames[0]
-                frames = [dict(f, flip=0), dict(f, flip=1), dict(f, flip=2), dict(f, flip=4)]
-            quads = [(left, top, w - fr, ft),                    # TL: top edge
-                     (left + w - fr, top, fr, h - fb),           # TR: right edge
-                     (left, top - ft, fl, h - ft),               # BL: left edge
-                     (left + fl, top - h + fb, w - fl, fb)]      # BR: bottom edge
-            for f, q in zip(frames[:4], quads):
-                self.draw_quad(m, q, None, self.material(layout, f["material"], anim_state),
-                               white_vc, alpha, f["flip"])
+            if draw_content and content_mat:
+                self.draw_quad(m, (left + fl - inf["left"], top, w - fl - fr + inf["left"] + inf["right"], h),
+                               pane.get("uv"), content_mat, vc, alpha)
+            if kind == 1:
+                quad((left, top, fl, h), frames[0])
+            else:
+                quad((left, top, w - fr, h), frames[0], su=(w - fr) / fl)
+            quad((left + w - fr, top, fr, h), frames[1])
+            return
+        if draw_content and content_mat:
+            self.draw_quad(m, (left + fl - inf["left"], top - ft + inf["top"],
+                               w - fl - fr + inf["left"] + inf["right"],
+                               h - ft - fb + inf["top"] + inf["bottom"]),
+                           pane.get("uv"), content_mat, vc, alpha)
+        if not frames:
+            return
+        if len(frames) == 1:
+            f = frames[0]
+            frames = [dict(f, flip=0), dict(f, flip=1), dict(f, flip=2), dict(f, flip=4)]
+        if len(frames) >= 8:  # corners at native size, edges stretched
+            tl, tr, bl, br, t, b, lft, rgt = frames[:8]
+            quad((left, top, fl, ft), tl)
+            quad((left + w - fr, top, fr, ft), tr)
+            quad((left, top - h + fb, fl, fb), bl)
+            quad((left + w - fr, top - h + fb, fr, fb), br)
+            quad((left + fl, top, w - fl - fr, ft), t)
+            quad((left + fl, top - h + fb, w - fl - fr, fb), b)
+            quad((left, top - ft, fl, h - ft - fb), lft)
+            quad((left + w - fr, top - ft, fr, h - ft - fb), rgt)
+            return
+        tl, tr, bl, br = (frames + frames[-1:] * 4)[:4]
+        # Pinwheel: each corner texture runs along one edge.
+        quad((left, top, w - fr, ft), tl, su=(w - fr) / fl)
+        quad((left + w - fr, top, fr, h - fb), tr, sv=(h - fb) / ft)
+        quad((left, top - ft, fl, h - ft), bl, sv=(h - ft) / fb)
+        quad((left + fl, top - h + fb, w - fl, fb), br, su=(w - fl) / fr)
 
     def part_override(self, pane, overrides, outer):
         """Apply one part property (flag meaning PROBABLE, see ui_layouts.md).
