@@ -829,7 +829,10 @@ fn npc_look_at(
     time: Res<Time>,
     tuning: Option<Res<NpcWorld>>,
     player: Query<&Transform, With<PlayerAvatar>>,
-    mut npcs: Query<(&mut Transform, &mut NpcLookState), With<NpcInstance>>,
+    mut npcs: Query<
+        (&mut Transform, &mut NpcLookState),
+        (With<NpcInstance>, Without<PlayerAvatar>),
+    >,
     state: Option<Res<State<GameState>>>,
 ) {
     if !active_for_state(state) {
