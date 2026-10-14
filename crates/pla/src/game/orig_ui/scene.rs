@@ -333,9 +333,33 @@ impl Scene {
         }
     }
 
-    /// First node (draw order) named `name`.
+    /// Node `i` or one of its ancestors is hidden in the layout itself (e.g. a `dust_box`
+    /// holding spare copies the game never shows).
+    pub fn in_hidden_branch(&self, mut i: usize) -> bool {
+        loop {
+            let n = &self.nodes[i];
+            if !n.pane.visible {
+                return true;
+            }
+            match n.parent {
+                Some(p) => i = p,
+                None => return false,
+            }
+        }
+    }
+
+    /// First node (draw order) named `name`, preferring one outside hidden branches.
     pub fn find(&self, name: &str) -> Option<usize> {
-        self.nodes.iter().position(|n| n.pane.name == name)
+        let mut first = None;
+        for (i, n) in self.nodes.iter().enumerate() {
+            if n.pane.name == name {
+                if !self.in_hidden_branch(i) {
+                    return Some(i);
+                }
+                first.get_or_insert(i);
+            }
+        }
+        first
     }
 
     /// First node named `name` inside layout instance `instance` (not its nested parts).
@@ -396,10 +420,11 @@ impl Scene {
                 let iconish = ["icon", "sick", "poke", "item", "type", "ball", "affinity"]
                     .iter()
                     .any(|k| lower.contains(k));
-                iconish
-                    && self
-                        .texture_name(i)
-                        .is_some_and(|t| t.starts_with("dummy_"))
+                // Icon slots are small and roughly square; large dummy panes are panels.
+                let [w, h] = n.pane.size;
+                let small = w <= 256.0 && h <= 256.0 && w <= h * 6.0 && h <= w * 6.0;
+                let iconish = iconish && (small || lower.contains("loader"));
+                iconish && self.texture_name(i).is_some_and(|t| t.contains("dummy"))
             })
             .collect()
     }

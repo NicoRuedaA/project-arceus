@@ -169,6 +169,7 @@ pub enum ScreenId {
     BattleMessage,
     FieldHud,
     PauseMenu,
+    Party,
     Summary,
     Bag,
     Box,
@@ -177,7 +178,7 @@ pub enum ScreenId {
 }
 
 impl ScreenId {
-    pub const ALL: [ScreenId; 13] = [
+    pub const ALL: [ScreenId; 14] = [
         ScreenId::BattleHud,
         ScreenId::BattleEnemyPlate,
         ScreenId::BattleTimeline,
@@ -186,6 +187,7 @@ impl ScreenId {
         ScreenId::BattleMessage,
         ScreenId::FieldHud,
         ScreenId::PauseMenu,
+        ScreenId::Party,
         ScreenId::Summary,
         ScreenId::Bag,
         ScreenId::Box,
@@ -204,6 +206,7 @@ impl ScreenId {
             ScreenId::BattleMessage => ("gfpak_battle_resident", "msg_sys_00_s"),
             ScreenId::FieldHud => ("gfpak_resident_hud_arc01_eng", "fieldinfo_00"),
             ScreenId::PauseMenu => ("slidelist", "slidemenu_menulist_01"),
+            ScreenId::Party => ("gfpak_battle_menu_eng", "pokelist_battle_00"),
             ScreenId::Summary => ("status", "status_top_00"),
             ScreenId::Bag => ("bag", "bag_top_00"),
             ScreenId::Box => ("box", "box_top_00"),
@@ -216,9 +219,12 @@ impl ScreenId {
     pub fn backdrop(self) -> Color {
         match self {
             ScreenId::PauseMenu => Color::srgba(0.02, 0.03, 0.05, 0.55),
-            ScreenId::Bag | ScreenId::Box | ScreenId::Dex | ScreenId::Summary | ScreenId::Map => {
-                Color::srgba(0.07, 0.07, 0.09, 0.97)
-            }
+            ScreenId::Bag
+            | ScreenId::Box
+            | ScreenId::Dex
+            | ScreenId::Summary
+            | ScreenId::Map
+            | ScreenId::Party => Color::srgba(0.07, 0.07, 0.09, 0.97),
             _ => Color::NONE,
         }
     }
@@ -231,7 +237,9 @@ impl ScreenId {
             ScreenId::BattleMessage => 165,
             ScreenId::BattleCommand | ScreenId::BattleMoves => 170,
             ScreenId::Map => 180,
-            ScreenId::Bag | ScreenId::Box | ScreenId::Dex | ScreenId::Summary => 190,
+            ScreenId::Bag | ScreenId::Box | ScreenId::Dex | ScreenId::Summary | ScreenId::Party => {
+                190
+            }
             ScreenId::PauseMenu => 200,
         }
     }
@@ -272,10 +280,35 @@ impl OrigScreen {
             free_texts: Vec::new(),
         };
         s.rest();
+        s.opening(false);
         for n in s.scene.placeholder_icons() {
             s.overrides.node(n).visible = Some(false);
         }
         s
+    }
+
+    /// Opening animations of the main layout (`_wake`, `_in`, `_open`), before the resting ones
+    /// (as the offline renderer's `--auto-anim`): from their first frame when the screen opens,
+    /// at their last frame otherwise.
+    pub fn opening(&mut self, from_start: bool) {
+        self.anim.tracks.retain(|t| t.label != "open");
+        let mut front = Vec::new();
+        for tag in ["wake", "in", "open"] {
+            if let Some(name) = self.scene.anim_name(0, tag) {
+                let len = self.scene.archive().animations[&name].frame_size;
+                front.push(anim::Track {
+                    instance: 0,
+                    anim: name,
+                    frame: if from_start { 0.0 } else { len },
+                    length: len,
+                    mode: PlayMode::Hold,
+                    label: "open",
+                });
+            }
+        }
+        front.append(&mut self.anim.tracks);
+        self.anim.tracks = front;
+        self.dirty = true;
     }
 
     /// Resting state: every instance's `_keep` animation (looping ones loop, others end held).
@@ -631,6 +664,7 @@ pub fn render_screens(
             &mut Node,
             &mut UiTransform,
             &MaterialNode<OrigUiMaterial>,
+            &mut Visibility,
         ),
         (Without<OrigScreen>, Without<OrigTextBox>, Without<OrigText>),
     >,
@@ -657,7 +691,7 @@ pub fn render_screens(
         }
         if !screen.was_shown {
             screen.was_shown = true;
-            screen.dirty = true;
+            screen.opening(true);
         }
         if screen.anim.advance(dt) {
             screen.dirty = true;
@@ -667,6 +701,21 @@ pub fn render_screens(
         }
         screen.dirty = false;
         let frame = screen.evaluate();
+        if let Ok(pat) = std::env::var("PLA_ORIG_UI_DEBUG") {
+            for q in frame.quads.iter() {
+                let path = &screen.scene.nodes[q.node].path;
+                if path.contains(&pat) {
+                    info!(
+                        "orig_ui debug {:?}: {path} at {:?} visible={} key={} entity={:?}",
+                        screen.id,
+                        q.center,
+                        q.visible,
+                        q.key,
+                        screen.quads.get(&q.key)
+                    );
+                }
+            }
+        }
         let (w, h) = (screen.scene.width, screen.scene.height);
         // Quads: one node per stable key, spawned on first evaluation in draw order.
         for q in &frame.quads {
@@ -686,9 +735,16 @@ pub fn render_screens(
                 ..default()
             };
             let xf = UiTransform::from_rotation(Rot2::radians(q.angle));
+            let quad_vis = if q.visible {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
             match screen.quads.get(&q.key).copied() {
                 Some(e) => {
-                    if let Ok((mut oq, mut n, mut t, mat)) = quads.get_mut(e) {
+                    if let Ok((mut oq, mut n, mut t, mat, mut v)) = quads.get_mut(e) {
+                        // Hidden quads leave the layout (Display::None) and are not drawn (Visibility).
+                        v.set_if_neq(quad_vis);
                         n.set_if_neq(node);
                         t.set_if_neq(xf);
                         if oq.params != params
@@ -722,6 +778,7 @@ pub fn render_screens(
                             },
                             node,
                             xf,
+                            quad_vis,
                             MaterialNode(mat),
                         ))
                         .id();
@@ -892,6 +949,34 @@ pub fn hide_when_shown<M: Component>(app: &mut App, id: ScreenId) {
         .after(render_screens)
         .in_set(OrigUiSystems::Render),
     );
+}
+
+/// Fill bar `pane` of part `part` to `ratio` (shrinks from the right). The game drives its
+/// gauges with a texture-offset animation (`gauge_scale`) whose frame meaning is not certain
+/// (UNKNOWN), so the port resizes the bar instead (same look).
+pub fn set_bar(s: &mut OrigScreen, part: &str, pane: &str, ratio: f32, visible: bool) {
+    let ratio = ratio.clamp(0.0, 1.0);
+    if let Some(n) = s.node_in(part, pane) {
+        let p = &s.scene.nodes[n].pane;
+        let (w, h, tx, ty) = (p.size[0], p.size[1], p.translate[0], p.translate[1]);
+        s.set_node(n, |o| {
+            o.size = Some([w * ratio, h]);
+            o.translate = Some([tx - w * (1.0 - ratio) / 2.0, ty]);
+            o.visible = Some(visible);
+        });
+    }
+}
+
+/// The game's own green / yellow / red gauge colour animations (thresholds 50 % / 20 %).
+pub fn gauge_colour(s: &mut OrigScreen, part: &str, ratio: f32) {
+    let colour = if ratio > 0.5 {
+        "color_green"
+    } else if ratio > 0.2 {
+        "color_yellow"
+    } else {
+        "color_red"
+    };
+    s.freeze_part(part, colour, 0.0, "gauge_color");
 }
 
 /// Fill a list of row slots: `rows[i]` gets `values[i]` or is hidden.

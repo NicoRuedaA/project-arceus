@@ -17,6 +17,7 @@ use bevy::prelude::*;
 use super::scene::ExternalImage;
 
 const POKE_DIR: &str = "png/res_pokemon/icon_pokemon_s";
+const POKE_L_DIR: &str = "png/res_pokemon/icon_pokemon_l";
 const ITEM_DIR: &str = "png/res_item/icon_item";
 const TYPE_DIR: &str = "png/icon_type/arc/type_dummy_tch";
 
@@ -25,6 +26,33 @@ pub const TYPE_ORDER: [&str; 18] = [
     "Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel", "Fire",
     "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark", "Fairy",
 ];
+
+/// Tint per type for panes the game colours at run time from data the port does not have
+/// (the port's own approximation of the usual type colours, 0-1 RGBA).
+pub fn type_tint(name: &str) -> [f32; 4] {
+    const T: [[f32; 3]; 18] = [
+        [0.66, 0.65, 0.48], // Normal
+        [0.76, 0.19, 0.16], // Fighting
+        [0.66, 0.56, 0.95], // Flying
+        [0.64, 0.24, 0.63], // Poison
+        [0.89, 0.75, 0.40], // Ground
+        [0.71, 0.63, 0.21], // Rock
+        [0.65, 0.73, 0.10], // Bug
+        [0.45, 0.34, 0.59], // Ghost
+        [0.72, 0.72, 0.81], // Steel
+        [0.93, 0.51, 0.19], // Fire
+        [0.39, 0.56, 0.94], // Water
+        [0.48, 0.78, 0.30], // Grass
+        [0.97, 0.82, 0.17], // Electric
+        [0.98, 0.33, 0.53], // Psychic
+        [0.59, 0.85, 0.84], // Ice
+        [0.44, 0.21, 0.99], // Dragon
+        [0.44, 0.34, 0.27], // Dark
+        [0.84, 0.52, 0.68], // Fairy
+    ];
+    let c = type_index(name).map_or([0.4, 0.45, 0.5], |i| T[i]);
+    [c[0], c[1], c[2], 1.0]
+}
 
 pub fn type_index(name: &str) -> Option<usize> {
     TYPE_ORDER.iter().position(|t| t.eq_ignore_ascii_case(name))
@@ -36,6 +64,8 @@ pub struct IconIndex {
     scanned: bool,
     /// (dex, form) -> path relative to the UI root (gender 000 and normal colour preferred).
     pokemon: HashMap<(u16, u16), String>,
+    /// The same for the 512 x 512 pictures.
+    pokemon_large: HashMap<(u16, u16), String>,
     items: HashMap<u16, String>,
     types: HashMap<usize, String>,
 }
@@ -54,6 +84,29 @@ pub fn parse_pokeicon(name: &str) -> Option<(u16, u16, u16, bool)> {
     Some((dex, form, gender, rare))
 }
 
+/// (dex, form) -> icon path in `dir` (gender 000 and the normal colour preferred).
+fn scan_pokemon(root: &Path, dir: &str) -> HashMap<(u16, u16), String> {
+    let Ok(rd) = std::fs::read_dir(root.join(dir)) else {
+        return HashMap::new();
+    };
+    let mut best: HashMap<(u16, u16), (u16, String)> = HashMap::new();
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        let Some((dex, form, gender, rare)) = parse_pokeicon(&name) else {
+            continue;
+        };
+        if rare {
+            continue;
+        }
+        let rel = format!("{dir}/{name}");
+        let entry = best.entry((dex, form)).or_insert((gender, rel.clone()));
+        if gender < entry.0 {
+            *entry = (gender, rel);
+        }
+    }
+    best.into_iter().map(|(k, (_, p))| (k, p)).collect()
+}
+
 impl IconIndex {
     /// Scan the icon folders of `root` (missing folders simply give no icons).
     pub fn scan(&mut self, root: &Path) {
@@ -61,24 +114,8 @@ impl IconIndex {
             return;
         }
         self.scanned = true;
-        if let Ok(rd) = std::fs::read_dir(root.join(POKE_DIR)) {
-            let mut best: HashMap<(u16, u16), (u16, String)> = HashMap::new();
-            for e in rd.flatten() {
-                let name = e.file_name().to_string_lossy().to_string();
-                let Some((dex, form, gender, rare)) = parse_pokeicon(&name) else {
-                    continue;
-                };
-                if rare {
-                    continue;
-                }
-                let rel = format!("{POKE_DIR}/{name}");
-                let entry = best.entry((dex, form)).or_insert((gender, rel.clone()));
-                if gender < entry.0 {
-                    *entry = (gender, rel);
-                }
-            }
-            self.pokemon = best.into_iter().map(|(k, (_, p))| (k, p)).collect();
-        }
+        self.pokemon = scan_pokemon(root, POKE_DIR);
+        self.pokemon_large = scan_pokemon(root, POKE_L_DIR);
         if let Ok(rd) = std::fs::read_dir(root.join(ITEM_DIR)) {
             for e in rd.flatten() {
                 let name = e.file_name().to_string_lossy().to_string();
@@ -115,6 +152,18 @@ impl IconIndex {
             .pokemon
             .get(&(dex, form))
             .or_else(|| self.pokemon.get(&(dex, 0)))?;
+        Some(ExternalImage {
+            png: p.clone(),
+            uv: [0.0, 0.0, 1.0, 1.0],
+        })
+    }
+
+    /// 512 x 512 Pokemon picture (form 0 fallback).
+    pub fn pokemon_large(&self, dex: u16, form: u16) -> Option<ExternalImage> {
+        let p = self
+            .pokemon_large
+            .get(&(dex, form))
+            .or_else(|| self.pokemon_large.get(&(dex, 0)))?;
         Some(ExternalImage {
             png: p.clone(),
             uv: [0.0, 0.0, 1.0, 1.0],

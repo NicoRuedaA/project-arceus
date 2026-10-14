@@ -67,36 +67,13 @@ pub fn awaiting_input(sess: &ActiveBattleSession) -> bool {
         )
 }
 
-/// HP gauge part: the fill bar (`P_color_00`) shrinks from the right, the game's own colour
-/// animations pick green / yellow / red. The game drives the fill with a texture-offset
-/// animation (`gauge_scale`) whose frame meaning is not certain (UNKNOWN), so the port resizes
-/// the bar instead (same look).
+/// HP gauge part (see [`super::set_bar`]).
 fn gauge(s: &mut OrigScreen, part: &str, hp: u32, max: u32) {
     let ratio = (hp as f32 / max.max(1) as f32).clamp(0.0, 1.0);
-    if let Some(n) = s.node_in(part, "P_color_00") {
-        let pane = &s.scene.nodes[n].pane;
-        let (w, h, tx, ty) = (
-            pane.size[0],
-            pane.size[1],
-            pane.translate[0],
-            pane.translate[1],
-        );
-        s.set_node(n, |o| {
-            o.size = Some([w * ratio, h]);
-            o.translate = Some([tx - w * (1.0 - ratio) / 2.0, ty]);
-            o.visible = Some(hp > 0);
-        });
-    }
+    super::set_bar(s, part, "P_color_00", ratio, hp > 0);
     // The darker "damage" trail follows the bar at once (no trailing animation yet).
     s.set_in(part, "P_color_01", |o| o.visible = Some(false));
-    let colour = if ratio > 0.5 {
-        "color_green"
-    } else if ratio > 0.2 {
-        "color_yellow"
-    } else {
-        "color_red"
-    };
-    s.freeze_part(part, colour, 0.0, "gauge_color");
+    super::gauge_colour(s, part, ratio);
 }
 
 fn bind_hud(s: &mut OrigScreen, sess: &ActiveBattleSession) {
