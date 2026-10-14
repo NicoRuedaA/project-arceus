@@ -48,12 +48,41 @@ pub struct VegetationStats {
     pub built_this_frame: usize,
 }
 
+/// Vegetation settings. `quality` can be changed at run time (graphics screen): the streaming
+/// state is rebuilt on the next frame by [`veg_requality`].
 #[derive(Resource)]
-struct VegetationConfig {
+pub struct VegetationConfig {
     area: u8,
     bin_root: PathBuf,
     cache_root: PathBuf,
-    quality: GrassQuality,
+    pub quality: GrassQuality,
+    /// Quality the live chunks and densities were built with.
+    applied: GrassQuality,
+}
+
+fn grass_on(cfg: Res<VegetationConfig>) -> bool {
+    cfg.quality != GrassQuality::Off
+}
+
+/// Quality changed at run time: drop every chunk and the per-plant densities, so the area is
+/// prepared again with the new budgets (or stays empty for `Off`).
+fn veg_requality(
+    mut commands: Commands,
+    mut cfg: ResMut<VegetationConfig>,
+    mut st: ResMut<VegetationState>,
+    mut stats: ResMut<VegetationStats>,
+) {
+    if cfg.applied == cfg.quality {
+        return;
+    }
+    cfg.applied = cfg.quality;
+    for (_, chunk) in st.alive.drain() {
+        for e in chunk.entities {
+            commands.entity(e).despawn();
+        }
+    }
+    *st = VegetationState::default();
+    *stats = VegetationStats::default();
 }
 
 /// Everything computed off-thread when an area is loaded.
@@ -101,8 +130,7 @@ pub struct VegetationChunk;
 impl Plugin for VegetationPlugin {
     fn build(&self, app: &mut App) {
         if self.quality == GrassQuality::Off {
-            println!("Vegetation: --grass off, not streaming plants.");
-            return;
+            println!("Vegetation: grass off, not streaming plants (can be switched on in the Graphics screen).");
         }
         println!(
             "Vegetation: quality {:?}, radii (grass cards, other) = {:?} m, live cap {} instances.",
@@ -115,12 +143,19 @@ impl Plugin for VegetationPlugin {
             bin_root: self.bin_root.clone(),
             cache_root: self.cache_root.clone(),
             quality: self.quality,
+            applied: self.quality,
         })
         .init_resource::<VegetationState>()
         .init_resource::<VegetationStats>()
         .add_systems(
             Update,
-            (veg_track_area, veg_poll_load, veg_poll_models, veg_stream).chain(),
+            (
+                veg_requality,
+                (veg_track_area, veg_poll_load, veg_poll_models, veg_stream)
+                    .chain()
+                    .run_if(grass_on),
+            )
+                .chain(),
         );
     }
 }

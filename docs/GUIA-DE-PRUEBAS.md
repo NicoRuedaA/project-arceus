@@ -361,8 +361,8 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 
 45. **Menú de pausa (Esc).** [EN MAIN] Opciones: Resume, Bag, invertir cámara X, invertir cámara Y,
     Volume, Back to safe spawn, Save, **Load game**, Rest, Quit. Hay 5 filas
-    nuevas tras Bag: Party, Pokémon boxes, Pokédex, Crafting y Shop (test shop); el menú tiene 15
-    filas (Load game es nueva del 2026-10-14, ver 2.15). Navegas con flechas o W/S + Enter, o con el
+    nuevas tras Bag: Party, Pokémon boxes, Pokédex, Crafting y Shop (test shop); el menú tiene 16
+    filas (Load game es nueva del 2026-10-14, ver 2.15; **Graphics...** es nueva, ver 73). Navegas con flechas o W/S + Enter, o con el
     ratón. Congela el mundo. Volume cambia el volumen al instante y se recuerda al reiniciar.
     «Back to safe spawn» te lleva a un punto seguro. Fallo: no se cierra con Esc, algo se
     sigue moviendo, Quit no cierra.
@@ -382,6 +382,23 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
       y las capturadas con su número y nombre interno. Flechas para moverte.
     Fallo: algo se mueve detrás, Esc no cierra, abrir Pokémon boxes y luego Esc vuelve a abrir el
     menú de pausa, los cambios de la caja se pierden al guardar (F5) y reiniciar.
+
+73. **Pantalla Graphics (Esc → Graphics...).** [EN RAMA `feat/graphics-menu`] Cambia lo visual
+    **mientras juegas** y se recuerda al reiniciar. Navegas con flechas arriba/abajo (o W/S),
+    cambias el valor con izquierda/derecha (o A/D) o con Enter, **Tab** (o RePág/AvPág) cambia de
+    página, y **Esc** vuelve al menú de pausa. Tiene páginas: *Look* (Look vivid/classic, Character
+    style plain/original, Outlines, Time of day: auto o franja 0-3, Weather: auto o una de las 8),
+    *Quality* (Shadows, Grass off/low/high, Battle effects off/low/high) y *Post-processing* (SSAO,
+    Bloom). Arriba hay una fila «Quality preset» (por ahora solo «default»; muestra «custom» si
+    cambiaste algo) y abajo «Reset to defaults». Todo se aplica al instante; la única excepción es
+    Battle effects cuando el juego empezó con effects en off: pasar a low/high pone «(restart)» y
+    vale en el próximo arranque. Shadows solo se nota con el look vivid (classic nunca tuvo
+    sombras). Se guarda en `graphics.toml` dentro de la carpeta de ajustes (la de `settings.txt`),
+    **no** en la partida. Las banderas de la línea de comandos (`--look`, `--style`, `--grass`,
+    `--effects`, `--no-shadows`, `--time-slot`, `--weather`...) mandan sobre el fichero solo en esa
+    sesión: salen marcadas «[command line]» y avisadas en el mensaje de arranque; no reescriben el
+    fichero. Fallo: un cambio no se ve, no se recuerda al reiniciar, Tab activa el modo apuntar,
+    Esc cierra todo en vez de volver al menú, o la pantalla no cabe en 720p.
 
 ### 2.9 Reloj, clima, día y noche  [EN MAIN]
 

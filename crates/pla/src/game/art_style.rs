@@ -429,6 +429,11 @@ pub struct ArtStyleTarget;
 #[derive(Component, Debug, Clone, Copy)]
 pub struct ArtStyleApplied;
 
+/// The original material of a mesh converted to the toon material, kept so the plain style can be
+/// restored at run time (graphics screen).
+#[derive(Component, Debug, Clone)]
+pub struct OriginalMaterial(pub Handle<StandardMaterial>);
+
 /// Marks an outline shell entity.
 #[derive(Component, Debug, Clone, Copy)]
 pub struct OutlineShell;
@@ -490,7 +495,10 @@ fn apply_art_style(
                     (toon, outline)
                 })
                 .clone();
-            commands.entity(d).remove::<MeshMaterial3d<StandardMaterial>>().insert(MeshMaterial3d(toon_h));
+            commands
+                .entity(d)
+                .remove::<MeshMaterial3d<StandardMaterial>>()
+                .insert((MeshMaterial3d(toon_h), OriginalMaterial(mat.0.clone())));
             converted += 1;
             if !settings.outlines {
                 continue;
@@ -528,6 +536,43 @@ fn apply_art_style(
     }
 }
 
+fn style_is_original(settings: Res<StyleSettings>) -> bool {
+    settings.style == ArtStyle::Original
+}
+
+/// The style or the outline switch changed at run time: put every converted mesh back to its
+/// original material and remove the outline shells. When the style is still `Original`,
+/// [`apply_art_style`] converts the roots again right after (with the new outline switch).
+fn revert_art_style(
+    mut commands: Commands,
+    settings: Res<StyleSettings>,
+    mut last: Local<Option<StyleSettings>>,
+    converted: Query<(Entity, &OriginalMaterial)>,
+    shells: Query<Entity, With<OutlineShell>>,
+    applied: Query<Entity, With<ArtStyleApplied>>,
+) {
+    let Some(prev) = *last else {
+        *last = Some(*settings);
+        return;
+    };
+    if prev == *settings {
+        return;
+    }
+    *last = Some(*settings);
+    for (e, orig) in &converted {
+        commands
+            .entity(e)
+            .remove::<(MeshMaterial3d<ToonMaterial>, OriginalMaterial)>()
+            .insert(MeshMaterial3d(orig.0.clone()));
+    }
+    for e in &shells {
+        commands.entity(e).despawn();
+    }
+    for e in &applied {
+        commands.entity(e).remove::<ArtStyleApplied>();
+    }
+}
+
 /// Registers the style. With [`ArtStyle::Plain`] it only inserts the settings resource.
 pub struct ArtStylePlugin {
     pub settings: StyleSettings,
@@ -554,13 +599,18 @@ impl ArtStylePlugin {
 impl Plugin for ArtStylePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.settings).insert_resource(self.params);
-        if self.settings.style == ArtStyle::Plain {
+        // The Plain style is registered too when a renderer exists, so the graphics screen can
+        // switch to the original style while playing; its systems do nothing while plain.
+        if self.settings.style == ArtStyle::Plain && !app.is_plugin_added::<bevy::pbr::PbrPlugin>() {
             return;
         }
         embedded_asset!(app, "art_style_toon.wgsl");
         embedded_asset!(app, "art_style_outline.wgsl");
         app.add_plugins((MaterialPlugin::<ToonMaterial>::default(), MaterialPlugin::<OutlineMaterial>::default()))
-            .add_systems(Update, apply_art_style);
+            .add_systems(Update, (revert_art_style, apply_art_style.run_if(style_is_original)).chain());
+        if self.settings.style == ArtStyle::Plain {
+            return;
+        }
         println!(
             "Art style: original (banded shading N.L {}..{}, outlines {}); --style plain to disable.",
             self.params.toon.threshold_min,

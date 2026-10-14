@@ -812,6 +812,21 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     } = setup;
     use pla::game::spawn_point as sp;
 
+    // Graphics: graphics.toml first, then command-line flags override (announced once). The
+    // clock and weather plugins read arguments, so a saved choice becomes `--time-slot` /
+    // `--weather` unless the command line already gave one.
+    let gfx = pla::game::graphics_screen::GraphicsStartup::resolve(&settings_dir, &cli_args);
+    let ssao_quality = pla::game::render_look::LookSettings::from_args(&cli_args).ssao_quality;
+    app.insert_resource(gfx.settings.look_settings(pla::game::render_look::LookSettings {
+        ssao_quality,
+        ..Default::default()
+    }));
+    let cli_args = gfx.settings.startup_args(&cli_args);
+    let mut art_style = art_style;
+    art_style.settings = gfx.settings.style_settings();
+    let mut effects = effects;
+    effects.quality = Some(gfx.settings.effects_quality());
+
     app.init_state::<GameState>();
     // The main menu is opt-in (`--menu`) so the direct start and the automated runs
     // (`--auto-demo`, `--script`, ...) keep booting into GameState::World.
@@ -925,7 +940,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
             area: area_idx,
             bin_root: bin_root.clone(),
             cache_root: cache_root.clone(),
-            quality: pla::assets::vegetation::GrassQuality::from_args(&cli_args),
+            quality: gfx.settings.grass_quality(),
         });
         app.add_plugins((
             pla::game::pickups::PickupsPlugin { area: area_idx },
@@ -1026,6 +1041,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         pla::game::box_screen::BoxScreenPlugin,
         pla::game::dex_screen::DexScreenPlugin::default(),
         crafting_plugin(),
+        pla::game::graphics_screen::GraphicsScreenPlugin { startup: gfx },
     ));
     if let Some(p) = safe_spawn_xz {
         app.insert_resource(sp::SafeSpawnPoint(p));

@@ -45,6 +45,7 @@ pub mod dex_screen;
 pub mod distortion;
 pub mod effects;
 pub mod follower;
+pub mod graphics_screen;
 pub mod navigation;
 pub mod orig_ui;
 pub mod outbreak;

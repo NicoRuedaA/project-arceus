@@ -365,6 +365,7 @@ pub enum ScreenName {
     Dex,
     Crafting,
     Shop,
+    Graphics,
     /// Close whatever is open (Escape, repeated).
     Close,
 }
@@ -626,8 +627,9 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
                 "dex" | "pokedex" => ScreenName::Dex,
                 "crafting" => ScreenName::Crafting,
                 "shop" => ScreenName::Shop,
+                "graphics" => ScreenName::Graphics,
                 "close" | "none" => ScreenName::Close,
-                _ => return Err(format!("unknown screen '{s}' (pause|bag|party|box|dex|crafting|shop|close)")),
+                _ => return Err(format!("unknown screen '{s}' (pause|bag|party|box|dex|crafting|shop|graphics|close)")),
             })
         }
         "save" => Command::Save,
@@ -1306,6 +1308,9 @@ pub fn open_screens(world: &World) -> Vec<&'static str> {
     if world.get_resource::<super::crafting_ui::CraftingUi>().is_some_and(|s| s.open) {
         out.push("crafting");
     }
+    if world.get_resource::<super::graphics_screen::GraphicsScreenState>().is_some_and(|s| s.open) {
+        out.push("graphics");
+    }
     let paused = world.get_resource::<Paused>().is_some_and(|p| p.0);
     let suppressed = world.get_resource::<PauseMenuSuppressed>().is_some_and(|p| p.0);
     if paused && !suppressed && out.is_empty() {
@@ -1344,6 +1349,7 @@ fn open_screen(app: &mut App, ctx: &mut Ctx, s: ScreenName) -> Result<Value, Str
         ScreenName::Dex => raise::<DexOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Crafting => raise::<super::crafting_ui::CraftingOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Shop => raise::<ShopOpenRequested>(world, |r| r.0 = true)?,
+        ScreenName::Graphics => raise::<super::pause_menu::GraphicsOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Close => {
             for _ in 0..4 {
                 if open_screens(app.world()).iter().all(|n| *n == "main_menu") {
@@ -1815,6 +1821,7 @@ mod tests {
         );
         assert_eq!(parse_command(r#"{"cmd":"start_battle","wild":"nearest"}"#), Ok(Command::StartBattle(BattleSpec::NearestWild)));
         assert_eq!(parse_command(r#"{"cmd":"open_screen","screen":"Pokedex"}"#), Ok(Command::OpenScreen(ScreenName::Dex)));
+        assert_eq!(parse_command(r#"{"cmd":"open_screen","screen":"graphics"}"#), Ok(Command::OpenScreen(ScreenName::Graphics)));
         assert_eq!(
             parse_command(r#"{"cmd":"entities","filter":"npc","limit":5}"#),
             Ok(Command::Entities { kind: EntityKind::Npc, limit: 5 })
