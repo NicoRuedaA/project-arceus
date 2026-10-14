@@ -12,6 +12,9 @@
 //! 4. HUD telemetry in window title & console logs.
 //! 5. Optional automated headless capture (`--screenshot <path>` / `--ticks <N>`).
 
+// The start-up guard at the end builds this file as a test, where `main` is unused.
+#![cfg_attr(test, allow(dead_code, unused_imports))]
+
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -434,8 +437,124 @@ fn main() -> ExitCode {
     };
     let player_spawn_pos = initial_player_pos.unwrap_or(default_spawn);
 
-    // Attempt loading real terrain from game pack
-    let terrain_res = match TerrainArea::load(&bin_root, area_idx) {
+    let terrain_res = load_terrain(&bin_root, area_idx, overrides);
+
+    // Locate PML and Battle data directory.
+    let (data_dir, pml_db, battle_db, battle_assets) = load_game_data();
+
+    let work_root = PathBuf::from("work");
+    let work_abs = work_root.canonicalize().unwrap_or(work_root);
+
+    let navmesh_res = load_navmesh(&bin_root, area_idx);
+
+    // Safe start (largest walkable island, gentle slope, clearance; see game/spawn_point.rs):
+    // `--player-pos` is honoured, a valid saved position too, otherwise the safe start is used.
+    let (player_spawn_pos, safe_spawn_xz, spawn_notice) = choose_player_spawn(
+        navmesh_res.as_ref(),
+        area_idx,
+        initial_player_pos,
+        pos_from_cli,
+        player_spawn_pos,
+    );
+
+    let mut app = App::new();
+    app.add_plugins(
+        DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Pokémon Legends: Arceus — Bevy Port Interactive Viewer".into(),
+                    resolution: WindowResolution::new(1280, 720),
+                    visible: !headless,
+                    ..default()
+                }),
+                ..default()
+            })
+            .set(AssetPlugin {
+                file_path: work_abs.to_string_lossy().to_string(),
+                unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+                ..default()
+            }),
+    );
+
+    // Real player model from the exporter cache; capsule avatar if the file is missing.
+    let cache_root = std::env::var_os("PLA_CACHE_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
+    let player_model_file =
+        pla::game::player_anim::resolve_player_model(&cache_root, &player_variant)
+            .map(|f| f.canonicalize().unwrap_or(f));
+    match &player_model_file {
+        Some(f) => println!("Player model: {}", f.display()),
+        None => println!(
+            "Player model '{player_variant}' not found under {}/player; using the capsule avatar",
+            cache_root.display()
+        ),
+    }
+    let settings_dir = UserSettings::default_dir();
+    configure_viewer(
+        &mut app,
+        ViewerSetup {
+            area_idx,
+            bin_root: bin_root.clone(),
+            cache_root,
+            main_menu,
+            player_model: PlayerModelConfig {
+                asset_rel: player_model_file
+                    .map(|f| pla::game::player_anim::asset_path(&f, &work_abs)),
+            },
+            initial_mode,
+            user_settings: UserSettings::load_from_dir(&settings_dir),
+            settings_dir,
+            initial_dex,
+            data_dir,
+            pml_db,
+            battle_db,
+            battle_assets,
+            player_spawn_pos,
+            terrain_res,
+            navmesh_res,
+            safe_spawn_xz,
+            spawn_notice,
+            static_wild: auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some(),
+            debug_zone_links,
+            automation: AutomationOptions {
+                screenshot_path,
+                max_ticks,
+                current_ticks: 0,
+                auto_throw_tick,
+                verify_views_dir,
+                verify_step: 0,
+                verify_step_tick: 0,
+                auto_demo,
+                demo_output_dir,
+                demo_step: 0,
+                demo_step_tick: 0,
+                controls_demo_dir,
+            },
+            save_game,
+            wire_start,
+            wire_cli,
+            art_style: pla::game::art_style::ArtStylePlugin::from_env_and_args(),
+            trainers: pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args(),
+            audio: pla::game::audio::GameAudioPlugin::from_env_and_args(),
+            effects: pla::game::effects::EffectsPlugin::from_env_and_args(),
+            bag: pla::game::bag_screen::BagScreenPlugin::from_env_and_args(),
+            minimap: pla::game::minimap::MinimapPlugin::from_env_and_args(bin_root.clone()),
+            cli_args,
+        },
+    );
+
+    app.run();
+    ExitCode::SUCCESS
+}
+
+/// Real terrain of `area_idx` from the game pack (`None`: fallback ground plane).
+fn load_terrain(
+    bin_root: &std::path::Path,
+    area_idx: u8,
+    overrides: TerrainScaleOverride,
+) -> Option<TerrainResource> {
+    match TerrainArea::load(&bin_root, area_idx) {
         Ok(area_data) => {
             println!(
                 "Loaded real terrain ha_area{:02}.gfpak: extent=({:.1}, {:.1}), H={:.1}m, {} instances",
@@ -480,9 +599,16 @@ fn main() -> ExitCode {
             );
             None
         }
-    };
+    }
+}
 
-    // Locate PML and Battle data directory.
+/// The decoded data sheets directory (`data/`), PML database, battle data and battle assets.
+fn load_game_data() -> (
+    Option<PathBuf>,
+    Option<PmlDatabase>,
+    Option<BattleData>,
+    Option<BattleAssets>,
+) {
     let data_dir = [
         PathBuf::from("data"),
         PathBuf::from("../../data"),
@@ -504,12 +630,12 @@ fn main() -> ExitCode {
                 None
             }
         });
+    (data_dir, pml_db, battle_db, battle_assets)
+}
 
-    let work_root = PathBuf::from("work");
-    let work_abs = work_root.canonicalize().unwrap_or(work_root);
-
-    // Attempt loading real navmesh from terrain pack
-    let navmesh_res = match AreaNavigation::load(&bin_root, area_idx) {
+/// Real navmesh of `area_idx` from the terrain pack.
+fn load_navmesh(bin_root: &std::path::Path, area_idx: u8) -> Option<GameNavmeshResource> {
+    match AreaNavigation::load(&bin_root, area_idx) {
         Ok(nav) => {
             println!(
                 "Loaded real navmesh ha_area{:02}.gfpak: {} faces, {} edges, {} vertices",
@@ -524,14 +650,22 @@ fn main() -> ExitCode {
             println!("Navmesh not loaded from {}: {e}", bin_root.display());
             None
         }
-    };
+    }
+}
 
-    // Safe start (largest walkable island, gentle slope, clearance; see game/spawn_point.rs):
-    // `--player-pos` is honoured, a valid saved position too, otherwise the safe start is used.
+/// Start position: `--player-pos` is honoured, a valid saved position too, otherwise the safe
+/// start. Returns the position, the safe start (if any) and a notice for the player.
+fn choose_player_spawn(
+    navmesh_res: Option<&GameNavmeshResource>,
+    area_idx: u8,
+    initial_player_pos: Option<Vec2>,
+    pos_from_cli: bool,
+    player_spawn_pos: Vec2,
+) -> (Vec2, Option<Vec2>, Option<&'static str>) {
     use pla::game::spawn_point as sp;
     let mut safe_spawn_xz: Option<Vec2> = None;
     let mut spawn_notice: Option<&str> = None;
-    let player_spawn_pos = if let Some(ref nr) = navmesh_res {
+    let player_spawn_pos = if let Some(nr) = navmesh_res {
         let nav = nr.nav.primary();
         let comps = sp::components(nav);
         let rd = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
@@ -575,25 +709,89 @@ fn main() -> ExitCode {
     } else {
         player_spawn_pos
     };
+    (player_spawn_pos, safe_spawn_xz, spawn_notice)
+}
 
-    let mut app = App::new();
-    app.add_plugins(
-        DefaultPlugins
-            .set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Pokémon Legends: Arceus — Bevy Port Interactive Viewer".into(),
-                    resolution: WindowResolution::new(1280, 720),
-                    visible: !headless,
-                    ..default()
-                }),
-                ..default()
-            })
-            .set(AssetPlugin {
-                file_path: work_abs.to_string_lossy().to_string(),
-                unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
-                ..default()
-            }),
-    );
+/// Everything `main` resolves from the command line, the environment and the game files before
+/// the app is built. [`configure_viewer`] turns it into states, resources, plugins and systems;
+/// the start-up schedule guard at the end of this file builds the same app headless from a setup
+/// made in the test, so the viewer's registrations exist only once.
+struct ViewerSetup {
+    /// The full process arguments (`std::env::args()`), read by the `from_args` plugin builders.
+    cli_args: Vec<String>,
+    area_idx: u8,
+    bin_root: PathBuf,
+    /// Exporter cache (`$PLA_CACHE_ROOT`, else the default cache).
+    cache_root: PathBuf,
+    /// `--menu`: start in the main menu instead of the world.
+    main_menu: bool,
+    player_model: PlayerModelConfig,
+    initial_mode: CameraMode,
+    user_settings: UserSettings,
+    settings_dir: PathBuf,
+    initial_dex: Option<u16>,
+    data_dir: Option<PathBuf>,
+    pml_db: Option<PmlDatabase>,
+    battle_db: Option<BattleData>,
+    battle_assets: Option<BattleAssets>,
+    player_spawn_pos: Vec2,
+    terrain_res: Option<TerrainResource>,
+    navmesh_res: Option<GameNavmeshResource>,
+    safe_spawn_xz: Option<Vec2>,
+    spawn_notice: Option<&'static str>,
+    /// Scripted / automated runs need static wild positions (deterministic frames).
+    static_wild: bool,
+    debug_zone_links: bool,
+    automation: AutomationOptions,
+    save_game: pla::game::save_game::SaveGame,
+    wire_start: pla::game::save_wire::StartupState,
+    wire_cli: pla::game::save_wire::WireCli,
+    art_style: pla::game::art_style::ArtStylePlugin,
+    trainers: pla::game::trainer_encounter::TrainerEncounterPlugin,
+    audio: pla::game::audio::GameAudioPlugin,
+    effects: pla::game::effects::EffectsPlugin,
+    bag: pla::game::bag_screen::BagScreenPlugin,
+    minimap: pla::game::minimap::MinimapPlugin,
+}
+
+/// Everything the viewer registers after `DefaultPlugins`: states, resources, game plugins and
+/// the viewer's own systems. Shared by `main` and the start-up schedule guard.
+fn configure_viewer(app: &mut App, setup: ViewerSetup) {
+    let ViewerSetup {
+        cli_args,
+        area_idx,
+        bin_root,
+        cache_root,
+        main_menu,
+        player_model,
+        initial_mode,
+        user_settings,
+        settings_dir,
+        initial_dex,
+        data_dir,
+        pml_db,
+        battle_db,
+        battle_assets,
+        player_spawn_pos,
+        terrain_res,
+        navmesh_res,
+        safe_spawn_xz,
+        spawn_notice,
+        static_wild,
+        debug_zone_links,
+        automation,
+        save_game,
+        wire_start,
+        wire_cli,
+        art_style,
+        trainers,
+        audio,
+        effects,
+        bag,
+        minimap,
+    } = setup;
+    use pla::game::spawn_point as sp;
+
     app.init_state::<GameState>();
     // The main menu is opt-in (`--menu`) so the direct start and the automated runs
     // (`--auto-demo`, `--script`, ...) keep booting into GameState::World.
@@ -601,31 +799,11 @@ fn main() -> ExitCode {
         app.insert_state(GameState::MainMenu);
     }
 
-    // Real player model from the exporter cache; capsule avatar if the file is missing.
-    let player_cache_root = std::env::var_os("PLA_CACHE_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
-    let player_model_file =
-        pla::game::player_anim::resolve_player_model(&player_cache_root, &player_variant)
-            .map(|f| f.canonicalize().unwrap_or(f));
-    match &player_model_file {
-        Some(f) => println!("Player model: {}", f.display()),
-        None => println!(
-            "Player model '{player_variant}' not found under {}/player; using the capsule avatar",
-            player_cache_root.display()
-        ),
-    }
-    app.insert_resource(PlayerModelConfig {
-        asset_rel: player_model_file.map(|f| pla::game::player_anim::asset_path(&f, &work_abs)),
-    });
+    let has_player_model = player_model.asset_rel.is_some();
+    app.insert_resource(player_model);
 
     let mut camera_ctrl = CameraController::default();
-    if app
-        .world()
-        .resource::<PlayerModelConfig>()
-        .asset_rel
-        .is_some()
-    {
+    if has_player_model {
         let (focal, shoulder) =
             pla::game::player_anim::camera_offsets(pla::game::player_anim::MODEL_HEIGHT);
         camera_ctrl.focal_offset_y = focal;
@@ -637,12 +815,7 @@ fn main() -> ExitCode {
         camera_ctrl.target_distance = 2.2;
     }
     app.insert_resource(camera_ctrl);
-    let settings_dir = UserSettings::default_dir();
-    PauseMenuPlugin::install(
-        &mut app,
-        UserSettings::load_from_dir(&settings_dir),
-        settings_dir.clone(),
-    );
+    PauseMenuPlugin::install(app, user_settings, settings_dir.clone());
 
     let mut dex_list = vec![25, 501, 722, 155, 448]; // Pikachu, Oshawott, Rowlet, Cyndaquil, Lucario
     let mut current_index = 0;
@@ -718,7 +891,6 @@ fn main() -> ExitCode {
 
     // Placed scenery objects + decoded zone lighting (crates/pla/src/game/{world_objects,lighting}.rs)
     {
-        let cli: Vec<String> = std::env::args().collect();
         let tree_models: HashSet<String> = terrain_res
             .as_ref()
             .map(|t| {
@@ -729,44 +901,41 @@ fn main() -> ExitCode {
                     .collect()
             })
             .unwrap_or_default();
-        let cache_root = std::env::var_os("PLA_CACHE_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
         app.add_plugins(pla::game::vegetation::VegetationPlugin {
             area: area_idx,
             bin_root: bin_root.clone(),
             cache_root: cache_root.clone(),
-            quality: pla::assets::vegetation::GrassQuality::from_args(&cli),
+            quality: pla::assets::vegetation::GrassQuality::from_args(&cli_args),
         });
         app.add_plugins((
             pla::game::pickups::PickupsPlugin { area: area_idx },
             pla::game::world_objects::WorldObjectsPlugin {
                 area: area_idx,
-                cache_root,
+                cache_root: cache_root.clone(),
                 exclude_models: tree_models,
-                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
+                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli_args),
             },
             pla::game::world_collision::WorldCollisionPlugin {
                 area: area_idx,
                 bin_root: bin_root.clone(),
-                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
+                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli_args),
             },
             pla::game::lighting::ZoneLightingPlugin {
                 area: area_idx,
                 slot: match wire_start.time_minutes {
                     Some(m) if !wire_cli.has_time_slot => pla::game::clock::slot_of_minutes(m),
-                    _ => pla::game::lighting::time_slot_from_args(&cli),
+                    _ => pla::game::lighting::time_slot_from_args(&cli_args),
                 },
             },
             // Weather lottery + rain/snow particles (game::weather): follows the game clock.
-            pla::game::weather::WeatherPlugin::from_args(area_idx, &cli),
+            pla::game::weather::WeatherPlugin::from_args(area_idx, &cli_args),
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
     app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
-    app.add_plugins(pla::game::art_style::ArtStylePlugin::from_env_and_args());
+    app.add_plugins(art_style);
     app.add_plugins(pla::game::water::WaterPlugin);
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(
@@ -778,16 +947,14 @@ fn main() -> ExitCode {
     app.insert_resource(pla::game::wild_wander::WildBehaviorSettings::from_args(&cli_args));
     app.add_plugins(pla::game::follower::FollowerPlugin);
     app.add_plugins(pla::game::capture_world::CaptureWorldPlugin);
-    app.add_plugins(pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args());
+    app.add_plugins(trainers);
     app.add_plugins(pla::game::npc::NpcPlugin {
         data_dir: None,
-        cache_root: std::env::var_os("PLA_CACHE_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT)),
+        cache_root,
     });
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
-    app.add_plugins(pla::game::audio::GameAudioPlugin::from_env_and_args());
-    app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
+    app.add_plugins(audio);
+    app.add_plugins(effects);
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
     app.add_plugins(pla::game::player_motion::PlayerMotionPlugin);
@@ -798,11 +965,10 @@ fn main() -> ExitCode {
     // missing, and Bevy panics when the same plugin is added twice.
     if main_menu {
         // Continue is enabled only when a valid save was loaded at start-up.
-        MainMenuPlugin::install(&mut app, wire_start.loaded, settings_dir);
+        MainMenuPlugin::install(app, wire_start.loaded, settings_dir);
     }
-    app.add_plugins(pla::game::bag_screen::BagScreenPlugin::from_env_and_args());
-    // Scripted / automated runs need static wild positions (deterministic frames).
-    if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
+    app.add_plugins(bag);
+    if static_wild {
         app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });
     }
     if let Some(tr) = terrain_res {
@@ -816,35 +982,20 @@ fn main() -> ExitCode {
     }
     app.insert_resource(BinRootResource(bin_root.clone()));
     // Zone switching (Brief 8): decoded door / fast-travel links, fade and scene swap.
-    app.insert_resource(pla::game::zone::ZoneBinRoot(bin_root.clone()));
+    app.insert_resource(pla::game::zone::ZoneBinRoot(bin_root));
     app.add_plugins(pla::game::zone::ZonePlugin {
         links_path: None,
         debug_links: debug_zone_links,
     });
     app.add_plugins(pla::game::door_pairs::DoorPairsPlugin); // door hint (Brief 13)
     // Minimap, compass and full-screen map (Brief 15); `--no-minimap` / `--game-map`.
-    app.add_plugins(pla::game::minimap::MinimapPlugin::from_env_and_args(
-        bin_root.clone(),
-    ));
-    app.insert_resource(AutomationOptions {
-        screenshot_path,
-        max_ticks,
-        current_ticks: 0,
-        auto_throw_tick,
-        verify_views_dir,
-        verify_step: 0,
-        verify_step_tick: 0,
-        auto_demo,
-        demo_output_dir,
-        demo_step: 0,
-        demo_step_tick: 0,
-        controls_demo_dir,
-    });
+    app.add_plugins(minimap);
+    app.insert_resource(automation);
 
-    pla::game::play_time::PlayTimePlugin::install(&mut app, wire_start.play_seconds);
+    pla::game::play_time::PlayTimePlugin::install(app, wire_start.play_seconds);
     // Day/night clock: --time-slot pins it, --time-scale speeds it, the save supplies the start.
-    pla::game::clock::GameClockPlugin::install(&mut app, &cli_args, wire_start.time_minutes);
-    pla::game::save_wire::SaveWirePlugin::install(&mut app, save_game, wire_start, &wire_cli);
+    pla::game::clock::GameClockPlugin::install(app, &cli_args, wire_start.time_minutes);
+    pla::game::save_wire::SaveWirePlugin::install(app, save_game, wire_start, &wire_cli);
     // Fullscreen screens opened from the pause menu (Esc): party, boxes, Pokédex and crafting.
     // Installed after SaveWirePlugin so they read the live `PlayerProgress`.
     app.add_plugins((
@@ -861,6 +1012,11 @@ fn main() -> ExitCode {
             .resource_mut::<pla::game::save_wire::SaveToast>()
             .show(msg);
     }
+    add_viewer_systems(app);
+}
+
+/// The viewer's own systems (the game plugins are added by [`configure_viewer`]).
+fn add_viewer_systems(app: &mut App) {
     app.add_systems(Update, apply_safe_spawn_request);
     app.add_systems(Startup, (setup_scene, setup_game_ui, spawn_aim_hint));
     app.add_systems(
@@ -920,9 +1076,6 @@ fn main() -> ExitCode {
         Update,
         sync_arena_player_model.run_if(in_state(GameState::Battle)),
     );
-
-    app.run();
-    ExitCode::SUCCESS
 }
 
 /// Capsule stand-in for the player (also the fallback when the glTF is missing or fails to load).
@@ -3463,5 +3616,209 @@ fn sync_arena_player_model(
                 ));
             });
         println!("Arena slot {} now shows #{want}", slot.0);
+    }
+}
+
+/// Start-up guard (`cargo test -p pla --example port_viewer`, also part of `cargo test -p pla`).
+///
+/// Builds the viewer's app through the same [`configure_viewer`] as `main`, but with no window,
+/// no GPU, no gamepad and no audio device, then:
+///
+/// 1. initialises every system and run condition of every schedule (Startup, Update, PostUpdate,
+///    FixedUpdate, OnEnter/OnExit of every state, ...) — where Bevy rejects conflicting system
+///    parameters (B0001 / B0002), the panics that otherwise only show on the viewer's first frame;
+/// 2. runs a few frames, so a system that panics on its first run (for example a required
+///    resource nobody inserts) fails here too.
+///
+/// Known gaps: the render sub-app is not created (no GPU), so Bevy's own render-world systems are
+/// not checked; `bevy_audio` (device mode), winit and gilrs are not added; the run starts a new
+/// game in a scratch save directory instead of the player's save; and anything that only happens
+/// later (state changes such as entering a battle, input, streaming far away) is initialised in
+/// step 1 but never run.
+#[cfg(test)]
+mod startup_schedule_guard {
+    use super::*;
+    use bevy::render::settings::WgpuSettings;
+    use bevy::render::RenderPlugin;
+    use bevy::winit::WinitPlugin;
+
+    /// Frames run after the initialisation check (Startup + OnEnter run in the first one).
+    const FRAMES: usize = 5;
+
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    /// The setup `main` would resolve for `args`, without touching the player's save or settings.
+    fn setup_for(args: &[&str], scratch: &std::path::Path) -> ViewerSetup {
+        let cli_args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+        let has = |f: &str| cli_args.iter().any(|a| a == f);
+        let area_idx: u8 = cli_args
+            .iter()
+            .position(|a| a == "--area")
+            .and_then(|i| cli_args.get(i + 1))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
+        let bin_root = std::env::var_os("PLA_BIN_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| repo_root().join("work/pla/pk2/romfs_patched/bin"));
+        let cache_root = pla::game::audio::default_cache_root();
+        let (data_dir, pml_db, battle_db, battle_assets) = load_game_data();
+        let terrain_res = load_terrain(&bin_root, area_idx, TerrainScaleOverride::default());
+        let navmesh_res = load_navmesh(&bin_root, area_idx);
+        let fallback = if area_idx == 0 { Vec2::new(448.0, 652.0) } else { Vec2::new(512.5, 512.5) };
+        let (player_spawn_pos, safe_spawn_xz, spawn_notice) =
+            choose_player_spawn(navmesh_res.as_ref(), area_idx, None, false, fallback);
+
+        // Always a new game in a scratch directory: the player's save is never read or written.
+        let mut wire_cli = pla::game::save_wire::WireCli::from_args(&cli_args);
+        wire_cli.new_game = true;
+        wire_cli.save_dir = Some(scratch.to_path_buf());
+        let mut save_game =
+            pla::game::save_game::SaveGame::new(pla::game::save_game::SaveFile::in_dir(scratch));
+        let wire_start = pla::game::save_wire::load_startup(&mut save_game, &wire_cli);
+
+        let mut art_style = pla::game::art_style::ArtStylePlugin::from_env_and_args();
+        art_style.settings = pla::game::art_style::StyleSettings::from_args(&cli_args);
+        ViewerSetup {
+            area_idx,
+            bin_root: bin_root.clone(),
+            cache_root,
+            main_menu: has("--menu"),
+            player_model: PlayerModelConfig { asset_rel: None },
+            initial_mode: CameraMode::OrbitDefault,
+            user_settings: UserSettings::default(),
+            settings_dir: scratch.to_path_buf(),
+            initial_dex: None,
+            data_dir,
+            pml_db,
+            battle_db,
+            battle_assets,
+            player_spawn_pos,
+            terrain_res,
+            navmesh_res,
+            safe_spawn_xz,
+            spawn_notice,
+            static_wild: false,
+            debug_zone_links: has("--debug-zone-links"),
+            automation: AutomationOptions {
+                screenshot_path: None,
+                max_ticks: None,
+                current_ticks: 0,
+                auto_throw_tick: None,
+                verify_views_dir: None,
+                verify_step: 0,
+                verify_step_tick: 0,
+                auto_demo: false,
+                demo_output_dir: None,
+                demo_step: 0,
+                demo_step_tick: 0,
+                controls_demo_dir: None,
+            },
+            save_game,
+            wire_start,
+            wire_cli,
+            art_style,
+            trainers: pla::game::trainer_encounter::TrainerEncounterPlugin {
+                markers: !has("--no-trainers"),
+                forced: None,
+                data_dir: None,
+            },
+            // Null: the whole game audio pipeline is registered but no device is opened.
+            audio: pla::game::audio::GameAudioPlugin::with_mode(pla::game::audio::AudioMode::Null),
+            effects: pla::game::effects::EffectsPlugin::default(),
+            bag: pla::game::bag_screen::BagScreenPlugin { debug_shop: has("--debug-shop"), data_dir: None },
+            minimap: pla::game::minimap::MinimapPlugin {
+                enabled: !has("--no-minimap"),
+                bin_root: Some(bin_root),
+                game_map: has("--game-map"),
+                size: pla::game::minimap::DEFAULT_MAP_SIZE,
+            },
+            cli_args,
+        }
+    }
+
+    /// `DefaultPlugins` as in `main`, minus everything that touches the user's machine: no
+    /// window, no event loop, no GPU, no gamepad.
+    fn headless_app() -> App {
+        let mut app = App::new();
+        app.add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: None,
+                    exit_condition: bevy::window::ExitCondition::DontExit,
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    file_path: repo_root().join("work").to_string_lossy().to_string(),
+                    unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+                    ..default()
+                })
+                .set(RenderPlugin {
+                    render_creation: WgpuSettings { backends: None, ..default() }.into(),
+                    ..default()
+                })
+                .disable::<WinitPlugin>()
+                .disable::<bevy::gilrs::GilrsPlugin>(),
+        );
+        // Stub: without a GPU the render plugin skips its entity-sync bookkeeping, whose
+        // resource the component hooks of renderable components still need. With no render
+        // world nothing drains it, which is harmless for a few frames.
+        if !app.is_plugin_added::<bevy::render::sync_world::SyncWorldPlugin>() {
+            app.add_plugins(bevy::render::sync_world::SyncWorldPlugin);
+        }
+        app
+    }
+
+    fn check_viewer_start(name: &str, args: &[&str]) {
+        let scratch =
+            std::env::temp_dir().join(format!("pla-viewer-schedule-guard-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&scratch).expect("scratch dir");
+        let mut app = headless_app();
+        configure_viewer(&mut app, setup_for(args, &scratch));
+        app.finish();
+        app.cleanup();
+        let counts = pla::game::schedule_check::system_counts(&app);
+        for (label, n) in &counts {
+            println!("[{name}] schedule {label}: {n} systems");
+        }
+        let update = counts.iter().find(|(l, _)| l == "Update").map_or(0, |(_, n)| *n);
+        assert!(update > 50, "[{name}] only {update} Update systems: the viewer was not built");
+
+        let problems = pla::game::schedule_check::initialize_all_schedules(&mut app);
+        assert!(
+            problems.is_empty(),
+            "[{name}] {} start-up schedule problem(s):\n{}",
+            problems.len(),
+            problems.join("\n")
+        );
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    /// Exactly what `./play.sh --area 1` asks for (direct start into the world).
+    #[test]
+    fn play_sh_area_1_starts() {
+        check_viewer_start("play-area-1", &["port_viewer", "--area", "1"]);
+    }
+
+    /// Every optional registration on: main menu, original art style, debug zone links and shop.
+    #[test]
+    fn menu_and_debug_options_start() {
+        check_viewer_start(
+            "menu-debug",
+            &[
+                "port_viewer",
+                "--area",
+                "1",
+                "--menu",
+                "--style",
+                "original",
+                "--debug-zone-links",
+                "--debug-shop",
+            ],
+        );
     }
 }

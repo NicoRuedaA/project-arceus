@@ -42,6 +42,10 @@ exacta y no arranca.
 `./play.sh --list` solo enseña qué texturas mejoradas hay. Todo lo que escribas después de
 `./play.sh` se pasa al visor.
 
+Protección del arranque: `cargo test -p pla` monta el visor como `./play.sh --area 1` (y otra vez
+con `--menu --style original`), sin ventana, sin sonido y sin tocar tu partida guardada, y falla si
+dos piezas del juego se pisan al arrancar (el cierre inmediato del 2026-10-14 era eso).
+
 ### 1.3 Opciones (banderas) que existen de verdad en el código
 
 Las pones después de `./play.sh`, separadas por espacios. Ejemplo:

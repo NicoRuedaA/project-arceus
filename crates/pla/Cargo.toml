@@ -21,3 +21,8 @@ serde_json = "=1.0.151"
 [build-dependencies]
 sheetty = { path = "../sheetty" }
 phf_codegen = "0.13"
+
+# The viewer carries its start-up schedule guard (`cargo test -p pla --example port_viewer`).
+[[example]]
+name = "port_viewer"
+test = true
