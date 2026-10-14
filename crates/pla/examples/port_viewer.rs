@@ -1238,11 +1238,29 @@ fn setup_scene(
     spawn_cfg: Res<PlayerSpawnConfig>,
     player_model: Res<PlayerModelConfig>,
     terrain_res: Option<Res<TerrainResource>>,
+    npc_world: Option<Res<pla::game::npc::NpcWorld>>,
+    zone_info: Option<Res<pla::game::ActiveZoneInfo>>,
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
 ) {
-    let spawn_x = spawn_cfg.pos.x;
-    let spawn_z = spawn_cfg.pos.y;
+    let mut spawn_x = spawn_cfg.pos.x;
+    let mut spawn_z = spawn_cfg.pos.y;
+    // The chosen start (explicit, saved or safe) can land on an NPC placement: the capture showed
+    // the player fused into the area 00 elder at (485.8, 449.0). Nudge out of the nearest spot
+    // before the terrain height is sampled, so the feet stay on the ground.
+    if let (Some(npcs), Some(info)) = (npc_world.as_deref(), zone_info.as_deref()) {
+        if let Some(clear) = pla::game::npc::landing_clear_of_npcs(
+            Vec2::new(spawn_x, spawn_z),
+            npcs.spots_in_area(&info.area),
+        ) {
+            println!(
+                "Arrival: spawn ({:.1}, {:.1}) moved to ({:.1}, {:.1}) to clear an NPC",
+                spawn_x, spawn_z, clear.x, clear.y
+            );
+            spawn_x = clear.x;
+            spawn_z = clear.y;
+        }
+    }
     let surface_y = terrain_res
         .as_ref()
         .and_then(|t| t.area.sample_world_height(spawn_x, spawn_z))

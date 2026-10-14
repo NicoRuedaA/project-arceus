@@ -59,6 +59,51 @@ impl NpcPlacement {
     }
 }
 
+/// Player landings never sit inside an NPC (planar metres): a little above the follower's own
+/// [`super::follower::MIN_SEPARATION`] (1.4 m), the existing "two models never overlap" floor.
+pub const MIN_NPC_SEPARATION: f32 = 1.6;
+
+/// Move a landing point out of the nearest NPC spot(s).
+///
+/// `spots` are the NPC placements the streamer can draw (every variant of a key shares one spot).
+/// While the closest spot is nearer than [`MIN_NPC_SEPARATION`], the point moves along the away
+/// vector to exactly that distance; a perfect overlap falls back to +X (a fixed convention, there
+/// is no "away" direction then). At most 4 passes: a spot can push the point into another. `None`
+/// when the landing is already clear. Deterministic: spots are visited in the given order.
+pub fn landing_clear_of_npcs(landing: Vec2, spots: impl IntoIterator<Item = Vec2>) -> Option<Vec2> {
+    let spots: Vec<Vec2> = spots.into_iter().collect();
+    let mut p = landing;
+    let mut moved = false;
+    for _ in 0..4 {
+        let mut nearest: Option<(Vec2, f32)> = None;
+        for spot in &spots {
+            let d = (p - *spot).length();
+            if nearest.is_none_or(|(_, best)| d < best) {
+                nearest = Some((*spot, d));
+            }
+        }
+        let Some((spot, d)) = nearest else { break };
+        if d >= MIN_NPC_SEPARATION {
+            break;
+        }
+        let away = if d > 1e-3 { (p - spot) / d } else { Vec2::X };
+        p = spot + away * MIN_NPC_SEPARATION;
+        moved = true;
+    }
+    moved.then_some(p)
+}
+
+impl NpcWorld {
+    /// The NPC spots of one area (`ha_area00`), every variant: the arrival nudge keeps the player
+    /// out of these. Placements without a position are skipped (the streamer cannot draw them).
+    pub fn spots_in_area<'a>(&'a self, area: &'a str) -> impl Iterator<Item = Vec2> + 'a {
+        self.placements
+            .iter()
+            .filter(move |p| p.area == area && p.positioned())
+            .map(|p| Vec2::new(p.position[0], p.position[2]))
+    }
+}
+
 /// One decoded character recipe row, keyed by the placement hash.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NpcAppearance {
@@ -814,6 +859,36 @@ mod tests {
             select_idle_clip(&without_primary, 0)
         );
         assert_ne!(select_idle_clip(&without_primary, 0), None);
+    }
+
+    #[test]
+    fn landing_never_stays_inside_an_npc() {
+        // The capture case: the player landed 0.05 m from `area00_npc_re_leader`, with the senior
+        // (0.7 m) and the doctor (1.3 m) around it (data/npc_placements.tsv, ha_area00).
+        let leader = Vec2::new(485.748, 449.004);
+        let senior = Vec2::new(485.102, 448.897);
+        let doctor = Vec2::new(484.518, 448.799);
+        let landing = Vec2::new(485.8, 449.0);
+        let clear = landing_clear_of_npcs(landing, [leader, senior, doctor]).expect("moved");
+        for spot in [leader, senior, doctor] {
+            assert!(
+                clear.distance(spot) >= MIN_NPC_SEPARATION - 1e-4,
+                "{clear:?} is still inside the NPC at {spot:?}"
+            );
+        }
+        // Far away (or no spots): nothing moves.
+        assert!(landing_clear_of_npcs(Vec2::ZERO, [Vec2::new(5.0, 0.0)]).is_none());
+        assert!(landing_clear_of_npcs(Vec2::ZERO, []).is_none());
+        // Exactly on the spot: the fixed +X convention has no away direction to use.
+        assert_eq!(
+            landing_clear_of_npcs(Vec2::ZERO, [Vec2::ZERO]),
+            Some(Vec2::new(MIN_NPC_SEPARATION, 0.0))
+        );
+        // Deterministic for the same input.
+        assert_eq!(
+            landing_clear_of_npcs(landing, [leader, senior, doctor]),
+            Some(clear)
+        );
     }
 
     #[test]
