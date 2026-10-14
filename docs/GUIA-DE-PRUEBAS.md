@@ -73,6 +73,7 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 | `--no-outlines` | Con `--style original`, quita los contornos pero deja el sombreado. |
 | `--look classic` / `--look vivid` | Aspecto general (vivo por defecto). |
 | `--no-shadows`, `--no-ssao`, `--no-bloom` | Apagan sombras, oscurecimiento de rincones y brillo suave (útil si va lento). `--ssao`, `--bloom` los fuerzan. `--ssao-quality` ajusta la calidad. |
+| `--ui original` | **Nuevo.** Dibuja los menús y marcadores con la **interfaz original del juego** (sus marcos, botones, iconos y barras), leída de tu copia instalada del juego. Por defecto sigue la interfaz provisional (`--ui debug`) hasta que la apruebes a ojo. Si faltan los datos de la interfaz, avisa y usa la provisional. Ver 2.16. |
 
 **Combate y Pokémon**
 
@@ -492,6 +493,29 @@ Se puede apagar con `--no-audio`. Nadie ha escuchado nada hasta ahora.
     algo no se restaura, o se cuelga.
 
 ---
+
+### 2.16 Interfaz original del juego (`--ui original`)  [EN LA RAMA feat/ui-assets]
+
+Arranca con `./play.sh --area 1 --ui original`. Las teclas y lo que hace cada pantalla no
+cambian: solo cambia el dibujo. Los textos son del port, en inglés (los del juego no se usan).
+Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
+
+73. **Combate.** Abajo a la izquierda, tu Pokémon sobre la mancha de tinta azul (nombre, nivel,
+    barra de vida verde/amarilla/roja y números). Arriba en el centro, el rival (nombre, nivel,
+    barra). A la derecha, el orden de los próximos turnos con iconos. Abajo a la derecha, los 4
+    movimientos (color e icono del tipo, PP) con el rombo Fight/Items/Pokémon/Run encima. I
+    (objetos) y S (cambiar) muestran la lista en las mismas filas, con iconos. Mientras se
+    resuelve el turno sale la franja de mensajes. Fallo: barras que no bajan, nombres de otro
+    Pokémon, el rombo tapa algo importante, la interfaz provisional sigue visible detrás.
+74. **Explorando.** Arriba a la izquierda, el Pokémon salvaje más cercano (icono y nombre; si no
+    hay ninguno, el nombre de la zona). A la derecha, la Poké Ball elegida y cuántas tienes.
+    Abajo a la izquierda, las guías de botones del juego junto al minimapa del port.
+75. **Esc, equipo, mochila, cajas, Pokédex y mapa (M).** Cada pantalla sale con los gráficos del
+    juego: menú de pausa con la barra de iconos arriba y la lista de opciones; equipo con los
+    iconos de tus Pokémon y su vida; mochila con las casillas e iconos de objetos; cajas en 8 × 4;
+    Pokédex con la página de cuaderno; el mapa de Hisui detrás del mapa de zona. La tienda sigue
+    con la interfaz provisional. Fallo: se ve a la vez la provisional y la original, un icono de
+    otro Pokémon u objeto, la selección marcada no coincide con la que mueves.
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 

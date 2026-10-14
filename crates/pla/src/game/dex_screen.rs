@@ -225,8 +225,9 @@ impl Default for DexUi {
     }
 }
 
+/// Root of the provisional Pokédex (hidden while the original one is shown, `orig_ui`).
 #[derive(Component)]
-struct DexRoot;
+pub struct DexRoot;
 
 #[derive(Component, Clone, Copy)]
 enum DexText {

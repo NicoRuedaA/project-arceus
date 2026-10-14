@@ -302,8 +302,9 @@ pub struct PauseMenu {
 #[derive(Resource, Debug, Clone)]
 pub struct SettingsDir(pub std::path::PathBuf);
 
+/// Root of the provisional pause menu (hidden while the original one is shown, `orig_ui`).
 #[derive(Component)]
-struct PauseRoot;
+pub struct PauseRoot;
 #[derive(Component)]
 struct PauseButton(usize);
 #[derive(Component)]

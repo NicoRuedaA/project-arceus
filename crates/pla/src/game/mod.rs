@@ -47,6 +47,7 @@ pub mod distortion;
 pub mod effects;
 pub mod follower;
 pub mod navigation;
+pub mod orig_ui;
 pub mod outbreak;
 pub mod party_ops;
 pub mod party_progress;

@@ -373,6 +373,7 @@ fn main() -> ExitCode {
                 );
                 println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
                 println!("  --force-alpha [N|all] Debug: make the N nearest (default 1) or all wild creatures alpha (red aura, 2.5x)");
+                println!("  --ui <debug|original>  Provisional UI (default) or the game's own layouts from the local UI cache (PLA_UI, --ui-root)");
                 println!("  --automation          No window: offscreen render + JSON control socket (docs/AUTOMATION.md)");
                 println!("  --story <N> --event-time-scale <F> --distortion-now --outbreak <ID|off> --no-world-events  World events (Brief 39)");
                 return ExitCode::SUCCESS;
@@ -970,6 +971,8 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::follower::FollowerPlugin);
     app.add_plugins(pla::game::capture_world::CaptureWorldPlugin);
     app.add_plugins(trainers);
+    // Original game UI (`--ui original`, default `debug`), read from the local UI cache.
+    app.add_plugins(pla::game::orig_ui::OrigUiPlugin::from_args(&cli_args, &cache_root));
     app.add_plugins(pla::game::npc::NpcPlugin {
         data_dir: None,
         cache_root,
@@ -4303,6 +4306,42 @@ mod startup_schedule_guard {
             "force-alpha",
             &["port_viewer", "--area", "1", "--force-alpha", "all", "--style", "original"],
         );
+    }
+
+    /// `--ui original`: the original-UI plugin (screens spawned when the local UI data exists,
+    /// otherwise the provisional UI stays) starts and runs a few frames.
+    #[test]
+    fn original_ui_starts() {
+        check_viewer_start("original-ui", &["port_viewer", "--area", "1", "--ui", "original"]);
+    }
+
+    /// `--ui original` and the battle path: the original battle screens bind to a running battle.
+    #[test]
+    fn original_ui_trainer_battle_runs() {
+        let (mut app, scratch) =
+            built_app("original-ui-battle", &["port_viewer", "--area", "1", "--ui", "original", "--trainer", "giratina01"]);
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        tap_key(&mut app, KeyCode::KeyV);
+        for _ in 0..30 {
+            app.update();
+        }
+        assert_eq!(*app.world().resource::<State<GameState>>().get(), GameState::Battle);
+        let enabled = app.world().resource::<pla::game::orig_ui::OrigUiConfig>().enabled();
+        let world = app.world_mut();
+        let shown: Vec<_> = world
+            .query::<&pla::game::orig_ui::OrigScreen>()
+            .iter(world)
+            .filter(|s| s.shown)
+            .map(|s| s.id)
+            .collect();
+        if enabled {
+            assert!(shown.contains(&pla::game::orig_ui::ScreenId::BattleHud), "{shown:?}");
+        } else {
+            println!("[skip] no local UI data: original battle screens not checked");
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
     }
 
     /// Every optional registration on: main menu, original art style, debug zone links and shop.
