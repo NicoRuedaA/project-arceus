@@ -480,7 +480,14 @@ pub struct TerrainResource {
 pub struct ZoneBinRoot(pub PathBuf);
 
 /// Resolves baked terrain albedo texture for the given area from cache or bakes at startup.
+/// The baked terrain albedo, reduced to the Graphics screen "Terrain texture" size
+/// ([`super::quality::terrain_texture_max`], 0 = as baked).
 pub fn resolve_terrain_albedo(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
+    resolve_terrain_albedo_full(area_idx, area_data)
+        .map(|t| super::quality::limit_texture(t, super::quality::terrain_texture_max(), true))
+}
+
+fn resolve_terrain_albedo_full(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
     let candidate_dirs = [
         std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
         Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
@@ -531,7 +538,13 @@ pub fn resolve_terrain_albedo(area_idx: u8, area_data: &TerrainArea) -> Option<T
 /// Resolves baked terrain tangent-space normals from cache (same search order as the
 /// albedo), else bakes them at startup. `None` when the area has no layer
 /// normals or the bake fails, so the terrain keeps its albedo-only look.
+/// The baked terrain normals, reduced like [`resolve_terrain_albedo`].
 pub fn resolve_terrain_normals(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
+    resolve_terrain_normals_full(area_idx, area_data)
+        .map(|t| super::quality::limit_texture(t, super::quality::terrain_texture_max(), false))
+}
+
+fn resolve_terrain_normals_full(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
     let candidate_dirs = [
         std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
         Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
