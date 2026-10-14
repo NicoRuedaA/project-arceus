@@ -21,7 +21,7 @@
 
 use pla::assets::{
     gfpak::GfPak,
-    player_model::{build_player_skeleton, write_player_gltf, PlayerExportOptions},
+    player_model::{build_player_skeleton, read_skin_color_table, write_player_gltf, PlayerExportOptions},
     pokemon_model::{assemble_pack_with, LayerBlendFormula, PackLayout, PokemonModel},
     tr,
 };
@@ -29,6 +29,56 @@ use std::{collections::HashMap, env, fs, path::Path, path::PathBuf};
 
 /// Body clips exported when present (motion-set clip suffix, glTF name).
 const CLIPS: &[(&str, &str)] = &[("02001_wait01_loop", "idle"), ("02101_walk01_loop", "walk"), ("02121_run01_loop", "run")];
+
+/// Natural hair colours (sRGB). Hair, skin and eye colours of generic characters are chosen at runtime by a rule that is
+/// NOT in the files found: this deterministic pick by id is SUPPOSED, only so the grey hair/skin masks do not render
+/// white/blue-grey. Named (`tr`) characters keep their own textures untouched.
+const HAIR: &[[u8; 3]] = &[[72, 48, 34], [150, 112, 82], [30, 28, 30], [28, 34, 62], [120, 80, 50], [170, 130, 70], [100, 60, 40], [60, 40, 30]];
+const HAIR_OLD: &[[u8; 3]] = &[[235, 232, 226], [150, 150, 155], [200, 198, 195]];
+const EYES: &[[u8; 3]] = &[[90, 58, 36], [130, 95, 50], [30, 26, 26], [60, 100, 190], [60, 150, 80], [130, 135, 140]];
+
+fn fnv32(s: &str) -> u32 {
+    s.bytes().fold(0x811c_9dc5u32, |h, b| (h ^ u32::from(b)).wrapping_mul(0x0100_0193))
+}
+
+/// Deterministic SUPPOSED colours for a generic character id.
+fn npc_options(id: &str, skin_rows: &[[u8; 3]]) -> PlayerExportOptions {
+    let h = fnv32(id);
+    let old = id.contains("_old_");
+    let hair = if old { HAIR_OLD[(h >> 3) as usize % HAIR_OLD.len()] } else { HAIR[(h >> 3) as usize % HAIR.len()] };
+    PlayerExportOptions {
+        skip_hidden: false,
+        skin_rgb: (!skin_rows.is_empty()).then(|| skin_rows[(h >> 11) as usize % skin_rows.len().min(4)]),
+        hair_rgb: Some(hair),
+        eye_rgb: Some(EYES[(h >> 17) as usize % EYES.len()]),
+    }
+}
+
+/// The pack assembler gives every mesh of a model the FIRST material file. Models with several material files (body, face,
+/// hairstyle... in separate `.trmtr`) then render with one wrong texture (the doctor in purple hair texture). Point each mesh at the
+/// material file that has a block named like its material binding.
+fn assign_material_files(model: &mut PokemonModel, notes: &mut Vec<String>) {
+    let blocks: Vec<(usize, Vec<String>)> = model
+        .materials
+        .iter()
+        .filter(|m| !m.source_name.to_ascii_lowercase().contains("rare"))
+        .map(|m| (m.entry_index, pla::assets::pokemon_material::parse_blocks(&m.raw_bytes).into_iter().map(|b| b.name.to_ascii_lowercase()).collect()))
+        .collect();
+    if blocks.len() < 2 {
+        return;
+    }
+    let mut changed = 0;
+    for mesh in &mut model.meshes {
+        let binding = mesh.material_binding.to_ascii_lowercase();
+        if let Some((entry, _)) = blocks.iter().find(|(_, names)| names.contains(&binding)) {
+            if mesh.material_entry_index != Some(*entry) {
+                mesh.material_entry_index = Some(*entry);
+                changed += 1;
+            }
+        }
+    }
+    notes.push(format!("{} material files, {changed} meshes re-pointed", blocks.len()));
+}
 
 fn read_recipes(path: &str) -> Result<Vec<HashMap<String, String>>, String> {
     let text = fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
@@ -186,7 +236,7 @@ fn rig_offset(bytes: &[u8]) -> u32 {
     .unwrap_or(u32::MAX)
 }
 
-fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>) -> Result<String, String> {
+fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>, skin_rows: &[[u8; 3]]) -> Result<String, String> {
     let id = r.get("name").filter(|n| !n.is_empty()).or_else(|| r.get("hash")).ok_or("recipe row without id")?.clone();
     let kind = r.get("kind").map_or("", String::as_str);
     let mut notes = Vec::new();
@@ -210,7 +260,8 @@ fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>)
                 let files = sub_pack(&bytes, &gp, &dir, &part, &link)?;
                 notes.push(format!("{part}: sub-pack {files} files"));
                 let layout = PackLayout { base: dir.clone(), mdl_dir: "", anm_dir: "", skeleton: Some(&skl), allow_ik: true };
-                let model = assemble_pack_with(&link, &layout).map_err(|e| format!("{part}: {e}"))?;
+                let mut model = assemble_pack_with(&link, &layout).map_err(|e| format!("{part}: {e}"))?;
+                assign_material_files(&mut model, &mut notes);
                 if cat != "base" {
                     if let Some(ext) = entry(&bytes, &gp, &format!("{dir}/{part}.trskl"))? {
                         exts.push((part.clone(), ext));
@@ -243,7 +294,8 @@ fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>)
             let dir = format!("bin/chara/data/tr/{pack_stem}");
             let skl = entry(&bytes, &gp, &format!("{dir}/{pack_stem}.trskl"))?.ok_or("tr skeleton not found")?;
             let layout = PackLayout { base: dir.clone(), mdl_dir: "", anm_dir: "", skeleton: Some(&skl), allow_ik: true };
-            let model = assemble_pack_with(&pack, &layout).map_err(|e| format!("{pack_stem}: {e}"))?;
+            let mut model = assemble_pack_with(&pack, &layout).map_err(|e| format!("{pack_stem}: {e}"))?;
+            assign_material_files(&mut model, &mut notes);
             notes.push(format!("{pack_stem}: {} LOD0 meshes", model.meshes.iter().filter(|m| m.lod == Some(0)).count()));
             models.push(model);
             // tr clips are named after the first two tokens of the pack stem (`tr0023_00_02001_wait01_loop`).
@@ -287,7 +339,17 @@ fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>)
     let dir = out.join(&id);
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let refs: Vec<&PokemonModel> = models.iter().collect();
-    write_player_gltf(&refs, &skel, &usable, dir.join("npc.gltf"), Some(LayerBlendFormula::MaskLerp), PlayerExportOptions::default())?;
+    let options = if kind == "cc" { npc_options(&id, skin_rows) } else { PlayerExportOptions::default() };
+    let gltf = dir.join("npc.gltf");
+    if let Err(e) = write_player_gltf(&refs, &skel, &usable, &gltf, Some(LayerBlendFormula::MaskLerp), options) {
+        if !e.contains("eye block has no LayerMaskMap") {
+            return Err(e);
+        }
+        // Some eye materials have no layer mask to recolour the iris through: keep every
+        // original texture by retrying with the default, uncoloured export options.
+        notes.push(format!("eye colour not applied: {e}"));
+        write_player_gltf(&refs, &skel, &usable, &gltf, Some(LayerBlendFormula::MaskLerp), PlayerExportOptions::default())?;
+    }
     let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
     for m in &models {
         for mesh in m.meshes.iter().filter(|m| m.lod == Some(0)) {
@@ -327,9 +389,16 @@ fn main() -> Result<(), String> {
     }
     let recipes = read_recipes(&opt("--recipes").unwrap_or_else(|| "data/npc_appearance.tsv".into()))?;
     let ids: Vec<String> = opt("--ids").ok_or("--ids is required")?.split(',').map(str::to_owned).collect();
+    // Four skin tones (two groups of the same four rows): SUPPOSED pick by id, see `npc_options`.
+    let table_path = chara.join("../../../chara/table/skin_color_table.bin");
+    let skin_rows: Vec<[u8; 3]> = fs::read(&table_path)
+        .ok()
+        .and_then(|b| read_skin_color_table(&b).ok())
+        .map(|rows| rows.into_iter().map(|(_, rgb)| rgb).collect())
+        .unwrap_or_default();
     for id in &ids {
         match recipes.iter().find(|r| r.get("name") == Some(id) || r.get("hash") == Some(id)) {
-            Some(r) => match export(&chara, &cc_pack, &out, r) {
+            Some(r) => match export(&chara, &cc_pack, &out, r, &skin_rows) {
                 Ok(line) => println!("{line}"),
                 Err(e) => println!("{id}\tblocked\t{e}"),
             },

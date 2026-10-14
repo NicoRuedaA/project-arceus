@@ -1579,7 +1579,12 @@ fn entity_counts(world: &mut World) -> Value {
         npcs += 1;
         npc_models += usize::from(m);
     }
-    let trainers = world.query::<&TrainerNpc>().iter(world).count();
+    let mut trainer_q = world.query::<(&TrainerNpc, Has<super::npc::NpcModelSource>)>();
+    let (mut trainers, mut trainer_models) = (0, 0);
+    for (_, m) in trainer_q.iter(world) {
+        trainers += 1;
+        trainer_models += usize::from(m);
+    }
     let pickups = world.query::<&super::pickups::SpawnMarker>().iter(world).count();
     let meshes = world.query::<&Mesh3d>().iter(world).count();
     json!({
@@ -1589,6 +1594,7 @@ fn entity_counts(world: &mut World) -> Value {
         "npcs": npcs,
         "npcs_with_model_source": npc_models,
         "trainer_markers": trainers,
+        "trainer_markers_with_model_source": trainer_models,
         "pickups": pickups,
         "meshes": meshes,
         "entities": world.entities().len(),
@@ -1706,7 +1712,9 @@ fn entities_json(world: &mut World, kind: EntityKind, limit: usize) -> Value {
         EntityKind::Npc => collect!((&super::npc::NpcInstance, Has<super::npc::NpcModelSource>), |e, t, x| json!({
             "key": x.0.key, "chara": x.0.chara_id, "idle_clip": x.0.idle_clip, "model_source": x.1,
         })),
-        EntityKind::Trainer => collect!(&TrainerNpc, |e, t, x| json!({"key": x.key, "trainer_id": x.trainer_id})),
+        EntityKind::Trainer => collect!((&TrainerNpc, Has<super::npc::NpcModelSource>, Has<super::trainer_encounter::TrainerBeaten>), |e, t, x| json!({
+            "key": x.0.key, "trainer_id": x.0.trainer_id, "model_source": x.1, "beaten_pending_grey": x.2,
+        })),
         EntityKind::Player => collect!(&PlayerAvatar, |e, t, x| { let _ = x; json!({"player": true}) }),
         EntityKind::Camera => collect!(&Camera, |e, t, x| json!({"order": x.order, "active": x.is_active})),
         EntityKind::Named => collect!(&Name, |e, t, x| json!({"name": x.as_str()})),

@@ -16,6 +16,8 @@ use bevy::prelude::*;
 
 use super::clock::GameClock;
 use super::navigation::GameNavmeshResource;
+use super::player_motion::ground_surface_y;
+use super::zone::TerrainResource;
 use super::npc_model::{model_source, spawn_capsule, NpcModelCache, NpcModelPlugin, MODEL_ROOT_ABOVE_GROUND};
 pub use super::npc_model::NpcModelSource;
 use super::state::GameState;
@@ -498,6 +500,12 @@ pub fn step_bounded_look(current_yaw: f32, target_yaw: f32, rate_deg_s: f32, dt:
     }
 }
 
+/// Standing height for a placement: the surface the player walks on (navmesh, then terrain heightmap) when it is
+/// within 3 m of the sheet's Y; otherwise the sheet's Y (interiors, roofs and platforms are not on that surface).
+pub fn snap_ground_y(position: [f32; 3], surface: Option<f32>) -> f32 {
+    surface.filter(|y| y.is_finite() && (y - position[1]).abs() <= 3.0).unwrap_or(position[1])
+}
+
 pub fn should_instance(player_xz: Vec2, npc_xz: Vec2, alive: bool) -> bool {
     should_be_alive(player_xz, npc_xz, alive, LOAD_RADIUS, UNLOAD_RADIUS)
 }
@@ -532,7 +540,7 @@ fn refresh_npc_selection(
             .iter()
             .filter(|row| row.area == zone.area)
             // A placed trainer is drawn by its marker (trainer_encounter), not twice.
-            .filter(|row| !trainers.as_ref().is_some_and(|t| t.markers && t.placements.iter().any(|p| p.key == row.key)))
+            .filter(|row| !trainers.as_deref().is_some_and(|t| t.has_enabled_marker_key(&row.key)))
             .cloned()
             .collect::<Vec<_>>(),
         slot,
@@ -553,6 +561,8 @@ fn stream_npcs(
     mut world: ResMut<NpcWorld>,
     player: Query<&Transform, With<PlayerAvatar>>,
     nav: Option<Res<GameNavmeshResource>>,
+    terrain: Option<Res<TerrainResource>>,
+    trainers: Option<Res<TrainerWorld>>,
     asset_server: Option<Res<AssetServer>>,
     mut models: ResMut<NpcModelCache>,
     mut meshes: Option<ResMut<Assets<Mesh>>>,
@@ -561,21 +571,36 @@ fn stream_npcs(
     let Ok(player) = player.single() else { return };
     let player_xz = Vec2::new(player.translation.x, player.translation.z);
     let active_keys: HashMap<String, ()> =
-        world.active.iter().map(|p| (p.key.clone(), ())).collect();
+        world
+            .active
+            .iter()
+            .filter(|p| !trainers.as_deref().is_some_and(|t| t.has_enabled_marker_key(&p.key)))
+            .map(|p| (p.key.clone(), ()))
+            .collect();
     let to_remove: Vec<(String, Entity)> = world
         .spawned
         .iter()
         .filter(|(key, _)| !active_keys.contains_key(*key))
         .map(|(key, entity)| (key.clone(), *entity))
-        .chain(world.spawned.iter().filter_map(|(key, entity)| {
-            let placement = world.active.iter().find(|p| p.key == *key)?;
-            let alive = should_instance(
-                player_xz,
-                Vec2::new(placement.position[0], placement.position[2]),
-                true,
-            );
-            (!alive).then_some((key.clone(), *entity))
-        }))
+        .chain(
+            world
+                .spawned
+                .iter()
+                .filter(|(key, _)| {
+                    !trainers
+                        .as_deref()
+                        .is_some_and(|t| t.has_enabled_marker_key((*key).as_str()))
+                })
+                .filter_map(|(key, entity)| {
+                    let placement = world.active.iter().find(|p| p.key == *key)?;
+                    let alive = should_instance(
+                        player_xz,
+                        Vec2::new(placement.position[0], placement.position[2]),
+                        true,
+                    );
+                    (!alive).then_some((key.clone(), *entity))
+                }),
+        )
         .collect();
     for (key, entity) in to_remove {
         commands.entity(entity).despawn();
@@ -586,6 +611,11 @@ fn stream_npcs(
         .active
         .iter()
         .filter(|placement| !world.spawned.contains_key(&placement.key))
+        .filter(|placement| {
+            !trainers
+                .as_deref()
+                .is_some_and(|t| t.has_enabled_marker_key(&placement.key))
+        })
         .filter(|placement| {
             should_instance(
                 player_xz,
@@ -608,6 +638,7 @@ fn stream_npcs(
             &world,
             &placement,
             nav.as_deref(),
+            terrain.as_deref(),
             asset_server.as_deref(),
             &mut models,
             meshes.as_deref_mut(),
@@ -622,15 +653,13 @@ fn spawn_npc(
     world: &NpcWorld,
     placement: &NpcPlacement,
     nav: Option<&GameNavmeshResource>,
+    terrain: Option<&TerrainResource>,
     asset_server: Option<&AssetServer>,
     models: &mut NpcModelCache,
     mut meshes: Option<&mut Assets<Mesh>>,
     mut materials: Option<&mut Assets<StandardMaterial>>,
 ) -> Entity {
-    let ground_y = nav
-        .and_then(|nav| nav.height_at(placement.position[0], placement.position[2]))
-        .filter(|height| (height - placement.position[1]).abs() > 0.5)
-        .unwrap_or(placement.position[1]);
+    let ground_y = snap_ground_y(placement.position, ground_surface_y(terrain, nav, placement.position[0], placement.position[2]));
     let base_yaw = placement.yaw_deg.to_radians();
     let appearance = world.appearances.get(&placement.chara_hash);
     let idle_clip = appearance.and_then(|appearance| {

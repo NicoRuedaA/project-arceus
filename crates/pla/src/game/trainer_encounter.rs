@@ -26,7 +26,10 @@ use super::save_wire::SaveToast;
 use super::state::{not_paused, GameState};
 use super::trainer_data::{NobleCatalog, TrainerCatalog};
 use super::ui::ActiveZoneInfo;
-use super::npc::NpcWorld;
+use super::navigation::GameNavmeshResource;
+use super::npc::{snap_ground_y, NpcWorld};
+use super::player_motion::ground_surface_y;
+use super::zone::TerrainResource;
 use super::npc_model::{model_source, NpcModelCache, NpcModelPlugin, NpcModelSource, NpcSceneSpawned};
 use super::world_objects::{find_data_file, DEFAULT_CACHE_ROOT};
 use super::PlayerAvatar;
@@ -112,6 +115,11 @@ pub struct TrainerWorld {
 impl TrainerWorld {
     pub fn in_area<'a>(&'a self, area: &'a str) -> impl Iterator<Item = &'a PlacedTrainer> + 'a {
         self.placements.iter().filter(move |p| p.area == area)
+    }
+
+    /// Whether an enabled world marker owns this placement key.
+    pub fn has_enabled_marker_key(&self, key: &str) -> bool {
+        self.markers && self.placements.iter().any(|p| p.key == key)
     }
 }
 
@@ -292,6 +300,8 @@ pub fn spawn_zone_trainers(
     asset_server: Option<Res<AssetServer>>,
     models: Option<ResMut<NpcModelCache>>,
     npc_world: Option<Res<NpcWorld>>,
+    terrain: Option<Res<TerrainResource>>,
+    nav: Option<Res<GameNavmeshResource>>,
 ) {
     let mut models = models;
     if !world.markers {
@@ -308,7 +318,8 @@ pub fn spawn_zone_trainers(
     let mut n = 0;
     for p in world.in_area(&zone.area) {
         let beaten = defeated.0.contains(&p.trainer_id);
-        let xf = Transform::from_translation(Vec3::from(p.position) + Vec3::Y * 0.9)
+        let ground = snap_ground_y(p.position, ground_surface_y(terrain.as_deref(), nav.as_deref(), p.position[0], p.position[2]));
+        let xf = Transform::from_translation(Vec3::new(p.position[0], ground + 0.9, p.position[2]))
             .with_rotation(Quat::from_rotation_y(p.yaw_deg.to_radians()));
         let mut e = commands.spawn((
             TrainerNpc { key: p.key.clone(), trainer_id: p.trainer_id.clone() },
@@ -460,6 +471,24 @@ mod tests {
         assert_eq!(placed_trainers(&text, &c), p);
     }
 
+    #[test]
+    fn marker_key_filter_only_matches_enabled_trainer_markers() {
+        let mut world = TrainerWorld { markers: true, ..default() };
+        world.placements.push(PlacedTrainer {
+            area: "ha_area02".into(),
+            key: "area02_npc_guard_009".into(),
+            model_pack: "tr_guard".into(),
+            position: [0.0; 3],
+            yaw_deg: 0.0,
+            trainer_id: "guard".into(),
+        });
+
+        assert!(world.has_enabled_marker_key("area02_npc_guard_009"));
+        assert!(!world.has_enabled_marker_key("other_npc"));
+        world.markers = false;
+        assert!(!world.has_enabled_marker_key("area02_npc_guard_009"));
+    }
+
     fn app(dir: &Path) -> Option<App> {
         let assets = BattleAssets::load(data_root()).ok()?;
         let plugin = TrainerEncounterPlugin { markers: true, forced: None, data_dir: Some(data_root()) };
@@ -554,6 +583,7 @@ mod tests {
             app.update();
             *app.world_mut().resource_mut::<ActionState>() = ActionState::default();
         }
+        app.update(); // Let Update systems record the finished trainer result.
         let (prize, log) = {
             let s = app.world().resource::<ActiveBattleSession>();
             assert!(s.battle.ended, "{:?}", s.log_lines);
