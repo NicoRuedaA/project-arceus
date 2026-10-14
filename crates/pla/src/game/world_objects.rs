@@ -244,6 +244,8 @@ pub(crate) struct WorldObjects {
     prims: HashMap<String, Prims>,
     /// Local geometry of the water models (bounds + XZ triangles), for the world water bodies.
     water_meshes: HashMap<String, WaterMesh>,
+    /// Models whose skinned primitive had to be skipped (one log line each).
+    skip_warned: HashSet<String>,
     rot_mode: RotMode,
 }
 
@@ -282,6 +284,7 @@ impl Plugin for WorldObjectsPlugin {
             handles: HashMap::new(),
             prims: HashMap::new(),
             water_meshes: HashMap::new(),
+            skip_warned: HashSet::new(),
             rot_mode: self.rot_mode,
         });
         app.add_systems(Update, stream_objects);
@@ -354,6 +357,7 @@ impl WorldObjects {
             handles: HashMap::new(),
             prims: HashMap::new(),
             water_meshes: HashMap::new(),
+            skip_warned: HashSet::new(),
             rot_mode,
         }
     }
@@ -378,6 +382,40 @@ fn mesh_xz_triangles(mesh: &Mesh) -> Vec<[Vec2; 3]> {
     out
 }
 
+/// The mesh handle a static placed-object primitive is drawn with.
+///
+/// Bevy picks the **skinned** mesh pipeline and bind group from the mesh layout alone
+/// (`is_skinned`: `JOINT_INDEX` + `JOINT_WEIGHT` attributes). A placed object is spawned as a
+/// plain `Mesh3d` without `SkinnedMesh` or skin uniforms, so a skinned glTF primitive (the area 00
+/// flag props `objects_area00_house04_b_flag` / `_house11_flag`, the only 2 of the 393 streamable
+/// placed models) bound the model-only bind group against the skinned layout and the render
+/// pipeline failed wgpu validation, quitting the viewer — latent until the placed objects started
+/// spawning at all. The props do not animate in the port, so a copy without the joint attributes
+/// is correct and keeps them visible; `handle` itself is returned when the mesh is already static
+/// and `None` when its data cannot be read (a `RENDER_WORLD`-only asset), which makes the caller
+/// skip the primitive with one log line.
+fn static_placed_mesh(meshes: &mut Assets<Mesh>, handle: &Handle<Mesh>) -> Option<Handle<Mesh>> {
+    let stripped = {
+        let mesh = meshes.get(handle)?;
+        let skinned = [Mesh::ATTRIBUTE_JOINT_INDEX, Mesh::ATTRIBUTE_JOINT_WEIGHT]
+            .into_iter()
+            .any(|attribute| mesh.try_contains_attribute(attribute).unwrap_or(false));
+        if !skinned {
+            return Some(handle.clone());
+        }
+        let mut copy = mesh.clone();
+        for attribute in [Mesh::ATTRIBUTE_JOINT_INDEX, Mesh::ATTRIBUTE_JOINT_WEIGHT] {
+            if copy.try_contains_attribute(attribute).unwrap_or(false)
+                && copy.try_remove_attribute(attribute).is_err()
+            {
+                return None;
+            }
+        }
+        copy
+    };
+    Some(meshes.add(stripped))
+}
+
 #[derive(Component)]
 #[allow(dead_code)]
 struct PlacedObject(usize);
@@ -391,7 +429,7 @@ fn stream_objects(
     gltfs: Res<Assets<Gltf>>,
     gltf_meshes: Res<Assets<GltfMesh>>,
     gltf_materials: Res<Assets<GltfMaterial>>,
-    meshes: Res<Assets<Mesh>>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut water_materials: ResMut<Assets<WaterMaterial>>,
     mut water_bodies: Option<ResMut<WaterBodies>>,
@@ -499,7 +537,18 @@ fn stream_objects(
                         };
                         PrimMaterial::Standard(standard_materials.add(sm))
                     };
-                    prims.push((prim.mesh.clone(), pm));
+                    // A skinned primitive cannot be drawn as a plain static `Mesh3d` (see the
+                    // helper); the props do not animate, so a stripped copy is drawn instead.
+                    let Some(mesh) = static_placed_mesh(&mut meshes, &prim.mesh) else {
+                        if wo.skip_warned.insert(p.model.clone()) {
+                            eprintln!(
+                                "World objects: primitive '{}' of {} skipped (mesh data not readable as a static mesh; cannot guarantee a non-skinned layout)",
+                                gm.name, p.model
+                            );
+                        }
+                        continue;
+                    };
+                    prims.push((mesh, pm));
                 }
             }
             if has_water_geometry {
@@ -553,6 +602,8 @@ fn stream_objects(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::asset::RenderAssetUsages;
+    use bevy::mesh::{Indices, PrimitiveTopology};
 
     const T: &str = "# c\narea:string*\tinstance_id:string*\tobject_key:string\tmodel_hash:string\tmodel_name:string?\tmodel_status:enum\tx:f32\ty:f32\tz:f32\trot_x:f32?\trot_y:f32?\trot_z:f32?\tscale_x:f32?\tscale_y:f32?\tscale_z:f32?\tgate_flags:string?\n\
 ha_area00\ta\tk\th\tobjects_a\tok\t1\t2\t3\t\t90\t\t1.2\t1.2\t1.2\t\n\
@@ -708,6 +759,135 @@ ha_area01\td\tk\th\tobjects_d\tok\t1\t2\t3\t\t\t\t\t\t\t\n";
             asset,
             "cache/gltf_field/ha_area00/objects_area00_house01_a.gltf"
         );
+    }
+
+    /// A skinned placed-object primitive must be drawn as a static mesh: Bevy picks the skinned
+    /// pipeline and bind group from `JOINTS_0`/`WEIGHTS_0` alone, and a placed object is spawned
+    /// without `SkinnedMesh` or skin uniforms, so the model-only bind group failed wgpu validation
+    /// and quit the viewer (the area 00 flag props; latent until the placed objects spawned at
+    /// all). The stripped copy keeps every other attribute and the original asset is untouched.
+    #[test]
+    fn skinned_primitives_are_stripped_for_static_placement() {
+        let mut meshes = Assets::<Mesh>::default();
+        let source = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        )
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            vec![[0.0f32, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        )
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0f32, 0.0, 1.0]; 3])
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0f32, 0.0]; 3])
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_JOINT_INDEX,
+            VertexAttributeValues::Uint16x4(vec![[0u16, 0, 0, 0]; 3]),
+        )
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_JOINT_WEIGHT,
+            VertexAttributeValues::Float32x4(vec![[1.0f32, 0.0, 0.0, 0.0]; 3]),
+        )
+        .with_inserted_indices(Indices::U32(vec![0, 1, 2]));
+        let handle = meshes.add(source);
+        let static_handle = static_placed_mesh(&mut meshes, &handle).expect("stripped copy");
+        assert_ne!(static_handle, handle, "the shared glTF mesh is left alone");
+        let stripped = meshes.get(&static_handle).expect("copy in the assets");
+        assert!(!stripped.contains_attribute(Mesh::ATTRIBUTE_JOINT_INDEX));
+        assert!(!stripped.contains_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT));
+        assert!(stripped.contains_attribute(Mesh::ATTRIBUTE_POSITION));
+        assert!(stripped.contains_attribute(Mesh::ATTRIBUTE_NORMAL));
+        assert!(stripped.contains_attribute(Mesh::ATTRIBUTE_UV_0));
+        assert_eq!(stripped.indices(), Some(&Indices::U32(vec![0, 1, 2])));
+        assert!(meshes
+            .get(&handle)
+            .unwrap()
+            .contains_attribute(Mesh::ATTRIBUTE_JOINT_INDEX));
+        // A static mesh keeps its handle; a missing asset is refused so the caller can skip it.
+        let plain = meshes.add(Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        ));
+        assert_eq!(static_placed_mesh(&mut meshes, &plain), Some(plain));
+        assert!(static_placed_mesh(&mut meshes, &Handle::<Mesh>::default()).is_none());
+    }
+
+    /// Real-data scan of the skinned placed props: of the streamable models across all areas,
+    /// exactly the two area 00 flag props carry `JOINTS_0`/`WEIGHTS_0` (and declare `skins`), and
+    /// every skinned primitive keeps POSITION/NORMAL/UV, so stripping the joints leaves a complete
+    /// static mesh (see `skinned_primitives_are_stripped_for_static_placement`). Skips without the
+    /// git-ignored cache.
+    #[test]
+    fn real_skinned_placed_models_are_strip_safe() {
+        let cache_root = Path::new(DEFAULT_CACHE_ROOT);
+        let Some(sheet) = find_data_file("field_object_placements.tsv") else {
+            return;
+        };
+        if find_data_file("field_model_export_index.tsv").is_none() || !cache_root.is_dir() {
+            return;
+        }
+        let paths = model_paths(cache_root);
+        let sheet_text = std::fs::read_to_string(sheet).unwrap();
+        let mut models: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for area in 0..=5u8 {
+            let name = format!("ha_area{area:02}");
+            for p in keep_streamable_placements(
+                parse_placements_for_spawn(&sheet_text, &name),
+                &HashSet::new(),
+                &paths,
+            ) {
+                models.insert(p.model);
+            }
+        }
+        let mut skinned = Vec::new();
+        for model in &models {
+            let Some((path, _)) = paths.get(model) else {
+                continue;
+            };
+            let Ok(text) = std::fs::read_to_string(path) else {
+                continue;
+            };
+            let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
+                continue;
+            };
+            let has_skins = json
+                .get("skins")
+                .and_then(|s| s.as_array())
+                .is_some_and(|s| !s.is_empty());
+            for mesh in json["meshes"].as_array().into_iter().flatten() {
+                for prim in mesh["primitives"].as_array().into_iter().flatten() {
+                    let attrs = &prim["attributes"];
+                    if attrs.get("JOINTS_0").is_none() && attrs.get("WEIGHTS_0").is_none() {
+                        continue;
+                    }
+                    skinned.push((
+                        model.clone(),
+                        has_skins,
+                        attrs.get("POSITION").is_some(),
+                        attrs.get("NORMAL").is_some(),
+                        attrs.get("TEXCOORD_0").is_some(),
+                    ));
+                }
+            }
+        }
+        assert!(
+            skinned
+                .iter()
+                .any(|(m, ..)| m == "objects_area00_house04_b_flag")
+                && skinned
+                    .iter()
+                    .any(|(m, ..)| m == "objects_area00_house11_flag"),
+            "the two skinned flag props must be in the streamable set: {skinned:?}"
+        );
+        for (model, has_skins, position, normal, uv) in &skinned {
+            assert!(
+                *has_skins,
+                "{model}: JOINTS_0/WEIGHTS_0 without a skin declaration"
+            );
+            assert!(
+                *position && *normal && *uv,
+                "{model}: a skinned primitive lacks POSITION/NORMAL/TEXCOORD_0"
+            );
+        }
     }
 
     /// A `blocked` sheet row whose model the index exports `ok` must spawn; a model blocked in the
