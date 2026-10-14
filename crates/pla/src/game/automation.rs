@@ -1198,23 +1198,47 @@ fn start_battle(app: &mut App, ctx: &mut Ctx, spec: &BattleSpec) -> Result<Value
                 .ok_or_else(|| format!("unknown species '{species}'"))?;
             let fwd = player.rotation * Vec3::Z;
             let pos = player.translation + Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(Vec3::Z) * 1.5;
-            world.spawn((
-                WildCreature {
-                    species_name: species.clone(),
-                    national_dex: dex,
-                    level: (*level).max(1),
-                    spawn_pos: pos,
-                    aggro_range: 2.8,
-                    in_battle: false,
-                    defeated: false,
-                    spawner_id: "automation".into(),
-                },
-                AutomationSpawned,
-                Transform::from_translation(pos),
-                Visibility::default(),
-                Name::new(format!("automation wild {species}")),
-            ));
-            via = format!("wild {species} (#{dex}) spawned 1.5 m from the player; real encounter system");
+            let level = (*level).max(1);
+            let entity = world
+                .spawn((
+                    WildCreature {
+                        species_name: species.clone(),
+                        national_dex: dex,
+                        level,
+                        spawn_pos: pos,
+                        aggro_range: 2.8,
+                        in_battle: true,
+                        defeated: false,
+                        spawner_id: "automation".into(),
+                    },
+                    AutomationSpawned,
+                    Transform::from_translation(pos),
+                    Visibility::default(),
+                    Name::new(format!("automation wild {species}")),
+                ))
+                .id();
+            // The same call the viewer's encounter system makes (its lead is the demo Pikachu; the
+            // saved party replaces it when the battle starts). Started directly so a creature
+            // already in aggro range cannot take the battle first.
+            let session = ActiveBattleSession::start(
+                assets(world)?,
+                "pikachu",
+                super::save_wire::DEFAULT_LEAD_LEVEL,
+                species,
+                level,
+                dex,
+                entity,
+            );
+            let session = match session {
+                Ok(s) => s,
+                Err(e) => {
+                    world.despawn(entity);
+                    return Err(format!("cannot start a battle against {species}: {e}"));
+                }
+            };
+            world.insert_resource(session);
+            world.resource_mut::<NextState<GameState>>().set(GameState::Battle);
+            via = format!("wild {species} (#{dex}) spawned 1.5 m from the player; session started directly");
         }
         BattleSpec::NearestWild => {
             let mut q = world.query::<(&Transform, &WildCreature)>();
@@ -1231,7 +1255,7 @@ fn start_battle(app: &mut App, ctx: &mut Ctx, spec: &BattleSpec) -> Result<Value
                 t.translation.x = pos.x + 1.0;
                 t.translation.z = pos.z;
             }
-            via = format!("player moved next to the nearest wild {name}; real encounter system");
+            via = format!("player moved next to the nearest wild {name}; viewer encounter system");
         }
     }
     let (n, ok) = ctx.step_until(app, 60, in_battle);
@@ -1572,10 +1596,16 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
     let screens = open_screens(world);
     let paused = world.get_resource::<Paused>().is_some_and(|p| p.0);
     let game_state = state_name(world);
+    // A transition requested this frame (e.g. an encounter) only shows in `game_state` next frame.
+    let next_state = world.get_resource::<NextState<GameState>>().and_then(|n| match n {
+        NextState::Pending(s) | NextState::PendingIfNeq(s) => Some(format!("{s:?}")),
+        NextState::Unchanged => None,
+    });
     let battle = battle_json(world);
     let counts = entity_counts(world);
     json!({
         "game_state": game_state,
+        "next_state": next_state,
         "paused": paused,
         "zone_loading": loading,
         "zone": zone,

@@ -3643,6 +3643,11 @@ fn sync_arena_player_model(
     }
 }
 
+// Automation mode (`--automation`) tests: no window, socket session.
+#[cfg(test)]
+#[path = "port_viewer_tests/automation.rs"]
+mod automation_tests;
+
 /// Start-up guard (`cargo test -p pla --example port_viewer`, also part of `cargo test -p pla`).
 ///
 /// Builds the viewer's app through the same [`configure_viewer`] as `main`, but with no window,
@@ -3659,10 +3664,6 @@ fn sync_arena_player_model(
 /// game in a scratch save directory instead of the player's save; and anything that only happens
 /// later (state changes such as entering a battle, input, streaming far away) is initialised in
 /// step 1 but never run.
-#[cfg(test)]
-#[path = "port_viewer_tests/automation.rs"]
-mod automation_tests;
-
 #[cfg(test)]
 mod startup_schedule_guard {
     use super::*;
