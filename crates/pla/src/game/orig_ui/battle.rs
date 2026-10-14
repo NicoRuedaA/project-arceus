@@ -234,7 +234,28 @@ fn bind_rows(s: &mut OrigScreen, sess: &ActiveBattleSession, icons: &IconIndex) 
                 s.set_in(&part, "T_pp_00", |o| o.text = None);
                 s.set_in(&part, "T_pp_01", |o| o.text = Some(d));
                 s.set_in(&part, "T_pp_02", |o| o.text = None);
-                s.set_in(&part, "P_type_icon_00", |o| o.visible = Some(false));
+                // The type diamond shows the item / Pokemon icon instead (neutral colour).
+                s.stop(inst, "type");
+                let idx = sess.list_cursor / GRID_SLOTS * GRID_SLOTS + k;
+                let icon = match sess.menu_state {
+                    BattleMenuState::ItemSelect => sess
+                        .bag_view()
+                        .get(idx)
+                        .and_then(|(e, _)| icons.item(e.item_id)),
+                    BattleMenuState::SwitchSelect => sess
+                        .battle
+                        .sides
+                        .first()
+                        .and_then(|side| side.get(idx))
+                        .and_then(|&ci| icons.pokemon(sess.battle.combatants[ci].species.dex, 0)),
+                    _ => None,
+                };
+                s.set_in(&part, "P_type_icon_00", |o| {
+                    o.visible = Some(icon.is_some());
+                    o.scale = Some([1.0, 1.0]);
+                    o.size = Some([56.0, 56.0]);
+                    o.image = icon;
+                });
             }
         }
         // Selected row: the game's select / unselect animations at rest.
