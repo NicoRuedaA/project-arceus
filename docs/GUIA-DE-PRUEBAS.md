@@ -12,6 +12,10 @@ Cómo leer las etiquetas:
 - **[PENDIENTE]** = está en otra rama que aún no se ha unido a `main` (hoy solo `feat/interiors`). No está en tu juego.
 - **SUPUESTO** = una cifra o un aspecto inventado por nosotros porque el juego original no lo
   dejó claro. Puede verse o notarse distinto al juego de verdad. Ver la sección 3.
+- **VERIFICADO** = comprobado con una prueba de código o una comprobación directa de datos; no
+  significa paridad visual con el juego.
+- **PROBABLE** = coincide con los datos y con la comparación visual local, pero aún tiene límites
+  o partes desconocidas. **DESCONOCIDO** significa que no hay evidencia suficiente.
 
 ---
 
@@ -515,7 +519,15 @@ Se puede apagar con `--no-audio`. Nadie ha escuchado nada hasta ahora.
 
 Arranca con `./play.sh --area 1` (la interfaz original es la de por defecto; `--ui debug` fuerza la provisional). Las teclas y lo que hace cada pantalla no
 cambian: solo cambia el dibujo. Los textos son del port, en inglés (los del juego no se usan).
-Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
+Capturas de evidencia en `/home/nico/work/capturas_ui2/`. El inventario **VERIFICADO** es 24/24
+PNG: pausa, equipo, resumen, mochila, cajas, Pokédex, mapa y combate, cada uno a 1280×720,
+1920×1080 y 2560×1440. El reintento fue sin ventana, con GPU, sin audio y terminó limpiamente.
+La mochila poblada muestra un icono de relleno para el objeto seleccionado y el texto `Item #169`;
+los IDs 17 y 1710 están confirmados solo por comando/estado. Las cajas muestran `Box 1 / 32` con
+4 Pokémon almacenados; el combate muestra Bidoof Nv. 5, el HUD de Pikachu, la rueda de comandos y
+la lista de movimientos. La evidencia es solo del port: los enlaces siguen parciales, el texto es
+propio del port, los iconos de relleno y algunas posiciones de cuadrícula persisten, y no demuestra
+paridad visual nativa ni binary matching.
 
 73. **Combate.** Abajo a la izquierda, tu Pokémon sobre la mancha de tinta azul (nombre, nivel,
     barra de vida verde/amarilla/roja y números). Arriba en el centro, el rival (nombre, nivel,
@@ -527,12 +539,16 @@ Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
 74. **Explorando.** Arriba a la izquierda, el Pokémon salvaje más cercano (icono y nombre; si no
     hay ninguno, el nombre de la zona). A la derecha, la Poké Ball elegida y cuántas tienes.
     Abajo a la izquierda, las guías de botones del juego junto al minimapa del port.
-75. **Esc, equipo, mochila, cajas, Pokédex y mapa (M).** Cada pantalla sale con los gráficos del
-    juego: menú de pausa con la barra de iconos arriba y la lista de opciones; equipo con los
-    iconos de tus Pokémon y su vida; mochila con las casillas e iconos de objetos; cajas en 8 × 4;
-    Pokédex con la página de cuaderno; el mapa de Hisui detrás del mapa de zona. La tienda sigue
-    con la interfaz provisional. Fallo: se ve a la vez la provisional y la original, un icono de
-    otro Pokémon u objeto, la selección marcada no coincide con la que mueves.
+75. **Esc, equipo, resumen, mochila, cajas, Pokédex y mapa (M).** Cada pantalla sale con los
+     gráficos del juego: menú de pausa con 16 filas dentro de la franja inferior y la barra de
+     iconos arriba; equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila con
+     las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5; Pokédex con la página de
+     cuaderno; el mapa de Hisui con el área actual resaltada detrás del mapa de zona. En combate,
+     la placa del rival flota sobre el Pokémon cargado y se mantiene dentro de la pantalla. La
+     tienda sigue con la interfaz provisional y algunos detalles de las pantallas siguen
+     PROBABLES o DESCONOCIDOS. Fallo: se ve a la vez la provisional y la original, un icono de
+     otro Pokémon u objeto, la selección marcada no coincide con la que mueves, una fila se sale
+     por abajo en 720p/1080p/1440p o las letras acentuadas muestran un cuadro.
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 
