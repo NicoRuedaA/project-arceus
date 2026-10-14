@@ -225,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "cc418f67ac4ac30128c47369d624464fd27eb0f718b6b0655c744bfa413537ac"
+        "sha256": "a060808e92738d6467579e08411500e48ff59593ff5e47224e236f0a5fbbee80"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -745,7 +745,7 @@
       },
       {
         "path": "crates/pla/src/game/orig_ui/mod.rs",
-        "sha256": "b4d49fe3f697e5ba853f6f76b4b470fbc972f321231ff30261ac7ff0653bbe53"
+        "sha256": "ff2834d7fd93f7900c0fc4361b4ab8f7cac1d4bc6b276f4ad3e5d59a5ee98f0c"
       },
       {
         "path": "crates/pla/src/game/orig_ui/scene.rs",
@@ -753,7 +753,7 @@
       },
       {
         "path": "crates/pla/src/game/orig_ui/tests.rs",
-        "sha256": "80e8d191d27846b1fd6c79195f39254721807040d4b53eb9273a060ac3748a2c"
+        "sha256": "b793c58cd91691c63ea2f840590253df2c330a113b7409164942f9172bcd5d06"
       },
       {
         "path": "crates/pla/src/game/outbreak.rs",
@@ -1033,7 +1033,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "c9ea729610af867bbb29a9ea7dab622063c84aea040fb293cc1ba2b6dc6ef2b1"
+    "sha256": "e9160dc55c3c722b0d844e0d89571d6bac6caa53f51f24f00e9b3271ed0f67b4"
   },
   "state_partitions": {
     "analysis_documentation_status": {
