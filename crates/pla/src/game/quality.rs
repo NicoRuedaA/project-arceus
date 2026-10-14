@@ -700,14 +700,20 @@ fn sync_render_scale(
     mut images: ResMut<Assets<Image>>,
     windows: Query<&Window>,
     primary: Query<&Window, With<PrimaryWindow>>,
-    mut cams: Query<(Entity, &mut RenderTarget, Has<IsDefaultUiCamera>), (With<Camera3d>, Without<RenderScaleCompositor>)>,
+    mut cams: Query<
+        (Entity, &mut RenderTarget, &mut Projection, Has<IsDefaultUiCamera>),
+        (With<Camera3d>, Without<RenderScaleCompositor>),
+    >,
     mut comp: Query<&mut RenderTarget, (With<RenderScaleCompositor>, Without<Camera3d>)>,
 ) {
     let want = scale.percent != 100;
     if !want {
         if let (Some(cam), Some(output)) = (st.camera, st.output.clone()) {
-            if let Ok((_, mut t, _)) = cams.get_mut(cam) {
+            if let Ok((_, mut t, mut proj, _)) = cams.get_mut(cam) {
                 *t = output;
+                // Bevy recomputes a camera's target size only when the camera, its projection or
+                // the target image/window changed: touch the projection so the size follows.
+                proj.set_changed();
                 if st.camera_was_ui {
                     commands.entity(cam).insert(IsDefaultUiCamera);
                 }
@@ -723,7 +729,7 @@ fn sync_render_scale(
         return;
     }
     // The main 3D camera (the viewer has one).
-    let Some((cam, mut target, is_ui)) = cams.iter_mut().next() else { return };
+    let Some((cam, mut target, mut proj, is_ui)) = cams.iter_mut().next() else { return };
     if st.camera != Some(cam) {
         // First activation (or the camera was replaced): remember where it drew.
         let output = target.clone();
@@ -731,6 +737,7 @@ fn sync_render_scale(
         let (sw, sh) = scaled_size(w, h, scale.percent);
         let image = images.add(Image::new_target_texture(sw, sh, TextureFormat::Rgba8UnormSrgb, None));
         *target = RenderTarget::Image(image.clone().into());
+        proj.set_changed();
         commands.entity(cam).remove::<IsDefaultUiCamera>();
         let compositor = commands
             .spawn((
@@ -773,6 +780,7 @@ fn sync_render_scale(
         if !ours {
             st.output = Some(target.clone());
             *target = RenderTarget::Image(img.into());
+            proj.set_changed();
             commands.entity(cam).remove::<IsDefaultUiCamera>();
         }
     }
@@ -791,6 +799,7 @@ fn sync_render_scale(
                 if let Some(mut img) = images.get_mut(&handle) {
                     img.resize(Extent3d { width: sw, height: sh, depth_or_array_layers: 1 });
                 }
+                proj.set_changed();
             }
         }
     }
