@@ -704,6 +704,47 @@ Para mandar órdenes sueltas (lo que suele hacer el asistente):
 
 Todas las órdenes y ejemplos están en [`docs/AUTOMATION.md`](AUTOMATION.md) (en inglés).
 
+### Prueba automática de modelos de PNJ y entrenadores (1920×1080)
+
+Esta prueba no abre una ventana. Necesita GPU: con `--no-gpu` las capturas responden
+`unavailable`.
+
+1. Prepara la carpeta de capturas y arranca el área 00 a 1920×1080:
+
+   ```sh
+   CAP=/home/nico/work/capturas_npc
+   mkdir -p "$CAP"
+   .tools/gamectl.py start --size 1920x1080 -- --area 0 --time-slot 1
+   .tools/gamectl.py wait 5
+   .tools/gamectl.py entities npc --limit 20
+   .tools/gamectl.py entities trainer --limit 20
+   ```
+
+2. Elige un PNJ visible de `entities npc`, usa sus coordenadas `x,z` y haz dos capturas:
+
+   ```sh
+   .tools/gamectl.py cmd '{"cmd":"teleport","x":X,"z":Z}'
+   .tools/gamectl.py shot "$CAP/area00-pnj-cerca.png" --width 1920 --height 1080 --distance 3
+   .tools/gamectl.py shot "$CAP/area00-pnj-media.png" --width 1920 --height 1080 --distance 8
+   ```
+
+3. Cambia a un área `N` que tenga una fila en `entities trainer`, repite `entities trainer`, elige un
+   entrenador visible y captura a distancia cercana y media:
+
+   ```sh
+   .tools/gamectl.py cmd '{"cmd":"teleport_zone","area":N}'
+   .tools/gamectl.py wait 5
+   .tools/gamectl.py cmd '{"cmd":"teleport","x":X,"z":Z}'
+   .tools/gamectl.py shot "$CAP/areaN-entrenador-cerca.png" --width 1920 --height 1080 --distance 3
+   .tools/gamectl.py shot "$CAP/areaN-entrenador-media.png" --width 1920 --height 1080 --distance 8
+   .tools/gamectl.py stop
+   ```
+
+4. En cada PNG revisa: pose en T o congelada, pies flotando o hundidos, caras negras y cortes del modelo.
+   Ropa, pelo o piel blancos se anotan como observación **SUPUESTO**, no como prueba de color correcto o
+   incorrecto: no hay verificación píxel a píxel. En `/home/nico/work/capturas_npc/LEEME.txt` escribe fecha,
+   área, id o clave, distancia, nombre de cada PNG y cualquier duda.
+
 ### Qué encontró la primera prueba real (2026-10-14)
 
 - Funcionaron 52 pasos: las cuatro franjas horarias, las 7 pantallas del menú Esc, guardar y
