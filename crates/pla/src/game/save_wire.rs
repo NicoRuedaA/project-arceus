@@ -260,6 +260,16 @@ pub struct StartupState {
     pub message: String,
 }
 
+impl StartupState {
+    /// The saved position, only when the save belongs to `area_idx`. A save made in another
+    /// zone (e.g. Jubilife `ha_area00`) must not place the player at those coordinates inside
+    /// the area chosen with `--area` (play-test 2026-10-14: an area-00 position was reused in
+    /// area 01).
+    pub fn position_in_area(&self, area_idx: u8) -> Option<[f32; 3]> {
+        (self.area == Some(area_idx)).then_some(self.position).flatten()
+    }
+}
+
 /// Load the save unless `--new-game`. `SaveGame::message` becomes the HUD text.
 pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
     if cli.new_game {
@@ -945,6 +955,24 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    #[test]
+    fn saved_position_is_used_only_in_its_own_area() {
+        let s = StartupState {
+            progress: PlayerProgress::new_game(),
+            area: Some(0),
+            position: Some([520.0, 69.4, 417.7]),
+            yaw: 0.0,
+            time_minutes: None,
+            play_seconds: 0,
+            loaded: true,
+            message: String::new(),
+        };
+        assert_eq!(s.position_in_area(0), Some([520.0, 69.4, 417.7]));
+        assert_eq!(s.position_in_area(1), None);
+        let unknown = StartupState { area: None, ..s };
+        assert_eq!(unknown.position_in_area(1), None);
     }
 
     fn member(species: u16, hp: u32, pp: u8) -> PartyMember {

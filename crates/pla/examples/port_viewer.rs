@@ -87,31 +87,11 @@ struct PokemonAssetKey {
     rare: bool,
 }
 
-/// Resolves a model path without silently substituting another form or palette.
-/// Spawn evidence currently falls back to form 0 and rare=false when absent.
+/// Resolves a model path without silently substituting another form or palette. The pack
+/// name comes from the game's model catalog (`game::pokemon_resource`), never from the dex
+/// number. Spawn evidence currently falls back to form 0 and rare=false when absent.
 fn resolve_pokemon_gltf_rel(dex: u16, form: u16, rare: bool) -> Option<String> {
-    let stem = format!("pm{dex:04}_{form:02}_00");
-    let variants: &[&str] = if rare {
-        &["rare_idle", "rare_static"]
-    } else {
-        &["idle", "static"]
-    };
-    let roots = [
-        std::env::var("PLA_CACHE_DIR").map(PathBuf::from).ok(),
-        Some(PathBuf::from("work/cache")),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
-    ];
-    for root in roots.into_iter().flatten() {
-        for v in variants {
-            let rel = format!("cache/pokemon_batch/{stem}/{stem}_{v}.gltf");
-            let disk_candidate = root.join(format!("pokemon_batch/{stem}/{stem}_{v}.gltf"));
-            let rel_candidate = PathBuf::from("work").join(&rel);
-            if disk_candidate.exists() || rel_candidate.exists() {
-                return Some(rel);
-            }
-        }
-    }
-    None
+    pla::game::pokemon_resource::resolve_batch_gltf_rel(dex, form, rare)
 }
 
 #[derive(Resource)]
@@ -414,7 +394,11 @@ fn main() -> ExitCode {
     }
     let pos_from_cli = wire_cli.has_player_pos || initial_player_pos.is_some();
     if !wire_cli.has_player_pos && initial_player_pos.is_none() {
-        initial_player_pos = wire_start.position.map(|p| Vec2::new(p[0], p[2]));
+        // Only a position saved in this same area (a save from another zone keeps its
+        // coordinates out of the area picked with --area).
+        initial_player_pos = wire_start
+            .position_in_area(area_idx)
+            .map(|p| Vec2::new(p[0], p[2]));
     }
 
     if auto_demo {

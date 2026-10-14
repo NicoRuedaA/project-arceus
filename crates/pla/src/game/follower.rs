@@ -13,7 +13,6 @@
 //! `wild_wander`.
 
 use std::collections::VecDeque;
-use std::path::PathBuf;
 
 use bevy::prelude::*;
 
@@ -212,34 +211,23 @@ pub fn step(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32
 }
 
 /// Asset-server path of the exported batch model for `species`/`form`
-/// (`cache/pokemon_batch/pmXXXX_FF_00/pmXXXX_FF_00_idle.gltf`), or `None` when it was not
-/// exported. Mirrors `resolve_pokemon_gltf_rel` in the viewer (idle + sibling walk pair),
-/// preferring the member's form and falling back to form 0.
+/// (`cache/pokemon_batch/<pack>/<pack>_idle.gltf`, pack from the game's model catalog, see
+/// `game::pokemon_resource`), or `None` when it was not exported. Prefers the member's form
+/// and falls back to form 0.
 fn resolve_batch_idle_rel(species: u16, form: u8) -> Option<String> {
-    let form_stem = format!("pm{species:04}_{form:02}_00");
-    let base_stem = format!("pm{species:04}_00_00");
-    let stems = if form_stem == base_stem {
-        vec![form_stem]
-    } else {
-        vec![form_stem, base_stem]
-    };
-    let roots = [
-        std::env::var("PLA_CACHE_DIR").map(PathBuf::from).ok(),
-        Some(PathBuf::from("work/cache")),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
-    ];
-    for root in roots.into_iter().flatten() {
-        for stem in &stems {
-            let disk = root
-                .join("pokemon_batch")
-                .join(stem)
-                .join(format!("{stem}_idle.gltf"));
-            if disk.exists() {
-                return Some(format!("cache/pokemon_batch/{stem}/{stem}_idle.gltf"));
+    use crate::game::pokemon_resource::{batch_gltf_rel_for_stem, global_table};
+    let table = global_table();
+    let mut stems = Vec::new();
+    for f in [u16::from(form), 0] {
+        if let Some(stem) = table.pack_stem(species, f) {
+            if !stems.contains(&stem) {
+                stems.push(stem);
             }
         }
     }
-    None
+    stems
+        .iter()
+        .find_map(|stem| batch_gltf_rel_for_stem(stem, &["idle"]))
 }
 
 /// Spawns / respawns / despawns the follower entity so it shows the lead party member.

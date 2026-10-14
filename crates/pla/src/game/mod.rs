@@ -52,6 +52,7 @@ pub mod player_anim;
 pub mod player_motion;
 pub mod player_skills;
 pub mod pokemon_anim;
+pub mod pokemon_resource;
 pub mod save_game;
 pub mod save_wire;
 pub mod schedule_check;
