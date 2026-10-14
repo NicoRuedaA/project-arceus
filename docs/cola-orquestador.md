@@ -34,6 +34,11 @@
   - `fix/scales-night`: las casillas con Alfa ya no tapan a las normales, tamaño L poco frecuente y suelos de luna y luz ambiente de noche.
   Guardado sin cambios, sigue v7. **Abierto:** banderas de disponibilidad Alfa de los Pokémon, probabilidades de las variantes de tamaño (SUPUESTO) y efectos de roca sin dibujar.
 - **Fusionada en `main` (2026-10-14):** `feat/ui-assets`, interfaz original del juego (herramientas de lectura de diseños, módulo `game::orig_ui`, paso `ui` del instalador). **Es la interfaz por defecto**; `--ui debug` fuerza la provisional y, si faltan los datos de la interfaz, el juego vuelve solo a la provisional con un único aviso (nunca se cierra). Hechas: combate, marcadores de campo, pausa, equipo. Parciales: mochila, cajas, Pokédex, mapa. Sin empezar: resumen. **Siguientes pasos (informe del agente):** posiciones de la franja de mensajes desconocidas, colocación de la placa del rival, resalte de la zona en el mapa. Los datos salen de la copia propia del usuario (`work/ui/`, fuera de git); guardado sin cambios, sigue v7. La rama `feat/graphics-menu` añadirá después una fila de interfaz a la pantalla Gráficos.
+- **Fusionadas en `main` (2026-10-14, pantalla de gráficos):**
+  - `feat/graphics-menu`: pantalla Gráficos en el menú Esc (16 filas), con opciones de aspecto, estilo, contornos, sombras, hierba, efectos, hora, clima, SSAO y bloom, guardadas en `graphics.toml`. La fila abre la pantalla tanto con `--ui original` (por defecto) como con `--ui debug`. Se añadió la opción «Interface (UI): original/debug» (se aplica al reiniciar; `--ui` manda).
+  - `feat/alpha-aura`: aura roja y negra de los Pokémon Alfa.
+  - `docs/readme-percentages`: cifras del README recalculadas (nunca «completo»).
+  Guardado sin cambios, sigue v7. **Pendiente:** la rama `feat/quality-opts` (opciones de calidad, construida sobre `feat/graphics-menu`) sigue en desarrollo en el worktree `quality-opts`.
 - **Faltan:** 13 (cuerdas y escaleras reales; después de 10 y 11), 22 (expresiones de cara, sigilo con volúmenes reales), 31 (segunda parte), 36, 38 (nivel 3), 43 (nivel 4). 32 queda a falta de la revisión a ojo del usuario.
 
 ## Cola siguiente (por orden, con dependencias)
