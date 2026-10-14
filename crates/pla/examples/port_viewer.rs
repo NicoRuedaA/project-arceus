@@ -372,7 +372,7 @@ fn main() -> ExitCode {
                     "  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)"
                 );
                 println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
-                println!("  --ui <debug|original>  Provisional UI (default) or the game's own layouts from the local UI cache (PLA_UI, --ui-root)");
+                println!("  --ui <debug|original>  The game's own layouts from the local UI cache (default; PLA_UI, --ui-root) or the provisional UI (debug); missing data falls back to the provisional UI");
                 println!("  --automation          No window: offscreen render + JSON control socket (docs/AUTOMATION.md)");
                 println!("  --story <N> --event-time-scale <F> --distortion-now --outbreak <ID|off> --no-world-events  World events (Brief 39)");
                 return ExitCode::SUCCESS;
@@ -4283,11 +4283,33 @@ mod startup_schedule_guard {
         check_viewer_start("play-area-1", &["port_viewer", "--area", "1"]);
     }
 
-    /// `--ui original`: the original-UI plugin (screens spawned when the local UI data exists,
-    /// otherwise the provisional UI stays) starts and runs a few frames.
+    /// `--ui original` (the default): the original-UI plugin (screens spawned when the local UI
+    /// data exists, otherwise the provisional UI stays) starts and runs a few frames.
     #[test]
     fn original_ui_starts() {
         check_viewer_start("original-ui", &["port_viewer", "--area", "1", "--ui", "original"]);
+    }
+
+    /// No `--ui` flag: the default path (original UI, or the fallback when the data is missing).
+    #[test]
+    fn default_ui_starts_with_data() {
+        check_viewer_start("default-ui", &["port_viewer", "--area", "1"]);
+    }
+
+    /// The original UI asked for with a UI root that does not exist: the viewer must start and
+    /// keep the provisional UI (no crash).
+    #[test]
+    fn default_ui_starts_without_data() {
+        check_viewer_start(
+            "default-ui-nodata",
+            &["port_viewer", "--area", "1", "--ui-root", "/nonexistent/ui-root"],
+        );
+    }
+
+    /// `--ui debug` forces the provisional UI.
+    #[test]
+    fn debug_ui_starts() {
+        check_viewer_start("debug-ui", &["port_viewer", "--area", "1", "--ui", "debug"]);
     }
 
     /// `--ui original` and the battle path: the original battle screens bind to a running battle.

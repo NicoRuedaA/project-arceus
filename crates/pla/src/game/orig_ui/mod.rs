@@ -1,4 +1,4 @@
-//! Original game UI (`--ui original`): draws the game's own Ui2D layouts with `bevy_ui`.
+//! Original game UI (the default; `--ui debug` forces the provisional one): draws the game's own Ui2D layouts with `bevy_ui`.
 //!
 //! The layouts are NOT in the repository. They are decoded from the player's own dump by the
 //! installer (`.tools/setup_cache.py`, step `ui`: `ui_export` + `ui_layout_decode.py`) into a
@@ -16,7 +16,8 @@
 //! - [`battle`], [`field`], [`menus`]: bindings of each screen to the existing game state.
 //!
 //! Text is never taken from the game: text panes show the port's own (English) strings.
-//! `--ui debug` (the default until the maintainer approves the look) keeps the provisional UI.
+//! `--ui debug` keeps the provisional UI; when the local UI data is missing the original UI falls
+//! back to the provisional one with a single warning.
 
 pub mod anim;
 pub mod battle;
@@ -45,15 +46,16 @@ use scene::{Frame, NodeOverride, Overrides, Scene, TextAlign};
 /// Which UI the viewer draws.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum UiMode {
-    /// The provisional `bevy_ui` screens (default until the original UI is approved by eye).
-    #[default]
+    /// The provisional `bevy_ui` screens (`--ui debug`, or the fallback when the data is missing).
     Debug,
-    /// The game's own layouts, read from the local UI root.
+    /// The game's own layouts, read from the local UI root (the default).
+    #[default]
     Original,
 }
 
 impl UiMode {
-    /// `--ui original|debug` (or `PLA_UI`); a bad value is reported and `debug` is used.
+    /// `--ui original|debug` (or `PLA_UI`); default `original`; a bad value is reported and the
+    /// default is used.
     pub fn from_args(args: &[String]) -> Self {
         let env = std::env::var("PLA_UI").ok();
         let raw = crate::game::cli_flags::value_of(args, "--ui")
@@ -65,27 +67,30 @@ impl UiMode {
             .map(str::to_ascii_lowercase)
             .as_deref()
         {
-            None | Some("") | Some("debug") => UiMode::Debug,
+            None | Some("") => UiMode::default(),
+            Some("debug") => UiMode::Debug,
             Some("original") | Some("orig") | Some("game") => UiMode::Original,
             Some(other) => {
                 crate::game::cli_flags::report_bad_value(
                     "--ui",
                     other,
                     "original or debug",
-                    "debug",
+                    "original",
                 );
-                UiMode::Debug
+                UiMode::default()
             }
         }
     }
 }
 
-/// First existing UI root among `--ui-root`, `PLA_UI_ROOT`, `<cache>/ui`, `<cache>/../ui`,
+/// The `--ui-root` directory when given (and only that), else the first existing UI root among `PLA_UI_ROOT`, `<cache>/ui`, `<cache>/../ui`,
 /// `work/ui` (a root is a directory with a `layouts/` folder).
 pub fn resolve_ui_root(args: &[String], cache_root: &Path) -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Some(v) = crate::game::cli_flags::value_of(args, "--ui-root") {
-        candidates.push(PathBuf::from(v));
+        // An explicit root is the only candidate: a wrong path means "no data" (provisional UI).
+        let root = PathBuf::from(v);
+        return root.join("layouts").is_dir().then_some(root);
     }
     if let Some(v) = std::env::var_os("PLA_UI_ROOT") {
         candidates.push(PathBuf::from(v));
@@ -569,7 +574,7 @@ impl Plugin for OrigUiPlugin {
         match (&config.mode, &config.root) {
             (UiMode::Original, Some(r)) => info!("original UI: reading layouts from {}", r.display()),
             (UiMode::Original, None) => warn!(
-                "original UI requested but no UI data found (run `.tools/setup_cache.py` step ui, or set PLA_UI_ROOT); using the debug UI"
+                "original UI data not found: using the provisional UI (run `.tools/setup_cache.py` step ui, or set PLA_UI_ROOT; `--ui debug` silences this)"
             ),
             _ => {}
         }

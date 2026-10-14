@@ -144,6 +144,22 @@ fn rendering_a_shown_screen_spawns_quad_and_text_nodes() {
     assert_eq!(app.world().get::<Visibility>(id), Some(&Visibility::Hidden));
 }
 
+/// With the default mode (original) but no data root, nothing is drawn by the original UI.
+#[test]
+fn default_mode_without_data_falls_back_to_debug() {
+    let cfg = OrigUiConfig {
+        mode: UiMode::default(),
+        root: None,
+    };
+    assert!(!cfg.enabled());
+    // Explicit debug never enables it, even with a data root.
+    let cfg = OrigUiConfig {
+        mode: UiMode::Debug,
+        root: Some(PathBuf::from("/nonexistent/ui-root")),
+    };
+    assert!(!cfg.enabled());
+}
+
 #[test]
 fn missing_data_keeps_the_debug_ui() {
     let cfg = OrigUiConfig {
@@ -165,9 +181,15 @@ fn missing_data_keeps_the_debug_ui() {
         UiMode::from_args(&args(&["viewer", "--ui=debug"])),
         UiMode::Debug
     );
+    // Default (no flag) is the original UI; a bad value also falls back to the default.
+    // (PLA_UI must be unset for this assertion.)
+    if std::env::var_os("PLA_UI").is_none() {
+        assert_eq!(UiMode::from_args(&args(&["viewer"])), UiMode::Original);
+        assert_eq!(UiMode::default(), UiMode::Original);
+    }
     assert_eq!(
         UiMode::from_args(&args(&["viewer", "--ui", "fancy"])),
-        UiMode::Debug
+        UiMode::default()
     );
     assert_eq!(
         resolve_ui_root(
