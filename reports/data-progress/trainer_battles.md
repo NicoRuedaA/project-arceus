@@ -39,7 +39,7 @@ The one draw (`single_180`, Rapidash with Double-Edge) is both sides fainting on
 | Battle UI: opponent card "LABEL [##-] 2/3  SPECIES Lv. N", player card with its own counter | `opponent_card_title`, `player_card_title`, `game/ui.rs` | — |
 | Arena: the opponent's 3D model and cry follow the Pokémon that is out | `port_viewer.rs` `sync_arena_player_model` (slot 1), `battle_anim::slot_in`, `audio.rs` | — |
 | Saved party installed into a trainer battle keeps the trainer's whole party | `save_wire::install_party` | — |
-| Trainers in the world: markers at NPC placements whose model pack belongs to a trainer; V within 3 m starts the battle; `--trainer <id>` (or `noble:<setting>`) lets V start any battle; `--no-trainers` hides them; markers are hidden during a battle and a beaten trainer's marker turns grey | `trainer_encounter.rs` (`TrainerEncounterPlugin`) | NPC -> trainer link **ASSUMED** (the real link is in the story event scripts, out of scope); coordinates used as stored like the object placements (PROBABLE same frame) |
+| Trainers in the world: cached real models at NPC placements whose model pack belongs to a trainer, with a red capsule fallback; V within 3 m starts the battle; `--trainer <id>` (or `noble:<setting>`) lets V start any battle; `--no-trainers` hides them; markers are hidden during a battle and a beaten model or fallback turns grey | `trainer_encounter.rs` (`TrainerEncounterPlugin`) | NPC -> trainer link **ASSUMED** (the real link is in the story event scripts, out of scope); coordinates used as stored like the object placements (PROBABLE same frame); model colours and pixel correctness remain **ASSUMED** |
 
 Native functions touched by this work (for the evidence ledger): the trainer loader at `0x836564` (copies the trainer root fields into the trainer object) is partially mirrored by `pla::game::trainer_data::TrainerCatalog::load`; the party builder at `0x837504` (fills one Pokémon creation struct per member) is partially mirrored by `pla::game::trainer_data::TrainerMon::to_combatant`. Both read the decoded sheets, not the binary files, and neither is behaviour-verified.
 
@@ -52,14 +52,14 @@ cargo run -p pla --example battle_demo -- --trainer all --level 50          # ev
 cargo run -p pla --example battle_demo -- --trainer noble:nsi_ex_01_r       # a Noble rematch
 ```
 
-All of them are windowless. In the viewer: walk to a red capsule (a trainer marker) and press **V**, or start with `--trainer trainer04_01` and press V anywhere.
+All of them are windowless. In the viewer: walk to a cached trainer model, or its red capsule fallback, and press **V**; alternatively start with `--trainer trainer04_01` and press V anywhere.
 
 ## Defeated trainers (save v8)
 Beaten trainers are saved (`PlayerProgress.defeated_trainers`, save format v8, see [save_game.md](save_game.md)). Decision: after a restart or Load the marker of a beaten trainer is grey, V next to it starts no battle and only shows the toast "<label> (<id>) was already defeated."; the prize is paid on the first win only. `--trainer <id>` (debug) still allows V to replay that trainer anywhere, but the rematch pays no prize. Headless test: `defeated_trainer_survives_save_and_load`.
 
 ## Not done / unknown
 
-- Which event starts which trainer battle (story scripts, out of scope); trainer models (Brief 31); trainer intro/defeat texts (game texts out of scope; labels only).
+- Which event starts which trainer battle (story scripts, out of scope); trainer model visual/pixel fidelity and palette (**ASSUMED**); trainer intro/defeat texts (game texts out of scope; labels only).
 - Money formula and the reader of slot 11; money lost on defeat (none is taken).
 - Expert AI sequences; style choice of trainers beyond the shared selector.
 - Noble field phase: gauge, balm hits, stagger windows, field attacks (`boss_field_attacks.tsv` is loaded nowhere yet).
@@ -70,5 +70,5 @@ Beaten trainers are saved (`PlayerProgress.defeated_trainers`, save format v8, s
 
 - The two battle cards show the trainer label and the `[###]` counters, and the counters drop as members faint.
 - The opponent's 3D model and cry change when the trainer sends out the next Pokémon.
-- The red trainer capsules stand where NPCs belong (on the ground, not floating or buried) in `ha_area00`..`ha_area05`.
+- A cached trainer model stands where the NPC belongs; if its cache entry is absent, the red capsule fallback stands there (on the ground, not floating or buried) in `ha_area00`..`ha_area05`. After victory, inspect the grey model tint or grey capsule fallback.
 - The toast "V: battle ..." appears near a capsule; balls and Run are refused with a message.

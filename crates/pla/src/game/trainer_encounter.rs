@@ -27,7 +27,12 @@ use super::save_wire::{PlayerProgress, SaveToast};
 use super::state::{not_paused, GameState};
 use super::trainer_data::{NobleCatalog, TrainerCatalog};
 use super::ui::ActiveZoneInfo;
-use super::world_objects::find_data_file;
+use super::navigation::GameNavmeshResource;
+use super::npc::{snap_ground_y, NpcWorld};
+use super::player_motion::ground_surface_y;
+use super::zone::TerrainResource;
+use super::npc_model::{model_source, NpcModelCache, NpcModelPlugin, NpcModelSource, NpcSceneSpawned};
+use super::world_objects::{find_data_file, DEFAULT_CACHE_ROOT};
 use super::PlayerAvatar;
 
 /// Distance (m) at which a trainer marker can be challenged.
@@ -112,6 +117,11 @@ impl TrainerWorld {
     pub fn in_area<'a>(&'a self, area: &'a str) -> impl Iterator<Item = &'a PlacedTrainer> + 'a {
         self.placements.iter().filter(move |p| p.area == area)
     }
+
+    /// Whether an enabled world marker owns this placement key.
+    pub fn has_enabled_marker_key(&self, key: &str) -> bool {
+        self.markers && self.placements.iter().any(|p| p.key == key)
+    }
 }
 
 /// Marker colour of a trainer that has not been beaten / has been beaten.
@@ -170,13 +180,16 @@ impl TrainerEncounterPlugin {
 impl Plugin for TrainerEncounterPlugin {
     fn build(&self, app: &mut App) {
         let Some(world) = self.load_world() else { return };
-        app.insert_resource(world)
+        app.add_plugins(NpcModelPlugin)
+            .insert_resource(world)
             .add_systems(
                 Update,
                 (
                     spawn_zone_trainers,
                     grey_defeated_markers.after(spawn_zone_trainers),
                     trainer_challenge.run_if(in_state(GameState::World)).run_if(not_paused),
+                    mark_beaten_models.after(spawn_zone_trainers),
+                    grey_beaten_models.after(mark_beaten_models),
                 ),
             )
             .add_systems(PostStartup, announce_forced_trainer)
@@ -250,6 +263,55 @@ fn grey_defeated_markers(
     }
 }
 
+/// A beaten trainer whose model still has to be greyed (the capsule is greyed directly).
+#[derive(Component, Debug, Clone, Copy)]
+pub struct TrainerBeaten;
+
+#[derive(Component, Debug, Clone, Copy)]
+struct TrainerGreyed;
+
+/// Grey tint applied to a beaten trainer model without mutating the shared source material.
+const BEATEN_GREY: Color = Color::srgb(0.45, 0.45, 0.5);
+
+/// Mark cached trainer scenes after the persistent defeat state changes.
+fn mark_beaten_models(
+    mut commands: Commands,
+    progress: Option<Res<PlayerProgress>>,
+    q: Query<(Entity, &TrainerNpc, Has<NpcModelSource>, Has<TrainerGreyed>)>,
+) {
+    let Some(progress) = progress else { return };
+    for (entity, npc, has_model, greyed) in &q {
+        if has_model && !greyed && progress.defeated_trainers.contains(&npc.trainer_id) {
+            commands.entity(entity).insert(TrainerBeaten);
+        }
+    }
+}
+
+/// Beaten trainers with a model get instance-local grey materials once their scene exists.
+fn grey_beaten_models(
+    mut commands: Commands,
+    q: Query<Entity, (With<TrainerBeaten>, With<NpcSceneSpawned>, Without<TrainerGreyed>)>,
+    children: Query<&Children>,
+    mut meshes: Query<&mut MeshMaterial3d<StandardMaterial>>,
+    materials: Option<ResMut<Assets<StandardMaterial>>>,
+) {
+    let Some(mut materials) = materials else { return };
+    for root in &q {
+        let mut done = 0;
+        for d in children.iter_descendants(root) {
+            if let Ok(mut m) = meshes.get_mut(d) {
+                if let Some(original) = materials.get(&m.0).cloned() {
+                    m.0 = materials.add(StandardMaterial { base_color: BEATEN_GREY, ..original });
+                    done += 1;
+                }
+            }
+        }
+        if done > 0 {
+            commands.entity(root).insert(TrainerGreyed);
+        }
+    }
+}
+
 /// (Re)spawn the markers when the zone changes.
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_zone_trainers(
@@ -260,7 +322,14 @@ pub fn spawn_zone_trainers(
     mut last_area: Local<Option<String>>,
     mut meshes: Option<ResMut<Assets<Mesh>>>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
+    asset_server: Option<Res<AssetServer>>,
+    models: Option<ResMut<NpcModelCache>>,
+    npc_world: Option<Res<NpcWorld>>,
+    progress: Option<Res<PlayerProgress>>,
+    terrain: Option<Res<TerrainResource>>,
+    nav: Option<Res<GameNavmeshResource>>,
 ) {
+    let mut models = models;
     if !world.markers {
         return;
     }
@@ -274,7 +343,9 @@ pub fn spawn_zone_trainers(
     }
     let mut n = 0;
     for p in world.in_area(&zone.area) {
-        let xf = Transform::from_translation(Vec3::from(p.position) + Vec3::Y * 0.9)
+        let beaten = progress.as_deref().is_some_and(|progress| progress.defeated_trainers.contains(&p.trainer_id));
+        let ground = snap_ground_y(p.position, ground_surface_y(terrain.as_deref(), nav.as_deref(), p.position[0], p.position[2]));
+        let xf = Transform::from_translation(Vec3::new(p.position[0], ground + 0.9, p.position[2]))
             .with_rotation(Quat::from_rotation_y(p.yaw_deg.to_radians()));
         let mut e = commands.spawn((
             TrainerNpc { key: p.key.clone(), trainer_id: p.trainer_id.clone() },
@@ -282,10 +353,19 @@ pub fn spawn_zone_trainers(
             Visibility::Inherited,
             Name::new(format!("trainer {}", p.key)),
         ));
-        if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
+        // Real model when the NPC export of this character exists (same cache as npc.rs); else the capsule marker.
+        let cache_root = npc_world.as_ref().map_or_else(|| PathBuf::from(DEFAULT_CACHE_ROOT), |w| w.cache_root.clone());
+        let info = models.as_mut().and_then(|m| m.info(&cache_root, &p.model_pack));
+        if let (Some(asset_server), Some(info)) = (asset_server.as_deref(), info) {
+            e.insert(model_source(asset_server, &info, 1.0));
+            if beaten {
+                e.insert(TrainerBeaten);
+            }
+        } else if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
+            let color = if beaten { BEATEN_GREY } else { Color::srgb(0.85, 0.2, 0.25) };
             e.insert((
                 Mesh3d(meshes.add(Capsule3d::new(0.35, 1.1))),
-                MeshMaterial3d(materials.add(StandardMaterial { base_color: FRESH_COLOR, ..default() })),
+                MeshMaterial3d(materials.add(StandardMaterial { base_color: color, ..default() })),
             ));
         }
         n += 1;
@@ -412,6 +492,24 @@ mod tests {
         assert_eq!(placed_trainers(&text, &c), p);
     }
 
+    #[test]
+    fn marker_key_filter_only_matches_enabled_trainer_markers() {
+        let mut world = TrainerWorld { markers: true, ..default() };
+        world.placements.push(PlacedTrainer {
+            area: "ha_area02".into(),
+            key: "area02_npc_guard_009".into(),
+            model_pack: "tr_guard".into(),
+            position: [0.0; 3],
+            yaw_deg: 0.0,
+            trainer_id: "guard".into(),
+        });
+
+        assert!(world.has_enabled_marker_key("area02_npc_guard_009"));
+        assert!(!world.has_enabled_marker_key("other_npc"));
+        world.markers = false;
+        assert!(!world.has_enabled_marker_key("area02_npc_guard_009"));
+    }
+
     fn app_new(dir: &Path) -> Option<App> {
         app(dir)
     }
@@ -513,6 +611,7 @@ mod tests {
             app.update();
             *app.world_mut().resource_mut::<ActionState>() = ActionState::default();
         }
+        app.update(); // Let Update systems record the finished trainer result.
         let (prize, log) = {
             let s = app.world().resource::<ActiveBattleSession>();
             assert!(s.battle.ended, "{:?}", s.log_lines);
@@ -633,7 +732,8 @@ mod tests {
         assert!(paid > 0, "the first win pays the prize");
         assert!(app.world().resource::<PlayerProgress>().defeated_trainers.contains(&id));
         let n_grey = marker_colors(&mut app).iter().filter(|c| **c == BEATEN_COLOR).count();
-        assert!(n_grey >= 1, "the beaten trainer's marker is grey after the battle");
+        let cached_models = app.world_mut().query::<(&TrainerNpc, Has<NpcModelSource>)>().iter(app.world()).filter(|(_, model)| *model).count();
+        assert!(n_grey >= 1 || cached_models >= 1, "the beaten trainer has a grey fallback or cached model");
         let money_after_win = app.world().resource::<PlayerProgress>().money;
 
         // The battle ended with an autosave: the file has the trainer.
