@@ -56,22 +56,22 @@ pub const GLOW_COLOR: [f32; 3] = [1.0, 0.04, 0.04];
 /// Dark smoke colour (linear rgb): black with a red tint.
 pub const DARK_COLOR: [f32; 3] = [0.04, 0.0, 0.008];
 /// Fresnel exponent of the rim (higher = thinner).
-pub const RIM_POWER: f32 = 3.0;
+pub const RIM_POWER: f32 = 4.5;
 /// Colour of the smoke puffs (sRGB): very dark crimson, so by day it reads as red-black smoke and
 /// not as olive-green dirt (pure black over grass does that).
-pub const SMOKE_COLOR: [f32; 3] = [0.07, 0.0, 0.012];
+pub const SMOKE_COLOR: [f32; 3] = [0.1, 0.0, 0.015];
 /// Rim emission strength.
-pub const RIM_INTENSITY: f32 = 3.0;
+pub const RIM_INTENSITY: f32 = 2.2;
 /// Alpha of the dark-red tint over the body (0 = none).
-pub const BODY_TINT_ALPHA: f32 = 0.38;
+pub const BODY_TINT_ALPHA: f32 = 0.0;
 /// Alpha of the smoke halo at its densest.
-pub const HALO_ALPHA: f32 = 0.7;
+pub const HALO_ALPHA: f32 = 0.9;
 /// Halo push out of the surface, as a fraction of the model height (scaled by a noise 0.35..1.65).
-pub const HALO_INFLATE_FRAC: f32 = 0.14;
+pub const HALO_INFLATE_FRAC: f32 = 0.022;
 /// Rim shell push (a hair, only so it does not fight the body for depth), fraction of the height.
 pub const RIM_INFLATE_FRAC: f32 = 0.004;
 /// Smallest push in metres, so tiny models still show a halo.
-pub const MIN_INFLATE_M: f32 = 0.012;
+pub const MIN_INFLATE_M: f32 = 0.01;
 /// Pulse speed of the glow (rad/s): a slow breathing, about 3 s per cycle.
 pub const PULSE_SPEED: f32 = 2.1;
 /// Noise frequency along the surface (1/m).
@@ -116,8 +116,8 @@ impl Default for AuraLook {
             halo_alpha: HALO_ALPHA,
             halo_inflate: HALO_INFLATE_FRAC,
             noise_scale: NOISE_SCALE,
-            smoke_size: 2.6,
-            smoke_alpha: 0.8,
+            smoke_size: 0.9,
+            smoke_alpha: 0.5,
             ember_alpha: 0.95,
             glow_alpha: 0.3,
             smoke_color: SMOKE_COLOR,
@@ -241,19 +241,16 @@ impl AuraBudget {
 pub fn budget(q: Quality) -> AuraBudget {
     match q {
         Quality::Off => AuraBudget { smoke: 0, glows: 0, embers: 0, light: false },
-        Quality::Low => AuraBudget { smoke: 7, glows: 2, embers: 2, light: true },
-        Quality::High => AuraBudget { smoke: 14, glows: 5, embers: 5, light: true },
+        Quality::Low => AuraBudget { smoke: 3, glows: 0, embers: 2, light: true },
+        Quality::High => AuraBudget { smoke: 5, glows: 0, embers: 3, light: true },
     }
 }
 
-/// Smoke halo layers (push multiplier, share of the red glow) from the quality: stacked translucent
-/// shells make the smoke dense and red next to the body and thin and black away from it. `Off`
-/// keeps the cheaper two-layer halo (it needs no particles).
-pub fn halo_layers(q: Quality) -> &'static [(f32, f32)] {
-    match q {
-        Quality::High => &[(0.3, 1.0), (0.55, 0.5), (0.8, 0.18), (1.0, 0.02)],
-        Quality::Low | Quality::Off => &[(0.5, 0.8), (1.0, 0.05)],
-    }
+/// Halo layers (push multiplier, share of the red glow). One: a tight dark-red outline hull that
+/// follows the skinned animation.
+pub fn halo_layers(_q: Quality) -> &'static [(f32, f32)] {
+    // ONE thin outline: stacked layers drew concentric ghost contours around the creature.
+    &[(1.0, 1.0)]
 }
 
 /// Halo push in metres for a model of this size.
@@ -334,6 +331,20 @@ pub fn light_params(size: ModelSize, t: f32, seed: u32, look: &AuraLook) -> (f32
     // Lumens grow with the square of the range so a big alpha lights its surroundings as much as a
     // small one lights its own.
     (range * range * 330.0 * pulse * look.light_gain, range)
+}
+
+/// How visible the dark smoke is: faint by day (it only muddies the grass), full at night.
+/// `blend` is the clock's (slot a, slot b, fraction) with slots 0 morning, 1 day, 2 dusk, 3 night.
+pub fn smoke_visibility(blend: (usize, usize, f32)) -> f32 {
+    let dark = |slot: usize| match slot {
+        3 => 1.0,
+        2 => 0.7,
+        0 => 0.3,
+        _ => 0.0,
+    };
+    let (a, b, f) = blend;
+    let night = dark(a) + (dark(b) - dark(a)) * f.clamp(0.0, 1.0);
+    0.12 + 0.88 * night
 }
 
 /// Phase of the pulse of a creature.
@@ -757,6 +768,7 @@ fn animate_aura(
     mut commands: Commands,
     time: Res<Time>,
     look: Res<AuraLook>,
+    clock: Option<Res<super::clock::GameClock>>,
     cams: Query<&GlobalTransform, With<Camera3d>>,
     owners: Query<(&GlobalTransform, &InheritedVisibility, &AlphaAura, &AlphaAuraState)>,
     mut wisps: Query<
@@ -767,6 +779,7 @@ fn animate_aura(
     mut mats: ResMut<Assets<StandardMaterial>>,
 ) {
     let t = time.elapsed_secs();
+    let smoke_visibility = clock.as_ref().map_or(1.0, |c| smoke_visibility(c.blend()));
     let cam = cams.iter().next().map(|g| (g.translation(), g.rotation()));
     for (e, w, mut xf, mut vis, mat) in &mut wisps {
         let Ok((gt, inherited, aura, state)) = owners.get(w.owner) else {
@@ -784,6 +797,7 @@ fn animate_aura(
             continue;
         }
         let pose = wisp_pose(w.kind, w.index, w.count, seed_of(w.owner, aura), t, state.size, &look);
+        let pose = WispPose { alpha: pose.alpha * if w.kind == WispKind::Smoke { smoke_visibility } else { 1.0 }, ..pose };
         xf.translation = feet + pose.offset;
         xf.scale = Vec3::splat(pose.size);
         if let Some((_, rot)) = cam {
@@ -872,8 +886,8 @@ mod tests {
         halo_alpha: HALO_ALPHA,
         halo_inflate: HALO_INFLATE_FRAC,
         noise_scale: NOISE_SCALE,
-        smoke_size: 2.6,
-        smoke_alpha: 0.8,
+        smoke_size: 0.9,
+        smoke_alpha: 0.5,
         ember_alpha: 0.95,
         glow_alpha: 0.3,
         smoke_color: SMOKE_COLOR,
@@ -919,15 +933,66 @@ mod tests {
     }
 
     #[test]
-    fn halo_layers_get_thinner_and_darker_outwards() {
+    fn the_halo_is_one_thin_layer_and_smoke_fades_by_day() {
         for q in [Quality::Off, Quality::Low, Quality::High] {
-            let layers = halo_layers(q);
-            assert!(layers.len() >= 2);
-            assert!(layers.windows(2).all(|w| w[0].0 < w[1].0), "push grows outwards: {layers:?}");
-            assert!(layers.windows(2).all(|w| w[0].1 > w[1].1), "red glow fades outwards: {layers:?}");
-            assert_eq!(layers.last().unwrap().0, 1.0);
+            assert_eq!(halo_layers(q), &[(1.0, 1.0)], "stacked layers drew ghost contours");
         }
-        assert!(halo_layers(Quality::High).len() > halo_layers(Quality::Low).len());
+        assert!(halo_inflate_m(SIZE, &L) < SIZE.height * 0.05, "tight outline, not a second body");
+        assert_eq!(L.body_tint, 0.0, "the body is never tinted");
+        assert!(smoke_visibility((1, 1, 0.0)) < 0.2, "day: nearly invisible");
+        assert!(smoke_visibility((3, 3, 0.0)) > 0.95, "night: full");
+        assert!(smoke_visibility((1, 2, 0.5)) > smoke_visibility((1, 1, 0.0)));
+    }
+
+    /// The aura must not duplicate the creature: per mesh exactly one rim shell and one halo shell,
+    /// sharing the creature's own mesh handle and skin (so they follow its animation), built once.
+    #[test]
+    fn shells_share_the_mesh_and_skin_and_are_built_once() {
+        use bevy::camera::primitives::Aabb;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<Mesh>().init_asset::<Image>().init_asset::<StandardMaterial>().init_asset::<AuraMaterial>();
+        app.init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>();
+        app.init_resource::<AuraAssets>().insert_resource(AuraLook::default());
+        app.add_systems(Update, attach_aura);
+        let mut cube = Mesh::from(Cuboid::new(1.0, 2.0, 1.0));
+        cube.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0f32, 1.0, 0.0]; cube.count_vertices()]);
+        let handle = app.world_mut().resource_mut::<Assets<Mesh>>().add(cube);
+        let skin = SkinnedMesh { inverse_bindposes: default(), joints: vec![] };
+        let player = app.world_mut().spawn_empty().id();
+        let root = app
+            .world_mut()
+            .spawn((
+                AlphaAura::default(),
+                PokemonAnimState::new(player, bevy::animation::graph::AnimationNodeIndex::new(0), None),
+                GlobalTransform::default(),
+            ))
+            .id();
+        let mesh_e = app
+            .world_mut()
+            .spawn((
+                Mesh3d(handle.clone()),
+                skin.clone(),
+                Aabb::from_min_max(Vec3::new(-0.5, 0.0, -0.5), Vec3::new(0.5, 2.0, 0.5)),
+                GlobalTransform::default(),
+                ChildOf(root),
+            ))
+            .id();
+        for _ in 0..3 {
+            app.update();
+        }
+        let mut q = app.world_mut().query::<(&AuraShell, &Mesh3d, Option<&SkinnedMesh>, &ChildOf)>();
+        let shells: Vec<_> = q.iter(app.world()).map(|(a, m, sk, p)| (*a, m.clone(), sk.cloned(), p.parent())).collect();
+        let n_shells = shells.len();
+        assert_eq!(shells.len(), 1 + halo_layers(Quality::Low).len(), "rim + halo, built once");
+        for (_, m, sk, parent) in &shells {
+            assert_eq!(m.0, handle, "same mesh handle as the creature: it is not a copy");
+            assert_eq!(sk.as_ref().expect("skinned like the creature").joints, skin.joints);
+            assert_eq!(*parent, mesh_e, "child of the creature's own mesh: same transform");
+        }
+        // The creature's mesh entity itself is untouched (still the one opaque mesh).
+        assert_eq!(app.world_mut().query::<&Mesh3d>().iter(app.world()).filter(|m| m.0 == handle).count(), 1 + n_shells);
+        assert!(app.world().entity(root).contains::<AlphaAuraState>());
     }
 
     #[test]

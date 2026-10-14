@@ -425,9 +425,9 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 ### 2.11b Pokémon alfa y su aura  [EN RAMA feat/alpha-aura]
 
 56b. **Ver un alfa.** `./play.sh --area 1 --force-alpha all` y camina hacia cualquier Pokémon
-    salvaje. Ves: es 2,5 veces más grande, tiene un borde rojo brillante que «respira» (se
-    apaga y enciende despacio), un contorno de humo negro-rojizo irregular y volutas oscuras
-    que suben y giran a su alrededor, con alguna chispa roja. El modelo debe seguir viéndose
+    salvaje. Ves: es 2,5 veces más grande, tiene un borde rojo fino y brillante que «respira» (se
+    apaga y enciende despacio) pegado al cuerpo, unas pocas volutas oscuras (casi invisibles de día)
+    y alguna chispa roja. El cuerpo conserva sus colores y no se ve doble. El modelo debe seguir viéndose
     (el aura no lo tapa). En la esquina superior, la línea NEARBY dice `ALPHA` cuando el más
     cercano es alfa. Fallo: el modelo se ve todo rojo o negro, cuadrados en vez de humo, una
     luz roja que ilumina media zona, o tirones al juntarse varios alfa.

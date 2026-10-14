@@ -76,8 +76,8 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     // Halo: the push varies with a noise that drifts upwards, so the edge looks like rising smoke.
     let t = globals.time;
     let drift = vec3<f32>(0.0, -t * 0.9, 0.0) + vec3<f32>(aura.shape.w, 0.0, aura.shape.w * 0.5);
-    let swirl = 0.35 + 1.3 * vnoise(wp0.xyz * aura.extra.z + drift);
-    let breathe = 0.9 + 0.14 * sin(t * aura.shape.z + aura.shape.w);
+    let swirl = 0.8 + 0.4 * vnoise(wp0.xyz * aura.extra.z + drift);
+    let breathe = 0.93 + 0.07 * sin(t * aura.shape.z + aura.shape.w);
     let push = aura.shape.x * select(1.0, swirl * breathe, aura.shape.y > 0.5);
     let wp = vec4<f32>(wp0.xyz + nn * push, 1.0);
     out.world_position = wp;
@@ -119,13 +119,13 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         let f = pow(1.0 - clamp(abs(ndv), 0.0, 1.0), aura.dark.w);
         let streak = 0.45 + 1.1 * flow;
         let emit = aura.glow.rgb * (f * streak * pulse * aura.glow.w);
-        let tint = aura.extra.x * (0.6 + 0.4 * flow);
-        return vec4<f32>(emit + aura.dark.rgb * tint, tint);
+        // Pure emission (alpha 0 in the premultiplied blend): the body keeps its own colours.
+        return vec4<f32>(emit, 0.0);
     }
     // Halo (back faces): c is 0 on the silhouette and grows towards the hull's far side.
     let c = clamp(-ndv, 0.0, 1.0);
     let body = 1.0 - smoothstep(0.0, 0.85, c);
-    let wisp = 0.12 + 1.25 * smoothstep(0.28, 0.72, flow);
+    let wisp = 0.8 + 0.2 * flow;
     let a = clamp(aura.extra.y * body * wisp, 0.0, 1.0);
     let hot = (1.0 - smoothstep(0.0, 0.45, c)) * pulse * aura.glow.w * aura.extra.w;
     let emit = aura.glow.rgb * hot * smoothstep(0.0, 0.35, a);

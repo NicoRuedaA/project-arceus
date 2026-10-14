@@ -16,12 +16,13 @@ used as a visual guide only.
 
 ## What an alpha gets
 
-* Rim shell: the creature's meshes drawn again (same skin) with a fresnel red emission, a moving noise
-  streak, a slow pulse (about 3 s) and a faint dark-red body tint.
-* Halo: 2 (low / off) or 4 (high) stacked inverted-hull shells pushed out by a noisy amount, dense and red
-  near the body, thin and black outside; ragged and drifting like smoke.
-* Billboards: dark smoke puffs, red puffs and sparks that orbit and rise (max 24 per creature, only within
-  80 m of the camera, none with `--effects off`).
+* Rim shell: the creature's meshes drawn again (same mesh and skin handles) with a fresnel red emission
+  only (additive, no body tint: the model renders opaque with its own colours), a slow pulse (about 3 s).
+* Outline: ONE inverted-hull shell extruded 2.2 % of the height along the skinned normals (tight, with a
+  mild noise). An earlier version stacked 4 noisy layers and tinted the body; it looked like two
+  overlapped creatures and was removed after review.
+* Billboards: a few small dark-red smoke wisps (faint by day, full at night) and sparks (max 24 per
+  creature, 5+3 at high, 3+2 at low, only within 80 m of the camera, none with `--effects off`).
 * A red point light (no shadows, only within 45 m of the camera, none with `--effects off`).
 * All of it scales with the measured model size (world-space mesh boxes).
 * Meshes with morph targets or without normals get no shell; blended meshes (glass) get none; eyes get the
