@@ -1593,7 +1593,8 @@ fn r2(v: f64) -> f64 {
 /// extraction and render submission) followed by a wait until the GPU has finished it, so
 /// `frame_ms` is the full CPU + GPU time of one frame without overlap (an upper bound of what a
 /// pipelined, windowed run needs); `cpu_ms` is the update alone. A frame cap (FPS cap option)
-/// sleeps inside the update, so the cap shows here too.
+/// sleeps inside the update, so the cap shows here too. `throughput_ms` then runs the same number
+/// of frames without the per-frame wait (CPU and GPU overlap as in play) and waits once at the end.
 fn bench(app: &mut App, ctx: &mut Ctx, frames: u32, warmup: u32) -> Value {
     ctx.step(app, warmup);
     let mut total = Vec::with_capacity(frames as usize);
@@ -1608,6 +1609,14 @@ fn bench(app: &mut App, ctx: &mut Ctx, frames: u32, warmup: u32) -> Value {
         total.push(t.elapsed().as_secs_f64() * 1000.0);
         cpu.push(c);
     }
+    // Throughput: the same number of frames without waiting per frame (the CPU prepares the next
+    // frame while the GPU draws the previous one, as in play), one wait at the end.
+    let t = Instant::now();
+    ctx.step(app, frames);
+    if let Some(d) = app.world().get_resource::<bevy::render::renderer::RenderDevice>() {
+        let _ = d.poll(wgpu::PollType::wait_indefinitely());
+    }
+    let throughput = t.elapsed().as_secs_f64() * 1000.0 / f64::from(frames.max(1));
     let avg = |v: &[f64]| if v.is_empty() { 0.0 } else { v.iter().sum::<f64>() / v.len() as f64 };
     let mut sorted = total.clone();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -1623,6 +1632,8 @@ fn bench(app: &mut App, ctx: &mut Ctx, frames: u32, warmup: u32) -> Value {
         "cpu_ms_avg": r2(avg(&cpu)),
         "gpu_wait_ms_avg": r2(mean - avg(&cpu)),
         "fps_avg": if mean > 0.0 { r2(1000.0 / mean) } else { 0.0 },
+        "throughput_ms": r2(throughput),
+        "throughput_fps": if throughput > 0.0 { r2(1000.0 / throughput) } else { 0.0 },
         "gpu": app.world().resource::<AutomationState>().gpu,
     })
 }

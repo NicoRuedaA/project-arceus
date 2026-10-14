@@ -27,7 +27,6 @@ use bevy::light::{
 };
 use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::anti_alias::{fxaa::Fxaa, smaa::Smaa, taa::TemporalAntiAliasing};
-use bevy::core_pipeline::prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass};
 use bevy::render::camera::{MipBias, TemporalJitter};
 use bevy::post_process::bloom::Bloom;
 use bevy::render::view::{ColorGrading, ColorGradingGlobal, ColorGradingSection, Msaa};
@@ -219,10 +218,14 @@ pub fn insert_camera_aa(c: &mut EntityCommands, aa: AntiAliasing, ssao: bool) {
     }
 }
 
-/// Take every anti-aliasing filter (and what TAA required: jitter, mip bias, motion vectors) off a
-/// camera before [`insert_camera_aa`] puts the current one back.
+/// Take every anti-aliasing filter (and TAA's jitter and mip bias) off a camera before
+/// [`insert_camera_aa`] puts the current one back. The prepass components TAA or SSAO added
+/// (depth, normals, motion vectors) are deliberately kept: Bevy 0.19 leaves the background
+/// motion-vector pipeline of a removed `MotionVectorPrepass` on the render-world view, and the next
+/// prepass then fails wgpu validation (seen in automation when switching TAA -> SSAO off). Keeping
+/// them costs one prepass while the camera lives.
 pub fn remove_camera_aa(e: &mut EntityWorldMut) {
-    e.remove::<(Fxaa, Smaa, TemporalAntiAliasing, TemporalJitter, MipBias, MotionVectorPrepass)>();
+    e.remove::<(Fxaa, Smaa, TemporalAntiAliasing, TemporalJitter, MipBias)>();
 }
 
 /// Plugin: applies the decoded environment of `area` (index) at `slot`; no-op without the sheet.
@@ -533,7 +536,7 @@ pub fn reapply_look(world: &mut World) -> bool {
         let mut e = world.entity_mut(cam);
         remove_camera_aa(&mut e);
         if !settings.ssao {
-            e.remove::<(ScreenSpaceAmbientOcclusion, DepthPrepass, NormalPrepass)>();
+            e.remove::<ScreenSpaceAmbientOcclusion>();
             e.insert(Msaa::default());
         }
         if !settings.bloom {
@@ -684,6 +687,10 @@ mod tests {
         remove_camera_aa(&mut world.entity_mut(cam));
         assert!(world.get::<TemporalAntiAliasing>(cam).is_none());
         assert!(world.get::<TemporalJitter>(cam).is_none() && world.get::<MipBias>(cam).is_none());
+        assert!(
+            world.get::<bevy::core_pipeline::prepass::MotionVectorPrepass>(cam).is_some(),
+            "motion vectors stay (Bevy keeps a stale background pipeline when they are removed)"
+        );
         world.run_system_once(put(AntiAliasing::Smaa, false)).unwrap();
         assert!(world.get::<Smaa>(cam).is_some());
         assert_eq!(*world.get::<Msaa>(cam).unwrap(), Msaa::Off);
