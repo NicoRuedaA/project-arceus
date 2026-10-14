@@ -100,6 +100,15 @@ High keeps medium shadows on purpose: with 4096 px shadow maps it measured 8.9 m
 Low switches shadows off: in the forest the shadow pass was the largest cost left (measured
 3.9 -> 2.4 ms at 1080p).
 
+In `GameState::Battle`, the viewer temporarily uses one near-camera shadow cascade out to about
+35 m (with a 0.3 m minimum distance), while leaving the existing global shadow-map size and user
+preset untouched. At the default 2048 px map size this preserves close Pokémon and ground-shadow
+quality while removing distant shadow work. An authoritative fresh-binary run measured default
+battle frame averages of 12.53 -> 12.50 ms at 1920x1080 and 14.77 -> 14.44 ms at 2560x1440;
+the 8.33 ms 120-FPS target is therefore not met by this change alone. Paired 1920x1080 battle
+captures remained visually equivalent on inspection; pixel metrics are renderer-variable (10.0%
+different pixels, RMSE 3.03).
+
 <!-- MEASUREMENTS -->
 
 ## Measurements

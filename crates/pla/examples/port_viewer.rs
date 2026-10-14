@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 use bevy::asset::RenderAssetUsages;
 use bevy::gltf::{Gltf, GltfMaterial, GltfMesh};
+use bevy::light::{CascadeShadowConfig, CascadeShadowConfigBuilder, DirectionalLight};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{save_to_disk, Screenshot};
@@ -119,6 +120,54 @@ struct PokemonSpawn {
 
 #[derive(Component)]
 struct BattleArenaMarker;
+
+/// The directional light's pre-battle cascade configuration, saved only while Battle is active.
+#[derive(Resource, Default)]
+struct BattleShadowConfigState {
+    light: Option<Entity>,
+    original: Option<CascadeShadowConfig>,
+}
+
+fn battle_shadow_config() -> CascadeShadowConfig {
+    CascadeShadowConfigBuilder {
+        num_cascades: 1,
+        minimum_distance: 0.3,
+        maximum_distance: 35.0,
+        first_cascade_far_bound: 35.0,
+        overlap_proportion: 0.2,
+    }
+    .build()
+}
+
+fn apply_battle_shadow_config(
+    mut lights: Query<(Entity, &mut CascadeShadowConfig), With<DirectionalLight>>,
+    mut state: ResMut<BattleShadowConfigState>,
+) {
+    let Some((entity, mut config)) = lights.iter_mut().next() else {
+        return;
+    };
+    if state.original.is_some() {
+        return;
+    }
+    state.light = Some(entity);
+    state.original = Some(config.clone());
+    *config = battle_shadow_config();
+}
+
+fn restore_battle_shadow_config(
+    mut lights: Query<&mut CascadeShadowConfig, With<DirectionalLight>>,
+    mut state: ResMut<BattleShadowConfigState>,
+) {
+    let Some(original) = state.original.take() else {
+        state.light = None;
+        return;
+    };
+    if let Some(entity) = state.light.take() {
+        if let Ok(mut config) = lights.get_mut(entity) {
+            *config = original;
+        }
+    }
+}
 
 /// Where an arena creature stands before the opponent-size spacing is applied.
 #[derive(Component, Clone, Copy)]
@@ -1142,6 +1191,9 @@ fn add_viewer_systems(app: &mut App) {
         bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
     );
     app.init_resource::<ArenaExtents>();
+    app.init_resource::<BattleShadowConfigState>();
+    app.add_systems(OnEnter(GameState::Battle), apply_battle_shadow_config);
+    app.add_systems(OnExit(GameState::Battle), restore_battle_shadow_config);
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
     app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
     app.add_systems(
@@ -3911,6 +3963,83 @@ fn measure_arena_models(
     }
 }
 
+#[cfg(test)]
+mod battle_shadow_budget {
+    use super::*;
+    use bevy::state::app::StatesPlugin;
+
+    fn app_with_shadow(original: CascadeShadowConfig) -> (App, Entity) {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.init_state::<GameState>();
+        app.init_resource::<BattleShadowConfigState>();
+        app.add_systems(OnEnter(GameState::Battle), apply_battle_shadow_config);
+        app.add_systems(OnExit(GameState::Battle), restore_battle_shadow_config);
+        let light = app
+            .world_mut()
+            .spawn((DirectionalLight::default(), original))
+            .id();
+        app.update();
+        (app, light)
+    }
+
+    #[test]
+    fn battle_shadow_config_is_one_35m_cascade() {
+        let config = battle_shadow_config();
+        assert_eq!(config.bounds, vec![35.0]);
+        assert_eq!(config.minimum_distance, 0.3);
+    }
+
+    #[test]
+    fn battle_shadow_config_restores_the_exact_original() {
+        let original = CascadeShadowConfigBuilder {
+            num_cascades: 4,
+            minimum_distance: 0.7,
+            maximum_distance: 120.0,
+            first_cascade_far_bound: 12.0,
+            overlap_proportion: 0.25,
+        }
+        .build();
+        let original_bounds = original.bounds.clone();
+        let (mut app, light) = app_with_shadow(original);
+
+        app.world_mut()
+            .resource_mut::<NextState<GameState>>()
+            .set(GameState::Battle);
+        app.update();
+        let battle = app.world().get::<CascadeShadowConfig>(light).unwrap();
+        assert_eq!(battle.bounds, vec![35.0]);
+        assert_eq!(battle.minimum_distance, 0.3);
+
+        app.world_mut()
+            .resource_mut::<NextState<GameState>>()
+            .set(GameState::World);
+        app.update();
+        let restored = app.world().get::<CascadeShadowConfig>(light).unwrap();
+        assert_eq!(restored.bounds, original_bounds);
+        assert_eq!(restored.minimum_distance, 0.7);
+        assert_eq!(restored.overlap_proportion, 0.25);
+    }
+
+    #[test]
+    fn battle_shadow_config_without_a_directional_light_is_a_no_op() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.init_state::<GameState>();
+        app.init_resource::<BattleShadowConfigState>();
+        app.add_systems(OnEnter(GameState::Battle), apply_battle_shadow_config);
+        app.add_systems(OnExit(GameState::Battle), restore_battle_shadow_config);
+        app.update();
+
+        app.world_mut()
+            .resource_mut::<NextState<GameState>>()
+            .set(GameState::Battle);
+        app.update();
+        let saved = app.world().resource::<BattleShadowConfigState>();
+        assert!(saved.light.is_none());
+        assert!(saved.original.is_none());
+    }
+}
 
 /// Arena framing tests that need no models or GPU.
 #[cfg(test)]
