@@ -1,8 +1,8 @@
 //! Baked terrain tangent-space normal map.
 //!
 //! Mirrors [`super::terrain_albedo`]: the same eight normalised splat weights and
-//! the same `SplatST / 32` detail tiling blend the material's `SplatNormal0..7`
-//! layers (BC5) into one tangent-space normal map per area
+//! the same `SplatST / DETAIL_TILE_DIVISOR` detail tiling blend the material's
+//! `SplatNormal0..7` layers (BC5) into one tangent-space normal map per area
 //! (`work/cache/terrain_normals/areaNN.png`, RGB8, 2048²) plus an invalidation
 //! sidecar with the same skip-if-unchanged semantics as the albedo bake.
 //!
@@ -61,7 +61,7 @@ pub struct ResolvedNormalLayer {
     pub height: u32,
     /// Decoded tangent-space (x, y) in `[-1, 1]`, row-major, `width * height` long.
     pub xy: Vec<[f32; 2]>,
-    /// `SplatST<k>` x scale (repeats per [`DETAIL_TILE_DIVISOR`] metres).
+    /// `SplatST<k>` x scale: `tiling` repeats per [`DETAIL_TILE_DIVISOR`] metres.
     pub tiling: f32,
     /// Content hash of the source texture (sidecar invalidation).
     pub hash: String,

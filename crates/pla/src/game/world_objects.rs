@@ -42,8 +42,32 @@ pub struct Placement {
     pub scale: [f32; 3],
 }
 
-/// Parse the placement sheet for the main area `area` (`ha_area00`), keeping rows whose glTF export is `ok`.
+/// Parse the placement sheet for the main area `area` (`ha_area00`), keeping rows whose glTF export
+/// is `ok` in the sheet's own `model_status` snapshot (collision and report callers). The spawner
+/// uses [`parse_placements_for_spawn`], where the export index is authoritative instead.
 pub fn parse_placements(text: &str, area: &str) -> Vec<Placement> {
+    parse_placements_impl(text, area, true)
+}
+
+/// Spawn variant of [`parse_placements`]: every row of the main area with a resolved model name,
+/// regardless of the sheet's `model_status`.
+///
+/// `field_object_placements.tsv` copies the export status known when it was generated and lags
+/// `field_model_export_index.tsv`: 378 main-area placements are `blocked` there while the index
+/// exports the same model `ok` (e.g. `objects_area00_house01_a`, the Jubilife houses). For
+/// spawning, a valid export is authoritative, so the streamability filter is
+/// [`keep_streamable_placements`] (ok index row + file on disk), not this snapshot.
+///
+/// Rows that remain skipped after that filter: the 7 main-area models the index also blocks
+/// (`wall_area00_02`, `wall_area01_water01_asase`, `wall_area01_kingtree01`, `wall_area02_floor01`,
+/// `objects_oldtextplate07`, `wall_area03_water01_asase`, `objects_oldtextplate06`), all with
+/// "no valid bounded .trmsh vertex-layout section; shape layout: no declared shapes", plus any
+/// `ok` index row whose file is missing on disk.
+pub fn parse_placements_for_spawn(text: &str, area: &str) -> Vec<Placement> {
+    parse_placements_impl(text, area, false)
+}
+
+fn parse_placements_impl(text: &str, area: &str, require_sheet_ok: bool) -> Vec<Placement> {
     let mut cols: HashMap<&str, usize> = HashMap::new();
     let mut out = Vec::new();
     for line in text.lines().filter(|l| !l.starts_with('#')) {
@@ -55,7 +79,10 @@ pub fn parse_placements(text: &str, area: &str) -> Vec<Placement> {
             continue;
         }
         let get = |n: &str| cols.get(n).and_then(|&i| c.get(i)).copied().unwrap_or("");
-        if get("area") != area || get("model_status") != "ok" || get("model_name").is_empty() {
+        if get("area") != area || get("model_name").is_empty() {
+            continue;
+        }
+        if require_sheet_ok && get("model_status") != "ok" {
             continue;
         }
         let f = |n: &str, d: f32| get(n).parse::<f32>().unwrap_or(d);
@@ -149,20 +176,52 @@ pub fn find_data_file(name: &str) -> Option<PathBuf> {
         .find(|p| p.exists())
 }
 
-/// Map model name -> (filesystem PathBuf, relative asset path String) using the export index.
-fn model_paths(cache_root: &Path, area: u8) -> HashMap<String, (PathBuf, String)> {
+/// The `work/cache/`-relative tail of one `output` column of `data/field_model_export_index.tsv`.
+///
+/// The exporter writes absolute paths inside this repo's `work/cache`
+/// (`/home/nico/work/decompilacion/work/cache/gltf_field/...`); older rows may hold a legacy
+/// `work/cache/...`-relative one. Both spellings yield the same tail (e.g.
+/// `gltf_field/ha_area00/objects_area00_house01_a.gltf`); a stored path that does not sit under a
+/// `work/cache/` directory yields `None`.
+pub fn cache_relative_export_path(stored: &str) -> Option<&str> {
+    const MARKER: &str = "work/cache/";
+    let rel = match stored.strip_prefix(MARKER) {
+        Some(rel) => rel,
+        None => {
+            // Absolute row: strip through the LAST `work/cache/` so a path pointing at the main
+            // checkout re-roots onto `cache_root` (a worktree's `work/` resolves to the same tree).
+            let at = stored.rfind(MARKER)? + MARKER.len();
+            &stored[at..]
+        }
+    };
+    (!rel.is_empty()).then_some(rel)
+}
+
+/// Resolve one `output` column of `data/field_model_export_index.tsv` against `cache_root`:
+/// `(cache_root.join(rel), "cache/<rel>")` — the absolute file path plus the asset-server path
+/// (the asset root is `work/`). `None` when the stored path has no `work/cache/` tail; the caller
+/// skips the row.
+pub fn normalize_export_path(cache_root: &Path, stored: &str) -> Option<(PathBuf, String)> {
+    let rel = cache_relative_export_path(stored)?;
+    Some((cache_root.join(rel), format!("cache/{rel}")))
+}
+
+/// Map model name -> (filesystem PathBuf, relative asset path String) using the export index:
+/// every `ok` row resolved onto `cache_root` (see [`normalize_export_path`]). This is the table
+/// [`keep_streamable_placements`] checks; the placed-object collision shares it so both agree on
+/// which models exist.
+pub fn model_paths(cache_root: &Path) -> HashMap<String, (PathBuf, String)> {
     let mut m = HashMap::new();
     if let Some(text) = find_data_file("field_model_export_index.tsv").and_then(|p| std::fs::read_to_string(p).ok()) {
         for line in text.lines().filter(|l| !l.starts_with('#')) {
             let c: Vec<&str> = line.split('\t').collect();
             if c.len() >= 4 && c[3] == "ok" {
-                if let Some(rel) = c[2].strip_prefix("work/cache/") {
-                    m.insert(c[1].to_string(), (cache_root.join(rel), format!("cache/{rel}")));
+                if let Some(pair) = normalize_export_path(cache_root, c[2]) {
+                    m.insert(c[1].to_string(), pair);
                 }
             }
         }
     }
-    let _ = area;
     m
 }
 
@@ -185,6 +244,8 @@ pub(crate) struct WorldObjects {
     prims: HashMap<String, Prims>,
     /// Local geometry of the water models (bounds + XZ triangles), for the world water bodies.
     water_meshes: HashMap<String, WaterMesh>,
+    /// Models whose skinned primitive had to be skipped (one log line each).
+    skip_warned: HashSet<String>,
     rot_mode: RotMode,
 }
 
@@ -207,13 +268,13 @@ impl Plugin for WorldObjectsPlugin {
             println!("World objects: data/field_object_placements.tsv not found; skipping.");
             return;
         };
-        let all = parse_placements(&text, &area);
-        let paths = model_paths(&self.cache_root, self.area);
+        let all = parse_placements_for_spawn(&text, &area);
+        let paths = model_paths(&self.cache_root);
         let total = all.len();
         let overlap = all.iter().filter(|p| self.exclude_models.contains(&p.model)).count();
         let placements = keep_streamable_placements(all, &self.exclude_models, &paths);
         println!(
-            "World objects {area}: {total} ok placements, {overlap} overlap .trins models (skipped), {} with an exported glTF on disk.",
+            "World objects {area}: {total} sheet placements, {overlap} overlap .trins models (skipped), {} with an exported glTF on disk.",
             placements.len()
         );
         app.insert_resource(WorldObjects {
@@ -223,6 +284,7 @@ impl Plugin for WorldObjectsPlugin {
             handles: HashMap::new(),
             prims: HashMap::new(),
             water_meshes: HashMap::new(),
+            skip_warned: HashSet::new(),
             rot_mode: self.rot_mode,
         });
         app.add_systems(Update, stream_objects);
@@ -267,7 +329,7 @@ pub fn reload_world_objects(
                 String::new()
             });
         let wo = world.resource::<WorldObjects>();
-        keep_streamable_placements(parse_placements(&text, &area), exclude_models, &wo.paths)
+        keep_streamable_placements(parse_placements_for_spawn(&text, &area), exclude_models, &wo.paths)
     } else {
         Vec::new()
     };
@@ -295,6 +357,7 @@ impl WorldObjects {
             handles: HashMap::new(),
             prims: HashMap::new(),
             water_meshes: HashMap::new(),
+            skip_warned: HashSet::new(),
             rot_mode,
         }
     }
@@ -319,6 +382,40 @@ fn mesh_xz_triangles(mesh: &Mesh) -> Vec<[Vec2; 3]> {
     out
 }
 
+/// The mesh handle a static placed-object primitive is drawn with.
+///
+/// Bevy picks the **skinned** mesh pipeline and bind group from the mesh layout alone
+/// (`is_skinned`: `JOINT_INDEX` + `JOINT_WEIGHT` attributes). A placed object is spawned as a
+/// plain `Mesh3d` without `SkinnedMesh` or skin uniforms, so a skinned glTF primitive (the area 00
+/// flag props `objects_area00_house04_b_flag` / `_house11_flag`, the only 2 of the 393 streamable
+/// placed models) bound the model-only bind group against the skinned layout and the render
+/// pipeline failed wgpu validation, quitting the viewer — latent until the placed objects started
+/// spawning at all. The props do not animate in the port, so a copy without the joint attributes
+/// is correct and keeps them visible; `handle` itself is returned when the mesh is already static
+/// and `None` when its data cannot be read (a `RENDER_WORLD`-only asset), which makes the caller
+/// skip the primitive with one log line.
+fn static_placed_mesh(meshes: &mut Assets<Mesh>, handle: &Handle<Mesh>) -> Option<Handle<Mesh>> {
+    let stripped = {
+        let mesh = meshes.get(handle)?;
+        let skinned = [Mesh::ATTRIBUTE_JOINT_INDEX, Mesh::ATTRIBUTE_JOINT_WEIGHT]
+            .into_iter()
+            .any(|attribute| mesh.try_contains_attribute(attribute).unwrap_or(false));
+        if !skinned {
+            return Some(handle.clone());
+        }
+        let mut copy = mesh.clone();
+        for attribute in [Mesh::ATTRIBUTE_JOINT_INDEX, Mesh::ATTRIBUTE_JOINT_WEIGHT] {
+            if copy.try_contains_attribute(attribute).unwrap_or(false)
+                && copy.try_remove_attribute(attribute).is_err()
+            {
+                return None;
+            }
+        }
+        copy
+    };
+    Some(meshes.add(stripped))
+}
+
 #[derive(Component)]
 #[allow(dead_code)]
 struct PlacedObject(usize);
@@ -332,7 +429,7 @@ fn stream_objects(
     gltfs: Res<Assets<Gltf>>,
     gltf_meshes: Res<Assets<GltfMesh>>,
     gltf_materials: Res<Assets<GltfMaterial>>,
-    meshes: Res<Assets<Mesh>>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut water_materials: ResMut<Assets<WaterMaterial>>,
     mut water_bodies: Option<ResMut<WaterBodies>>,
@@ -440,7 +537,18 @@ fn stream_objects(
                         };
                         PrimMaterial::Standard(standard_materials.add(sm))
                     };
-                    prims.push((prim.mesh.clone(), pm));
+                    // A skinned primitive cannot be drawn as a plain static `Mesh3d` (see the
+                    // helper); the props do not animate, so a stripped copy is drawn instead.
+                    let Some(mesh) = static_placed_mesh(&mut meshes, &prim.mesh) else {
+                        if wo.skip_warned.insert(p.model.clone()) {
+                            eprintln!(
+                                "World objects: primitive '{}' of {} skipped (mesh data not readable as a static mesh; cannot guarantee a non-skinned layout)",
+                                gm.name, p.model
+                            );
+                        }
+                        continue;
+                    };
+                    prims.push((mesh, pm));
                 }
             }
             if has_water_geometry {
@@ -494,6 +602,8 @@ fn stream_objects(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::asset::RenderAssetUsages;
+    use bevy::mesh::{Indices, PrimitiveTopology};
 
     const T: &str = "# c\narea:string*\tinstance_id:string*\tobject_key:string\tmodel_hash:string\tmodel_name:string?\tmodel_status:enum\tx:f32\ty:f32\tz:f32\trot_x:f32?\trot_y:f32?\trot_z:f32?\tscale_x:f32?\tscale_y:f32?\tscale_z:f32?\tgate_flags:string?\n\
 ha_area00\ta\tk\th\tobjects_a\tok\t1\t2\t3\t\t90\t\t1.2\t1.2\t1.2\t\n\
@@ -568,6 +678,245 @@ ha_area01\td\tk\th\tobjects_d\tok\t1\t2\t3\t\t\t\t\t\t\t\n";
         assert!(
             keep_streamable_placements(rows, &HashSet::new(), &missing).is_empty(),
             "no exported glTF on disk: not streamable"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The export index stores absolute paths (current exporter) or legacy `work/cache/`-relative
+    /// ones; both must resolve onto the cache root, and an absolute row must land on the exact
+    /// glTF the index points at with the asset-server path the viewer loads.
+    #[test]
+    fn normalizes_absolute_and_relative_export_rows() {
+        let root = Path::new("/tmp/some-cache-root");
+        let abs_row =
+            "/home/nico/work/decompilacion/work/cache/gltf_field/ha_area00/objects_area00_house01_a.gltf";
+        let expected = Some((
+            root.join("gltf_field/ha_area00/objects_area00_house01_a.gltf"),
+            "cache/gltf_field/ha_area00/objects_area00_house01_a.gltf".to_string(),
+        ));
+        assert_eq!(normalize_export_path(root, abs_row), expected);
+        assert_eq!(
+            normalize_export_path(
+                root,
+                "work/cache/gltf_field/ha_area00/objects_area00_house01_a.gltf"
+            ),
+            expected,
+            "the legacy relative spelling resolves to the same file and asset path"
+        );
+        assert!(normalize_export_path(root, "/other/place/model.gltf").is_none());
+        assert!(normalize_export_path(root, "").is_none());
+    }
+
+    /// Regression for the absolute-path bug: with the real committed index and the git-ignored
+    /// cache present (developer machine), the Jubilife house placements, `blocked` in the stale
+    /// placement sheet but exported `ok`, must resolve to files on disk and become streamable.
+    /// Returns early where the cache is absent so a data-less checkout stays green.
+    #[test]
+    fn real_index_resolves_the_jubilife_houses() {
+        let cache_root = Path::new(DEFAULT_CACHE_ROOT);
+        let (Some(index), Some(sheet)) = (
+            find_data_file("field_model_export_index.tsv"),
+            find_data_file("field_object_placements.tsv"),
+        ) else {
+            return;
+        };
+        if !cache_root.is_dir() {
+            return;
+        }
+        let index_text = std::fs::read_to_string(index).unwrap();
+        let paths: HashMap<String, (PathBuf, String)> = index_text
+            .lines()
+            .filter(|l| !l.starts_with('#'))
+            .filter_map(|l| {
+                let c: Vec<&str> = l.split('\t').collect();
+                (c.len() >= 4 && c[3] == "ok")
+                    .then(|| normalize_export_path(cache_root, c[2]).map(|p| (c[1].to_string(), p)))
+                    .flatten()
+            })
+            .collect();
+        let sheet_text = std::fs::read_to_string(sheet).unwrap();
+        let rows = parse_placements_for_spawn(&sheet_text, "ha_area00");
+        assert!(
+            rows.iter().any(|p| p.model == "objects_area00_house01_a"),
+            "the spawn parse keeps the sheet-blocked house row"
+        );
+        let streamable = keep_streamable_placements(rows, &HashSet::new(), &paths);
+        let houses = streamable
+            .iter()
+            .filter(|p| p.model.starts_with("objects_area00_house"))
+            .count();
+        assert!(
+            houses > 0,
+            "the exported house models must resolve on disk ({houses} kept)"
+        );
+        let (path, asset) = normalize_export_path(
+            cache_root,
+            "/home/nico/work/decompilacion/work/cache/gltf_field/ha_area00/objects_area00_house01_a.gltf",
+        )
+        .unwrap();
+        assert!(path.is_file(), "{} missing", path.display());
+        assert_eq!(
+            asset,
+            "cache/gltf_field/ha_area00/objects_area00_house01_a.gltf"
+        );
+    }
+
+    /// A skinned placed-object primitive must be drawn as a static mesh: Bevy picks the skinned
+    /// pipeline and bind group from `JOINTS_0`/`WEIGHTS_0` alone, and a placed object is spawned
+    /// without `SkinnedMesh` or skin uniforms, so the model-only bind group failed wgpu validation
+    /// and quit the viewer (the area 00 flag props; latent until the placed objects spawned at
+    /// all). The stripped copy keeps every other attribute and the original asset is untouched.
+    #[test]
+    fn skinned_primitives_are_stripped_for_static_placement() {
+        let mut meshes = Assets::<Mesh>::default();
+        let source = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        )
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            vec![[0.0f32, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        )
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0f32, 0.0, 1.0]; 3])
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0f32, 0.0]; 3])
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_JOINT_INDEX,
+            VertexAttributeValues::Uint16x4(vec![[0u16, 0, 0, 0]; 3]),
+        )
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_JOINT_WEIGHT,
+            VertexAttributeValues::Float32x4(vec![[1.0f32, 0.0, 0.0, 0.0]; 3]),
+        )
+        .with_inserted_indices(Indices::U32(vec![0, 1, 2]));
+        let handle = meshes.add(source);
+        let static_handle = static_placed_mesh(&mut meshes, &handle).expect("stripped copy");
+        assert_ne!(static_handle, handle, "the shared glTF mesh is left alone");
+        let stripped = meshes.get(&static_handle).expect("copy in the assets");
+        assert!(!stripped.contains_attribute(Mesh::ATTRIBUTE_JOINT_INDEX));
+        assert!(!stripped.contains_attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT));
+        assert!(stripped.contains_attribute(Mesh::ATTRIBUTE_POSITION));
+        assert!(stripped.contains_attribute(Mesh::ATTRIBUTE_NORMAL));
+        assert!(stripped.contains_attribute(Mesh::ATTRIBUTE_UV_0));
+        assert_eq!(stripped.indices(), Some(&Indices::U32(vec![0, 1, 2])));
+        assert!(meshes
+            .get(&handle)
+            .unwrap()
+            .contains_attribute(Mesh::ATTRIBUTE_JOINT_INDEX));
+        // A static mesh keeps its handle; a missing asset is refused so the caller can skip it.
+        let plain = meshes.add(Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        ));
+        assert_eq!(static_placed_mesh(&mut meshes, &plain), Some(plain));
+        assert!(static_placed_mesh(&mut meshes, &Handle::<Mesh>::default()).is_none());
+    }
+
+    /// Real-data scan of the skinned placed props: of the streamable models across all areas,
+    /// exactly the two area 00 flag props carry `JOINTS_0`/`WEIGHTS_0` (and declare `skins`), and
+    /// every skinned primitive keeps POSITION/NORMAL/UV, so stripping the joints leaves a complete
+    /// static mesh (see `skinned_primitives_are_stripped_for_static_placement`). Skips without the
+    /// git-ignored cache.
+    #[test]
+    fn real_skinned_placed_models_are_strip_safe() {
+        let cache_root = Path::new(DEFAULT_CACHE_ROOT);
+        let Some(sheet) = find_data_file("field_object_placements.tsv") else {
+            return;
+        };
+        if find_data_file("field_model_export_index.tsv").is_none() || !cache_root.is_dir() {
+            return;
+        }
+        let paths = model_paths(cache_root);
+        let sheet_text = std::fs::read_to_string(sheet).unwrap();
+        let mut models: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for area in 0..=5u8 {
+            let name = format!("ha_area{area:02}");
+            for p in keep_streamable_placements(
+                parse_placements_for_spawn(&sheet_text, &name),
+                &HashSet::new(),
+                &paths,
+            ) {
+                models.insert(p.model);
+            }
+        }
+        let mut skinned = Vec::new();
+        for model in &models {
+            let Some((path, _)) = paths.get(model) else {
+                continue;
+            };
+            let Ok(text) = std::fs::read_to_string(path) else {
+                continue;
+            };
+            let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
+                continue;
+            };
+            let has_skins = json
+                .get("skins")
+                .and_then(|s| s.as_array())
+                .is_some_and(|s| !s.is_empty());
+            for mesh in json["meshes"].as_array().into_iter().flatten() {
+                for prim in mesh["primitives"].as_array().into_iter().flatten() {
+                    let attrs = &prim["attributes"];
+                    if attrs.get("JOINTS_0").is_none() && attrs.get("WEIGHTS_0").is_none() {
+                        continue;
+                    }
+                    skinned.push((
+                        model.clone(),
+                        has_skins,
+                        attrs.get("POSITION").is_some(),
+                        attrs.get("NORMAL").is_some(),
+                        attrs.get("TEXCOORD_0").is_some(),
+                    ));
+                }
+            }
+        }
+        assert!(
+            skinned
+                .iter()
+                .any(|(m, ..)| m == "objects_area00_house04_b_flag")
+                && skinned
+                    .iter()
+                    .any(|(m, ..)| m == "objects_area00_house11_flag"),
+            "the two skinned flag props must be in the streamable set: {skinned:?}"
+        );
+        for (model, has_skins, position, normal, uv) in &skinned {
+            assert!(
+                *has_skins,
+                "{model}: JOINTS_0/WEIGHTS_0 without a skin declaration"
+            );
+            assert!(
+                *position && *normal && *uv,
+                "{model}: a skinned primitive lacks POSITION/NORMAL/TEXCOORD_0"
+            );
+        }
+    }
+
+    /// A `blocked` sheet row whose model the index exports `ok` must spawn; a model blocked in the
+    /// index too (no path entry) stays out.
+    #[test]
+    fn spawn_parse_treats_a_valid_export_as_authoritative() {
+        const S: &str = "# c\narea:string*\tinstance_id:string*\tobject_key:string\tmodel_hash:string\tmodel_name:string?\tmodel_status:enum\tx:f32\ty:f32\tz:f32\trot_x:f32?\trot_y:f32?\trot_z:f32?\tscale_x:f32?\tscale_y:f32?\tscale_z:f32?\tgate_flags:string?\n\
+ha_area00\ta\tk\th\tobjects_stale\tblocked\t1\t2\t3\t\t\t\t\t\t\t\n\
+ha_area00\tb\tk\th\tobjects_blocked\tblocked\t4\t2\t5\t\t\t\t\t\t\t\n";
+        let dir = std::env::temp_dir().join(format!("wo_spawn_test_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("objects_stale.gltf");
+        std::fs::write(&file, "{}").unwrap();
+        let mut paths = HashMap::new();
+        paths.insert(
+            "objects_stale".to_string(),
+            (file, "cache/objects_stale.gltf".to_string()),
+        );
+        assert!(
+            parse_placements(S, "ha_area00").is_empty(),
+            "the sheet's own snapshot drops both blocked rows"
+        );
+        let rows = parse_placements_for_spawn(S, "ha_area00");
+        assert_eq!(rows.len(), 2, "the spawn parse keeps blocked rows");
+        let streamable = keep_streamable_placements(rows, &HashSet::new(), &paths);
+        assert_eq!(streamable.len(), 1);
+        assert_eq!(
+            streamable[0].model, "objects_stale",
+            "the ok export is authoritative; the index-blocked model stays out"
         );
         std::fs::remove_dir_all(&dir).ok();
     }

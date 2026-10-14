@@ -38,6 +38,7 @@ use bevy::render::render_resource::{
 };
 use bevy::shader::ShaderRef;
 
+use super::npc::NpcInstance;
 use super::player_anim::PlayerAnimState;
 use super::pokemon_anim::PokemonAnimState;
 
@@ -462,7 +463,14 @@ fn apply_art_style(
     roots: Query<
         Entity,
         (
-            Or<(With<PokemonAnimState>, With<PlayerAnimState>, With<ArtStyleTarget>)>,
+            // NPCs (`NpcInstance`, human placements) get the same band shading + outlines as the
+            // player and the Pokémon; the roots are retried until their glTF scene has meshes.
+            Or<(
+                With<PokemonAnimState>,
+                With<PlayerAnimState>,
+                With<ArtStyleTarget>,
+                With<NpcInstance>,
+            )>,
             Without<ArtStyleApplied>,
         ),
     >,
@@ -815,5 +823,79 @@ mod tests {
         assert!(rim12 >= 16, "rim power 12 in {rim12} of 17 files");
         let day = toon_params_from_sheet(&text, "ha_area00", 1, CHARACTER_LIGHT_CATEGORY);
         assert_eq!(day.rim_color, RIM_COLOR_FALLBACK);
+    }
+
+    /// The NPC root marker is part of the conversion query: a skinned-model root with
+    /// `NpcInstance` gets the toon material on its meshes and an outline shell, and a root without
+    /// any marker is left alone (headless; no renderer, no window).
+    #[test]
+    fn npc_roots_get_the_toon_material_and_outline() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<Mesh>()
+            .init_asset::<StandardMaterial>()
+            .init_asset::<ToonMaterial>()
+            .init_asset::<OutlineMaterial>();
+        app.insert_resource(StyleSettings { style: ArtStyle::Original, outlines: true });
+        app.insert_resource(ArtStyleParams {
+            toon: ToonParams::default(),
+            outline: OutlineParams::default(),
+        });
+        app.add_systems(Update, (revert_art_style, apply_art_style.run_if(style_is_original)).chain());
+
+        let mesh = app.world_mut().resource_mut::<Assets<Mesh>>().add(Sphere::new(1.0));
+        let std_mat = app
+            .world_mut()
+            .resource_mut::<Assets<StandardMaterial>>()
+            .add(StandardMaterial::default());
+        let root = app
+            .world_mut()
+            .spawn((
+                NpcInstance {
+                    key: "area00_npc_re_leader".into(),
+                    chara_hash: "h".into(),
+                    chara_id: None,
+                    idle_clip: None,
+                    route_confidence: "UNKNOWN",
+                },
+                Transform::default(),
+                Visibility::default(),
+            ))
+            .id();
+        let body = app
+            .world_mut()
+            .spawn((
+                Mesh3d(mesh.clone()),
+                MeshMaterial3d(std_mat.clone()),
+                Name::new("body"),
+                Transform::default(),
+            ))
+            .id();
+        app.world_mut().entity_mut(root).add_child(body);
+        // A root without a styled marker (e.g. a placed scenery object) stays plain.
+        let plain = app
+            .world_mut()
+            .spawn((
+                Mesh3d(mesh),
+                MeshMaterial3d(std_mat),
+                Name::new("prop"),
+                Transform::default(),
+            ))
+            .id();
+
+        app.update();
+
+        assert!(app.world().entity(root).contains::<ArtStyleApplied>());
+        assert!(
+            app.world().entity(body).contains::<MeshMaterial3d<ToonMaterial>>(),
+            "the NPC mesh is converted"
+        );
+        assert!(app.world().entity(body).contains::<OriginalMaterial>());
+        assert!(
+            !app.world().entity(plain).contains::<OriginalMaterial>(),
+            "a root without a marker is not converted"
+        );
+        let mut shells = app.world_mut().query_filtered::<Entity, With<OutlineShell>>();
+        assert_eq!(shells.iter(app.world()).count(), 1, "one outline shell for the NPC mesh");
     }
 }

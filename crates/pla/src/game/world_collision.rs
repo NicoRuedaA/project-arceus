@@ -1,7 +1,12 @@
 //! Wall collision for placed scenery: houses, fences, rocks, logs and water edges.
 //!
 //! The visual placements (`data/field_object_placements.tsv`) are shared with
-//! [`super::world_objects`]. The collision shapes live in the field model collision packs
+//! [`super::world_objects`], and so is the streamable set: collision parses the same
+//! export-authoritative rows ([`super::world_objects::parse_placements_for_spawn`]) and applies
+//! the same export-index filter ([`super::world_objects::keep_streamable_placements`]). A model
+//! the index does not export must stay out even when a `<model>_col.trcol` entry exists (the 7
+//! blocked rows do have shapes): its collision would be an invisible wall.
+//! The collision shapes live in the field model collision packs
 //! (`archive/field/model/pack/collision.gfpak` and `resident_bg_parts_model.gfpak`) and are
 //! addressed by the same full-path FNV-1a 64 scheme as every other GFLXPACK entry:
 //!
@@ -21,15 +26,15 @@
 //! The placement transform reuses [`super::world_objects::placement_rotation`], so collision and
 //! visuals move together under every `--obj-rot` mode.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bevy::prelude::*;
 
 use super::world_objects::{
-    find_data_file, parse_placements, placement_rotation, should_be_alive, Placement, RotMode,
-    LOAD_RADIUS, UNLOAD_RADIUS,
+    find_data_file, keep_streamable_placements, model_paths, parse_placements_for_spawn,
+    placement_rotation, should_be_alive, Placement, RotMode, LOAD_RADIUS, UNLOAD_RADIUS,
 };
 use super::PlayerAvatar;
 use crate::assets::collision::CollisionMesh;
@@ -621,6 +626,9 @@ pub struct WorldCollision {
     grid: CollisionGrid,
     packs: CollisionPacks,
     placements: Vec<Placement>,
+    /// Export-index table of the spawnable models (see [`model_paths`]): zone changes filter the
+    /// new area's rows with it, exactly like the visual objects do.
+    paths: HashMap<String, (PathBuf, String)>,
     /// Per-model parsed mesh (`None` = the model has no collision entry).
     models: HashMap<String, Option<Arc<CollisionMesh>>>,
     alive: Vec<bool>,
@@ -745,12 +753,37 @@ impl WorldCollision {
             self.replace_placements(Vec::new());
             return Err("data/field_object_placements.tsv not found".into());
         };
-        self.replace_placements(parse_placements(&text, &format!("ha_area{area:02}")));
+        let placements =
+            Self::streamable_placements(&text, &format!("ha_area{area:02}"), &self.paths);
+        self.replace_placements(placements);
         Ok(())
     }
 
+    /// The placements collision covers: the spawn-authoritative parse of `area` restricted to
+    /// the models the export index can draw (the same parse + filter
+    /// [`super::world_objects::WorldObjectsPlugin`] streams, so walls never outlive the visual
+    /// model; `exclude_models` is not applied here because the spawner's `.trins`-tree exclusion
+    /// is a visual-duplicate rule, not a collision rule).
+    fn streamable_placements(
+        text: &str,
+        area: &str,
+        paths: &HashMap<String, (PathBuf, String)>,
+    ) -> Vec<Placement> {
+        keep_streamable_placements(
+            parse_placements_for_spawn(text, area),
+            &HashSet::new(),
+            paths,
+        )
+    }
+
     /// Build the resource for one area from the committed placement sheet and the game packs.
-    pub fn load(bin_root: impl AsRef<Path>, area: u8, rot_mode: RotMode) -> Result<Self, String> {
+    /// `cache_root` resolves the export index (`PLA_CACHE_ROOT` in the viewer).
+    pub fn load(
+        bin_root: impl AsRef<Path>,
+        area: u8,
+        rot_mode: RotMode,
+        cache_root: impl AsRef<Path>,
+    ) -> Result<Self, String> {
         let packs = CollisionPacks::load(bin_root)?;
         let Some(text) = find_data_file("field_object_placements.tsv")
             .and_then(|p| std::fs::read_to_string(p).ok())
@@ -758,7 +791,8 @@ impl WorldCollision {
             return Err("data/field_object_placements.tsv not found".into());
         };
         let area_name = format!("ha_area{area:02}");
-        let placements = parse_placements(&text, &area_name);
+        let paths = model_paths(cache_root.as_ref());
+        let placements = Self::streamable_placements(&text, &area_name, &paths);
         let placements_total = placements.len();
         // Coverage is counted from the verified path hashes; meshes parse lazily on first use.
         let placements_with_collision = placements
@@ -768,9 +802,10 @@ impl WorldCollision {
         let mut wc = Self {
             grid: CollisionGrid::new(CELL),
             packs,
+            placements,
+            paths,
             models: HashMap::new(),
             alive: vec![false; placements_total],
-            placements,
             rot_mode,
             placements_total,
             placements_with_collision,
@@ -798,6 +833,8 @@ fn stream_collision(
 pub struct WorldCollisionPlugin {
     pub area: u8,
     pub bin_root: PathBuf,
+    /// Export-index cache root for the streamable-model filter (`PLA_CACHE_ROOT` in the viewer).
+    pub cache_root: PathBuf,
     pub rot_mode: RotMode,
 }
 
@@ -806,7 +843,7 @@ impl Plugin for WorldCollisionPlugin {
         if self.area > 5 {
             return;
         }
-        match WorldCollision::load(&self.bin_root, self.area, self.rot_mode) {
+        match WorldCollision::load(&self.bin_root, self.area, self.rot_mode, &self.cache_root) {
             Ok(wc) => {
                 println!(
                     "World collision area {:02}: {} placements, {} with a collision shape; streaming within {} m.",
@@ -914,6 +951,7 @@ mod tests {
             grid: CollisionGrid::new(CELL),
             packs: CollisionPacks { packs: Vec::new() },
             placements: Vec::new(),
+            paths: HashMap::new(),
             models: HashMap::new(),
             alive: Vec::new(),
             rot_mode: RotMode::YawY,
@@ -1097,19 +1135,33 @@ mod tests {
             })
     }
 
+    fn cache_root() -> PathBuf {
+        std::env::var_os("PLA_CACHE_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(super::super::world_objects::DEFAULT_CACHE_ROOT))
+    }
+
+    /// The game packs and the exported glTF cache, or `None` (test skipped).
+    fn game_data() -> Option<(PathBuf, PathBuf)> {
+        let bin = bin_root();
+        let cache = cache_root();
+        (bin.join("archive/field/model/pack/collision.gfpak")
+            .exists()
+            && cache.is_dir())
+        .then_some((bin, cache))
+    }
+
     #[test]
     fn real_resource_streams_and_pushes() {
-        let root = bin_root();
-        if !root
-            .join("archive/field/model/pack/collision.gfpak")
-            .exists()
-        {
+        let Some((root, cache)) = game_data() else {
             eprintln!("skip: game data not present");
             return;
-        }
-        let mut wc = WorldCollision::load(&root, 0, RotMode::YawY).unwrap();
-        assert_eq!(wc.placements_total, 195);
-        assert_eq!(wc.placements_with_collision, 195);
+        };
+        let mut wc = WorldCollision::load(&root, 0, RotMode::YawY, &cache).unwrap();
+        // The export-authoritative streamable set (was 195 under the stale sheet snapshot; the
+        // graficos2 fix adds the blocked-but-exported houses).
+        assert_eq!(wc.placements_total, 236);
+        assert_eq!(wc.placements_with_collision, 236);
         assert_eq!(
             wc.instance_count(),
             0,
@@ -1130,14 +1182,10 @@ mod tests {
 
     #[test]
     fn real_pack_resolves_placed_models() {
-        let root = bin_root();
-        if !root
-            .join("archive/field/model/pack/collision.gfpak")
-            .exists()
-        {
+        let Some((root, cache)) = game_data() else {
             eprintln!("skip: game data not present");
             return;
-        }
+        };
         let packs = CollisionPacks::load(&root).unwrap();
         assert!(!packs.packs.is_empty());
         let path = CollisionPacks::collision_path("gimmick_area03_tree01");
@@ -1146,10 +1194,11 @@ mod tests {
         let mesh = packs.mesh(pack, entry).unwrap();
         assert!(!mesh.triangles.is_empty(), "entry 0 must carry geometry");
 
-        // Every model placed in area 00 must resolve to a collision shape.
+        // Every model the spawn path can stream in area 00 must resolve to a collision shape.
         let text = std::fs::read_to_string(find_data_file("field_object_placements.tsv").unwrap())
             .unwrap();
-        let placements = parse_placements(&text, "ha_area00");
+        let placements =
+            WorldCollision::streamable_placements(&text, "ha_area00", &model_paths(&cache));
         assert!(!placements.is_empty());
         let mut missing = Vec::new();
         for p in &placements {
@@ -1161,5 +1210,37 @@ mod tests {
             missing.is_empty(),
             "area00 models without collision: {missing:?}"
         );
+    }
+
+    /// The graficos2 follow-up: the houses the spawn path started streaming (`blocked` in the
+    /// sheet, exported `ok`) were missing from the collision set; they must resolve their `_col`
+    /// shapes, and the resource totals must match the streamable set.
+    #[test]
+    fn real_spawnable_houses_resolve_collision_entries() {
+        let Some((root, cache)) = game_data() else {
+            eprintln!("skip: game data not present");
+            return;
+        };
+        let text = std::fs::read_to_string(find_data_file("field_object_placements.tsv").unwrap())
+            .unwrap();
+        let placements =
+            WorldCollision::streamable_placements(&text, "ha_area00", &model_paths(&cache));
+        assert!(
+            placements
+                .iter()
+                .any(|p| p.model.starts_with("objects_area00_house")),
+            "the export-authoritative parse keeps the house placements"
+        );
+        let packs = CollisionPacks::load(&root).unwrap();
+        for p in &placements {
+            assert!(
+                packs.has_collision_entry(&p.model),
+                "{} is streamable but has no collision entry",
+                p.model
+            );
+        }
+        let wc = WorldCollision::load(&root, 0, RotMode::YawY, &cache).unwrap();
+        assert_eq!(wc.placements_total, placements.len());
+        assert_eq!(wc.placements_with_collision, wc.placements_total);
     }
 }

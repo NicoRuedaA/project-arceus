@@ -973,7 +973,31 @@ pub fn apply_zone_change(
         let safe = safe_start_for(area_idx, mesh, &comps);
         landing_point(mesh, &comps, wanted, safe)
     });
-    Ok(landing.unwrap_or((wanted, request.spawn.y)))
+    let (mut xz, mut y) = landing.unwrap_or((wanted, request.spawn.y));
+    // The decoded arrival can coincide with an NPC placement (the capture showed the player fused
+    // into the area 00 elder): nudge the landing out of the nearest active spot, re-reading the
+    // navmesh height under the nudged point when it is still walkable.
+    if let Some(npcs) = world.get_resource::<crate::game::npc::NpcWorld>() {
+        if let Some(clear) =
+            crate::game::npc::landing_clear_of_npcs(xz, npcs.spots_in_area(&request.zone))
+        {
+            if let Some(nav) = world.get_resource::<GameNavmeshResource>() {
+                let mesh = nav.nav.primary();
+                let comps = sp::components(mesh);
+                if let sp::PointStatus::Walkable { y: clear_y, .. } =
+                    sp::classify_point(mesh, &comps, clear.x, clear.y)
+                {
+                    y = clear_y;
+                }
+            }
+            println!(
+                "Zone change: landing ({:.1}, {:.1}) moved to ({:.1}, {:.1}) to clear an NPC",
+                xz.x, xz.y, clear.x, clear.y
+            );
+            xz = clear;
+        }
+    }
+    Ok((xz, y))
 }
 
 /// Despawn every creature streamed from the previous area's spawners (with its model children)

@@ -21,7 +21,10 @@ use pla::game::world_collision::{
     placement_transform, transformed_bounds, CollisionGrid, CollisionPacks, PLAYER_HEIGHT,
     PLAYER_RADIUS,
 };
-use pla::game::world_objects::{find_data_file, parse_placements, Placement, RotMode};
+use pla::game::world_objects::{
+    find_data_file, keep_streamable_placements, model_paths, normalize_export_path,
+    parse_placements_for_spawn, Placement, RotMode,
+};
 
 fn bin_root() -> PathBuf {
     std::env::var_os("PLA_BIN_ROOT")
@@ -35,10 +38,17 @@ fn cache_root() -> PathBuf {
         .unwrap_or_else(|| "/home/nico/work/decompilacion/work/cache".into())
 }
 
+/// The placements the runtime streams (export-authoritative parse + export-index filter) and
+/// `WorldCollision` therefore covers: a `blocked` model with a `_col` entry but no exported glTF
+/// would be an invisible wall, so it stays out here too.
 fn placements_for(area: u8) -> Vec<Placement> {
     let text =
         std::fs::read_to_string(find_data_file("field_object_placements.tsv").unwrap()).unwrap();
-    parse_placements(&text, &format!("ha_area{area:02}"))
+    keep_streamable_placements(
+        parse_placements_for_spawn(&text, &format!("ha_area{area:02}")),
+        &std::collections::HashSet::new(),
+        &model_paths(&cache_root()),
+    )
 }
 
 /// glTF `path` -> (model path, export status) from `data/field_model_export_index.tsv`.
@@ -328,9 +338,11 @@ fn main() {
         if status != "ok" {
             continue;
         }
-        let rel = out
-            .strip_prefix("work/cache/")
-            .map_or(out.clone(), |r| cache_root().join(r));
+        // The index stores absolute (current exporter) or legacy `work/cache/`-relative rows;
+        // normalize both against the cache root (fallback: the stored path as-is).
+        let rel = normalize_export_path(&cache_root(), &out.to_string_lossy())
+            .map(|(path, _)| path)
+            .unwrap_or_else(|| out.clone());
         let Some(visual) = gltf_local_bounds(&rel) else {
             continue;
         };

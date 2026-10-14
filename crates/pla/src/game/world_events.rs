@@ -17,8 +17,10 @@
 //! sets it; default [`DEFAULT_STORY`] (ASSUMED: post-game, everything unlocked).
 //!
 //! Cues: every transition is printed, sent as a [`WorldEventCue`] message and shown in the HUD
-//! toast; visuals are a translucent dome sphere (distortion), a thin pillar (outbreak) and small
-//! glowing loot markers. No game effect, sound or BGM asset is used (their names are known from
+//! toast; placeholder visuals are a translucent dome sphere (distortion), a thin pillar
+//! (outbreak) and small glowing loot markers, OFF by default (`PLA_DEBUG_PLACEHOLDERS=1` brings
+//! them back, see [`crate::game::debug_flags`]); the marker entities still exist for the event
+//! bookkeeping. No game effect, sound or BGM asset is used (their names are known from
 //! the code reading, the assets are not ported). Events are session-only: nothing is saved
 //! (save format stays v7).
 //!
@@ -1203,7 +1205,15 @@ fn sync_event_markers(
         }
         return;
     };
+    let placeholders = crate::game::debug_flags::placeholders();
     for (m, p, alpha) in wanted.into_iter().filter(|(m, _, _)| !have.contains(m)) {
+        if !placeholders {
+            // The marker entity itself stays (reconciliation above, automation and tests count
+            // it); the dome/pillar/loot primitives are debug placeholders, OFF by default
+            // (`PLA_DEBUG_PLACEHOLDERS=1`).
+            commands.spawn((m, Transform::from_translation(marker_pos(m, p))));
+            continue;
+        }
         let (mesh, color, emissive) = match m {
             WorldEventMarker::Dome => (
                 meshes.add(Sphere::new(DOME_RADIUS)),

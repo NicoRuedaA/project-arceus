@@ -28,9 +28,10 @@ cargo test -p pla world_collision     # 12 passed
   - **Every shape that carries geometry is named**: 712 shapes total, 49 have no geometry (16 with a
     resolved path, 33 with no manifest path, all 2,652-byte tagfile stubs), so **663 of 663 shapes
     with triangles map to a model**.
-- **Placement coverage.** All **1,790 of 1,790** main-area placements (areas 00–05, after origin-row
-  and variant dedupe) resolve to a shape: 195/458/399/52/387/299. All **461** distinct models used
-  by the whole sheet (including sub-areas) resolve too.
+- **Placement coverage.** All **2,158 of 2,158** streamable main-area placements (areas 00–05, after
+  origin-row and variant dedupe; export-authoritative parse + export-index filter since the
+  2026-10-14 spawn/collision sync) resolve to a shape: 236/484/496/122/431/389. All **461**
+  distinct models used by the whole sheet (including sub-areas) resolve too.
 - **Collision and the visual model share the local frame.** Local AABBs of the collision mesh and
   the exported glTF of the same model overlap with mean IoU **0.947** (21/21 Jubilife houses > 0.5),
   so one placement transform places both.
@@ -56,6 +57,11 @@ cargo test -p pla world_collision     # 12 passed
   69/1260 zero-hit rays concentrated on 5 houses with one side fully open at chest height (15/15
   rays of that side). In the viewer the navmesh (house interiors are holes) blocks those openings
   before the push runs, so walls are a second safety layer, not the door lock.
+- **Re-run with the spawn-synced set (2026-10-14).** `collision_probe --all-areas` on the 2,158
+  streamable placements: local-frame IoU 28/30 houses > 0.5 (mean 0.888; the two below are
+  `*_flag` banner variants), capsule facade test 92/120 stopped with the same 0.012 m worst
+  unresolved penetration, and the crossed/probe-miss cases are dominated by the same flag/prop
+  variants. The tables above are the earlier run on the 1,790-placement set.
 - **Performance.** Loading both packs + all collision meshes of the six main areas + the whole probe
   run takes ~1.25 s in a dev-optimized build; per-area startup parses only its own models (lazily,
   on first stream-in). Grid cell 8 m; capsule query is O(triangles in 3×3 cells).
