@@ -29,6 +29,7 @@ use crate::game::box_screen::{
     BoxFocus, BoxScreenRoot, BoxScreenState, GRID_COLUMNS, SLOTS_PER_BOX,
 };
 use crate::game::dex_screen::{visibility, DexCatalog, DexRoot, DexUi, DexVisibility};
+use crate::game::minimap::{FullMapRoot, MinimapState};
 use crate::game::party_screen::{PartyScreenRoot, PartyScreenState};
 use crate::game::pause_menu::{
     menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, OPTIONS,
@@ -38,6 +39,7 @@ use crate::game::save_game::PartyMember;
 use crate::game::save_wire::PlayerProgress;
 use crate::game::settings::UserSettings;
 use crate::game::state::Paused;
+use crate::game::GameState;
 
 pub fn install(app: &mut App) {
     app.add_systems(Update, bind_pause_menu.in_set(OrigUiSystems::Bind));
@@ -50,6 +52,7 @@ pub fn install(app: &mut App) {
     super::hide_when_shown::<BoxScreenRoot>(app, ScreenId::Box);
     app.add_systems(Update, bind_dex_screen.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<DexRoot>(app, ScreenId::Dex);
+    app.add_systems(Update, bind_map_screen.in_set(OrigUiSystems::Bind));
 }
 
 /// The game's menu icon (texture base name) the port uses for each option. Only icons the
@@ -802,3 +805,47 @@ pub fn bind_dex_screen(
     )]);
 }
 
+// --------------------------------------------------------------------------------------- map
+
+/// Full-screen map (`M`): the game's Hisui map (`map_top_00`) is drawn as the background and the
+/// port's own area map (with the player marker) stays in front, without its dark backdrop. The
+/// game's area highlights need a second (mask) texture the renderer does not combine yet, its
+/// location tags and quest icons are run-time content: all hidden. The fog clouds stay.
+pub fn bind_map_screen(
+    config: Res<OrigUiConfig>,
+    state: Res<State<GameState>>,
+    minimap: Option<Res<MinimapState>>,
+    mut screens: Query<&mut OrigScreen>,
+    mut overlay: Query<&mut BackgroundColor, With<FullMapRoot>>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::Map) else {
+        return;
+    };
+    let open = minimap.is_some_and(|m| m.open) && *state.get() == GameState::World;
+    s.shown = open;
+    for mut bg in &mut overlay {
+        let want = if open {
+            Color::NONE
+        } else {
+            Color::srgba(0.0, 0.0, 0.0, 0.72)
+        };
+        if bg.0 != want {
+            bg.0 = want;
+        }
+    }
+    if !open {
+        return;
+    }
+    for name in [
+        "N_area_vfx_00",
+        "N_icon_00",
+        "N_icon_qicon_vfx_00",
+        "N_deco_name_00",
+        "P_fade_00",
+    ] {
+        s.set_visible(name, false);
+    }
+}

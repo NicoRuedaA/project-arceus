@@ -199,3 +199,160 @@ fn dump_pause_tab_quads() {
         );
     }
 }
+
+#[test]
+#[ignore = "debug dump: ORIG_DUMP=Screen x0,y0,x1,y1"]
+fn dump_quads_in_rect() {
+    let Some(root) = local_root() else { return };
+    let spec = std::env::var("ORIG_DUMP").unwrap_or_default();
+    let mut it = spec.split_whitespace();
+    let (Some(name), Some(rect)) = (it.next(), it.next()) else {
+        return;
+    };
+    let r: Vec<f32> = rect.split(',').map(|v| v.parse().unwrap()).collect();
+    let id = ScreenId::ALL
+        .into_iter()
+        .find(|i| format!("{i:?}") == name)
+        .unwrap();
+    let mut lib = OrigUiLibrary::new(Some(root));
+    let (doc, layout) = id.source();
+    let s = OrigScreen::new(id, lib.scene(doc, layout).unwrap());
+    let f = s.evaluate();
+    for q in f.quads.iter().filter(|q| {
+        q.visible
+            && q.center.x >= r[0]
+            && q.center.y >= r[1]
+            && q.center.x <= r[2]
+            && q.center.y <= r[3]
+    }) {
+        println!(
+            "{} c={:?} sz={:?} tex={:?}",
+            s.scene.nodes[q.node].path,
+            q.center,
+            q.size,
+            q.texture.as_deref().map(|t| t.rsplit('/').next().unwrap())
+        );
+    }
+}
+
+#[test]
+#[ignore = "debug dump"]
+fn dump_party_row_hide() {
+    let Some(root) = local_root() else { return };
+    let mut lib = OrigUiLibrary::new(Some(root));
+    let (doc, layout) = ScreenId::Party.source();
+    let mut s = OrigScreen::new(ScreenId::Party, lib.scene(doc, layout).unwrap());
+    let inst = s.scene.part_instance("L_list_base_00").unwrap();
+    for h in ["P_fx_bospoke_00", "L_icon_seibetsu_00"] {
+        let n = s.node_in_instance(inst, h).unwrap();
+        println!("hide {h} node {n} path {}", s.scene.nodes[n].path);
+        s.set_node(n, |o| o.visible = Some(false));
+    }
+    let f = s.evaluate();
+    for q in f.quads.iter().filter(|q| {
+        q.visible
+            && q.center.x >= 690.0
+            && q.center.y >= 180.0
+            && q.center.x <= 800.0
+            && q.center.y <= 240.0
+    }) {
+        println!("{} c={:?}", s.scene.nodes[q.node].path, q.center);
+    }
+}
+
+/// The party binding fills the rows from `PlayerProgress` and hides what the port has no data for.
+#[test]
+fn party_binding_fills_rows() {
+    let Some(root) = local_root() else { return };
+    use crate::game::party_screen::PartyScreenState;
+    use crate::game::save_game::PartyMember;
+    use crate::game::save_wire::PlayerProgress;
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(OrigUiConfig {
+        mode: UiMode::Original,
+        root: Some(root.clone()),
+    });
+    let mut icons = icons::IconIndex::default();
+    icons.scan(&root);
+    app.insert_resource(icons);
+    app.insert_resource(PartyScreenState { open: true });
+    let mut progress = PlayerProgress::new_game();
+    progress.party = vec![PartyMember {
+        species: 25,
+        level: 9,
+        hp: 20,
+        ..Default::default()
+    }];
+    app.insert_resource(progress);
+    app.add_plugins(AssetPlugin::default());
+    app.init_asset::<Image>();
+    app.init_asset::<OrigUiMaterial>();
+    app.insert_resource(UiTextureCache::new(root.clone()));
+    app.add_systems(Update, (menus::bind_party_screen, render_screens).chain());
+    let mut lib = OrigUiLibrary::new(Some(root));
+    let (doc, layout) = ScreenId::Party.source();
+    let e = app
+        .world_mut()
+        .spawn(OrigScreen::new(
+            ScreenId::Party,
+            lib.scene(doc, layout).unwrap(),
+        ))
+        .id();
+    app.update();
+    app.update();
+    {
+        let world = app.world_mut();
+        let mut q = world.query::<(&OrigQuad, &Node)>();
+        let s = world.get::<OrigScreen>(e).unwrap().scene.clone();
+        for (oq, n) in q.iter(world) {
+            let node = (oq.key / 16) as usize;
+            let name = &s.nodes[node].pane.name;
+            if n.display != Display::None
+                && (name == "P_fx_bospoke_00" || s.nodes[node].path.contains("seibetsu"))
+            {
+                println!("STILL SHOWN {} key {}", s.nodes[node].path, oq.key);
+            }
+        }
+    }
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(s.shown);
+    let f = s.evaluate();
+    let row = s.scene.part_instance("L_list_base_00").unwrap();
+    let visible_named = |name: &str| {
+        f.quads.iter().any(|q| {
+            q.visible
+                && s.scene.nodes[q.node].instance == row
+                && s.scene.nodes[q.node].pane.name == name
+        })
+    };
+    for q in f.quads.iter().filter(|q| {
+        q.visible
+            && q.center.x > 690.0
+            && q.center.x < 800.0
+            && q.center.y > 180.0
+            && q.center.y < 240.0
+    }) {
+        println!(
+            "row icon area: {} tex={:?}",
+            s.scene.nodes[q.node].path, q.texture
+        );
+    }
+    assert!(!visible_named("P_fx_bospoke_00"), "alpha marker hidden");
+    let texts: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    assert!(texts.contains(&"Lv. 9"), "{texts:?}");
+    assert!(texts.contains(&"20"), "{texts:?}");
+    assert!(
+        !s.scene.part_instance("L_list_base_01").is_some_and(|i| {
+            f.quads
+                .iter()
+                .any(|q| q.visible && s.scene.nodes[q.node].instance == i)
+        }),
+        "empty rows hidden"
+    );
+}
