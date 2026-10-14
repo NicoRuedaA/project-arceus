@@ -47,16 +47,16 @@ pub fn pose(p: Vec3, w: Vec3, foe: ModelSize) -> (Vec3, Vec3) {
     // Distance from the camera to the opponent needed to see its full height with margin
     // (vertical field of view; the horizontal one is wider).
     let need = if foe_height > 1.0 {
-        foe_height * 0.62 / (CAMERA_FOV_Y * 0.5).tan() + foe.radius * 0.5
+        foe_height * 0.75 / (CAMERA_FOV_Y * 0.5).tan() + foe.radius * 0.5
     } else {
         0.0
     };
     let have = BASE_BACK + foe_dist;
     let extra = (need - have).clamp(0.0, MAX_EXTRA);
-    let height = BASE_HEIGHT + extra * 0.25 + foe_height * 0.2;
+    let height = BASE_HEIGHT + extra * 0.1 + foe_height * 0.08;
     let cam = p - to_wild * (BASE_BACK + extra) - right_side * 1.0 + Vec3::new(0.0, height, 0.0);
     // Aim between the two creatures; for a tall opponent aim higher so its head is in view.
-    let look = (p + w) * 0.5 + Vec3::new(0.0, 0.35 + foe_height * 0.3, 0.0) + right_side * 0.2;
+    let look = (p + w) * 0.5 + Vec3::new(0.0, 0.35 + foe_height * 0.25, 0.0) + right_side * 0.2;
     (cam, look)
 }
 
@@ -102,7 +102,9 @@ mod tests {
             );
         }
         // And the player's creature is still on screen.
-        assert!(in_view(cam, look, 16.0 / 9.0, PLAYER + Vec3::Y * 0.3));
+        for dy in [0.0, 0.3] {
+            assert!(in_view(cam, look, 16.0 / 9.0, PLAYER + Vec3::Y * dy), "player's creature feet +{dy} out of view");
+        }
     }
 
     #[test]

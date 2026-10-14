@@ -3742,7 +3742,9 @@ fn measure_arena_models(
     parents: Query<&ChildOf>,
 ) {
     *frame += 1;
-    if *frame % 6 != 1 {
+    // Every frame until the opponent's model has been measured (the first frames of a battle),
+    // then every 6th.
+    if extents.size[1].height > 0.0 && *frame % 6 != 1 {
         return;
     }
     let owner: HashMap<Entity, usize> = slots.iter().map(|(e, s, ..)| (e, s.0.min(1))).collect();

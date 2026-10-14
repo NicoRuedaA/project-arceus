@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 225,
+    "file_count": 226,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -225,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "3bb13e2b7a34e3346c3149829171c03cbef920092ff582f393a0d4b6f41dd570"
+        "sha256": "b19c96df5cda3ab5cf8fa4bce36a5fc2eb8669c2cb26f89789ae222cb59636f8"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -556,6 +556,10 @@
         "sha256": "db86c9c3a8d7d036e480aa18dd8506d56d7074437e9bab63b45fb7a4e714df05"
       },
       {
+        "path": "crates/pla/src/game/battle_camera.rs",
+        "sha256": "5ca31ab9e4dd9ceee68973731a614b7b9b466753ec4d6c388d31d596de1bcda8"
+      },
+      {
         "path": "crates/pla/src/game/battle_controller.rs",
         "sha256": "1093a327bdee099cb57d459c4a13449d1cb8f0a5619bca12b519d35aa877b9e5"
       },
@@ -641,7 +645,7 @@
       },
       {
         "path": "crates/pla/src/game/effects/library.rs",
-        "sha256": "3f2f6a9e77287789175821f0061c8613cf791539efbdfac85afd66a77afdb1e4"
+        "sha256": "683113904d2deb36de3aa44fa77b8ad678563a330942ccf6da6672bb932db11e"
       },
       {
         "path": "crates/pla/src/game/effects/material.rs",
@@ -649,7 +653,7 @@
       },
       {
         "path": "crates/pla/src/game/effects/sim.rs",
-        "sha256": "4ca97ad98f6e9ff699f7dab9c93e8a94e188829849d1c2f5cbc5e314444cb890"
+        "sha256": "e9874649ccf1a97800f68cf446d72ed9e8def9eaee9a5a9ff743043ebfb96655"
       },
       {
         "path": "crates/pla/src/game/effects/timeline.rs",
@@ -657,7 +661,7 @@
       },
       {
         "path": "crates/pla/src/game/effects.rs",
-        "sha256": "864d21b9a55349c979e171709f4013177e0b0d07d302aab1b8aa2f928664895a"
+        "sha256": "51bbb8bfbdbdf99a0cd35bb5c0ccc8086f841929af08d70047e2a3669a8d2bf1"
       },
       {
         "path": "crates/pla/src/game/evolution_fx.rs",
@@ -693,7 +697,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "67fb8df6a1f1f6646718e111e3dfeaa1d7bacb640e18e0a356d6afdee9c41a39"
+        "sha256": "3130b48517a366b7c4aa325232b89655404e05b6adca8ce1699491f4335443cd"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -977,7 +981,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "fa6588c83a60c467884326bbeffea65a09535c3b07458786bf8295967d718934"
+    "sha256": "fd038797d6f7c84be7b63428006fe98a9984f573a04c4df31f4738ee951d6132"
   },
   "state_partitions": {
     "analysis_documentation_status": {
