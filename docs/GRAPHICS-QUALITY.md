@@ -80,8 +80,11 @@ Implementation notes:
 
 ## Presets
 
-Presets set only the "quality" options (never the look, character style, time, weather, v-sync or
-the FPS cap). The row shows `Custom` as soon as a preset option differs.
+Presets set the "quality" options and the character style: every preset selects the game's
+original cel-shaded look (the maintainer-approved out-of-box default), and the row can still be
+switched to `plain` (with `--style plain` or a saved choice) like any other option. The other look
+options (light, time, weather), v-sync and the FPS cap are never changed. The row shows `Custom`
+as soon as a preset option differs.
 
 | Option | Default | Switch (faithful) | Low | Medium | High | Ultra |
 |---|---|---|---|---|---|---|

@@ -411,9 +411,13 @@ const fn range(min: i32, max: i32) -> Kind {
 
 /// The option table, in display order inside each page.
 pub const OPTION_DEFS: &[OptionDef] = &[
-    // ---- Look (never changed by a preset)
+    // ---- Look (only the character style is preset-controlled; light/time/weather are never
+    // changed by a preset)
     OptionDef { id: id::LOOK, label: "Look", page: Page::Look, kind: Kind::Cycle(LOOKS), default: 0, restart: Restart::Never, cli: cli_look, preset: false, help: "Vivid: strong sun, shadows, haze and clouds. Classic: the earlier flat lighting." },
-    OptionDef { id: id::STYLE, label: "Character style", page: Page::Look, kind: Kind::Cycle(STYLES), default: 0, restart: Restart::Never, cli: cli_style, preset: false, help: "Original: cel-shaded characters, like the game." },
+    // The maintainer approved the anime look as the out-of-box default (docs/cola-orquestador.md
+    // item 35 left it plain "until the maintainer looks"): every quality preset selects Original
+    // (see PRESETS), the row stays user-switchable and `--style plain` still wins.
+    OptionDef { id: id::STYLE, label: "Character style", page: Page::Look, kind: Kind::Cycle(STYLES), default: 1, restart: Restart::Never, cli: cli_style, preset: true, help: "Original: cel-shaded characters, like the game." },
     OptionDef { id: id::OUTLINES, label: "Outlines", page: Page::Look, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_outlines, preset: false, help: "Ink outlines around characters (original style only)." },
     OptionDef { id: id::TIME, label: "Time of day", page: Page::Look, kind: Kind::Cycle(TIMES), default: 0, restart: Restart::Never, cli: cli_time, preset: false, help: "Follow the game clock or pin one time slot." },
     OptionDef { id: id::WEATHER, label: "Weather", page: Page::Look, kind: Kind::Cycle(WEATHERS), default: 0, restart: Restart::Never, cli: cli_weather, preset: false, help: "Follow the weather lottery or force one weather." },
@@ -1572,7 +1576,17 @@ mod tests {
         let s = GraphicsSettings::default();
         assert!(s.is_default());
         assert_eq!(s.look_settings(LookSettings::default()), LookSettings::default());
-        assert_eq!(s.style_settings(), StyleSettings::default());
+        // The out-of-box character style is the game's cel-shaded look; StyleSettings::default()
+        // stays plain for the standalone plugin and the headless tools (the viewer always applies
+        // these graphics settings over it).
+        assert_eq!(
+            s.style_settings(),
+            StyleSettings {
+                style: ArtStyle::Original,
+                outlines: true
+            }
+        );
+        assert_eq!(StyleSettings::default().style, ArtStyle::Plain);
         assert_eq!(s.grass_quality(), GrassQuality::default());
         assert_eq!(s.effects_quality(), EffectsQuality::default());
         assert_eq!((s.time_slot(), s.weather_id()), (None, None));
@@ -1734,6 +1748,30 @@ mod tests {
         assert_eq!(cli_style(&a("v --style original")), Some(1));
         assert_eq!(cli_style(&a("v --look toon")), Some(1));
         assert_eq!(cli_style(&a("v --style plain")), Some(0));
+    }
+
+    /// The maintainer approved the anime look as the out-of-box default: every quality preset
+    /// selects Original, the row can still be switched to plain and `--style plain` wins.
+    #[test]
+    fn quality_presets_select_the_original_character_style() {
+        for (i, p) in PRESETS.iter().enumerate() {
+            let mut s = GraphicsSettings::default();
+            s.apply_preset(i);
+            assert_eq!(
+                s.style_settings().style,
+                ArtStyle::Original,
+                "{} selects a plain character style",
+                p.name
+            );
+        }
+        let mut s = GraphicsSettings::default();
+        s.set(id::STYLE, 0);
+        assert_eq!(s.style_settings().style, ArtStyle::Plain);
+        assert_eq!(s.preset(), None, "plain is a custom choice, not a preset");
+        let st = GraphicsStartup::resolve(&tmp("style_plain"), &a("viewer --style plain"));
+        assert_eq!(st.settings.style_settings().style, ArtStyle::Plain);
+        assert!(st.overridden.contains(&id::STYLE));
+        let _ = std::fs::remove_dir_all(tmp("style_plain"));
     }
 
     #[test]
