@@ -25,6 +25,9 @@ use crate::game::bag_screen::{
 };
 use crate::game::battle_controller::BattleAssets;
 use crate::game::battle_items::label;
+use crate::game::box_screen::{
+    BoxFocus, BoxScreenRoot, BoxScreenState, GRID_COLUMNS, SLOTS_PER_BOX,
+};
 use crate::game::party_screen::{PartyScreenRoot, PartyScreenState};
 use crate::game::pause_menu::{
     menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, OPTIONS,
@@ -42,6 +45,8 @@ pub fn install(app: &mut App) {
     super::hide_when_shown::<PartyScreenRoot>(app, ScreenId::Party);
     app.add_systems(Update, bind_bag_screen.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<BagRoot>(app, ScreenId::Bag);
+    app.add_systems(Update, bind_box_screen.in_set(OrigUiSystems::Bind));
+    super::hide_when_shown::<BoxScreenRoot>(app, ScreenId::Box);
 }
 
 /// The game's menu icon (texture base name) the port uses for each option. Only icons the
@@ -515,5 +520,128 @@ pub fn bind_bag_screen(
         TextAlign::Left,
         msg,
     )]);
+}
+
+// --------------------------------------------------------------------------------------- box
+
+/// Pokémon boxes (`box_top_00`): the current page's Pokémon as the game's grid buttons
+/// (Pokémon icon + level), the party in the game's left list (name + level), the selected slot
+/// or party row highlighted, page and status line as the port's text. The port's box page holds
+/// 32 Pokémon in 8 × 4; the game's 6-wide grid cells are re-spaced to that shape. Neighbouring grids, the all-box
+/// overview and the trade tab are hidden.
+#[allow(clippy::too_many_arguments)]
+pub fn bind_box_screen(
+    config: Res<OrigUiConfig>,
+    state: Option<Res<BoxScreenState>>,
+    progress: Option<Res<PlayerProgress>>,
+    assets: Option<Res<BattleAssets>>,
+    icons: Res<IconIndex>,
+    mut screens: Query<&mut OrigScreen>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::Box) else {
+        return;
+    };
+    let open = state.as_ref().is_some_and(|st| st.open);
+    s.shown = open;
+    let (Some(st), Some(progress)) = (state.filter(|_| open), progress) else {
+        return;
+    };
+    let assets = assets.as_deref();
+    let base = st.page * SLOTS_PER_BOX;
+    if let Some(grid) = s.scene.part_instance("L_inventory_parts_00") {
+        for k in 0..BAG_CELLS {
+            // The port's page is 8 x 4: the game's cells are re-spaced (and shrunk) to that shape.
+            let (col, row) = ((k % GRID_COLUMNS) as f32, (k / GRID_COLUMNS) as f32);
+            let cell = (k < SLOTS_PER_BOX)
+                .then(|| progress.box_list.get(base + k))
+                .flatten()
+                .map(|m| {
+                    (
+                        icons.pokemon(m.species, m.form as u16),
+                        format!("Lv{}", m.level),
+                    )
+                });
+            let selected = st.focus == BoxFocus::Box && k == st.selected_slot;
+            fill_cell(
+                &mut s,
+                grid,
+                k,
+                [-430.0 + col * 110.0, 304.0 - row * 142.0],
+                0.8,
+                k < SLOTS_PER_BOX,
+                cell,
+                selected,
+            );
+        }
+    }
+    for n in 0..s.scene.nodes.len() {
+        let name = &s.scene.nodes[n].pane.name;
+        if name.starts_with("N_sub_")
+            || matches!(
+                name.as_str(),
+                "N_list_allbox_00" | "L_mode_trade_00" | "N_icon_base_00" | "N_info_status"
+            )
+        {
+            s.set_node(n, |o| o.visible = Some(false));
+        }
+    }
+    for i in 0..6 {
+        let part = format!("L_list_temochi_base_0{i}");
+        let Some(m) = progress.party.get(i) else {
+            s.set_visible(&part, false);
+            continue;
+        };
+        s.set_visible(&part, true);
+        let (name, _) = member_info(assets, m);
+        s.set_in(&part, "T_nickname_00", |o| o.text = Some(name));
+        s.set_in(&part, "T_lv_00", |o| {
+            o.text = Some(format!("Lv. {}", m.level))
+        });
+        s.set_in(&part, "L_icon_sick_00", |o| o.visible = Some(false));
+        if let Some(inst) = s.scene.part_instance(&part) {
+            let tag = if st.focus == BoxFocus::Party && i == st.selected_party {
+                "select"
+            } else {
+                "unselect"
+            };
+            s.freeze_end(inst, tag, "sel");
+        }
+    }
+    let pages = progress.box_list.len().div_ceil(SLOTS_PER_BOX).max(1);
+    let mut lines = vec![free_text(
+        640.0,
+        30.0,
+        900.0,
+        44.0,
+        30.0,
+        [0.95, 0.93, 0.85, 1.0],
+        TextAlign::Left,
+        format!(
+            "Box {} / {}   ({} Pokémon stored)",
+            st.page + 1,
+            pages.max(st.page + 1),
+            progress.box_list.len()
+        ),
+    )];
+    let msg = if st.message.is_empty() {
+        "Arrows: move   Tab: party / box   Enter: pick / place   PgUp / PgDn: page   Esc: close"
+            .to_string()
+    } else {
+        st.message.clone()
+    };
+    lines.push(free_text(
+        60.0,
+        1020.0,
+        1800.0,
+        44.0,
+        26.0,
+        [0.92, 0.9, 0.82, 1.0],
+        TextAlign::Left,
+        msg,
+    ));
+    s.set_free_texts(lines);
 }
 
