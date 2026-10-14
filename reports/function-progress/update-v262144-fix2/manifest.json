@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 220,
+    "file_count": 222,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -225,7 +225,11 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "498efaf30a6511ec7934dba178c9b7cf418551ec0f1768cc761bdb0c613402e7"
+        "sha256": "69c7335443b1962bd0b9609d26fbc07f2eb8b85d6e0c290f7b2237f8720e1b42"
+      },
+      {
+        "path": "crates/pla/examples/port_viewer_tests/automation.rs",
+        "sha256": "3a1848062b6b32616cfca6f7cc574f4cf4f72c0f08f34126745241b30134a189"
       },
       {
         "path": "crates/pla/examples/run_script.rs",
@@ -532,6 +536,10 @@
         "sha256": "8304e8cdca139c0debaf40cb319bc40391aeabda2b7ca8e11f644e5dd78df62b"
       },
       {
+        "path": "crates/pla/src/game/automation.rs",
+        "sha256": "cff7aa12a3e72779c2b3a2542086295d4773fab2b0b1ce1b1f9170132717dc71"
+      },
+      {
         "path": "crates/pla/src/game/bag_screen.rs",
         "sha256": "a5868bf1b96ac2b177733af1c8cef96fc4d4c3aeb58044951ffcf148bdba3ff5"
       },
@@ -677,7 +685,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "a3d63ced917d09ac5cd8b315e781be69c23017061f4374819980dcae9d4c20b6"
+        "sha256": "d1857fef4298a4fe09058d94bb9449fdbc3b57b3d06cfb59fe0db577e41bb44e"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -709,7 +717,7 @@
       },
       {
         "path": "crates/pla/src/game/pickups.rs",
-        "sha256": "3d03b4b14bc7b4f489c9bfc6490a680891d88f6005325f248e0c4f2dab4daddd"
+        "sha256": "f2bc5dc37fe84ed947cb591c062cc8122b3b4b5464a2fa6c41b7c7014203963b"
       },
       {
         "path": "crates/pla/src/game/play_time.rs",
@@ -957,7 +965,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "7f1821386c352f0e78490b6071d8c24b76207a0de99dc8b522d9501ce082db3a"
+    "sha256": "2cacd889bc5f67478b6df2cbecee8bf18664cb790d493196b575c33831db5cf2"
   },
   "state_partitions": {
     "analysis_documentation_status": {
