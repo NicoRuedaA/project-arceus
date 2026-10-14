@@ -71,18 +71,22 @@ pub const SHADOW_BAND_HI: f32 = 0.70;
 /// is not proven, so it is not used here).
 pub const SHADE_TINT: [f32; 3] = [0.80, 0.87, 1.0];
 /// Strength of [`SHADE_TINT`] on a fully shaded pixel. ASSUMED.
-pub const SHADE_TINT_STRENGTH: f32 = 0.6;
+pub const SHADE_TINT_STRENGTH: f32 = 0.4;
+/// Share of the sun's direct light that the shaded side still receives (a fill so the dark band
+/// of a character stays readable instead of dropping to ambient only). ASSUMED; 0 = pure ramp.
+pub const SHADE_FLOOR: f32 = 0.35;
 /// Rim strength (fraction of the sun's diffuse). ASSUMED.
 pub const RIM_STRENGTH: f32 = 0.35;
 
 /// Outline width in pixels at a 1080-pixel-high viewport (scaled with the height). ASSUMED from
-/// one real-game screenshot where the character outline is about 1-2 px at 1080p.
-pub const OUTLINE_PX_1080: f32 = 1.6;
+/// one real-game screenshot where the character outline is about 1-2 px at 1080p; raised to 2.6 after
+/// the windowless 1080p capture showed 1.6 px as practically invisible at normal camera distance.
+pub const OUTLINE_PX_1080: f32 = 2.6;
 /// Outline colour = base colour x this (linear), then mixed towards [`OUTLINE_INK`]. ASSUMED.
 pub const OUTLINE_DARKEN: f32 = 0.22;
 /// Fixed dark ink colour (linear rgb) and its mix amount. ASSUMED.
 pub const OUTLINE_INK: [f32; 3] = [0.025, 0.022, 0.03];
-pub const OUTLINE_INK_MIX: f32 = 0.35;
+pub const OUTLINE_INK_MIX: f32 = 0.6;
 /// The outline fades out between these camera distances (metres). ASSUMED.
 pub const OUTLINE_FADE_START: f32 = 25.0;
 pub const OUTLINE_FADE_END: f32 = 60.0;
@@ -160,6 +164,7 @@ pub struct ToonParams {
     pub shadow_band: (f32, f32),
     pub shade_tint: [f32; 3],
     pub shade_strength: f32,
+    pub shade_floor: f32,
     pub rim_color: [f32; 3],
     pub rim_power: f32,
     pub rim_strength: f32,
@@ -174,6 +179,7 @@ impl Default for ToonParams {
             shadow_band: (SHADOW_BAND_LO, SHADOW_BAND_HI),
             shade_tint: SHADE_TINT,
             shade_strength: SHADE_TINT_STRENGTH,
+            shade_floor: SHADE_FLOOR,
             rim_color: RIM_COLOR_FALLBACK,
             rim_power: RIM_POWER,
             rim_strength: RIM_STRENGTH,
@@ -185,8 +191,10 @@ impl Default for ToonParams {
 /// a blend of that factor and the banded ramp times the banded shadow.
 pub fn banded_light(ndl: f32, shadow: f32, p: &ToonParams) -> f32 {
     let lambert = ndl.clamp(0.0, 1.0) * shadow.clamp(0.0, 1.0);
-    let band = toon_ramp(ndl, p.threshold_min, p.threshold_max)
+    let floor = p.shade_floor.clamp(0.0, 1.0);
+    let ramp = toon_ramp(ndl, p.threshold_min, p.threshold_max)
         * smoothstep(p.shadow_band.0, p.shadow_band.1, shadow);
+    let band = floor + (1.0 - floor) * ramp;
     let s = p.band_strength.clamp(0.0, 1.0);
     lambert + (band - lambert) * s
 }
@@ -288,7 +296,7 @@ pub fn toon_params_from_sheet(text: &str, area: &str, slot: usize, category: u8)
 /// GPU uniform of the banded material (keep in sync with `ToonUniform` in `art_style_toon.wgsl`).
 #[derive(ShaderType, Clone, Copy, Debug, PartialEq, Default)]
 pub struct ToonUniform {
-    /// x threshold min, y threshold max, z band strength, w unused.
+    /// x threshold min, y threshold max, z band strength, w shade floor.
     pub band: Vec4,
     /// rgb shade tint, w tint strength.
     pub shade: Vec4,
@@ -301,7 +309,7 @@ pub struct ToonUniform {
 impl From<&ToonParams> for ToonUniform {
     fn from(p: &ToonParams) -> Self {
         Self {
-            band: Vec4::new(p.threshold_min, p.threshold_max, p.band_strength, 0.0),
+            band: Vec4::new(p.threshold_min, p.threshold_max, p.band_strength, p.shade_floor),
             shade: Vec4::new(p.shade_tint[0], p.shade_tint[1], p.shade_tint[2], p.shade_strength),
             rim: Vec4::new(p.rim_color[0], p.rim_color[1], p.rim_color[2], p.rim_power),
             extra: Vec4::new(p.rim_strength, p.shadow_band.0, p.shadow_band.1, 0.0),
@@ -627,9 +635,13 @@ mod tests {
         let grazing = banded_light(0.2, 1.0, &p);
         let facing = banded_light(1.0, 1.0, &p);
         assert!(grazing > 0.85 && (facing - 1.0).abs() < 1e-6, "grazing {grazing}");
-        // Shade side and full shadow are dark.
-        assert!(banded_light(-0.3, 1.0, &p) < 1e-6);
-        assert!(banded_light(1.0, 0.0, &p) < 1e-6);
+        // Shade side and full shadow are darker but keep the fill (readable, not black).
+        let shaded = banded_light(-0.3, 1.0, &p);
+        assert!(shaded < 0.5 && shaded > 0.2, "shaded side {shaded}");
+        assert!(banded_light(1.0, 0.0, &p) < 0.5);
+        // Without the fill the shade side is fully dark.
+        let pure = ToonParams { shade_floor: 0.0, ..p };
+        assert!(banded_light(-0.3, 1.0, &pure) < 1e-6);
         // Strength 0 gives back plain Lambert.
         let lambert = ToonParams { band_strength: 0.0, ..p };
         assert!((banded_light(0.3, 1.0, &lambert) - 0.3).abs() < 1e-6);
@@ -670,7 +682,7 @@ mod tests {
     fn uniforms_carry_the_params() {
         let p = ToonParams::default();
         let u = ToonUniform::from(&p);
-        assert_eq!(u.band, Vec4::new(THRESHOLD_MIN, THRESHOLD_MAX, BAND_STRENGTH, 0.0));
+        assert_eq!(u.band, Vec4::new(THRESHOLD_MIN, THRESHOLD_MAX, BAND_STRENGTH, SHADE_FLOOR));
         assert_eq!(u.rim.w, RIM_POWER);
         assert_eq!(u.extra, Vec4::new(RIM_STRENGTH, SHADOW_BAND_LO, SHADOW_BAND_HI, 0.0));
         let o = OutlineUniform::from(&OutlineParams::default());
