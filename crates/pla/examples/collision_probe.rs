@@ -21,7 +21,9 @@ use pla::game::world_collision::{
     placement_transform, transformed_bounds, CollisionGrid, CollisionPacks, PLAYER_HEIGHT,
     PLAYER_RADIUS,
 };
-use pla::game::world_objects::{find_data_file, parse_placements, Placement, RotMode};
+use pla::game::world_objects::{
+    find_data_file, normalize_export_path, parse_placements, Placement, RotMode,
+};
 
 fn bin_root() -> PathBuf {
     std::env::var_os("PLA_BIN_ROOT")
@@ -328,9 +330,11 @@ fn main() {
         if status != "ok" {
             continue;
         }
-        let rel = out
-            .strip_prefix("work/cache/")
-            .map_or(out.clone(), |r| cache_root().join(r));
+        // The index stores absolute (current exporter) or legacy `work/cache/`-relative rows;
+        // normalize both against the cache root (fallback: the stored path as-is).
+        let rel = normalize_export_path(&cache_root(), &out.to_string_lossy())
+            .map(|(path, _)| path)
+            .unwrap_or_else(|| out.clone());
         let Some(visual) = gltf_local_bounds(&rel) else {
             continue;
         };

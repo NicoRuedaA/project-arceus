@@ -165,15 +165,16 @@ fn report_area(
     );
 }
 
-/// Model name -> exported glTF path, from the export index (`model_status` == ok).
+/// Model name -> exported glTF path, from the export index (`model_status` == ok); the stored
+/// `output` may be absolute or legacy `work/cache/`-relative (see `normalize_export_path`).
 fn model_paths(cache_root: &Path, index: Option<&str>) -> HashMap<String, PathBuf> {
     let mut map = HashMap::new();
     let Some(text) = index else { return map };
     for line in text.lines().filter(|l| !l.starts_with('#')) {
         let c: Vec<&str> = line.split('\t').collect();
         if c.len() >= 4 && c[3] == "ok" {
-            if let Some(rel) = c[2].strip_prefix("work/cache/") {
-                map.insert(c[1].to_string(), cache_root.join(rel));
+            if let Some((path, _)) = world_objects::normalize_export_path(cache_root, c[2]) {
+                map.insert(c[1].to_string(), path);
             }
         }
     }
