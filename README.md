@@ -99,6 +99,7 @@ establish complete-module coverage. `~` marks qualitative estimates.
 
 | Phase (PLAN.md) | Part | % done | % left | Note | Methods / tools |
 |---|---|:--:|:--:|---|---|
+| | Real-time terrain splat material | Unknown | Unknown | **VERIFIED:** `--terrain splat` is the default GPU path; it keeps the 8 decoded layers sharp near the camera, uses triplanar projection on slopes, and fades to the baked macro colour at distance. `--terrain bake` remains the fallback. The same 1920×1080 automation cameras were inspected for areas 00–05: no visible chunk seams, stretched cliff textures, obvious far tiling, or colour jump. Performance and assumptions are recorded in [terrain albedo](reports/data-progress/terrain_albedo.md). | `game/terrain_splat.rs`, `game/terrain_splat.wgsl`, automation captures |
 | 1. Extract (P0) | Base: ExeFS + RomFS | 100 % | 0 % | | `.tools/` extraction pipeline; NSO parsing; SHA-256 and segment-hash checks |
 | | Update: `main` + data | 100 % | 0 % | | `.tools/` extraction pipeline; NCZ/ExeFS/RomFS manifests; hash checks |
 | | Update modules (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extracted + NSO-verified; byte-identical to the base's | NSO extraction plus byte/hash comparison against base modules |

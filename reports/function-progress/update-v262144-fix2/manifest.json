@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 241,
+    "file_count": 243,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -225,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "7caa3c05f1e4de3ab7643a0a68e22f2c11988e69cd838a779f0c6dccf0c89d3b"
+        "sha256": "0e6809ad885af9b321e34c5d17ee957193b1664eac8f6e6d78667f0cae7c0453"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -262,6 +262,10 @@
       {
         "path": "crates/pla/examples/terrain_normals_bake.rs",
         "sha256": "b398b99f768ebe13acb255181e7edb73a1391b0746f0f1638bf915f65cd63c6a"
+      },
+      {
+        "path": "crates/pla/examples/terrain_splat_report.rs",
+        "sha256": "887bde6b7cb66ed47847ffd0be9c4141696c46695fddae04d33b899a8e8438ee"
       },
       {
         "path": "crates/pla/examples/terrain_viewer.rs",
@@ -709,7 +713,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "30d49833032bb104ff0adfee2486345bb5418e57402aa4d867d94fffbf68608d"
+        "sha256": "35d8e51992e58d81019079fab38a953a47bc11a345dfa5da9589adc3d58c43f9"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -842,6 +846,10 @@
       {
         "path": "crates/pla/src/game/state.rs",
         "sha256": "6d1e59023d4dd9555133a8b3acfebe87000174a9b2d0aeda9eafbd99b2577ea5"
+      },
+      {
+        "path": "crates/pla/src/game/terrain_splat.rs",
+        "sha256": "94272e7d9d9d64b26d5d35dbc9b3a4b812891d11654daf6eb48af48fa399c358"
       },
       {
         "path": "crates/pla/src/game/throwing.rs",
@@ -1041,7 +1049,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "bcfdda3b8f568f9baec1f40c04bcd0ec87ecf524655ff6570a336c4022c74d47"
+    "sha256": "89bdf3ac3cd191465f6ddc884d10812d75fdd16a6a77debc58563594bc6402d0"
   },
   "state_partitions": {
     "analysis_documentation_status": {

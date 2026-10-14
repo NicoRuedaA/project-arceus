@@ -101,6 +101,7 @@ completa del módulo. `~` marca estimaciones cualitativas.
 
 | Fase (PLAN.md) | Parte | % hecho | % restante | Nota | Métodos / herramientas |
 |---|---|:--:|:--:|---|---|
+| | Splat de terreno en tiempo real | Desconocido | Desconocido | **VERIFICADO:** `--terrain splat` es ahora la ruta GPU por defecto; mantiene nítidas cerca las 8 capas decodificadas, usa proyección triplanar en las pendientes y pasa al color general horneado a distancia. `--terrain bake` sigue siendo la alternativa. Se revisaron las mismas cámaras automáticas a 1920×1080 en las zonas 00–05: no se ven costuras entre trozos, texturas estiradas en acantilados, repetición evidente a lo lejos ni salto de color. El rendimiento y las suposiciones están en [albedo del terreno](reports/data-progress/terrain_albedo.md). | `game/terrain_splat.rs`, `game/terrain_splat.wgsl`, capturas automáticas |
 | 1. Extraer (P0) | Base: ExeFS + RomFS | 100 % | 0 % | | Pipeline de extracción `.tools`; parseo NSO; comprobaciones SHA-256 y hashes de segmentos |
 | | Update: `main` + datos | 100 % | 0 % | | Pipeline `.tools`; manifiestos NCZ/ExeFS/RomFS; comprobaciones de hashes |
 | | Módulos del update (`rtld`, `sdk`, `subsdk0/1`) | 100 % | 0 % | extraídos + verificados (NSO); idénticos byte a byte a los de la base | Extracción NSO y comparación byte/hash con los módulos base |

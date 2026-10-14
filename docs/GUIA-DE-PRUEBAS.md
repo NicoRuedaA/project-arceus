@@ -73,6 +73,9 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 | `--no-outlines` | Con `--style original`, quita los contornos pero deja el sombreado. |
 | `--look classic` / `--look vivid` | Aspecto general (vivo por defecto). |
 | `--no-shadows`, `--no-ssao`, `--no-bloom` | Apagan sombras, oscurecimiento de rincones y brillo suave (útil si va lento). `--ssao`, `--bloom` los fuerzan. `--ssao-quality` ajusta la calidad. |
+| `--terrain bake` | **Nuevo.** El suelo vuelve a la **imagen única horneada** de antes (más borrosa de cerca, pero más ligera para ordenadores lentos). Por defecto (`--terrain splat`) el suelo se dibuja **en tiempo real** con sus 8 capas de textura y se ve nítido de cerca. Ver 2.11c. |
+| `--terrain-tile-divisor N` | **Nuevo.** Tamaño de las baldosas del suelo. Por defecto 32 (lo mismo que el horneado). Con `8` las texturas se repiten 4 veces más pequeñas (las hojas de hierba se ven de tamaño más realista). Es una suposición: dime cuál te parece más natural. |
+| `--terrain-layers N`, `--terrain-triplanar off`, `--terrain-normals baked`, `--terrain-antitile off` | **Nuevo.** Rebajas del suelo en tiempo real para ordenadores lentos: menos capas (1 a 8), sin proyección lateral en paredes, relieve horneado en vez del de cada capa, sin el truco que esconde la repetición. |
 | `--ui debug` | **Nuevo.** La interfaz **original del juego** (sus marcos, botones, iconos y barras, leída de tu copia instalada) ya es la de por defecto. Con `--ui debug` vuelves a la interfaz provisional. Si faltan los datos de la interfaz, el juego avisa una vez y usa la provisional solo. Ver 2.16. |
 
 **Combate y Pokémon**
@@ -457,6 +460,24 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     **SUPUESTO:** colores, intensidades y cantidad de humo están inventados mirando una sola
     imagen de referencia; lo decodificado es solo la marca de alfa y el tamaño 2,5x.
 
+### 2.11c Suelo en tiempo real (texturas nítidas)  [EN RAMA feat/terrain-splat]
+
+56f. **De cerca.** `./play.sh --area 1` y acerca la cámara al suelo. Ves: la hierba, la tierra
+    de los caminos y la grava **nítidas** (se distinguen hojas, piedras y grietas), no una mancha
+    borrosa. Los bordes entre hierba y tierra siguen la forma de las hojas, no escalones cuadrados.
+    Fallo: suelo negro, rosa o de un solo color; cuadros o costuras rectas cada pocos metros;
+    parpadeo al mover la cámara.
+56g. **Paredes de roca.** Mira un acantilado (en la zona 1 hay uno a unos 50 m del inicio; la zona 4 tiene muchos). Ves:
+    roca con grietas, **sin rayas estiradas** de arriba abajo. Fallo: rayas verticales largas
+    como antes, o roca oscura sobre las laderas de nieve suaves de la zona 5.
+56h. **Lejos.** Mira el horizonte. Ves: el suelo lejano con sus colores de siempre, sin un
+    dibujo repetido en cuadrícula ni un círculo marcado alrededor tuyo donde cambia la nitidez.
+56i. **Comparar y elegir.** Arranca una vez con `--terrain bake` (el suelo de antes) y otra sin
+    nada. Si va lento, prueba las rebajas de 1.3. Dime también si las hojas de hierba te parecen
+    demasiado grandes: con `--terrain-tile-divisor 8` salen 4 veces más pequeñas.
+    **SUPUESTO:** el tamaño de las baldosas, cómo se mezclan las capas en los bordes, a partir de
+    qué inclinación se pone roca y a qué distancia se pasa al color horneado son inventados.
+
 ### 2.12 PNJ (gente del mundo)  [EN MAIN]
 
 57. **Aldeanos.** En Aldea Joya (`--area 0`) deberías ver gente de pie en sus sitios, mirando hacia
@@ -541,6 +562,7 @@ Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
 | Color de pelo del protagonista | Un color elegido por nosotros | El color real lo decide el juego al ejecutarse; no está en los archivos |
 | Ropa, pelo y piel de los PNJ | Claros / blanco-grisáceo / piel pálida; lo conocido es la forma | La regla de colores no se ha encontrado |
 | Aura de los Pokémon alfa | Borde rojo que respira, humo negro-rojizo, chispas y una luz roja suave; colores y cantidades elegidos mirando una imagen de referencia | Lo único decodificado es la marca de alfa y la escala 2,5x; el aspecto del aura no está en los archivos extraídos |
+| Suelo en tiempo real | Tamaño de las baldosas (32 por defecto), mezcla de capas en los bordes, roca a partir de 57-68 grados, paso al color horneado entre 70 y 220 m, el truco anti-repetición y el relieve | Lo decodificado son las 8 capas, sus pesos, su escala relativa y qué capas son roca; cómo las mezcla el juego no se ha leído |
 | Horas de cada franja | 4 franjas de 6 horas; 0 = mañana (9:00), 1 = día (15:00), 2 = atardecer (21:00), 3 = noche (3:00) | Solo se sabe que la 3 es noche; el resto se supone |
 | Velocidad del reloj | 1 minuto de juego por segundo real | No se conoce la del juego |
 | Duración del clima | Entre 2 y 6 horas de juego | Las unidades de esos números son una suposición |
@@ -623,6 +645,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
 | Rama | Qué trae | Estado |
 |---|---|---|
 | `feat/interiors` | Interiores y subzonas (casas, cuevas, tiendas) | Congelada, trabajo a medias en su worktree; no se puede entrar a ningún interior |
+| `feat/terrain-splat` | Suelo en tiempo real: texturas nítidas de cerca, roca sin estirar en paredes (`--terrain bake` para el de antes) | Terminada en su worktree, pendiente de unir; ver 2.11c |
 
 `feat/player-moves`, `feat/alpha-forms`, `feat/npc-world` y `feat/wire-viewer` **ya están unidas a
 `main`**; no queda nada pendiente de ellas. Lo único que no verás es lo de `feat/interiors`.
