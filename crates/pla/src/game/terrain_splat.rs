@@ -134,6 +134,9 @@ pub struct TerrainSplatSettings {
     pub fade_end: f32,
     /// 0 = plain weights, else [`HEIGHT_STRENGTH`]-like strength.
     pub height_strength: f32,
+    /// Metres per `SplatST` unit: a layer repeats `SplatST / tile_divisor` times per metre.
+    /// Default [`DETAIL_TILE_DIVISOR`] (32, the bake's guess); SUPUESTO.
+    pub tile_divisor: f32,
     pub debug_view: TerrainDebugView,
 }
 
@@ -150,6 +153,7 @@ impl Default for TerrainSplatSettings {
             fade_start: FADE_START_M,
             fade_end: FADE_END_M,
             height_strength: HEIGHT_STRENGTH,
+            tile_divisor: DETAIL_TILE_DIVISOR,
             debug_view: TerrainDebugView::Off,
         }
     }
@@ -170,7 +174,8 @@ fn on_off(args: &[String], flag: &str, default: bool) -> bool {
 impl TerrainSplatSettings {
     /// `--terrain bake|splat` (default splat), `--terrain-layer-size 256..4096` (power of two),
     /// `--terrain-layers 1..8`, `--terrain-triplanar on|off`, `--terrain-antitile on|off`,
-    /// `--terrain-normals layers|baked`, `--terrain-debug off|weights|detail`.
+    /// `--terrain-normals layers|baked`, `--terrain-debug off|weights|detail`,
+    /// `--terrain-tile-divisor F` (default 32: a layer repeats `SplatST / F` times per metre).
     pub fn from_args(args: &[String]) -> Self {
         let mut s = Self::default();
         if let Some(v) = cli_flags::value_of(args, "--terrain") {
@@ -191,6 +196,15 @@ impl TerrainSplatSettings {
         }
         if let Some(n) = cli_flags::parse_or_warn::<u8>(args, "--terrain-layers", "1..8", SLOTS, |n| (1..=8).contains(n)) {
             s.max_layers = n;
+        }
+        if let Some(f) = cli_flags::parse_or_warn::<f32>(
+            args,
+            "--terrain-tile-divisor",
+            "a number in 1..256",
+            DETAIL_TILE_DIVISOR,
+            |f| f.is_finite() && (1.0..=256.0).contains(f),
+        ) {
+            s.tile_divisor = f;
         }
         s.triplanar = on_off(args, "--terrain-triplanar", s.triplanar);
         s.anti_tiling = on_off(args, "--terrain-antitile", s.anti_tiling);
@@ -421,8 +435,14 @@ pub fn is_cliff_layer(texture_name: &str) -> bool {
 
 /// Repeats per metre of a layer: `SplatST / DETAIL_TILE_DIVISOR` (the bake's assumption).
 pub fn repeats_per_metre(tiling: f32) -> f32 {
+    repeats_per_metre_with(tiling, DETAIL_TILE_DIVISOR)
+}
+
+/// Repeats per metre of a layer with a chosen divisor (`--terrain-tile-divisor`).
+pub fn repeats_per_metre_with(tiling: f32, divisor: f32) -> f32 {
     let t = if tiling.is_finite() && tiling > 0.0 { tiling } else { 1.0 };
-    t / DETAIL_TILE_DIVISOR
+    let d = if divisor.is_finite() && divisor > 0.0 { divisor } else { DETAIL_TILE_DIVISOR };
+    t / d
 }
 
 /// One material slot as built.
@@ -713,7 +733,7 @@ pub fn splat_uniform(build: &SplatBuild, settings: &TerrainSplatSettings) -> Ter
     let mut cliff = [0f32; SLOTS];
     let mut lum = [0.2f32; SLOTS];
     for s in build.slots.iter().flatten() {
-        rep[s.slot] = repeats_per_metre(s.tiling);
+        rep[s.slot] = repeats_per_metre_with(s.tiling, settings.tile_divisor);
         cliff[s.slot] = if s.cliff { 1.0 } else { 0.0 };
         lum[s.slot] = s.mean_luminance;
     }
@@ -1241,6 +1261,8 @@ mod tests {
     fn tiling_math_and_uniform() {
         assert!((repeats_per_metre(5.0) - 5.0 / 32.0).abs() < 1e-7);
         assert!((repeats_per_metre(0.0) - 1.0 / 32.0).abs() < 1e-7, "a missing ST falls back to 1");
+        assert!((repeats_per_metre_with(2.5, 8.0) - 2.5 / 8.0).abs() < 1e-7);
+        assert!((repeats_per_metre_with(2.5, 0.0) - 2.5 / 32.0).abs() < 1e-7, "a bad divisor falls back to 32");
         let b = build_splat_data(&area(), None, 64).unwrap();
         let u = splat_uniform(&b, &TerrainSplatSettings::default());
         assert_eq!(u.rep_lo, Vec4::new(4.0 / 32.0, 5.0 / 32.0, 0.0, 0.0));
@@ -1253,6 +1275,8 @@ mod tests {
         let two = splat_uniform(&b, &TerrainSplatSettings { max_layers: 1, triplanar: false, ..default() });
         assert_eq!((two.enabled_lo, two.enabled_hi), (Vec4::new(0.0, 1.0, 0.0, 0.0), Vec4::ZERO));
         assert_eq!(two.flags.x, 0.0);
+        let fine = splat_uniform(&b, &TerrainSplatSettings { tile_divisor: 8.0, ..default() });
+        assert_eq!(fine.rep_lo.y, 5.0 / 8.0);
         assert!(std::mem::size_of::<TerrainSplatUniform>() == 12 * 16);
     }
 
@@ -1294,8 +1318,9 @@ mod tests {
         assert_eq!(d.mode, TerrainMode::Splat);
         let b = TerrainSplatSettings::from_args(&s(&[
             "v", "--terrain", "bake", "--terrain-layer-size", "512", "--terrain-layers", "4", "--terrain-triplanar", "off",
-            "--terrain-antitile=off", "--terrain-normals", "baked", "--terrain-debug", "weights",
+            "--terrain-antitile=off", "--terrain-normals", "baked", "--terrain-debug", "weights", "--terrain-tile-divisor", "8",
         ]));
+        assert_eq!(b.tile_divisor, 8.0);
         assert_eq!(b.mode, TerrainMode::Bake);
         assert_eq!((b.layer_size, b.max_layers, b.triplanar, b.anti_tiling, b.layer_normals), (512, 4, false, false, false));
         assert_eq!(b.debug_view, TerrainDebugView::Weights);
