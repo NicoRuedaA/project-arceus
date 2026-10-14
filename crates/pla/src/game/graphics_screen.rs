@@ -49,16 +49,18 @@ pub const FILE_NAME: &str = "graphics.toml";
 pub enum Page {
     Look,
     Quality,
+    Display,
     Distances,
     PostProcessing,
 }
 
 impl Page {
-    pub const ALL: [Page; 4] = [Page::Look, Page::Quality, Page::Distances, Page::PostProcessing];
+    pub const ALL: [Page; 5] = [Page::Look, Page::Quality, Page::Display, Page::Distances, Page::PostProcessing];
     pub fn label(self) -> &'static str {
         match self {
             Page::Look => "Look",
             Page::Quality => "Quality",
+            Page::Display => "Display",
             Page::Distances => "Distances",
             Page::PostProcessing => "Post-processing",
         }
@@ -98,6 +100,11 @@ pub struct OptionDef {
     pub restart: Restart,
     /// The command-line flag (or environment variable) that overrides this option, as a value.
     pub cli: fn(&[String]) -> Option<i32>,
+    /// Whether the quality presets set this option (look, time, weather, v-sync and the FPS cap
+    /// are never changed by a preset).
+    pub preset: bool,
+    /// One plain sentence shown under the list while the row is selected.
+    pub help: &'static str,
 }
 
 pub mod id {
@@ -111,11 +118,59 @@ pub mod id {
     pub const EFFECTS: &str = "effects";
     pub const TIME: &str = "time_of_day";
     pub const WEATHER: &str = "weather";
+    pub const SHADOW_QUALITY: &str = "shadow_quality";
+    pub const PARTICLES: &str = "particles";
+    pub const MIPMAPS: &str = "mipmaps";
+    pub const ANISOTROPY: &str = "anisotropy";
+    pub const TEXTURE_QUALITY: &str = "texture_quality";
+    pub const TERRAIN_TEXTURE: &str = "terrain_texture";
+    pub const AA: &str = "anti_aliasing";
+    pub const RENDER_SCALE: &str = "render_scale";
+    pub const VSYNC: &str = "vsync";
+    pub const FPS_CAP: &str = "fps_cap";
+    pub const GRASS_RANGE: &str = "grass_range";
+    pub const PLANTS_RANGE: &str = "plants_range";
+    pub const OBJECTS_RANGE: &str = "objects_range";
+    pub const COLLISION_RANGE: &str = "collision_range";
+    pub const PICKUPS_RANGE: &str = "pickups_range";
+    pub const NPC_RANGE: &str = "npc_range";
+    pub const WILD_RANGE: &str = "wild_range";
+    pub const FOG_DISTANCE: &str = "fog_distance";
+    pub const SSAO_QUALITY: &str = "ssao_quality";
+    pub const BLOOM_INTENSITY: &str = "bloom_intensity";
 }
 
 const LOOKS: &[(&str, &str)] = &[("vivid", "vivid"), ("classic", "classic")];
 const STYLES: &[(&str, &str)] = &[("plain", "plain"), ("original", "original")];
 const QUALITY3: &[(&str, &str)] = &[("off", "off"), ("low", "low"), ("high", "high")];
+const GRASS5: &[(&str, &str)] =
+    &[("off", "off"), ("low", "low"), ("medium", "medium"), ("high", "high"), ("ultra", "ultra")];
+const LEVEL4: &[(&str, &str)] = &[("low", "low"), ("medium", "medium"), ("high", "high"), ("ultra", "ultra")];
+const SSAO4: &[(&str, &str)] =
+    &[("low", "low"), ("medium", "medium"), ("high", "high"), ("ultra", "ultra (costly, no visible gain)")];
+const AA_MODES: &[(&str, &str)] = &[
+    ("auto", "auto (MSAA 4x when SSAO is off)"),
+    ("off", "off"),
+    ("fxaa", "FXAA"),
+    ("smaa", "SMAA"),
+    ("taa", "TAA"),
+    ("msaa2", "MSAA 2x"),
+    ("msaa4", "MSAA 4x"),
+];
+const ANISO: &[(&str, &str)] = &[("off", "off"), ("2", "2x"), ("4", "4x"), ("8", "8x"), ("16", "16x")];
+const TEXQ: &[(&str, &str)] = &[("full", "full"), ("half", "half"), ("quarter", "quarter")];
+const TERRAIN_TEX: &[(&str, &str)] = &[("full", "as baked (4096)"), ("2048", "2048"), ("1024", "1024")];
+const FPS_CAPS: &[(&str, &str)] = &[
+    ("unlimited", "unlimited"),
+    ("30", "30"),
+    ("60", "60"),
+    ("120", "120"),
+    ("144", "144"),
+    ("240", "240"),
+];
+const FPS_VALUES: [u32; 6] = [0, 30, 60, 120, 144, 240];
+const ANISO_VALUES: [u16; 5] = [1, 2, 4, 8, 16];
+const TERRAIN_SIDES: [u32; 3] = [0, 2048, 1024];
 const TIMES: &[(&str, &str)] = &[
     ("auto", "auto (clock)"),
     ("0", "slot 0 (09:00)"),
@@ -189,7 +244,9 @@ fn cli_grass(args: &[String]) -> Option<i32> {
     has_flag(args, "--grass").then(|| match GrassQuality::from_args(args) {
         GrassQuality::Off => 0,
         GrassQuality::Low => 1,
-        GrassQuality::High => 2,
+        GrassQuality::Medium => 2,
+        GrassQuality::High => 3,
+        GrassQuality::Ultra => 4,
     })
 }
 
@@ -220,18 +277,162 @@ fn cli_weather(args: &[String]) -> Option<i32> {
     weather_id_from_arg(raw).map(|id| i32::from(id) - 1)
 }
 
+/// `--flag NAME` looked up in a `(key, label)` list (case-insensitive); a bad value is reported.
+fn cli_cycle(args: &[String], flag: &str, items: &[(&str, &str)]) -> Option<i32> {
+    let raw = cli_flags::value_of(args, flag)?;
+    let i = items.iter().position(|(k, _)| k.eq_ignore_ascii_case(raw));
+    if i.is_none() {
+        let keys: Vec<&str> = items.iter().map(|(k, _)| *k).collect();
+        cli_flags::report_bad_value(flag, raw, &keys.join("|"), "the saved value");
+    }
+    i.map(|i| i as i32)
+}
+
+/// `--flag N` (a number, `%` allowed) for a slider; a bad value is reported.
+fn cli_number(args: &[String], flag: &str) -> Option<i32> {
+    let raw = cli_flags::value_of(args, flag)?;
+    let v = raw.trim_end_matches('%').parse::<i32>().ok();
+    if v.is_none() {
+        cli_flags::report_bad_value(flag, raw, "a number", "the saved value");
+    }
+    v
+}
+
+/// `--flag on|off` (plus `--no-<name>` for off).
+fn cli_switch(args: &[String], flag: &str, no_flag: &str) -> Option<i32> {
+    if has_flag(args, no_flag) {
+        return Some(0);
+    }
+    let raw = cli_flags::value_of(args, flag)?;
+    match raw.to_ascii_lowercase().as_str() {
+        "on" | "true" | "1" | "yes" => Some(1),
+        "off" | "false" | "0" | "no" => Some(0),
+        _ => {
+            cli_flags::report_bad_value(flag, raw, "on|off", "the saved value");
+            None
+        }
+    }
+}
+
+fn cli_shadow_quality(args: &[String]) -> Option<i32> {
+    cli_cycle(args, "--shadow-quality", LEVEL4)
+}
+fn cli_particles(args: &[String]) -> Option<i32> {
+    cli_number(args, "--particles")
+}
+fn cli_mipmaps(args: &[String]) -> Option<i32> {
+    cli_switch(args, "--mipmaps", "--no-mipmaps")
+}
+fn cli_anisotropy(args: &[String]) -> Option<i32> {
+    let raw = cli_flags::value_of(args, "--anisotropy")?;
+    let key = raw.trim_end_matches(['x', 'X']);
+    let key = if key == "1" || key == "0" { "off" } else { key };
+    let i = ANISO.iter().position(|(k, _)| k.eq_ignore_ascii_case(key));
+    if i.is_none() {
+        cli_flags::report_bad_value("--anisotropy", raw, "off|2|4|8|16", "the saved value");
+    }
+    i.map(|i| i as i32)
+}
+fn cli_texture_quality(args: &[String]) -> Option<i32> {
+    cli_cycle(args, "--texture-quality", TEXQ)
+}
+fn cli_terrain_texture(args: &[String]) -> Option<i32> {
+    cli_cycle(args, "--terrain-texture", TERRAIN_TEX)
+}
+fn cli_aa(args: &[String]) -> Option<i32> {
+    cli_cycle(args, "--aa", AA_MODES)
+}
+fn cli_render_scale(args: &[String]) -> Option<i32> {
+    cli_number(args, "--render-scale")
+}
+fn cli_vsync(args: &[String]) -> Option<i32> {
+    cli_switch(args, "--vsync", "--no-vsync")
+}
+fn cli_fps_cap(args: &[String]) -> Option<i32> {
+    let raw = cli_flags::value_of(args, "--fps-cap")?;
+    let key = match raw.to_ascii_lowercase().as_str() {
+        "off" | "0" | "none" | "unlimited" => "unlimited".to_string(),
+        k => k.to_string(),
+    };
+    let i = FPS_CAPS.iter().position(|(k, _)| *k == key);
+    if i.is_none() {
+        cli_flags::report_bad_value("--fps-cap", raw, "unlimited|30|60|120|144|240", "the saved value");
+    }
+    i.map(|i| i as i32)
+}
+fn cli_grass_range(args: &[String]) -> Option<i32> {
+    cli_number(args, "--grass-range")
+}
+fn cli_plants_range(args: &[String]) -> Option<i32> {
+    cli_number(args, "--plants-range")
+}
+fn cli_objects_range(args: &[String]) -> Option<i32> {
+    cli_number(args, "--objects-range")
+}
+fn cli_collision_range(args: &[String]) -> Option<i32> {
+    cli_number(args, "--collision-range")
+}
+fn cli_pickups_range(args: &[String]) -> Option<i32> {
+    cli_number(args, "--pickups-range")
+}
+fn cli_npc_range(args: &[String]) -> Option<i32> {
+    cli_number(args, "--npc-range")
+}
+fn cli_wild_range(args: &[String]) -> Option<i32> {
+    cli_number(args, "--wild-range")
+}
+fn cli_fog_distance(args: &[String]) -> Option<i32> {
+    cli_number(args, "--fog-distance")
+}
+fn cli_ssao_quality(args: &[String]) -> Option<i32> {
+    cli_cycle(args, "--ssao-quality", SSAO4)
+}
+fn cli_bloom_intensity(args: &[String]) -> Option<i32> {
+    cli_number(args, "--bloom-intensity")
+}
+
+const PCT: &str = "%";
+const fn range(min: i32, max: i32) -> Kind {
+    Kind::Slider { min, max, step: 25, unit: PCT }
+}
+
 /// The option table, in display order inside each page.
 pub const OPTION_DEFS: &[OptionDef] = &[
-    OptionDef { id: id::LOOK, label: "Look", page: Page::Look, kind: Kind::Cycle(LOOKS), default: 0, restart: Restart::Never, cli: cli_look },
-    OptionDef { id: id::STYLE, label: "Character style", page: Page::Look, kind: Kind::Cycle(STYLES), default: 0, restart: Restart::Never, cli: cli_style },
-    OptionDef { id: id::OUTLINES, label: "Outlines", page: Page::Look, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_outlines },
-    OptionDef { id: id::TIME, label: "Time of day", page: Page::Look, kind: Kind::Cycle(TIMES), default: 0, restart: Restart::Never, cli: cli_time },
-    OptionDef { id: id::WEATHER, label: "Weather", page: Page::Look, kind: Kind::Cycle(WEATHERS), default: 0, restart: Restart::Never, cli: cli_weather },
-    OptionDef { id: id::SHADOWS, label: "Shadows", page: Page::Quality, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_shadows },
-    OptionDef { id: id::GRASS, label: "Grass", page: Page::Quality, kind: Kind::Cycle(QUALITY3), default: 1, restart: Restart::Never, cli: cli_grass },
-    OptionDef { id: id::EFFECTS, label: "Battle effects", page: Page::Quality, kind: Kind::Cycle(QUALITY3), default: 1, restart: Restart::FromValue(0), cli: cli_effects },
-    OptionDef { id: id::SSAO, label: "SSAO (ambient occlusion)", page: Page::PostProcessing, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_ssao },
-    OptionDef { id: id::BLOOM, label: "Bloom", page: Page::PostProcessing, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_bloom },
+    // ---- Look (never changed by a preset)
+    OptionDef { id: id::LOOK, label: "Look", page: Page::Look, kind: Kind::Cycle(LOOKS), default: 0, restart: Restart::Never, cli: cli_look, preset: false, help: "Vivid: strong sun, shadows, haze and clouds. Classic: the earlier flat lighting." },
+    OptionDef { id: id::STYLE, label: "Character style", page: Page::Look, kind: Kind::Cycle(STYLES), default: 0, restart: Restart::Never, cli: cli_style, preset: false, help: "Original: cel-shaded characters, like the game." },
+    OptionDef { id: id::OUTLINES, label: "Outlines", page: Page::Look, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_outlines, preset: false, help: "Ink outlines around characters (original style only)." },
+    OptionDef { id: id::TIME, label: "Time of day", page: Page::Look, kind: Kind::Cycle(TIMES), default: 0, restart: Restart::Never, cli: cli_time, preset: false, help: "Follow the game clock or pin one time slot." },
+    OptionDef { id: id::WEATHER, label: "Weather", page: Page::Look, kind: Kind::Cycle(WEATHERS), default: 0, restart: Restart::Never, cli: cli_weather, preset: false, help: "Follow the weather lottery or force one weather." },
+    // ---- Quality
+    OptionDef { id: id::SHADOWS, label: "Shadows", page: Page::Quality, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_shadows, preset: true, help: "Sun shadows. Off saves about 1-2 ms per frame." },
+    OptionDef { id: id::SHADOW_QUALITY, label: "Shadow quality", page: Page::Quality, kind: Kind::Cycle(LEVEL4), default: 1, restart: Restart::Never, cli: cli_shadow_quality, preset: true, help: "Low 1024 px / 100 m, medium 2048 px / 250 m, high 4096 px / 350 m, ultra 4096 px / 400 m." },
+    OptionDef { id: id::GRASS, label: "Grass", page: Page::Quality, kind: Kind::Cycle(GRASS5), default: 1, restart: Restart::Never, cli: cli_grass, preset: true, help: "Grass and plant density near the player; the costliest option after resolution." },
+    OptionDef { id: id::EFFECTS, label: "Battle effects", page: Page::Quality, kind: Kind::Cycle(QUALITY3), default: 1, restart: Restart::FromValue(0), cli: cli_effects, preset: true, help: "Move particles in battle. High is the original game's particle count." },
+    OptionDef { id: id::PARTICLES, label: "Particles", page: Page::Quality, kind: Kind::Slider { min: 0, max: 200, step: 25, unit: PCT }, default: 100, restart: Restart::Never, cli: cli_particles, preset: true, help: "Extra multiplier on the effect particles (100% = the battle effects setting)." },
+    OptionDef { id: id::MIPMAPS, label: "Mipmaps", page: Page::Quality, kind: Kind::OnOff, default: 0, restart: Restart::Never, cli: cli_mipmaps, preset: true, help: "Smaller copies of each texture: removes shimmer on distant ground and clothes." },
+    OptionDef { id: id::ANISOTROPY, label: "Anisotropic filtering", page: Page::Quality, kind: Kind::Cycle(ANISO), default: 0, restart: Restart::Never, cli: cli_anisotropy, preset: true, help: "Keeps ground textures sharp at grazing angles. Works best with mipmaps on." },
+    OptionDef { id: id::TEXTURE_QUALITY, label: "Texture quality", page: Page::Quality, kind: Kind::Cycle(TEXQ), default: 0, restart: Restart::Always, cli: cli_texture_quality, preset: true, help: "Half / quarter shrink model textures to save video memory (not the terrain)." },
+    OptionDef { id: id::TERRAIN_TEXTURE, label: "Terrain texture", page: Page::Quality, kind: Kind::Cycle(TERRAIN_TEX), default: 0, restart: Restart::Always, cli: cli_terrain_texture, preset: true, help: "Size of the baked ground image: lower saves video memory, the ground is blurrier." },
+    // ---- Display (v-sync and the FPS cap are never changed by a preset)
+    OptionDef { id: id::AA, label: "Anti-aliasing", page: Page::Display, kind: Kind::Cycle(AA_MODES), default: 0, restart: Restart::Never, cli: cli_aa, preset: true, help: "Smooths jagged edges. FXAA cheapest, SMAA sharper, TAA smoothest; MSAA needs SSAO off." },
+    OptionDef { id: id::RENDER_SCALE, label: "Render scale", page: Page::Display, kind: Kind::Slider { min: 50, max: 200, step: 10, unit: PCT }, default: 100, restart: Restart::Never, cli: cli_render_scale, preset: true, help: "3D resolution relative to the window size: above 100% sharper (costly), below faster." },
+    OptionDef { id: id::VSYNC, label: "V-sync", page: Page::Display, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_vsync, preset: false, help: "Waits for the monitor's refresh. Turn it off to let the FPS cap set the frame rate." },
+    OptionDef { id: id::FPS_CAP, label: "FPS cap", page: Page::Display, kind: Kind::Cycle(FPS_CAPS), default: 0, restart: Restart::Never, cli: cli_fps_cap, preset: false, help: "Frame-rate limit. With v-sync on, the monitor's refresh rate limits it too." },
+    // ---- Distances (100% = the game's own distance)
+    OptionDef { id: id::GRASS_RANGE, label: "Grass range", page: Page::Distances, kind: range(50, 250), default: 100, restart: Restart::Never, cli: cli_grass_range, preset: true, help: "How far grass cards are drawn (100% = the grass setting's own range, 40 m at low)." },
+    OptionDef { id: id::PLANTS_RANGE, label: "Plants range", page: Page::Distances, kind: range(50, 250), default: 100, restart: Restart::Never, cli: cli_plants_range, preset: true, help: "Flowers, shrubs and small stones (100% = the grass setting's own range, 64 m at low)." },
+    OptionDef { id: id::OBJECTS_RANGE, label: "Objects range", page: Page::Distances, kind: range(50, 300), default: 100, restart: Restart::Never, cli: cli_objects_range, preset: true, help: "Houses, rocks and other placed objects (100% = 200 m)." },
+    OptionDef { id: id::COLLISION_RANGE, label: "Collision range", page: Page::Distances, kind: range(50, 200), default: 100, restart: Restart::Never, cli: cli_collision_range, preset: true, help: "Solid shapes kept around the player (100% = 200 m); memory, not looks." },
+    OptionDef { id: id::PICKUPS_RANGE, label: "Pickups range", page: Page::Distances, kind: range(50, 250), default: 100, restart: Restart::Never, cli: cli_pickups_range, preset: true, help: "Items, ore and item trees (100% = 120 m)." },
+    OptionDef { id: id::NPC_RANGE, label: "People range", page: Page::Distances, kind: range(50, 250), default: 100, restart: Restart::Never, cli: cli_npc_range, preset: true, help: "Villagers and trainers (100% = 200 m)." },
+    OptionDef { id: id::WILD_RANGE, label: "Wild Pokemon range", page: Page::Distances, kind: range(50, 250), default: 100, restart: Restart::Never, cli: cli_wild_range, preset: true, help: "Wild Pokemon (100% = 120 m); more Pokemon cost CPU time." },
+    OptionDef { id: id::FOG_DISTANCE, label: "Fog / view distance", page: Page::Distances, kind: Kind::Slider { min: 50, max: 200, step: 10, unit: PCT }, default: 100, restart: Restart::Never, cli: cli_fog_distance, preset: true, help: "Pushes the haze away (100% = the game's fog); far values can show the map edge." },
+    // ---- Post-processing
+    OptionDef { id: id::SSAO, label: "SSAO (ambient occlusion)", page: Page::PostProcessing, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_ssao, preset: true, help: "Darkens corners and contact areas. Turns MSAA anti-aliasing off." },
+    OptionDef { id: id::SSAO_QUALITY, label: "SSAO quality", page: Page::PostProcessing, kind: Kind::Cycle(SSAO4), default: 1, restart: Restart::Never, cli: cli_ssao_quality, preset: true, help: "Samples per pixel. Ultra costs much more and looks like high." },
+    OptionDef { id: id::BLOOM, label: "Bloom", page: Page::PostProcessing, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_bloom, preset: true, help: "Glow around bright light, at the strength of the game data." },
+    OptionDef { id: id::BLOOM_INTENSITY, label: "Bloom intensity", page: Page::PostProcessing, kind: Kind::Slider { min: 0, max: 200, step: 25, unit: PCT }, default: 100, restart: Restart::Never, cli: cli_bloom_intensity, preset: true, help: "Strength of the glow (100% = the game data; 0% switches it off)." },
 ];
 
 pub fn def_index(id: &str) -> Option<usize> {
@@ -246,13 +447,86 @@ pub fn visible_pages() -> Vec<Page> {
 // ------------------------------------------------------------------ presets
 
 pub struct Preset {
+    /// Key used by `--quality` and in logs.
     pub name: &'static str,
-    /// `(option id, value)`; options not listed take their default.
+    /// Shown on the screen.
+    pub label: &'static str,
+    /// `(option id, value)`; the other preset options (see [`OptionDef::preset`]) take their default.
     pub overrides: &'static [(&'static str, i32)],
 }
 
-/// Quality presets. Only the default exists for now; add `Low`, `Medium`, ... here.
-pub const PRESETS: &[Preset] = &[Preset { name: "default", overrides: &[] }];
+/// Quality presets. "Default" is the game as it was before the options (new users start there).
+/// The values are measured choices: see `docs/GRAPHICS-QUALITY.md` for the cost table.
+pub const PRESETS: &[Preset] = &[
+    Preset { name: "default", label: "Default", overrides: &[] },
+    // Original-like limits: the console's particle count, nothing added on top.
+    Preset { name: "switch", label: "Switch (faithful)", overrides: &[(id::EFFECTS, 2)] },
+    // Weaker PCs: no SSAO, bloom or MSAA, cheap FXAA, low shadows, shorter ranges, smaller textures.
+    Preset {
+        name: "low",
+        label: "Low",
+        overrides: &[
+            (id::SHADOW_QUALITY, 0),
+            (id::GRASS_RANGE, 75),
+            (id::PLANTS_RANGE, 75),
+            (id::PARTICLES, 50),
+            (id::MIPMAPS, 1),
+            (id::TEXTURE_QUALITY, 1),
+            (id::TERRAIN_TEXTURE, 1),
+            (id::AA, 2),
+            (id::OBJECTS_RANGE, 75),
+            (id::PICKUPS_RANGE, 75),
+            (id::NPC_RANGE, 75),
+            (id::WILD_RANGE, 75),
+            (id::SSAO, 0),
+            (id::BLOOM, 0),
+        ],
+    },
+    Preset {
+        name: "medium",
+        label: "Medium",
+        overrides: &[(id::GRASS, 2), (id::MIPMAPS, 1), (id::ANISOTROPY, 2), (id::AA, 2), (id::SSAO_QUALITY, 0)],
+    },
+    Preset {
+        name: "high",
+        label: "High",
+        overrides: &[
+            (id::SHADOW_QUALITY, 2),
+            (id::GRASS, 3),
+            (id::EFFECTS, 2),
+            (id::MIPMAPS, 1),
+            (id::ANISOTROPY, 3),
+            (id::AA, 3),
+            (id::OBJECTS_RANGE, 150),
+            (id::PICKUPS_RANGE, 125),
+            (id::NPC_RANGE, 125),
+            (id::WILD_RANGE, 125),
+        ],
+    },
+    Preset {
+        name: "ultra",
+        label: "Ultra",
+        overrides: &[
+            (id::SHADOW_QUALITY, 3),
+            (id::GRASS, 4),
+            (id::EFFECTS, 2),
+            (id::MIPMAPS, 1),
+            (id::ANISOTROPY, 4),
+            (id::AA, 3),
+            (id::RENDER_SCALE, 150),
+            (id::OBJECTS_RANGE, 200),
+            (id::PICKUPS_RANGE, 150),
+            (id::NPC_RANGE, 150),
+            (id::WILD_RANGE, 150),
+            (id::SSAO_QUALITY, 2),
+        ],
+    },
+];
+
+/// Index of the preset named `name` (case-insensitive).
+pub fn preset_index(name: &str) -> Option<usize> {
+    PRESETS.iter().position(|p| p.name.eq_ignore_ascii_case(name) || p.label.eq_ignore_ascii_case(name))
+}
 
 // ------------------------------------------------------------------ settings
 
@@ -286,6 +560,19 @@ impl GraphicsSettings {
     pub fn set(&mut self, id: &str, v: i32) {
         if let Some(i) = def_index(id) {
             self.values[i] = clamp_value(&OPTION_DEFS[i], v);
+        }
+    }
+
+    /// Set option `id` from its file text (`"high"`, `true`, `150`). Returns false for an unknown
+    /// option or value.
+    pub fn set_text(&mut self, id: &str, text: &str) -> bool {
+        let Some(i) = def_index(id) else { return false };
+        match parse_value(&OPTION_DEFS[i], text.trim().trim_matches('"')) {
+            Some(v) => {
+                self.values[i] = v;
+                true
+            }
+            None => false,
         }
     }
 
@@ -327,18 +614,24 @@ impl GraphicsSettings {
         }
     }
 
-    /// Index of the preset whose values equal the current ones (`None` = custom).
+    /// Index of the preset whose values equal the current ones on every preset option (`None` =
+    /// custom). Look, time, weather, v-sync and the FPS cap do not count.
     pub fn preset(&self) -> Option<usize> {
         (0..PRESETS.len()).find(|i| {
-            let mut p = GraphicsSettings::default();
+            let mut p = self.clone();
             p.apply_preset(*i);
             p.values == self.values
         })
     }
 
+    /// Set every preset option to the preset's value (the others keep theirs).
     pub fn apply_preset(&mut self, preset: usize) {
         let Some(p) = PRESETS.get(preset) else { return };
-        self.reset();
+        for (v, d) in self.values.iter_mut().zip(OPTION_DEFS) {
+            if d.preset {
+                *v = d.default;
+            }
+        }
         for (id, v) in p.overrides {
             self.set(id, *v);
         }
@@ -403,14 +696,77 @@ impl GraphicsSettings {
 
     // ---- typed views used to build and drive the game
 
-    /// `ssao_quality` (not an option here) comes from `--ssao-quality`.
-    pub fn look_settings(&self, base: LookSettings) -> LookSettings {
+    /// Look, shadow and post-process settings. Every field is an option now; `_base` is kept so
+    /// callers can still pass the settings they would otherwise use.
+    pub fn look_settings(&self, _base: LookSettings) -> LookSettings {
+        use bevy::pbr::ScreenSpaceAmbientOcclusionQualityLevel as Ssao;
+        use super::render_look::{AntiAliasing, ShadowQuality};
         LookSettings {
             look: if self.get(id::LOOK) == 1 { Look::Classic } else { Look::Vivid },
             shadows: self.get(id::SHADOWS) != 0,
             ssao: self.get(id::SSAO) != 0,
-            bloom: self.get(id::BLOOM) != 0,
-            ..base
+            bloom: self.get(id::BLOOM) != 0 && self.get(id::BLOOM_INTENSITY) > 0,
+            shadow_quality: ShadowQuality::ALL[self.get(id::SHADOW_QUALITY).clamp(0, 3) as usize],
+            ssao_quality: [Ssao::Low, Ssao::Medium, Ssao::High, Ssao::Ultra][self.get(id::SSAO_QUALITY).clamp(0, 3) as usize],
+            bloom_pct: self.get(id::BLOOM_INTENSITY).clamp(0, 400) as u16,
+            fog_pct: self.get(id::FOG_DISTANCE).clamp(25, 400) as u16,
+            aa: [
+                AntiAliasing::Auto,
+                AntiAliasing::Off,
+                AntiAliasing::Fxaa,
+                AntiAliasing::Smaa,
+                AntiAliasing::Taa,
+                AntiAliasing::Msaa2,
+                AntiAliasing::Msaa4,
+            ][self.get(id::AA).clamp(0, 6) as usize],
+        }
+    }
+
+    fn pct(&self, id: &str) -> f32 {
+        self.get(id) as f32 / 100.0
+    }
+
+    /// Grass / plants range multipliers (1.0 = the grass quality's own radii).
+    pub fn grass_ranges(&self) -> (f32, f32) {
+        (self.pct(id::GRASS_RANGE), self.pct(id::PLANTS_RANGE))
+    }
+
+    /// Particle multiplier on top of the battle effects quality.
+    pub fn particle_scale(&self) -> f32 {
+        self.pct(id::PARTICLES)
+    }
+
+    pub fn texture_quality(&self) -> super::quality::TextureQuality {
+        super::quality::TextureQuality {
+            mipmaps: self.get(id::MIPMAPS) != 0,
+            anisotropy: ANISO_VALUES[self.get(id::ANISOTROPY).clamp(0, 4) as usize],
+            reduce: self.get(id::TEXTURE_QUALITY).clamp(0, 2) as u8,
+        }
+    }
+
+    /// Longest side of the baked terrain textures (0 = as baked).
+    pub fn terrain_texture_max(&self) -> u32 {
+        TERRAIN_SIDES[self.get(id::TERRAIN_TEXTURE).clamp(0, 2) as usize]
+    }
+
+    pub fn frame_pacing(&self) -> super::quality::FramePacing {
+        super::quality::FramePacing {
+            vsync: self.get(id::VSYNC) != 0,
+            fps_cap: FPS_VALUES[self.get(id::FPS_CAP).clamp(0, 5) as usize],
+        }
+    }
+
+    pub fn render_scale(&self) -> super::quality::RenderScale {
+        super::quality::RenderScale { percent: self.get(id::RENDER_SCALE).clamp(25, 400) as u16 }
+    }
+
+    pub fn stream_distances(&self) -> super::quality::StreamDistances {
+        super::quality::StreamDistances {
+            objects: self.pct(id::OBJECTS_RANGE),
+            collision: self.pct(id::COLLISION_RANGE),
+            pickups: self.pct(id::PICKUPS_RANGE),
+            npcs: self.pct(id::NPC_RANGE),
+            wild: self.pct(id::WILD_RANGE),
         }
     }
 
@@ -424,7 +780,9 @@ impl GraphicsSettings {
     pub fn grass_quality(&self) -> GrassQuality {
         match self.get(id::GRASS) {
             0 => GrassQuality::Off,
-            2 => GrassQuality::High,
+            2 => GrassQuality::Medium,
+            3 => GrassQuality::High,
+            4 => GrassQuality::Ultra,
             _ => GrassQuality::Low,
         }
     }
@@ -508,6 +866,26 @@ impl GraphicsStartup {
         }
         let mut settings = saved.clone();
         let mut overridden = Vec::new();
+        // `--quality <preset>` first: every preset option for this session; single flags below
+        // still override it.
+        if let Some(raw) = cli_flags::value_of(args, "--quality") {
+            match preset_index(raw) {
+                Some(i) => {
+                    settings.apply_preset(i);
+                    if settings != saved {
+                        cli_flags::report_note(format!(
+                            "Graphics: --quality {} overrides the saved quality settings for this session.",
+                            PRESETS[i].name
+                        ));
+                    }
+                    overridden.extend(OPTION_DEFS.iter().filter(|d| d.preset).map(|d| d.id));
+                }
+                None => {
+                    let names: Vec<&str> = PRESETS.iter().map(|p| p.name).collect();
+                    cli_flags::report_bad_value("--quality", raw, &names.join("|"), "the saved settings");
+                }
+            }
+        }
         for d in OPTION_DEFS {
             if let Some(v) = (d.cli)(args) {
                 let v = clamp_value(d, v);
@@ -518,7 +896,9 @@ impl GraphicsStartup {
                     ));
                 }
                 settings.set(d.id, v);
-                overridden.push(d.id);
+                if !overridden.contains(&d.id) {
+                    overridden.push(d.id);
+                }
             }
         }
         Self { settings, saved, overridden, dir: dir.to_path_buf() }
@@ -569,6 +949,25 @@ pub fn needs_restart(def: usize, startup: &GraphicsSettings, now: &GraphicsSetti
     }
 }
 
+/// Short notes after an option's value when another option limits it.
+pub fn option_notes(option: &str, s: &GraphicsSettings) -> Vec<&'static str> {
+    let mut n = Vec::new();
+    let classic = s.get(id::LOOK) == 1;
+    match option {
+        id::SHADOWS if classic => n.push(" (vivid look only)"),
+        id::SHADOW_QUALITY if s.get(id::SHADOWS) == 0 => n.push(" (shadows off)"),
+        id::SSAO_QUALITY if s.get(id::SSAO) == 0 => n.push(" (SSAO off)"),
+        id::BLOOM_INTENSITY if s.get(id::BLOOM) == 0 => n.push(" (bloom off)"),
+        id::ANISOTROPY if s.get(id::ANISOTROPY) > 0 && s.get(id::MIPMAPS) == 0 => n.push(" (best with mipmaps)"),
+        id::AA if s.look_settings(LookSettings::default()).aa.blocked_by_ssao(s.get(id::SSAO) != 0) => {
+            n.push(" (needs SSAO off: no AA now)")
+        }
+        id::FPS_CAP if s.get(id::FPS_CAP) > 0 && s.get(id::VSYNC) != 0 => n.push(" (v-sync also limits)"),
+        _ => {}
+    }
+    n
+}
+
 /// Text of a row.
 pub fn row_label(
     row: Row,
@@ -583,7 +982,7 @@ pub fn row_label(
         Row::Page => format!("Page: < {} >  ({}/{})", page.label(), page_index + 1, page_count),
         Row::Preset => format!(
             "Quality preset: {}",
-            s.preset().map_or("custom", |i| PRESETS[i].name)
+            s.preset().map_or("Custom", |i| PRESETS[i].label)
         ),
         Row::Reset => "Reset to defaults".to_string(),
         Row::Option(i) => {
@@ -592,8 +991,8 @@ pub fn row_label(
             if needs_restart(i, startup, s) {
                 t.push_str(" (restart)");
             }
-            if d.id == id::SHADOWS && s.get(id::LOOK) == 1 {
-                t.push_str(" (vivid look only)");
+            for note in option_notes(d.id, s) {
+                t.push_str(note);
             }
             if overridden.contains(&d.id) {
                 t.push_str(" [command line]");
@@ -722,6 +1121,7 @@ fn spawn_graphics_screen(mut commands: Commands) {
                 }
                 panel.spawn((
                     GfxHint,
+                    Node { max_width: Val::Px(600.0), ..default() },
                     Text::new(""),
                     TextFont::from_font_size(13.0),
                     TextColor(Color::srgb(0.7, 0.75, 0.8)),
@@ -922,13 +1322,61 @@ struct Applier {
 
 /// How each group of options reaches the running game. Add one entry per new live option.
 const APPLIERS: &[Applier] = &[
-    Applier { ids: &[id::LOOK, id::SHADOWS, id::SSAO, id::BLOOM], run: apply_look },
+    Applier {
+        ids: &[
+            id::LOOK,
+            id::SHADOWS,
+            id::SHADOW_QUALITY,
+            id::SSAO,
+            id::SSAO_QUALITY,
+            id::BLOOM,
+            id::BLOOM_INTENSITY,
+            id::FOG_DISTANCE,
+            id::AA,
+        ],
+        run: apply_look,
+    },
     Applier { ids: &[id::STYLE, id::OUTLINES], run: apply_style },
-    Applier { ids: &[id::GRASS], run: apply_grass },
-    Applier { ids: &[id::EFFECTS], run: apply_effects },
+    Applier { ids: &[id::GRASS, id::GRASS_RANGE, id::PLANTS_RANGE], run: apply_grass },
+    Applier { ids: &[id::EFFECTS, id::PARTICLES], run: apply_effects },
     Applier { ids: &[id::TIME], run: apply_time },
     Applier { ids: &[id::WEATHER], run: apply_weather },
+    Applier { ids: &[id::MIPMAPS, id::ANISOTROPY], run: apply_textures },
+    Applier { ids: &[id::RENDER_SCALE], run: apply_render_scale },
+    Applier { ids: &[id::VSYNC, id::FPS_CAP], run: apply_frame_pacing },
+    Applier {
+        ids: &[id::OBJECTS_RANGE, id::COLLISION_RANGE, id::PICKUPS_RANGE, id::NPC_RANGE, id::WILD_RANGE],
+        run: apply_distances,
+    },
 ];
+
+/// Push every start-up value that is not read by a plugin builder into the game resources
+/// (called once by the viewer after its plugins are added).
+pub fn apply_startup(world: &mut World, s: &GraphicsSettings) {
+    apply_grass(world, s);
+    if let Some(mut e) = world.get_resource_mut::<super::effects::EffectsSettings>() {
+        e.particle_scale = s.particle_scale();
+    }
+    world.insert_resource(s.stream_distances());
+}
+
+fn apply_textures(world: &mut World, s: &GraphicsSettings) {
+    // The reduction is a restart option: keep the value the game started with.
+    let reduce = world.get_resource::<super::quality::StartupTextureReduce>().map_or(0, |r| r.0);
+    world.insert_resource(super::quality::TextureQuality { reduce, ..s.texture_quality() });
+}
+
+fn apply_render_scale(world: &mut World, s: &GraphicsSettings) {
+    world.insert_resource(s.render_scale());
+}
+
+fn apply_frame_pacing(world: &mut World, s: &GraphicsSettings) {
+    world.insert_resource(s.frame_pacing());
+}
+
+fn apply_distances(world: &mut World, s: &GraphicsSettings) {
+    world.insert_resource(s.stream_distances());
+}
 
 fn apply_look(world: &mut World, s: &GraphicsSettings) {
     let base = world.get_resource::<LookSettings>().copied().unwrap_or_default();
@@ -943,13 +1391,20 @@ fn apply_style(world: &mut World, s: &GraphicsSettings) {
 
 fn apply_grass(world: &mut World, s: &GraphicsSettings) {
     if let Some(mut cfg) = world.get_resource_mut::<super::vegetation::VegetationConfig>() {
-        cfg.quality = s.grass_quality();
+        let (grass, plants) = s.grass_ranges();
+        let q = s.grass_quality();
+        if cfg.quality != q || cfg.grass_range != grass || cfg.plants_range != plants {
+            cfg.quality = q;
+            cfg.grass_range = grass;
+            cfg.plants_range = plants;
+        }
     }
 }
 
 fn apply_effects(world: &mut World, s: &GraphicsSettings) {
     if let Some(mut e) = world.get_resource_mut::<super::effects::EffectsSettings>() {
         e.quality = s.effects_quality();
+        e.particle_scale = s.particle_scale();
     }
 }
 
@@ -1037,8 +1492,13 @@ fn sync_graphics_screen(
     }
     let more_up = if state.scroll > 0 { "^ more above  " } else { "" };
     let more_down = if state.scroll + VISIBLE_ROWS < rows.len() { "v more below  " } else { "" };
+    let about = match rows.get(state.selected) {
+        Some(Row::Option(i)) => OPTION_DEFS[*i].help,
+        Some(Row::Preset) => "Default = the game as before; Switch = original-like; Low..Ultra for weaker or stronger PCs.",
+        _ => "",
+    };
     let help = format!(
-        "{more_up}{more_down}Up/Down select, Left/Right or Enter change, Tab page, Esc back. Changes apply now and are saved to {FILE_NAME}."
+        "{about}\n{more_up}{more_down}Up/Down select, Left/Right or Enter change, Tab page, Esc back. Changes apply now and are saved to {FILE_NAME}."
     );
     for mut h in &mut hint {
         if h.0 != help {
@@ -1071,7 +1531,16 @@ mod tests {
             assert_eq!(def_index(d.id), Some(i), "duplicate id {}", d.id);
             assert_eq!(clamp_value(d, d.default), d.default, "{} default out of range", d.id);
         }
-        assert_eq!(visible_pages(), vec![Page::Look, Page::Quality, Page::PostProcessing]);
+        assert_eq!(
+            visible_pages(),
+            vec![Page::Look, Page::Quality, Page::Display, Page::Distances, Page::PostProcessing]
+        );
+        for page in visible_pages() {
+            assert!(rows_of(page).len() <= VISIBLE_ROWS, "{page:?} needs scrolling");
+        }
+        for d in OPTION_DEFS {
+            assert!(!d.help.is_empty(), "{} has no help line", d.id);
+        }
     }
 
     #[test]
@@ -1095,7 +1564,7 @@ mod tests {
         s.set(id::GRASS, 2);
         s.set(id::TIME, 3);
         s.set(id::WEATHER, 7);
-        s.extra.push(("render_scale".into(), "150".into()));
+        s.extra.push(("future_option".into(), "150".into()));
         let text = s.to_text();
         assert!(text.contains("version = 1"));
         assert!(text.contains("look = \"classic\""));
@@ -1125,10 +1594,10 @@ mod tests {
         s.step(look, -1);
         assert_eq!(s.value_label(look), "classic");
         let grass = def_index(id::GRASS).unwrap();
-        let seen: Vec<String> = (0..4).map(|_| { s.step(grass, 1); s.value_label(grass) }).collect();
-        assert_eq!(seen, ["high", "off", "low", "high"]);
+        let seen: Vec<String> = (0..5).map(|_| { s.step(grass, 1); s.value_label(grass) }).collect();
+        assert_eq!(seen, ["medium", "high", "ultra", "off", "low"]);
         // Sliders clamp (no slider exists yet; check the rule on a local definition).
-        let slider = OptionDef { id: "t", label: "t", page: Page::Quality, kind: Kind::Slider { min: 0, max: 20, step: 10, unit: "m" }, default: 10, restart: Restart::Never, cli: |_| None };
+        let slider = OptionDef { id: "t", label: "t", page: Page::Quality, kind: Kind::Slider { min: 0, max: 20, step: 10, unit: "m" }, default: 10, restart: Restart::Never, cli: |_| None, preset: true, help: "t" };
         assert_eq!(clamp_value(&slider, 99), 20);
         assert_eq!(parse_value(&slider, "-5"), Some(0));
     }
@@ -1139,7 +1608,7 @@ mod tests {
         s.set(id::BLOOM, 0);
         assert_eq!(s.preset(), None);
         let label = row_label(Row::Preset, Page::Look, 3, 0, &s, &GraphicsSettings::default(), &[]);
-        assert_eq!(label, "Quality preset: custom");
+        assert_eq!(label, "Quality preset: Custom");
         s.apply_preset(0);
         assert!(s.is_default());
     }
@@ -1175,7 +1644,7 @@ mod tests {
         let dir = tmp("cli");
         let mut saved = GraphicsSettings::default();
         saved.set(id::BLOOM, 0);
-        saved.set(id::GRASS, 2);
+        saved.set(id::GRASS, 3);
         saved.save(&dir).unwrap();
         let st = GraphicsStartup::resolve(&dir, &a("viewer --look classic --grass off --no-shadows --time-slot 2 --weather rain"));
         assert_eq!(st.settings.get(id::LOOK), 1);
@@ -1186,7 +1655,7 @@ mod tests {
         // classic without post flags means no SSAO / bloom, like LookSettings::from_args.
         assert_eq!((st.settings.get(id::SSAO), st.settings.get(id::BLOOM)), (0, 0));
         assert!(st.overridden.contains(&id::LOOK) && st.overridden.contains(&id::GRASS));
-        assert_eq!(st.saved.get(id::GRASS), 2, "the file copy keeps the saved value");
+        assert_eq!(st.saved.get(id::GRASS), 3, "the file copy keeps the saved value");
         assert!(cli_flags::warnings().iter().any(|w| w.contains("overrides the saved 'Grass'")));
         let text = std::fs::read_to_string(dir.join(FILE_NAME)).unwrap();
         assert!(text.contains("grass = \"high\""), "{text}");
@@ -1216,6 +1685,183 @@ mod tests {
         assert_eq!(cli_style(&a("v --style original")), Some(1));
         assert_eq!(cli_style(&a("v --look toon")), Some(1));
         assert_eq!(cli_style(&a("v --style plain")), Some(0));
+    }
+
+    #[test]
+    fn every_preset_round_trips_and_is_recognised() {
+        for (i, p) in PRESETS.iter().enumerate() {
+            let mut s = GraphicsSettings::default();
+            s.apply_preset(i);
+            assert_eq!(s.preset(), Some(i), "{} not recognised", p.name);
+            let back = GraphicsSettings::parse(&s.to_text());
+            assert_eq!(back, s, "{} does not survive the file", p.name);
+            assert_eq!(preset_index(p.name), Some(i));
+            assert_eq!(preset_index(&p.label.to_uppercase()), Some(i));
+            for (id, v) in p.overrides {
+                let d = &OPTION_DEFS[def_index(id).unwrap()];
+                assert!(d.preset, "{} sets the non-preset option {id}", p.name);
+                assert_eq!(clamp_value(d, *v), *v, "{} {id} out of range", p.name);
+            }
+        }
+        // The default preset is today's game: every option at its default.
+        let mut s = GraphicsSettings::default();
+        s.apply_preset(0);
+        assert!(s.is_default());
+    }
+
+    #[test]
+    fn presets_never_touch_look_time_weather_vsync_or_the_fps_cap() {
+        let mut s = GraphicsSettings::default();
+        s.set(id::LOOK, 1);
+        s.set(id::TIME, 2);
+        s.set(id::WEATHER, 4);
+        s.set(id::VSYNC, 0);
+        s.set(id::FPS_CAP, 3);
+        let keep = s.clone();
+        s.apply_preset(preset_index("ultra").unwrap());
+        for k in [id::LOOK, id::TIME, id::WEATHER, id::VSYNC, id::FPS_CAP] {
+            assert_eq!(s.get(k), keep.get(k), "{k}");
+        }
+        assert_eq!(s.preset(), preset_index("ultra"), "still recognised with a custom FPS cap");
+        assert_eq!(s.frame_pacing(), crate::game::quality::FramePacing { vsync: false, fps_cap: 120 });
+    }
+
+    #[test]
+    fn low_is_cheaper_and_ultra_richer_than_default() {
+        let get = |name: &str| {
+            let mut s = GraphicsSettings::default();
+            s.apply_preset(preset_index(name).unwrap());
+            s
+        };
+        let (low, def, ultra) = (get("low"), get("default"), get("ultra"));
+        assert_eq!(low.get(id::SSAO), 0);
+        assert_eq!(low.get(id::BLOOM), 0);
+        assert_eq!(low.look_settings(LookSettings::default()).shadow_quality, crate::game::render_look::ShadowQuality::Low);
+        assert!(def.is_default());
+        assert!(low.stream_distances().objects < 1.0);
+        assert_eq!(low.texture_quality().reduce, 1);
+        assert!(ultra.grass_quality() == GrassQuality::Ultra);
+        assert_eq!(ultra.render_scale().percent, 150);
+        assert_eq!(ultra.texture_quality(), crate::game::quality::TextureQuality { mipmaps: true, anisotropy: 16, reduce: 0 });
+        assert!(ultra.stream_distances().objects > 1.0);
+    }
+
+    #[test]
+    fn quality_flag_sets_a_preset_and_single_flags_still_win() {
+        let dir = tmp("quality");
+        let st = GraphicsStartup::resolve(&dir, &a("viewer --quality high --grass low --render-scale 120"));
+        let mut high = GraphicsSettings::default();
+        high.apply_preset(preset_index("high").unwrap());
+        assert_eq!(st.settings.get(id::ANISOTROPY), high.get(id::ANISOTROPY));
+        assert_eq!(st.settings.grass_quality(), GrassQuality::Low, "the single flag wins");
+        assert_eq!(st.settings.render_scale().percent, 120);
+        assert!(st.overridden.contains(&id::MIPMAPS));
+        assert!(!st.overridden.contains(&id::VSYNC), "presets do not own v-sync");
+        assert!(st.saved.is_default(), "the file is not rewritten");
+        let st = GraphicsStartup::resolve(&dir, &a("viewer --quality nonsense"));
+        assert!(st.settings.is_default());
+        assert!(cli_flags::warnings().iter().any(|w| w.contains("--quality") && w.contains("nonsense")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn every_new_flag_maps_to_its_option() {
+        let cases: &[(&str, &str, i32)] = &[
+            ("--shadow-quality ultra", id::SHADOW_QUALITY, 3),
+            ("--particles 150", id::PARTICLES, 150),
+            ("--mipmaps on", id::MIPMAPS, 1),
+            ("--no-mipmaps", id::MIPMAPS, 0),
+            ("--anisotropy 16x", id::ANISOTROPY, 4),
+            ("--anisotropy 1", id::ANISOTROPY, 0),
+            ("--texture-quality quarter", id::TEXTURE_QUALITY, 2),
+            ("--terrain-texture 2048", id::TERRAIN_TEXTURE, 1),
+            ("--aa smaa", id::AA, 3),
+            ("--aa TAA", id::AA, 4),
+            ("--render-scale 150%", id::RENDER_SCALE, 150),
+            ("--render-scale 999", id::RENDER_SCALE, 200),
+            ("--no-vsync", id::VSYNC, 0),
+            ("--vsync off", id::VSYNC, 0),
+            ("--fps-cap 120", id::FPS_CAP, 3),
+            ("--fps-cap unlimited", id::FPS_CAP, 0),
+            ("--fps-cap 240", id::FPS_CAP, 5),
+            ("--grass ultra", id::GRASS, 4),
+            ("--grass-range 200", id::GRASS_RANGE, 200),
+            ("--plants-range 150", id::PLANTS_RANGE, 150),
+            ("--objects-range 300", id::OBJECTS_RANGE, 300),
+            ("--collision-range 50", id::COLLISION_RANGE, 50),
+            ("--pickups-range 250", id::PICKUPS_RANGE, 250),
+            ("--npc-range 125", id::NPC_RANGE, 125),
+            ("--wild-range 175", id::WILD_RANGE, 175),
+            ("--fog-distance 150", id::FOG_DISTANCE, 150),
+            ("--ssao-quality high", id::SSAO_QUALITY, 2),
+            ("--bloom-intensity 50", id::BLOOM_INTENSITY, 50),
+        ];
+        let dir = tmp("flags");
+        for (flags, option, want) in cases {
+            let st = GraphicsStartup::resolve(&dir, &a(&format!("viewer {flags}")));
+            assert_eq!(st.settings.get(option), *want, "{flags}");
+            assert!(st.overridden.contains(option), "{flags}");
+        }
+        // A bad value keeps the saved value and is reported.
+        let st = GraphicsStartup::resolve(&dir, &a("viewer --fps-cap 77 --aa supersample"));
+        assert_eq!((st.settings.get(id::FPS_CAP), st.settings.get(id::AA)), (0, 0));
+        let w = cli_flags::warnings();
+        assert!(w.iter().any(|w| w.contains("--fps-cap") && w.contains("77")));
+        assert!(w.iter().any(|w| w.contains("--aa") && w.contains("supersample")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn typed_views_translate_every_new_option() {
+        use crate::game::quality::{FramePacing, RenderScale, StreamDistances, TextureQuality};
+        use crate::game::render_look::{AntiAliasing, ShadowQuality};
+        let d = GraphicsSettings::default();
+        assert_eq!(d.texture_quality(), TextureQuality::default());
+        assert_eq!(d.frame_pacing(), FramePacing::default());
+        assert_eq!(d.render_scale(), RenderScale::default());
+        assert_eq!(d.stream_distances(), StreamDistances::default());
+        assert_eq!((d.grass_ranges(), d.particle_scale(), d.terrain_texture_max()), ((1.0, 1.0), 1.0, 0));
+        let mut s = d.clone();
+        for (k, v) in [
+            (id::SHADOW_QUALITY, "high"),
+            (id::AA, "taa"),
+            (id::FOG_DISTANCE, "150"),
+            (id::BLOOM_INTENSITY, "50"),
+            (id::TERRAIN_TEXTURE, "1024"),
+            (id::OBJECTS_RANGE, "300"),
+            (id::WILD_RANGE, "50"),
+            (id::PARTICLES, "25"),
+        ] {
+            assert!(s.set_text(k, v), "{k} = {v}");
+        }
+        assert!(!s.set_text(id::AA, "nonsense"));
+        assert!(!s.set_text("nope", "1"));
+        let l = s.look_settings(LookSettings::default());
+        assert_eq!((l.shadow_quality, l.aa, l.fog_pct, l.bloom_pct), (ShadowQuality::High, AntiAliasing::Taa, 150, 50));
+        assert_eq!(s.terrain_texture_max(), 1024);
+        assert_eq!((s.stream_distances().objects, s.stream_distances().wild), (3.0, 0.5));
+        assert_eq!(s.particle_scale(), 0.25);
+        s.set(id::BLOOM_INTENSITY, 0);
+        assert!(!s.look_settings(LookSettings::default()).bloom, "0% switches bloom off");
+    }
+
+    #[test]
+    fn notes_explain_options_another_option_blocks() {
+        let mut s = GraphicsSettings::default();
+        s.set_text(id::AA, "msaa4");
+        assert_eq!(option_notes(id::AA, &s), vec![" (needs SSAO off: no AA now)"]);
+        s.set(id::SSAO, 0);
+        assert!(option_notes(id::AA, &s).is_empty());
+        s.set_text(id::ANISOTROPY, "8");
+        assert_eq!(option_notes(id::ANISOTROPY, &s), vec![" (best with mipmaps)"]);
+        s.set(id::SHADOWS, 0);
+        assert_eq!(option_notes(id::SHADOW_QUALITY, &s), vec![" (shadows off)"]);
+        s.set_text(id::FPS_CAP, "120");
+        assert_eq!(option_notes(id::FPS_CAP, &s), vec![" (v-sync also limits)"]);
+        let tq = def_index(id::TEXTURE_QUALITY).unwrap();
+        let mut now = GraphicsSettings::default();
+        now.set(id::TEXTURE_QUALITY, 1);
+        assert!(needs_restart(tq, &GraphicsSettings::default(), &now), "texture quality is a restart option");
     }
 
     // ---- headless Bevy
@@ -1344,6 +1990,76 @@ mod tests {
         step(&mut app, &[], &[]);
         assert!(!app.world().resource::<GameClock>().pinned);
         let _ = dir;
+    }
+
+    #[test]
+    fn headless_each_live_applier_updates_its_resource() {
+        use crate::game::effects::EffectsSettings;
+        use crate::game::quality::{FramePacing, RenderScale, StreamDistances, TextureQuality};
+        use crate::game::render_look::{AntiAliasing, ShadowQuality};
+        use crate::game::vegetation::VegetationConfig;
+        let (mut app, dir) = gfx_app("appliers");
+        app.insert_resource(VegetationConfig::new(1, PathBuf::new(), PathBuf::new(), GrassQuality::Low));
+        app.insert_resource(EffectsSettings { quality: EffectsQuality::Low, particle_scale: 1.0, world_scale: 1.0, anchor_height: 0.0 });
+        app.insert_resource(crate::game::quality::StartupTextureReduce(1));
+        let set = |app: &mut App, k: &str, v: &str| {
+            assert!(app.world_mut().resource_mut::<GraphicsSettings>().set_text(k, v), "{k}={v}");
+            step(app, &[], &[]);
+            step(app, &[], &[]);
+        };
+        set(&mut app, id::SHADOW_QUALITY, "ultra");
+        set(&mut app, id::AA, "smaa");
+        set(&mut app, id::FOG_DISTANCE, "200");
+        set(&mut app, id::SSAO_QUALITY, "high");
+        let l = *app.world().resource::<LookSettings>();
+        assert_eq!((l.shadow_quality, l.aa, l.fog_pct), (ShadowQuality::Ultra, AntiAliasing::Smaa, 200));
+        set(&mut app, id::GRASS, "ultra");
+        set(&mut app, id::GRASS_RANGE, "150");
+        set(&mut app, id::PLANTS_RANGE, "75");
+        let v = app.world().resource::<VegetationConfig>();
+        assert_eq!((v.quality, v.grass_range, v.plants_range), (GrassQuality::Ultra, 1.5, 0.75));
+        set(&mut app, id::PARTICLES, "50");
+        set(&mut app, id::EFFECTS, "high");
+        let e = app.world().resource::<EffectsSettings>();
+        assert_eq!((e.quality, e.particle_scale), (EffectsQuality::High, 0.5));
+        set(&mut app, id::MIPMAPS, "on");
+        set(&mut app, id::ANISOTROPY, "8");
+        assert_eq!(
+            *app.world().resource::<TextureQuality>(),
+            TextureQuality { mipmaps: true, anisotropy: 8, reduce: 1 },
+            "the reduction keeps its start-up value"
+        );
+        set(&mut app, id::RENDER_SCALE, "150");
+        assert_eq!(*app.world().resource::<RenderScale>(), RenderScale { percent: 150 });
+        set(&mut app, id::VSYNC, "off");
+        set(&mut app, id::FPS_CAP, "144");
+        assert_eq!(*app.world().resource::<FramePacing>(), FramePacing { vsync: false, fps_cap: 144 });
+        set(&mut app, id::OBJECTS_RANGE, "250");
+        set(&mut app, id::COLLISION_RANGE, "150");
+        set(&mut app, id::PICKUPS_RANGE, "200");
+        set(&mut app, id::NPC_RANGE, "75");
+        set(&mut app, id::WILD_RANGE, "50");
+        assert_eq!(
+            *app.world().resource::<StreamDistances>(),
+            StreamDistances { objects: 2.5, collision: 1.5, pickups: 2.0, npcs: 0.75, wild: 0.5 }
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn headless_preset_row_cycles_through_every_preset() {
+        let (mut app, dir) = gfx_app("presets");
+        app.world_mut().resource_mut::<GraphicsOpenRequested>().0 = true;
+        step(&mut app, &[], &[]);
+        press(&mut app, KeyCode::ArrowDown); // preset row
+        let mut seen = Vec::new();
+        for _ in 0..PRESETS.len() {
+            press(&mut app, KeyCode::ArrowRight);
+            seen.push(app.world().resource::<GraphicsSettings>().preset());
+        }
+        let want: Vec<Option<usize>> = (1..PRESETS.len()).map(Some).chain([Some(0)]).collect();
+        assert_eq!(seen, want);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -428,6 +428,12 @@ fn main() -> ExitCode {
     };
     let player_spawn_pos = initial_player_pos.unwrap_or(default_spawn);
 
+    // Graphics screen "Terrain texture" (restart option): the baked ground is reduced at load.
+    {
+        let dir = automation_cfg.as_ref().map_or_else(UserSettings::default_dir, |c| c.settings_dir());
+        let gfx = pla::game::graphics_screen::GraphicsStartup::resolve(&dir, &cli_args);
+        pla::game::quality::set_terrain_texture_max(gfx.settings.terrain_texture_max());
+    }
     let terrain_res = load_terrain(&bin_root, area_idx, overrides);
 
     // Locate PML and Battle data directory.
@@ -805,11 +811,14 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     // clock and weather plugins read arguments, so a saved choice becomes `--time-slot` /
     // `--weather` unless the command line already gave one.
     let gfx = pla::game::graphics_screen::GraphicsStartup::resolve(&settings_dir, &cli_args);
-    let ssao_quality = pla::game::render_look::LookSettings::from_args(&cli_args).ssao_quality;
-    app.insert_resource(gfx.settings.look_settings(pla::game::render_look::LookSettings {
-        ssao_quality,
-        ..Default::default()
-    }));
+    app.insert_resource(gfx.settings.look_settings(pla::game::render_look::LookSettings::default()));
+    // Quality machinery (game::quality): textures, render scale, frame pacing. With the default
+    // settings none of it touches an image, a camera or the window.
+    app.add_plugins((
+        pla::game::quality::TextureQualityPlugin { settings: gfx.settings.texture_quality() },
+        pla::game::quality::RenderScalePlugin { scale: gfx.settings.render_scale() },
+        pla::game::quality::FramePacingPlugin { pacing: gfx.settings.frame_pacing() },
+    ));
     let cli_args = gfx.settings.startup_args(&cli_args);
     let mut art_style = art_style;
     art_style.settings = gfx.settings.style_settings();
@@ -930,6 +939,8 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
             bin_root: bin_root.clone(),
             cache_root: cache_root.clone(),
             quality: gfx.settings.grass_quality(),
+            grass_range: gfx.settings.grass_ranges().0,
+            plants_range: gfx.settings.grass_ranges().1,
         });
         app.add_plugins((
             pla::game::pickups::PickupsPlugin { area: area_idx },
@@ -1027,8 +1038,9 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         pla::game::box_screen::BoxScreenPlugin,
         pla::game::dex_screen::DexScreenPlugin::default(),
         crafting_plugin(),
-        pla::game::graphics_screen::GraphicsScreenPlugin { startup: gfx },
+        pla::game::graphics_screen::GraphicsScreenPlugin { startup: gfx.clone() },
     ));
+    pla::game::graphics_screen::apply_startup(app.world_mut(), &gfx.settings);
     if let Some(p) = safe_spawn_xz {
         app.insert_resource(sp::SafeSpawnPoint(p));
     }
@@ -1589,6 +1601,7 @@ fn stream_wild_spawners(
     asset_server: Res<AssetServer>,
     consumed: Res<pla::game::wild::ConsumedSpawners>,
     time: Res<Time>,
+    dist: Option<Res<pla::game::quality::StreamDistances>>,
 ) {
     let Ok(p_xf) = player_query.single() else {
         return;
@@ -1596,7 +1609,9 @@ fn stream_wild_spawners(
     let now_s = time.elapsed_secs_f64();
 
     let p_pos = Vec2::new(p_xf.translation.x, p_xf.translation.z);
-    let radius = active_spawners.streaming_radius;
+    // Graphics screen "Wild Pokémon range" multiplier (1.0 = 120 m).
+    let radius = active_spawners.streaming_radius
+        * pla::game::quality::scale_of(dist.as_deref(), |d| d.wild);
     let radius_sq = radius * radius;
     let unload_radius_sq = (radius + 25.0) * (radius + 25.0);
 
@@ -3982,6 +3997,23 @@ mod startup_schedule_guard {
     #[test]
     fn play_sh_area_1_starts() {
         check_viewer_start("play-area-1", &["port_viewer", "--area", "1"]);
+    }
+
+    /// Every quality preset builds and runs (the textures, render-scale and frame-pacing plugins,
+    /// every live applier's resources), plus the heaviest single flags.
+    #[test]
+    fn quality_presets_start() {
+        for preset in ["low", "ultra"] {
+            check_viewer_start(&format!("quality-{preset}"), &["port_viewer", "--area", "1", "--quality", preset]);
+        }
+        check_viewer_start(
+            "quality-flags",
+            &[
+                "port_viewer", "--area", "1", "--aa", "taa", "--render-scale", "200", "--no-vsync", "--fps-cap", "240",
+                "--mipmaps", "on", "--anisotropy", "16", "--texture-quality", "quarter", "--terrain-texture", "1024",
+                "--grass", "ultra", "--objects-range", "300",
+            ],
+        );
     }
 
     /// Every optional registration on: main menu, original art style, debug zone links and shop.

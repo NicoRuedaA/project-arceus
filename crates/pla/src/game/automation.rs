@@ -404,6 +404,10 @@ pub enum Command {
     Screenshot { path: PathBuf, size: Option<(u32, u32)>, camera: Option<OrbitCamera> },
     Entities { kind: EntityKind, limit: usize },
     LogTail { lines: usize },
+    /// Change Graphics screen options live: a preset first, then `id = value` pairs (file syntax).
+    Graphics { preset: Option<String>, set: Vec<(String, String)> },
+    /// Frame timing: `warmup` frames, then `frames` frames each waited on the GPU.
+    Bench { frames: u32, warmup: u32 },
     Quit,
 }
 
@@ -673,6 +677,30 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
         }
         "log_tail" => Command::LogTail {
             lines: bounded(get_u64(o, "lines")?.or(get_u64(o, "n")?).unwrap_or(50), "lines", 5000)?,
+        },
+        "graphics" => {
+            let preset = get_str(o, "preset")?.map(str::to_string);
+            let mut set = Vec::new();
+            if let Some(v) = o.get("set") {
+                let m = v.as_object().ok_or("'set' must be an object {\"option_id\": value}")?;
+                for (k, v) in m {
+                    let text = match v {
+                        Value::String(t) => t.clone(),
+                        Value::Bool(b) => b.to_string(),
+                        Value::Number(n) => n.to_string(),
+                        _ => return Err(format!("'set.{k}' must be a string, number or boolean")),
+                    };
+                    set.push((k.clone(), text));
+                }
+            }
+            if preset.is_none() && set.is_empty() {
+                return Err("graphics needs 'preset' and/or 'set'".into());
+            }
+            Command::Graphics { preset, set }
+        }
+        "bench" => Command::Bench {
+            frames: bounded(get_u64(o, "frames")?.unwrap_or(300), "frames", 20_000)?,
+            warmup: bounded(get_u64(o, "warmup")?.unwrap_or(60), "warmup", 20_000)?,
         },
         "quit" | "exit" => Command::Quit,
         other => return Err(format!("unknown command '{other}'")),
@@ -1010,6 +1038,8 @@ fn dispatch(app: &mut App, ctx: &mut Ctx, cmd: &Command) -> Result<Value, String
         Command::Screenshot { path, size, camera } => screenshot(app, ctx, path, *size, *camera),
         Command::Entities { kind, limit } => Ok(entities_json(app.world_mut(), *kind, *limit)),
         Command::LogTail { lines } => log_tail(&ctx.cfg, *lines),
+        Command::Graphics { preset, set } => graphics(app, ctx, preset.as_deref(), set),
+        Command::Bench { frames, warmup } => Ok(bench(app, ctx, *frames, *warmup)),
         Command::Quit => Ok(json!({"bye": true})),
     }
 }
@@ -1522,6 +1552,81 @@ fn screenshot(
     }
 }
 
+/// Live change of Graphics screen options (the appliers run on the next frame; two frames are run).
+fn graphics(app: &mut App, ctx: &mut Ctx, preset: Option<&str>, set: &[(String, String)]) -> Result<Value, String> {
+    use super::graphics_screen::{preset_index, GraphicsSettings, PRESETS};
+    let world = app.world_mut();
+    let mut s = world.get_resource::<GraphicsSettings>().cloned().ok_or("no graphics settings in this app")?;
+    if let Some(p) = preset {
+        let i = preset_index(p).ok_or_else(|| {
+            format!("unknown preset '{p}' ({})", PRESETS.iter().map(|p| p.name).collect::<Vec<_>>().join("|"))
+        })?;
+        s.apply_preset(i);
+    }
+    for (k, v) in set {
+        if !s.set_text(k, v) {
+            return Err(format!("unknown option or value: {k} = {v}"));
+        }
+    }
+    world.insert_resource(s.clone());
+    let stepped = ctx.step(app, 2);
+    Ok(json!({
+        "preset": s.preset().map(|i| PRESETS[i].name),
+        "settings": s.to_text(),
+        "stepped": stepped,
+    }))
+}
+
+fn percentile(sorted: &[f64], p: f64) -> f64 {
+    if sorted.is_empty() {
+        return 0.0;
+    }
+    let i = ((sorted.len() - 1) as f64 * p).round() as usize;
+    sorted[i.min(sorted.len() - 1)]
+}
+
+fn r2(v: f64) -> f64 {
+    (v * 100.0).round() / 100.0
+}
+
+/// Frame timing over `frames` frames after `warmup` frames. Each frame is `app.update()` (logic,
+/// extraction and render submission) followed by a wait until the GPU has finished it, so
+/// `frame_ms` is the full CPU + GPU time of one frame without overlap (an upper bound of what a
+/// pipelined, windowed run needs); `cpu_ms` is the update alone. A frame cap (FPS cap option)
+/// sleeps inside the update, so the cap shows here too.
+fn bench(app: &mut App, ctx: &mut Ctx, frames: u32, warmup: u32) -> Value {
+    ctx.step(app, warmup);
+    let mut total = Vec::with_capacity(frames as usize);
+    let mut cpu = Vec::with_capacity(frames as usize);
+    for _ in 0..frames {
+        let t = Instant::now();
+        ctx.step(app, 1);
+        let c = t.elapsed().as_secs_f64() * 1000.0;
+        if let Some(d) = app.world().get_resource::<bevy::render::renderer::RenderDevice>() {
+            let _ = d.poll(wgpu::PollType::wait_indefinitely());
+        }
+        total.push(t.elapsed().as_secs_f64() * 1000.0);
+        cpu.push(c);
+    }
+    let avg = |v: &[f64]| if v.is_empty() { 0.0 } else { v.iter().sum::<f64>() / v.len() as f64 };
+    let mut sorted = total.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mean = avg(&total);
+    json!({
+        "frames": frames,
+        "warmup": warmup,
+        "frame_ms_avg": r2(mean),
+        "frame_ms_p50": r2(percentile(&sorted, 0.5)),
+        "frame_ms_p95": r2(percentile(&sorted, 0.95)),
+        "frame_ms_p99": r2(percentile(&sorted, 0.99)),
+        "frame_ms_max": r2(sorted.last().copied().unwrap_or(0.0)),
+        "cpu_ms_avg": r2(avg(&cpu)),
+        "gpu_wait_ms_avg": r2(mean - avg(&cpu)),
+        "fps_avg": if mean > 0.0 { r2(1000.0 / mean) } else { 0.0 },
+        "gpu": app.world().resource::<AutomationState>().gpu,
+    })
+}
+
 /// Entity counts by kind (wild with a real model vs placeholder, NPCs, trainers, pickups).
 fn entity_counts(world: &mut World) -> Value {
     let mut q = world.query::<(&WildCreature, Has<super::pokemon_anim::PokemonAnimSource>)>();
@@ -1770,6 +1875,26 @@ mod tests {
         assert_eq!(parse_key("up"), Some(KeyCode::ArrowUp));
         assert_eq!(parse_key("F13"), None);
         assert_eq!(parse_key("hyper"), None);
+    }
+
+    #[test]
+    fn graphics_and_bench_commands_parse() {
+        assert_eq!(
+            parse_command(r#"{"cmd":"graphics","preset":"high","set":{"render_scale":150,"mipmaps":true,"anti_aliasing":"smaa"}}"#),
+            Ok(Command::Graphics {
+                preset: Some("high".into()),
+                set: vec![
+                    ("anti_aliasing".into(), "smaa".into()),
+                    ("mipmaps".into(), "true".into()),
+                    ("render_scale".into(), "150".into()),
+                ],
+            })
+        );
+        assert!(parse_command(r#"{"cmd":"graphics"}"#).is_err());
+        assert!(parse_command(r#"{"cmd":"graphics","set":{"x":[1]}}"#).is_err());
+        assert_eq!(parse_command(r#"{"cmd":"bench"}"#), Ok(Command::Bench { frames: 300, warmup: 60 }));
+        assert_eq!(parse_command(r#"{"cmd":"bench","frames":10,"warmup":0}"#), Ok(Command::Bench { frames: 10, warmup: 0 }));
+        assert!(parse_command(r#"{"cmd":"bench","frames":99999999}"#).is_err());
     }
 
     #[test]
