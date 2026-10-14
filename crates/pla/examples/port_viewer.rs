@@ -1572,6 +1572,7 @@ fn stream_wild_spawners(
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
     consumed: Res<pla::game::wild::ConsumedSpawners>,
+    safety: Res<pla::game::wild::EncounterSafety>,
     time: Res<Time>,
 ) {
     let Ok(p_xf) = player_query.single() else {
@@ -1618,6 +1619,10 @@ fn stream_wild_spawners(
         }
         // Defeated / captured creature: keep the spawner empty until its respawn time.
         if consumed.is_consumed(&spawner.spawner_id, now_s) {
+            continue;
+        }
+        // Never spawn a creature next to where the player arrived (SUPUESTO radius).
+        if safety.spawn_excluded(Vec2::new(spawner.pos.x, spawner.pos.z)) {
             continue;
         }
 
@@ -2868,8 +2873,14 @@ fn creature_encounter_system(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
+    safety: Res<pla::game::wild::EncounterSafety>,
     mut wild_query: Query<
-        (Entity, &Transform, &mut WildCreature),
+        (
+            Entity,
+            &Transform,
+            &mut WildCreature,
+            Option<&pla::game::wild_behavior::WildBehavior>,
+        ),
         (
             Without<PlayerAvatar>,
             Without<pla::game::wild::FleeCooldown>,
@@ -2889,13 +2900,25 @@ fn creature_encounter_system(
 
     let interact_pressed = keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Enter);
 
-    for (entity, wild_xf, mut wild) in &mut wild_query {
+    let grace = safety.grace_active();
+    for (entity, wild_xf, mut wild, behavior) in &mut wild_query {
         if wild.defeated || wild.in_battle {
             continue;
         }
 
         let dist = player_xf.translation.distance(wild_xf.translation);
-        if dist <= wild.aggro_range || (dist <= 4.0 && interact_pressed) {
+        // Automatic: only an aggressive creature already chasing/attacking, very close (SUPUESTO).
+        // Manual (E / Enter): up to 4 m. Neither during the arrival grace period.
+        let aggressive_engaged = behavior.is_some_and(|b| {
+            b.params.archetype == pla::game::wild_behavior::Archetype::Aggressive
+                && matches!(
+                    b.machine.state,
+                    pla::game::wild_behavior::State::Chase | pla::game::wild_behavior::State::Attack
+                )
+        });
+        if pla::game::wild::auto_encounter_allowed(dist, aggressive_engaged, grace)
+            || pla::game::wild::manual_encounter_allowed(dist, interact_pressed, grace)
+        {
             println!(
                 "*** WILD ENCOUNTER TRIGGERED! Approached #{} {} (dist: {:.2}m) ***",
                 wild.national_dex, wild.species_name, dist
