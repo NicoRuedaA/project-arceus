@@ -955,6 +955,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
     app.add_plugins(art_style);
+    app.add_plugins(pla::game::normal_fix::NormalMapFixPlugin);
     app.add_plugins(pla::game::water::WaterPlugin);
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(
@@ -1781,7 +1782,10 @@ fn spawn_pokemon_models(
                     &idle_rel,
                 )
             } else {
+                // Overworld root sits 0.45 m above the ground (placeholder sphere height): lower
+                // the real model by that so its feet touch the ground and its shadow.
                 pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel)
+                    .with_root_drop(pla::game::pokemon_anim::CREATURE_ROOT_ABOVE_GROUND)
             };
             // try_: the arena swap or the wild streamer may despawn it in this same frame.
             commands.entity(entity).try_insert(source);
