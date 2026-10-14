@@ -549,7 +549,7 @@
       },
       {
         "path": "crates/pla/src/game/automation.rs",
-        "sha256": "f486cf93a7bcd86f042bd3ec59b908839fda4f3465fefa71ea0ba12c251c37a1"
+        "sha256": "c327610bcc4cc54a9372b9c1948f18d69d6d7913f72b1e1b065437f241fc3b94"
       },
       {
         "path": "crates/pla/src/game/bag_screen.rs",
@@ -821,11 +821,11 @@
       },
       {
         "path": "crates/pla/src/game/save_game.rs",
-        "sha256": "c66505dc268b9ba0649dd28ae12fa127663a70785945aa42b0e09eca3093c274"
+        "sha256": "f7d3867fa6348c60a1a0e27c712fffd1b38728d43e401c5f7547e44ddd5c2f7f"
       },
       {
         "path": "crates/pla/src/game/save_wire.rs",
-        "sha256": "9a5ce879132fcd40da587e5f7c340b81dfa76e2bac54853b6d0324ee28193369"
+        "sha256": "5769bb20d2c9d2c6406b18ea6c638a579f92b78e14aafce6dfb81d423b991d27"
       },
       {
         "path": "crates/pla/src/game/schedule_check.rs",
@@ -865,7 +865,7 @@
       },
       {
         "path": "crates/pla/src/game/trainer_encounter.rs",
-        "sha256": "e8fa0ff5a55ca4975ba72c9a83806e37fa4f0ff35de33561f405f558e88c125c"
+        "sha256": "340b3e2e26fb779937b4401ef06106ab28b5a1201d6559bcc83c62df2c322f78"
       },
       {
         "path": "crates/pla/src/game/ui.rs",
@@ -1049,7 +1049,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "89bdf3ac3cd191465f6ddc884d10812d75fdd16a6a77debc58563594bc6402d0"
+    "sha256": "51b0edd702720dfe38f3361c3ede982a73c31d305be5b4515d6c0f9951eccd08"
   },
   "state_partitions": {
     "analysis_documentation_status": {
