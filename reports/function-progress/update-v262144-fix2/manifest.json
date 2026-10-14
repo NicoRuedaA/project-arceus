@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 226,
+    "file_count": 225,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -276,10 +276,6 @@
         "sha256": "7dc0731261282e594229a33cd2e26e36b6d108cf47400788f8d64dce3d32891d"
       },
       {
-        "path": "crates/pla/examples/ui_export.rs",
-        "sha256": "2699dfb7738c5a38df3f5967a891bc9b571c344ecb425bf9bd2916ccbd69b1b8"
-      },
-      {
         "path": "crates/pla/examples/vegetation_headless.rs",
         "sha256": "0bba690e0fb4af3ad415df0424b8b628bac943645aa8c2736f8757b7550a5f8b"
       },
@@ -393,7 +389,7 @@
       },
       {
         "path": "crates/pla/src/assets/sarc.rs",
-        "sha256": "080b4e0ff188b8d7dc9a29ade2f06e4caa23bd1049111fd1faa4629ccdf5184c"
+        "sha256": "006aa88a4c7933996bcafb32f07a6d9414de6547c7351e8a53058d6a94d792eb"
       },
       {
         "path": "crates/pla/src/assets/terrain.rs",
@@ -981,7 +977,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "b4c61f5cf5b6e8c34756844f82abac8cfb98a051e7891b9465e11d4c1fd10902"
+    "sha256": "fa6588c83a60c467884326bbeffea65a09535c3b07458786bf8295967d718934"
   },
   "state_partitions": {
     "analysis_documentation_status": {
