@@ -365,8 +365,9 @@ fn spawn_menu(mut commands: Commands) {
                 Node {
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
-                    padding: UiRect::all(Val::Px(24.0)),
-                    row_gap: Val::Px(6.0),
+                    // 15 rows must fit a 720 px window: about 36 px per row plus the title.
+                    padding: UiRect::all(Val::Px(16.0)),
+                    row_gap: Val::Px(4.0),
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.05, 0.08, 0.12, 0.95)),
@@ -374,7 +375,7 @@ fn spawn_menu(mut commands: Commands) {
             .with_children(|panel| {
                 panel.spawn((
                     Text::new("PAUSED"),
-                    TextFont::from_font_size(34.0),
+                    TextFont::from_font_size(28.0),
                     TextColor(Color::srgb(0.95, 0.9, 0.6)),
                 ));
                 for (i, _) in OPTIONS.iter().enumerate() {
@@ -384,7 +385,7 @@ fn spawn_menu(mut commands: Commands) {
                             PauseButton(i),
                             Node {
                                 width: Val::Px(420.0),
-                                padding: UiRect::axes(Val::Px(16.0), Val::Px(6.0)),
+                                padding: UiRect::axes(Val::Px(16.0), Val::Px(4.0)),
                                 justify_content: JustifyContent::Center,
                                 ..default()
                             },
@@ -394,7 +395,7 @@ fn spawn_menu(mut commands: Commands) {
                             b.spawn((
                                 PauseButtonText(i),
                                 Text::new(""),
-                                TextFont::from_font_size(22.0),
+                                TextFont::from_font_size(20.0),
                                 TextColor(Color::WHITE),
                             ));
                         });
