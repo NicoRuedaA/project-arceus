@@ -956,6 +956,17 @@ def screen_counts(doc: dict) -> dict:
     return c
 
 
+def finite_json(value):
+    """Copy of `value` with NaN / infinities replaced by None (uikit dumps hold raw float bits)."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: finite_json(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [finite_json(v) for v in value]
+    return value
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("screens", nargs="*")
@@ -993,7 +1004,8 @@ def main(argv=None):
             print(f"    error {e}")
         if not args.summary:
             with open(out_dir / f"{s}.json", "w", encoding="utf-8") as fh:
-                json.dump(doc, fh, ensure_ascii=False, separators=(",", ":"))
+                # Strict JSON (the port's loader uses serde_json): non-finite floats become null.
+                json.dump(finite_json(doc), fh, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
     print("TOTAL " + " ".join(f"{k}={v}" for k, v in total.items()))
     return 0
 

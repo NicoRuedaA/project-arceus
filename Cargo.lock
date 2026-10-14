@@ -4217,6 +4217,7 @@ dependencies = [
  "phf",
  "phf_codegen",
  "png",
+ "serde",
  "serde_json",
  "sheetty",
  "tegra_swizzle",

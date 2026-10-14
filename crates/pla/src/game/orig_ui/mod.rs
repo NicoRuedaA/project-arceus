@@ -1,0 +1,916 @@
+//! Original game UI (`--ui original`): draws the game's own Ui2D layouts with `bevy_ui`.
+//!
+//! The layouts are NOT in the repository. They are decoded from the player's own dump by the
+//! installer (`.tools/setup_cache.py`, step `ui`: `ui_export` + `ui_layout_decode.py`) into a
+//! local UI root holding `layouts/<screen>.json` and `png/...`. At start-up this plugin looks for
+//! that root (`--ui-root`, `PLA_UI_ROOT`, `<cache>/ui`, `<cache>/../ui`, `work/ui`); when it is
+//! missing, or a screen's file is missing or broken, that screen keeps the provisional
+//! `bevy_ui` screen (no crash).
+//!
+//! Pieces:
+//! - [`layout`]: serde model of the decoded JSON;
+//! - [`scene`]: pane tree with parts expanded, evaluated into screen-space quads and text slots;
+//! - [`anim`]: `.bflan` curves and a small player (open / select / idle animations);
+//! - [`material`]: one UI material per quad (`orig_ui.wgsl`) and the PNG cache;
+//! - this file: the plugin, the screen entities and the sync from quads to `bevy_ui` nodes;
+//! - [`battle`], [`field`], [`menus`]: bindings of each screen to the existing game state.
+//!
+//! Text is never taken from the game: text panes show the port's own (English) strings.
+//! `--ui debug` (the default until the maintainer approves the look) keeps the provisional UI.
+
+pub mod anim;
+pub mod battle;
+pub mod field;
+pub mod icons;
+pub mod layout;
+pub mod material;
+pub mod menus;
+pub mod scene;
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use bevy::asset::embedded_asset;
+use bevy::prelude::*;
+use bevy::text::{FontSize, Justify, LineBreak, TextLayout};
+use bevy::ui::UiTransform;
+use bevy::ui_render::prelude::{MaterialNode, UiMaterialPlugin};
+
+use anim::{AnimPlayer, AnimState, PlayMode};
+use layout::ScreenDoc;
+use material::{OrigUiMaterial, OrigUiParams, UiTextureCache};
+use scene::{Frame, NodeOverride, Overrides, Scene, TextAlign};
+
+/// Which UI the viewer draws.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum UiMode {
+    /// The provisional `bevy_ui` screens (default until the original UI is approved by eye).
+    #[default]
+    Debug,
+    /// The game's own layouts, read from the local UI root.
+    Original,
+}
+
+impl UiMode {
+    /// `--ui original|debug` (or `PLA_UI`); a bad value is reported and `debug` is used.
+    pub fn from_args(args: &[String]) -> Self {
+        let env = std::env::var("PLA_UI").ok();
+        let raw = crate::game::cli_flags::value_of(args, "--ui")
+            .map(str::to_string)
+            .or(env);
+        match raw
+            .as_deref()
+            .map(str::trim)
+            .map(str::to_ascii_lowercase)
+            .as_deref()
+        {
+            None | Some("") | Some("debug") => UiMode::Debug,
+            Some("original") | Some("orig") | Some("game") => UiMode::Original,
+            Some(other) => {
+                crate::game::cli_flags::report_bad_value(
+                    "--ui",
+                    other,
+                    "original or debug",
+                    "debug",
+                );
+                UiMode::Debug
+            }
+        }
+    }
+}
+
+/// First existing UI root among `--ui-root`, `PLA_UI_ROOT`, `<cache>/ui`, `<cache>/../ui`,
+/// `work/ui` (a root is a directory with a `layouts/` folder).
+pub fn resolve_ui_root(args: &[String], cache_root: &Path) -> Option<PathBuf> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(v) = crate::game::cli_flags::value_of(args, "--ui-root") {
+        candidates.push(PathBuf::from(v));
+    }
+    if let Some(v) = std::env::var_os("PLA_UI_ROOT") {
+        candidates.push(PathBuf::from(v));
+    }
+    candidates.push(cache_root.join("ui"));
+    if let Some(parent) = cache_root.parent() {
+        candidates.push(parent.join("ui"));
+    }
+    candidates.push(PathBuf::from("work/ui"));
+    candidates.into_iter().find(|c| c.join("layouts").is_dir())
+}
+
+/// Mode and data root, decided at start-up.
+#[derive(Resource, Debug, Clone)]
+pub struct OrigUiConfig {
+    pub mode: UiMode,
+    pub root: Option<PathBuf>,
+}
+
+impl OrigUiConfig {
+    /// The original UI is wanted and its data folder exists.
+    pub fn enabled(&self) -> bool {
+        self.mode == UiMode::Original && self.root.is_some()
+    }
+}
+
+/// Lazily parsed screen documents (`None` = missing / broken, reported once).
+#[derive(Resource, Debug, Default)]
+pub struct OrigUiLibrary {
+    pub root: Option<PathBuf>,
+    docs: HashMap<String, Option<Arc<ScreenDoc>>>,
+}
+
+impl OrigUiLibrary {
+    pub fn new(root: Option<PathBuf>) -> Self {
+        Self {
+            root,
+            docs: HashMap::new(),
+        }
+    }
+
+    pub fn doc(&mut self, screen: &str) -> Option<Arc<ScreenDoc>> {
+        if let Some(d) = self.docs.get(screen) {
+            return d.clone();
+        }
+        let doc = match &self.root {
+            Some(root) => match ScreenDoc::load(root, screen) {
+                Ok(d) => Some(Arc::new(d)),
+                Err(e) => {
+                    warn!("original UI: screen '{screen}' unavailable ({e}); keeping the debug UI for it");
+                    None
+                }
+            },
+            None => None,
+        };
+        self.docs.insert(screen.to_string(), doc.clone());
+        doc
+    }
+
+    /// Scene of `layout` in screen document `screen`.
+    pub fn scene(&mut self, screen: &str, layout: &str) -> Option<Arc<Scene>> {
+        let doc = self.doc(screen)?;
+        match Scene::build(doc, layout) {
+            Some(s) => Some(Arc::new(s)),
+            None => {
+                warn!("original UI: layout '{layout}' not found in '{screen}'; keeping the debug UI for it");
+                None
+            }
+        }
+    }
+}
+
+/// Every original screen the port draws: (id, screen document, layout, stacking order).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ScreenId {
+    BattleHud,
+    BattleEnemyPlate,
+    BattleTimeline,
+    BattleCommand,
+    BattleMoves,
+    BattleMessage,
+    FieldHud,
+    PauseMenu,
+    Summary,
+    Bag,
+    Box,
+    Dex,
+    Map,
+}
+
+impl ScreenId {
+    pub const ALL: [ScreenId; 13] = [
+        ScreenId::BattleHud,
+        ScreenId::BattleEnemyPlate,
+        ScreenId::BattleTimeline,
+        ScreenId::BattleCommand,
+        ScreenId::BattleMoves,
+        ScreenId::BattleMessage,
+        ScreenId::FieldHud,
+        ScreenId::PauseMenu,
+        ScreenId::Summary,
+        ScreenId::Bag,
+        ScreenId::Box,
+        ScreenId::Dex,
+        ScreenId::Map,
+    ];
+
+    /// (screen document id, layout name).
+    pub fn source(self) -> (&'static str, &'static str) {
+        match self {
+            ScreenId::BattleHud => ("gfpak_battle_resident", "battle_top_02"),
+            ScreenId::BattleEnemyPlate => ("gfpak_battle_resident", "cmn_pokeplate_enemy_02"),
+            ScreenId::BattleTimeline => ("gfpak_battle_resident", "battle_tl_00"),
+            ScreenId::BattleCommand => ("gfpak_battle_menu_eng", "battle_command_03"),
+            ScreenId::BattleMoves => ("gfpak_battle_menu_eng", "battle_command_waza_00"),
+            ScreenId::BattleMessage => ("gfpak_battle_resident", "msg_sys_00_s"),
+            ScreenId::FieldHud => ("gfpak_resident_hud_arc01_eng", "fieldinfo_00"),
+            ScreenId::PauseMenu => ("slidelist", "slidemenu_menulist_01"),
+            ScreenId::Summary => ("status", "status_top_00"),
+            ScreenId::Bag => ("bag", "bag_top_00"),
+            ScreenId::Box => ("box", "box_top_00"),
+            ScreenId::Dex => ("gfpak_poke_dex", "pokedex_detail_00"),
+            ScreenId::Map => ("gfpak_map", "map_top_00"),
+        }
+    }
+
+    /// Full-screen backdrop behind the screen (the game blurs a capture of the scene instead).
+    pub fn backdrop(self) -> Color {
+        match self {
+            ScreenId::PauseMenu => Color::srgba(0.02, 0.03, 0.05, 0.55),
+            ScreenId::Bag | ScreenId::Box | ScreenId::Dex | ScreenId::Summary | ScreenId::Map => {
+                Color::srgba(0.07, 0.07, 0.09, 0.97)
+            }
+            _ => Color::NONE,
+        }
+    }
+
+    /// Global stacking order (above the provisional UI's 0-100 range).
+    pub fn z(self) -> i32 {
+        match self {
+            ScreenId::FieldHud => 150,
+            ScreenId::BattleHud | ScreenId::BattleEnemyPlate | ScreenId::BattleTimeline => 160,
+            ScreenId::BattleMessage => 165,
+            ScreenId::BattleCommand | ScreenId::BattleMoves => 170,
+            ScreenId::Map => 180,
+            ScreenId::Bag | ScreenId::Box | ScreenId::Dex | ScreenId::Summary => 190,
+            ScreenId::PauseMenu => 200,
+        }
+    }
+}
+
+/// One original screen: its scene, animation player, run-time overrides and spawned nodes.
+#[derive(Component)]
+pub struct OrigScreen {
+    pub id: ScreenId,
+    pub scene: Arc<Scene>,
+    pub anim: AnimPlayer,
+    pub overrides: Overrides,
+    /// Requested by the screen's binding system this frame.
+    pub shown: bool,
+    was_shown: bool,
+    dirty: bool,
+    quads: HashMap<u32, Entity>,
+    texts: HashMap<usize, (Entity, Entity)>,
+    /// Last evaluated frame (for bindings that place things relative to panes, and tests).
+    pub last: Option<Frame>,
+    /// Port text not tied to a text pane (lists the game fills at run time).
+    free_texts: Vec<scene::TextSlot>,
+}
+
+impl OrigScreen {
+    pub fn new(id: ScreenId, scene: Arc<Scene>) -> Self {
+        let mut s = Self {
+            id,
+            scene,
+            anim: AnimPlayer::default(),
+            overrides: Overrides::default(),
+            shown: false,
+            was_shown: false,
+            dirty: true,
+            quads: HashMap::new(),
+            texts: HashMap::new(),
+            last: None,
+            free_texts: Vec::new(),
+        };
+        s.rest();
+        for n in s.scene.placeholder_icons() {
+            s.overrides.node(n).visible = Some(false);
+        }
+        s
+    }
+
+    /// Resting state: every instance's `_keep` animation (looping ones loop, others end held).
+    fn rest(&mut self) {
+        for inst in 0..self.scene.instances.len() {
+            if let Some(name) = self.scene.anim_name(inst, "keep") {
+                let a = &self.scene.archive().animations[&name];
+                let mode = if a.looping {
+                    PlayMode::Loop
+                } else {
+                    PlayMode::Frozen
+                };
+                let len = a.frame_size;
+                self.anim.play(inst, &name, len, mode, "keep");
+            }
+        }
+    }
+
+    pub fn node(&self, name: &str) -> Option<usize> {
+        self.scene.find(name)
+    }
+
+    /// Change the override of node `node` (marks the screen dirty only on a real change).
+    pub fn set_node(&mut self, node: usize, f: impl FnOnce(&mut NodeOverride)) {
+        if self.overrides.set(node, f) {
+            self.dirty = true;
+        }
+    }
+
+    /// Change the override of the first node named `name` (ignored when absent).
+    pub fn set(&mut self, name: &str, f: impl FnOnce(&mut NodeOverride)) {
+        if let Some(n) = self.node(name) {
+            self.set_node(n, f);
+        }
+    }
+
+    pub fn set_text(&mut self, name: &str, text: impl Into<String>) {
+        let t = text.into();
+        self.set(name, |o| o.text = Some(t));
+    }
+
+    pub fn set_visible(&mut self, name: &str, visible: bool) {
+        self.set(name, |o| o.visible = Some(visible));
+    }
+
+    /// Play `<layout of instance>_<tag>`; false when that animation does not exist.
+    pub fn play(
+        &mut self,
+        instance: usize,
+        tag: &str,
+        mode: PlayMode,
+        label: &'static str,
+    ) -> bool {
+        let Some(name) = self.scene.anim_name(instance, tag) else {
+            return false;
+        };
+        let len = self.scene.archive().animations[&name].frame_size;
+        self.anim.play(instance, &name, len, mode, label);
+        self.dirty = true;
+        true
+    }
+
+    /// Node `name` inside the layout instance of part pane `part` (first part with that name).
+    pub fn node_in(&self, part: &str, name: &str) -> Option<usize> {
+        let inst = self.scene.part_instance(part)?;
+        self.scene.find_in(inst, name)
+    }
+
+    /// Node `name` inside layout instance `instance`.
+    pub fn node_in_instance(&self, instance: usize, name: &str) -> Option<usize> {
+        self.scene.find_in(instance, name)
+    }
+
+    pub fn set_in(&mut self, part: &str, name: &str, f: impl FnOnce(&mut NodeOverride)) {
+        if let Some(n) = self.node_in(part, name) {
+            self.set_node(n, f);
+        }
+    }
+
+    /// Show animation `tag` of part `part` at one fixed frame (no-op when already there).
+    pub fn freeze_part(&mut self, part: &str, tag: &str, frame: f32, label: &'static str) {
+        let Some(inst) = self.scene.part_instance(part) else {
+            return;
+        };
+        self.freeze(inst, tag, frame, label);
+    }
+
+    /// Show animation `tag` of instance `inst` at one fixed frame (no-op when already there).
+    pub fn freeze(&mut self, inst: usize, tag: &str, frame: f32, label: &'static str) {
+        let Some(name) = self.scene.anim_name(inst, tag) else {
+            return;
+        };
+        if self.anim.tracks.iter().any(|t| {
+            t.instance == inst
+                && t.label == label
+                && t.anim == name
+                && t.mode == PlayMode::Frozen
+                && t.frame == frame
+        }) {
+            return;
+        }
+        self.anim.freeze(inst, &name, frame, label);
+        self.dirty = true;
+    }
+
+    /// Replace the free texts (port strings drawn at layout positions without a text pane).
+    pub fn set_free_texts(&mut self, mut texts: Vec<scene::TextSlot>) {
+        for (i, t) in texts.iter_mut().enumerate() {
+            t.node = FREE_TEXT_BASE + i;
+        }
+        if texts != self.free_texts {
+            self.free_texts = texts;
+            self.dirty = true;
+        }
+    }
+
+    /// Length (frames) of `<instance layout>_<tag>`.
+    pub fn anim_len(&self, inst: usize, tag: &str) -> Option<f32> {
+        let name = self.scene.anim_name(inst, tag)?;
+        Some(self.scene.archive().animations[&name].frame_size)
+    }
+
+    /// Show the last frame of `tag` on instance `inst` (resting state of a one-shot animation).
+    pub fn freeze_end(&mut self, inst: usize, tag: &str, label: &'static str) {
+        if let Some(len) = self.anim_len(inst, tag) {
+            self.freeze(inst, tag, len, label);
+        }
+    }
+
+    /// Play `tag` on the part pane named `part`.
+    pub fn play_part(
+        &mut self,
+        part: &str,
+        tag: &str,
+        mode: PlayMode,
+        label: &'static str,
+    ) -> bool {
+        match self.scene.part_instance(part) {
+            Some(i) => self.play(i, tag, mode, label),
+            None => false,
+        }
+    }
+
+    pub fn stop(&mut self, instance: usize, label: &'static str) {
+        if self.anim.has_label(instance, label) {
+            self.anim.stop_label(instance, label);
+            self.dirty = true;
+        }
+    }
+
+    /// Evaluate the current state (also used by tests without any rendering).
+    pub fn evaluate(&self) -> Frame {
+        let mut state = AnimState::default();
+        for t in &self.anim.tracks {
+            if let Some(a) = self.scene.archive().animations.get(&t.anim) {
+                state.apply(t.instance, a, t.frame);
+            }
+        }
+        self.scene.evaluate(&state, &self.overrides)
+    }
+}
+
+/// Glyph height used for a text pane's font size. The game's own fonts are not used (the port
+/// draws its default font), so this is tuned by eye against the layouts.
+pub const TEXT_SCALE: f32 = 0.68;
+
+/// Text keys at or above this value are free texts, below are text panes.
+pub const FREE_TEXT_BASE: usize = 1 << 24;
+
+/// A free text at layout pixel `(x, y)` (top-left origin) of size `w`×`h`.
+pub fn free_text(
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    font_px: f32,
+    color: [f32; 4],
+    align: TextAlign,
+    text: impl Into<String>,
+) -> scene::TextSlot {
+    scene::TextSlot {
+        node: 0,
+        visible: true,
+        center: Vec2::new(x + w / 2.0, y + h / 2.0),
+        size: Vec2::new(w, h),
+        angle: 0.0,
+        font_px,
+        color: Vec4::from_array(color),
+        align,
+        text: text.into(),
+    }
+}
+
+/// Spawned original screens by id.
+#[derive(Resource, Debug, Default)]
+pub struct OrigScreens {
+    pub entities: HashMap<ScreenId, Entity>,
+}
+
+impl OrigScreens {
+    pub fn has(&self, id: ScreenId) -> bool {
+        self.entities.contains_key(&id)
+    }
+}
+
+/// Marker of one quad node (child of a screen root).
+#[derive(Component, Debug)]
+pub struct OrigQuad {
+    pub key: u32,
+    params: OrigUiParams,
+    texture: Option<String>,
+    additive: bool,
+}
+
+/// Marker of a text box node (child of a screen root).
+#[derive(Component, Debug)]
+pub struct OrigTextBox;
+
+/// Marker of the text inside a text box.
+#[derive(Component, Debug)]
+pub struct OrigText;
+
+/// The original-UI plugin. Always added (it is inert in `debug` mode).
+pub struct OrigUiPlugin {
+    pub mode: UiMode,
+    pub root: Option<PathBuf>,
+}
+
+impl OrigUiPlugin {
+    pub fn from_args(args: &[String], cache_root: &Path) -> Self {
+        let mode = UiMode::from_args(args);
+        Self {
+            mode,
+            root: resolve_ui_root(args, cache_root),
+        }
+    }
+}
+
+/// System sets of the plugin, in order.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum OrigUiSystems {
+    /// Screen bindings read the game state (Update).
+    Bind,
+    /// Animations advance and quads are synced to nodes (PostUpdate, before UI layout).
+    Render,
+}
+
+impl Plugin for OrigUiPlugin {
+    fn build(&self, app: &mut App) {
+        embedded_asset!(app, "orig_ui.wgsl");
+        if !app.is_plugin_added::<UiMaterialPlugin<OrigUiMaterial>>() {
+            app.add_plugins(UiMaterialPlugin::<OrigUiMaterial>::default());
+        }
+        let config = OrigUiConfig {
+            mode: self.mode,
+            root: self.root.clone(),
+        };
+        match (&config.mode, &config.root) {
+            (UiMode::Original, Some(r)) => info!("original UI: reading layouts from {}", r.display()),
+            (UiMode::Original, None) => warn!(
+                "original UI requested but no UI data found (run `.tools/setup_cache.py` step ui, or set PLA_UI_ROOT); using the debug UI"
+            ),
+            _ => {}
+        }
+        app.insert_resource(OrigUiLibrary::new(config.root.clone()))
+            .insert_resource(UiTextureCache::new(config.root.clone().unwrap_or_default()))
+            .insert_resource(config)
+            .init_resource::<OrigScreens>()
+            .init_resource::<icons::IconIndex>()
+            .configure_sets(Update, OrigUiSystems::Bind)
+            .configure_sets(
+                PostUpdate,
+                OrigUiSystems::Render
+                    .before(bevy::ui::UiSystems::Prepare)
+                    .before(bevy::camera::visibility::VisibilitySystems::VisibilityPropagate),
+            )
+            .add_systems(Startup, spawn_screens)
+            .add_systems(
+                PostUpdate,
+                (render_screens, hide_provisional)
+                    .chain()
+                    .in_set(OrigUiSystems::Render),
+            );
+        battle::install(app);
+        field::install(app);
+        menus::install(app);
+    }
+}
+
+/// Spawn (hidden) every original screen whose data is present.
+pub fn spawn_screens(
+    mut commands: Commands,
+    config: Res<OrigUiConfig>,
+    mut library: ResMut<OrigUiLibrary>,
+    mut screens: ResMut<OrigScreens>,
+    mut icons: ResMut<icons::IconIndex>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    if let Some(root) = &config.root {
+        icons.scan(root);
+    }
+    for id in ScreenId::ALL {
+        let (doc, layout) = id.source();
+        let Some(scene) = library.scene(doc, layout) else {
+            continue;
+        };
+        let e = spawn_screen(&mut commands, id, scene);
+        screens.entities.insert(id, e);
+    }
+    info!(
+        "original UI: {} of {} screens available",
+        screens.entities.len(),
+        ScreenId::ALL.len()
+    );
+}
+
+/// Spawn one hidden screen root (its quad nodes are created on first show).
+pub fn spawn_screen(commands: &mut Commands, id: ScreenId, scene: Arc<Scene>) -> Entity {
+    commands
+        .spawn((
+            Name::new(format!("orig_ui {id:?}")),
+            OrigScreen::new(id, scene),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                ..default()
+            },
+            GlobalZIndex(id.z()),
+            BackgroundColor(id.backdrop()),
+            Visibility::Hidden,
+        ))
+        .id()
+}
+
+fn pct(v: f32, of: f32) -> Val {
+    Val::Percent(v / of * 100.0)
+}
+
+/// Advance animations, evaluate dirty shown screens and sync their quads / texts to nodes.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+pub fn render_screens(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut screens: Query<(Entity, &mut OrigScreen, &mut Visibility)>,
+    mut quads: Query<
+        (
+            &mut OrigQuad,
+            &mut Node,
+            &mut UiTransform,
+            &MaterialNode<OrigUiMaterial>,
+        ),
+        (Without<OrigScreen>, Without<OrigTextBox>, Without<OrigText>),
+    >,
+    mut boxes: Query<
+        (&mut Node, &mut UiTransform),
+        (With<OrigTextBox>, Without<OrigQuad>, Without<OrigScreen>),
+    >,
+    mut texts: Query<(&mut Text, &mut TextFont, &mut TextColor, &mut TextLayout), With<OrigText>>,
+    mut materials: ResMut<Assets<OrigUiMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut cache: ResMut<UiTextureCache>,
+) {
+    let dt = time.delta_secs();
+    for (root, mut screen, mut vis) in &mut screens {
+        let want = if screen.shown {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+        vis.set_if_neq(want);
+        if !screen.shown {
+            screen.was_shown = false;
+            continue;
+        }
+        if !screen.was_shown {
+            screen.was_shown = true;
+            screen.dirty = true;
+        }
+        if screen.anim.advance(dt) {
+            screen.dirty = true;
+        }
+        if !screen.dirty {
+            continue;
+        }
+        screen.dirty = false;
+        let frame = screen.evaluate();
+        let (w, h) = (screen.scene.width, screen.scene.height);
+        // Quads: one node per stable key, spawned on first evaluation in draw order.
+        for q in &frame.quads {
+            let tex_handle = q.texture.as_ref().and_then(|t| cache.get(&mut images, t));
+            let params = OrigUiParams::from_quad(q, tex_handle.is_some());
+            let node = Node {
+                position_type: PositionType::Absolute,
+                left: pct(q.center.x - q.size.x / 2.0, w),
+                top: pct(q.center.y - q.size.y / 2.0, h),
+                width: pct(q.size.x, w),
+                height: pct(q.size.y, h),
+                display: if q.visible {
+                    Display::Flex
+                } else {
+                    Display::None
+                },
+                ..default()
+            };
+            let xf = UiTransform::from_rotation(Rot2::radians(q.angle));
+            match screen.quads.get(&q.key).copied() {
+                Some(e) => {
+                    if let Ok((mut oq, mut n, mut t, mat)) = quads.get_mut(e) {
+                        n.set_if_neq(node);
+                        t.set_if_neq(xf);
+                        if oq.params != params
+                            || oq.texture != q.texture
+                            || oq.additive != q.additive
+                        {
+                            if let Some(mut m) = materials.get_mut(&mat.0) {
+                                m.params = params;
+                                m.texture = tex_handle;
+                                m.additive = q.additive;
+                            }
+                            oq.params = params;
+                            oq.texture = q.texture.clone();
+                            oq.additive = q.additive;
+                        }
+                    }
+                }
+                None => {
+                    let mat = materials.add(OrigUiMaterial {
+                        params,
+                        texture: tex_handle,
+                        additive: q.additive,
+                    });
+                    let e = commands
+                        .spawn((
+                            OrigQuad {
+                                key: q.key,
+                                params,
+                                texture: q.texture.clone(),
+                                additive: q.additive,
+                            },
+                            node,
+                            xf,
+                            MaterialNode(mat),
+                        ))
+                        .id();
+                    commands.entity(root).add_child(e);
+                    screen.quads.insert(q.key, e);
+                }
+            }
+        }
+        // Text slots: a box at the pane rectangle with the port's own string inside.
+        let mut seen = Vec::new();
+        let free = screen.free_texts.clone();
+        for t in frame.texts.iter().chain(free.iter()) {
+            let shown_text = fold_for_default_font(&t.text);
+            seen.push(t.node);
+            let justify = match t.align {
+                TextAlign::Left => (JustifyContent::FlexStart, Justify::Left),
+                TextAlign::Center => (JustifyContent::Center, Justify::Center),
+                TextAlign::Right => (JustifyContent::FlexEnd, Justify::Right),
+            };
+            let node = Node {
+                position_type: PositionType::Absolute,
+                left: pct(t.center.x - t.size.x / 2.0, w),
+                top: pct(t.center.y - t.size.y / 2.0, h),
+                width: pct(t.size.x, w),
+                height: pct(t.size.y, h),
+                display: if t.visible {
+                    Display::Flex
+                } else {
+                    Display::None
+                },
+                align_items: AlignItems::Center,
+                justify_content: justify.0,
+                overflow: Overflow::visible(),
+                ..default()
+            };
+            let xf = UiTransform::from_rotation(Rot2::radians(t.angle));
+            // Font height as a share of the viewport height (resolution independent).
+            let font = FontSize::Vh(t.font_px * TEXT_SCALE / h * 100.0);
+            // Multi-line panes wrap at words; single-line ones never wrap.
+            let wrap = if t.size.y > t.font_px * 1.8 {
+                LineBreak::WordBoundary
+            } else {
+                LineBreak::NoWrap
+            };
+            let color = Color::srgba(t.color.x, t.color.y, t.color.z, t.color.w);
+            match screen.texts.get(&t.node).copied() {
+                Some((b, txt)) => {
+                    if let Ok((mut n, mut x)) = boxes.get_mut(b) {
+                        n.set_if_neq(node);
+                        x.set_if_neq(xf);
+                    }
+                    if let Ok((mut text, mut tf, mut tc, mut tl)) = texts.get_mut(txt) {
+                        if text.0 != shown_text {
+                            text.0 = shown_text;
+                        }
+                        if tf.font_size != font {
+                            tf.font_size = font;
+                        }
+                        tc.set_if_neq(TextColor(color));
+                        let layout = TextLayout::new(justify.1, wrap);
+                        if tl.justify != layout.justify || tl.linebreak != layout.linebreak {
+                            *tl = layout;
+                        }
+                    }
+                }
+                None => {
+                    let txt = commands
+                        .spawn((
+                            OrigText,
+                            Text::new(shown_text),
+                            TextFont {
+                                font_size: font,
+                                ..default()
+                            },
+                            TextColor(color),
+                            TextLayout::new(justify.1, wrap),
+                        ))
+                        .id();
+                    let b = commands.spawn((OrigTextBox, node, xf)).add_child(txt).id();
+                    commands.entity(root).add_child(b);
+                    screen.texts.insert(t.node, (b, txt));
+                }
+            }
+        }
+        // Texts whose string was cleared.
+        let stale: Vec<(usize, Entity)> = screen
+            .texts
+            .iter()
+            .filter(|(n, _)| !seen.contains(n))
+            .map(|(n, (b, _))| (*n, *b))
+            .collect();
+        for (_, b) in stale {
+            if let Ok((mut n, _)) = boxes.get_mut(b) {
+                if n.display != Display::None {
+                    n.display = Display::None;
+                }
+            }
+        }
+        screen.last = Some(frame);
+    }
+}
+
+/// The port draws text with Bevy's default font, which lacks accented letters: fold them so
+/// "Pokémon" does not show a missing-glyph box.
+pub fn fold_for_default_font(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'é' | 'è' | 'ê' | 'ë' => 'e',
+            'É' | 'È' => 'E',
+            'á' | 'à' | 'â' | 'ä' => 'a',
+            'í' | 'ï' => 'i',
+            'ó' | 'ö' | 'ô' => 'o',
+            'ú' | 'ü' => 'u',
+            'ñ' => 'n',
+            '·' => '-',
+            c => c,
+        })
+        .collect()
+}
+
+/// Which provisional screen an original one replaces.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProvisionalUi(pub ScreenId);
+
+/// Hide the provisional nodes whose original replacement is available and shown this frame
+/// (or always, for the HUD-like ones the original screen fully covers).
+#[allow(clippy::type_complexity)]
+pub fn hide_provisional(
+    config: Res<OrigUiConfig>,
+    screens: Res<OrigScreens>,
+    shown: Query<&OrigScreen>,
+    mut provisional: Query<(&ProvisionalUi, &mut Visibility), Without<OrigScreen>>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    for (p, mut vis) in &mut provisional {
+        let Some(e) = screens.entities.get(&p.0) else {
+            continue;
+        };
+        if shown.get(*e).is_ok_and(|s| s.shown) {
+            vis.set_if_neq(Visibility::Hidden);
+        }
+    }
+}
+
+/// Register: hide every provisional node carrying marker `M` while original screen `id` is
+/// shown (runs after the provisional screens' own visibility systems, before propagation).
+pub fn hide_when_shown<M: Component>(app: &mut App, id: ScreenId) {
+    app.add_systems(
+        PostUpdate,
+        (move |config: Res<OrigUiConfig>,
+               screens: Res<OrigScreens>,
+               shown: Query<&OrigScreen>,
+               mut provisional: Query<&mut Visibility, (With<M>, Without<OrigScreen>)>| {
+            if !config.enabled() {
+                return;
+            }
+            let Some(e) = screens.entities.get(&id) else {
+                return;
+            };
+            if shown.get(*e).is_ok_and(|s| s.shown) {
+                for mut v in &mut provisional {
+                    v.set_if_neq(Visibility::Hidden);
+                }
+            }
+        })
+        .after(render_screens)
+        .in_set(OrigUiSystems::Render),
+    );
+}
+
+/// Fill a list of row slots: `rows[i]` gets `values[i]` or is hidden.
+pub fn fill_rows(screen: &mut OrigScreen, rows: &[&str], values: &[String]) {
+    for (i, row) in rows.iter().enumerate() {
+        match values.get(i) {
+            Some(v) => {
+                let v = v.clone();
+                screen.set(row, |o| {
+                    o.text = Some(v);
+                    o.visible = Some(true);
+                });
+            }
+            None => screen.set(row, |o| {
+                o.text = None;
+            }),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;

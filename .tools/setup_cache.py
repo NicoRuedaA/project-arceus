@@ -609,7 +609,7 @@ def run_main_elf(ctx: Context, step: Step) -> None:
 
 # --- build -------------------------------------------------------------------
 CACHE_EXAMPLES = ["port_viewer", "terrain_albedo_bake", "terrain_normals_bake", "minimap_report",
-                  "export_field_gltf_batch", "pokemon_batch_export", "player_export"]
+                  "export_field_gltf_batch", "pokemon_batch_export", "player_export", "ui_export"]
 
 
 def build_examples(ctx: Context) -> list[str]:
@@ -779,6 +779,21 @@ def run_layers(ctx: Context, step: Step) -> None:
     publish_tree(stage / "cache" / "terrain_layers", ctx.layout.cache / "terrain_layers", root=ctx.layout.work)
 
 
+def ui_cmds(ctx: Context, stage: Path) -> list[list[str]]:
+    """Original-UI data for `--ui original`: texture PNGs, then the decoded layouts (JSON)."""
+    out = stage / "ui"
+    return [[str(ctx.example("ui_export")), str(ctx.layout.bin_root), str(out)],
+            py(ctx, "ui_layout_decode.py") + ["--all", "--appli", str(ctx.layout.bin_root / "appli"),
+                                              "--ui-root", str(out)]]
+
+
+def run_ui(ctx: Context, step: Step) -> None:
+    stage = fresh_stage(ctx, step)
+    for cmd in ui_cmds(ctx, stage):
+        run_cmd(ctx, cmd)
+    publish_tree(stage / "ui", ctx.layout.cache / "ui", root=ctx.layout.work)
+
+
 def build_steps() -> list[Step]:
     ex = "crates/pla/examples/{}.rs".format
     stg = lambda ctx, s: ctx.layout.staging / s  # noqa: E731
@@ -838,6 +853,12 @@ def build_steps() -> list[Step]:
              lambda ctx: [show_cmd(player_cmd(ctx, stg(ctx, "player-model")))],
              run_player, sources=[ex("player_export")], size_roots=lambda ctx: [ctx.layout.cache / "player"],
              outputs_ok=player_outputs_ok),
+        Step("ui", "Export the game's own interface (textures + decoded layouts, for --ui original)", ["romfs"],
+             int(0.5 * GB), "~3 min",
+             lambda ctx: [ctx.layout.cache / "ui" / "layouts", ctx.layout.cache / "ui" / "png"],
+             lambda ctx: [show_cmd(c) for c in ui_cmds(ctx, stg(ctx, "ui"))],
+             run_ui, sources=[ex("ui_export"), ".tools/ui_layout_decode.py"],
+             size_roots=lambda ctx: [ctx.layout.cache / "ui"]),
         Step("audio", "Decode music, sound effects and cries", ["romfs", "main-elf"], int(5.0 * GB), "~1 min",
              lambda ctx: [ctx.layout.cache / "audio"],
              lambda ctx: [show_cmd(audio_cmd(ctx), {"PLA_CACHE_ROOT": str(stg(ctx, "audio"))})],
