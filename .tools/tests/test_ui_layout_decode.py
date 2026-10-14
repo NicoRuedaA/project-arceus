@@ -20,7 +20,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import numpy as np  # noqa: E402
+try:
+    import numpy as np  # noqa: E402
+except ImportError:  # the project venv has no numpy: the renderer tests need it
+    raise unittest.SkipTest("numpy is not installed")
 
 import ui_layout_decode as dec  # noqa: E402
 import ui_layout_render as ren  # noqa: E402

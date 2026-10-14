@@ -73,7 +73,7 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 | `--no-outlines` | Con `--style original`, quita los contornos pero deja el sombreado. |
 | `--look classic` / `--look vivid` | Aspecto general (vivo por defecto). |
 | `--no-shadows`, `--no-ssao`, `--no-bloom` | Apagan sombras, oscurecimiento de rincones y brillo suave (útil si va lento). `--ssao`, `--bloom` los fuerzan. `--ssao-quality` ajusta la calidad. |
-| `--ui original` | **Nuevo.** Dibuja los menús y marcadores con la **interfaz original del juego** (sus marcos, botones, iconos y barras), leída de tu copia instalada del juego. Por defecto sigue la interfaz provisional (`--ui debug`) hasta que la apruebes a ojo. Si faltan los datos de la interfaz, avisa y usa la provisional. Ver 2.16. |
+| `--ui debug` | **Nuevo.** La interfaz **original del juego** (sus marcos, botones, iconos y barras, leída de tu copia instalada) ya es la de por defecto. Con `--ui debug` vuelves a la interfaz provisional. Si faltan los datos de la interfaz, el juego avisa una vez y usa la provisional solo. Ver 2.16. |
 
 **Combate y Pokémon**
 
@@ -494,9 +494,9 @@ Se puede apagar con `--no-audio`. Nadie ha escuchado nada hasta ahora.
 
 ---
 
-### 2.16 Interfaz original del juego (`--ui original`)  [EN LA RAMA feat/ui-assets]
+### 2.16 Interfaz original del juego (por defecto; `--ui debug` para volver a la provisional)
 
-Arranca con `./play.sh --area 1 --ui original`. Las teclas y lo que hace cada pantalla no
+Arranca con `./play.sh --area 1` (la interfaz original es la de por defecto; `--ui debug` fuerza la provisional). Las teclas y lo que hace cada pantalla no
 cambian: solo cambia el dibujo. Los textos son del port, en inglés (los del juego no se usan).
 Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
 

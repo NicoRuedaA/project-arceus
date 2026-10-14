@@ -61,7 +61,7 @@ viewer is dead (crash report printed).
 | `--automation-size WxH` | Offscreen size (default `1280x720`, 16..4096). |
 | `--automation-log FILE` | File holding the viewer's stdout/stderr, read by `log_tail` (also `PLA_AUTOMATION_LOG`; `gamectl.py` sets it). |
 
-Every other viewer flag works as usual (`--area`, `--player-pos`, `--trainer`, `--time-slot`, `--ui original`,
+Every other viewer flag works as usual (`--area`, `--player-pos`, `--trainer`, `--time-slot`, `--ui debug` (the original UI is the default),
 `--weather`, `--style`, `--wild-behavior`, `--save-dir`, ...).
 
 ## gamectl.py
