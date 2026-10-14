@@ -200,6 +200,57 @@ fn missing_data_keeps_the_debug_ui() {
     );
 }
 
+/// The pause list (every option, the money / play-time line and the key hint) ends above the
+/// bottom edge with a margin and its rows never overlap, for the current 16 options and for
+/// longer lists. The original screens are laid out in layout pixels stretched to the viewport
+/// (percent nodes, viewport-height fonts), so this one check covers 1280x720, 1920x1080 and
+/// 2560x1440 alike.
+#[test]
+fn pause_list_fits_above_the_bottom_edge() {
+    use crate::game::pause_menu::OPTIONS;
+    for rows in [OPTIONS.len(), 18, 24] {
+        let labels: Vec<String> = (0..rows).map(|i| format!("Option {i}")).collect();
+        let texts = menus::pause_list_texts(&labels, 0, "Money: 0");
+        assert_eq!(texts.len(), rows + 2);
+        let bottom = texts
+            .iter()
+            .map(|t| t.center.y + t.size.y / 2.0)
+            .fold(0.0f32, f32::max);
+        assert!(
+            bottom <= menus::PAUSE_LIST_BOTTOM + 0.5,
+            "{rows} rows end at {bottom}"
+        );
+        assert!(bottom < 1080.0 - 40.0, "{rows} rows: no bottom margin ({bottom})");
+        for pair in texts[..rows].windows(2) {
+            let a_bottom = pair[0].center.y + pair[0].size.y / 2.0;
+            let b_top = pair[1].center.y - pair[1].size.y / 2.0;
+            assert!(a_bottom <= b_top, "{rows} rows overlap");
+            assert!(pair[0].font_px * TEXT_SCALE < pair[0].size.y, "glyphs taller than a row");
+        }
+        let top = texts[0].center.y - texts[0].size.y / 2.0;
+        assert!(top >= menus::PAUSE_LIST_TOP - 0.5, "list starts under the title bar");
+    }
+}
+
+/// The corner minimap is hidden under the battle HUD and every menu screen, never under the
+/// field HUD or the full map (which draws the minimap itself).
+#[test]
+fn menus_hide_the_corner_minimap() {
+    for id in [
+        ScreenId::PauseMenu,
+        ScreenId::Party,
+        ScreenId::Summary,
+        ScreenId::Bag,
+        ScreenId::Box,
+        ScreenId::Dex,
+        ScreenId::BattleHud,
+    ] {
+        assert!(hides_minimap(id), "{id:?}");
+    }
+    assert!(!hides_minimap(ScreenId::FieldHud));
+    assert!(!hides_minimap(ScreenId::Map));
+}
+
 #[test]
 #[ignore = "debug dump"]
 fn dump_pause_tab_quads() {

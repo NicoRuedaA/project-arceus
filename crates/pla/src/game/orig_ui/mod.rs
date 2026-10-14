@@ -267,6 +267,9 @@ pub struct OrigScreen {
     pub last: Option<Frame>,
     /// Port text not tied to a text pane (lists the game fills at run time).
     free_texts: Vec<scene::TextSlot>,
+    /// Images not tied to a picture pane (map markers, the summary's Pokémon picture), drawn
+    /// after the layout's own quads.
+    free_quads: Vec<scene::Quad>,
 }
 
 impl OrigScreen {
@@ -283,6 +286,7 @@ impl OrigScreen {
             texts: HashMap::new(),
             last: None,
             free_texts: Vec::new(),
+            free_quads: Vec::new(),
         };
         s.rest();
         s.opening(false);
@@ -430,6 +434,27 @@ impl OrigScreen {
         }
     }
 
+    /// Replace the free images (drawn above the layout, in list order).
+    pub fn set_free_quads(&mut self, mut quads: Vec<scene::Quad>) {
+        for (i, q) in quads.iter_mut().enumerate() {
+            q.key = FREE_QUAD_BASE + i as u32;
+        }
+        if quads != self.free_quads {
+            self.free_quads = quads;
+            self.dirty = true;
+        }
+    }
+
+    /// Free images currently set (tests).
+    pub fn free_quads(&self) -> &[scene::Quad] {
+        &self.free_quads
+    }
+
+    /// Free texts currently set (tests).
+    pub fn free_texts(&self) -> &[scene::TextSlot] {
+        &self.free_texts
+    }
+
     /// Length (frames) of `<instance layout>_<tag>`.
     pub fn anim_len(&self, inst: usize, tag: &str) -> Option<f32> {
         let name = self.scene.anim_name(inst, tag)?;
@@ -482,6 +507,44 @@ pub const TEXT_SCALE: f32 = 0.68;
 
 /// Text keys at or above this value are free texts, below are text panes.
 pub const FREE_TEXT_BASE: usize = 1 << 24;
+
+/// Quad keys at or above this value are free images (layout quads use node × 16 + piece).
+pub const FREE_QUAD_BASE: u32 = 1 << 28;
+
+/// A free image: PNG `png` (relative to the UI root, `uv` its source rectangle) centred at
+/// layout pixel `center` (top-left origin) with size `size`, multiplied by `tint` (0-1 RGBA).
+pub fn free_image(png: &str, uv: [f32; 4], center: Vec2, size: Vec2, tint: [f32; 4]) -> scene::Quad {
+    let [u0, v0, u1, v1] = uv;
+    scene::Quad {
+        key: 0,
+        node: 0,
+        visible: true,
+        center,
+        size,
+        angle: 0.0,
+        uv: [
+            Vec2::new(u0, v0),
+            Vec2::new(u1, v0),
+            Vec2::new(u0, v1),
+            Vec2::new(u1, v1),
+        ],
+        vcol: [Vec4::from_array(tint); 4],
+        texture: Some(png.to_string()),
+        black: Vec4::ZERO,
+        white: Vec4::ONE,
+        srt: layout::TexSrt::default(),
+        wrap: [0, 0],
+        alpha: 1.0,
+        additive: false,
+    }
+}
+
+/// A free untextured rectangle of colour `rgba` (0-1).
+pub fn free_rect(center: Vec2, size: Vec2, rgba: [f32; 4]) -> scene::Quad {
+    let mut q = free_image("", [0.0, 0.0, 1.0, 1.0], center, size, rgba);
+    q.texture = None;
+    q
+}
 
 /// A free text at layout pixel `(x, y)` (top-left origin) of size `w`×`h`.
 pub fn free_text(
@@ -593,7 +656,7 @@ impl Plugin for OrigUiPlugin {
             .add_systems(Startup, spawn_screens)
             .add_systems(
                 PostUpdate,
-                (render_screens, hide_provisional)
+                (render_screens, hide_provisional, minimap_off_under_screens)
                     .chain()
                     .in_set(OrigUiSystems::Render),
             );
@@ -722,8 +785,12 @@ pub fn render_screens(
             }
         }
         let (w, h) = (screen.scene.width, screen.scene.height);
-        // Quads: one node per stable key, spawned on first evaluation in draw order.
-        for q in &frame.quads {
+        // Quads: one node per stable key, spawned on first evaluation in draw order (free images
+        // after the layout's quads, so they draw on top).
+        let free_quads = screen.free_quads.clone();
+        let mut seen_quads = Vec::with_capacity(frame.quads.len() + free_quads.len());
+        for q in frame.quads.iter().chain(free_quads.iter()) {
+            seen_quads.push(q.key);
             let tex_handle = q.texture.as_ref().and_then(|t| cache.get(&mut images, t));
             let params = OrigUiParams::from_quad(q, tex_handle.is_some());
             let node = Node {
@@ -789,6 +856,21 @@ pub fn render_screens(
                         .id();
                     commands.entity(root).add_child(e);
                     screen.quads.insert(q.key, e);
+                }
+            }
+        }
+        // Free images that were removed.
+        let stale_quads: Vec<Entity> = screen
+            .quads
+            .iter()
+            .filter(|(k, _)| **k >= FREE_QUAD_BASE && !seen_quads.contains(k))
+            .map(|(_, e)| *e)
+            .collect();
+        for e in stale_quads {
+            if let Ok((_, mut n, _, _, mut v)) = quads.get_mut(e) {
+                v.set_if_neq(Visibility::Hidden);
+                if n.display != Display::None {
+                    n.display = Display::None;
                 }
             }
         }
@@ -927,6 +1009,46 @@ pub fn hide_provisional(
         if shown.get(*e).is_ok_and(|s| s.shown) {
             vis.set_if_neq(Visibility::Hidden);
         }
+    }
+}
+
+/// Original screens the port's corner minimap must not cover: the battle HUD (the game shows no
+/// map in battle) and every menu (the minimap sits on the pause list's footer and the menus'
+/// bottom-left panels).
+pub fn hides_minimap(id: ScreenId) -> bool {
+    matches!(
+        id,
+        ScreenId::BattleHud
+            | ScreenId::PauseMenu
+            | ScreenId::Party
+            | ScreenId::Summary
+            | ScreenId::Bag
+            | ScreenId::Box
+            | ScreenId::Dex
+    )
+}
+
+/// Hide the corner minimap while a screen of [`hides_minimap`] is shown, show it again after
+/// (only on a change, so nothing else fights over its visibility).
+pub fn minimap_off_under_screens(
+    screens: Query<&OrigScreen>,
+    mut hidden: Local<bool>,
+    mut minimap: Query<
+        &mut Visibility,
+        (With<crate::game::minimap::MinimapRoot>, Without<OrigScreen>),
+    >,
+) {
+    let covered = screens.iter().any(|s| s.shown && hides_minimap(s.id));
+    if covered == *hidden {
+        return;
+    }
+    *hidden = covered;
+    for mut v in &mut minimap {
+        *v = if covered {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
     }
 }
 

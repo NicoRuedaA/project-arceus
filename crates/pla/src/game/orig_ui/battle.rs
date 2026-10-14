@@ -26,12 +26,6 @@ pub fn install(app: &mut App) {
     app.init_resource::<BattleUiMemo>();
     app.add_systems(Update, bind_battle.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<BattleUiRoot>(app, ScreenId::BattleHud);
-    app.add_systems(
-        PostUpdate,
-        minimap_off_in_battle
-            .after(super::render_screens)
-            .in_set(OrigUiSystems::Render),
-    );
 }
 
 /// What the bindings showed last frame (to start one-shot animations on changes only).
@@ -317,32 +311,6 @@ fn bind_message(s: &mut OrigScreen, sess: &ActiveBattleSession) {
     s.set_text("T_00", a);
     s.set_text("T_01", b);
     s.set_visible("L_timer_00", false);
-}
-
-/// The port's minimap would cover the player plate (the game shows no map in battle): hidden
-/// while the original battle HUD is shown, shown again afterwards.
-fn minimap_off_in_battle(
-    screens: Query<&OrigScreen>,
-    mut hidden: Local<bool>,
-    mut minimap: Query<
-        &mut Visibility,
-        (With<crate::game::minimap::MinimapRoot>, Without<OrigScreen>),
-    >,
-) {
-    let battle = screens
-        .iter()
-        .any(|s| s.id == ScreenId::BattleHud && s.shown);
-    if battle == *hidden {
-        return;
-    }
-    *hidden = battle;
-    for mut v in &mut minimap {
-        *v = if battle {
-            Visibility::Hidden
-        } else {
-            Visibility::Inherited
-        };
-    }
 }
 
 #[allow(clippy::too_many_arguments)]

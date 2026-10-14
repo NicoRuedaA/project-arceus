@@ -147,35 +147,70 @@ pub fn bind_pause_menu(
         s.freeze_end(inst, tag, "sel");
     }
     // The whole option list and the summary line: the port's own text on the dimmed panel.
+    let money = progress.as_ref().map_or(0, |p| p.money);
+    let seconds = play.as_ref().map_or(0, |p| p.seconds);
+    let labels: Vec<String> = OPTIONS.iter().map(|&o| option_label(o, &settings)).collect();
+    let texts = pause_list_texts(&labels, sel, &menu_info_text(money, seconds));
+    // A dark panel behind the list keeps it readable over bright scenery (the game blurs a
+    // capture of the scene instead; port approximation).
+    let bottom = texts
+        .iter()
+        .map(|t| t.center.y + t.size.y / 2.0)
+        .fold(PAUSE_LIST_TOP, f32::max);
+    let (top, h) = (PAUSE_LIST_TOP - 16.0, bottom - PAUSE_LIST_TOP + 32.0);
+    s.set_free_quads(vec![super::free_rect(
+        Vec2::new(40.0 + 430.0, top + h / 2.0),
+        Vec2::new(860.0, h),
+        [0.03, 0.04, 0.06, 0.62],
+    )]);
+    s.set_free_texts(texts);
+}
+
+/// Top of the option list (layout pixels, below the game's title bar and tab strip).
+pub const PAUSE_LIST_TOP: f32 = 118.0;
+/// Lowest layout pixel the pause texts may reach (a margin above the 1080 px bottom edge).
+pub const PAUSE_LIST_BOTTOM: f32 = 1036.0;
+/// Height of the two footer lines (money / play time and the key hint) below the rows.
+const PAUSE_FOOTER: f32 = 104.0;
+
+/// Row pitch of the pause list: the authored 52 px when it fits, tighter for long lists so the
+/// rows and the footer always end above [`PAUSE_LIST_BOTTOM`] (the layout is stretched to the
+/// viewport, so this holds at every 16:9 resolution).
+pub fn pause_row_pitch(rows: usize) -> f32 {
+    let room = PAUSE_LIST_BOTTOM - PAUSE_FOOTER - PAUSE_LIST_TOP;
+    (room / rows.max(1) as f32).min(52.0)
+}
+
+/// Free texts of the pause list: one row per label (`sel` highlighted) and the footer lines.
+pub fn pause_list_texts(labels: &[String], sel: usize, info: &str) -> Vec<super::scene::TextSlot> {
     let cream = [0.98, 0.96, 0.85, 1.0];
     let gold = [1.0, 0.82, 0.35, 1.0];
     let dim = [0.75, 0.75, 0.72, 1.0];
-    let mut texts = Vec::with_capacity(OPTIONS.len() + 2);
-    for (i, &o) in OPTIONS.iter().enumerate() {
+    let pitch = pause_row_pitch(labels.len());
+    // The glyphs shrink with the pitch so neighbouring rows never touch.
+    let font = (pitch * 0.62).min(32.0);
+    let mut texts = Vec::with_capacity(labels.len() + 2);
+    for (i, label) in labels.iter().enumerate() {
         let (color, mark) = if i == sel {
             (gold, "> ")
         } else {
             (cream, "   ")
         };
-        let y = 150.0 + i as f32 * 52.0;
         texts.push(free_text(
             90.0,
-            y,
+            PAUSE_LIST_TOP + i as f32 * pitch,
             760.0,
-            48.0,
-            32.0,
+            pitch - 2.0,
+            font,
             color,
             TextAlign::Left,
-            format!("{mark}{}", option_label(o, &settings)),
+            format!("{mark}{label}"),
         ));
     }
-    let info = menu_info_text(
-        progress.as_ref().map_or(0, |p| p.money),
-        play.as_ref().map_or(0, |p| p.seconds),
-    );
+    let footer = PAUSE_LIST_TOP + labels.len() as f32 * pitch + 12.0;
     texts.push(free_text(
         90.0,
-        150.0 + OPTIONS.len() as f32 * 52.0 + 20.0,
+        footer,
         900.0,
         44.0,
         26.0,
@@ -185,7 +220,7 @@ pub fn bind_pause_menu(
     ));
     texts.push(free_text(
         90.0,
-        150.0 + OPTIONS.len() as f32 * 52.0 + 66.0,
+        footer + 46.0,
         900.0,
         40.0,
         24.0,
@@ -193,7 +228,7 @@ pub fn bind_pause_menu(
         TextAlign::Left,
         "Arrows / W S + Enter, Esc to resume",
     ));
-    s.set_free_texts(texts);
+    texts
 }
 
 // ------------------------------------------------------------------------------------- party
