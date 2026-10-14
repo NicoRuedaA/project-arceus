@@ -56,9 +56,9 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
         let cr = cos(p.srt.z);
         let sr = sin(p.srt.z);
         c = vec2<f32>(c.x * cr - c.y * sr, c.x * sr + c.y * cr);
-        // Translate is subtracted (PROBABLE: only this reading shows the battle message band,
-        // whose body samples the opaque half of its brush texture).
-        uv = c + vec2<f32>(0.5) - p.srt.xy;
+        // Ui2D texture matrix: scale and rotate about the centre, then add the translation
+        // (the move rows sample their solid brush edge with translate = 5 under clamp).
+        uv = c + vec2<f32>(0.5) + p.srt.xy;
         uv = vec2<f32>(wrap_coord(uv.x, p.srt_scale.z), wrap_coord(uv.y, p.srt_scale.w));
         let texel = textureSample(tex, samp, uv);
         color = p.black + (p.white - p.black) * texel;

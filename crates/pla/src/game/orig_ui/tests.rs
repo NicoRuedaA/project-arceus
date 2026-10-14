@@ -356,3 +356,24 @@ fn party_binding_fills_rows() {
         "empty rows hidden"
     );
 }
+
+#[test]
+#[ignore = "debug dump"]
+fn dump_move_rows_select() {
+    let Some(root) = local_root() else { return };
+    let mut lib = OrigUiLibrary::new(Some(root));
+    let (doc, layout) = ScreenId::BattleMoves.source();
+    let mut s = OrigScreen::new(ScreenId::BattleMoves, lib.scene(doc, layout).unwrap());
+    for k in 0..2 {
+        let inst = s.scene.part_instance(&format!("L_waza_btn_0{k}")).unwrap();
+        s.freeze_end(inst, if k == 1 { "select" } else { "unselect" }, "sel");
+    }
+    let f = s.evaluate();
+    for k in 0..2 {
+        let inst = s.scene.part_instance(&format!("L_waza_btn_0{k}")).unwrap();
+        for q in f.quads.iter().filter(|q| s.scene.nodes[q.node].instance == inst && s.scene.nodes[q.node].pane.name.starts_with("P_base_0")) {
+            println!("row{k} {} vis={} a={:.2} white={:?} black={:?}", s.scene.nodes[q.node].pane.name, q.visible, q.alpha, q.white, q.black);
+        }
+    }
+    println!("{:?}", s.anim.tracks.iter().map(|t| (t.instance, t.anim.clone(), t.frame, t.mode)).collect::<Vec<_>>());
+}

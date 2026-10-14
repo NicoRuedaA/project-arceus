@@ -621,8 +621,17 @@ impl Scene {
 
             match p.kind.as_str() {
                 "picture" => {
-                    let mut mat = self.material(n.instance, p.material, anim);
-                    mat = merge_override(mat, override_mat);
+                    // Part overrides replace the authored material first; the layout's own
+                    // animations then act on the result (select / unselect recolour rows whose
+                    // colours a part property overrides).
+                    let own = self.material(n.instance, p.material, &AnimState::default());
+                    let own_name = own.as_ref().map(|m| m.name.clone());
+                    let mut mat = merge_override(own, override_mat);
+                    if let (Some(m), Some(name)) = (mat.as_mut(), own_name) {
+                        if let Some(vals) = anim.material(n.instance, &name) {
+                            apply_material_anim(m, vals);
+                        }
+                    }
                     let uv = p.uv.first().copied().unwrap_or(DEFAULT_UV);
                     let q = self.quad(
                         i,
