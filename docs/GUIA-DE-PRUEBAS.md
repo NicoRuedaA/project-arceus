@@ -568,3 +568,74 @@ Ejemplo malo: «las bolas no van».
 
 También sirve decir «me gusta» o «no me convence» (por ejemplo del estilo de dibujo o de la noche):
 esa opinión decide cambios por defecto.
+
+---
+
+## 6. Modo automático: el asistente prueba el juego sin ventana
+
+Desde el 2026-10-14 el visor tiene un **modo automático** (`--automation`). Sirve para que el
+asistente (la IA que trabaja en el código) pueda jugar y mirar el juego **él solo**, sin pedirte
+capturas. Es como un mando a distancia: el asistente le dice al juego «avanza 5 segundos», «pulsa
+la V», «haz una foto», y lee la foto y los datos que el juego le devuelve.
+
+Lo importante para ti:
+
+- **No abre ninguna ventana.** Nunca. No te quita el teclado ni el ratón y no aparece nada en tu
+  escritorio. Las «fotos» se sacan dentro de la tarjeta gráfica y se guardan como archivos PNG en
+  `work/automation/shots/`.
+- **No suena nada** y **no toca tu partida guardada**: usa una partida de prueba aparte en
+  `work/automation/save/`.
+- **Está apagado por defecto.** Solo funciona si alguien lo pide con `--automation`. `./play.sh`
+  sigue igual que siempre.
+- **Solo tu usuario puede hablar con él.** El canal es un archivo especial en `work/automation/`
+  que nadie más del ordenador puede abrir, y nunca usa la red.
+- **Si el juego se cierra por un fallo**, el mensaje del fallo queda guardado en
+  `work/automation/last_panic.txt` y la herramienta lo enseña. Así el fallo no se pierde.
+
+### Cómo se usa (por si quieres verlo tú)
+
+Desde la carpeta del proyecto:
+
+```sh
+.tools/smoke_viewer.py
+```
+
+Esto hace una prueba completa de unos minutos: arranca la zona 01, mira las cuatro horas del día,
+abre cada pantalla del menú Esc, guarda y carga, hace un combate contra un Bidoof hasta el final y
+empieza el combate contra el entrenador `giratina01` pulsando V. Al final escribe una lista con
+**PASS** (bien) o **FAIL** (mal) en cada paso, el texto del fallo si el juego se cerró, y la lista
+de fotos.
+
+Para mandar órdenes sueltas (lo que suele hacer el asistente):
+
+```sh
+.tools/gamectl.py start -- --area 1      # arranca el juego sin ventana
+.tools/gamectl.py step 300               # avanza 5 segundos de juego
+.tools/gamectl.py shot work/automation/shots/foto.png   # saca una foto
+.tools/gamectl.py state                  # dice zona, posición, hora, combate...
+.tools/gamectl.py stop                   # cierra el juego
+```
+
+Todas las órdenes y ejemplos están en [`docs/AUTOMATION.md`](AUTOMATION.md) (en inglés).
+
+### Qué encontró la primera prueba real (2026-10-14)
+
+- Funcionaron 52 pasos: las cuatro franjas horarias, las 7 pantallas del menú Esc, guardar y
+  cargar, y un combate salvaje completo.
+- **Al empezar el combate contra el entrenador `giratina01` (tecla V) el juego se cierra solo.**
+  Pasa siempre, también si es el primer combate de la partida. Justo antes, el juego cambia el
+  Pokémon que se ve en el lado del jugador (de Pikachu a Bidoof) y en ese mismo instante intenta
+  terminar de cargar el modelo que acaba de quitar; ese choque es lo que lo cierra (causa
+  PROBABLE, sacada del registro). Está anotado para arreglarlo aparte.
+- **Nada más empezar en la zona 01, un Zubat empieza un combate en el primer instante**: el punto
+  de salida está a menos de 2,8 m de un Zubat salvaje.
+- En la vista desde arriba, el Zubat salvaje se ve mucho más grande que la protagonista (posible
+  error de tamaño; sin comprobar contra el juego original).
+
+### Límites
+
+- Las teclas sí se pueden simular; el ratón y el mando, no.
+- «Cargar» recarga la partida dentro del juego ya abierto; no es lo mismo que cerrar y volver a
+  abrir.
+- Cada prueba da los mismos pasos de tiempo, pero un modelo puede tardar un instante más o menos
+  en cargar entre una prueba y otra.
