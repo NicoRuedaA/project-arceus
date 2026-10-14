@@ -458,6 +458,10 @@ fn main() -> ExitCode {
     );
 
     let mut app = App::new();
+    // Safety net for the player's session only: a deferred command on an entity that was
+    // despawned earlier in the frame logs a warning instead of closing the game. The start-up
+    // guard tests keep Bevy's panicking default so such bugs still fail there.
+    app.set_error_handler(bevy::ecs::error::warn);
     app.add_plugins(
         DefaultPlugins
             .set(WindowPlugin {
@@ -1721,7 +1725,7 @@ fn spawn_pokemon_models(
 
         // glTF ready: despawn placeholder geometric children
         for child in children.iter() {
-            commands.entity(child).despawn();
+            commands.entity(child).try_despawn();
         }
 
         // Real glTF scene with skeleton + idle/walk clips (see game::pokemon_anim).
@@ -1738,7 +1742,8 @@ fn spawn_pokemon_models(
             } else {
                 pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel)
             };
-            commands.entity(entity).insert(source);
+            // try_: the arena swap or the wild streamer may despawn it in this same frame.
+            commands.entity(entity).try_insert(source);
         }
 
         catalog.spawned.insert(entity);
@@ -3721,7 +3726,10 @@ mod startup_schedule_guard {
             art_style,
             trainers: pla::game::trainer_encounter::TrainerEncounterPlugin {
                 markers: !has("--no-trainers"),
-                forced: None,
+                forced: cli_args
+                    .iter()
+                    .position(|a| a == "--trainer")
+                    .and_then(|i| cli_args.get(i + 1).cloned()),
                 data_dir: None,
             },
             // Null: the whole game audio pipeline is registered but no device is opened.
@@ -3768,6 +3776,80 @@ mod startup_schedule_guard {
             app.add_plugins(bevy::render::sync_world::SyncWorldPlugin);
         }
         app
+    }
+
+    /// One key press and release through the real input pipeline (keyboard messages, so the
+    /// `ButtonInput<KeyCode>` the systems read sees `just_pressed` in the next `Update`).
+    fn tap_key(app: &mut App, key: KeyCode) {
+        use bevy::input::keyboard::{Key, KeyboardInput};
+        use bevy::input::ButtonState;
+        for state in [ButtonState::Pressed, ButtonState::Released] {
+            app.world_mut().write_message(KeyboardInput {
+                key_code: key,
+                logical_key: Key::Unidentified(bevy::input::keyboard::NativeKey::Unidentified),
+                state,
+                text: None,
+                repeat: false,
+                window: Entity::PLACEHOLDER,
+            });
+            app.update();
+        }
+    }
+
+    fn built_app(name: &str, args: &[&str]) -> (App, PathBuf) {
+        let scratch =
+            std::env::temp_dir().join(format!("pla-viewer-schedule-guard-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&scratch).expect("scratch dir");
+        let mut app = headless_app();
+        configure_viewer(&mut app, setup_for(args, &scratch));
+        app.finish();
+        app.cleanup();
+        (app, scratch)
+    }
+
+    /// `--trainer <id>` + V anywhere: the battle starts and keeps running (play-test crash,
+    /// 2026-10-14). Runs the battle-start path: state change, arena, battle UI, models, effects.
+    fn check_forced_trainer_battle(name: &str, trainer: &str) {
+        let (mut app, scratch) = built_app(name, &["port_viewer", "--area", "1", "--trainer", trainer]);
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        tap_key(&mut app, KeyCode::KeyV);
+        for _ in 0..30 {
+            app.update();
+        }
+        let state = app.world().resource::<State<GameState>>().get().clone();
+        assert_eq!(state, GameState::Battle, "[{name}] V did not start the battle");
+        {
+            let sess = app
+                .world()
+                .get_resource::<ActiveBattleSession>()
+                .unwrap_or_else(|| panic!("[{name}] no battle session"));
+            println!(
+                "[{name}] after V, no input yet: player #{} opponent #{}; log:\n{}",
+                sess.battle.combatants[sess.active_player()].species.dex,
+                sess.battle.combatants[sess.opponent()].species.dex,
+                sess.log_lines.join("\n")
+            );
+        }
+        // A few battle inputs (fight menu, first move) through the same path the keys use.
+        for key in [KeyCode::Enter, KeyCode::Digit1, KeyCode::Enter, KeyCode::Escape] {
+            tap_key(&mut app, key);
+            for _ in 0..10 {
+                app.update();
+            }
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    #[test]
+    fn forced_trainer_giratina_v_starts_battle() {
+        check_forced_trainer_battle("trainer-giratina", "giratina01");
+    }
+
+    #[test]
+    fn forced_noble_v_starts_battle() {
+        check_forced_trainer_battle("trainer-noble", "noble:nsi_ex_01");
     }
 
     fn check_viewer_start(name: &str, args: &[&str]) {

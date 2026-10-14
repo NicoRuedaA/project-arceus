@@ -117,7 +117,7 @@ fn tick_flee_cooldown(
         match flee_cooldown_step(c.0, time.delta_secs()) {
             Some(left) => c.0 = left,
             None => {
-                commands.entity(e).remove::<FleeCooldown>();
+                commands.entity(e).try_remove::<FleeCooldown>();
             }
         }
     }

@@ -479,7 +479,7 @@ fn attach_wander(
             },
             _ => WildBehavior::assumed_passive(seed),
         };
-        commands.entity(e).insert((
+        commands.entity(e).try_insert((
             WanderState::new(seed, (tf.translation.x, tf.translation.z)),
             WanderHome { params, y_offset },
             behavior,

@@ -516,7 +516,7 @@ fn bait_attract_wild(
                 home.params.home = pos;
                 home.params.radius = BAIT_TARGET_RADIUS;
                 if !attracted.is_some_and(|a| a.bait == bait_entity) {
-                    commands.entity(entity).insert(AttractedTo {
+                    commands.entity(entity).try_insert(AttractedTo {
                         bait: bait_entity,
                         original,
                     });
@@ -526,7 +526,7 @@ fn bait_attract_wild(
                 if let Some(a) = attracted {
                     home.params.home = a.original.home;
                     home.params.radius = a.original.radius;
-                    commands.entity(entity).remove::<AttractedTo>();
+                    commands.entity(entity).try_remove::<AttractedTo>();
                 }
             }
         }

@@ -272,8 +272,14 @@ fn spawn_scene(
         let Some(scene) = gltf.default_scene.clone().or_else(|| gltf.scenes.first().cloned()) else {
             continue;
         };
-        commands.entity(e).insert((PokemonSceneSpawned, PokemonMotion::default())).with_children(|p| {
-            p.spawn((WorldAssetRoot(scene), Transform::IDENTITY, Visibility::default()));
+        // Silenced: the battle arena replaces a combatant entity when the active Pokémon
+        // changes, and the wild streamer unloads creatures, possibly in the same frame as this
+        // insert (play-test crash 2026-10-14: "Entity despawned" in this insert).
+        commands.entity(e).queue_silenced(move |mut ew: EntityWorldMut| {
+            ew.insert((PokemonSceneSpawned, PokemonMotion::default()));
+            ew.with_children(|p| {
+                p.spawn((WorldAssetRoot(scene), Transform::IDENTITY, Visibility::default()));
+            });
         });
     }
 }
@@ -318,7 +324,7 @@ fn wire_players(
         else {
             // No player: either the instance is not ready yet or the model has no clips.
             if idle_gltf.animations.is_empty() {
-                commands.entity(e).insert(PokemonAnimState::new(
+                commands.entity(e).try_insert(PokemonAnimState::new(
                     Entity::PLACEHOLDER,
                     AnimationNodeIndex::new(0),
                     None,
@@ -343,7 +349,7 @@ fn wire_players(
             .or_else(|| idle_gltf.animations.first().cloned());
         let walk_clip = walk_gltf.and_then(|g| find_clip(g, &["walk01", "walk"]));
         let Some(idle_clip) = idle_clip else {
-            commands.entity(e).insert(PokemonAnimState::new(player_e, AnimationNodeIndex::new(0), None));
+            commands.entity(e).try_insert(PokemonAnimState::new(player_e, AnimationNodeIndex::new(0), None));
             continue;
         };
         let (mut graph, idle_node) = AnimationGraph::from_clip(idle_clip);
@@ -368,7 +374,7 @@ fn wire_players(
         if let Ok(mut player) = players.get_mut(player_e) {
             transitions.play(&mut player, start_node, Duration::ZERO).repeat();
         }
-        commands.entity(player_e).insert((AnimationGraphHandle(graph_h), transitions));
+        commands.entity(player_e).try_insert((AnimationGraphHandle(graph_h), transitions));
         let root_bone = children
             .iter_descendants(e)
             .find(|d| names.get(*d).is_ok_and(|(n, _)| n.as_str() == ROOT_MOTION_BONE));
@@ -382,7 +388,7 @@ fn wire_players(
         if in_battle {
             state.pending.push((0.0, PokemonAnimRequest::Appear));
         }
-        commands.entity(e).insert(state);
+        commands.entity(e).try_insert(state);
     }
 }
 
