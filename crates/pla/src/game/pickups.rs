@@ -23,6 +23,9 @@
 //!
 //! Markers are simple meshes: the decoded item models are not exported (blocked in the exporter)
 //! and the gimmick models are not always available, so the maintainer judges the marker look.
+//! They are placeholder visuals, OFF by default (`PLA_DEBUG_PLACEHOLDERS=1` re-enables them, see
+//! [`super::debug_flags`]): the spawns still stream ([`SpawnMarker`] + `Transform`) and every
+//! interaction behaves the same, but the default build draws no proxy cube/cone/sphere.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -482,16 +485,28 @@ fn stream_pickups(
         ) {
             continue;
         }
-        let (mesh, material, y) = marker_assets(s, &mut p.markers, &mut meshes, &mut materials);
-        let e = commands
-            .spawn((
-                SpawnMarker(s.id),
-                Mesh3d(mesh),
-                MeshMaterial3d(material),
-                Transform::from_xyz(s.pos[0], s.pos[1] + y, s.pos[2])
-                    .with_rotation(Quat::from_rotation_y(s.yaw.to_radians())),
-            ))
-            .id();
+        // The marker entity always exists (bookkeeping, `Shaking` and the automation counts); its
+        // proxy mesh is a debug placeholder, drawn only with `PLA_DEBUG_PLACEHOLDERS=1`.
+        let e = if super::debug_flags::placeholders() {
+            let (mesh, material, y) = marker_assets(s, &mut p.markers, &mut meshes, &mut materials);
+            commands
+                .spawn((
+                    SpawnMarker(s.id),
+                    Mesh3d(mesh),
+                    MeshMaterial3d(material),
+                    Transform::from_xyz(s.pos[0], s.pos[1] + y, s.pos[2])
+                        .with_rotation(Quat::from_rotation_y(s.yaw.to_radians())),
+                ))
+                .id()
+        } else {
+            commands
+                .spawn((
+                    SpawnMarker(s.id),
+                    Transform::from_xyz(s.pos[0], s.pos[1], s.pos[2])
+                        .with_rotation(Quat::from_rotation_y(s.yaw.to_radians())),
+                ))
+                .id()
+        };
         p.alive.insert(s.id, e);
     }
 }
