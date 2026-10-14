@@ -4213,6 +4213,7 @@ dependencies = [
  "bevy_audio",
  "bevy_gltf",
  "mlua",
+ "naga",
  "oozextract",
  "phf",
  "phf_codegen",

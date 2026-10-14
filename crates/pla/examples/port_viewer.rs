@@ -975,6 +975,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::alpha_aura::AlphaAuraPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::normal_fix::NormalMapFixPlugin);
     app.add_plugins(pla::game::water::WaterPlugin);
+    app.add_plugins(pla::game::terrain_splat::TerrainSplatPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(
         &cli_args,
@@ -4380,6 +4381,16 @@ mod startup_schedule_guard {
             println!("[skip] no local UI data: original battle screens not checked");
         }
         let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    /// `--terrain bake` (the baked single-image ground) and the cheapest splat options start too.
+    #[test]
+    fn terrain_modes_start() {
+        check_viewer_start("terrain-bake", &["port_viewer", "--area", "1", "--terrain", "bake"]);
+        check_viewer_start(
+            "terrain-splat-low",
+            &["port_viewer", "--area", "1", "--terrain-layers", "4", "--terrain-triplanar", "off", "--terrain-normals", "baked"],
+        );
     }
 
     /// Every optional registration on: main menu, original art style, debug zone links and shop.
