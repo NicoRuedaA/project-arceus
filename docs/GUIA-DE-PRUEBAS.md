@@ -652,8 +652,11 @@ Todas las órdenes y ejemplos están en [`docs/AUTOMATION.md`](AUTOMATION.md) (e
   Pokémon que se ve en el lado del jugador (de Pikachu a Bidoof) y en ese mismo instante intenta
   terminar de cargar el modelo que acaba de quitar; ese choque es lo que lo cierra (causa
   PROBABLE, sacada del registro). Está anotado para arreglarlo aparte.
-- **Nada más empezar en la zona 01, un Zubat empieza un combate en el primer instante**: el punto
-  de salida está a menos de 2,8 m de un Zubat salvaje.
+- *(Arreglado en `fix/battle-autostart`)* Nada más empezar en la zona 01, un Zubat empezaba un
+  combate en el primer instante (el punto de salida estaba a 2,75 m). Ahora: 5 s de gracia tras
+  aparecer, cambiar de zona o cargar (SUPUESTO), ninguna criatura nace a menos de 15 m del punto de
+  llegada (SUPUESTO), el combate automático solo ocurre con una criatura agresiva a menos de 1,5 m
+  (SUPUESTO) y E/Enter sigue funcionando hasta 4 m. El minimapa se oculta durante el combate.
 - En la vista desde arriba, el Zubat salvaje se ve mucho más grande que la protagonista (posible
   error de tamaño; sin comprobar contra el juego original).
 

@@ -1178,6 +1178,7 @@ fn start_battle(app: &mut App, ctx: &mut Ctx, spec: &BattleSpec) -> Result<Value
     }
     let player = player_transform(world).ok_or("no player in the world")?;
     let via: String;
+    let mut pressed_e = false;
     match spec {
         BattleSpec::Trainer(id) => {
             {
@@ -1254,13 +1255,25 @@ fn start_battle(app: &mut App, ctx: &mut Ctx, spec: &BattleSpec) -> Result<Value
             if let Some(mut t) = pq.iter_mut(world).next() {
                 t.translation.x = pos.x + 1.0;
                 t.translation.z = pos.z;
+                // The encounter distance is 3D: stand at the creature's height too.
+                t.translation.y = pos.y;
             }
-            via = format!("player moved next to the nearest wild {name}; viewer encounter system");
+            // The creature is idle and the arrival grace would block the encounter: the command
+            // ends the grace and presses E (the manual encounter), exactly like a player would.
+            if let Some(mut safety) = world.get_resource_mut::<super::wild::EncounterSafety>() {
+                safety.clear_grace_at(bevy::math::Vec2::new(pos.x + 1.0, pos.z));
+            }
+            send_key(world, KeyCode::KeyE, ButtonState::Pressed);
+            pressed_e = true;
+            via = format!("player moved next to the nearest wild {name}; E pressed (manual encounter)");
         }
     }
     let (n, ok) = ctx.step_until(app, 60, in_battle);
     if matches!(spec, BattleSpec::Trainer(_)) {
         send_key(app.world_mut(), KeyCode::KeyV, ButtonState::Released);
+    }
+    if pressed_e {
+        send_key(app.world_mut(), KeyCode::KeyE, ButtonState::Released);
     }
     let n = n + ctx.step(app, 1);
     let world = app.world_mut();

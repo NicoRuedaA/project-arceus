@@ -225,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "3bb13e2b7a34e3346c3149829171c03cbef920092ff582f393a0d4b6f41dd570"
+        "sha256": "ef1b36a428eb7e9ae6cf69a2d520d16f41585d1959a87bb71dc107732698527c"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -537,7 +537,7 @@
       },
       {
         "path": "crates/pla/src/game/automation.rs",
-        "sha256": "cff7aa12a3e72779c2b3a2542086295d4773fab2b0b1ce1b1f9170132717dc71"
+        "sha256": "d2dac04eb40e890cd157ac124ebe20c22a26ae5299a215053f876c6fed2c1b47"
       },
       {
         "path": "crates/pla/src/game/bag_screen.rs",
@@ -689,7 +689,7 @@
       },
       {
         "path": "crates/pla/src/game/minimap.rs",
-        "sha256": "ac770fc05f707af404db64dd193bb3bc12b0e52f33cfba20c440249fdf80ce32"
+        "sha256": "560ccd04f3ad81f41ddcaf307b9a7a3f095d1c6756be50c54fdc075b06c45c35"
       },
       {
         "path": "crates/pla/src/game/mod.rs",
@@ -817,7 +817,7 @@
       },
       {
         "path": "crates/pla/src/game/wild.rs",
-        "sha256": "f646aaf49a58d032647bb5d71a054b01ae0d9d12194b8026f50e31bba57c6029"
+        "sha256": "1a8ff492a24a9fe94c89cc87cde5f2095e7eea961d747a11588351530c3ada36"
       },
       {
         "path": "crates/pla/src/game/wild_behavior.rs",
@@ -825,7 +825,7 @@
       },
       {
         "path": "crates/pla/src/game/wild_wander.rs",
-        "sha256": "8ce59c3242647e5c64d24451a81734f5ebbf8a8e8d16a5ad506f9c0e5227ae62"
+        "sha256": "6554ccf1c7ad075a3bc910eb9d2aa2b8b621a86b8a15fd916ebb9f6650dbcaad"
       },
       {
         "path": "crates/pla/src/game/world_collision.rs",
@@ -841,7 +841,7 @@
       },
       {
         "path": "crates/pla/src/game/zone.rs",
-        "sha256": "4b5364b8bcaaee9311a605547b47db2b811e00ebd1cc1727a557e404d2f15caf"
+        "sha256": "2fe31cd8bc8c9fe2152b64cb2e4864798720ebe5c3480b696f748ef59fbe45d8"
       },
       {
         "path": "crates/pla/src/host/mod.rs",
@@ -977,7 +977,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "fa6588c83a60c467884326bbeffea65a09535c3b07458786bf8295967d718934"
+    "sha256": "d23cb9cbd43118823b9e846d21b534c68aff0bc89be7e7848a5ab2607345f70f"
   },
   "state_partitions": {
     "analysis_documentation_status": {
