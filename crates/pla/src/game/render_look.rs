@@ -171,6 +171,23 @@ pub const NIGHT_DIM_MIN_DAYLIGHT: f32 = 0.45;
 pub const NIGHT_LIGHT_FRACTION: f32 = 0.30;
 /// Legibility floor for the vivid ambient brightness (cd/m2) in the darkest slot. ASSUMED.
 pub const NIGHT_AMBIENT_MIN: f32 = 20.0;
+/// Night floor (play-test 2026-10-14): ambient *luminance* (colour luminance x brightness, cd/m2)
+/// the vivid look never goes below, weather included (a heavy storm would otherwise dim the
+/// night fill further). SUPUESTO value. The black night itself came from the colour grade (see
+/// `lighting::vivid_color_grading`). Offscreen check (`look_headless --slots --area 2 --weather 4`,
+/// rain): night frame mean linear luminance 0.044 vs 0.333 by day (13%), ground sRGB 0.22 vs 0.72;
+/// before the fix 0.015 linear and ground sRGB 0.006 (black). The bluish night fill is kept.
+pub const NIGHT_AMBIENT_LUMA_FLOOR: f32 = 80.0;
+
+/// Ambient brightness that gives at least `floor` cd/m2 of ambient luminance with `color`.
+pub fn floored_ambient_brightness(brightness: f32, color: [f32; 3], floor: f32) -> f32 {
+    let l = luminance(color);
+    if l > 1e-4 && brightness.is_finite() {
+        brightness.max(floor / l)
+    } else {
+        brightness
+    }
+}
 /// Fraction of the haze/fog colour that survives in deep night. ASSUMED.
 pub const NIGHT_FOG_FRACTION: f32 = 0.35;
 /// White share of the night ambient fill colour (low -> the fill stays blue, not grey). ASSUMED.
@@ -311,7 +328,11 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
                 // Night dimming leaves a faint moon sun; day/evening keep the previous lux mapping.
                 sun_lux: env.sun_intensity * LUX_PER_INTENSITY_VIVID * nscale,
                 ambient_color: amb,
-                ambient_brightness: (AMBIENT_VIVID_DAY * day * nscale).max(NIGHT_AMBIENT_MIN),
+                ambient_brightness: floored_ambient_brightness(
+                    (AMBIENT_VIVID_DAY * day * nscale).max(NIGHT_AMBIENT_MIN),
+                    amb,
+                    NIGHT_AMBIENT_LUMA_FLOOR,
+                ),
                 // Pushed-out falloff: 50% haze only at the decoded far distance (was fully opaque there).
                 fog: FogSpec::ExpSquared { density: exp_squared_density(far) },
                 fog_color: [fc[0], fc[1], fc[2], 1.0],
@@ -345,7 +366,10 @@ pub fn apply_weather(p: &LookParams, w: &WeatherVisual) -> LookParams {
     let dim = (0.65 + 0.35 * light).clamp(0.0, 1.0);
     let mut q = p.clone();
     q.sun_lux = p.sun_lux * light;
-    q.ambient_brightness = p.ambient_brightness * light;
+    // Weather never pushes the fill below the night floor (a look that starts below it, the
+    // classic one, is not raised either).
+    let floor = NIGHT_AMBIENT_LUMA_FLOOR.min(ambient_luminance(p));
+    q.ambient_brightness = floored_ambient_brightness(p.ambient_brightness * light, p.ambient_color, floor);
     q.fog = match p.fog {
         FogSpec::Linear { start, end } => {
             let e = (end / fog).max(1.0);
@@ -733,6 +757,31 @@ mod tests {
         assert_eq!(apply_weather(&base, &WeatherVisual { light_mult: 1.0, fog_mult: 1.0, ..bad }).sun_lux, base.sun_lux);
     }
 
+    /// Night floor: in every weather the night fill keeps at least the floor luminance, stays
+    /// bluish and stays well below the day; a day slot is unchanged by the floor.
+    #[test]
+    fn night_floor_holds_in_every_weather() {
+        let day = look_params(&env(2.8), LookSettings::default());
+        let night = look_params(&env(0.3), LookSettings::default());
+        assert!((ambient_luminance(&night) - NIGHT_AMBIENT_LUMA_FLOOR).abs() < 1.0 || ambient_luminance(&night) > NIGHT_AMBIENT_LUMA_FLOOR);
+        assert!(night.ambient_color[2] > night.ambient_color[0], "bluish night fill");
+        for id in 2..=9u8 {
+            let w = WeatherVisual::for_id(id);
+            let n = apply_weather(&night, &w);
+            assert!(n.ambient_brightness > 0.0);
+            assert!(ambient_luminance(&n) >= NIGHT_AMBIENT_LUMA_FLOOR - 0.5, "weather {id} night below the floor");
+            let d = apply_weather(&day, &w);
+            let ratio = ambient_luminance(&n) / ambient_luminance(&d);
+            assert!((0.05..=0.4).contains(&ratio), "weather {id}: night/day ambient ratio {ratio}");
+        }
+        // The day fill is far above the floor: unchanged.
+        assert!(ambient_luminance(&day) > 3.0 * NIGHT_AMBIENT_LUMA_FLOOR);
+        assert_eq!(
+            floored_ambient_brightness(day.ambient_brightness, day.ambient_color, NIGHT_AMBIENT_LUMA_FLOOR),
+            day.ambient_brightness
+        );
+    }
+
     /// Measures ambient/sun/scene luminance for the six real areas x four time slots from the sheet.
     /// Skips (green) when the game-derived sheet is absent, like the other data-dependent tests.
     #[test]
@@ -772,7 +821,11 @@ mod tests {
             // sky colour in area 03, so the colour metric itself can invert day/evening there (data).
             assert!(slots[3].0.ambient < 0.4 * slots[1].0.ambient, "{name} night ambient not <0.4x day");
             assert!(slots[3].0.sun < 0.4 * slots[1].0.sun, "{name} night sun not <0.4x day");
-            assert!(slots[2].1 > slots[3].1 && slots[1].1 >= slots[2].1, "{name} ambient brightness not day>=evening>night");
+            // Evening > night on the perceived ambient luminance: the night floor raises the
+            // brightness of the bluer (lower-luminance) night fill, so the raw brightness of the
+            // night can exceed the evening's (area 05) while its luminance stays lower.
+            assert!(slots[2].0.ambient > slots[3].0.ambient && slots[1].1 >= slots[2].1, "{name} ambient not day>=evening>night");
+            assert!(slots[3].0.ambient >= NIGHT_AMBIENT_LUMA_FLOOR - 0.5, "{name} night below the floor");
             assert!(slots[2].2 > slots[3].2 && slots[1].2 >= slots[2].2, "{name} mapped sun not day>=evening>night");
             measured += 1;
         }
