@@ -399,6 +399,43 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     fichero. Fallo: un cambio no se ve, no se recuerda al reiniciar, Tab activa el modo apuntar,
     Esc cierra todo en vez de volver al menú, o la pantalla no cabe en 720p.
 
+74. **Opciones de calidad y preajustes (Esc → Graphics...).** [EN RAMA `feat/quality-opts`] La
+    pantalla tiene ahora cinco páginas y una línea de ayuda abajo que explica la fila elegida:
+    - *Quality*: Shadows, **Shadow quality** low/medium/high/ultra (tamaño del mapa de sombras y
+      hasta dónde llegan: 1024 px/100 m, 2048/250 m, 4096/350 m, 4096/400 m), **Grass**
+      off/low/medium/high/ultra, Battle effects, **Particles** 0-200 %, **Mipmaps** on/off,
+      **Anisotropic filtering** off/2x/4x/8x/16x, **Texture quality** full/half/quarter
+      *(restart)* y **Terrain texture** 4096/2048/1024 *(restart)*.
+    - *Display*: **Anti-aliasing** auto/off/FXAA/SMAA/TAA/MSAA 2x/MSAA 4x (MSAA solo funciona con
+      SSAO apagado; la fila lo dice), **Render scale** 50-200 % (más de 100 = se dibuja más grande
+      y se reduce: más nítido y más caro; menos de 100 = más rápido y más borroso), **V-sync**
+      on/off y **FPS cap** unlimited/30/60/120/144/240. El tamaño de la ventana lo decide el
+      sistema (puedes maximizarla); Render scale multiplica ese tamaño.
+    - *Distances* (antes oculta): alcance de la hierba y de las demás plantas, de los objetos
+      (100 % = 200 m), de las colisiones, de los objetos recogibles (120 m), de las personas
+      (200 m), de los Pokémon salvajes (120 m) y la niebla / distancia de vista (50-200 %).
+    - *Post-processing*: SSAO, **SSAO quality** (ultra cuesta mucho y no se nota), Bloom y
+      **Bloom intensity** 0-200 %.
+    La fila **Quality preset** recorre Default (el juego tal como estaba), Switch (faithful),
+    Low, Medium, High y Ultra; si tocas algo pone «Custom». Un preajuste nunca cambia el look, la
+    hora, el clima, el v-sync ni el FPS cap. Todo se aplica al momento menos lo marcado
+    *(restart)*. En la línea de comandos: `--quality default|switch|low|medium|high|ultra`
+    (manda sobre el fichero esa sesión) y una bandera por opción (`--shadow-quality`, `--grass
+    ultra`, `--particles 150`, `--mipmaps on`, `--anisotropy 16`, `--texture-quality half`,
+    `--terrain-texture 2048`, `--aa smaa`, `--render-scale 150`, `--no-vsync`, `--fps-cap 120`,
+    `--grass-range`, `--plants-range`, `--objects-range`, `--collision-range`, `--pickups-range`,
+    `--npc-range`, `--wild-range`, `--fog-distance` en %, `--ssao-quality`,
+    `--bloom-intensity`). Para un objetivo estricto de 1440p a 120 imágenes por segundo, prueba:
+    `./play.sh --area 1 --quality low --no-vsync --fps-cap 120` y maximiza la ventana. Según las
+    mediciones, Low es el único preajuste que queda en 8.33 ms o menos en las seis escenas de
+    1080p y 1440p; Medium llega a 8.37 ms en combate a 1440p, High a 9.31 ms y Ultra a
+    12.33-18.52 ms. Para valorar la calidad visual, repite con `--quality high`: verás bordes
+    suaves (SMAA), suelo lejano más nítido (mipmaps + anisotrópico), más hierba y sombras más
+    lejanas. Costes y recomendación: `docs/GRAPHICS-QUALITY.md`.
+    Fallo: algo no cambia al tocarlo, Render scale deja la pantalla negra o desplazada, el menú
+    deja de verse con Render scale distinto de 100 %, el FPS cap no limita (con v-sync off), o
+    un preajuste cambia la hora o el clima.
+
 ### 2.9 Reloj, clima, día y noche  [EN MAIN]
 
 48. **Franjas de hora.** Prueba `--time-slot 0`, `1`, `2`, `3`. Ves: 0 y 1 luz de día, 2 atardecer

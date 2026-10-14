@@ -108,6 +108,8 @@ are errors, never crashes.
 | `screenshot` | `path` (`.png`), optional `width`+`height`, optional `camera` {`yaw`, `pitch`, `distance`, `focus`:[x,y,z], `degrees`:bool} | Captures the main camera's offscreen target (the UI included). `camera` places an orbit camera around the player (or `focus`) for this shot only. Reply: `width`, `height`, `stats` {mean_rgb, luma_mean, luma_std, `looks_blank`}, frames run (2-5). Logic-only: `unavailable`. |
 | `entities` | `filter` = `wild`, `npc`, `trainer`, `player`, `camera`, `named`; `limit` (default 50) | Nearest first: entity id, position, distance, visibility (`Visibility` and `in_view`), plus kind fields (species, level, real_model, trainer id, NPC key...). |
 | `log_tail` | `lines` (default 50) | Last lines of the viewer log and how many look like warnings/errors. |
+| `graphics` | `preset` (`default`, `switch`, `low`, `medium`, `high`, `ultra`) and/or `set` {`option_id`: value} (the `graphics.toml` keys and values, e.g. `{"anti_aliasing":"smaa","render_scale":150}`) | Changes Graphics screen options live, exactly as the screen does (the appliers run; restart-only options are stored but act on the next start). The file is not written. Reply: `preset` (or null = custom) and the full settings text. |
+| `bench` | `frames` (default 300), `warmup` (default 60) | Frame timing: runs `warmup` frames, then `frames` frames, each followed by a wait until the GPU has finished it (`RenderDevice::poll(Wait)`). Reply: `frame_ms_avg`/`p50`/`p95`/`p99`/`max`, `cpu_ms_avg` (the update alone), `gpu_wait_ms_avg` (time the GPU still needed after the update), `fps_avg`. Without overlap between CPU and GPU, so it is an upper bound of a pipelined windowed frame. The FPS cap option sleeps inside the update, so a cap of 120 shows as about 8.33 ms here (that is how the cap is measured offscreen). |
 | `quit` | | Replies, then the viewer exits (status 0) and removes its socket. |
 
 ### Examples
@@ -127,6 +129,9 @@ $G shot work/automation/shots/orbit.png --yaw 45 --pitch 30 --distance 7
 $G entities npc --limit 5
 $G cmd '{"cmd":"give_item","id":17,"count":5}'
 $G cmd '{"cmd":"add_pokemon","species":"shinx","level":12}'
+$G cmd '{"cmd":"graphics","preset":"high"}'
+$G cmd '{"cmd":"graphics","set":{"vsync":"off","fps_cap":"120"}}'
+$G cmd '{"cmd":"bench","frames":300,"warmup":120}'
 ```
 
 Raw socket without gamectl (Python one-liner):

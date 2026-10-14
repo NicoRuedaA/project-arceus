@@ -246,28 +246,32 @@ OPTION_VARIANTS: list[tuple[str, dict]] = [
 ]
 
 
-def run_options(out: Path, results: Path, size: str) -> None:
+def run_options(out: Path, results: Path, sizes: list[str]) -> None:
     args = ["--area", "1", "--player-pos", f"{START[0]:.0f},{START[1]:.0f}", "--wild-behavior", "off", "--quality", "default"]
-    start(args, size)
+    start(args, sizes[0])
     try:
         setup_world()
-        for scene, pos in (("inicio", START), ("bosque", FOREST), ("batalla", None)):
-            if pos:
-                go(*pos)
-            else:
-                go(*START, frames=120)
-                c({"cmd": "start_battle", "wild": "bidoof", "level": 5})
-                c({"cmd": "step", "frames": 240})
-            for label, opts in OPTION_VARIANTS:
-                c({"cmd": "graphics", "preset": "default", "set": {"vsync": "on", "fps_cap": "unlimited"}})
-                if opts:
-                    c({"cmd": "graphics", "set": opts})
-                # Streaming / texture rebuilds settle during the warm-up.
-                r = bench(warmup=240)
-                rec = {"scene": scene, "size": size, "option": label, **r}
-                print(json.dumps(rec), flush=True)
-                with results.open("a") as fh:
-                    fh.write(json.dumps(rec) + "\n")
+        battle_started = False
+        for size in sizes:
+            set_size(size, out / f"_size_options_{size}.png")
+            for scene, pos in (("inicio", START), ("bosque", FOREST), ("batalla", None)):
+                if pos:
+                    go(*pos)
+                elif not battle_started:
+                    go(*START, frames=120)
+                    c({"cmd": "start_battle", "wild": "bidoof", "level": 5})
+                    c({"cmd": "step", "frames": 240})
+                    battle_started = True
+                for label, opts in OPTION_VARIANTS:
+                    c({"cmd": "graphics", "preset": "default", "set": {"vsync": "on", "fps_cap": "unlimited"}})
+                    if opts:
+                        c({"cmd": "graphics", "set": opts})
+                    # Streaming / texture rebuilds settle during the warm-up.
+                    r = bench(warmup=240, repeats=3)
+                    rec = {"scene": scene, "size": size, "option": label, **r}
+                    print(json.dumps(rec), flush=True)
+                    with results.open("a") as fh:
+                        fh.write(json.dumps(rec) + "\n")
     finally:
         stop()
 
@@ -314,7 +318,7 @@ def main() -> int:
         for preset in a.presets.split(","):
             run_preset(preset, sizes, out, results, a.shots, a.extra.split())
     elif a.mode == "options":
-        run_options(out, results, sizes[0])
+        run_options(out, results, sizes)
     else:
         run_restart(out, results, sizes[0])
     return 0
