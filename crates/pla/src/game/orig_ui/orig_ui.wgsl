@@ -16,7 +16,7 @@ struct OrigUiParams {
     white: vec4<f32>,
     srt: vec4<f32>,       // translate.xy, rotate (radians), has_texture
     srt_scale: vec4<f32>, // scale.xy, wrap_s, wrap_t
-    params: vec4<f32>,    // alpha, unused...
+    params: vec4<f32>,    // alpha, multiply (1 = fade to white by alpha), unused...
 };
 
 @group(1) @binding(0) var<uniform> p: OrigUiParams;
@@ -65,6 +65,11 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
     }
     color = color * vcol;
     let a = clamp(color.a * p.params.x, 0.0, 1.0);
-    let rgb = srgb_to_linear(clamp(color.rgb, vec3<f32>(0.0), vec3<f32>(1.0)));
+    var srgb = clamp(color.rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+    if p.params.y > 0.5 {
+        // Multiply blend: transparent texels must leave the destination unchanged.
+        srgb = mix(vec3<f32>(1.0), srgb, a);
+    }
+    let rgb = srgb_to_linear(srgb);
     return vec4<f32>(rgb, a);
 }

@@ -61,7 +61,7 @@ impl OrigUiParams {
                 q.wrap[0] as f32,
                 q.wrap[1] as f32,
             ),
-            params: Vec4::new(q.alpha, 0.0, 0.0, 0.0),
+            params: Vec4::new(q.alpha, if q.multiply { 1.0 } else { 0.0 }, 0.0, 0.0),
         }
     }
 }
@@ -70,6 +70,7 @@ impl OrigUiParams {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct OrigUiKey {
     pub additive: bool,
+    pub multiply: bool,
 }
 
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone, Default)]
@@ -81,12 +82,14 @@ pub struct OrigUiMaterial {
     #[sampler(2)]
     pub texture: Option<Handle<Image>>,
     pub additive: bool,
+    pub multiply: bool,
 }
 
 impl From<&OrigUiMaterial> for OrigUiKey {
     fn from(m: &OrigUiMaterial) -> Self {
         OrigUiKey {
             additive: m.additive,
+            multiply: m.multiply,
         }
     }
 }
@@ -97,17 +100,26 @@ impl UiMaterial for OrigUiMaterial {
     }
 
     fn specialize(descriptor: &mut RenderPipelineDescriptor, key: UiMaterialKey<Self>) {
-        if !key.bind_group_data.additive {
+        let color = if key.bind_group_data.additive {
+            BlendComponent {
+                src_factor: BlendFactor::SrcAlpha,
+                dst_factor: BlendFactor::One,
+                operation: BlendOperation::Add,
+            }
+        } else if key.bind_group_data.multiply {
+            // The shader already faded the colour towards white by its alpha.
+            BlendComponent {
+                src_factor: BlendFactor::Zero,
+                dst_factor: BlendFactor::Src,
+                operation: BlendOperation::Add,
+            }
+        } else {
             return;
-        }
+        };
         if let Some(fragment) = descriptor.fragment.as_mut() {
             for target in fragment.targets.iter_mut().flatten() {
                 target.blend = Some(BlendState {
-                    color: BlendComponent {
-                        src_factor: BlendFactor::SrcAlpha,
-                        dst_factor: BlendFactor::One,
-                        operation: BlendOperation::Add,
-                    },
+                    color,
                     alpha: BlendComponent::OVER,
                 });
             }

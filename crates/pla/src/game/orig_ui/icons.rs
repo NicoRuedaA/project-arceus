@@ -5,7 +5,9 @@
 //!   (128×128; `_l` = 512×512). The name fields are read from the file names: dex and form
 //!   VERIFIED against the species shown, gender / `n|r` (normal / rare colour) PROBABLE.
 //! - Items: `png/res_item/icon_item/item_<id:4>.png` (the game's item id, the same ids the port's
-//!   bag uses; PROBABLE: checked on a few items only).
+//!   bag uses; PROBABLE: checked on a few items only); Poké Balls `png/icon_ball/icon_ball_<id:4>.png`;
+//!   items without either use the game's `item_dummy` placeholder.
+//! - Type badges with the name: `png/icon_type/arc/type_dummy_eng/typeIconText_<NN>_<name>_00^u.png`.
 //! - Types: `png/icon_type/arc/type_dummy_tch/typeIcon_<NN>_<name>_00^t.png` (NN = the game's
 //!   type order, Normal 00 ... Fairy 17, the same order as `battle::TypeChart`).
 
@@ -19,6 +21,10 @@ use super::scene::ExternalImage;
 const POKE_DIR: &str = "png/res_pokemon/icon_pokemon_s";
 const POKE_L_DIR: &str = "png/res_pokemon/icon_pokemon_l";
 const ITEM_DIR: &str = "png/res_item/icon_item";
+/// Poké Ball icons by item id: `icon_ball_<id:4>.png` (the bag's ball pocket).
+const BALL_DIR: &str = "png/icon_ball";
+/// The game's placeholder for an item without its own icon.
+const ITEM_DUMMY: &str = "png/res_item/icon_item_dummy/item_dummy.png";
 const TYPE_DIR: &str = "png/icon_type/arc/type_dummy_tch";
 /// Type badges with the type name drawn in (English pack): `typeIconText_<NN>_<name>_00^u.png`.
 const TYPE_TEXT_DIR: &str = "png/icon_type/arc/type_dummy_eng";
@@ -71,6 +77,7 @@ pub struct IconIndex {
     items: HashMap<u16, String>,
     types: HashMap<usize, String>,
     type_texts: HashMap<usize, String>,
+    item_dummy: Option<String>,
 }
 
 /// Parse `pokeicon_s_0025_001_000_n_00000000_fn_n.png` into (dex, form, gender, rare).
@@ -131,6 +138,25 @@ impl IconIndex {
                 }
             }
         }
+        if let Ok(rd) = std::fs::read_dir(root.join(BALL_DIR)) {
+            for e in rd.flatten() {
+                let name = e.file_name().to_string_lossy().to_string();
+                if let Some(id) = name
+                    .strip_prefix("icon_ball_")
+                    .and_then(|s| s.strip_suffix(".png"))
+                    .and_then(|s| s.parse().ok())
+                {
+                    self.items
+                        .entry(id)
+                        .or_insert_with(|| format!("{BALL_DIR}/{name}"));
+                }
+            }
+        }
+        // The exported placeholder is a blank 2 x 2 texture in some dumps: only a real picture
+        // is used.
+        self.item_dummy = std::fs::metadata(root.join(ITEM_DUMMY))
+            .is_ok_and(|m| m.len() > 256)
+            .then(|| ITEM_DUMMY.to_string());
         if let Ok(rd) = std::fs::read_dir(root.join(TYPE_DIR)) {
             for e in rd.flatten() {
                 let name = e.file_name().to_string_lossy().to_string();
@@ -191,6 +217,16 @@ impl IconIndex {
     }
 
     /// Type badge with the type's name (falls back to the plain type icon).
+    /// Item icon, else the game's placeholder item icon.
+    pub fn item_or_dummy(&self, id: u16) -> Option<ExternalImage> {
+        self.item(id).or_else(|| {
+            Some(ExternalImage {
+                png: self.item_dummy.clone()?,
+                uv: [0.0, 0.0, 1.0, 1.0],
+            })
+        })
+    }
+
     pub fn type_text(&self, type_name: &str) -> Option<ExternalImage> {
         match self.type_texts.get(&type_index(type_name)?) {
             Some(p) => Some(ExternalImage {

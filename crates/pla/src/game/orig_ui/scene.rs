@@ -135,6 +135,9 @@ pub struct Quad {
     pub alpha: f32,
     /// Material blend with destination factor "one" (additive glow) — PROBABLE.
     pub additive: bool,
+    /// Material blend `0 + dst × src colour` (multiply; Ui2D factors 0 = zero, 8 = source
+    /// colour) — PROBABLE: used by the map's area highlights.
+    pub multiply: bool,
 }
 
 /// Horizontal text alignment inside its pane.
@@ -952,6 +955,7 @@ impl Scene {
         let mut srt = TexSrt::default();
         let mut wrap = [0u8; 2];
         let mut additive = false;
+        let mut multiply = false;
         if let Some(mat) = mat {
             black = Vec4::from_array(mat.black) / 255.0;
             white = Vec4::from_array(mat.white) / 255.0;
@@ -965,6 +969,7 @@ impl Scene {
                 srt = mat.tex_srt.first().copied().unwrap_or_default();
             }
             additive = mat.blend.is_some_and(|b| b.dst == 1);
+            multiply = mat.blend.is_some_and(|b| b.src == 0 && b.dst == 8);
         }
         if let Some(img) = ov.and_then(|o| o.image.as_ref()) {
             texture = Some(img.png.clone());
@@ -1003,6 +1008,7 @@ impl Scene {
             wrap,
             alpha,
             additive,
+            multiply,
         })
     }
 }

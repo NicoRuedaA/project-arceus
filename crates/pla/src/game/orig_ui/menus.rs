@@ -20,13 +20,13 @@ use super::scene::{ExternalImage, NodeOverride, TextAlign};
 use super::{free_text, OrigScreen, OrigUiConfig, OrigUiSystems, ScreenId};
 use crate::battle_engine::Combatant;
 use crate::game::bag_screen::{
-    detail_for, pocket_codes, pocket_entries, screen_entries, BagItemTable, BagMode, BagRoot,
+    pocket_codes, pocket_entries, screen_entries, BagItemTable, BagMode, BagRoot,
     BagUi, ShopCatalog,
 };
 use crate::game::battle_controller::BattleAssets;
 use crate::game::battle_items::label;
 use crate::game::box_screen::{
-    BoxFocus, BoxScreenRoot, BoxScreenState, GRID_COLUMNS, SLOTS_PER_BOX,
+    BoxFocus, BoxScreenRoot, BoxScreenState, BoxSelection, GRID_COLUMNS, SLOTS_PER_BOX,
 };
 use crate::game::dex_screen::{visibility, DexCatalog, DexRoot, DexUi, DexVisibility};
 use crate::game::minimap::{FullMapRoot, MinimapState};
@@ -53,7 +53,10 @@ pub fn install(app: &mut App) {
     super::hide_when_shown::<BoxScreenRoot>(app, ScreenId::Box);
     app.add_systems(Update, bind_dex_screen.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<DexRoot>(app, ScreenId::Dex);
-    app.add_systems(Update, bind_map_screen.in_set(OrigUiSystems::Bind));
+    app.add_systems(
+        Update,
+        (bind_map_screen, sync_map_markers).in_set(OrigUiSystems::Bind),
+    );
 }
 
 /// The game's menu icon (texture base name) the port uses for each option. Only icons the
@@ -400,6 +403,61 @@ pub const BAG_CELLS: usize = 48;
 /// Cells the bag shows per page: the 5 × 4 slot circles of `bag_top_00`.
 pub const BAG_PAGE: usize = 20;
 
+/// Port names of the bag pockets by the item table's pocket code (LIKELY: the codes group balls
+/// (2), medicine (6) and berries (7) in the decoded table; the other names are the port's
+/// reading of their contents).
+pub fn pocket_name(code: u8) -> &'static str {
+    match code {
+        0 => "Items",
+        1 => "Other items",
+        2 => "Poke Balls",
+        4 => "Boosters",
+        6 => "Medicine",
+        7 => "Berries",
+        _ => "Pocket",
+    }
+}
+
+/// Description of the selected item: its effect, stack and prices (the port's own words).
+pub fn bag_description(item: &crate::battle_engine::items::ItemEffect, count: u16) -> String {
+    let price = if item.price == 0 {
+        "Not sold in shops.".to_string()
+    } else {
+        format!(
+            "Price {} (sells for {}).",
+            item.price,
+            crate::game::shop::Shop::sell_unit_price(item)
+        )
+    };
+    format!(
+        "{}. You have {count} (up to {}). {price}",
+        label(item),
+        item.max_quantity
+    )
+}
+
+/// Translation that puts the centre of `node` on screen point `target` (layout pixels), from
+/// the last evaluated frame: the parent's centre is the anchor of a centre-anchored child
+/// without rotation or scale (the case of the grid buttons). `None` before the first frame.
+pub fn translate_onto(s: &OrigScreen, node: usize, target: Vec2) -> Option<[f32; 2]> {
+    let last = s.last.as_ref()?;
+    let parent = s.scene.nodes[node].parent?;
+    let pc = last.geoms.get(parent)?.center;
+    Some([target.x - pc.x, pc.y - target.y])
+}
+
+/// Screen centres (layout pixels) of the panes named `{prefix}{k:02}` for k in 0..n, from the
+/// last evaluated frame (the slot circles the game draws under its buttons).
+pub fn slot_centres(s: &OrigScreen, prefix: &str, n: usize) -> Option<Vec<Vec2>> {
+    let last = s.last.as_ref()?;
+    (0..n)
+        .map(|k| {
+            let node = s.scene.find(&format!("{prefix}{k:02}"))?;
+            Some(last.geoms.get(node)?.center)
+        })
+        .collect()
+}
+
 /// Fill grid cell `k` (`L_btn_main_kk` of the inventory grid instance `grid`): place it at `pos`
 /// (layout pixels, the grid's own placement is run-time data), show `content` (icon, label) or
 /// an empty slot, and the game's select / unselect state.
@@ -408,11 +466,12 @@ fn fill_cell(
     s: &mut OrigScreen,
     grid: usize,
     k: usize,
-    pos: [f32; 2],
+    pos: Option<[f32; 2]>,
     scale: f32,
     shown: bool,
     content: Option<(Option<ExternalImage>, String)>,
     selected: bool,
+    badge: Option<String>,
 ) {
     let Some(node) = s.scene.find_in(grid, &format!("L_btn_main_{k:02}")) else {
         return;
@@ -422,7 +481,9 @@ fn fill_cell(
     };
     s.set_node(node, |o| {
         o.visible = Some(shown);
-        o.translate = Some(pos);
+        if pos.is_some() {
+            o.translate = pos;
+        }
         o.scale = Some([scale, scale]);
     });
     if !shown {
@@ -433,8 +494,12 @@ fn fill_cell(
             s.set_node(n, |o| f(o));
         }
     };
+    let has_badge = badge.is_some();
+    set(s, "T_00", &|o| {
+        o.visible = Some(has_badge);
+        o.text = badge.clone();
+    });
     for hidden in [
-        "T_00",
         "P_mask_price_00",
         "P_base_price_00",
         "P_icon_check_00",
@@ -445,6 +510,7 @@ fn fill_cell(
         set(s, hidden, &|o| o.visible = Some(false));
     }
     let (icon, label) = content.map_or((None, None), |(i, l)| (i, Some(l)));
+    let label = label.filter(|l| !l.is_empty());
     let has_icon = icon.is_some();
     set(s, "P_icon_00", &|o| {
         o.visible = Some(has_icon);
@@ -495,25 +561,27 @@ pub fn bind_bag_screen(
     let bag = progress.as_ref().map(|p| &p.bag).unwrap_or(&empty);
     let entries = screen_entries(&ui, table, bag, &shops.0);
     let page = ui.selected / BAG_PAGE;
+    // Buttons sit on the game's own slot circles (`P_deoc_item_blank_kk`, 5 x 4).
+    let slots = slot_centres(&s, "P_deoc_item_blank_", BAG_PAGE);
     if let Some(grid) = s.scene.part_instance("L_inventory_parts_00") {
         for k in 0..BAG_CELLS {
             let idx = page * BAG_PAGE + k;
             let cell = (k < BAG_PAGE)
                 .then(|| entries.get(idx))
                 .flatten()
-                .map(|&(id, count)| (icons.item(id), format!("x{count}")));
-            let (col, row) = ((k % 5) as f32, (k / 5) as f32);
-            let shown = k < BAG_PAGE && cell.is_some();
-            fill_cell(
-                &mut s,
-                grid,
-                k,
-                [-788.0 + col * 156.0, 305.0 - row * 146.0],
-                1.0,
-                shown,
-                cell,
-                idx == ui.selected,
-            );
+                .map(|&(id, count)| (icons.item_or_dummy(id), format!("x{count}")));
+            let shown = k < BAG_PAGE && cell.is_some() && slots.is_some();
+            let pos = slots.as_ref().and_then(|c| {
+                let node = s.scene.find_in(grid, &format!("L_btn_main_{k:02}"))?;
+                translate_onto(&s, node, *c.get(k)?)
+            });
+            // An item without an exported icon shows its number on the button instead.
+            let badge = cell
+                .as_ref()
+                .filter(|(i, _)| i.is_none())
+                .and_then(|_| entries.get(idx))
+                .map(|(id, _)| format!("#{id}"));
+            fill_cell(&mut s, grid, k, pos, 1.0, shown, cell, idx == ui.selected, badge);
         }
     }
     // The game slides the neighbouring pockets in from the sides: not shown at rest.
@@ -526,7 +594,7 @@ pub fn bind_bag_screen(
         .get(ui.selected)
         .and_then(|(id, c)| table.get(*id).map(|i| (i, *c)))
     {
-        Some((item, count)) => (label(item), detail_for(item, count)),
+        Some((item, count)) => (label(item), bag_description(item, count)),
         None => ("Empty pocket".to_string(), String::new()),
     };
     s.set_in("L_info_item_00", "T_info_heading_00", |o| {
@@ -542,10 +610,14 @@ pub fn bind_bag_screen(
     let pocket = pockets.get(ui.pocket).copied().unwrap_or(0);
     let n = pocket_entries(table, bag, pocket).len();
     s.set_in("L_tab_disp_00", "T_text_00", |o| {
-        o.text = Some(format!("Pocket {pocket}"))
+        o.text = Some(pocket_name(pocket).to_string())
     });
     s.set_in("L_tab_disp_01", "T_text_00", |o| {
-        o.text = Some(format!("{n} items"))
+        o.text = Some(format!(
+            "{} / {}  ({n})",
+            ui.pocket.min(pockets.len().saturating_sub(1)) + 1,
+            pockets.len()
+        ))
     });
     let money = progress.as_ref().map_or(0, |p| p.money);
     s.set_in("L_money_00", "T_param_money_00", |o| {
@@ -573,11 +645,18 @@ pub fn bind_bag_screen(
 
 // --------------------------------------------------------------------------------------- box
 
-/// Pokémon boxes (`box_top_00`): the current page's Pokémon as the game's grid buttons
-/// (Pokémon icon + level), the party in the game's left list (name + level), the selected slot
-/// or party row highlighted, page and status line as the port's text. The port's box page holds
-/// 32 Pokémon in 8 × 4; the game's 6-wide grid cells are re-spaced to that shape. Neighbouring grids, the all-box
-/// overview and the trade tab are hidden.
+/// Pitch of the box grid buttons (layout pixels): the party rows' authored pitch, also used by
+/// the game's grid anchors (`N_inventory_00` / `N_inventory_01`) — PROBABLE.
+pub const BOX_PITCH: f32 = 142.0;
+/// First inventory-grid cell used for the party column (after the 30 box cells).
+const PARTY_CELL0: usize = 36;
+
+/// Pokémon boxes (`box_top_00`): the current box's 30 Pokémon as the game's grid buttons
+/// (6 x 5 from the grid anchor `N_inventory_00`, icon + level), the party as a column of buttons
+/// on the anchor `N_inventory_01` beside the game's party rows (name + level), the selected
+/// button highlighted, a held Pokémon (Enter) dimmed, page and messages in the game's message
+/// strip. Neighbouring grids, the all-box overview, the trade tab and the status panel are
+/// hidden.
 #[allow(clippy::too_many_arguments)]
 pub fn bind_box_screen(
     config: Res<OrigUiConfig>,
@@ -600,30 +679,48 @@ pub fn bind_box_screen(
     };
     let assets = assets.as_deref();
     let base = st.page * SLOTS_PER_BOX;
+    let anchor = |s: &OrigScreen, name: &str| -> Option<Vec2> {
+        let n = s.scene.find_in(0, name)?;
+        Some(s.last.as_ref()?.geoms.get(n)?.center)
+    };
+    let box_anchor = anchor(&s, "N_inventory_00");
+    let party_anchor = anchor(&s, "N_inventory_01");
     if let Some(grid) = s.scene.part_instance("L_inventory_parts_00") {
         for k in 0..BAG_CELLS {
-            // The port's page is 8 x 4: the game's cells are re-spaced (and shrunk) to that shape.
-            let (col, row) = ((k % GRID_COLUMNS) as f32, (k / GRID_COLUMNS) as f32);
-            let cell = (k < SLOTS_PER_BOX)
-                .then(|| progress.box_list.get(base + k))
-                .flatten()
-                .map(|m| {
+            let node = s.scene.find_in(grid, &format!("L_btn_main_{k:02}"));
+            if k < SLOTS_PER_BOX {
+                let (col, row) = ((k % GRID_COLUMNS) as f32, (k / GRID_COLUMNS) as f32);
+                let index = base + k;
+                let cell = progress.box_list.get(index).map(|m| {
                     (
                         icons.pokemon(m.species, m.form as u16),
                         format!("Lv{}", m.level),
                     )
                 });
-            let selected = st.focus == BoxFocus::Box && k == st.selected_slot;
-            fill_cell(
-                &mut s,
-                grid,
-                k,
-                [-430.0 + col * 110.0, 304.0 - row * 142.0],
-                0.8,
-                k < SLOTS_PER_BOX,
-                cell,
-                selected,
-            );
+                let pos = box_anchor.zip(node).and_then(|(a, n)| {
+                    translate_onto(&s, n, a + Vec2::new(col, row) * BOX_PITCH)
+                });
+                let selected = st.focus == BoxFocus::Box && k == st.selected_slot;
+                let held = st.held == Some(BoxSelection::Box(index));
+                fill_cell(&mut s, grid, k, pos, 0.92, pos.is_some(), cell, selected, None);
+                dim_held(&mut s, grid, k, held);
+            } else if (PARTY_CELL0..PARTY_CELL0 + 6).contains(&k) {
+                let i = k - PARTY_CELL0;
+                let cell = progress
+                    .party
+                    .get(i)
+                    .map(|m| (icons.pokemon(m.species, m.form as u16), String::new()));
+                let shown = cell.is_some();
+                let pos = party_anchor.zip(node).and_then(|(a, n)| {
+                    translate_onto(&s, n, a + Vec2::new(0.0, i as f32 * BOX_PITCH))
+                });
+                let selected = st.focus == BoxFocus::Party && i == st.selected_party;
+                let held = st.held == Some(BoxSelection::Party(i));
+                fill_cell(&mut s, grid, k, pos, 0.92, shown && pos.is_some(), cell, selected, None);
+                dim_held(&mut s, grid, k, held);
+            } else {
+                fill_cell(&mut s, grid, k, None, 1.0, false, None, false, None);
+            }
         }
     }
     for n in 0..s.scene.nodes.len() {
@@ -659,39 +756,56 @@ pub fn bind_box_screen(
             s.freeze_end(inst, tag, "sel");
         }
     }
-    let pages = progress.box_list.len().div_ceil(SLOTS_PER_BOX).max(1);
-    let mut lines = vec![free_text(
-        640.0,
-        30.0,
-        900.0,
-        44.0,
-        30.0,
-        [0.95, 0.93, 0.85, 1.0],
-        TextAlign::Left,
-        format!(
-            "Box {} / {}   ({} Pokémon stored)",
-            st.page + 1,
-            pages.max(st.page + 1),
-            progress.box_list.len()
-        ),
-    )];
     let msg = if st.message.is_empty() {
-        "Arrows: move   Tab: party / box   Enter: pick / place   PgUp / PgDn: page   Esc: close"
-            .to_string()
+        match st.held {
+            Some(_) => "Choose where to put it and press Enter.".to_string(),
+            None => format!(
+                "Box {} / {}   ({} stored)",
+                st.page + 1,
+                crate::game::box_screen::page_count(),
+                progress.box_list.len()
+            ),
+        }
     } else {
         st.message.clone()
     };
-    lines.push(free_text(
-        60.0,
-        1020.0,
-        1800.0,
-        44.0,
-        26.0,
-        [0.92, 0.9, 0.82, 1.0],
-        TextAlign::Left,
-        msg,
-    ));
+    s.set_text("T_msg_guide_00", msg);
+    s.set("N_msg_guide_00", |o| {
+        o.visible = Some(true);
+        o.alpha = Some(255.0);
+    });
+    let lines = vec![
+        // The box name sits in the game's name strip between L and R.
+        free_text(
+            660.0,
+            70.0,
+            200.0,
+            44.0,
+            32.0,
+            [0.95, 0.93, 0.85, 1.0],
+            TextAlign::Center,
+            format!("Box {}", st.page + 1),
+        ),
+        free_text(
+            60.0,
+            1020.0,
+            1800.0,
+            44.0,
+            26.0,
+            [0.92, 0.9, 0.82, 1.0],
+            TextAlign::Left,
+            "Arrows: move   Tab: party / box   Enter: pick / place   D: store   W: withdraw   X X: release   PgUp / PgDn: box   Esc: close",
+        ),
+    ];
     s.set_free_texts(lines);
+}
+
+/// A held button (picked with Enter, waiting for its destination) is drawn half transparent.
+fn dim_held(s: &mut OrigScreen, grid: usize, k: usize, held: bool) {
+    let Some(node) = s.scene.find_in(grid, &format!("L_btn_main_{k:02}")) else {
+        return;
+    };
+    s.set_node(node, |o| o.alpha = held.then_some(110.0));
 }
 
 // ------------------------------------------------------------------------------------ pokédex
@@ -831,9 +945,93 @@ pub fn bind_dex_screen(
             "T_h_form_num_00",
             "T_param_form_num_00",
             "T_h_like_00",
-            "T_h_item_00",
+            "T_param_like_00",
         ] {
             set0(&mut s, pane, None);
+        }
+        // The port's own data once seen: type badges and base stats (in the game's item list).
+        let species = (state != DexVisibility::Hidden)
+            .then(|| assets.and_then(|a| a.data.species_row_by_dex_form(e.id, 0).ok().flatten()))
+            .flatten();
+        let mut types: Vec<String> = Vec::new();
+        if let Some(sp) = &species {
+            for t in &sp.types {
+                let t = title_case(t);
+                if !t.is_empty() && !types.contains(&t) {
+                    types.push(t);
+                }
+            }
+        }
+        for (k, pane) in ["P_icon_type_00", "P_icon_type_01"].iter().enumerate() {
+            let img = types.get(k).and_then(|t| icons.type_text(t));
+            if let Some(n) = s.node_in_instance(0, pane) {
+                s.set_node(n, |o| {
+                    o.visible = Some(img.is_some());
+                    o.image = img;
+                });
+            }
+        }
+        let stats: Vec<String> = match &species {
+            Some(sp) => vec![
+                format!("HP {}   Atk {}", sp.hp, sp.attack),
+                format!("Def {}   Sp.A {}", sp.defense, sp.special_attack),
+                format!("Sp.D {}   Spe {}", sp.special_defense, sp.speed),
+                format!(
+                    "Total {}",
+                    u32::from(sp.hp)
+                        + u32::from(sp.attack)
+                        + u32::from(sp.defense)
+                        + u32::from(sp.special_attack)
+                        + u32::from(sp.special_defense)
+                        + u32::from(sp.speed)
+                ),
+            ],
+            None => Vec::new(),
+        };
+        set0(
+            &mut s,
+            "T_h_item_00",
+            (!stats.is_empty()).then(|| "Base stats".to_string()),
+        );
+        for k in 0..5 {
+            set0(&mut s, &format!("T_param_item_0{k}"), stats.get(k).cloned());
+        }
+        for pane in [
+            "P_icon_gender_m",
+            "P_icon_gender_f",
+            "P_icon_rare_01",
+            "P_icon_bspoke_01",
+            "P_btn_icon_rare_00",
+            "P_btn_icon_rare_01",
+        ] {
+            if let Some(n) = s.node_in_instance(0, pane) {
+                s.set_node(n, |o| o.visible = Some(false));
+            }
+        }
+    }
+    // Counters at the top: seen, caught and completed entries (the port has no research
+    // levels, so "completed" is 0) drawn with the game's own digit textures.
+    let counts = [progress.seen.len(), progress.caught.len(), 0];
+    for (part, value) in ["L_p_ur_00", "L_p_ur_01", "L_p_cmp_00"].iter().zip(counts) {
+        let Some(inst) = s.scene.part_instance(part) else {
+            continue;
+        };
+        let value = value.min(999);
+        for (digit_part, d) in [
+            ("L_num_b_35pt_100", value / 100),
+            ("L_num_b_35pt_010", value / 10 % 10),
+            ("L_num_b_35pt_000", value % 10),
+        ] {
+            let Some(dn) = s.node_in_instance(inst, digit_part) else {
+                continue;
+            };
+            let Some(di) = s.scene.instance_of_node(dn) else {
+                continue;
+            };
+            let img = archive_image(&s, &format!("num_35pt_b_{d}^t"));
+            if let Some(n) = s.node_in_instance(di, "P_num_b_35pt_00") {
+                s.set_node(n, |o| o.image = img);
+            }
         }
     }
     s.set_free_texts(vec![free_text(
@@ -850,16 +1048,32 @@ pub fn bind_dex_screen(
 
 // --------------------------------------------------------------------------------------- map
 
-/// Full-screen map (`M`): the game's Hisui map (`map_top_00`) is drawn as the background and the
-/// port's own area map (with the player marker) stays in front, without its dark backdrop. The
-/// game's area highlights need a second (mask) texture the renderer does not combine yet, its
-/// location tags and quest icons are run-time content: all hidden. The fog clouds stay.
+/// Highlight slot (`L_area_vfx_kk` / `L_icon_kk` of `map_top_00`) of a main area. The slots sit
+/// over the Hisui map in the areas' places: Obsidian Fieldlands (area 1) south, Crimson
+/// Mirelands (2) south-east, Cobalt Coastlands (3) east, Coronet Highlands (4) centre, Alabaster
+/// Icelands (5) north, Jubilife Village (0) west — read from the slot positions on the map
+/// picture: PROBABLE. Slot 6 (between the centre and the east coast) is not mapped.
+/// Authored x (layout pixels from the centre) of each highlight slot.
+pub const MAP_SLOT_X: [f32; 7] = [-220.0, 402.0, 685.0, 23.0, -150.0, -369.0, 258.0];
+
+pub fn map_area_slot(area: u8) -> Option<usize> {
+    match area {
+        1..=5 => Some(usize::from(area) - 1),
+        0 => Some(5),
+        _ => None,
+    }
+}
+
+/// Full-screen map (`M`): the game's Hisui map (`map_top_00`) is drawn as the background with
+/// the current area's own highlight (the game's shape tinted by its multiply blend and the teal
+/// additive outline) and its place tag; the port's own area map with the player marker stays in
+/// front, without its dark backdrop. Quest icons and the other areas' highlights are hidden.
 pub fn bind_map_screen(
     config: Res<OrigUiConfig>,
     state: Res<State<GameState>>,
     minimap: Option<Res<MinimapState>>,
     mut screens: Query<&mut OrigScreen>,
-    mut overlay: Query<&mut BackgroundColor, With<FullMapRoot>>,
+    mut overlay: Query<(&mut BackgroundColor, &mut Node), With<FullMapRoot>>,
 ) {
     if !config.enabled() {
         return;
@@ -867,9 +1081,20 @@ pub fn bind_map_screen(
     let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::Map) else {
         return;
     };
-    let open = minimap.is_some_and(|m| m.open) && *state.get() == GameState::World;
+    let open = minimap.as_ref().is_some_and(|m| m.open) && *state.get() == GameState::World;
     s.shown = open;
-    for mut bg in &mut overlay {
+    let current = minimap
+        .as_ref()
+        .and_then(|m| m.area)
+        .and_then(map_area_slot);
+    // The port's area map moves to the side away from the current area's highlight, so the
+    // highlight on the Hisui map stays visible (centred again when the map closes).
+    let side = match current.map(|k| MAP_SLOT_X[k]) {
+        Some(x) if open && x > 0.0 => AlignItems::FlexStart,
+        Some(_) if open => AlignItems::FlexEnd,
+        _ => AlignItems::Center,
+    };
+    for (mut bg, mut node) in &mut overlay {
         let want = if open {
             Color::NONE
         } else {
@@ -878,17 +1103,167 @@ pub fn bind_map_screen(
         if bg.0 != want {
             bg.0 = want;
         }
+        let pad = if side == AlignItems::Center {
+            UiRect::default()
+        } else {
+            UiRect::horizontal(Val::Vw(4.0))
+        };
+        if node.align_items != side || node.padding != pad {
+            node.align_items = side;
+            node.padding = pad;
+        }
     }
     if !open {
         return;
     }
-    for name in [
-        "N_area_vfx_00",
-        "N_icon_00",
-        "N_icon_qicon_vfx_00",
-        "N_deco_name_00",
-        "P_fade_00",
-    ] {
+    for name in ["N_icon_qicon_vfx_00", "N_deco_name_00", "P_fade_00"] {
         s.set_visible(name, false);
+    }
+    s.set_visible("N_area_vfx_00", current.is_some());
+    s.set_visible("N_icon_00", current.is_some());
+    // Every area keeps the game's sepia multiply tint ("unselect"); the current one is lighter
+    // and its teal outline pulses ("select" then the looping "select_state"), as when the
+    // game's cursor rests on an area.
+    for k in 0..7 {
+        let here = Some(k) == current;
+        s.set_visible(&format!("L_area_vfx_0{k}"), true);
+        s.set_visible(&format!("L_icon_0{k}"), here);
+        let Some(inst) = s.scene.part_instance(&format!("L_area_vfx_0{k}")) else {
+            continue;
+        };
+        if here {
+            s.freeze_end(inst, "select", "sel");
+            if !s.anim.has_label(inst, "pulse") {
+                s.play(inst, "select_state", super::anim::PlayMode::Loop, "pulse");
+            }
+        } else {
+            s.freeze_end(inst, "unselect", "sel");
+            s.stop(inst, "pulse");
+        }
+    }
+}
+
+/// The game's player arrow on the port's area map (the port's own marker never moves off the
+/// map centre) and one marker per fast-travel point of the area (`data/warp_links.tsv`,
+/// `ha_areaNN_FTxx` rows).
+/// `Some(k)`: fast-travel point k; `None`: the player arrow.
+#[derive(Component, Debug)]
+pub struct OrigMapMarker(pub Option<usize>);
+
+const MAP_ARROW: &str = "png/gfpak_map/arc/map_app_icon_00/map_icon_location_arrow_00^q.png";
+const MAP_POINT: &str = "png/gfpak_map/arc/map_app_icon_00/map_icon_spmap_00^q.png";
+
+/// Percent position of world `(x, z)` on the port's full area map.
+pub fn map_percent(x: f32, z: f32, extent: Vec2) -> Vec2 {
+    let uv = crate::game::minimap::world_to_uv(x, z, extent);
+    (uv * 100.0).clamp(Vec2::ZERO, Vec2::splat(100.0))
+}
+
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+pub fn sync_map_markers(
+    mut commands: Commands,
+    config: Res<OrigUiConfig>,
+    minimap: Option<Res<MinimapState>>,
+    links: Option<Res<crate::game::zone::ZoneLinks>>,
+    player: Query<&Transform, With<crate::game::PlayerAvatar>>,
+    panel: Query<&ChildOf, With<crate::game::minimap::FullMapImage>>,
+    mut port_marker: Query<
+        &mut Visibility,
+        (With<crate::game::minimap::FullMapMarker>, Without<OrigMapMarker>),
+    >,
+    mut markers: Query<(Entity, &OrigMapMarker, &mut Node, &mut UiTransform, &mut Visibility)>,
+    mut images: ResMut<Assets<Image>>,
+    mut cache: ResMut<super::material::UiTextureCache>,
+    mut spawned: Local<Option<(u8, usize)>>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    let Some(minimap) = minimap.filter(|m| m.open && m.extent.x > 0.0) else {
+        return;
+    };
+    let Some(area) = minimap.area else {
+        return;
+    };
+    for mut v in &mut port_marker {
+        v.set_if_neq(Visibility::Hidden);
+    }
+    let points: Vec<Vec2> = links
+        .as_ref()
+        .map(|l| {
+            let name = format!("ha_area{area:02}");
+            l.all()
+                .iter()
+                .filter(|z| z.kind == crate::game::zone::LinkKind::FastTravel && z.from_area == name)
+                .map(|z| Vec2::new(z.pos.x, z.pos.z))
+                .collect()
+        })
+        .unwrap_or_default();
+    // (Re)spawn when the area or the number of points changed: one arrow + one per point.
+    if *spawned != Some((area, points.len())) {
+        let Ok(parent) = panel.single().map(|c| c.parent()) else {
+            return;
+        };
+        for (e, ..) in &markers {
+            commands.entity(e).despawn();
+        }
+        let arrow = cache.get(&mut images, MAP_ARROW);
+        let point = cache.get(&mut images, MAP_POINT);
+        let mut spawn = |which: Option<usize>, img: Option<Handle<Image>>, size: f32, color: Color| {
+            let mut e = commands.spawn((
+                OrigMapMarker(which),
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Vh(size),
+                    height: Val::Vh(size),
+                    margin: UiRect {
+                        left: Val::Vh(-size / 2.0),
+                        top: Val::Vh(-size / 2.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+                UiTransform::default(),
+                Visibility::Inherited,
+            ));
+            match img {
+                Some(h) => {
+                    e.insert(ImageNode::new(h).with_color(color));
+                }
+                None => {
+                    e.insert(BackgroundColor(color));
+                }
+            }
+            let id = e.id();
+            commands.entity(parent).add_child(id);
+        };
+        for k in 0..points.len() {
+            spawn(Some(k), point.clone(), 2.6, Color::srgb(1.0, 0.85, 0.45));
+        }
+        spawn(None, arrow, 4.4, Color::WHITE);
+        *spawned = Some((area, points.len()));
+        return;
+    }
+    let Ok(t) = player.single() else {
+        return;
+    };
+    let yaw = t.rotation.to_euler(EulerRot::YXZ).0;
+    let facing = crate::game::minimap::facing_from_yaw(yaw);
+    let rot = crate::game::minimap::marker_rotation_deg(facing.x, facing.y);
+    for (_, which, mut node, mut ui, mut vis) in &mut markers {
+        let (pos, angle) = match which.0 {
+            None => (map_percent(t.translation.x, t.translation.z, minimap.extent), rot),
+            Some(i) => match points.get(i) {
+                Some(p) => (map_percent(p.x, p.y, minimap.extent), 0.0),
+                None => continue,
+            },
+        };
+        let (left, top) = (Val::Percent(pos.x), Val::Percent(pos.y));
+        if node.left != left || node.top != top {
+            node.left = left;
+            node.top = top;
+        }
+        ui.set_if_neq(UiTransform::from_rotation(Rot2::degrees(angle)));
+        vis.set_if_neq(Visibility::Inherited);
     }
 }

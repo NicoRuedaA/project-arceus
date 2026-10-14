@@ -537,6 +537,7 @@ pub fn free_image(png: &str, uv: [f32; 4], center: Vec2, size: Vec2, tint: [f32;
         wrap: [0, 0],
         alpha: 1.0,
         additive: false,
+        multiply: false,
     }
 }
 
@@ -590,6 +591,7 @@ pub struct OrigQuad {
     params: OrigUiParams,
     texture: Option<String>,
     additive: bool,
+    multiply: bool,
 }
 
 /// Marker of a text box node (child of a screen root).
@@ -840,15 +842,18 @@ pub fn render_screens(
                         if oq.params != params
                             || oq.texture != q.texture
                             || oq.additive != q.additive
+                            || oq.multiply != q.multiply
                         {
                             if let Some(mut m) = materials.get_mut(&mat.0) {
                                 m.params = params;
                                 m.texture = tex_handle;
                                 m.additive = q.additive;
+                                m.multiply = q.multiply;
                             }
                             oq.params = params;
                             oq.texture = q.texture.clone();
                             oq.additive = q.additive;
+                            oq.multiply = q.multiply;
                         }
                     }
                 }
@@ -857,6 +862,7 @@ pub fn render_screens(
                         params,
                         texture: tex_handle,
                         additive: q.additive,
+                        multiply: q.multiply,
                     });
                     let e = commands
                         .spawn((
@@ -865,6 +871,7 @@ pub fn render_screens(
                                 params,
                                 texture: q.texture.clone(),
                                 additive: q.additive,
+                                multiply: q.multiply,
                             },
                             node,
                             xf,
