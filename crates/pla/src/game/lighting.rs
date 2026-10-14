@@ -26,6 +26,9 @@ use bevy::light::{
     NotShadowReceiver,
 };
 use bevy::pbr::ScreenSpaceAmbientOcclusion;
+use bevy::anti_alias::{fxaa::Fxaa, smaa::Smaa, taa::TemporalAntiAliasing};
+use bevy::core_pipeline::prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass};
+use bevy::render::camera::{MipBias, TemporalJitter};
 use bevy::post_process::bloom::Bloom;
 use bevy::render::view::{ColorGrading, ColorGradingGlobal, ColorGradingSection, Msaa};
 use bevy::mesh::{Indices, PrimitiveTopology};
@@ -34,7 +37,8 @@ use bevy::prelude::*;
 
 use super::clock::{blend_env, time_slot_arg, GameClock};
 use super::render_look::{
-    apply_weather, cloud_dome_mesh, cloud_image, cloud_scroll, look_params, FogSpec, LookParams, LookSettings,
+    apply_weather, cloud_dome_mesh, cloud_image, cloud_scroll, look_params, AntiAliasing, FogSpec, LookParams,
+    LookSettings,
 };
 use super::weather::WeatherVisual;
 
@@ -192,7 +196,33 @@ pub fn graded_channel(c: f32, contrast: f32) -> f32 {
 /// Bloom component for a look: `None` when bloom is off. `Bloom` requires `Hdr` on the camera and
 /// the component requirement inserts it; intensity comes from the decoded sheet value.
 pub fn bloom_camera_component(params: &LookParams) -> Option<Bloom> {
-    params.bloom.then(|| Bloom { intensity: params.bloom_intensity, ..default() })
+    (params.bloom && params.bloom_intensity > 0.0).then(|| Bloom { intensity: params.bloom_intensity, ..default() })
+}
+
+/// Anti-aliasing components the 3D camera gets for `aa` with SSAO on or off: the MSAA sample count
+/// (Bevy's SSAO needs `Msaa::Off`, see [`ssao_camera_components`]) plus the post-process filter.
+/// `AntiAliasing::Auto` keeps the behaviour from before the graphics options (MSAA 4x without SSAO,
+/// none with SSAO).
+pub fn insert_camera_aa(c: &mut EntityCommands, aa: AntiAliasing, ssao: bool) {
+    c.insert(Msaa::from_samples(aa.msaa_samples(ssao)));
+    match aa {
+        AntiAliasing::Fxaa => {
+            c.insert(Fxaa::default());
+        }
+        AntiAliasing::Smaa => {
+            c.insert(Smaa::default());
+        }
+        AntiAliasing::Taa => {
+            c.insert(TemporalAntiAliasing::default());
+        }
+        _ => {}
+    }
+}
+
+/// Take every anti-aliasing filter (and what TAA required: jitter, mip bias, motion vectors) off a
+/// camera before [`insert_camera_aa`] puts the current one back.
+pub fn remove_camera_aa(e: &mut EntityWorldMut) {
+    e.remove::<(Fxaa, Smaa, TemporalAntiAliasing, TemporalJitter, MipBias, MotionVectorPrepass)>();
 }
 
 /// Plugin: applies the decoded environment of `area` (index) at `slot`; no-op without the sheet.
@@ -294,8 +324,9 @@ impl Plugin for ZoneLightingPlugin {
             ..default()
         });
         if params.shadows {
-            // ASSUMED: 2048 per cascade x 4 cascades is the cost/quality compromise.
-            app.insert_resource(DirectionalLightShadowMap { size: 2048 });
+            // ASSUMED: 2048 per cascade x 4 cascades (shadow quality "medium", the default) is the
+            // cost/quality compromise; the graphics screen picks another budget.
+            app.insert_resource(DirectionalLightShadowMap { size: settings.shadow_quality.budget().map_size });
         }
         app.insert_resource(LoadedZoneEnv {
             slots,
@@ -357,6 +388,9 @@ fn apply_environment(
         materials.remove(&old.0);
         commands.remove_resource::<CloudMaterial>();
     }
+    if p.shadows {
+        commands.insert_resource(DirectionalLightShadowMap { size: settings.0.shadow_quality.budget().map_size });
+    }
     let d = Vec3::from(env.sun_dir);
     let mut sun = commands.spawn((
         DirectionalLight {
@@ -397,6 +431,7 @@ fn apply_environment(
         if let Some((ssao, msaa)) = ssao_camera_components(p) {
             c.insert((ssao, msaa));
         }
+        insert_camera_aa(&mut c, settings.0.aa, p.ssao);
         if let Some(bloom) = bloom_camera_component(p) {
             c.insert(bloom);
         }
@@ -496,8 +531,9 @@ pub fn reapply_look(world: &mut World) -> bool {
     let cams: Vec<Entity> = world.query_filtered::<Entity, With<Camera3d>>().iter(world).collect();
     for cam in cams {
         let mut e = world.entity_mut(cam);
+        remove_camera_aa(&mut e);
         if !settings.ssao {
-            e.remove::<ScreenSpaceAmbientOcclusion>();
+            e.remove::<(ScreenSpaceAmbientOcclusion, DepthPrepass, NormalPrepass)>();
             e.insert(Msaa::default());
         }
         if !settings.bloom {
@@ -629,6 +665,39 @@ fn sky_dome_mesh(env: &ZoneEnv) -> Mesh {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn camera_aa_components_follow_the_choice_and_are_removed_cleanly() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let cam = world.spawn_empty().id();
+        let put = move |aa: AntiAliasing, ssao: bool| {
+            move |mut commands: Commands| {
+                let mut c = commands.entity(cam);
+                insert_camera_aa(&mut c, aa, ssao);
+            }
+        };
+        world.run_system_once(put(AntiAliasing::Taa, true)).unwrap();
+        assert!(world.get::<TemporalAntiAliasing>(cam).is_some());
+        assert!(world.get::<TemporalJitter>(cam).is_some(), "TAA brings its jitter");
+        assert_eq!(*world.get::<Msaa>(cam).unwrap(), Msaa::Off);
+        remove_camera_aa(&mut world.entity_mut(cam));
+        assert!(world.get::<TemporalAntiAliasing>(cam).is_none());
+        assert!(world.get::<TemporalJitter>(cam).is_none() && world.get::<MipBias>(cam).is_none());
+        world.run_system_once(put(AntiAliasing::Smaa, false)).unwrap();
+        assert!(world.get::<Smaa>(cam).is_some());
+        assert_eq!(*world.get::<Msaa>(cam).unwrap(), Msaa::Off);
+        remove_camera_aa(&mut world.entity_mut(cam));
+        world.run_system_once(put(AntiAliasing::Fxaa, false)).unwrap();
+        assert!(world.get::<Fxaa>(cam).is_some() && world.get::<Smaa>(cam).is_none());
+        remove_camera_aa(&mut world.entity_mut(cam));
+        world.run_system_once(put(AntiAliasing::Msaa2, false)).unwrap();
+        assert_eq!(*world.get::<Msaa>(cam).unwrap(), Msaa::Sample2);
+        world.run_system_once(put(AntiAliasing::Auto, false)).unwrap();
+        assert_eq!(*world.get::<Msaa>(cam).unwrap(), Msaa::Sample4, "auto without SSAO = Bevy's default MSAA");
+        world.run_system_once(put(AntiAliasing::Msaa4, true)).unwrap();
+        assert_eq!(*world.get::<Msaa>(cam).unwrap(), Msaa::Off, "SSAO needs MSAA off");
+    }
 
     fn sheet() -> String {
         let h = "area\tlayer\tgroup\tparam\ts0x\ts0y\ts0z\ts0w\ts1x\ts1y\ts1z\ts1w\ts2x\ts2y\ts2z\ts2w\ts3x\ts3y\ts3z\ts3w\tpack_entry\n";

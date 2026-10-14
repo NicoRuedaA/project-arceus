@@ -44,6 +44,14 @@ pub struct LookSettings {
     pub ssao_quality: ScreenSpaceAmbientOcclusionQualityLevel,
     /// Bloom (`bevy_post_process` crate, `Bloom` on the 3D camera).
     pub bloom: bool,
+    /// Shadow map size, cascade count and reach (graphics screen "Shadow quality").
+    pub shadow_quality: ShadowQuality,
+    /// Bloom strength in percent of the decoded sheet value (100 = the sheet value).
+    pub bloom_pct: u16,
+    /// Fog / view distance in percent of the decoded fog distance (100 = the sheet value).
+    pub fog_pct: u16,
+    /// Edge anti-aliasing of the 3D camera.
+    pub aa: AntiAliasing,
 }
 
 impl Default for LookSettings {
@@ -54,7 +62,103 @@ impl Default for LookSettings {
             ssao: true,
             ssao_quality: ScreenSpaceAmbientOcclusionQualityLevel::Medium,
             bloom: true,
+            shadow_quality: ShadowQuality::Medium,
+            bloom_pct: 100,
+            fog_pct: 100,
+            aa: AntiAliasing::Auto,
         }
+    }
+}
+
+/// Directional shadow quality. `Medium` is the look used before the graphics options existed
+/// (2048 px per cascade, 4 cascades, 250 m, first cascade 12 m). All values are ASSUMED budgets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ShadowQuality {
+    Low,
+    #[default]
+    Medium,
+    High,
+    Ultra,
+}
+
+/// Map size (px per cascade), cascade count, maximum distance (m) and first cascade bound (m).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShadowBudget {
+    pub map_size: usize,
+    pub cascades: usize,
+    pub max_distance: f32,
+    pub first_cascade: f32,
+}
+
+impl ShadowQuality {
+    pub const ALL: [ShadowQuality; 4] = [Self::Low, Self::Medium, Self::High, Self::Ultra];
+
+    pub fn budget(self) -> ShadowBudget {
+        match self {
+            Self::Low => ShadowBudget { map_size: 1024, cascades: 2, max_distance: 100.0, first_cascade: 10.0 },
+            Self::Medium => ShadowBudget { map_size: 2048, cascades: 4, max_distance: 250.0, first_cascade: 12.0 },
+            Self::High => ShadowBudget { map_size: 4096, cascades: 4, max_distance: 350.0, first_cascade: 16.0 },
+            Self::Ultra => ShadowBudget { map_size: 4096, cascades: 4, max_distance: 400.0, first_cascade: 20.0 },
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "low" => Some(Self::Low),
+            "medium" | "med" => Some(Self::Medium),
+            "high" => Some(Self::High),
+            "ultra" => Some(Self::Ultra),
+            _ => None,
+        }
+    }
+}
+
+/// Edge anti-aliasing of the 3D camera (`bevy_anti_alias` crate for FXAA / SMAA / TAA).
+///
+/// `Auto` is the behaviour from before the graphics options: MSAA 4x when SSAO is off, nothing
+/// when SSAO is on. Bevy's SSAO only runs with `Msaa::Off`, so the MSAA choices fall back to no
+/// anti-aliasing while SSAO is on (the screen says so); FXAA, SMAA and TAA work with SSAO.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AntiAliasing {
+    #[default]
+    Auto,
+    Off,
+    Fxaa,
+    Smaa,
+    Taa,
+    Msaa2,
+    Msaa4,
+}
+
+impl AntiAliasing {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "auto" => Some(Self::Auto),
+            "off" | "none" => Some(Self::Off),
+            "fxaa" => Some(Self::Fxaa),
+            "smaa" => Some(Self::Smaa),
+            "taa" => Some(Self::Taa),
+            "msaa2" | "msaa2x" => Some(Self::Msaa2),
+            "msaa4" | "msaa4x" | "msaa" => Some(Self::Msaa4),
+            _ => None,
+        }
+    }
+
+    /// MSAA sample count actually used with this choice and SSAO on/off (1 = no MSAA).
+    pub fn msaa_samples(self, ssao: bool) -> u32 {
+        if ssao {
+            return 1;
+        }
+        match self {
+            Self::Auto | Self::Msaa4 => 4,
+            Self::Msaa2 => 2,
+            _ => 1,
+        }
+    }
+
+    /// Whether the choice is an MSAA mode that SSAO turns off.
+    pub fn blocked_by_ssao(self, ssao: bool) -> bool {
+        ssao && matches!(self, Self::Msaa2 | Self::Msaa4)
     }
 }
 
@@ -105,6 +209,7 @@ impl LookSettings {
             ssao: post("--ssao", "--no-ssao"),
             ssao_quality,
             bloom: post("--bloom", "--no-bloom"),
+            ..Self::default()
         }
     }
 }
@@ -277,7 +382,10 @@ fn mix3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
 
 /// Derive all render settings for `env` under `settings`.
 pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
-    let far = env.fog_far;
+    // Graphics screen "Fog / view distance": scales the decoded fog distance (100% = the sheet).
+    let far = env.fog_far * f32::from(settings.fog_pct.clamp(25, 400)) / 100.0;
+    let bloom_scale = f32::from(settings.bloom_pct.min(400)) / 100.0;
+    let shadow = settings.shadow_quality.budget();
     match settings.look {
         Look::Classic => LookParams {
             sun_lux: env.sun_intensity * LUX_PER_INTENSITY_CLASSIC,
@@ -296,7 +404,7 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
             ssao: settings.ssao,
             ssao_quality: settings.ssao_quality,
             bloom: settings.bloom,
-            bloom_intensity: bloom_intensity(env),
+            bloom_intensity: bloom_intensity(env) * bloom_scale,
             clouds: false,
             cloud_color: [1.0; 3],
             cloud_opacity: 0.0,
@@ -337,9 +445,9 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
                 fog: FogSpec::ExpSquared { density: exp_squared_density(far) },
                 fog_color: [fc[0], fc[1], fc[2], 1.0],
                 shadows: settings.shadows,
-                cascades: 4,
-                shadow_max_distance: 250.0,
-                shadow_first_cascade: 12.0,
+                cascades: shadow.cascades,
+                shadow_max_distance: shadow.max_distance,
+                shadow_first_cascade: shadow.first_cascade,
                 shadow_depth_bias: 0.05,
                 shadow_normal_bias: 1.4,
                 post_saturation: 1.15,
@@ -347,7 +455,7 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
                 ssao: settings.ssao,
                 ssao_quality: settings.ssao_quality,
                 bloom: settings.bloom,
-                bloom_intensity: bloom_intensity(env),
+                bloom_intensity: bloom_intensity(env) * bloom_scale,
                 clouds: true,
                 cloud_color: [cc[0] * lum, cc[1] * lum, cc[2] * lum],
                 cloud_opacity: if day > 0.5 { 0.95 } else { 0.4 },
@@ -521,6 +629,39 @@ pub fn cloud_scroll(t: f32) -> Vec2 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn quality_fields_scale_shadows_fog_and_bloom() {
+        let e = env(2.8);
+        let base = look_params(&e, LookSettings::default());
+        assert_eq!((base.cascades, base.shadow_max_distance, base.shadow_first_cascade), (4, 250.0, 12.0));
+        assert_eq!(ShadowQuality::default().budget().map_size, 2048, "medium is the look before the options");
+        let hi = look_params(&e, LookSettings { shadow_quality: ShadowQuality::Ultra, ..Default::default() });
+        assert_eq!((hi.shadow_max_distance, hi.shadow_first_cascade), (400.0, 20.0));
+        let lo = look_params(&e, LookSettings { shadow_quality: ShadowQuality::Low, ..Default::default() });
+        assert_eq!((lo.cascades, lo.shadow_max_distance), (2, 100.0));
+        let FogSpec::ExpSquared { density: d1 } = base.fog else { panic!() };
+        let far = look_params(&e, LookSettings { fog_pct: 200, ..Default::default() });
+        let FogSpec::ExpSquared { density: d2 } = far.fog else { panic!() };
+        assert!((d1 / d2 - 2.0).abs() < 1e-4, "200% fog distance halves the density");
+        let b = look_params(&e, LookSettings { bloom_pct: 50, ..Default::default() });
+        assert!((b.bloom_intensity - base.bloom_intensity * 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn anti_aliasing_modes_and_ssao() {
+        assert_eq!(AntiAliasing::default(), AntiAliasing::Auto);
+        assert_eq!(AntiAliasing::Auto.msaa_samples(false), 4, "auto = MSAA 4x without SSAO, as before");
+        assert_eq!(AntiAliasing::Auto.msaa_samples(true), 1);
+        assert_eq!(AntiAliasing::Msaa2.msaa_samples(false), 2);
+        assert_eq!(AntiAliasing::Msaa4.msaa_samples(true), 1);
+        assert!(AntiAliasing::Msaa2.blocked_by_ssao(true));
+        assert!(!AntiAliasing::Smaa.blocked_by_ssao(true));
+        assert_eq!(AntiAliasing::Smaa.msaa_samples(false), 1);
+        assert_eq!(AntiAliasing::parse("MSAA4x"), Some(AntiAliasing::Msaa4));
+        assert_eq!(ShadowQuality::parse("ULTRA"), Some(ShadowQuality::Ultra));
+        assert_eq!(AntiAliasing::parse("nope"), None);
+    }
 
     fn env(sun: f32) -> ZoneEnv {
         ZoneEnv {
