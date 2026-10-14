@@ -179,8 +179,34 @@ impl Plugin for TrainerEncounterPlugin {
                     record_trainer_result,
                 ),
             )
+            .add_systems(PostStartup, announce_forced_trainer)
             .add_systems(OnEnter(GameState::Battle), hide_markers_in_battle)
             .add_systems(OnExit(GameState::Battle), show_markers_after_battle);
+    }
+}
+
+/// Text shown at start-up for `--trainer <id>` (so the V key is discoverable), or why the id
+/// will not work.
+pub fn forced_trainer_notice(world: &TrainerWorld) -> Option<String> {
+    let id = world.forced.as_deref()?;
+    let known = match id.strip_prefix("noble:") {
+        Some(n) => world.nobles.get(n).is_some(),
+        None => world.catalog.get(id).is_some(),
+    };
+    Some(if known {
+        format!("Press V anywhere to fight {id} (--trainer).")
+    } else {
+        format!("--trainer {id}: unknown trainer id; V will not start a battle.")
+    })
+}
+
+/// Start-up toast (and log line) for `--trainer`, appended to any start-up message.
+fn announce_forced_trainer(world: Res<TrainerWorld>, mut toast: Option<ResMut<SaveToast>>) {
+    let Some(msg) = forced_trainer_notice(&world) else { return };
+    println!("[trainers] {msg}");
+    if let Some(t) = toast.as_deref_mut() {
+        let text = if t.text.is_empty() { msg } else { format!("{}  |  {msg}", t.text) };
+        t.show(text);
     }
 }
 
@@ -351,6 +377,19 @@ mod tests {
 
     fn data_root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data")
+    }
+
+    #[test]
+    fn forced_trainer_notice_tells_the_key_or_the_bad_id() {
+        let plugin = TrainerEncounterPlugin { markers: true, forced: None, data_dir: Some(data_root()) };
+        let Some(mut w) = plugin.load_world() else { return };
+        assert_eq!(forced_trainer_notice(&w), None);
+        w.forced = Some("giratina01".into());
+        assert_eq!(forced_trainer_notice(&w).unwrap(), "Press V anywhere to fight giratina01 (--trainer).");
+        w.forced = Some("noble:nsi_ex_01".into());
+        assert!(forced_trainer_notice(&w).unwrap().starts_with("Press V"));
+        w.forced = Some("giratina99".into());
+        assert!(forced_trainer_notice(&w).unwrap().contains("unknown trainer id"));
     }
 
     #[test]
