@@ -590,8 +590,6 @@ pub struct OrigQuad {
     pub key: u32,
     params: OrigUiParams,
     texture: Option<String>,
-    additive: bool,
-    multiply: bool,
 }
 
 /// Marker of a text box node (child of a screen root).
@@ -656,7 +654,8 @@ impl Plugin for OrigUiPlugin {
                     .before(bevy::ui::UiSystems::Prepare)
                     .before(bevy::camera::visibility::VisibilitySystems::VisibilityPropagate),
             )
-            .add_systems(Startup, spawn_screens)
+            .init_resource::<OrigUiFont>()
+            .add_systems(Startup, (load_ui_font, spawn_screens).chain())
             .add_systems(
                 PostUpdate,
                 (render_screens, hide_provisional, minimap_off_under_screens)
@@ -764,8 +763,10 @@ pub fn render_screens(
     mut materials: ResMut<Assets<OrigUiMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut cache: ResMut<UiTextureCache>,
+    ui_font: Option<Res<OrigUiFont>>,
 ) {
     let dt = time.delta_secs();
+    let font_handle = ui_font.as_ref().and_then(|f| f.handle.clone());
     for (root, mut screen, mut vis) in &mut screens {
         let want = if screen.shown {
             Visibility::Inherited
@@ -794,10 +795,14 @@ pub fn render_screens(
                 let path = &screen.scene.nodes[q.node].path;
                 if path.contains(&pat) {
                     info!(
-                        "orig_ui debug {:?}: {path} at {:?} visible={} key={} entity={:?}",
+                        "orig_ui debug {:?}: {path} at {:?} visible={} alpha={:.2} add={} mul={} tex={:?} key={} entity={:?}",
                         screen.id,
                         q.center,
                         q.visible,
+                        q.alpha,
+                        q.additive,
+                        q.multiply,
+                        q.texture,
                         q.key,
                         screen.quads.get(&q.key)
                     );
@@ -839,21 +844,13 @@ pub fn render_screens(
                         v.set_if_neq(quad_vis);
                         n.set_if_neq(node);
                         t.set_if_neq(xf);
-                        if oq.params != params
-                            || oq.texture != q.texture
-                            || oq.additive != q.additive
-                            || oq.multiply != q.multiply
-                        {
+                        if oq.params != params || oq.texture != q.texture {
                             if let Some(mut m) = materials.get_mut(&mat.0) {
                                 m.params = params;
                                 m.texture = tex_handle;
-                                m.additive = q.additive;
-                                m.multiply = q.multiply;
                             }
                             oq.params = params;
                             oq.texture = q.texture.clone();
-                            oq.additive = q.additive;
-                            oq.multiply = q.multiply;
                         }
                     }
                 }
@@ -861,8 +858,6 @@ pub fn render_screens(
                     let mat = materials.add(OrigUiMaterial {
                         params,
                         texture: tex_handle,
-                        additive: q.additive,
-                        multiply: q.multiply,
                     });
                     let e = commands
                         .spawn((
@@ -870,8 +865,6 @@ pub fn render_screens(
                                 key: q.key,
                                 params,
                                 texture: q.texture.clone(),
-                                additive: q.additive,
-                                multiply: q.multiply,
                             },
                             node,
                             xf,
@@ -903,7 +896,13 @@ pub fn render_screens(
         let mut seen = Vec::new();
         let free = screen.free_texts.clone();
         for t in frame.texts.iter().chain(free.iter()) {
-            let shown_text = fold_for_default_font(&t.text);
+            // Accented letters stay when a font that has them was found; the default font lacks
+            // them, so they are folded to plain letters then.
+            let shown_text = if font_handle.is_some() {
+                t.text.clone()
+            } else {
+                fold_for_default_font(&t.text)
+            };
             seen.push(t.node);
             let justify = match t.align {
                 TextAlign::Left => (JustifyContent::FlexStart, Justify::Left),
@@ -946,6 +945,12 @@ pub fn render_screens(
                         if text.0 != shown_text {
                             text.0 = shown_text;
                         }
+                        if let Some(handle) = font_handle.clone() {
+                            let source = bevy::text::FontSource::Handle(handle);
+                            if tf.font != source {
+                                tf.font = source;
+                            }
+                        }
                         if tf.font_size != font {
                             tf.font_size = font;
                         }
@@ -957,14 +962,18 @@ pub fn render_screens(
                     }
                 }
                 None => {
+                    let mut text_font = TextFont {
+                        font_size: font,
+                        ..default()
+                    };
+                    if let Some(handle) = font_handle.clone() {
+                        text_font.font = bevy::text::FontSource::Handle(handle);
+                    }
                     let txt = commands
                         .spawn((
                             OrigText,
                             Text::new(shown_text),
-                            TextFont {
-                                font_size: font,
-                                ..default()
-                            },
+                            text_font,
                             TextColor(color),
                             TextLayout::new(justify.1, wrap),
                         ))
@@ -990,6 +999,77 @@ pub fn render_screens(
             }
         }
         screen.last = Some(frame);
+    }
+}
+
+/// Existing Noto Sans system locations, in order. Noto Sans is distributed under the SIL Open
+/// Font License 1.1; arbitrary paths are deliberately not accepted because the game's font and
+/// game-derived font files must never enter the port.
+pub const UI_FONT_CANDIDATES: [&str; 5] = [
+    "/usr/share/fonts/noto/NotoSans-Medium.ttf",
+    "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Medium.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/google-noto/NotoSans-Regular.ttf",
+];
+
+/// The font the original UI draws its text with (`None`: Bevy's default font, without accents).
+#[derive(Resource, Debug, Default)]
+pub struct OrigUiFont {
+    pub handle: Option<Handle<Font>>,
+    pub path: Option<PathBuf>,
+}
+
+/// First readable, pre-verified free font among [`UI_FONT_CANDIDATES`]. The argument is retained
+/// for source compatibility with the earlier lookup API, but arbitrary environment paths are
+/// ignored so a game-derived font cannot be selected accidentally.
+pub fn find_ui_font(_env: Option<PathBuf>) -> Option<PathBuf> {
+    UI_FONT_CANDIDATES
+        .iter()
+        .map(PathBuf::from)
+        .find(|p| p.is_file())
+}
+
+/// Load the UI font once at start-up (original UI only; missing or unreadable: default font).
+pub fn load_ui_font(
+    config: Res<OrigUiConfig>,
+    fonts: Option<ResMut<Assets<Font>>>,
+    mut ui_font: ResMut<OrigUiFont>,
+) {
+    let Some(mut fonts) = fonts.filter(|_| config.enabled()) else {
+        return;
+    };
+    let Some(path) = find_ui_font(None) else {
+        info!("original UI: no free font with accents found; accented letters are shown plain");
+        return;
+    };
+    match std::fs::read(&path)
+        .map_err(|e| e.to_string())
+        .and_then(|bytes| system_font_from_bytes(bytes).map_err(str::to_owned))
+    {
+        Ok(font) => {
+            info!("original UI: text font {}", path.display());
+            ui_font.handle = Some(fonts.add(font));
+            ui_font.path = Some(path);
+        }
+        Err(e) => warn!("original UI: cannot read font {}: {e}", path.display()),
+    }
+}
+
+/// Validate the container signature before handing bytes to Bevy's font asset.
+///
+/// Bevy 0.19's [`Font::from_bytes`] stores the bytes and returns `Font`; it does not parse a
+/// typeface or return a `Result`. Face parsing happens when Bevy registers the asset, so this
+/// helper rejects unrelated files without pretending to prove a valid glyph table here.
+fn system_font_from_bytes(bytes: Vec<u8>) -> Result<Font, &'static str> {
+    if bytes.len() < 12 {
+        return Err("font file is shorter than its table directory header");
+    }
+    let sig = bytes.get(..4).ok_or("font file is shorter than its signature")?;
+    if matches!(sig, [0, 1, 0, 0] | b"OTTO" | b"true") {
+        Ok(Font::from_bytes(bytes))
+    } else {
+        Err("not a TrueType / OpenType font")
     }
 }
 

@@ -631,7 +631,7 @@ fn box_grid_is_six_by_five_on_screen() {
     assert!(party0.visible && party0.center.x < centre(0).center.x, "party column on the left");
 }
 
-/// The map shows every area's game tint and pulses the current one (area 1 = slot 0).
+/// The map shows every area's game tint and highlights the current one (area 1 = slot 0).
 #[test]
 fn map_highlights_the_current_area() {
     let Some(root) = local_root() else { return };
@@ -656,6 +656,12 @@ fn map_highlights_the_current_area() {
     };
     let here = glow(0);
     assert!(here.visible && here.alpha > 0.3 && here.additive, "current area glows");
+    let highlight_inst = s.scene.part_instance("L_area_vfx_00").unwrap();
+    assert!(s.anim.tracks.iter().any(|track| {
+        track.instance == highlight_inst
+            && track.label == "pulse"
+            && track.mode == super::anim::PlayMode::Frozen
+    }));
     assert!(!glow(1).visible, "other areas do not glow");
     let tint = |k: usize| {
         let inst = s.scene.part_instance(&format!("L_area_vfx_0{k}")).unwrap();
@@ -664,4 +670,24 @@ fn map_highlights_the_current_area() {
     };
     assert!(tint(2).visible && tint(2).multiply, "other areas keep the multiply tint");
     assert!(tint(0).black.z > tint(2).black.z, "the current area is lighter");
+}
+
+/// Arbitrary font paths are rejected; only the pre-verified free-font candidates are eligible.
+#[test]
+fn ui_font_lookup_prefers_the_env_path_and_skips_missing_files() {
+    let dir = std::env::temp_dir().join(format!("pla-ui-font-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let f = dir.join("free.ttf");
+    std::fs::write(&f, b"not really a font").unwrap();
+    assert_ne!(find_ui_font(Some(f.clone())), Some(f));
+    let missing = dir.join("missing.ttf");
+    let found = find_ui_font(Some(missing.clone()));
+    assert_ne!(found, Some(missing));
+    if let Some(p) = found {
+        assert!(UI_FONT_CANDIDATES.iter().any(|c| p == PathBuf::from(c)));
+    }
+    assert!(system_font_from_bytes(b"not a font".to_vec()).is_err());
+    assert!(system_font_from_bytes(vec![0, 1, 0, 0]).is_err());
+    assert_eq!(fold_for_default_font("Pokédex Pokémon"), "Pokedex Pokemon");
+    let _ = std::fs::remove_dir_all(&dir);
 }

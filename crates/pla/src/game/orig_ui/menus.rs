@@ -3,12 +3,12 @@
 //!
 //! | Screen | Original layout | Filled with |
 //! |---|---|---|
-//! | Pause menu (Esc) | `slidelist` / `slidemenu_menulist_01` | header = selected option, 4-icon tab strip paging the 15 options, option list + money / play time as port text |
-//! | Party | `battle_menu` / `pokelist_battle_00` | 6 rows (icon, name, level, HP numbers + gauge), lead member's moves on the right |
-//! | Bag | `bag` / `bag_top_00` + `inventory_00` | current pocket as item buttons (icon + count) on the game's 5 x 4 slots, item name and port detail line, money |
-//! | Boxes | `box` / `box_top_00` + `inventory_00` | page of 32 Pokemon (icon + level, 8 x 4), party list, page / status line |
-//! | Pokedex | `poke_dex` / `pokedex_detail_00` | list plates (number, name once caught, icon / silhouette), notebook page of the selected species |
-//! | Map (M) | `map` / `map_top_00` | the game's Hisui map behind the port's own area map |
+//! | Pause menu (Esc) | `slidelist` / `slidemenu_menulist_01` | header = selected option, 4-icon tab strip paging the options, option list fitted above the bottom edge + money / play time as port text |
+//! | Party | `battle_menu` / `pokelist_battle_00` | 6 rows (icon, name, level, HP numbers + gauge), cursor row's moves on the right; Enter opens the summary (`summary.rs`) |
+//! | Bag | `bag` / `bag_top_00` + `inventory_00` | current pocket as item buttons (item / ball icon + count) on the game's own 5 x 4 slot circles, port pocket names, item label and description, money |
+//! | Boxes | `box` / `box_top_00` + `inventory_00` | box of 30 Pokémon (icon + level, the game's 6 x 5 grid from its anchor), party buttons and rows, held / selected state, messages in the game's strip |
+//! | Pokedex | `poke_dex` / `pokedex_detail_00` | list plates (number, name once caught, icon / silhouette), notebook page of the selected species with type badges and base stats, seen / caught counters |
+//! | Map (M) | `map` / `map_top_00` | the game's Hisui map with every area's tint and the current area highlighted, beside the port's area map with the game's player arrow and fast-travel points |
 //!
 //! Text is always the port's own (English); the game's text is never read.
 
@@ -410,7 +410,7 @@ pub fn pocket_name(code: u8) -> &'static str {
     match code {
         0 => "Items",
         1 => "Other items",
-        2 => "Poke Balls",
+        2 => "Poké Balls",
         4 => "Boosters",
         6 => "Medicine",
         7 => "Berries",
@@ -1133,9 +1133,9 @@ pub fn bind_map_screen(
         };
         if here {
             s.freeze_end(inst, "select", "sel");
-            if !s.anim.has_label(inst, "pulse") {
-                s.play(inst, "select_state", super::anim::PlayMode::Loop, "pulse");
-            }
+            // The loop's brightest frame, held (the game pulses it).
+            s.freeze(inst, "select_state", 0.0, "pulse");
+
         } else {
             s.freeze_end(inst, "unselect", "sel");
             s.stop(inst, "pulse");

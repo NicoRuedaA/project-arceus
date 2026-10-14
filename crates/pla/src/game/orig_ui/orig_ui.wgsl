@@ -16,7 +16,7 @@ struct OrigUiParams {
     white: vec4<f32>,
     srt: vec4<f32>,       // translate.xy, rotate (radians), has_texture
     srt_scale: vec4<f32>, // scale.xy, wrap_s, wrap_t
-    params: vec4<f32>,    // alpha, multiply (1 = fade to white by alpha), unused...
+    params: vec4<f32>,    // alpha, multiply emulation, additive emulation, unused
 };
 
 @group(1) @binding(0) var<uniform> p: OrigUiParams;
@@ -64,11 +64,22 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
         color = p.black + (p.white - p.black) * texel;
     }
     color = color * vcol;
-    let a = clamp(color.a * p.params.x, 0.0, 1.0);
+    var a = clamp(color.a * p.params.x, 0.0, 1.0);
     var srgb = clamp(color.rgb, vec3<f32>(0.0), vec3<f32>(1.0));
     if p.params.y > 0.5 {
-        // Multiply blend: transparent texels must leave the destination unchanged.
-        srgb = mix(vec3<f32>(1.0), srgb, a);
+        // Multiply material (dst x src), emulated with alpha blending: a darkening layer of the
+        // tint's own hue whose opacity is how far the tint is from white.
+        let k = 1.0 - min(min(srgb.r, srgb.g), srgb.b);
+        a = clamp(a * k * 1.6, 0.0, 1.0);
+        srgb = srgb * 0.55;
+    }
+    if p.params.z > 0.5 {
+        // Additive material (dst + src x alpha), emulated with alpha blending: the material's
+        // bright colour, as opaque as the texel is bright.
+        let lum = max(max(color.r, color.g), color.b);
+        let peak = max(max(p.white.r, p.white.g), p.white.b);
+        a = clamp(a * lum / max(peak, 0.001), 0.0, 1.0);
+        srgb = clamp(p.white.rgb * 1.2, vec3<f32>(0.0), vec3<f32>(1.0));
     }
     let rgb = srgb_to_linear(srgb);
     return vec4<f32>(rgb, a);
