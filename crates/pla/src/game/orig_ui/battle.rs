@@ -293,10 +293,17 @@ fn bind_rows(s: &mut OrigScreen, sess: &ActiveBattleSession, icons: &IconIndex) 
         let tag = if k == highlight { "select" } else { "unselect" };
         s.freeze_end(inst, tag, "sel");
     }
-    // Move info panel (left): the selected row's details, in the port's own words.
+    // Move info panel (left): the game's own Power/Accuracy row is filled below (T_power_*/
+    // T_dex_*). The port's own-words detail ("Electric PP 10/10 | Pow 80 A60 S100") used to fill
+    // T_info_00 too and read as raw debug text on top of the original HUD; it is a debug
+    // placeholder now (PLA_DEBUG_PLACEHOLDERS=1, see crate::game::debug_flags) and T_info_00
+    // stays empty by default.
     let (_, detail) = &slots[highlight.min(GRID_SLOTS - 1)];
     let info = detail.clone();
-    s.set_in("L_wazainfo_00", "T_info_00", |o| o.text = Some(info));
+    let debug_text = crate::game::debug_flags::placeholders();
+    s.set_in("L_wazainfo_00", "T_info_00", |o| {
+        o.text = debug_text.then_some(info)
+    });
     match c.moves.get(highlight).filter(|_| moves_view) {
         Some(m) => {
             let (pow, acc) = (
