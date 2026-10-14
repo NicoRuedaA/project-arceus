@@ -18,7 +18,6 @@
 //! Markers are plain capsules (NPC models are Brief 31). Coordinates are used as stored, like
 //! `world_objects` does with the object placements (same frame: PROBABLE).
 
-use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use bevy::prelude::*;
@@ -370,6 +369,7 @@ pub fn trainer_challenge(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::path::Path;
     use std::time::Duration;
 
