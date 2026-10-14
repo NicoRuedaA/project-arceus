@@ -975,6 +975,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::alpha_aura::AlphaAuraPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::normal_fix::NormalMapFixPlugin);
     app.add_plugins(pla::game::water::WaterPlugin);
+    app.add_plugins(pla::game::terrain_splat::TerrainSplatPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(
         &cli_args,
@@ -1040,6 +1041,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     // Installed after SaveWirePlugin so they read the live `PlayerProgress`.
     app.add_plugins((
         pla::game::party_screen::PartyScreenPlugin,
+        pla::game::summary_screen::SummaryScreenPlugin,
         pla::game::box_screen::BoxScreenPlugin,
         pla::game::dex_screen::DexScreenPlugin::default(),
         crafting_plugin(),
@@ -1132,7 +1134,9 @@ fn add_viewer_systems(app: &mut App) {
     app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
     app.add_systems(
         Update,
-        measure_arena_models.run_if(in_state(GameState::Battle)),
+        (measure_arena_models, publish_foe_height)
+            .chain()
+            .run_if(in_state(GameState::Battle)),
     );
     app.add_systems(
         Update,
@@ -3788,6 +3792,18 @@ fn sync_arena_player_model(
     }
 }
 
+/// Hands the opponent's measured model height to the original UI (its plate floats above it).
+fn publish_foe_height(
+    extents: Res<ArenaExtents>,
+    foe: Option<ResMut<pla::game::orig_ui::battle::BattleFoeHeight>>,
+) {
+    let Some(mut foe) = foe else { return };
+    let h = extents.size[1].height;
+    if foe.0 != h {
+        foe.0 = h;
+    }
+}
+
 /// Measures the loaded model of each arena slot (world-space bounds of its meshes, relative to
 /// its feet) and spaces a big opponent away from the player's creature, so a giant such as
 /// Giratina neither overlaps the player's creature nor leaves the camera at its knees.
@@ -4380,6 +4396,16 @@ mod startup_schedule_guard {
             println!("[skip] no local UI data: original battle screens not checked");
         }
         let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    /// `--terrain bake` (the baked single-image ground) and the cheapest splat options start too.
+    #[test]
+    fn terrain_modes_start() {
+        check_viewer_start("terrain-bake", &["port_viewer", "--area", "1", "--terrain", "bake"]);
+        check_viewer_start(
+            "terrain-splat-low",
+            &["port_viewer", "--area", "1", "--terrain-layers", "4", "--terrain-triplanar", "off", "--terrain-normals", "baked"],
+        );
     }
 
     /// Every optional registration on: main menu, original art style, debug zone links and shop.

@@ -6,11 +6,12 @@ Module: `crates/pla/src/game/save_game.rs`. This is the port's own save, not the
 Strict line-based text, no new dependencies (`serde` is not a dependency; only `serde_json`). File `save.plasave`:
 
 ```
-PLASAVE 6
+PLASAVE 8
 CHECKSUM <fnv1a64 hex of every byte after this line>
 zone=ha_area01          pos=x,y,z   yaw=..   time_minutes=..   money=..
 defeated=..  caught_count=..  rng_seed=..  play_seconds=..
 seen=1,25,722  caught=722   bag=item:qty,...
+picked=<hex ids> (v7)   defeated_trainers=giratina01,noble:nsi_ex_01 (v8)
 member=species|form|level|hp|status|e0:e1:e2:e3:e4:e5|move:pp,move:pp|nickname-hex
 box=species|form|level|hp|status|e0:e1:e2:e3:e4:e5|move:pp,move:pp|nickname-hex
 END
@@ -26,7 +27,7 @@ Zone id, player position and yaw, game-clock minute of day (`time_minutes`, 0..1
 - Location: `PLA_SAVE_DIR`, else `$XDG_DATA_HOME/pla-port`, else `~/.local/share/pla-port`.
 - `SaveGame` Bevy resource: `save(PlayerSave) -> bool`, `load() -> Option<PlayerSave>`, `message` (text for the UI).
 - Engine conversions: `PartyMember::from_combatant(&Combatant)`, `PartyMember::to_combatant(species, moves, nature_percent)` (stats recomputed from level + effort; HP, PP, status restored), `SavedStatus <-> MajorStatus`, `PlayerSave::bag_from_engine(&ItemBag, ids)`, `PlayerSave::bag_to_engine(&ItemTable)`.
-- Versioning: `CURRENT_VERSION = 6`; `migrate()` chains steps. v1 (members without form/effort) -> v2, v2 (no box) -> v3, v3 (no play time) -> v4 v4 (8-field members/box entries) -> v5 and v5 (`time_slot`) -> v6 are implemented and tested. v2->v3 and v3->v4 are documented no-ops: the parser defaults a missing `box` list to empty and a missing `play_seconds` to 0. v4->v5 appends `-` (unknown experience, read as the saved level's threshold) to every member and box line ([progression wiring report](progression_wired.md)). v5->v6 turns the coarse `time_slot` 0..3 into `time_minutes`, the centre minute of that slot (03:00/09:00/15:00/21:00; the slot hours are SUPUESTO), or the default start time if the line is missing ([clock report](clock_weather.md)). The next bump is v7.
+- Versioning: `CURRENT_VERSION = 8`; `migrate()` chains steps. v1 (members without form/effort) -> v2, v2 (no box) -> v3, v3 (no play time) -> v4 v4 (8-field members/box entries) -> v5 and v5 (`time_slot`) -> v6 are implemented and tested. v2->v3 and v3->v4 are documented no-ops: the parser defaults a missing `box` list to empty and a missing `play_seconds` to 0. v4->v5 appends `-` (unknown experience, read as the saved level's threshold) to every member and box line ([progression wiring report](progression_wired.md)). v5->v6 turns the coarse `time_slot` 0..3 into `time_minutes`, the centre minute of that slot (03:00/09:00/15:00/21:00; the slot hours are SUPUESTO), or the default start time if the line is missing ([clock report](clock_weather.md)). v6->v7 (collected field-item ids, `picked`) and v7->v8 (`defeated_trainers`) are documented no-ops: the parser defaults a missing key to the empty set. The next bump is v9.
 
 ## Wiring (done in `crates/pla/src/game/save_wire.rs`)
 - `PlayerProgress` resource: party (<= 6), box list (persisted as `box_pokemon`), bag map, money, seen/caught sets, defeated/caught counters, rng seed, time slot. Seeded with the demo party (Pikachu, Bidoof, Starly) and starter bag, or from the save.
@@ -45,6 +46,9 @@ Zone id, player position and yaw, game-clock minute of day (`time_minutes`, 0..1
 - Rest evidence: full HP/PP/status restore keeping nickname (real engine), idempotence, unknown-species skip with report text, request consumption and toast text with and without the battle tables (headless).
 - Box evidence: round trip with a non-empty box, v2->v3 migration of a literal v2 body (empty box), the `MAX_BOX` boundary refused on write and on read, a malformed `box` member rejected, a full party routing a catch to the box and reloading it from the file, `deposit`/`withdraw`/`swap` (including limits) and a full-box catch counted but not stored. The full-party catch test also runs the real `battle_engine` and reloads the file.
 - Evidence: one offscreen `--script` run with a temp save dir (`--new-game --save-selftest`): party before battle `#25 hp=78; #399 hp=92; #396 hp=64`, after `#25 hp=67; ...`, reloaded from the file identical. The reload was done in-process with a fresh file handle, not a second process. (From the pre-v4 run; kept as historical evidence.)
+
+## Defeated trainers (format v8)
+`defeated_trainers=` is a sorted comma list of trainer ids (`data/trainer_index.tsv` ids such as `giratina01`, or `noble:<setting>`); an id may not be empty or contain whitespace, control characters, `,` or `=` (refused on read and write). A v1-v7 file loads with an empty set and re-saves as v8. `PlayerProgress.defeated_trainers` is the runtime copy (the old session-only `DefeatedTrainers` resource is gone); the legacy counter `defeated` is kept. `apply_outcome` inserts the id on the first win and pays the prize only then (a rematch through `--trainer` pays nothing); the battle-end autosave writes it. Esc > Save / Load, F5 and the automation `save` / `load` all go through `to_save` / `from_save`, so they carry it. Tests: `defeated_trainers_round_trip_and_v7_migration` (save_game.rs), `defeated_trainer_survives_save_and_load` (trainer_encounter.rs: win, autosave, in-process Load and a fresh app, marker grey, V starts nothing, money unchanged), and the rematch case in save_wire.rs.
 
 ## Still not done
 Form/nickname/nature from the engine, selling objects (needs the shop, task 14), runtime time changes outside `--time-slot`/`--time-scale` (Brief 9 implements the clock and the rest advance; see [clock_weather.md](clock_weather.md)), saving mid-battle, multiple slots, windowed interactive check of F5/rest/toast, encryption, quest/event flags. The box is persisted but has no screen (task 32) and no reordering/sorting; the party is auto-filled from the box only through the pure `withdraw`/`swap` helpers, which no system calls yet. Money is only paid for wins with the provisional formula; the original's reward tables are not decoded.

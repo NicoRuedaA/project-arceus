@@ -21,6 +21,10 @@ serde_json = "=1.0.151"
 # GPU adapter probe of the automation mode (same version Bevy already builds; no extra backend).
 wgpu = { version = "29.0.4", default-features = false }
 
+# WGSL validation of the terrain splat shader in unit tests (same naga Bevy already builds).
+[dev-dependencies]
+naga = { version = "29.0.4", features = ["wgsl-in"] }
+
 [build-dependencies]
 sheetty = { path = "../sheetty" }
 phf_codegen = "0.13"

@@ -361,6 +361,7 @@ pub enum ScreenName {
     Pause,
     Bag,
     Party,
+    Summary,
     Box,
     Dex,
     Crafting,
@@ -642,13 +643,14 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
                 "pause" | "menu" => ScreenName::Pause,
                 "bag" => ScreenName::Bag,
                 "party" => ScreenName::Party,
+                "summary" => ScreenName::Summary,
                 "box" | "boxes" => ScreenName::Box,
                 "dex" | "pokedex" => ScreenName::Dex,
                 "crafting" => ScreenName::Crafting,
                 "shop" => ScreenName::Shop,
                 "graphics" => ScreenName::Graphics,
                 "close" | "none" => ScreenName::Close,
-                _ => return Err(format!("unknown screen '{s}' (pause|bag|party|box|dex|crafting|shop|graphics|close)")),
+                _ => return Err(format!("unknown screen '{s}' (pause|bag|party|summary|box|dex|crafting|shop|graphics|close)")),
             })
         }
         "save" => Command::Save,
@@ -1326,6 +1328,9 @@ pub fn open_screens(world: &World) -> Vec<&'static str> {
     if world.get_resource::<super::party_screen::PartyScreenState>().is_some_and(|s| s.open) {
         out.push("party");
     }
+    if world.get_resource::<super::summary_screen::SummaryState>().is_some_and(|s| s.open) {
+        out.push("summary");
+    }
     if world.get_resource::<super::box_screen::BoxScreenState>().is_some_and(|s| s.open) {
         out.push("box");
     }
@@ -1372,6 +1377,7 @@ fn open_screen(app: &mut App, ctx: &mut Ctx, s: ScreenName) -> Result<Value, Str
         }
         ScreenName::Bag => raise::<BagOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Party => raise::<PartyOpenRequested>(world, |r| r.0 = true)?,
+        ScreenName::Summary => raise::<super::summary_screen::SummaryOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Box => raise::<BoxOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Dex => raise::<DexOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Crafting => raise::<super::crafting_ui::CraftingOpenRequested>(world, |r| r.0 = true)?,
@@ -1635,6 +1641,7 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
             "money": p.money,
             "seen": p.seen.len(),
             "caught": p.caught.len(),
+            "defeated_trainers": p.defeated_trainers.iter().collect::<Vec<_>>(),
         })
     });
     let loading = world.get_resource::<ZoneLoading>().map(|l| format!("{:?}", l.phase));

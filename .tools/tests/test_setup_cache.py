@@ -137,6 +137,24 @@ class PlanTests(unittest.TestCase):
         self.assertIn("--all", decode)
         self.assertIn("ui_export", sc.build_cmd(ctx))
 
+    def test_ui_data_in_the_legacy_work_ui_folder_count_as_present(self) -> None:
+        """`work/ui` (made by hand, read by the viewer as a fallback) is detected: no re-export, and
+        a complete `<cache>/ui` wins when both exist. An incomplete folder is still missing."""
+        self.fake_romfs()
+        ctx = make_ctx(self.work)
+        step = next(s for s in self.steps if s.name == "ui")
+        self.assertEqual(sc.step_status(ctx, step), "missing")
+        (self.work / "ui" / "layouts").mkdir(parents=True)
+        self.assertEqual(sc.step_status(ctx, step), "missing", "layouts without png is incomplete")
+        (self.work / "ui" / "png").mkdir()
+        self.assertEqual(sc.step_status(ctx, step), "present")
+        self.assertEqual(sc.ui_root(ctx), self.work / "ui")
+        plan = sc.make_plan(ctx, self.steps)
+        self.assertNotIn("ui", self.names(plan))
+        (self.work / "cache" / "ui" / "layouts").mkdir(parents=True)
+        (self.work / "cache" / "ui" / "png").mkdir()
+        self.assertEqual(sc.ui_root(ctx), self.work / "cache" / "ui", "the canonical folder wins")
+
     def test_only_reports_missing_dependency(self) -> None:
         ctx = make_ctx(self.work, "--only", "minimap")
         plan = sc.make_plan(ctx, self.steps)

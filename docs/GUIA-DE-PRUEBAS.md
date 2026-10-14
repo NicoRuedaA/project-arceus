@@ -12,6 +12,10 @@ Cómo leer las etiquetas:
 - **[PENDIENTE]** = está en otra rama que aún no se ha unido a `main` (hoy solo `feat/interiors`). No está en tu juego.
 - **SUPUESTO** = una cifra o un aspecto inventado por nosotros porque el juego original no lo
   dejó claro. Puede verse o notarse distinto al juego de verdad. Ver la sección 3.
+- **VERIFICADO** = comprobado con una prueba de código o una comprobación directa de datos; no
+  significa paridad visual con el juego.
+- **PROBABLE** = coincide con los datos y con la comparación visual local, pero aún tiene límites
+  o partes desconocidas. **DESCONOCIDO** significa que no hay evidencia suficiente.
 
 ---
 
@@ -73,6 +77,9 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 | `--no-outlines` | Con `--style original`, quita los contornos pero deja el sombreado. |
 | `--look classic` / `--look vivid` | Aspecto general (vivo por defecto). |
 | `--no-shadows`, `--no-ssao`, `--no-bloom` | Apagan sombras, oscurecimiento de rincones y brillo suave (útil si va lento). `--ssao`, `--bloom` los fuerzan. `--ssao-quality` ajusta la calidad. |
+| `--terrain bake` | **Nuevo.** El suelo vuelve a la **imagen única horneada** de antes (más borrosa de cerca, pero más ligera para ordenadores lentos). Por defecto (`--terrain splat`) el suelo se dibuja **en tiempo real** con sus 8 capas de textura y se ve nítido de cerca. Ver 2.11c. |
+| `--terrain-tile-divisor N` | **Nuevo.** Tamaño de las baldosas del suelo. Por defecto 32 (lo mismo que el horneado). Con `8` las texturas se repiten 4 veces más pequeñas (las hojas de hierba se ven de tamaño más realista). Es una suposición: dime cuál te parece más natural. |
+| `--terrain-layers N`, `--terrain-triplanar off`, `--terrain-normals baked`, `--terrain-antitile off` | **Nuevo.** Rebajas del suelo en tiempo real para ordenadores lentos: menos capas (1 a 8), sin proyección lateral en paredes, relieve horneado en vez del de cada capa, sin el truco que esconde la repetición. |
 | `--ui debug` | **Nuevo.** La interfaz **original del juego** (sus marcos, botones, iconos y barras, leída de tu copia instalada) ya es la de por defecto. Con `--ui debug` vuelves a la interfaz provisional. Si faltan los datos de la interfaz, el juego avisa una vez y usa la provisional solo. Ver 2.16. |
 
 **Combate y Pokémon**
@@ -315,7 +322,7 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 31. **No se puede capturar ni huir.** En un entrenador, intenta lanzar una bola (C/B) o huir (R):
     debe rechazarlo con un mensaje y sin gastar la bola ni el turno.
 32. **Después de ganar.** La cápsula del entrenador se pone gris, y se esconde durante el combate.
-    El premio en dinero es SUPUESTO.
+    El premio en dinero es SUPUESTO y se paga solo la primera vez; el entrenador vencido se guarda (ver 71).
 33. **Jefe y Nobles.** Prueba `--trainer giratina01` (hay segunda fase: se levanta una vez a vida
     completa) y `--trainer noble:nsi_ex_01_r`. Solo existe la parte por turnos: la fase de
     campo noble (medidor, bálsamos) **no está hecha**.
@@ -457,6 +464,24 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     **SUPUESTO:** colores, intensidades y cantidad de humo están inventados mirando una sola
     imagen de referencia; lo decodificado es solo la marca de alfa y el tamaño 2,5x.
 
+### 2.11c Suelo en tiempo real (texturas nítidas)  [EN RAMA feat/terrain-splat]
+
+56f. **De cerca.** `./play.sh --area 1` y acerca la cámara al suelo. Ves: la hierba, la tierra
+    de los caminos y la grava **nítidas** (se distinguen hojas, piedras y grietas), no una mancha
+    borrosa. Los bordes entre hierba y tierra siguen la forma de las hojas, no escalones cuadrados.
+    Fallo: suelo negro, rosa o de un solo color; cuadros o costuras rectas cada pocos metros;
+    parpadeo al mover la cámara.
+56g. **Paredes de roca.** Mira un acantilado (en la zona 1 hay uno a unos 50 m del inicio; la zona 4 tiene muchos). Ves:
+    roca con grietas, **sin rayas estiradas** de arriba abajo. Fallo: rayas verticales largas
+    como antes, o roca oscura sobre las laderas de nieve suaves de la zona 5.
+56h. **Lejos.** Mira el horizonte. Ves: el suelo lejano con sus colores de siempre, sin un
+    dibujo repetido en cuadrícula ni un círculo marcado alrededor tuyo donde cambia la nitidez.
+56i. **Comparar y elegir.** Arranca una vez con `--terrain bake` (el suelo de antes) y otra sin
+    nada. Si va lento, prueba las rebajas de 1.3. Dime también si las hojas de hierba te parecen
+    demasiado grandes: con `--terrain-tile-divisor 8` salen 4 veces más pequeñas.
+    **SUPUESTO:** el tamaño de las baldosas, cómo se mezclan las capas en los bordes, a partir de
+    qué inclinación se pone roca y a qué distancia se pasa al color horneado son inventados.
+
 ### 2.12 PNJ (gente del mundo)  [EN MAIN]
 
 57. **Aldeanos.** En Aldea Joya (`--area 0`) deberías ver gente de pie en sus sitios, mirando hacia
@@ -502,7 +527,12 @@ Se puede apagar con `--no-audio`. Nadie ha escuchado nada hasta ahora.
     También se guarda solo tras cada combate y al cambiar de zona. No se puede guardar durante un combate.
 70. **Partida nueva.** `--new-game` empieza de cero (equipo inicial, 3 caramelos raros, 3 objetos
     de esfuerzo). Fallo: pierdes cosas al guardar y volver, o aparece la partida vieja.
-71. **Entrenadores derrotados:** **no se guardan** (ver 4). Al reiniciar vuelven a estar disponibles. Es lo esperado.
+71. **Entrenadores derrotados (guardado v8, nuevo).** Gana un combate de entrenador (cápsula
+    roja, V). Tras el combate se guarda solo. Cierra el juego y vuelve a arrancar sin `--new-game`
+    (o usa Esc → Load game): esa cápsula sigue **gris**, al pulsar V junto a ella solo sale el
+    aviso «was already defeated» y **no** empieza el combate, y el premio en dinero no se vuelve a
+    cobrar. Con `--trainer <id>` aún puedes repetir el combate (es para depuración) pero no paga.
+    Fallo: tras reiniciar la cápsula vuelve a ser roja, o el premio se cobra otra vez.
 72. **Cargar partida (Esc → Load game).** Nuevo del 2026-10-14. Guarda (F5), muévete, gasta dinero
     o cambia la hora, y elige Load game: vuelves al sitio y al estado del guardado (equipo, mochila,
     dinero, hora, tiempo de juego), con un fundido como al cambiar de zona. Sin partida guardada
@@ -515,7 +545,15 @@ Se puede apagar con `--no-audio`. Nadie ha escuchado nada hasta ahora.
 
 Arranca con `./play.sh --area 1` (la interfaz original es la de por defecto; `--ui debug` fuerza la provisional). Las teclas y lo que hace cada pantalla no
 cambian: solo cambia el dibujo. Los textos son del port, en inglés (los del juego no se usan).
-Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
+Capturas de evidencia en `/home/nico/work/capturas_ui2/`. El inventario **VERIFICADO** es 24/24
+PNG: pausa, equipo, resumen, mochila, cajas, Pokédex, mapa y combate, cada uno a 1280×720,
+1920×1080 y 2560×1440. El reintento fue sin ventana, con GPU, sin audio y terminó limpiamente.
+La mochila poblada muestra un icono de relleno para el objeto seleccionado y el texto `Item #169`;
+los IDs 17 y 1710 están confirmados solo por comando/estado. Las cajas muestran `Box 1 / 32` con
+4 Pokémon almacenados; el combate muestra Bidoof Nv. 5, el HUD de Pikachu, la rueda de comandos y
+la lista de movimientos. La evidencia es solo del port: los enlaces siguen parciales, el texto es
+propio del port, los iconos de relleno y algunas posiciones de cuadrícula persisten, y no demuestra
+paridad visual nativa ni binary matching.
 
 73. **Combate.** Abajo a la izquierda, tu Pokémon sobre la mancha de tinta azul (nombre, nivel,
     barra de vida verde/amarilla/roja y números). Arriba en el centro, el rival (nombre, nivel,
@@ -527,12 +565,16 @@ Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
 74. **Explorando.** Arriba a la izquierda, el Pokémon salvaje más cercano (icono y nombre; si no
     hay ninguno, el nombre de la zona). A la derecha, la Poké Ball elegida y cuántas tienes.
     Abajo a la izquierda, las guías de botones del juego junto al minimapa del port.
-75. **Esc, equipo, mochila, cajas, Pokédex y mapa (M).** Cada pantalla sale con los gráficos del
-    juego: menú de pausa con la barra de iconos arriba y la lista de opciones; equipo con los
-    iconos de tus Pokémon y su vida; mochila con las casillas e iconos de objetos; cajas en 8 × 4;
-    Pokédex con la página de cuaderno; el mapa de Hisui detrás del mapa de zona. La tienda sigue
-    con la interfaz provisional. Fallo: se ve a la vez la provisional y la original, un icono de
-    otro Pokémon u objeto, la selección marcada no coincide con la que mueves.
+75. **Esc, equipo, resumen, mochila, cajas, Pokédex y mapa (M).** Cada pantalla sale con los
+     gráficos del juego: menú de pausa con 16 filas dentro de la franja inferior y la barra de
+     iconos arriba; equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila con
+     las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5; Pokédex con la página de
+     cuaderno; el mapa de Hisui con el área actual resaltada detrás del mapa de zona. En combate,
+     la placa del rival flota sobre el Pokémon cargado y se mantiene dentro de la pantalla. La
+     tienda sigue con la interfaz provisional y algunos detalles de las pantallas siguen
+     PROBABLES o DESCONOCIDOS. Fallo: se ve a la vez la provisional y la original, un icono de
+     otro Pokémon u objeto, la selección marcada no coincide con la que mueves, una fila se sale
+     por abajo en 720p/1080p/1440p o las letras acentuadas muestran un cuadro.
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 
@@ -541,6 +583,7 @@ Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
 | Color de pelo del protagonista | Un color elegido por nosotros | El color real lo decide el juego al ejecutarse; no está en los archivos |
 | Ropa, pelo y piel de los PNJ | Claros / blanco-grisáceo / piel pálida; lo conocido es la forma | La regla de colores no se ha encontrado |
 | Aura de los Pokémon alfa | Borde rojo que respira, humo negro-rojizo, chispas y una luz roja suave; colores y cantidades elegidos mirando una imagen de referencia | Lo único decodificado es la marca de alfa y la escala 2,5x; el aspecto del aura no está en los archivos extraídos |
+| Suelo en tiempo real | Tamaño de las baldosas (32 por defecto), mezcla de capas en los bordes, roca a partir de 57-68 grados, paso al color horneado entre 70 y 220 m, el truco anti-repetición y el relieve | Lo decodificado son las 8 capas, sus pesos, su escala relativa y qué capas son roca; cómo las mezcla el juego no se ha leído |
 | Horas de cada franja | 4 franjas de 6 horas; 0 = mañana (9:00), 1 = día (15:00), 2 = atardecer (21:00), 3 = noche (3:00) | Solo se sabe que la 3 es noche; el resto se supone |
 | Velocidad del reloj | 1 minuto de juego por segundo real | No se conoce la del juego |
 | Duración del clima | Entre 2 y 6 horas de juego | Las unidades de esos números son una suposición |
@@ -583,7 +626,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
   examinadas lo es. DESCONOCIDO.
 - **Cuerdas, escaleras y superficies de trepar reales:** DESCONOCIDAS (saltar, caer, trepar e interactuar ya están en `main`).
 - **Interiores y subzonas (casas, cuevas, tiendas):** pendiente. Las puertas lo dicen y rechazan el cambio.
-- **Entrenadores derrotados no se guardan**; al reiniciar vuelven. Hará falta el guardado v8.
+- **Entrenadores derrotados:** ya se guardan (guardado v8, prueba 71). Los entrenadores de depuración `--trainer` se pueden repetir sin cobrar.
 - **IA experta** de entrenadores; **fase de campo de los Nobles** (medidor, bálsamos, ataques de campo);
   orden de salida de los Pokémon; combates dobles; música de combate de entrenador sin conectar.
 - **Brotes masivos:** la especie real es DESCONOCIDA; el reparto es inventado.
@@ -623,6 +666,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
 | Rama | Qué trae | Estado |
 |---|---|---|
 | `feat/interiors` | Interiores y subzonas (casas, cuevas, tiendas) | Congelada, trabajo a medias en su worktree; no se puede entrar a ningún interior |
+| `feat/terrain-splat` | Suelo en tiempo real: texturas nítidas de cerca, roca sin estirar en paredes (`--terrain bake` para el de antes) | Terminada en su worktree, pendiente de unir; ver 2.11c |
 
 `feat/player-moves`, `feat/alpha-forms`, `feat/npc-world` y `feat/wire-viewer` **ya están unidas a
 `main`**; no queda nada pendiente de ellas. Lo único que no verás es lo de `feat/interiors`.

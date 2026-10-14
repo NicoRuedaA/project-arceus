@@ -7,12 +7,9 @@ use std::path::PathBuf;
 use bevy::asset::RenderAssetUsages;
 use bevy::image::{CompressedImageFormats, ImageSampler, ImageType};
 use bevy::prelude::*;
-use bevy::render::render_resource::{
-    AsBindGroup, BlendComponent, BlendFactor, BlendOperation, BlendState, RenderPipelineDescriptor,
-    ShaderType,
-};
+use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
-use bevy::ui_render::prelude::{UiMaterial, UiMaterialKey};
+use bevy::ui_render::prelude::UiMaterial;
 
 use super::scene::Quad;
 
@@ -34,7 +31,7 @@ pub struct OrigUiParams {
     pub srt: Vec4,
     /// scale.xy, wrap_s, wrap_t.
     pub srt_scale: Vec4,
-    /// alpha, -, -, -.
+    /// alpha, multiply emulation, additive emulation, -.
     pub params: Vec4,
 }
 
@@ -61,57 +58,32 @@ impl OrigUiParams {
                 q.wrap[0] as f32,
                 q.wrap[1] as f32,
             ),
-            params: Vec4::new(q.alpha, 0.0, 0.0, 0.0),
+            params: Vec4::new(
+                q.alpha,
+                if q.multiply { 1.0 } else { 0.0 },
+                if q.additive { 1.0 } else { 0.0 },
+                0.0,
+            ),
         }
     }
 }
 
-/// Pipeline key: additive blending for materials whose blend destination factor is "one".
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct OrigUiKey {
-    pub additive: bool,
-}
-
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone, Default)]
-#[bind_group_data(OrigUiKey)]
 pub struct OrigUiMaterial {
     #[uniform(0)]
     pub params: OrigUiParams,
     #[texture(1)]
     #[sampler(2)]
     pub texture: Option<Handle<Image>>,
-    pub additive: bool,
 }
 
-impl From<&OrigUiMaterial> for OrigUiKey {
-    fn from(m: &OrigUiMaterial) -> Self {
-        OrigUiKey {
-            additive: m.additive,
-        }
-    }
-}
-
+/// Every quad uses the default UI alpha blending. The game's additive (glow) and multiply
+/// (tint) materials are emulated in the shader with ordinary alpha blending (see
+/// `orig_ui.wgsl`): custom blend states on the UI material pipeline drew nothing in the port's
+/// renderer (the destination stayed unchanged; cause UNKNOWN).
 impl UiMaterial for OrigUiMaterial {
     fn fragment_shader() -> ShaderRef {
         SHADER_PATH.into()
-    }
-
-    fn specialize(descriptor: &mut RenderPipelineDescriptor, key: UiMaterialKey<Self>) {
-        if !key.bind_group_data.additive {
-            return;
-        }
-        if let Some(fragment) = descriptor.fragment.as_mut() {
-            for target in fragment.targets.iter_mut().flatten() {
-                target.blend = Some(BlendState {
-                    color: BlendComponent {
-                        src_factor: BlendFactor::SrcAlpha,
-                        dst_factor: BlendFactor::One,
-                        operation: BlendOperation::Add,
-                    },
-                    alpha: BlendComponent::OVER,
-                });
-            }
-        }
     }
 }
 

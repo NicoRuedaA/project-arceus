@@ -4,7 +4,7 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 7
+//! PLASAVE 8
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
@@ -19,7 +19,9 @@
 //! (`data/field_item_spawns.tsv`, Brief 12). Older files load via the migration chain: a v2 file
 //! gets an empty box, a v1-v3 file a play time of 0, a v1-v4 file every experience unknown, a
 //! v1-v5 file's `time_slot=N` becomes the centre minute of that slot (ASSUMED slot hours), and a
-//! v1-v6 file an empty picked set. The next bump is v8.
+//! v1-v6 file an empty picked set. v8 adds `defeated_trainers`, the ids of the beaten trainers
+//! (`data/trainer_index.tsv` ids such as `giratina01`, or `noble:<setting>`); a v1-v7 file loads with
+//! an empty set. The next bump is v9.
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -37,7 +39,7 @@ use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 7;
+pub const CURRENT_VERSION: u32 = 8;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
@@ -241,6 +243,10 @@ pub struct PlayerSave {
     /// Ids are the placement hashes in `data/field_item_spawns.tsv`; a respawned spawn is removed
     /// again.
     pub picked: BTreeSet<u64>,
+    /// Ids of the trainers the player has beaten (format v8). Defeated trainers cannot be fought
+    /// again from their marker and their prize is paid only once. Ids contain no whitespace,
+    /// comma or `=`.
+    pub defeated_trainers: BTreeSet<String>,
 }
 
 impl Default for PlayerSave {
@@ -262,6 +268,7 @@ impl Default for PlayerSave {
             rng_seed: 1,
             play_seconds: 0,
             picked: BTreeSet::new(),
+            defeated_trainers: BTreeSet::new(),
         }
     }
 }
@@ -281,6 +288,9 @@ impl PlayerSave {
         }
         if !self.position.iter().chain([&self.yaw]).all(|v| v.is_finite()) {
             return bad("position/yaw must be finite numbers".into());
+        }
+        if let Some(id) = self.defeated_trainers.iter().find(|id| !valid_trainer_id(id)) {
+            return bad(format!("defeated trainer id {id:?} must be non-empty without whitespace, comma or `=`"));
         }
         if u32::from(self.time_minutes) >= MINUTES_PER_DAY {
             return bad(format!("time_minutes {} is not a minute of day (< {MINUTES_PER_DAY})", self.time_minutes));
@@ -340,6 +350,7 @@ impl PlayerSave {
         kv("seen", join_set(&self.seen));
         kv("caught", join_set(&self.caught));
         kv("picked", join_set_u64(&self.picked));
+        kv("defeated_trainers", self.defeated_trainers.iter().cloned().collect::<Vec<_>>().join(","));
         kv(
             "bag",
             self.bag
@@ -405,6 +416,7 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
             4 => migrate_v4_to_v5(lines),
             5 => migrate_v5_to_v6(lines)?,
             6 => migrate_v6_to_v7(lines),
+            7 => migrate_v7_to_v8(lines),
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -484,6 +496,12 @@ fn migrate_v6_to_v7(lines: Vec<String>) -> Vec<String> {
     lines
 }
 
+/// v7 -> v8: v8 adds `defeated_trainers` (ids of beaten trainers). The key defaults to an empty
+/// set when missing, so no line has to change; this arm documents the step.
+fn migrate_v7_to_v8(lines: Vec<String>) -> Vec<String> {
+    lines
+}
+
 // ---------------------------------------------------------------- parsing
 
 fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
@@ -512,6 +530,13 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
             "seen" => s.seen = parse_set(v).ok_or_else(|| err("bad seen list"))?,
             "caught" => s.caught = parse_set(v).ok_or_else(|| err("bad caught list"))?,
             "picked" => s.picked = parse_set_u64(v).ok_or_else(|| err("bad picked list"))?,
+            "defeated_trainers" => {
+                let ids: BTreeSet<String> = v.split(',').filter(|e| !e.is_empty()).map(str::to_owned).collect();
+                if ids.iter().any(|id| !valid_trainer_id(id)) {
+                    return Err(err("bad defeated_trainers list"));
+                }
+                s.defeated_trainers = ids;
+            }
             "bag" => {
                 for e in v.split(',').filter(|e| !e.is_empty()) {
                     let (a, b) = e.split_once(':').ok_or_else(|| err("bad bag entry"))?;
@@ -582,6 +607,10 @@ fn parse_member(v: &str) -> Result<PartyMember, String> {
     })
 }
 
+/// A trainer id is stored raw inside a comma list: it must not break the line format.
+fn valid_trainer_id(id: &str) -> bool {
+    !id.is_empty() && !id.chars().any(|c| c.is_whitespace() || c.is_control() || c == ',' || c == '=')
+}
 fn join_set(s: &BTreeSet<u16>) -> String {
     s.iter().map(u16::to_string).collect::<Vec<_>>().join(",")
 }
@@ -872,6 +901,7 @@ mod tests {
             rng_seed: 0xdead_beef,
             play_seconds: 12_345,
             picked: BTreeSet::from([0xbe63_6c89_f1de_0b4c, 0x0000_0000_0000_0001]),
+            defeated_trainers: BTreeSet::from(["noble:nsi_ex_01".to_string(), "giratina01".to_string()]),
             ..PlayerSave::default()
         }
     }
@@ -1127,6 +1157,31 @@ mod tests {
         let out = s.encode().unwrap();
         assert!(out.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
         assert!(out.contains("\npicked=\n"), "the empty set is written on re-save");
+    }
+
+    /// v8: `defeated_trainers` round-trips sorted; a literal v7 body loads with an empty set and
+    /// re-saves as v8; a malformed id is refused.
+    #[test]
+    fn defeated_trainers_round_trip_and_v7_migration() {
+        let s = sample();
+        let text = s.encode().unwrap();
+        assert!(text.starts_with("PLASAVE 8\n"));
+        assert!(text.contains("\ndefeated_trainers=giratina01,noble:nsi_ex_01\n"), "{text}");
+        assert_eq!(PlayerSave::decode(&text).unwrap().defeated_trainers, s.defeated_trainers);
+        let body = "zone=ha_area01\npos=1,2,3\nyaw=0\ntime_minutes=900\nmoney=10\nrng_seed=2\n\
+                    play_seconds=5\npicked=0000000000000001\nEND\n";
+        let v7 = format!("PLASAVE 7\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let m = PlayerSave::decode(&v7).unwrap();
+        assert_eq!(m.version, CURRENT_VERSION);
+        assert!(m.defeated_trainers.is_empty(), "a v7 save has no defeated trainers");
+        assert_eq!(m.picked.len(), 1, "v7 data is kept");
+        assert!(m.encode().unwrap().contains("\ndefeated_trainers=\n"));
+        let bad = "zone=z\npos=0,0,0\nyaw=0\ntime_minutes=0\nmoney=0\nrng_seed=1\ndefeated_trainers=a b\nEND\n";
+        let t = format!("PLASAVE 8\nCHECKSUM {:016x}\n{bad}", fnv1a64(bad.as_bytes()));
+        assert!(PlayerSave::decode(&t).is_err());
+        let mut s = sample();
+        s.defeated_trainers.insert("a,b".into());
+        assert!(s.encode().is_err());
     }
 
     /// `time_minutes` round-trips and is validated to be a real minute of day.

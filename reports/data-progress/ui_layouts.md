@@ -238,9 +238,9 @@ Checked by eye against how the game looks (no reference screenshots are stored):
 
 ## 8. Phase 3: the original UI in the game (`--ui original`)
 
-`crates/pla/src/game/orig_ui/` draws the decoded layouts with `bevy_ui`. `--ui original`
-(or `PLA_UI=original`) turns it on; `--ui debug` is the default until the maintainer approves
-the look by eye. No game data is in the repository: the plugin reads the local UI root
+`crates/pla/src/game/orig_ui/` draws the decoded layouts with `bevy_ui`. The original UI is the
+default; `--ui original` (or `PLA_UI=original`) selects it explicitly and `--ui debug` selects
+the provisional UI. No game data is in the repository: the plugin reads the local UI root
 (`--ui-root`, `PLA_UI_ROOT`, `<cache>/ui`, `<cache>/../ui` or `work/ui`), which the installer
 step `ui` (`ui_export` + `ui_layout_decode.py --all`) writes to `<cache>/ui`. A missing root, a
 missing or broken screen file or a missing layout leaves that screen on the provisional UI
@@ -251,8 +251,14 @@ missing or broken screen file or a missing layout leaves that screen on the prov
 | `layout.rs` | serde model of the decoded JSON (non-finite floats tolerated; the decoder now writes strict JSON) | VERIFIED on the 9 screen files the port uses (tests) |
 | `scene.rs` | pane tree with parts expanded (part properties applied), transform rule of §3.2, pictures, windows (frame placement of the offline renderer), text slots | PROBABLE (same rules as the 18 proof reconstructions) |
 | `anim.rs` | hermite / step curves, per-instance tracks (hold, loop, frozen) | curves VERIFIED against the offline renderer; target meanings PROBABLE |
-| `material.rs` + `orig_ui.wgsl` | one UI material per quad: bilinear UV and vertex colours, texture SRT about the centre (translation added), clamp / repeat / mirror, `black + (white − black) × texel`, additive blend when the material blend's destination factor is one | PROBABLE |
+| `material.rs` + `orig_ui.wgsl` | one UI material per quad: bilinear UV and vertex colours, texture SRT about the centre (translation added), clamp / repeat / mirror, `black + (white − black) × texel`, and shader approximations for additive / multiply materials because the exact custom blend path is UNKNOWN | PROBABLE |
 | `icons.rs` | Pokémon (small / 512 px), item and type icons by file name | dex / form VERIFIED by eye; item ids PROBABLE |
+
+Text uses only an existing Noto Sans system font when one of the known system paths is present.
+Noto Sans is licensed under the SIL Open Font License 1.1 (upstream license:
+<https://github.com/notofonts/noto-fonts/blob/main/LICENSE>); no font file is copied into this
+repository and no game-derived font is accepted. If no such system font is available, the port
+uses its bundled fallback and folds accents rather than loading an unverified file.
 
 Rules found while wiring the screens:
 
@@ -274,24 +280,31 @@ Screens (each bound read-only to the existing state; keys and logic unchanged):
 
 | Screen | Layout | Shown | Status |
 |---|---|---|---|
-| Battle HUD | `battle_resident` / `battle_top_02` | player plate (name, level, HP numbers, gauge), party balls, Y / + guides | done |
-| Opponent plate | `battle_resident` / `cmn_pokeplate_enemy_02` | name, level, gauge, pinned at the top centre (the game floats it over the Pokémon) | done |
-| Action order | `battle_resident` / `battle_tl_00` | next 6 turns, names, Pokémon icons, own / foe colours (PLA turn flow only) | done |
-| Command diamond | `battle_menu_eng` / `battle_command_03` | Fight (A) / Items + Pokémon / Run (B), pulse on the port's highlighted tab; lifted above the move rows (the port has no separate Fight step) | done |
-| Move / list rows | `battle_menu_eng` / `battle_command_waza_00` | moves (type colour and icon, PP, power / accuracy panel), or items / party with their icons | done |
-| Message band | `battle_resident` / `msg_sys_00_s` | last two log lines while a turn plays | done (band body faint, see above) |
-| Field HUD | `resident_hud_arc01_eng` / `fieldinfo_00` | nearest wild Pokémon (icon + name) else zone name, ball shortcut and count, menu / Pokédex / map guides | done; missions, noble gauge / timer, alpha notices hidden (no data) |
-| Pause menu | `slidelist` / `slidemenu_menulist_01` | header = selected option, 4-icon strip paging the 15 options, option list and money / play time | done |
-| Party | `battle_menu_eng` / `pokelist_battle_00` | 6 rows (icon, name, level, HP, gauge), lead member's moves | done; gender, status, experience hidden |
-| Summary | `status` / `status_top_00` | loads and evaluates (tested) | not wired: the port has no summary screen |
+| Battle HUD | `battle_resident` / `battle_top_02` | player plate (name, level, HP numbers, gauge), party balls, Y / + guides | PROBABLE |
+| Opponent plate | `battle_resident` / `cmn_pokeplate_enemy_02` | name, level, gauge, floating above the measured opponent and clamped to the screen | PROBABLE; model height and exact placement remain runtime-dependent |
+| Action order | `battle_resident` / `battle_tl_00` | next 6 turns, names, Pokémon icons, own / foe colours (PLA turn flow only) | PROBABLE |
+| Command diamond | `battle_menu_eng` / `battle_command_03` | Fight (A) / Items + Pokémon / Run (B), pulse on the port's highlighted tab; lifted above the move rows (the port has no separate Fight step) | PROBABLE |
+| Move / list rows | `battle_menu_eng` / `battle_command_waza_00` | moves (type colour and icon, PP, power / accuracy panel), or items / party with their icons | PROBABLE |
+| Message band | `battle_resident` / `msg_sys_00_s` | last two log lines while a turn plays | PROBABLE; band body faint, see above |
+| Field HUD | `resident_hud_arc01_eng` / `fieldinfo_00` | nearest wild Pokémon (icon + name) else zone name, ball shortcut and count, menu / Pokédex / map guides | PROBABLE; missions, noble gauge / timer, alpha notices hidden (no data) |
+| Pause menu | `slidelist` / `slidemenu_menulist_01` | header = selected option, 4-icon strip paging 16 options, 16-row list kept above the bottom text strip, money / play time | PROBABLE; the port text and panel are approximations |
+| Party | `battle_menu_eng` / `pokelist_battle_00` | 6 rows (icon, name, level, HP, gauge), lead member's moves | PROBABLE; gender, status, experience hidden |
+| Summary | `status` / `status_top_00` | selected party member, info / moves / stats / notes pages, port-side Pokémon picture | PROBABLE; unsupported game fields remain hidden |
 | Bag | `bag` / `bag_top_00` + `inventory_00` | pocket items on the game's 5 × 4 slots (icon + count), item name and detail, money | partial: grid placement chosen by the port (the game's comes from `uikit` data, UNKNOWN); shop mode stays provisional |
-| Boxes | `box` / `box_top_00` + `inventory_00` | 32 Pokémon per page re-spaced to 8 × 4, party list, selection | partial: same grid note; status panel hidden |
-| Pokédex | `poke_dex` / `pokedex_detail_00` | list plates (number, name once caught, icon / silhouette), notebook page with the 512 px picture and counters | partial: research tasks, forms, sizes, description hidden |
-| Map (M) | `map` / `map_top_00` | the Hisui map behind the port's area map | partial: area highlights need the mask texture (multi-texture), icons and labels are run-time content |
+| Boxes | `box` / `box_top_00` + `inventory_00` | 30 Pokémon per page in the game's 6 × 5 grid, party list, selection | PROBABLE; grid binding is port-side and status details remain hidden |
+| Pokédex | `poke_dex` / `pokedex_detail_00` | list plates (number, name once caught, icon / silhouette), notebook page with picture, type badges, base stats and counters | PROBABLE; research tasks, forms, sizes and description remain hidden |
+| Map (M) | `map` / `map_top_00` | Hisui map behind the port's area map with the current area highlighted | PROBABLE; exact mask/material behavior, icons and labels remain UNKNOWN |
 
 Verification: unit tests (layout parsing, curves, scene placement / parts / overrides / mirror,
-icon index), headless tests against the local data when present (every screen builds and its
-visible quads have their textures; a shown screen spawns quad and text nodes; the party
-binding fills rows), the viewer's start-up guard with `--ui original` (including a trainer
-battle), and windowless automation screenshots at 1920×1080 of every screen compared by eye
-with the reconstructions (kept outside the repository).
+icon index and the 16-row pause bounds), headless tests against the local data when present (every
+screen builds and its visible quads have their textures; a shown screen spawns quad and text
+nodes; the party and summary bindings fill rows), the viewer's start-up guard with `--ui original`
+(including a trainer battle), and the external 24/24 PNG inventory in
+`/home/nico/work/capturas_ui2/`: pause, party, summary, bag, boxes, Pokédex, map and battle at
+1280×720, 1920×1080 and 2560×1440. The retry was windowless GPU, had no audio and exited cleanly.
+The populated bag visibly uses a placeholder icon for the selected item and shows `Item #169`; IDs
+17 and 1710 are VERIFIED by command/state only. Boxes visibly show `Box 1 / 32` with 4 stored
+Pokémon. Battle visibly shows Bidoof Lv. 5, the Pikachu HUD, the command wheel and the move list.
+These checks are honest partial port evidence: bindings, grid placement, placeholder icons and
+port-owned text remain partial or UNKNOWN, and the evidence does not establish native visual parity
+or binary matching, full text coverage or the UNKNOWN runtime material and `uikit` behaviour.
