@@ -651,6 +651,23 @@ impl SaveToast {
 #[derive(Resource, Debug, Default)]
 pub struct SaveRequested(pub bool);
 
+/// Set to `true` by the pause menu's Load row; [`load_action`] reads the save file (the same
+/// one `Save`/F5 writes) and applies it to the running session.
+#[derive(Resource, Debug, Default)]
+pub struct LoadRequested(pub bool);
+
+/// The zone change that puts the player back where `save` was made. Going through the zone
+/// machine (fade, terrain, navmesh, spawners, lighting) also covers a save from another area.
+pub fn load_zone_request(save: &PlayerSave) -> super::zone::ZoneChangeRequest {
+    super::zone::ZoneChangeRequest {
+        zone: save.zone.clone(),
+        spawn: Vec3::from(save.position),
+        yaw_deg: save.yaw.to_degrees(),
+        source: super::zone::ZoneChangeSource::LoadGame,
+        link: None,
+    }
+}
+
 /// Set to `true` by the pause menu's Rest row; [`rest_action`] heals the party and clears it.
 #[derive(Resource, Debug, Default)]
 pub struct RestRequested(pub bool);
@@ -676,15 +693,18 @@ impl SaveWirePlugin {
             .init_resource::<BattleTracker>()
             .init_resource::<SaveToast>()
             .init_resource::<SaveRequested>()
+            .init_resource::<LoadRequested>()
             .init_resource::<RestRequested>()
+            // Also registered by `ZonePlugin`; the load writes one.
+            .add_message::<super::zone::ZoneChangeRequest>()
             // Seeded by `PlayTimePlugin` at start-up; the default keeps this plugin usable alone.
             .init_resource::<PlayTime>();
         app.add_systems(Startup, (seed_defaults, spawn_toast))
             .add_systems(PostStartup, apply_loaded_yaw)
             .add_systems(PreUpdate, battle_wire)
             .add_systems(Update, (save_hotkey, zone_autosave, toast_tick).chain())
-            // Runs even while paused (that is when the menu is open).
-            .add_systems(Update, rest_action);
+            // Run even while paused (that is when the menu is open).
+            .add_systems(Update, (rest_action, load_action));
     }
 }
 
@@ -830,6 +850,45 @@ fn rest_action(
         }
     }
     toast.show(report.message());
+}
+
+/// Load the save when the pause menu asked for it: party, bag, money, Pokédex, picked items,
+/// play time and clock are restored at once; position and zone through a zone change. Refused
+/// during a battle; a missing or unreadable file only shows a toast.
+#[allow(clippy::too_many_arguments)]
+pub fn load_action(
+    mut requested: ResMut<LoadRequested>,
+    mut game: ResMut<SaveGame>,
+    mut progress: ResMut<PlayerProgress>,
+    mut play: ResMut<PlayTime>,
+    clock: Option<ResMut<super::clock::GameClock>>,
+    session: Option<Res<ActiveBattleSession>>,
+    mut toast: ResMut<SaveToast>,
+    mut zone_out: MessageWriter<super::zone::ZoneChangeRequest>,
+) {
+    if !std::mem::take(&mut requested.0) {
+        return;
+    }
+    if session.is_some() {
+        toast.show("Can't load during a battle.");
+        return;
+    }
+    let Some(save) = game.load() else {
+        let why = game.message.clone().unwrap_or_default();
+        toast.show(if why.starts_with("No saved game") {
+            "No saved game to load (save first with F5 or the Save row).".to_string()
+        } else {
+            why
+        });
+        return;
+    };
+    *progress = PlayerProgress::from_save(&save);
+    *play = PlayTime::from_seconds(save.play_seconds);
+    if let Some(mut clock) = clock {
+        clock.t_hours = f32::from(save.time_minutes) / 60.0;
+    }
+    zone_out.write(load_zone_request(&save));
+    toast.show(game.message.clone().unwrap_or_else(|| "Game loaded.".into()));
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1473,5 +1532,96 @@ mod tests {
         assert!(app.world().resource::<SaveToast>().text.contains("healed"));
         assert_eq!(app.world().resource::<crate::game::clock::GameClock>().hhmm(), "18:00", "rest advances the clock");
         assert!(app.world().resource::<SaveToast>().text.contains("18:00"), "the toast tells the new time");
+    }
+
+    /// Headless round trip of the pause menu's Load row: save, change the state, load; the
+    /// progress, play time and clock come back and the player is sent to the saved zone/position.
+    #[test]
+    fn load_row_restores_the_saved_session() {
+        use crate::game::zone::{ZoneChangeRequest, ZoneChangeSource};
+        let dir = tmpdir("load-row");
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.insert_resource(ActiveZoneInfo { area: "ha_area01".into(), name: "Obsidian Fieldlands".into() });
+        app.insert_resource(crate::game::clock::GameClock::from_minutes(1.0, 13 * 60));
+        let start = StartupState {
+            progress: progress2(),
+            area: Some(1),
+            position: None,
+            yaw: 0.0,
+            time_minutes: None,
+            play_seconds: 0,
+            loaded: false,
+            message: String::new(),
+        };
+        SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(&dir)), start, &WireCli::default());
+        let player = app
+            .world_mut()
+            .spawn((PlayerAvatar, Transform::from_xyz(511.0, 60.0, 409.0).with_rotation(Quat::from_rotation_y(0.5))))
+            .id();
+        app.update();
+        app.world_mut().resource_mut::<PlayerProgress>().money = 1234;
+        // The clock plugin mirrors the clock into the progress; here it is set by hand.
+        app.world_mut().resource_mut::<PlayerProgress>().time_minutes = 13 * 60;
+        app.world_mut().resource_mut::<PlayTime>().seconds = 777;
+        app.world_mut().resource_mut::<SaveRequested>().0 = true;
+        app.update();
+        assert_eq!(app.world().resource::<SaveToast>().text, "Game saved.");
+
+        // Play on: spend money, lose a party member, walk away, time passes.
+        let saved_party = app.world().resource::<PlayerProgress>().party.clone();
+        {
+            let mut p = app.world_mut().resource_mut::<PlayerProgress>();
+            p.money = 5;
+            p.party.truncate(1);
+        }
+        app.world_mut().resource_mut::<PlayTime>().seconds = 9_000;
+        app.world_mut().resource_mut::<crate::game::clock::GameClock>().t_hours = 22.0;
+        app.world_mut().get_mut::<Transform>(player).unwrap().translation = Vec3::new(100.0, 10.0, 100.0);
+
+        app.world_mut().resource_mut::<LoadRequested>().0 = true;
+        app.update();
+        assert!(!app.world().resource::<LoadRequested>().0, "the request is consumed");
+        let p = app.world().resource::<PlayerProgress>();
+        assert_eq!(p.money, 1234);
+        assert_eq!(p.party, saved_party);
+        assert_eq!(app.world().resource::<PlayTime>().seconds, 777);
+        assert_eq!(app.world().resource::<crate::game::clock::GameClock>().hhmm(), "13:00");
+        assert_eq!(app.world().resource::<SaveToast>().text, "Game loaded.");
+        let msgs = app.world().resource::<Messages<ZoneChangeRequest>>();
+        let req = msgs.iter_current_update_messages().last().expect("a zone change to the saved place").clone();
+        assert_eq!(req.zone, "ha_area01");
+        assert_eq!(req.source, ZoneChangeSource::LoadGame);
+        assert!((req.spawn - Vec3::new(511.0, 60.0, 409.0)).length() < 1e-3, "{:?}", req.spawn);
+        assert!((req.yaw_deg - 0.5f32.to_degrees()).abs() < 0.01);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_row_without_a_save_only_shows_a_toast() {
+        let dir = tmpdir("load-row-missing");
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.insert_resource(ActiveZoneInfo { area: "ha_area01".into(), name: String::new() });
+        let start = StartupState {
+            progress: progress2(),
+            area: None,
+            position: None,
+            yaw: 0.0,
+            time_minutes: None,
+            play_seconds: 0,
+            loaded: false,
+            message: String::new(),
+        };
+        SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(&dir)), start, &WireCli::default());
+        app.update();
+        app.world_mut().resource_mut::<PlayerProgress>().money = 42;
+        app.world_mut().resource_mut::<LoadRequested>().0 = true;
+        app.update();
+        assert!(app.world().resource::<SaveToast>().text.contains("No saved game"));
+        assert_eq!(app.world().resource::<PlayerProgress>().money, 42, "nothing changed");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -3,7 +3,7 @@
 //!
 //! Options: Resume, Bag, Party, Boxes, Pokédex, Crafting, Shop (test shop 0), Invert camera X
 //! axis, Invert camera Y axis, Volume (master, cycles 100/75/50/25/0 %), Back to safe spawn, Save
-//! game, Rest (heals the party), Quit. The screen rows only raise a request resource
+//! game, Load game (the file Save writes), Rest (heals the party), Quit. The screen rows only raise a request resource
 //! ([`BagOpenRequested`], [`PartyOpenRequested`], [`BoxOpenRequested`], [`DexOpenRequested`],
 //! [`ShopOpenRequested`], [`crate::game::crafting_ui::CraftingOpenRequested`]); each screen plugin
 //! consumes its own request, freezes the world and owns the input until it closes. A screen whose
@@ -25,7 +25,7 @@ use bevy::ecs::system::SystemParam;
 use super::crafting_ui::CraftingOpenRequested;
 use super::input_map::{Action, ActionState};
 use super::play_time::{format_play_time, PlayTime};
-use super::save_wire::{PlayerProgress, RestRequested, SaveRequested, SaveToast};
+use super::save_wire::{LoadRequested, PlayerProgress, RestRequested, SaveRequested, SaveToast};
 use super::settings::UserSettings;
 use super::state::{GameState, Paused};
 
@@ -46,12 +46,13 @@ pub enum MenuOption {
     Volume,
     SafeSpawn,
     Save,
+    Load,
     Rest,
     Quit,
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 14] = [
+pub const OPTIONS: [MenuOption; 15] = [
     MenuOption::Resume,
     MenuOption::Bag,
     MenuOption::Party,
@@ -64,6 +65,7 @@ pub const OPTIONS: [MenuOption; 14] = [
     MenuOption::Volume,
     MenuOption::SafeSpawn,
     MenuOption::Save,
+    MenuOption::Load,
     MenuOption::Rest,
     MenuOption::Quit,
 ];
@@ -83,6 +85,8 @@ pub enum MenuAction {
     SafeSpawn,
     /// Save the game exactly like F5.
     Save,
+    /// Load the save file (the one Save writes) into the running session.
+    Load,
     /// Heal the party (refused during a battle; no clock advance yet, Brief 9 owns the clock).
     Rest,
     /// Leave the program.
@@ -130,6 +134,7 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
         }
         MenuOption::SafeSpawn => MenuAction::SafeSpawn,
         MenuOption::Save => MenuAction::Save,
+        MenuOption::Load => MenuAction::Load,
         MenuOption::Rest => MenuAction::Rest,
         MenuOption::Quit => MenuAction::Quit,
     }
@@ -158,6 +163,7 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
         MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
         MenuOption::SafeSpawn => "Back to safe spawn".into(),
         MenuOption::Save => "Save game".into(),
+        MenuOption::Load => "Load game".into(),
         MenuOption::Rest => "Rest (heal party)".into(),
         MenuOption::Quit => "Quit".into(),
     }
@@ -207,6 +213,15 @@ pub struct DexOpenRequested(pub bool);
 /// Set to `true` by the pause menu's `Shop` row; the bag plugin opens its shop mode on shop 0.
 #[derive(Resource, Debug, Default)]
 pub struct ShopOpenRequested(pub bool);
+
+/// One-shot requests of the action rows (save, load, rest, back to the safe spawn).
+#[derive(SystemParam)]
+pub struct ActionRequests<'w> {
+    save: ResMut<'w, SaveRequested>,
+    load: ResMut<'w, LoadRequested>,
+    rest: ResMut<'w, RestRequested>,
+    safe: ResMut<'w, SafeSpawnRequested>,
+}
 
 /// Open requests of the fullscreen screens. A screen whose plugin is not installed has no
 /// resource here and its row only shows a toast.
@@ -307,6 +322,7 @@ impl PauseMenuPlugin {
             .init_resource::<PauseMenu>()
             .init_resource::<SaveToast>()
             .init_resource::<SaveRequested>()
+            .init_resource::<LoadRequested>()
             .init_resource::<RestRequested>()
             .init_resource::<SafeSpawnRequested>()
             .init_resource::<BagOpenRequested>()
@@ -407,9 +423,7 @@ fn pause_input(
     mut menu: ResMut<PauseMenu>,
     mut settings: ResMut<UserSettings>,
     dir: Res<SettingsDir>,
-    mut save_request: ResMut<SaveRequested>,
-    mut rest_request: ResMut<RestRequested>,
-    mut safe_request: ResMut<SafeSpawnRequested>,
+    mut requests: ActionRequests,
     mut screens: ScreenRequests,
     suppressed: Res<PauseMenuSuppressed>,
     mut toast: ResMut<SaveToast>,
@@ -508,11 +522,16 @@ fn pause_input(
             }
         }
         MenuAction::SafeSpawn => {
-            safe_request.0 = true;
+            requests.safe.0 = true;
             paused.0 = false;
         }
-        MenuAction::Save => save_request.0 = true,
-        MenuAction::Rest => rest_request.0 = true,
+        MenuAction::Save => requests.save.0 = true,
+        MenuAction::Load => {
+            // The world resumes so the zone change of the load can run.
+            requests.load.0 = true;
+            paused.0 = false;
+        }
+        MenuAction::Rest => requests.rest.0 = true,
         MenuAction::Quit => {
             exit.write(AppExit::Success);
         }
@@ -607,6 +626,8 @@ mod tests {
         assert_eq!(activate(MenuOption::Shop, &mut s), MenuAction::OpenScreen(Screen::Shop));
         assert_eq!(option_label(MenuOption::Pokedex, &s), "Pokédex");
         assert_eq!(activate(MenuOption::Save, &mut s), MenuAction::Save);
+        assert_eq!(activate(MenuOption::Load, &mut s), MenuAction::Load);
+        assert_eq!(option_label(MenuOption::Load, &s), "Load game");
         assert_eq!(activate(MenuOption::SafeSpawn, &mut s), MenuAction::SafeSpawn);
         assert_eq!(option_label(MenuOption::SafeSpawn, &s), "Back to safe spawn");
         assert_eq!(activate(MenuOption::Rest, &mut s), MenuAction::Rest);
@@ -618,7 +639,7 @@ mod tests {
     #[test]
     fn safe_spawn_row_is_reachable_by_navigation() {
         let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 14);
+        assert_eq!(OPTIONS.len(), 15);
         assert_eq!(move_selection(i - 1, 1), i);
         assert_eq!(move_selection(i, 1), i + 1);
     }
@@ -642,9 +663,10 @@ mod tests {
     }
 
     #[test]
-    fn rest_row_sits_between_save_and_quit() {
+    fn load_and_rest_rows_sit_between_save_and_quit() {
         let rest = OPTIONS.iter().position(|o| *o == MenuOption::Rest).unwrap();
-        assert_eq!(OPTIONS[rest - 1], MenuOption::Save);
+        assert_eq!(OPTIONS[rest - 2], MenuOption::Save);
+        assert_eq!(OPTIONS[rest - 1], MenuOption::Load);
         assert_eq!(OPTIONS[rest + 1], MenuOption::Quit);
     }
 
