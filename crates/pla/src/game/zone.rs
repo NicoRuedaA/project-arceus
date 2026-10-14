@@ -713,6 +713,8 @@ pub enum ZoneChangeSource {
     FastTravel,
     /// Debug key under `--debug-zone-links`.
     Debug,
+    /// The pause menu's Load game row (back to where the save was made).
+    LoadGame,
 }
 
 /// Request to load `zone` and place the player at `spawn` (destination frame) facing `yaw_deg`.

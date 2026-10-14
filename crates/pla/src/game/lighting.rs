@@ -168,6 +168,27 @@ pub fn ssao_camera_components(params: &LookParams) -> Option<(ScreenSpaceAmbient
         .then(|| (ScreenSpaceAmbientOcclusion { quality_level: params.ssao_quality, ..default() }, Msaa::Off))
 }
 
+/// Colour grading of the vivid look. Bevy applies a section's contrast in linear scene units
+/// around 0.5 (`0.5 + (c - 0.5) * contrast`, then clamped at 0), so a contrast above 1 on the
+/// SHADOWS section turns every value below `0.5 - 0.5 / contrast` (0.054 for 1.12) pure black.
+/// At night almost the whole frame is below that: play-test 2026-10-14 saw a black screen with
+/// only the sky and the rain visible. The contrast is therefore applied to midtones and highlights
+/// only; shadows keep contrast 1.
+pub fn vivid_color_grading(p: &LookParams) -> ColorGrading {
+    let section = ColorGradingSection { contrast: p.contrast, ..default() };
+    ColorGrading {
+        global: ColorGradingGlobal { post_saturation: p.post_saturation, ..default() },
+        shadows: ColorGradingSection::default(),
+        midtones: section,
+        highlights: section,
+    }
+}
+
+/// The contrast step of Bevy's colour grading for one channel (`tonemapping_shared.wgsl`).
+pub fn graded_channel(c: f32, contrast: f32) -> f32 {
+    (0.5 + (c - 0.5) * contrast).max(0.0)
+}
+
 /// Bloom component for a look: `None` when bloom is off. `Bloom` requires `Hdr` on the camera and
 /// the component requirement inserts it; intensity comes from the decoded sheet value.
 pub fn bloom_camera_component(params: &LookParams) -> Option<Bloom> {
@@ -381,16 +402,7 @@ fn apply_environment(
         }
         if vivid {
             // ASSUMED filmic grade: TonyMcMapface keeps hues (good for greens), then saturation/contrast.
-            let section = ColorGradingSection { contrast: p.contrast, ..default() };
-            c.insert((
-                Tonemapping::TonyMcMapface,
-                ColorGrading {
-                    global: ColorGradingGlobal { post_saturation: p.post_saturation, ..default() },
-                    shadows: section,
-                    midtones: section,
-                    highlights: section,
-                },
-            ));
+            c.insert((Tonemapping::TonyMcMapface, vivid_color_grading(p)));
         }
     }
     commands.spawn((
@@ -618,6 +630,18 @@ mod tests {
         assert_eq!(e.sun_color, [0.0, 1.0, 0.0]);
         assert_eq!(e.fog_far, 650.0);
         assert_eq!(parse_zone_env(&sheet(), "ha_area00", 3).unwrap().sun_intensity, 0.3);
+    }
+
+    #[test]
+    fn night_shadows_are_not_crushed_by_the_grade() {
+        let env = ZoneEnv { sun_intensity: 0.3, ..test_env() };
+        let p = look_params(&env, LookSettings::default());
+        let g = vivid_color_grading(&p);
+        assert_eq!(g.shadows.contrast, 1.0, "no contrast on the shadows section");
+        assert!((g.midtones.contrast - p.contrast).abs() < 1e-6);
+        // The old grade (contrast 1.12 on shadows) sent a 0.03 linear value to 0; now it is kept.
+        assert_eq!(graded_channel(0.03, p.contrast), 0.0);
+        assert!((graded_channel(0.03, g.shadows.contrast) - 0.03).abs() < 1e-6);
     }
 
     #[test]

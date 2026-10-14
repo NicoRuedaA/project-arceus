@@ -87,31 +87,11 @@ struct PokemonAssetKey {
     rare: bool,
 }
 
-/// Resolves a model path without silently substituting another form or palette.
-/// Spawn evidence currently falls back to form 0 and rare=false when absent.
+/// Resolves a model path without silently substituting another form or palette. The pack
+/// name comes from the game's model catalog (`game::pokemon_resource`), never from the dex
+/// number. Spawn evidence currently falls back to form 0 and rare=false when absent.
 fn resolve_pokemon_gltf_rel(dex: u16, form: u16, rare: bool) -> Option<String> {
-    let stem = format!("pm{dex:04}_{form:02}_00");
-    let variants: &[&str] = if rare {
-        &["rare_idle", "rare_static"]
-    } else {
-        &["idle", "static"]
-    };
-    let roots = [
-        std::env::var("PLA_CACHE_DIR").map(PathBuf::from).ok(),
-        Some(PathBuf::from("work/cache")),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
-    ];
-    for root in roots.into_iter().flatten() {
-        for v in variants {
-            let rel = format!("cache/pokemon_batch/{stem}/{stem}_{v}.gltf");
-            let disk_candidate = root.join(format!("pokemon_batch/{stem}/{stem}_{v}.gltf"));
-            let rel_candidate = PathBuf::from("work").join(&rel);
-            if disk_candidate.exists() || rel_candidate.exists() {
-                return Some(rel);
-            }
-        }
-    }
-    None
+    pla::game::pokemon_resource::resolve_batch_gltf_rel(dex, form, rare)
 }
 
 #[derive(Resource)]
@@ -421,7 +401,11 @@ fn main() -> ExitCode {
     }
     let pos_from_cli = wire_cli.has_player_pos || initial_player_pos.is_some();
     if !wire_cli.has_player_pos && initial_player_pos.is_none() {
-        initial_player_pos = wire_start.position.map(|p| Vec2::new(p[0], p[2]));
+        // Only a position saved in this same area (a save from another zone keeps its
+        // coordinates out of the area picked with --area).
+        initial_player_pos = wire_start
+            .position_in_area(area_idx)
+            .map(|p| Vec2::new(p[0], p[2]));
     }
 
     if auto_demo {
@@ -465,6 +449,10 @@ fn main() -> ExitCode {
     );
 
     let mut app = App::new();
+    // Safety net for the player's session only: a deferred command on an entity that was
+    // despawned earlier in the frame logs a warning instead of closing the game. The start-up
+    // guard tests keep Bevy's panicking default so such bugs still fail there.
+    app.set_error_handler(bevy::ecs::error::warn);
     // Automation never creates a window: its own DefaultPlugins set (no winit, no gamepad).
     let remote = automation_cfg.map(|cfg| pla::game::automation::AutomationPlugin {
         gpu: pla::game::automation::add_default_plugins(&mut app, work_abs.to_string_lossy().to_string(), &cfg),
@@ -1039,9 +1027,22 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     }
 }
 
+/// Malformed command-line values (game::cli_flags) also go to the start-up toast, once.
+fn show_flag_warnings(mut toast: ResMut<pla::game::save_wire::SaveToast>) {
+    let w = pla::game::cli_flags::warnings();
+    if w.is_empty() {
+        return;
+    }
+    let joined = w.join("  |  ");
+    let text = if toast.text.is_empty() { joined } else { format!("{}  |  {joined}", toast.text) };
+    toast.show(text);
+    toast.timer = 10.0;
+}
+
 /// The viewer's own systems (the game plugins are added by [`configure_viewer`]).
 fn add_viewer_systems(app: &mut App) {
     app.add_systems(Update, apply_safe_spawn_request);
+    app.add_systems(PostStartup, show_flag_warnings);
     app.add_systems(Startup, (setup_scene, setup_game_ui, spawn_aim_hint));
     app.add_systems(
         Update,
@@ -1745,7 +1746,7 @@ fn spawn_pokemon_models(
 
         // glTF ready: despawn placeholder geometric children
         for child in children.iter() {
-            commands.entity(child).despawn();
+            commands.entity(child).try_despawn();
         }
 
         // Real glTF scene with skeleton + idle/walk clips (see game::pokemon_anim).
@@ -1762,7 +1763,8 @@ fn spawn_pokemon_models(
             } else {
                 pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel)
             };
-            commands.entity(entity).insert(source);
+            // try_: the arena swap or the wild streamer may despawn it in this same frame.
+            commands.entity(entity).try_insert(source);
         }
 
         catalog.spawned.insert(entity);
@@ -1964,6 +1966,7 @@ fn player_locomotion(
     water_bodies: Option<Res<WaterBodies>>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
+    mut ledge_drop: Local<Option<pla::game::ledge::LedgeDrop>>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
     motion_query: Query<&pla::game::player_motion::PlayerMotionState, With<PlayerAvatar>>,
     mut skills_query: Query<&mut pla::game::player_skills::PlayerSkillState, With<PlayerAvatar>>,
@@ -2069,9 +2072,63 @@ fn player_locomotion(
                     })
             });
 
+        // Walking off a ledge (game::ledge): a drop already in progress keeps the player in
+        // its corridor until it stands on the navmesh again; a new move off the walkable edge
+        // starts one when the ground below is a legal drop (1 step .. 6 m, no wall, no water).
+        if let (Some(d), Some(nav)) = (ledge_drop.as_mut(), navmesh_res.as_ref()) {
+            d.elapsed += dt;
+            let back_on_mesh = motion_mode == MotionMode::Grounded
+                && nav.is_walkable(current_xz.x, current_xz.y);
+            if back_on_mesh || d.elapsed > pla::game::ledge::DROP_TIMEOUT {
+                *ledge_drop = None;
+            }
+        }
+        let ledge_start = match (&navmesh_res, *ledge_drop) {
+            (Some(nav), None)
+                if !water_entry
+                    && dodge.is_none()
+                    && motion_mode == MotionMode::Grounded
+                    && !nav.is_walkable(target_xz.x, target_xz.y) =>
+            {
+                nav.height_at(current_xz.x, current_xz.y).and_then(|start_y| {
+                    pla::game::ledge::find_ledge_drop(
+                        current_xz,
+                        start_y,
+                        delta_xz,
+                        |p| nav.height_at(p.x, p.y),
+                        |p| terrain_res.as_ref().and_then(|t| t.area.sample_world_height(p.x, p.y)),
+                        |p| {
+                            let ground = terrain_res
+                                .as_ref()
+                                .and_then(|t| t.area.sample_world_height(p.x, p.y));
+                            water_bodies
+                                .as_ref()
+                                .and_then(|w| w.level_near(p, 0.5))
+                                .zip(ground)
+                                .is_some_and(|(level, g)| level - g > SWIM_ENTER_DEPTH)
+                        },
+                    )
+                })
+            }
+            _ => None,
+        };
+        if let Some(d) = ledge_start {
+            println!(
+                "Ledge drop: {:.1} m from ({:.1}, {:.1}) toward ({:.1}, {:.1})",
+                d.drop_height(),
+                d.start.x,
+                d.start.y,
+                d.landing.x,
+                d.landing.y
+            );
+            *ledge_drop = Some(d);
+        }
+
         // Apply navmesh collision sliding if real navmesh is loaded
         let final_xz = if water_entry {
             target_xz
+        } else if let (Some(d), Some(nav)) = (ledge_drop.as_ref(), navmesh_res.as_ref()) {
+            pla::game::ledge::drop_move(d, current_xz, target_xz, |p| nav.is_walkable(p.x, p.y))
         } else if let Some(ref nav) = navmesh_res {
             use pla::game::spawn_point as sp;
             let walk = |p: Vec2| nav.is_walkable(p.x, p.y);
@@ -3750,7 +3807,10 @@ mod startup_schedule_guard {
             art_style,
             trainers: pla::game::trainer_encounter::TrainerEncounterPlugin {
                 markers: !has("--no-trainers"),
-                forced: None,
+                forced: cli_args
+                    .iter()
+                    .position(|a| a == "--trainer")
+                    .and_then(|i| cli_args.get(i + 1).cloned()),
                 data_dir: None,
             },
             // Null: the whole game audio pipeline is registered but no device is opened.
@@ -3798,6 +3858,80 @@ mod startup_schedule_guard {
             app.add_plugins(bevy::render::sync_world::SyncWorldPlugin);
         }
         app
+    }
+
+    /// One key press and release through the real input pipeline (keyboard messages, so the
+    /// `ButtonInput<KeyCode>` the systems read sees `just_pressed` in the next `Update`).
+    fn tap_key(app: &mut App, key: KeyCode) {
+        use bevy::input::keyboard::{Key, KeyboardInput};
+        use bevy::input::ButtonState;
+        for state in [ButtonState::Pressed, ButtonState::Released] {
+            app.world_mut().write_message(KeyboardInput {
+                key_code: key,
+                logical_key: Key::Unidentified(bevy::input::keyboard::NativeKey::Unidentified),
+                state,
+                text: None,
+                repeat: false,
+                window: Entity::PLACEHOLDER,
+            });
+            app.update();
+        }
+    }
+
+    fn built_app(name: &str, args: &[&str]) -> (App, PathBuf) {
+        let scratch =
+            std::env::temp_dir().join(format!("pla-viewer-schedule-guard-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&scratch).expect("scratch dir");
+        let mut app = headless_app();
+        configure_viewer(&mut app, setup_for(args, &scratch));
+        app.finish();
+        app.cleanup();
+        (app, scratch)
+    }
+
+    /// `--trainer <id>` + V anywhere: the battle starts and keeps running (play-test crash,
+    /// 2026-10-14). Runs the battle-start path: state change, arena, battle UI, models, effects.
+    fn check_forced_trainer_battle(name: &str, trainer: &str) {
+        let (mut app, scratch) = built_app(name, &["port_viewer", "--area", "1", "--trainer", trainer]);
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        tap_key(&mut app, KeyCode::KeyV);
+        for _ in 0..30 {
+            app.update();
+        }
+        let state = app.world().resource::<State<GameState>>().get().clone();
+        assert_eq!(state, GameState::Battle, "[{name}] V did not start the battle");
+        {
+            let sess = app
+                .world()
+                .get_resource::<ActiveBattleSession>()
+                .unwrap_or_else(|| panic!("[{name}] no battle session"));
+            println!(
+                "[{name}] after V, no input yet: player #{} opponent #{}; log:\n{}",
+                sess.battle.combatants[sess.active_player()].species.dex,
+                sess.battle.combatants[sess.opponent()].species.dex,
+                sess.log_lines.join("\n")
+            );
+        }
+        // A few battle inputs (fight menu, first move) through the same path the keys use.
+        for key in [KeyCode::Enter, KeyCode::Digit1, KeyCode::Enter, KeyCode::Escape] {
+            tap_key(&mut app, key);
+            for _ in 0..10 {
+                app.update();
+            }
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    #[test]
+    fn forced_trainer_giratina_v_starts_battle() {
+        check_forced_trainer_battle("trainer-giratina", "giratina01");
+    }
+
+    #[test]
+    fn forced_noble_v_starts_battle() {
+        check_forced_trainer_battle("trainer-noble", "noble:nsi_ex_01");
     }
 
     fn check_viewer_start(name: &str, args: &[&str]) {

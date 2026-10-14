@@ -30,6 +30,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use bevy::prelude::*;
 
+use super::cli_flags::{parse_or_warn, report_bad_value};
 use super::clock::GameClock;
 use super::distortion::{
     DistortionCue, DistortionData, DistortionMachine, EventSpawnSlot, Phase, WormholeConfig,
@@ -272,6 +273,9 @@ pub struct WorldEventsConfig {
     pub distortion_now: bool,
     /// `Some(None)` = outbreaks off, `Some(Some(id))` = force that id in the start area.
     pub force_outbreak: Option<Option<u16>>,
+    /// With `--distortion-now` / `--outbreak N`: place the player near the forced event once
+    /// (`--no-teleport-to-event` keeps the start position).
+    pub teleport_to_event: bool,
 }
 
 impl Default for WorldEventsConfig {
@@ -283,6 +287,7 @@ impl Default for WorldEventsConfig {
             time_scale: 1.0,
             distortion_now: false,
             force_outbreak: None,
+            teleport_to_event: true,
         }
     }
 }
@@ -298,18 +303,23 @@ impl WorldEventsConfig {
         let d = Self::default();
         Self {
             enabled: !args.iter().any(|a| a == "--no-world-events"),
-            story: val("--story")
-                .and_then(|s| s.parse().ok())
+            story: parse_or_warn(args, "--story", "a whole number", d.story, |_: &u32| true)
                 .unwrap_or(d.story),
-            seed: val("--event-seed")
-                .and_then(|s| s.parse().ok())
+            seed: parse_or_warn(args, "--event-seed", "a whole number", d.seed, |_: &u64| true)
                 .unwrap_or(d.seed),
-            time_scale: val("--event-time-scale")
-                .and_then(|s| s.parse::<f32>().ok())
-                .filter(|v| v.is_finite() && *v > 0.0)
-                .unwrap_or(1.0),
+            time_scale: parse_or_warn(args, "--event-time-scale", "a number > 0", 1, |v: &f32| {
+                v.is_finite() && *v > 0.0
+            })
+            .unwrap_or(1.0),
             distortion_now: args.iter().any(|a| a == "--distortion-now"),
-            force_outbreak: val("--outbreak").map(|s| s.parse::<u16>().ok()),
+            force_outbreak: val("--outbreak").map(|s| {
+                let id = s.trim().parse::<u16>().ok();
+                if id.is_none() && !s.trim().eq_ignore_ascii_case("off") {
+                    report_bad_value("--outbreak", &s, "an outbreak id or 'off'", "off");
+                }
+                id
+            }),
+            teleport_to_event: !args.iter().any(|a| a == "--no-teleport-to-event"),
         }
     }
 }
@@ -429,6 +439,8 @@ pub struct WorldEvents {
     applied_conditions: (usize, u8),
     dirty: bool,
     start_area_forced: bool,
+    /// The one-time move next to a forced event was done (or not needed).
+    pub teleported_to_event: bool,
 }
 
 impl WorldEvents {
@@ -459,6 +471,7 @@ impl WorldEvents {
             applied_conditions: (usize::MAX, 0),
             dirty: true,
             start_area_forced: false,
+            teleported_to_event: false,
         }
     }
 
@@ -867,6 +880,36 @@ pub fn day_rolled(last: Option<u16>, now: u16) -> bool {
     last.is_some_and(|l| now < l && l - now > 720)
 }
 
+/// Distance (m) from a forced event at which the player is placed.
+pub const EVENT_APPROACH_DISTANCE: f32 = 40.0;
+
+/// A walkable point about `radius` metres from `target`, preferring the side the player comes
+/// from (`from`), and the yaw that faces the target (`atan2(dx, dz)`, the avatar's +Z forward).
+/// Tries 24 directions on the circle, then 30 and 50 m; `None` when nothing there is walkable.
+pub fn approach_point(
+    target: Vec3,
+    from: Vec2,
+    radius: f32,
+    ground_y: impl Fn(Vec2) -> Option<f32>,
+) -> Option<(Vec3, f32)> {
+    let t = Vec2::new(target.x, target.z);
+    let base = (from - t).try_normalize().unwrap_or(Vec2::X);
+    let base_angle = base.y.atan2(base.x);
+    for r in [radius, radius * 0.75, radius * 1.25] {
+        for k in 0..24 {
+            // 0, +15, -15, +30, -30, ... degrees around the player's side.
+            let step = ((k + 1) / 2) as f32 * if k % 2 == 1 { 1.0 } else { -1.0 };
+            let a = base_angle + step * std::f32::consts::PI / 12.0;
+            let p = t + Vec2::new(a.cos(), a.sin()) * r;
+            if let Some(y) = ground_y(p) {
+                let d = t - p;
+                return Some((Vec3::new(p.x, y, p.y), d.x.atan2(d.y)));
+            }
+        }
+    }
+    None
+}
+
 // ---------------------------------------------------------------- Bevy side
 
 /// Installs the world events for the start area. Data files missing -> a message and nothing.
@@ -949,6 +992,7 @@ impl Plugin for WorldEventsPlugin {
                 loot_interact
                     .run_if(in_state(GameState::World))
                     .run_if(not_paused),
+                teleport_to_forced_event,
             )
                 .chain(),
         );
@@ -989,6 +1033,52 @@ fn track_area_and_day(
             send(cues, &mut out, &mut toast);
         }
         ev.last_minutes = Some(now);
+    }
+}
+
+/// `--distortion-now` / `--outbreak N`: the first cue of the forced event moves the player
+/// [`EVENT_APPROACH_DISTANCE`] m from it on walkable ground, facing it (once per session;
+/// `--no-teleport-to-event` turns it off). Without a navmesh only the coordinates are shown.
+fn teleport_to_forced_event(
+    mut ev: ResMut<WorldEvents>,
+    mut cues: MessageReader<WorldEventCue>,
+    nav: Option<Res<super::navigation::GameNavmeshResource>>,
+    mut player: Query<&mut Transform, With<PlayerAvatar>>,
+    mut toast: Option<ResMut<SaveToast>>,
+) {
+    let forced_outbreak = matches!(ev.config.force_outbreak, Some(Some(_)));
+    if ev.teleported_to_event || !ev.config.teleport_to_event || !(ev.config.distortion_now || forced_outbreak) {
+        cues.clear();
+        return;
+    }
+    let target = cues.read().find_map(|c| match c.kind {
+        WorldEventKind::DistortionNotice | WorldEventKind::DistortionMaterialize if ev.config.distortion_now => {
+            Some((c.pos, "distortion"))
+        }
+        WorldEventKind::OutbreakStart if forced_outbreak => Some((c.pos, "outbreak")),
+        _ => None,
+    });
+    let Some((pos, what)) = target else { return };
+    ev.teleported_to_event = true;
+    let Ok(mut tf) = player.single_mut() else { return };
+    let from = Vec2::new(tf.translation.x, tf.translation.z);
+    let spot = nav.as_ref().and_then(|n| {
+        approach_point(pos, from, EVENT_APPROACH_DISTANCE, |p| n.height_at(p.x, p.y))
+    });
+    let msg = match spot {
+        Some((p, yaw)) => {
+            tf.translation = p + Vec3::Y * super::player_anim::AVATAR_ROOT_ABOVE_GROUND;
+            tf.rotation = Quat::from_rotation_y(yaw);
+            format!(
+                "Moved next to the {what} at ({:.0}, {:.0}): you stand at ({:.0}, {:.0}), facing it (--no-teleport-to-event to stay).",
+                pos.x, pos.z, p.x, p.z
+            )
+        }
+        None => format!("The {what} is at ({:.0}, {:.0}); no walkable ground found next to it.", pos.x, pos.z),
+    };
+    println!("World events: {msg}");
+    if let Some(t) = toast.as_deref_mut() {
+        t.show(msg);
     }
 }
 
@@ -1447,6 +1537,80 @@ mod tests {
 
     /// Headless Bevy run: real sheets, area 01, accelerated timers. Checks that a distortion forms,
     /// materialises with Pokémon that the regular spawner list now holds, and ends.
+    #[test]
+    fn approach_point_faces_the_target_from_the_players_side() {
+        let flat = |_: Vec2| Some(5.0);
+        let (p, yaw) = approach_point(Vec3::new(100.0, 0.0, 100.0), Vec2::new(0.0, 100.0), 40.0, flat).unwrap();
+        assert!((p - Vec3::new(60.0, 5.0, 100.0)).length() < 1e-3, "{p:?}");
+        // Facing +X: atan2(dx, dz) = atan2(40, 0) = 90 degrees.
+        assert!((yaw - std::f32::consts::FRAC_PI_2).abs() < 1e-4);
+        // Only the far side is walkable: still found, still 40 m away.
+        let half = |q: Vec2| (q.x > 100.0).then_some(1.0);
+        let (p, _) = approach_point(Vec3::new(100.0, 0.0, 100.0), Vec2::new(0.0, 100.0), 40.0, half).unwrap();
+        assert!(p.x > 100.0 && (Vec2::new(p.x, p.z) - Vec2::new(100.0, 100.0)).length() > 29.0);
+        assert!(approach_point(Vec3::ZERO, Vec2::ONE, 40.0, |_| None).is_none());
+    }
+
+    /// `--distortion-now` in area 01: the player starting ~300 m away (play-test, x 511 z 409)
+    /// ends up ~40 m from the forming distortion on the real navmesh, facing it.
+    #[test]
+    fn distortion_now_places_the_player_next_to_the_site() {
+        let root = std::env::var_os("PLA_BIN_ROOT")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin".into());
+        let (Some(_), Some(active), Ok(nav)) = (
+            real_events(WorldEventsConfig::default()),
+            area01_spawners(),
+            crate::game::navigation::GameNavmeshResource::load(&root, 1),
+        ) else {
+            eprintln!("[skip] game data not present");
+            return;
+        };
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.init_state::<GameState>();
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(250)));
+        app.insert_resource(active);
+        app.insert_resource(ConsumedSpawners::default());
+        app.insert_resource(ActiveZoneInfo { area: "ha_area01".into(), name: "x".into() });
+        app.insert_resource(GameClock::pinned_at_slot(1));
+        app.insert_resource(nav.clone());
+        app.init_resource::<SaveToast>();
+        let player = app.world_mut().spawn((PlayerAvatar, Transform::from_xyz(511.0, 30.0, 409.0))).id();
+        app.add_plugins(WorldEventsPlugin {
+            config: WorldEventsConfig { distortion_now: true, time_scale: 40.0, force_outbreak: Some(None), ..Default::default() },
+        });
+        let mut site = None;
+        for _ in 0..80 {
+            app.update();
+            let msgs = app.world().resource::<Messages<WorldEventCue>>();
+            if let Some(c) = msgs.iter_current_update_messages().find(|c| c.kind == WorldEventKind::DistortionNotice) {
+                site = Some(c.pos);
+            }
+            if app.world().resource::<WorldEvents>().teleported_to_event {
+                break;
+            }
+        }
+        let site = site.expect("a distortion formed");
+        assert!(app.world().resource::<WorldEvents>().teleported_to_event);
+        let tf = *app.world().get::<Transform>(player).unwrap();
+        let p = Vec2::new(tf.translation.x, tf.translation.z);
+        let d = p.distance(Vec2::new(site.x, site.z));
+        assert!((29.0..=51.0).contains(&d), "placed {d:.1} m from the site");
+        assert!(nav.is_walkable(p.x, p.y), "on walkable ground");
+        let facing = tf.rotation * Vec3::Z;
+        let to_site = (Vec2::new(site.x, site.z) - p).normalize();
+        assert!(Vec2::new(facing.x, facing.z).dot(to_site) > 0.99, "facing the site");
+        assert!(app.world().resource::<SaveToast>().text.contains("Moved next to the distortion"));
+    }
+
+    #[test]
+    fn no_teleport_flag_keeps_the_start() {
+        let a = |s: &str| s.split_whitespace().map(str::to_string).collect::<Vec<_>>();
+        assert!(WorldEventsConfig::from_args(&a("v --distortion-now")).teleport_to_event);
+        assert!(!WorldEventsConfig::from_args(&a("v --distortion-now --no-teleport-to-event")).teleport_to_event);
+    }
+
     #[test]
     fn headless_distortion_cycle_and_outbreak_in_area01() {
         let (Some(_), Some(active)) =

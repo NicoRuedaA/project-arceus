@@ -38,7 +38,7 @@ fn hide_overworld_target(
     for (e, wild, mut vis) in &mut q {
         if overworld_hidden_in_battle(wild.in_battle, wild.defeated) {
             *vis = Visibility::Hidden;
-            commands.entity(e).insert(HiddenForBattle);
+            commands.entity(e).try_insert(HiddenForBattle);
         }
     }
 }
@@ -46,7 +46,7 @@ fn hide_overworld_target(
 fn restore_overworld_target(mut commands: Commands, mut q: Query<(Entity, &mut Visibility), With<HiddenForBattle>>) {
     for (e, mut vis) in &mut q {
         *vis = Visibility::Inherited;
-        commands.entity(e).remove::<HiddenForBattle>();
+        commands.entity(e).try_remove::<HiddenForBattle>();
     }
 }
 

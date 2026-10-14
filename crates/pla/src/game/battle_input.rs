@@ -93,10 +93,10 @@ pub fn battle_input_system(
                         s.spawned_entities.remove(&wild.spawner_id);
                     }
                     println!("Wild #{} {:?}: removed from the world (spawner {})", wild.national_dex, fate, wild.spawner_id);
-                    commands.entity(sess.wild_entity).despawn();
+                    commands.entity(sess.wild_entity).try_despawn();
                 } else {
                     // Fled: the creature stays alive; no new encounter for a few seconds.
-                    commands.entity(sess.wild_entity).insert(FleeCooldown(FLEE_COOLDOWN_S));
+                    commands.entity(sess.wild_entity).try_insert(FleeCooldown(FLEE_COOLDOWN_S));
                 }
             }
             commands.remove_resource::<ActiveBattleSession>();

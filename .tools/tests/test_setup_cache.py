@@ -171,6 +171,22 @@ class PlanTests(unittest.TestCase):
         stamp.write_text(json.dumps({"fingerprint": fp}))
         self.assertEqual(sc.step_status(ctx, step), "stale")
 
+    def test_player_export_without_roll_and_crouch_clips_is_stale(self) -> None:
+        self.fake_romfs()
+        ctx = make_ctx(self.work)
+        step = next(s for s in self.steps if s.name == "player-model")
+        clips9 = ["idle", "idle2", "walk", "run", "dash", "jump_start", "jump_fall", "land", "swim"]
+        for v in ("p1_default", "p2_default"):
+            f = self.work / "cache" / "player" / v / "player.gltf"
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(json.dumps({"animations": [{"name": n} for n in clips9]}))
+        self.assertEqual(sc.step_status(ctx, step), "stale", "a pre-Brief-22 export (9 clips) is refreshed")
+        for v in ("p1_default", "p2_default"):
+            f = self.work / "cache" / "player" / v / "player.gltf"
+            names = clips9 + ["roll_f", "roll_b", "roll_l", "roll_r", "crouch", "crouch_walk"]
+            f.write_text(json.dumps({"animations": [{"name": n} for n in names]}))
+        self.assertEqual(sc.step_status(ctx, step), "present")
+
     def test_rebuilt_upstream_reruns_stamped_downstream_but_not_hand_made_outputs(self) -> None:
         self.fake_romfs()
         ctx = make_ctx(self.work, "--areas", "1", "--force", "terrain-albedo")

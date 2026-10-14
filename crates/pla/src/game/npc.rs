@@ -782,7 +782,7 @@ fn wire_npc_animation(
             commands
                 .entity(player_entity)
                 .insert((AnimationGraphHandle(graph_handle), transitions));
-            commands.entity(entity).insert(NpcAnimState {
+            commands.entity(entity).try_insert(NpcAnimState {
                 player: player_entity,
                 idle_node,
             });
@@ -818,8 +818,8 @@ fn fallback_npc_models(
         }
         commands
             .entity(entity)
-            .remove::<NpcModelSource>()
-            .insert(NpcFallbackSpawned);
+            .try_remove::<NpcModelSource>()
+            .try_insert(NpcFallbackSpawned);
         let mut entity_commands = commands.entity(entity);
         spawn_capsule_fallback(&mut entity_commands, &mut meshes, &mut materials);
     }

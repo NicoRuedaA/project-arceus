@@ -90,8 +90,11 @@ impl WildBehaviorSettings {
         match Self::parse(&value) {
             Some(settings) => settings,
             None => {
-                eprintln!(
-                    "[wild] unknown --wild-behavior {value:?} (on|off|passive|timid|aggressive); using on"
+                super::cli_flags::report_bad_value(
+                    "--wild-behavior",
+                    &value,
+                    "on|off|passive|timid|aggressive",
+                    "on",
                 );
                 Self::default()
             }
@@ -479,7 +482,7 @@ fn attach_wander(
             },
             _ => WildBehavior::assumed_passive(seed),
         };
-        commands.entity(e).insert((
+        commands.entity(e).try_insert((
             WanderState::new(seed, (tf.translation.x, tf.translation.z)),
             WanderHome { params, y_offset },
             behavior,

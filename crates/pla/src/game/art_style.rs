@@ -123,6 +123,7 @@ impl StyleSettings {
             } else if s.eq_ignore_ascii_case("plain") {
                 Some(ArtStyle::Plain)
             } else {
+                super::cli_flags::report_bad_value("--style", s, "original|plain", "plain");
                 None
             }
         });

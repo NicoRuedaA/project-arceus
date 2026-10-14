@@ -1,6 +1,6 @@
 # Guía de pruebas del port de Pokémon Legends: Arceus (Bevy)
 
-Escrita y actualizada el 2026-10-13 para quien prueba el juego sin ser programador. Todo lo de aquí se
+Escrita el 2026-10-13 y actualizada el 2026-10-14 (arreglos de la primera prueba de juego) para quien prueba el juego sin ser programador. Todo lo de aquí se
 construyó y se comprobó con pruebas automáticas y números, **nunca con una persona jugando**.
 Tu trabajo es ser los ojos y las manos: decir qué se ve bien y qué se ve raro.
 
@@ -78,7 +78,7 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 
 | Opción | Qué hace |
 |---|---|
-| `--trainer ID` | Permite empezar el combate contra ese entrenador pulsando V en cualquier sitio (ver 2.5). Ejemplos: `trainer04_01`, `trainer09_01`; jefe: `giratina01`; Nobles: `noble:nsi_ex_01_r`. |
+| `--trainer ID` | Permite empezar el combate contra ese entrenador pulsando V en cualquier sitio (ver 2.5). Al arrancar sale el aviso «Press V anywhere to fight ID» (o que el ID no existe). Ejemplos: `trainer04_01`, `trainer09_01`; jefe: `giratina01`; Nobles: `noble:nsi_ex_01`. |
 | `--no-trainers` | Oculta las cápsulas rojas de entrenadores. |
 | `--classic-turns` | Combate con el sistema de turnos clásico (un movimiento por ronda, sin estilos ágil/fuerte). Por defecto se usa el sistema de turnos propio de este juego. |
 | `--pla-turns` | Pide expresamente el sistema propio (ya es el de por defecto). |
@@ -92,9 +92,10 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 
 | Opción | Qué hace |
 |---|---|
-| `--distortion-now` | Se salta la espera y la primera distorsión empieza enseguida. |
+| `--distortion-now` | Se salta la espera y la primera distorsión empieza enseguida. Además te coloca a unos 40 m de ella, mirando hacia ella (sale un aviso con las coordenadas). |
+| `--no-teleport-to-event` | Con `--distortion-now` o `--outbreak N`: no te mueve; empiezas donde siempre. |
 | `--event-time-scale F` | Acelera los relojes de las distorsiones (por ejemplo `10`). |
-| `--outbreak ID` / `--outbreak off` | Fuerza un brote masivo concreto en la zona de inicio, o lo desactiva. |
+| `--outbreak ID` / `--outbreak off` | Fuerza un brote masivo concreto en la zona de inicio (y te coloca a unos 40 m de él), o lo desactiva. |
 | `--story N` | «Progreso de historia» falso para que se desbloqueen cosas (por defecto 100000, todo desbloqueado). |
 | `--event-seed N` | Semilla para que salga siempre lo mismo. |
 | `--no-world-events` | Apaga distorsiones y brotes. |
@@ -115,6 +116,10 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 Las opciones `--headless`, `--auto-demo`, `--script`, `--screenshot`, `--ticks`, `--verify-views`
 son para pruebas automáticas sin ventana. **No las uses para jugar.**
 
+Si escribes mal un valor (por ejemplo `--event-time-scale 20:` en vez de `20`), el juego ya no lo
+ignora en silencio: avisa en la terminal y en pantalla («could not parse ... using ...») y usa el
+valor por defecto.
+
 ### 1.4 Teclas (lo que el código realmente reconoce)
 
 **En el mundo**
@@ -124,7 +129,7 @@ son para pruebas automáticas sin ventana. **No las uses para jugar.**
 | W A S D o flechas | Andar |
 | Shift | Correr |
 | Q / E | Girar la cámara (E además hace otras cosas, ver abajo) |
-| K | Saltar (también caer desde cornisas, aterrizar y trepar). Mando: ver 2.2 |
+| K | Saltar (también aterrizar y trepar). Mando: ver 2.2. Para **bajar una cornisa** de hasta 6 m no hace falta saltar: anda hacia el borde |
 | H | Voltereta de esquiva |
 | Ctrl izquierdo | Agacharse |
 | R / F | Acercar / alejar la cámara |
@@ -138,7 +143,7 @@ son para pruebas automáticas sin ventana. **No las uses para jugar.**
 | Espacio o Enter | Recoger un objeto del suelo cercano |
 | I | Mochila |
 | M | Mapa a pantalla completa |
-| Esc | Menú de pausa (desde ahí también: Equipo, Cajas, Pokédex, Artesanía y Tienda; ver 2.8) |
+| Esc | Menú de pausa (desde ahí también: Equipo, Cajas, Pokédex, Artesanía, Tienda y **Cargar partida**; ver 2.8 y 2.15) |
 | F5 | Guardar |
 | 1 a 5 | Cambia el color del Pokémon de pruebas (es una ayuda de desarrollo, no una función del juego) |
 | P (con `--debug-zone-links`) | Escribe en la terminal las puertas cercanas |
@@ -211,16 +216,27 @@ Cada punto: **qué hacer**, **qué deberías ver** y **qué sería un fallo**. M
     los ejes).
 11. **Mando.** Si tienes uno: palanca izquierda mueve, derecha orbita. Fallo: no responde.
 12. **Salto, caída, trepar** [EN MAIN]. Salto con **K**, voltereta con **H**, agacharse con **Ctrl izquierdo**.
-    Ves: salto con arco, caída desde cornisas, aterrizaje y trepar. Fallo: K no hace nada, atraviesas
-    el suelo al aterrizar, o te quedas pegado a una pared. Cuerdas, escaleras y superficies de trepar
+    Ves: salto con arco, caída desde cornisas, aterrizaje y trepar. **H** hace una voltereta rodando
+    por el suelo (unos 5 m en 1,5 s) y **Ctrl** agacha al protagonista y anda agachado (arreglado el
+    2026-10-14: antes el modelo guardado era antiguo y no traía esas animaciones). Fallo: K no hace
+    nada, atraviesas el suelo al aterrizar, te quedas pegado a una pared, la voltereta parece un
+    muelle o agacharse no cambia nada (si sale el aviso «Player model export is outdated», ejecuta
+    `./install.sh`).
+    **Bajar cornisas** (arreglado el 2026-10-14): anda hacia el borde de un desnivel de hasta 6 m
+    (por ejemplo la loma de tierra junto al inicio de la zona 1): caes y aterrizas abajo. Los
+    acantilados más altos, las paredes, el agua y el borde del mapa siguen bloqueados. El límite
+    de 6 m es SUPUESTO (justo por debajo de los 7 m donde el juego empieza a contar daño por caída). Cuerdas, escaleras y superficies de trepar
     reales **no existen** (datos desconocidos), así que solo trepa donde el código lo permite.
 
 ### 2.3 Pokémon y comportamiento salvaje  [EN MAIN]
 
 13. **Pokémon salvajes por la zona.** Ves modelos reales de Pokémon con sus colores, repartidos
-    según la zona (cada zona tiene sus especies). Fallo: esferas de colores en vez de Pokémon
-    (solo es normal los primeros segundos mientras cargan), Pokémon hundidos en el suelo,
-    flotando, o con colores raros (ojos o puntas negras sí son conocidos).
+    según la zona (cada zona tiene sus especies). Desde el 2026-10-14 también tienen modelo las
+    formas regionales y las especies nuevas (Qwilfish de Hisui, Shellos, Gastrodon, Goomy, Bergmite,
+    Rowlet...), que antes se quedaban como esferas grises. Las **cápsulas azul grisáceo** son personas
+    (PNJ) sin modelo y las **rojas** son entrenadores: no son Pokémon. Fallo: esferas grises que no
+    cambian tras unos segundos, Pokémon hundidos en el suelo, flotando, o con colores raros (ojos o
+    puntas negras sí son conocidos).
 14. **Pasean.** Se paran un rato (1,5 a 5 s) y luego caminan despacio hacia un punto cercano.
     Al acercarte a menos de 6 m se paran y te miran. Fallo: se deslizan sin mover las patas, se
     salen del mapa o caminan por el agua profunda.
@@ -288,7 +304,9 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     PNJ (personajes no jugables). Deben estar sobre el suelo, no flotando ni enterradas
     (zonas 0 a 5). Al acercarte a menos de 3 m aparece un aviso «V: battle ...».
 30. **Combate de entrenador.** Pulsa **V** junto a una cápsula (o arranca con
-    `./play.sh --area 1 --trainer trainer04_01` y pulsa V en cualquier sitio). Ves: dos tarjetas con
+    `./play.sh --area 1 --trainer trainer04_01` y pulsa V en cualquier sitio). Con
+    `--trainer giratina01` el juego ya no se cierra al pulsar V (arreglado el 2026-10-14). Giratina
+    es nivel 70 y actúa primero: es normal que tu primer Pokémon caiga enseguida y salga el siguiente. Ves: dos tarjetas con
     el nombre del entrenador y contadores tipo `[###]` que bajan al caer sus Pokémon, y el siguiente
     sale con su modelo y su grito. Pierde el que se quede sin Pokémon.
     Fallo: el rival no cambia de Pokémon, el modelo no cambia, la partida se cuelga.
@@ -341,9 +359,9 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 ### 2.8 Menús y pantallas
 
 45. **Menú de pausa (Esc).** [EN MAIN] Opciones: Resume, Bag, invertir cámara X, invertir cámara Y,
-    Volume, Back to safe spawn, Save, Rest, Quit. Hay 5 filas
-    nuevas tras Bag: Party, Pokémon boxes, Pokédex, Crafting y Shop (test shop); el menú tiene 14
-    filas. Navegas con flechas o W/S + Enter, o con el
+    Volume, Back to safe spawn, Save, **Load game**, Rest, Quit. Hay 5 filas
+    nuevas tras Bag: Party, Pokémon boxes, Pokédex, Crafting y Shop (test shop); el menú tiene 15
+    filas (Load game es nueva del 2026-10-14, ver 2.15). Navegas con flechas o W/S + Enter, o con el
     ratón. Congela el mundo. Volume cambia el volumen al instante y se recuerda al reiniciar.
     «Back to safe spawn» te lleva a un punto seguro. Fallo: no se cierra con Esc, algo se
     sigue moviendo, Quit no cierra.
@@ -367,8 +385,9 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 ### 2.9 Reloj, clima, día y noche  [EN MAIN]
 
 48. **Franjas de hora.** Prueba `--time-slot 0`, `1`, `2`, `3`. Ves: 0 y 1 luz de día, 2 atardecer
-    más anaranjado, 3 noche **muy oscura**. Fallo: la noche es totalmente negra e imposible de
-    jugar, o el día se ve igual que la noche.
+    más anaranjado, 3 noche oscura y azulada, pero se distinguen el suelo, los árboles y los
+    Pokémon (arreglado el 2026-10-14: antes la noche salía negra). Fallo: la noche es totalmente
+    negra e imposible de jugar (pruébalo también con `--weather rain`), o el día se ve igual que la noche.
 49. **Reloj corriendo.** Sin `--time-slot`, deja el juego 5 minutos con `--time-scale 30` y mira cómo
     pasa de día a noche suavemente, sin saltos bruscos. Fallo: saltos de luz a trompicones.
 50. **Clima.** Prueba `--weather rain`, `snow`, `fog`, `rainstorm`, `snowstorm`, `cloudy`,
@@ -381,7 +400,8 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 ### 2.10 Eventos del mundo (distorsiones y brotes)  [EN MAIN]
 
 52. **Distorsión.** `./play.sh --area 1 --distortion-now --event-time-scale 10` (la zona 1 es la
-    mejor para empezar). Ves: una cúpula translúcida, tenue al principio (fase de aviso) y más fuerte
+    mejor para empezar). Al empezar a formarse te coloca a unos 40 m, mirando hacia ella (aviso con
+    las coordenadas; `--no-teleport-to-event` lo evita). Ves: una cúpula translúcida, tenue al principio (fase de aviso) y más fuerte
     cuando está activa, con Pokémon dentro, tres esferitas con un Pokémon cada una, y marcadores
     brillantes de objetos (6 por distorsión; acércate a menos de 3 m y confirma para llevártelos).
     Avisos en pantalla antes de que termine. Fallo: la cúpula tapa todo en negro, nunca desaparece,
@@ -446,6 +466,11 @@ Se puede apagar con `--no-audio`. Nadie ha escuchado nada hasta ahora.
 70. **Partida nueva.** `--new-game` empieza de cero (equipo inicial, 3 caramelos raros, 3 objetos
     de esfuerzo). Fallo: pierdes cosas al guardar y volver, o aparece la partida vieja.
 71. **Entrenadores derrotados:** **no se guardan** (ver 4). Al reiniciar vuelven a estar disponibles. Es lo esperado.
+72. **Cargar partida (Esc → Load game).** Nuevo del 2026-10-14. Guarda (F5), muévete, gasta dinero
+    o cambia la hora, y elige Load game: vuelves al sitio y al estado del guardado (equipo, mochila,
+    dinero, hora, tiempo de juego), con un fundido como al cambiar de zona. Sin partida guardada
+    sale un aviso y no cambia nada. Durante un combate no deja cargar. Fallo: no vuelves al sitio,
+    algo no se restaura, o se cuelga.
 
 ---
 

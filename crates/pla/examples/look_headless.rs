@@ -99,8 +99,15 @@ fn main() {
         for slot in 0..=3usize {
             let path = format!("{stem}_s{slot}.png");
             run_one(area, slot, weather, yaw, path.clone(), settings);
-            match mean_luminance(path.as_str()) {
-                Ok((srgb, lin)) => println!("[measure] {path}: mean luminance sRGB {srgb:.4}, linear {lin:.4}"),
+            // The bottom third is ground: the night-floor check reads it (see render_look).
+            match luma_stats(path.as_str()) {
+                Ok(st) => println!(
+                    "[measure] {path}: mean luminance sRGB {:.4}, linear {:.4}, ground (bottom third) sRGB {:.4}, dark<0.30 {:.1}%",
+                    st.mean_srgb,
+                    st.mean_linear,
+                    st.bottom_srgb,
+                    100.0 * st.dark_fraction
+                ),
                 Err(e) => eprintln!("[measure] {path}: cannot read back ({e})"),
             }
         }
