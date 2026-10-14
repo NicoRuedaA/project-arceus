@@ -101,8 +101,9 @@ are errors, never crashes.
 | `set_weather` | `weather` = 2..9, a name (`sunny`, `cloudy`, `rain`, `snow`, `drought`, `fog`, `rainstorm`, `snowstorm`) or `auto` | Forces the weather (`auto` returns to the lottery). |
 | `give_item` | `id`, `count` (default 1) | Adds to the bag (debug). |
 | `add_pokemon` | `species` (battle-data name, e.g. `bidoof`), `level` | Adds a member to the party (the box when full) (debug). |
-| `start_battle` | `wild` = species name + `level`, **or** `wild` = `"nearest"`, **or** `trainer` = id (`giratina01`, `noble:<setting>`) | Wild species: spawns the creature 1.5 m in front of the player and starts its session directly (same call as the viewer's encounter). `nearest`: moves the player next to the nearest loaded wild creature and lets the viewer's encounter system start it. Trainer: validates the id, sets it as the forced trainer and presses **V** (a trainer marker within 3 m takes priority, as in the game). Runs up to 60 frames until `GameState::Battle`. World state, not paused. |
 | `open_screen` | `screen` = `pause`, `bag`, `party`, `box`, `dex`, `crafting`, `shop`, `graphics`, `close` | Raises the same request the Esc menu raises (pause: opens the Esc menu); `close` presses Escape until nothing is open. Replies `open_screens`. |
+| `start_battle` | `wild` = species name + `level` (+ optional `alpha`: true, the arena opponent gets the alpha aura), **or** `wild` = `"nearest"`, **or** `trainer` = id (`giratina01`, `noble:<setting>`) | Wild species: spawns the creature 1.5 m in front of the player and starts its session directly (same call as the viewer's encounter). `nearest`: moves the player next to the nearest loaded wild creature and lets the viewer's encounter system start it. Trainer: validates the id, sets it as the forced trainer and presses **V** (a trainer marker within 3 m takes priority, as in the game). Runs up to 60 frames until `GameState::Battle`. World state, not paused. |
+| `force_alpha` | one of `count` (the N nearest wild creatures, default 1 when nothing is given), `all`: true, `off`: true | Debug: makes wild creatures alpha (2.5x scale and the red aura of `game::alpha_aura`) or undoes it. The aura builds a few frames later, once the model is loaded. `entities wild` lists `alpha` per creature. Same as the viewer flag `--force-alpha [N\|all]`. |
 | `save` | | Same as F5 (refused in battle). Replies the file path and message. |
 | `load` | | In-process reload of the save file: party, bag, money, Pokédex, clock, play time and the player's pose (another zone goes through a zone change). Not a process restart. |
 | `screenshot` | `path` (`.png`), optional `width`+`height`, optional `camera` {`yaw`, `pitch`, `distance`, `focus`:[x,y,z], `degrees`:bool} | Captures the main camera's offscreen target (the UI included). `camera` places an orbit camera around the player (or `focus`) for this shot only. Reply: `width`, `height`, `stats` {mean_rgb, luma_mean, luma_std, `looks_blank`}, frames run (2-5). Logic-only: `unavailable`. |
@@ -120,6 +121,8 @@ $G cmd '{"cmd":"teleport","x":560,"z":420}'
 $G cmd '{"cmd":"teleport_zone","area":2}'
 $G cmd '{"cmd":"start_battle","wild":"bidoof","level":5}'
 $G key F; $G key 1; $G step 150            # Fight, first move, let the turn play
+$G cmd '{"cmd":"start_battle","wild":"haunter","level":30,"alpha":true}'   # alpha aura in the arena
+$G cmd '{"cmd":"force_alpha","all":true}'                                    # every wild creature alpha
 $G cmd '{"cmd":"start_battle","trainer":"giratina01"}'
 $G cmd '{"cmd":"open_screen","screen":"party"}'; $G shot work/automation/shots/party.png
 $G cmd '{"cmd":"open_screen","screen":"close"}'

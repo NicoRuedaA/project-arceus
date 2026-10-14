@@ -372,6 +372,7 @@ fn main() -> ExitCode {
                     "  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)"
                 );
                 println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
+                println!("  --force-alpha [N|all] Debug: make the N nearest (default 1) or all wild creatures alpha (red aura, 2.5x)");
                 println!("  --ui <debug|original>  The game's own layouts from the local UI cache (default; PLA_UI, --ui-root) or the provisional UI (debug); missing data falls back to the provisional UI");
                 println!("  --automation          No window: offscreen render + JSON control socket (docs/AUTOMATION.md)");
                 println!("  --story <N> --event-time-scale <F> --distortion-now --outbreak <ID|off> --no-world-events  World events (Brief 39)");
@@ -971,6 +972,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
     app.add_plugins(art_style);
+    app.add_plugins(pla::game::alpha_aura::AlphaAuraPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::normal_fix::NormalMapFixPlugin);
     app.add_plugins(pla::game::water::WaterPlugin);
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
@@ -1728,6 +1730,10 @@ fn stream_wild_spawners(
                 ));
             })
             .id();
+        // Alpha slot: the aura (glow, smoke, light) goes on the creature root (game::alpha_aura).
+        if variant.alpha {
+            commands.entity(entity).insert(pla::game::alpha_aura::AlphaAura::default());
+        }
 
         active_spawners
             .spawned_entities
@@ -1830,11 +1836,17 @@ fn setup_battle_arena(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut extents: ResMut<ArenaExtents>,
+    alpha_wild: Query<&pla::game::alpha_aura::AlphaAura>,
 ) {
     let Ok(player_xf) = player_query.single() else {
         return;
     };
     *extents = ArenaExtents::default();
+    // The opponent is alpha when the overworld creature that started the battle is.
+    let wild_alpha = battle_session
+        .as_ref()
+        .and_then(|s| alpha_wild.get(s.wild_entity).ok())
+        .copied();
     for mut vis in &mut player_vis_query {
         *vis = Visibility::Hidden;
     }
@@ -1912,14 +1924,14 @@ fn setup_battle_arena(
         .id();
 
     // Spawn Wild Pokemon entity
-    let _w_entity = commands
+    let w_entity = commands
         .spawn((
             BattleArenaMarker,
             PokemonSpawn {
                 national_dex: wild_dex,
                 form: 0,
                 rare: false,
-                alpha: false,
+                alpha: wild_alpha.is_some(),
                 size_scale: 1.0,
             },
             pla::game::pokemon_anim::PokemonBattleSlot(1),
@@ -1937,6 +1949,9 @@ fn setup_battle_arena(
             ));
         })
         .id();
+    if let Some(aura) = wild_alpha {
+        commands.entity(w_entity).insert(aura);
+    }
 
     println!(
         "Spawned Battle Arena 3D combatants: Player #{player_dex} at ({p_pkmn_x:.1}, {p_pkmn_y:.1}, {p_pkmn_z:.1}) vs Wild #{wild_dex} at ({w_pkmn_x:.1}, {w_pkmn_y:.1}, {w_pkmn_z:.1})",
@@ -4299,6 +4314,16 @@ mod startup_schedule_guard {
         check_viewer_start("play-area-1", &["port_viewer", "--area", "1"]);
     }
 
+    /// `--force-alpha all` (debug) with the original style: the alpha-aura systems and the shell
+    /// material initialise with the whole viewer.
+    #[test]
+    fn force_alpha_starts() {
+        check_viewer_start(
+            "force-alpha",
+            &["port_viewer", "--area", "1", "--force-alpha", "all", "--style", "original"],
+        );
+    }
+
     /// `--ui original` (the default): the original-UI plugin (screens spawned when the local UI
     /// data exists, otherwise the provisional UI stays) starts and runs a few frames.
     #[test]
@@ -4373,5 +4398,62 @@ mod startup_schedule_guard {
                 "--debug-shop",
             ],
         );
+    }
+}
+
+/// Which overworld creatures get the alpha aura (no model, no GPU).
+#[cfg(test)]
+mod alpha_spawn {
+    use super::*;
+    use pla::game::alpha_aura::AlphaAura;
+    use pla::game::wild::{SpawnSpeciesEntry, SpawnerDefinition};
+
+    fn spawner(id: &str, x: f32, alpha: bool) -> SpawnerDefinition {
+        SpawnerDefinition {
+            spawner_id: id.into(),
+            area: "ha_area01".into(),
+            pos: Vec3::new(x, 0.0, 0.0),
+            radius: 5.0,
+            entries: vec![SpawnSpeciesEntry {
+                species_id: 399,
+                species_name: "bidoof".into(),
+                form: 0,
+                alpha,
+                unique_alpha: false,
+                min_level: 5,
+                max_level: 5,
+                weight: 100,
+            }],
+        }
+    }
+
+    #[test]
+    fn an_alpha_slot_gets_the_aura_and_a_normal_one_does_not() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<Mesh>().init_asset::<StandardMaterial>().init_asset::<Gltf>();
+        app.insert_resource(PokemonCatalogResource { handles: HashMap::new(), spawned: HashSet::new() });
+        app.init_resource::<ConsumedSpawners>();
+        app.init_resource::<pla::game::wild::EncounterSafety>();
+        app.insert_resource(ActiveAreaSpawners {
+            spawners: vec![spawner("normal", 3.0, false), spawner("alpha", -3.0, true)],
+            ..Default::default()
+        });
+        app.world_mut().spawn((PlayerAvatar, Transform::from_xyz(0.0, 0.9, 0.0)));
+        app.add_systems(Update, stream_wild_spawners);
+        app.update();
+        app.update();
+
+        let mut q = app
+            .world_mut()
+            .query::<(&pla::game::WildCreature, &Transform, Option<&AlphaAura>)>();
+        let found: Vec<_> = q.iter(app.world()).map(|(w, t, a)| (w.spawner_id.clone(), t.scale.x, a.is_some())).collect();
+        assert_eq!(found.len(), 2, "both spawners loaded: {found:?}");
+        let alpha = found.iter().find(|f| f.0 == "alpha").unwrap();
+        let normal = found.iter().find(|f| f.0 == "normal").unwrap();
+        assert!(alpha.2, "the alpha slot has the aura");
+        assert_eq!(alpha.1, pla::game::wild::ALPHA_FIELD_SCALE, "and the decoded 2.5x scale");
+        assert!(!normal.2, "a normal creature has none");
+        assert!(normal.1 < pla::game::wild::ALPHA_FIELD_SCALE);
     }
 }

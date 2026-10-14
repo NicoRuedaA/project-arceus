@@ -218,7 +218,7 @@ pub struct PokemonAnimState {
 }
 
 impl PokemonAnimState {
-    fn new(player: Entity, idle: AnimationNodeIndex, walk: Option<AnimationNodeIndex>) -> Self {
+    pub(crate) fn new(player: Entity, idle: AnimationNodeIndex, walk: Option<AnimationNodeIndex>) -> Self {
         Self {
             player,
             idle,

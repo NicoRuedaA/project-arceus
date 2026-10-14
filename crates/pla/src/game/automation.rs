@@ -348,7 +348,7 @@ pub enum TimeSpec {
 #[derive(Debug, Clone, PartialEq)]
 pub enum BattleSpec {
     /// A wild battle against a fresh creature of this species (battle-data name) and level.
-    Wild { species: String, level: u8 },
+    Wild { species: String, level: u8, alpha: bool },
     /// Walk up to the nearest overworld wild creature.
     NearestWild,
     /// A trainer (or `noble:<setting>`) by id; started through the real V key.
@@ -398,6 +398,8 @@ pub enum Command {
     GiveItem { id: u16, count: u16 },
     AddPokemon { species: String, level: u8 },
     StartBattle(BattleSpec),
+    /// Make wild creatures alpha (debug), see `game::alpha_aura`.
+    ForceAlpha(super::alpha_aura::ForceAlpha),
     OpenScreen(ScreenName),
     Save,
     Load,
@@ -613,10 +615,27 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
             (Some(w), None) => Command::StartBattle(BattleSpec::Wild {
                 species: w.to_ascii_lowercase(),
                 level: bounded(get_u64(o, "level")?.unwrap_or(5), "level", 100)?,
+                alpha: match o.get("alpha") {
+                    None | Some(Value::Null) => false,
+                    Some(v) => v.as_bool().ok_or("'alpha' must be true or false")?,
+                },
             }),
             (None, Some(t)) => Command::StartBattle(BattleSpec::Trainer(t.to_string())),
             _ => return Err("give exactly one of 'wild' (species name or \"nearest\") or 'trainer' (id)".into()),
         },
+        "force_alpha" => {
+            // {"count": N} | {"all": true} | {"off": true}; nothing given = the nearest one.
+            let force = match (o.get("count"), o.get("all"), o.get("off")) {
+                (None, None, None) => super::alpha_aura::ForceAlpha::Nearest(1),
+                (Some(_), None, None) => {
+                    super::alpha_aura::ForceAlpha::Nearest(bounded::<u32>(need(get_u64(o, "count")?, "count")?, "count", 1000)?)
+                }
+                (None, Some(v), None) if v.as_bool() == Some(true) => super::alpha_aura::ForceAlpha::All,
+                (None, None, Some(v)) if v.as_bool() == Some(true) => super::alpha_aura::ForceAlpha::Off,
+                _ => return Err("give one of 'count' (N nearest), 'all': true or 'off': true".into()),
+            };
+            Command::ForceAlpha(force)
+        }
         "open_screen" => {
             let s = need(get_str(o, "screen")?, "screen")?;
             Command::OpenScreen(match s.to_ascii_lowercase().as_str() {
@@ -1004,6 +1023,11 @@ fn dispatch(app: &mut App, ctx: &mut Ctx, cmd: &Command) -> Result<Value, String
         }
         Command::AddPokemon { species, level } => add_pokemon(app.world_mut(), species, *level),
         Command::StartBattle(spec) => start_battle(app, ctx, spec),
+        Command::ForceAlpha(f) => {
+            app.world_mut().insert_resource(*f);
+            // The aura systems run on the next frames; the reply says what was asked.
+            Ok(json!({"force_alpha": format!("{f:?}")}))
+        }
         Command::OpenScreen(s) => open_screen(app, ctx, *s),
         Command::Save => save(app, ctx),
         Command::Load => load(app, ctx),
@@ -1193,7 +1217,7 @@ fn start_battle(app: &mut App, ctx: &mut Ctx, spec: &BattleSpec) -> Result<Value
             send_key(world, KeyCode::KeyV, ButtonState::Pressed);
             via = "V key (forced trainer; a trainer marker within 3 m takes priority)".into();
         }
-        BattleSpec::Wild { species, level } => {
+        BattleSpec::Wild { species, level, alpha } => {
             let dex = assets(world)?
                 .data
                 .species_row(species)?
@@ -1202,8 +1226,7 @@ fn start_battle(app: &mut App, ctx: &mut Ctx, spec: &BattleSpec) -> Result<Value
             let fwd = player.rotation * Vec3::Z;
             let pos = player.translation + Vec3::new(fwd.x, 0.0, fwd.z).normalize_or(Vec3::Z) * 1.5;
             let level = (*level).max(1);
-            let entity = world
-                .spawn((
+            let mut entity_mut = world.spawn((
                     WildCreature {
                         species_name: species.clone(),
                         national_dex: dex,
@@ -1218,8 +1241,12 @@ fn start_battle(app: &mut App, ctx: &mut Ctx, spec: &BattleSpec) -> Result<Value
                     Transform::from_translation(pos),
                     Visibility::default(),
                     Name::new(format!("automation wild {species}")),
-                ))
-                .id();
+                ));
+            if *alpha {
+                // The arena shows the opponent with the alpha aura (see `setup_battle_arena`).
+                entity_mut.insert(super::alpha_aura::AlphaAura::default());
+            }
+            let entity = entity_mut.id();
             // The same call the viewer's encounter system makes (its lead is the demo Pikachu; the
             // saved party replaces it when the battle starts). Started directly so a creature
             // already in aggro range cannot take the battle first.
@@ -1672,8 +1699,8 @@ fn entities_json(world: &mut World, kind: EntityKind, limit: usize) -> Value {
         }};
     }
     match kind {
-        EntityKind::Wild => collect!((&WildCreature, Has<super::pokemon_anim::PokemonAnimSource>), |e, t, x| json!({
-            "species": x.0.species_name, "dex": x.0.national_dex, "level": x.0.level,
+        EntityKind::Wild => collect!((&WildCreature, Has<super::pokemon_anim::PokemonAnimSource>, Has<super::alpha_aura::AlphaAura>), |e, t, x| json!({
+            "species": x.0.species_name, "dex": x.0.national_dex, "level": x.0.level, "alpha": x.2,
             "in_battle": x.0.in_battle, "defeated": x.0.defeated, "real_model": x.1, "spawner": x.0.spawner_id,
         })),
         EntityKind::Npc => collect!((&super::npc::NpcInstance, Has<super::npc::NpcModelSource>), |e, t, x| json!({
@@ -1786,6 +1813,22 @@ mod tests {
     }
 
     #[test]
+    fn force_alpha_and_alpha_battle_parse() {
+        use super::super::alpha_aura::ForceAlpha;
+        assert_eq!(parse_command(r#"{"cmd":"force_alpha"}"#), Ok(Command::ForceAlpha(ForceAlpha::Nearest(1))));
+        assert_eq!(parse_command(r#"{"cmd":"force_alpha","count":3}"#), Ok(Command::ForceAlpha(ForceAlpha::Nearest(3))));
+        assert_eq!(parse_command(r#"{"cmd":"force_alpha","all":true}"#), Ok(Command::ForceAlpha(ForceAlpha::All)));
+        assert_eq!(parse_command(r#"{"cmd":"force_alpha","off":true}"#), Ok(Command::ForceAlpha(ForceAlpha::Off)));
+        assert!(parse_command(r#"{"cmd":"force_alpha","all":true,"off":true}"#).is_err());
+        assert!(parse_command(r#"{"cmd":"force_alpha","all":false}"#).is_err());
+        assert_eq!(
+            parse_command(r#"{"cmd":"start_battle","wild":"haunter","level":30,"alpha":true}"#),
+            Ok(Command::StartBattle(BattleSpec::Wild { species: "haunter".into(), level: 30, alpha: true }))
+        );
+        assert!(parse_command(r#"{"cmd":"start_battle","wild":"haunter","alpha":"yes"}"#).is_err());
+    }
+
+    #[test]
     fn commands_parse() {
         assert_eq!(parse_command(r#"{"cmd":"ping"}"#), Ok(Command::Ping));
         assert_eq!(parse_command(r#"{"cmd":"step","frames":300}"#), Ok(Command::Step { frames: 300 }));
@@ -1813,7 +1856,7 @@ mod tests {
         assert_eq!(parse_command(r#"{"cmd":"set_weather","weather":"auto"}"#), Ok(Command::SetWeather { weather: None }));
         assert_eq!(
             parse_command(r#"{"cmd":"start_battle","wild":"Bidoof","level":7}"#),
-            Ok(Command::StartBattle(BattleSpec::Wild { species: "bidoof".into(), level: 7 }))
+            Ok(Command::StartBattle(BattleSpec::Wild { species: "bidoof".into(), level: 7, alpha: false }))
         );
         assert_eq!(
             parse_command(r#"{"cmd":"start_battle","trainer":"giratina01"}"#),

@@ -84,6 +84,7 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 | `--classic-turns` | Combate con el sistema de turnos clásico (un movimiento por ronda, sin estilos ágil/fuerte). Por defecto se usa el sistema de turnos propio de este juego. |
 | `--pla-turns` | Pide expresamente el sistema propio (ya es el de por defecto). |
 | `--effects off\|low\|high` | Cantidad de efectos de ataque. Por defecto `low`. |
+| `--force-alpha [N\|all]` | **Nuevo.** Prueba: convierte en **alfa** al Pokémon salvaje más cercano (o a los `N` más cercanos, o a todos con `all`). Un alfa se ve 2,5 veces más grande y con un **aura roja y negra** (brillo rojo en el borde, humo oscuro que sube y gira, y una luz roja suave). Sin la bandera, los alfa solo salen cuando el reparto de apariciones del juego los elige (raro). Ejemplo: `./play.sh --area 1 --force-alpha all`. |
 | `--species N` | Número de Pokédex nacional del Pokémon de prueba que sale al lado (por defecto 25, Pikachu). |
 | `--throw` | Lanza solo una bola al arrancar (para ver la animación). |
 | `--mode aim` | Empieza con la cámara de apuntar. |
@@ -438,6 +439,24 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     contorno. Fallo: modelos negros, contornos gruesísimos o a trozos, parpadeos. El terreno, la
     vegetación y los edificios **no** cambian (es normal). Dime si te gusta y si debe ser el estilo por defecto.
 
+### 2.11b Pokémon alfa y su aura  [EN RAMA feat/alpha-aura]
+
+56b. **Ver un alfa.** `./play.sh --area 1 --force-alpha all` y camina hacia cualquier Pokémon
+    salvaje. Ves: es 2,5 veces más grande, tiene un borde rojo fino y brillante que «respira» (se
+    apaga y enciende despacio) pegado al cuerpo, unas pocas volutas oscuras (casi invisibles de día)
+    y alguna chispa roja. El cuerpo conserva sus colores y no se ve doble. El modelo debe seguir viéndose
+    (el aura no lo tapa). En la esquina superior, la línea NEARBY dice `ALPHA` cuando el más
+    cercano es alfa. Fallo: el modelo se ve todo rojo o negro, cuadrados en vez de humo, una
+    luz roja que ilumina media zona, o tirones al juntarse varios alfa.
+56c. **Día, noche y estilo.** Repite con `--time-slot 3` (noche) y con `--style original`. El
+    aura debe verse en los tres casos (de noche destaca más).
+56d. **Calidad.** `--effects off` quita el humo, las chispas y la luz pero deja el brillo del
+    borde; `--effects low` pone menos humo que `--effects high`.
+56e. **Combate contra un alfa.** Acércate a uno y empieza el combate: el rival del combate
+    también lleva el aura. Los Pokémon normales no llevan nada.
+    **SUPUESTO:** colores, intensidades y cantidad de humo están inventados mirando una sola
+    imagen de referencia; lo decodificado es solo la marca de alfa y el tamaño 2,5x.
+
 ### 2.12 PNJ (gente del mundo)  [EN MAIN]
 
 57. **Aldeanos.** En Aldea Joya (`--area 0`) deberías ver gente de pie en sus sitios, mirando hacia
@@ -521,6 +540,7 @@ Capturas de referencia en `/home/nico/work/capturas_ui/` (con su `LEEME.txt`).
 |---|---|---|
 | Color de pelo del protagonista | Un color elegido por nosotros | El color real lo decide el juego al ejecutarse; no está en los archivos |
 | Ropa, pelo y piel de los PNJ | Claros / blanco-grisáceo / piel pálida; lo conocido es la forma | La regla de colores no se ha encontrado |
+| Aura de los Pokémon alfa | Borde rojo que respira, humo negro-rojizo, chispas y una luz roja suave; colores y cantidades elegidos mirando una imagen de referencia | Lo único decodificado es la marca de alfa y la escala 2,5x; el aspecto del aura no está en los archivos extraídos |
 | Horas de cada franja | 4 franjas de 6 horas; 0 = mañana (9:00), 1 = día (15:00), 2 = atardecer (21:00), 3 = noche (3:00) | Solo se sabe que la 3 es noche; el resto se supone |
 | Velocidad del reloj | 1 minuto de juego por segundo real | No se conoce la del juego |
 | Duración del clima | Entre 2 y 6 horas de juego | Las unidades de esos números son una suposición |

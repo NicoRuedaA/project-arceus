@@ -260,6 +260,9 @@ impl SlotFacts {
     }
 }
 
+/// Field scale of an alpha creature (`LL_field`; raw value verified in `pokemon_variants.tsv`).
+pub const ALPHA_FIELD_SCALE: f32 = 2.5;
+
 /// Field scale of a non-alpha creature from a uniform roll.
 /// SUPUESTO: the data holds the category scales (S 0.85, M 1.0, L 1.8) but no
 /// draw probabilities; a third of creatures at 1.8x looked gigantic, so the
@@ -528,7 +531,7 @@ pub fn roll_spawner_variant(
 
     let alpha = chosen_entry.alpha || chosen_entry.unique_alpha;
     let size_scale = if alpha {
-        2.5 // LL_field; raw value verified in pokemon_variants.tsv.
+        ALPHA_FIELD_SCALE
     } else {
         normal_size_scale(splitmix64(&mut rng_state))
     };
