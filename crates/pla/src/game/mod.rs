@@ -31,6 +31,7 @@ pub mod npc;
 pub mod render_look;
 pub mod input_map;
 pub mod interact;
+pub mod battle_camera;
 pub mod battle_visibility;
 pub mod blink;
 pub mod box_screen;
