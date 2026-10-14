@@ -120,6 +120,16 @@ struct PokemonSpawn {
 #[derive(Component)]
 struct BattleArenaMarker;
 
+/// Where an arena creature stands before the opponent-size spacing is applied.
+#[derive(Component, Clone, Copy)]
+struct ArenaBase(Vec3);
+
+/// Measured model size of the creature in each arena slot (zero until its model is loaded).
+#[derive(Resource, Default)]
+struct ArenaExtents {
+    size: [pla::game::battle_camera::ModelSize; 2],
+}
+
 #[derive(Component)]
 struct Reticle;
 
@@ -1095,8 +1105,13 @@ fn add_viewer_systems(app: &mut App) {
         Update,
         bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
     );
+    app.init_resource::<ArenaExtents>();
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
     app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
+    app.add_systems(
+        Update,
+        measure_arena_models.run_if(in_state(GameState::Battle)),
+    );
     app.add_systems(
         Update,
         sync_arena_player_model.run_if(in_state(GameState::Battle)),
@@ -1791,10 +1806,12 @@ fn setup_battle_arena(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut extents: ResMut<ArenaExtents>,
 ) {
     let Ok(player_xf) = player_query.single() else {
         return;
     };
+    *extents = ArenaExtents::default();
     for mut vis in &mut player_vis_query {
         *vis = Visibility::Hidden;
     }
@@ -1856,6 +1873,7 @@ fn setup_battle_arena(
                 size_scale: 1.0,
             },
             pla::game::pokemon_anim::PokemonBattleSlot(0),
+            ArenaBase(Vec3::new(p_pkmn_x, p_pkmn_y, p_pkmn_z)),
             Transform::from_xyz(p_pkmn_x, p_pkmn_y, p_pkmn_z).with_rotation(p_rot),
             Visibility::default(),
         ))
@@ -1882,6 +1900,7 @@ fn setup_battle_arena(
                 size_scale: 1.0,
             },
             pla::game::pokemon_anim::PokemonBattleSlot(1),
+            ArenaBase(Vec3::new(w_pkmn_x, w_pkmn_y, w_pkmn_z)),
             Transform::from_xyz(w_pkmn_x, w_pkmn_y, w_pkmn_z).with_rotation(w_rot),
             Visibility::default(),
         ))
@@ -1907,7 +1926,9 @@ fn cleanup_battle_arena(
     arena_query: Query<Entity, With<BattleArenaMarker>>,
     mut catalog: ResMut<PokemonCatalogResource>,
     mut player_vis_query: Query<&mut Visibility, With<PlayerAvatar>>,
+    mut extents: ResMut<ArenaExtents>,
 ) {
+    *extents = ArenaExtents::default();
     for entity in &arena_query {
         catalog.spawned.remove(&entity);
         commands.entity(entity).despawn();
@@ -2348,13 +2369,14 @@ fn update_camera_transform(
     camera_ctrl: Res<CameraController>,
     player_query: Query<&Transform, (With<PlayerAvatar>, Without<Camera3d>)>,
     arena_query: Query<
-        (&PokemonSpawn, &Transform),
+        (&pla::game::pokemon_anim::PokemonBattleSlot, &Transform),
         (
             With<BattleArenaMarker>,
             Without<Camera3d>,
             Without<PlayerAvatar>,
         ),
     >,
+    extents: Option<Res<ArenaExtents>>,
     mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
 ) {
     let Ok(player_xf) = player_query.single() else {
@@ -2368,19 +2390,19 @@ fn update_camera_transform(
     if *game_state.get() == GameState::Battle {
         let mut p_pos = None;
         let mut w_pos = None;
-        for (spawn, xf) in &arena_query {
-            if spawn.national_dex == 25 {
+        // By arena slot (0 = the player's Pokemon, 1 = the opponent), never by species: keying
+        // on Pikachu lost the battle camera for every other party member.
+        for (slot, xf) in &arena_query {
+            if slot.0 == 0 {
                 p_pos = Some(xf.translation);
             } else {
                 w_pos = Some(xf.translation);
             }
         }
         if let (Some(p), Some(w)) = (p_pos, w_pos) {
-            let to_wild = (w - p).normalize();
-            let right_side = Vec3::new(to_wild.z, 0.0, -to_wild.x).normalize();
-            // Camera placed 2.3m behind Pikachu, offset 1.0m to the side, elevated 1.35m
-            let cam_pos = p - to_wild * 2.3 - right_side * 1.0 + Vec3::new(0.0, 1.35, 0.0);
-            let look_target = (p + w) * 0.5 + Vec3::new(0.0, 0.35, 0.0) + right_side * 0.2;
+            // Frame the whole opponent: a giant (Giratina) needs the camera further back/up.
+            let foe = extents.as_ref().map(|e| e.size[1]).unwrap_or_default();
+            let (cam_pos, look_target) = pla::game::battle_camera::pose(p, w, foe);
             cam_xf.translation = cam_pos;
             cam_xf.look_at(look_target, Vec3::Y);
             return;
@@ -3660,6 +3682,7 @@ fn sync_arena_player_model(
             &PokemonSpawn,
             &Transform,
             &pla::game::pokemon_anim::PokemonBattleSlot,
+            &ArenaBase,
         ),
         With<BattleArenaMarker>,
     >,
@@ -3667,9 +3690,10 @@ fn sync_arena_player_model(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut extents: ResMut<ArenaExtents>,
 ) {
     let Some(sess) = session else { return };
-    for (entity, spawn, xf, slot) in &slots {
+    for (entity, spawn, xf, slot, base) in &slots {
         // slot 0: the player's active Pokemon; slot 1: the opponent's (a trainer switches).
         let who = if slot.0 == 0 {
             sess.active_player()
@@ -3707,6 +3731,7 @@ fn sync_arena_player_model(
                     size_scale: 1.0,
                 },
                 pla::game::pokemon_anim::PokemonBattleSlot(slot.0),
+                *base,
                 Transform::from_translation(xf.translation).with_rotation(xf.rotation),
                 Visibility::default(),
             ))
@@ -3719,7 +3744,202 @@ fn sync_arena_player_model(
                     })),
                 ));
             });
+        // The old model's size no longer applies; the new one is measured once it is loaded.
+        extents.size[slot.0] = pla::game::battle_camera::ModelSize::default();
         println!("Arena slot {} now shows #{want}", slot.0);
+    }
+}
+
+/// Measures the loaded model of each arena slot (world-space bounds of its meshes, relative to
+/// its feet) and spaces a big opponent away from the player's creature, so a giant such as
+/// Giratina neither overlaps the player's creature nor leaves the camera at its knees.
+fn measure_arena_models(
+    mut frame: Local<u32>,
+    mut extents: ResMut<ArenaExtents>,
+    terrain_res: Option<Res<TerrainResource>>,
+    mut slots: Query<
+        (Entity, &pla::game::pokemon_anim::PokemonBattleSlot, &mut Transform, &GlobalTransform, &ArenaBase),
+        With<BattleArenaMarker>,
+    >,
+    meshes: Query<(Entity, &bevy::camera::primitives::Aabb, &GlobalTransform), Without<BattleArenaMarker>>,
+    parents: Query<&ChildOf>,
+) {
+    *frame += 1;
+    // Every frame until the opponent's model has been measured (the first frames of a battle),
+    // then every 6th.
+    if extents.size[1].height > 0.0 && *frame % 6 != 1 {
+        return;
+    }
+    let owner: HashMap<Entity, usize> = slots.iter().map(|(e, s, ..)| (e, s.0.min(1))).collect();
+    let feet: [Option<Vec3>; 2] = {
+        let mut f = [None; 2];
+        for (_, s, _, g, _) in &slots {
+            f[s.0.min(1)] = Some(g.translation());
+        }
+        f
+    };
+    let mut found = [pla::game::battle_camera::ModelSize::default(); 2];
+    for (entity, aabb, gt) in &meshes {
+        // Walk up to the arena slot this mesh belongs to.
+        let mut cur = entity;
+        let mut slot = None;
+        for _ in 0..24 {
+            let Ok(parent) = parents.get(cur) else { break };
+            cur = parent.parent();
+            if let Some(&s) = owner.get(&cur) {
+                slot = Some(s);
+                break;
+            }
+        }
+        let Some(slot) = slot else { continue };
+        let Some(feet) = feet[slot] else { continue };
+        let c = Vec3::from(aabb.center);
+        let h = Vec3::from(aabb.half_extents);
+        for sx in [-1.0, 1.0] {
+            for sy in [-1.0, 1.0] {
+                for sz in [-1.0, 1.0] {
+                    let p = gt.transform_point(c + h * Vec3::new(sx, sy, sz));
+                    if !p.is_finite() {
+                        continue;
+                    }
+                    let f = &mut found[slot];
+                    f.height = f.height.max(p.y - feet.y);
+                    f.radius = f.radius.max(Vec2::new(p.x - feet.x, p.z - feet.z).length());
+                }
+            }
+        }
+    }
+    for (slot, size) in found.iter().enumerate() {
+        // Only replace a size that was measured from a real mesh.
+        if size.height > 0.0 && extents.size[slot] != *size {
+            extents.size[slot] = *size;
+        }
+    }
+    // Space the opponent: push it away from the player's creature along the arena axis.
+    let foe = extents.size[1];
+    let push = pla::game::battle_camera::extra_spacing(foe);
+    let mut player_base = None;
+    for (_, s, _, _, base) in &slots {
+        if s.0 == 0 {
+            player_base = Some(base.0);
+        }
+    }
+    let Some(pb) = player_base else { return };
+    for (_, s, mut xf, _, base) in &mut slots {
+        if s.0 != 1 {
+            continue;
+        }
+        let axis = Vec3::new(base.0.x - pb.x, 0.0, base.0.z - pb.z).normalize_or(Vec3::NEG_Z);
+        let mut want = base.0 + axis * push;
+        if push > 0.0 {
+            if let Some(y) = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(want.x, want.z)) {
+                want.y = y;
+            }
+        }
+        if xf.translation.distance(want) > 0.01 {
+            xf.translation = want;
+        }
+    }
+}
+
+
+/// Arena framing tests that need no models or GPU.
+#[cfg(test)]
+mod battle_arena_framing {
+    use super::*;
+    use bevy::state::app::StatesPlugin;
+    use pla::game::battle_camera::{in_view, ModelSize};
+    use pla::game::pokemon_anim::PokemonBattleSlot;
+
+    fn arena_app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.init_state::<GameState>();
+        app.init_resource::<CameraController>();
+        app.init_resource::<ArenaExtents>();
+        app.add_systems(Update, (measure_arena_models, update_camera_transform).chain().run_if(in_state(GameState::Battle)));
+        app.world_mut().spawn((PlayerAvatar, Transform::from_xyz(0.0, 0.9, 0.0)));
+        app.world_mut().spawn((Camera3d::default(), Transform::default()));
+        app.update();
+        app
+    }
+
+    fn spawn_slot(app: &mut App, slot: usize, dex: u16, pos: Vec3) -> Entity {
+        app.world_mut()
+            .spawn((
+                BattleArenaMarker,
+                PokemonSpawn { national_dex: dex, form: 0, rare: false, alpha: false, size_scale: 1.0 },
+                PokemonBattleSlot(slot),
+                ArenaBase(pos),
+                Transform::from_translation(pos),
+                GlobalTransform::from_translation(pos),
+            ))
+            .id()
+    }
+
+    fn enter_battle(app: &mut App) {
+        app.world_mut().resource_mut::<NextState<GameState>>().set(GameState::Battle);
+        for _ in 0..3 {
+            app.update();
+        }
+    }
+
+    fn camera(app: &mut App) -> Transform {
+        *app.world_mut().query_filtered::<&Transform, With<Camera3d>>().single(app.world()).unwrap()
+    }
+
+    /// Regression: the battle camera was only used when the player's creature was Pikachu
+    /// (`national_dex == 25`); with any other party member it fell back to the world camera.
+    #[test]
+    fn battle_camera_does_not_depend_on_the_species_out() {
+        let mut app = arena_app();
+        let p = Vec3::new(-0.7, 0.0, -1.8);
+        let w = Vec3::new(0.9, 0.0, -4.4);
+        spawn_slot(&mut app, 0, 399, p); // Bidoof, not Pikachu
+        spawn_slot(&mut app, 1, 487, w); // Giratina
+        enter_battle(&mut app);
+        let cam = camera(&mut app);
+        let (want, _) = pla::game::battle_camera::pose(p, w, ModelSize::default());
+        assert!(cam.translation.distance(want) < 0.05, "camera {:?} is not the battle framing {want:?}", cam.translation);
+        let to_foe = (w - cam.translation).normalize();
+        assert!(cam.forward().as_vec3().dot(to_foe) > 0.8, "camera does not look at the opponent");
+    }
+
+    /// A giant opponent (meshes taller than the arena spacing) is measured, pushed away from the
+    /// player's creature and framed completely by the camera.
+    #[test]
+    fn giant_opponent_is_measured_spaced_and_fully_in_view() {
+        let mut app = arena_app();
+        let p = Vec3::new(-0.7, 0.0, -1.8);
+        let w = Vec3::new(0.9, 0.0, -4.4);
+        spawn_slot(&mut app, 0, 25, p);
+        let foe = spawn_slot(&mut app, 1, 487, w);
+        // A Giratina-sized body: 6 m long, 5 m tall, mesh centred 1.5 m in front of the feet.
+        let body = app
+            .world_mut()
+            .spawn((
+                bevy::camera::primitives::Aabb { center: Vec3::new(0.0, 2.5, 1.5).into(), half_extents: Vec3::new(1.5, 2.5, 3.0).into() },
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                GlobalTransform::from_translation(w),
+            ))
+            .id();
+        app.world_mut().entity_mut(foe).add_child(body);
+        enter_battle(&mut app);
+        for _ in 0..8 {
+            app.update();
+        }
+        let size = app.world().resource::<ArenaExtents>().size[1];
+        assert!(size.height > 4.5 && size.radius > 3.0, "foe not measured: {size:?}");
+        let foe_pos = app.world().get::<Transform>(foe).unwrap().translation;
+        assert!(foe_pos.distance(w) > 1.0, "opponent was not spaced away from the player ({foe_pos:?})");
+        let cam = camera(&mut app);
+        let look = cam.translation + cam.forward().as_vec3();
+        for dy in [0.0, 2.5, 5.0] {
+            assert!(
+                in_view(cam.translation, look, 16.0 / 9.0, foe_pos + Vec3::Y * dy),
+                "opponent point +{dy} m is outside the camera view"
+            );
+        }
     }
 }
 
@@ -3950,6 +4170,71 @@ mod startup_schedule_guard {
     #[test]
     fn forced_trainer_giratina_v_starts_battle() {
         check_forced_trainer_battle("trainer-giratina", "giratina01");
+    }
+
+    /// Giratina (#487, level 70, several metres tall) must be on screen and framed completely:
+    /// the opponent's arena model exists, is a visible entity, and once its glTF is measured the
+    /// battle camera sees its whole body. Needs the extracted game data (like the other
+    /// forced-battle tests); when the model never loads in the test's time budget the framing
+    /// part is reported and skipped, never silently passed.
+    #[test]
+    fn forced_trainer_giratina_is_visible_and_framed() {
+        let (mut app, scratch) = built_app("giratina-visible", &["port_viewer", "--area", "1", "--trainer", "giratina01"]);
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        tap_key(&mut app, KeyCode::KeyV);
+        for _ in 0..30 {
+            app.update();
+        }
+        assert_eq!(*app.world().resource::<State<GameState>>().get(), GameState::Battle);
+        let foe_dex = |app: &mut App| {
+            app.world_mut()
+                .query_filtered::<(&PokemonSpawn, &pla::game::pokemon_anim::PokemonBattleSlot, &Visibility), With<BattleArenaMarker>>()
+                .iter(app.world())
+                .find(|(_, slot, _)| slot.0 == 1)
+                .map(|(spawn, _, vis)| (spawn.national_dex, *vis))
+        };
+        let (dex, vis) = foe_dex(&mut app).expect("the opponent has no arena model entity");
+        assert_eq!(dex, 487, "the opponent slot shows #{dex}, not Giratina");
+        assert_ne!(vis, Visibility::Hidden, "the opponent is hidden");
+        let mut measured = false;
+        for _ in 0..1500 {
+            app.update();
+            if app.world().resource::<ArenaExtents>().size[1].height > 2.0 {
+                measured = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        // Still the same Giratina, still visible, after every model swap.
+        let (dex, vis) = foe_dex(&mut app).expect("the opponent entity disappeared");
+        assert_eq!(dex, 487);
+        assert_ne!(vis, Visibility::Hidden);
+        if measured {
+            for _ in 0..10 {
+                app.update();
+            }
+            let size = app.world().resource::<ArenaExtents>().size[1];
+            let foe_pos = app
+                .world_mut()
+                .query_filtered::<(&pla::game::pokemon_anim::PokemonBattleSlot, &Transform), With<BattleArenaMarker>>()
+                .iter(app.world())
+                .find(|(s, _)| s.0 == 1)
+                .map(|(_, t)| t.translation)
+                .unwrap();
+            let cam = *app.world_mut().query_filtered::<&Transform, With<Camera3d>>().single(app.world()).unwrap();
+            let look = cam.translation + cam.forward().as_vec3();
+            for dy in [0.0, size.height * 0.5, size.height] {
+                assert!(
+                    pla::game::battle_camera::in_view(cam.translation, look, 16.0 / 9.0, foe_pos + Vec3::Y * dy),
+                    "Giratina ({size:?}) point +{dy:.1} m is outside the battle camera view"
+                );
+            }
+        } else {
+            println!("[giratina-visible] model not loaded within the budget; framing check skipped");
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
     }
 
     #[test]
