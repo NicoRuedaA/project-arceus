@@ -1629,6 +1629,7 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
             "money": p.money,
             "seen": p.seen.len(),
             "caught": p.caught.len(),
+            "defeated_trainers": p.defeated_trainers.iter().collect::<Vec<_>>(),
         })
     });
     let loading = world.get_resource::<ZoneLoading>().map(|l| format!("{:?}", l.phase));
