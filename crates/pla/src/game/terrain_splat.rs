@@ -11,8 +11,9 @@
 //! * blends the 8 layers with the decoded splat weights (two RGBA control textures, sampled
 //!   bilinearly with a small noise warp), plus a height-like blend driven by each layer's own
 //!   detail so boundaries follow the texture instead of the 1 m splat steps;
-//! * projects the cliff layers triplanar (top + two side projections) and hands steep faces to
-//!   them, so rock no longer stretches on walls;
+//! * projects every layer triplanar on slopes (top + two side projections; flat ground keeps one
+//!   top-down sample) and hands very steep faces to the cliff layers, so nothing stretches on
+//!   walls;
 //! * fades to the old baked albedo ("macro" colour, the StandardMaterial base texture) with the
 //!   camera distance, which keeps the area's overall colour and hides tiling far away; a
 //!   two-sample anti-tiling and a low-frequency brightness variation hide it at mid distance;
@@ -78,10 +79,12 @@ pub const FADE_END_M: f32 = 220.0;
 pub const HEIGHT_BLEND_DEPTH: f32 = 0.25;
 /// Weight of a layer's detail (luminance relative to its mean) in the blend score.
 pub const HEIGHT_STRENGTH: f32 = 0.35;
-/// Slope (1 - |normal.y|) where cliff layers start to take over: 0.25 = 41 degrees.
-pub const STEEP_START: f32 = 0.25;
-/// Slope where only cliff layers remain: 0.40 = 53 degrees.
-pub const STEEP_END: f32 = 0.40;
+/// Slope (1 - |normal.y|) where cliff layers start to take over: 0.45 = 57 degrees. Gentler
+/// slopes keep their painted layer (projected triplanar, so it does not stretch); a first try at
+/// 41-53 degrees put dark rock on the snow banks of area 05.
+pub const STEEP_START: f32 = 0.45;
+/// Slope where only cliff layers remain: 0.62 = 68 degrees.
+pub const STEEP_END: f32 = 0.62;
 /// Strength of the per-layer normal maps (tangent-space xy scale).
 pub const NORMAL_STRENGTH: f32 = 1.0;
 /// Low-frequency brightness variation (+/- fraction).
@@ -995,7 +998,7 @@ fn finish_builds(
                 let improved = build.slots.iter().flatten().filter(|s| s.improved.is_some()).count();
                 let cliffs: Vec<usize> = build.slots.iter().flatten().filter(|s| s.cliff).map(|s| s.slot).collect();
                 let line = format!(
-                    "Terrain: real-time splat material for area {:02}: {} layers at {} px ({} improved), normals {}, triplanar slots {:?}, built in {:.0} ms",
+                    "Terrain: real-time splat material for area {:02}: {} layers at {} px ({} improved), normals {}, cliff slots {:?}, built in {:.0} ms",
                     build.area,
                     build.slots.iter().flatten().count(),
                     build.albedo.size,
@@ -1413,7 +1416,7 @@ mod tests {
             assert_eq!(m.extension.params.area.x, 100.0);
         }
         let log = app.world().resource::<TerrainSplatCache>().log.clone();
-        assert!(log.iter().any(|l| l.contains("area 07") && l.contains("triplanar slots [0]")), "{log:?}");
+        assert!(log.iter().any(|l| l.contains("area 07") && l.contains("cliff slots [0]")), "{log:?}");
         // Live change: anti-tiling off rewrites the uniform.
         app.world_mut().resource_mut::<TerrainSplatSettings>().anti_tiling = false;
         app.update();

@@ -4,6 +4,8 @@
 // from the game data (see reports/data-progress/terrain_albedo.md): the 8 splat weights (two RGBA
 // control layers), the 8 albedo / normal layers of each area, the per-layer `SplatST` scale and
 // which leading slots are cliffs (`TriplanarLayerCount`, matched by the cliff/mountain names).
+// Every layer is projected triplanar on slopes (cliff or not), so snow or grass on a steep bank
+// stays snow or grass without stretching; only very steep faces are handed to the cliff slots.
 // SUPUESTO (assumed): the tiling period (`SplatST / DETAIL_TILE_DIVISOR` repeats per metre), the
 // height-like blend, the slope thresholds, the anti-tiling, the distance fade and every strength.
 //
@@ -28,7 +30,7 @@ struct TerrainSplatUniform {
     // repeats per metre of slots 0..3 / 4..7
     rep_lo: vec4<f32>,
     rep_hi: vec4<f32>,
-    // 1 = cliff slot (triplanar, wins on steep faces)
+    // 1 = cliff slot (takes over very steep faces)
     cliff_lo: vec4<f32>,
     cliff_hi: vec4<f32>,
     // 1 = slot drawn (has a layer and is within the layer-count limit)
@@ -169,15 +171,23 @@ fn sample_top(k: u32, p: vec3<f32>, n: vec3<f32>, rep: f32, dpx: vec3<f32>, dpy:
     return out;
 }
 
-// Triplanar projection: the top projection plus the two side projections (z/y and x/y planes),
-// weighted by |n|^4 so cliff faces get an unstretched texture.
-fn sample_triplanar(k: u32, p: vec3<f32>, n: vec3<f32>, rep: f32, dpx: vec3<f32>, dpy: vec3<f32>, want_normal: bool) -> LayerSample {
-    var bw = pow(abs(n), vec3<f32>(4.0));
-    bw = bw / max(bw.x + bw.y + bw.z, 1e-5);
+// Triplanar projection weights: |n|^8, projections under 2 % dropped and the rest renormalised,
+// so flat and gentle ground (below ~30 degrees) keeps a single top-down sample and only slopes
+// pay for the side projections. `(0, 1, 0)` = top-down only (triplanar off).
+fn triplanar_weights(n: vec3<f32>) -> vec3<f32> {
+    var bw = pow(abs(n), vec3<f32>(8.0));
+    bw = bw / max(bw.x + bw.y + bw.z, 1e-6);
+    bw = select(vec3<f32>(0.0), bw, bw > vec3<f32>(0.02));
+    return bw / max(bw.x + bw.y + bw.z, 1e-6);
+}
+
+// Triplanar projection: the top projection plus the two side projections (z/y and x/y planes)
+// with the weights `bw` (see `triplanar_weights`), so steep faces get an unstretched texture.
+fn sample_triplanar(k: u32, p: vec3<f32>, n: vec3<f32>, bw: vec3<f32>, rep: f32, dpx: vec3<f32>, dpy: vec3<f32>, want_normal: bool) -> LayerSample {
     let sgn = select(vec3<f32>(-1.0), vec3<f32>(1.0), n >= vec3<f32>(0.0));
     var color = vec3<f32>(0.0);
     var nrm = vec3<f32>(0.0);
-    if bw.x > 0.02 {
+    if bw.x > 0.0 {
         let f = vec2<f32>(sgn.x, 1.0);
         let s = sample_layer(k, p.zy * rep * f, dpx.zy * rep * f, dpy.zy * rep * f, want_normal);
         color += s.color * bw.x;
@@ -185,14 +195,14 @@ fn sample_triplanar(k: u32, p: vec3<f32>, n: vec3<f32>, rep: f32, dpx: vec3<f32>
             nrm += world_from_side_x(vec3<f32>(s.normal.x * sgn.x, s.normal.yz), n) * bw.x;
         }
     }
-    if bw.y > 0.02 {
+    if bw.y > 0.0 {
         let s = sample_layer(k, p.xz * rep, dpx.xz * rep, dpy.xz * rep, want_normal);
         color += s.color * bw.y;
         if want_normal {
             nrm += world_from_top(s.normal, n) * bw.y;
         }
     }
-    if bw.z > 0.02 {
+    if bw.z > 0.0 {
         let f = vec2<f32>(-sgn.z, 1.0);
         let s = sample_layer(k, p.xy * rep * f, dpx.xy * rep * f, dpy.xy * rep * f, want_normal);
         color += s.color * bw.z;
@@ -200,9 +210,8 @@ fn sample_triplanar(k: u32, p: vec3<f32>, n: vec3<f32>, rep: f32, dpx: vec3<f32>
             nrm += world_from_side_z(vec3<f32>(-s.normal.x * sgn.z, s.normal.yz), n) * bw.z;
         }
     }
-    let total = select(0.0, bw.x, bw.x > 0.02) + select(0.0, bw.y, bw.y > 0.02) + select(0.0, bw.z, bw.z > 0.02);
     var out: LayerSample;
-    out.color = color / max(total, 1e-5);
+    out.color = color;
     out.normal = n;
     if want_normal {
         out.normal = normalize(nrm + n * 1e-4);
@@ -289,8 +298,13 @@ fn terrain_surface(p: vec3<f32>, geo_n: vec3<f32>, cam: vec3<f32>, macro_rgb: ve
         }
     }
 
-    // Sample every layer that has weight.
+    // Sample every layer that has weight (every layer is triplanar on slopes, see
+    // `triplanar_weights`; with triplanar off everything is top-down as in the bake).
     let want_normal = terrain.flags.z > 0.5;
+    var bw = vec3<f32>(0.0, 1.0, 0.0);
+    if terrain.flags.x > 0.5 {
+        bw = triplanar_weights(n);
+    }
     var col: array<vec3<f32>, 8>;
     var nrm: array<vec3<f32>, 8>;
     var score: array<f32, 8>;
@@ -302,8 +316,8 @@ fn terrain_surface(p: vec3<f32>, geo_n: vec3<f32>, cam: vec3<f32>, macro_rgb: ve
         if w[k] > MIN_WEIGHT {
             let rep = slot_of(terrain.rep_lo, terrain.rep_hi, k);
             var s: LayerSample;
-            if terrain.flags.x > 0.5 && slot_of(terrain.cliff_lo, terrain.cliff_hi, k) > 0.5 {
-                s = sample_triplanar(k, p, n, rep, dpx, dpy, want_normal);
+            if bw.y < 0.999 {
+                s = sample_triplanar(k, p, n, bw, rep, dpx, dpy, want_normal);
             } else {
                 s = sample_top(k, p, n, rep, dpx, dpy, want_normal);
             }
