@@ -39,6 +39,13 @@ WARMUP = 120
 
 
 def binary() -> Path:
+    """`QUALITY_BENCH_BIN`, else a private copy in the automation dir (a shared CARGO_TARGET_DIR
+    can be overwritten by another checkout's build), else the release build."""
+    if os.environ.get("QUALITY_BENCH_BIN"):
+        return Path(os.environ["QUALITY_BENCH_BIN"])
+    private = ADIR / "bin" / "port_viewer"
+    if private.exists():
+        return private
     target = Path(os.environ.get("CARGO_TARGET_DIR", "/home/nico/work/cargo-target-fixes"))
     return target / "release" / "examples" / "port_viewer"
 
@@ -95,7 +102,7 @@ def bench(frames: int = BENCH_FRAMES, warmup: int = WARMUP, repeats: int = 2) ->
     runs = [c({"cmd": "bench", "frames": frames, "warmup": warmup if i == 0 else 30}) for i in range(repeats)]
     best = min(runs, key=lambda r: r["throughput_ms"])
     keys = ("throughput_ms", "throughput_fps", "frame_ms_avg", "frame_ms_p50", "frame_ms_p95", "frame_ms_p99",
-            "cpu_ms_avg", "gpu_wait_ms_avg", "fps_avg")
+            "cpu_ms_avg", "gpu_wait_ms_avg", "fps_avg", "image_mb")
     best = {k: best[k] for k in keys}
     best["throughput_ms_worst_run"] = max(r["throughput_ms"] for r in runs)
     best["load"] = load()
@@ -282,6 +289,7 @@ def run_restart(out: Path, results: Path, size: str) -> None:
             go(*START, frames=600)
             r = bench()
             rec = {"option": label, "size": size, "scene": "inicio", "vram_mb": vram_mb(pid), **r}
+            print(label, "image_mb", r.get("image_mb"), "vram", rec["vram_mb"], flush=True)
             print(json.dumps(rec), flush=True)
             with results.open("a") as fh:
                 fh.write(json.dumps(rec) + "\n")

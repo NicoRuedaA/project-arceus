@@ -1633,6 +1633,11 @@ fn bench(app: &mut App, ctx: &mut Ctx, frames: u32, warmup: u32) -> Value {
         "gpu_wait_ms_avg": r2(mean - avg(&cpu)),
         "fps_avg": if mean > 0.0 { r2(1000.0 / mean) } else { 0.0 },
         "throughput_ms": r2(throughput),
+        // CPU copies of every image (textures, the baked terrain, render targets): what the
+        // texture options change, in MB (the GPU holds about the same).
+        "image_mb": r2(app.world().get_resource::<Assets<Image>>().map_or(0.0, |imgs| {
+            imgs.iter().map(|(_, i)| i.data.as_ref().map_or(0, Vec::len)).sum::<usize>() as f64 / 1_048_576.0
+        })),
         "throughput_fps": if throughput > 0.0 { r2(1000.0 / throughput) } else { 0.0 },
         "gpu": app.world().resource::<AutomationState>().gpu,
     })

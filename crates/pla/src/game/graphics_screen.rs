@@ -465,7 +465,11 @@ pub const PRESETS: &[Preset] = &[
     Preset {
         name: "low",
         label: "Low",
+        // Shadows off: in the dense forest the shadow pass (trees in every cascade) was the largest
+        // cost left (measured 3.9 -> 2.4 ms at 1080p); low shadow quality stays set for players
+        // who switch them back on.
         overrides: &[
+            (id::SHADOWS, 0),
             (id::SHADOW_QUALITY, 0),
             (id::GRASS_RANGE, 75),
             (id::PLANTS_RANGE, 75),
@@ -1736,6 +1740,7 @@ mod tests {
         };
         let (low, def, ultra) = (get("low"), get("default"), get("ultra"));
         assert_eq!(low.get(id::SSAO), 0);
+        assert_eq!(low.get(id::SHADOWS), 0, "shadows were the largest cost left in the forest");
         assert_eq!(low.get(id::BLOOM), 0);
         assert_eq!(low.look_settings(LookSettings::default()).shadow_quality, crate::game::render_look::ShadowQuality::Low);
         assert!(def.is_default());
