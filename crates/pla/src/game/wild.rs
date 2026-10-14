@@ -139,6 +139,35 @@ impl Plugin for WildLifecyclePlugin {
     }
 }
 
+/// Decoded facts of one encounter slot (`data/field_spawn_conditions.tsv`).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SlotFacts {
+    pub form: u16,
+    pub alpha: bool,
+    pub unique_alpha: bool,
+    pub weight: u16,
+}
+
+impl SlotFacts {
+    /// True when `self` should replace `other` as the slot representing a species.
+    pub fn outranks(&self, other: &SlotFacts) -> bool {
+        self.weight > other.weight
+            || (self.weight == other.weight && other.alpha && !self.alpha)
+    }
+}
+
+/// Field scale of a non-alpha creature from a uniform roll.
+/// SUPUESTO: the data holds the category scales (S 0.85, M 1.0, L 1.8) but no
+/// draw probabilities; a third of creatures at 1.8x looked gigantic, so the
+/// port keeps almost all at M and makes S/L uncommon.
+pub fn normal_size_scale(roll: u64) -> f32 {
+    match roll % 100 {
+        0..=9 => 0.85,  // S_field
+        10..=94 => 1.0, // M_field
+        _ => 1.8,       // L_field
+    }
+}
+
 /// A possible species entry within an encounter group.
 #[derive(Debug, Clone)]
 pub struct SpawnSpeciesEntry {
@@ -227,7 +256,7 @@ pub fn load_spawners_for_area(
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .join("field_spawn_conditions.tsv");
-    let mut conditions = HashMap::<(String, String, u16), (u16, bool, bool)>::new();
+    let mut conditions = HashMap::<(String, String, u16), SlotFacts>::new();
     if let Ok(file) = File::open(&condition_path) {
         let reader = BufReader::new(file);
         for line_res in reader.lines().skip(9) {
@@ -242,10 +271,25 @@ pub fn load_spawners_for_area(
             let form = fields[6].parse::<u16>().unwrap_or(0);
             let alpha = fields[7] == "1";
             let unique_alpha = fields[8] == "1";
-            conditions.insert(
-                (fields[1].to_owned(), fields[2].to_owned(), species_id),
-                (form, alpha, unique_alpha),
-            );
+            let weight = fields.get(9).and_then(|w| w.parse::<u16>().ok()).unwrap_or(0);
+            let incoming = SlotFacts {
+                form,
+                alpha,
+                unique_alpha,
+                weight,
+            };
+            // A species can own several slots in one encounter group (a normal
+            // slot and a gated random-alpha slot). Keep ONE per key: the
+            // heaviest, a normal slot winning ties. Overwriting by file order
+            // made the weight-1 alpha slot win and every creature an alpha.
+            conditions
+                .entry((fields[1].to_owned(), fields[2].to_owned(), species_id))
+                .and_modify(|current| {
+                    if incoming.outranks(current) {
+                        *current = incoming;
+                    }
+                })
+                .or_insert(incoming);
         }
     }
     let mut spawner_map: HashMap<String, SpawnerDefinition> = HashMap::new();
@@ -292,10 +336,15 @@ pub fn load_spawners_for_area(
         let min_lvl: u8 = parts[12].parse().unwrap_or(5);
         let max_lvl: u8 = parts[13].parse().unwrap_or(min_lvl);
         let weight: u16 = parts[15].parse().unwrap_or(100);
-        let (form, alpha, unique_alpha) = conditions
+        let SlotFacts {
+            form,
+            alpha,
+            unique_alpha,
+            ..
+        } = conditions
             .get(&(spawner_id.clone(), encount_key.to_owned(), species_id))
             .copied()
-            .unwrap_or((0, false, false));
+            .unwrap_or_default();
 
         let entry = SpawnSpeciesEntry {
             species_id,
@@ -377,11 +426,7 @@ pub fn roll_spawner_variant(
     let size_scale = if alpha {
         2.5 // LL_field; raw value verified in pokemon_variants.tsv.
     } else {
-        match splitmix64(&mut rng_state) % 3 {
-            0 => 0.85, // S_field
-            1 => 1.0,  // M_field
-            _ => 1.8,  // L_field
-        }
+        normal_size_scale(splitmix64(&mut rng_state))
     };
     Some((
         chosen_entry.species_id,

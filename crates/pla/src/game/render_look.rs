@@ -177,7 +177,20 @@ pub const NIGHT_AMBIENT_MIN: f32 = 20.0;
 /// `lighting::vivid_color_grading`). Offscreen check (`look_headless --slots --area 2 --weather 4`,
 /// rain): night frame mean linear luminance 0.044 vs 0.333 by day (13%), ground sRGB 0.22 vs 0.72;
 /// before the fix 0.015 linear and ground sRGB 0.006 (black). The bluish night fill is kept.
-pub const NIGHT_AMBIENT_LUMA_FLOOR: f32 = 80.0;
+///
+/// Raised 80 -> 150 (play-test 2026-10-14, capture 03_area02_lluvia_noche: still near black).
+/// SUPUESTO; kept clearly darker than day (night/day ambient well under 0.4).
+pub const NIGHT_AMBIENT_LUMA_FLOOR: f32 = 150.0;
+/// Moonlight floor (lux) of the vivid look in deep night, fading out as the slot brightens
+/// (`dayness` 0 -> 1). The sheet's night sun (0.3 x 4200 x 0.3 = ~380 lux) lit the ground to ~1% of
+/// day luminance even with the ambient floor. SUPUESTO; about 15% of the day sun (11.8k lux).
+pub const NIGHT_MOON_LUX_FLOOR: f32 = 1800.0;
+
+/// Directional light (lux) after the night moonlight floor: `sun_lux` raised to
+/// [`NIGHT_MOON_LUX_FLOOR`] x (1 - `dayness`). Day and evening (`dayness` 1) are unchanged.
+pub fn moon_lux(sun_lux: f32, dayness: f32) -> f32 {
+    sun_lux.max(NIGHT_MOON_LUX_FLOOR * (1.0 - dayness.clamp(0.0, 1.0)))
+}
 
 /// Ambient brightness that gives at least `floor` cd/m2 of ambient luminance with `color`.
 pub fn floored_ambient_brightness(brightness: f32, color: [f32; 3], floor: f32) -> f32 {
@@ -326,7 +339,7 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
             let lum = (0.12 + 0.88 * day.min(1.0)).clamp(0.0, 1.0);
             LookParams {
                 // Night dimming leaves a faint moon sun; day/evening keep the previous lux mapping.
-                sun_lux: env.sun_intensity * LUX_PER_INTENSITY_VIVID * nscale,
+                sun_lux: moon_lux(env.sun_intensity * LUX_PER_INTENSITY_VIVID * nscale, dayness),
                 ambient_color: amb,
                 ambient_brightness: floored_ambient_brightness(
                     (AMBIENT_VIVID_DAY * day * nscale).max(NIGHT_AMBIENT_MIN),
@@ -598,7 +611,9 @@ mod tests {
         let day = look_params(&env(2.8), LookSettings::default());
         let night = look_params(&env(0.3), LookSettings::default());
         assert!(night.sun_lux < day.sun_lux * 0.2);
-        assert!(night.ambient_brightness < day.ambient_brightness * 0.2);
+        // The night floor works on colour luminance, so the raw brightness of the bluer night
+        // fill can exceed 0.2x day; the perceived fill stays clearly below the day's.
+        assert!(ambient_luminance(&night) < ambient_luminance(&day) * 0.4);
         assert!(night.cloud_color[0] < day.cloud_color[0] * 0.5);
         assert!(night.cloud_opacity < day.cloud_opacity);
     }
@@ -759,6 +774,18 @@ mod tests {
 
     /// Night floor: in every weather the night fill keeps at least the floor luminance, stays
     /// bluish and stays well below the day; a day slot is unchanged by the floor.
+    #[test]
+    fn moon_floor_lifts_deep_night_only() {
+        let day = look_params(&env(2.8), LookSettings::default());
+        let night = look_params(&env(0.3), LookSettings::default());
+        assert!(night.sun_lux >= NIGHT_MOON_LUX_FLOOR - 0.5, "night sun {}", night.sun_lux);
+        assert!(night.sun_lux < 0.25 * day.sun_lux, "night still clearly darker than day");
+        assert_eq!(moon_lux(5000.0, 0.0), 5000.0, "never lowers a brighter sun");
+        assert_eq!(moon_lux(100.0, 1.0), 100.0, "no moon floor by day");
+        let rain = apply_weather(&night, &WeatherVisual::for_id(4));
+        assert!(rain.sun_lux > 0.5 * NIGHT_MOON_LUX_FLOOR && rain.sun_lux < night.sun_lux);
+    }
+
     #[test]
     fn night_floor_holds_in_every_weather() {
         let day = look_params(&env(2.8), LookSettings::default());
