@@ -396,6 +396,9 @@ class Step:
     pinned_output: bool = False
     # folders whose size is reported (default: the outputs themselves)
     size_roots: Callable[[Context], list[Path]] | None = None
+    # content check of existing outputs: False marks them stale even without a stamp (outputs
+    # made before the installer, or by an older exporter, that lack something the game needs)
+    outputs_ok: Callable[[Context], bool] | None = None
 
     def output_bytes(self, ctx: Context) -> int:
         roots = self.size_roots(ctx) if self.size_roots else self.outputs(ctx)
@@ -429,6 +432,8 @@ def step_status(ctx: Context, step: Step) -> str:
     """done / stale / present (made outside the installer) / missing."""
     outs = step.outputs(ctx)
     present = bool(outs) and all(p.exists() for p in outs)
+    if present and step.outputs_ok is not None and not step.outputs_ok(ctx):
+        return "stale"
     stamp = stamp_of(ctx, step)
     if present and stamp is not None:
         return "done" if stamp.get("fingerprint") == step.fingerprint(ctx) else "stale"
@@ -721,6 +726,23 @@ def player_cmd(ctx: Context, stage: Path) -> list[str]:
             str(stage / "player")]
 
 
+# Clips the viewer needs from the player glTF (game::player_anim). Exports made before Brief 22
+# have only 9 clips: the dodge roll fell back to the dash clip and crouching showed nothing.
+PLAYER_REQUIRED_CLIPS = ("roll_f", "crouch", "crouch_walk")
+
+
+def player_outputs_ok(ctx: Context) -> bool:
+    for variant in ("p1_default", "p2_default"):
+        try:
+            gltf = json.loads((ctx.layout.cache / "player" / variant / "player.gltf").read_text())
+        except (OSError, ValueError):
+            return False
+        names = {a.get("name") for a in gltf.get("animations", [])}
+        if not all(c in names for c in PLAYER_REQUIRED_CLIPS):
+            return False
+    return True
+
+
 def run_player(ctx: Context, step: Step) -> None:
     stage = fresh_stage(ctx, step)
     run_cmd(ctx, player_cmd(ctx, stage))
@@ -814,7 +836,8 @@ def build_steps() -> list[Step]:
              lambda ctx: [ctx.layout.cache / "player" / "p1_default" / "player.gltf",
                           ctx.layout.cache / "player" / "p2_default" / "player.gltf"],
              lambda ctx: [show_cmd(player_cmd(ctx, stg(ctx, "player-model")))],
-             run_player, sources=[ex("player_export")], size_roots=lambda ctx: [ctx.layout.cache / "player"]),
+             run_player, sources=[ex("player_export")], size_roots=lambda ctx: [ctx.layout.cache / "player"],
+             outputs_ok=player_outputs_ok),
         Step("audio", "Decode music, sound effects and cries", ["romfs", "main-elf"], int(5.0 * GB), "~1 min",
              lambda ctx: [ctx.layout.cache / "audio"],
              lambda ctx: [show_cmd(audio_cmd(ctx), {"PLA_CACHE_ROOT": str(stg(ctx, "audio"))})],

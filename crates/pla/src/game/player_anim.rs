@@ -237,6 +237,16 @@ pub fn fallback_clip(c: PlayerClip) -> PlayerClip {
     }
 }
 
+/// Skill clips (Brief 22) a player glTF must carry; exports made before it have only the 9
+/// locomotion clips, which made the dodge play the dash clip and the crouch show nothing.
+pub const SKILL_CLIPS: [PlayerClip; 4] =
+    [PlayerClip::RollF, PlayerClip::Crouch, PlayerClip::CrouchWalk, PlayerClip::CrouchStart];
+
+/// glTF names of the [`SKILL_CLIPS`] for which `has` is false.
+pub fn missing_skill_clips(has: impl Fn(&str) -> bool) -> Vec<&'static str> {
+    SKILL_CLIPS.iter().map(|c| c.gltf_name()).filter(|n| !has(n)).collect()
+}
+
 /// Returns `translation` with the horizontal root motion removed: x/z pinned to the rest
 /// pose, the vertical component (jumps, bobbing) kept.
 pub fn strip_root_motion(translation: Vec3, rest: Vec3) -> Vec3 {
@@ -343,9 +353,21 @@ fn wire_player(
     children: Query<&Children>,
     mut players: Query<&mut AnimationPlayer>,
     names: Query<(&Name, &Transform)>,
+    mut toast: Option<ResMut<super::save_wire::SaveToast>>,
 ) {
     for (e, src) in &q {
         let Some(gltf) = gltfs.get(&src.gltf) else { continue };
+        let missing = missing_skill_clips(|n| gltf.named_animations.contains_key(n));
+        if !missing.is_empty() {
+            let msg = format!(
+                "Player model export is outdated (no {} clip): dodge and crouch cannot animate. Run ./install.sh to refresh it.",
+                missing.join("/")
+            );
+            eprintln!("warning: {msg}");
+            if let Some(t) = toast.as_deref_mut() {
+                t.show(msg);
+            }
+        }
         // The scene instance must have produced the AnimationPlayer first.
         let Some(player_e) = children.iter_descendants(e).find(|d| players.get(*d).is_ok()) else {
             continue;
@@ -594,6 +616,35 @@ mod tests {
         // The roll ends after the clip length and the speed tiers take over again.
         sk.tick(ROLL_DURATION + 0.01);
         assert_eq!(select_clip_motion(RollF, 4.5, false, None, Some(&sk)), Run);
+    }
+
+    #[test]
+    fn outdated_player_exports_are_detected() {
+        let nine = ["idle", "idle2", "walk", "run", "dash", "jump_start", "jump_fall", "land", "swim"];
+        assert_eq!(
+            missing_skill_clips(|n| nine.contains(&n)),
+            vec!["roll_f", "crouch", "crouch_walk", "crouch_start"]
+        );
+        assert!(missing_skill_clips(|_| true).is_empty());
+    }
+
+    /// The real cache export carries every clip the mapping asks for (skipped without a cache).
+    #[test]
+    fn real_player_export_has_every_mapped_clip() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../work/cache/player");
+        for variant in ["p1_default", "p2_default"] {
+            let Ok(text) = std::fs::read_to_string(root.join(variant).join("player.gltf")) else {
+                eprintln!("[skip] no player export");
+                return;
+            };
+            for c in ALL_CLIPS {
+                assert!(
+                    text.contains(&format!("\"{}\"", c.gltf_name())),
+                    "{variant}: clip {} missing from the export",
+                    c.gltf_name()
+                );
+            }
+        }
     }
 
     #[test]
