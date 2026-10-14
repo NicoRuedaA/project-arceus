@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 pub mod art_style;
 pub mod audio;
+pub mod automation;
 pub mod bag_screen;
 pub mod ball_lifecycle;
 pub mod battle_ai;
