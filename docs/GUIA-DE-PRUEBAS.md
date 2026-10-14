@@ -315,7 +315,7 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 31. **No se puede capturar ni huir.** En un entrenador, intenta lanzar una bola (C/B) o huir (R):
     debe rechazarlo con un mensaje y sin gastar la bola ni el turno.
 32. **Después de ganar.** La cápsula del entrenador se pone gris, y se esconde durante el combate.
-    El premio en dinero es SUPUESTO.
+    El premio en dinero es SUPUESTO y se paga solo la primera vez; el entrenador vencido se guarda (ver 71).
 33. **Jefe y Nobles.** Prueba `--trainer giratina01` (hay segunda fase: se levanta una vez a vida
     completa) y `--trainer noble:nsi_ex_01_r`. Solo existe la parte por turnos: la fase de
     campo noble (medidor, bálsamos) **no está hecha**.
@@ -502,7 +502,12 @@ Se puede apagar con `--no-audio`. Nadie ha escuchado nada hasta ahora.
     También se guarda solo tras cada combate y al cambiar de zona. No se puede guardar durante un combate.
 70. **Partida nueva.** `--new-game` empieza de cero (equipo inicial, 3 caramelos raros, 3 objetos
     de esfuerzo). Fallo: pierdes cosas al guardar y volver, o aparece la partida vieja.
-71. **Entrenadores derrotados:** **no se guardan** (ver 4). Al reiniciar vuelven a estar disponibles. Es lo esperado.
+71. **Entrenadores derrotados (guardado v8, nuevo).** Gana un combate de entrenador (cápsula
+    roja, V). Tras el combate se guarda solo. Cierra el juego y vuelve a arrancar sin `--new-game`
+    (o usa Esc → Load game): esa cápsula sigue **gris**, al pulsar V junto a ella solo sale el
+    aviso «was already defeated» y **no** empieza el combate, y el premio en dinero no se vuelve a
+    cobrar. Con `--trainer <id>` aún puedes repetir el combate (es para depuración) pero no paga.
+    Fallo: tras reiniciar la cápsula vuelve a ser roja, o el premio se cobra otra vez.
 72. **Cargar partida (Esc → Load game).** Nuevo del 2026-10-14. Guarda (F5), muévete, gasta dinero
     o cambia la hora, y elige Load game: vuelves al sitio y al estado del guardado (equipo, mochila,
     dinero, hora, tiempo de juego), con un fundido como al cambiar de zona. Sin partida guardada
@@ -583,7 +588,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
   examinadas lo es. DESCONOCIDO.
 - **Cuerdas, escaleras y superficies de trepar reales:** DESCONOCIDAS (saltar, caer, trepar e interactuar ya están en `main`).
 - **Interiores y subzonas (casas, cuevas, tiendas):** pendiente. Las puertas lo dicen y rechazan el cambio.
-- **Entrenadores derrotados no se guardan**; al reiniciar vuelven. Hará falta el guardado v8.
+- **Entrenadores derrotados:** ya se guardan (guardado v8, prueba 71). Los entrenadores de depuración `--trainer` se pueden repetir sin cobrar.
 - **IA experta** de entrenadores; **fase de campo de los Nobles** (medidor, bálsamos, ataques de campo);
   orden de salida de los Pokémon; combates dobles; música de combate de entrenador sin conectar.
 - **Brotes masivos:** la especie real es DESCONOCIDA; el reparto es inventado.

@@ -97,6 +97,10 @@ archivo; `main.elf` debe coincidir con su SHA-256 fijado.
   está disponible (`--memory-max 4G` para bajarlo, `--no-memory-limit` para quitarlo).
 - Los resultados que ya existen pero no hizo el instalador se dejan como están
   (`present` en `--check`). `--force PASO` rehace un paso; `--force all`, todos.
+- Los datos de la interfaz original (paso `ui`) viven en `work/cache/ui` (`layouts/` + `png/`): el
+  instalador los escribe ahí y el visor los lee primero de ahí. Una carpeta `work/ui` hecha a mano
+  antes del instalador el visor la sigue leyendo como alternativa, y `--check` la da por `present`
+  (no se vuelve a exportar); `--force ui` la rehace en `work/cache/ui`.
 - Se rechazan dos instaladores a la vez sobre la misma carpeta `work/`.
 
 ## Opciones útiles
