@@ -126,16 +126,45 @@ pub struct PokemonAnimSource {
     pub walk: Option<Handle<Gltf>>,
     /// `*_battle.gltf` with the battle clips; only loaded for battle creatures.
     pub battle: Option<Handle<Gltf>>,
+    /// Metres (world units, divided by the entity's scale when the scene is spawned) the model
+    /// scene is lowered below the entity origin. The exported models have their feet at the scene origin; overworld creatures keep
+    /// their root [`CREATURE_ROOT_ABOVE_GROUND`] above the navmesh (the height of the radius-0.5
+    /// placeholder sphere), so without this drop the feet float that high above the ground and
+    /// above their shadow. 0 for the battle arena (root already on the ground).
+    pub root_drop: f32,
+}
+
+/// Height of an overworld creature's root above the navmesh surface (placeholder sphere radius,
+/// also used by the follower). The real model must be lowered by this so its feet touch the ground.
+pub const CREATURE_ROOT_ABOVE_GROUND: f32 = 0.45;
+
+/// Local-space drop that puts the model's feet on the ground for an entity whose root is
+/// `root_above_ground` metres up and whose transform scale is `scale` (the drop is in the scaled
+/// local frame, so it is divided by the scale).
+pub fn grounded_root_drop(root_above_ground: f32, scale: f32) -> f32 {
+    if scale.is_finite() && scale > 1e-4 { root_above_ground / scale } else { root_above_ground }
+}
+
+/// World height of the model's lowest point above the ground, for the entity set-up described
+/// at [`PokemonAnimSource::root_drop`] (`model_min_y`: lowest model-space y, 0 for the exports).
+pub fn feet_above_ground(root_above_ground: f32, root_drop: f32, scale: f32, model_min_y: f32) -> f32 {
+    root_above_ground + scale * (model_min_y - root_drop)
 }
 
 impl PokemonAnimSource {
+    /// Lowers the model scene by `drop` local metres (see [`Self::root_drop`]).
+    pub fn with_root_drop(mut self, drop: f32) -> Self {
+        self.root_drop = drop;
+        self
+    }
+
     /// `idle_rel` is an asset path such as `cache/pokemon_batch/pm0025_00_00/pm0025_00_00_idle.gltf`;
     /// the walk file is the sibling `_walk.gltf` (absent file simply leaves the model idle-only).
     pub fn from_idle_path(asset_server: &AssetServer, idle_rel: &str) -> Self {
         let walk = idle_rel
             .strip_suffix("_idle.gltf")
             .map(|stem| asset_server.load::<Gltf>(format!("{stem}_walk.gltf")));
-        Self { idle: asset_server.load(idle_rel.to_string()), walk, battle: None }
+        Self { idle: asset_server.load(idle_rel.to_string()), walk, battle: None, root_drop: 0.0 }
     }
 
     /// Same as [`Self::from_idle_path`] plus the sibling `_battle.gltf` (a missing file
@@ -189,7 +218,7 @@ pub struct PokemonAnimState {
 }
 
 impl PokemonAnimState {
-    fn new(player: Entity, idle: AnimationNodeIndex, walk: Option<AnimationNodeIndex>) -> Self {
+    pub(crate) fn new(player: Entity, idle: AnimationNodeIndex, walk: Option<AnimationNodeIndex>) -> Self {
         Self {
             player,
             idle,
@@ -265,20 +294,21 @@ pub fn find_clip(gltf: &Gltf, needles: &[&str]) -> Option<Handle<AnimationClip>>
 fn spawn_scene(
     mut commands: Commands,
     gltfs: Res<Assets<Gltf>>,
-    q: Query<(Entity, &PokemonAnimSource), Without<PokemonSceneSpawned>>,
+    q: Query<(Entity, &PokemonAnimSource, Option<&Transform>), Without<PokemonSceneSpawned>>,
 ) {
-    for (e, src) in &q {
+    for (e, src, tf) in &q {
         let Some(gltf) = gltfs.get(&src.idle) else { continue };
         let Some(scene) = gltf.default_scene.clone().or_else(|| gltf.scenes.first().cloned()) else {
             continue;
         };
+        let root_drop = grounded_root_drop(src.root_drop, tf.map_or(1.0, |t| t.scale.y));
         // Silenced: the battle arena replaces a combatant entity when the active Pokémon
         // changes, and the wild streamer unloads creatures, possibly in the same frame as this
         // insert (play-test crash 2026-10-14: "Entity despawned" in this insert).
         commands.entity(e).queue_silenced(move |mut ew: EntityWorldMut| {
             ew.insert((PokemonSceneSpawned, PokemonMotion::default()));
             ew.with_children(|p| {
-                p.spawn((WorldAssetRoot(scene), Transform::IDENTITY, Visibility::default()));
+                p.spawn((WorldAssetRoot(scene), Transform::from_xyz(0.0, -root_drop, 0.0), Visibility::default()));
             });
         });
     }
@@ -674,5 +704,61 @@ mod tests {
     fn pinned_root_keeps_vertical_bob() {
         let rest = Vec3::new(0.0, 0.4, 0.0);
         assert_eq!(strip_root_motion(Vec3::new(0.0, 0.45, 0.6), rest), Vec3::new(0.0, 0.45, 0.0));
+    }
+
+    /// Lowest model-space y over every mesh primitive of an exported idle glTF (accessor `min`).
+    fn model_min_y(gltf_json: &str) -> Option<f32> {
+        let v: serde_json::Value = serde_json::from_str(gltf_json).ok()?;
+        let accessors = v.get("accessors")?.as_array()?;
+        let mut lowest: Option<f32> = None;
+        for mesh in v.get("meshes")?.as_array()? {
+            for prim in mesh.get("primitives")?.as_array()? {
+                let idx = prim.get("attributes")?.get("POSITION")?.as_u64()? as usize;
+                let y = accessors.get(idx)?.get("min")?.get(1)?.as_f64()? as f32;
+                lowest = Some(lowest.map_or(y, |l| l.min(y)));
+            }
+        }
+        lowest
+    }
+
+    #[test]
+    fn grounded_drop_puts_the_feet_on_the_ground_for_any_scale() {
+        for scale in [0.5_f32, 1.0, 1.7, 3.0] {
+            let drop = grounded_root_drop(CREATURE_ROOT_ABOVE_GROUND, scale);
+            let feet = feet_above_ground(CREATURE_ROOT_ABOVE_GROUND, drop, scale, 0.0);
+            assert!(feet.abs() < 1e-5, "scale {scale}: feet {feet} m above ground");
+        }
+        // Without the drop the model hovers by the full root height (the reported bug).
+        assert!((feet_above_ground(CREATURE_ROOT_ABOVE_GROUND, 0.0, 1.0, 0.0) - 0.45).abs() < 1e-6);
+        assert_eq!(grounded_root_drop(0.45, 0.0), 0.45, "degenerate scale does not divide by zero");
+    }
+
+    /// Real exported models (Bidoof, Pikachu, Shinx, Starly, Drifloon, Zubat...) have their lowest
+    /// vertex within 8 cm of the scene origin, so lowering the scene by the root height grounds
+    /// them (skipped without a cache).
+    #[test]
+    fn real_models_have_their_feet_at_the_scene_origin() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../work/cache/pokemon_batch");
+        let mut checked = 0;
+        for dex in [399_u16, 25, 403, 396, 425, 41, 397, 400] {
+            let stem = format!("pm{dex:04}_00_00");
+            let Ok(text) = std::fs::read_to_string(root.join(&stem).join(format!("{stem}_idle.gltf"))) else {
+                continue;
+            };
+            let min_y = model_min_y(&text).expect("POSITION bounds");
+            let scale = 1.3;
+            let drop = grounded_root_drop(CREATURE_ROOT_ABOVE_GROUND, scale);
+            let feet = feet_above_ground(CREATURE_ROOT_ABOVE_GROUND, drop, scale, min_y);
+            eprintln!("#{dex}: model min y {min_y:.4}, feet above ground with drop {feet:.4}");
+            // Flyers (Starly, Drifloon, Zubat) may hover on purpose; ground walkers must touch.
+            if ![396, 425, 41].contains(&dex) {
+                assert!(feet.abs() < 0.12, "#{dex} feet {feet} m above ground");
+                assert!(min_y.abs() < 0.08, "#{dex} model does not start at its feet: {min_y}");
+            }
+            checked += 1;
+        }
+        if checked == 0 {
+            eprintln!("[skip] no pokemon_batch export");
+        }
     }
 }

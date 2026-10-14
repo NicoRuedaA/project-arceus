@@ -22,7 +22,7 @@
 }
 
 struct ToonUniform {
-    // x threshold min, y threshold max, z band strength, w unused
+    // x threshold min, y threshold max, z band strength, w shade floor
     band: vec4<f32>,
     // rgb shade tint, w tint strength
     shade: vec4<f32>,
@@ -70,7 +70,9 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> Fragment
 
         // banded_light(): blend of Bevy's Lambert factor and the two-tone ramp x banded shadow.
         let lambert = clamp(ndl, 0.0, 1.0) * shadow;
-        let band = smoothstep(toon.band.x, toon.band.y, ndl) * smoothstep(toon.extra.y, toon.extra.z, shadow);
+        let floor = clamp(toon.band.w, 0.0, 1.0);
+        let ramp = smoothstep(toon.band.x, toon.band.y, ndl) * smoothstep(toon.extra.y, toon.extra.z, shadow);
+        let band = floor + (1.0 - floor) * ramp;
         let lit = lambert + (band - lambert) * clamp(toon.band.z, 0.0, 1.0);
 
         let diffuse_color = pbr_input.material.base_color.rgb * (1.0 - pbr_input.material.metallic);

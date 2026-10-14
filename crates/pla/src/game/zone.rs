@@ -986,6 +986,9 @@ pub fn replace_area_spawners(
     if let Some(mut consumed) = world.get_resource_mut::<crate::game::wild::ConsumedSpawners>() {
         consumed.clear();
     }
+    if let Some(mut safety) = world.get_resource_mut::<crate::game::wild::EncounterSafety>() {
+        safety.request_arrival();
+    }
     let Some(mut active) = world.get_resource_mut::<ActiveAreaSpawners>() else {
         return;
     };

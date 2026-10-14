@@ -138,10 +138,12 @@ pub mod id {
     pub const FOG_DISTANCE: &str = "fog_distance";
     pub const SSAO_QUALITY: &str = "ssao_quality";
     pub const BLOOM_INTENSITY: &str = "bloom_intensity";
+    pub const UI: &str = "ui";
 }
 
 const LOOKS: &[(&str, &str)] = &[("vivid", "vivid"), ("classic", "classic")];
 const STYLES: &[(&str, &str)] = &[("plain", "plain"), ("original", "original")];
+const UIS: &[(&str, &str)] = &[("original", "original"), ("debug", "debug")];
 const QUALITY3: &[(&str, &str)] = &[("off", "off"), ("low", "low"), ("high", "high")];
 const GRASS5: &[(&str, &str)] =
     &[("off", "off"), ("low", "low"), ("medium", "medium"), ("high", "high"), ("ultra", "ultra")];
@@ -270,6 +272,17 @@ fn cli_time(args: &[String]) -> Option<i32> {
         .then(|| super::clock::time_slot_arg(args))
         .flatten()
         .map(|s| s as i32 + 1)
+}
+
+/// `--ui original|debug` (or `PLA_UI`): 0 = original, 1 = debug; a bad value is left to the
+/// UI plugin to report.
+fn cli_ui(args: &[String]) -> Option<i32> {
+    let raw = cli_flags::value_of(args, "--ui").map(str::to_string).or_else(|| std::env::var("PLA_UI").ok())?;
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "debug" => Some(1),
+        "original" | "orig" | "game" => Some(0),
+        _ => None,
+    }
 }
 
 fn cli_weather(args: &[String]) -> Option<i32> {
@@ -404,6 +417,7 @@ pub const OPTION_DEFS: &[OptionDef] = &[
     OptionDef { id: id::OUTLINES, label: "Outlines", page: Page::Look, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_outlines, preset: false, help: "Ink outlines around characters (original style only)." },
     OptionDef { id: id::TIME, label: "Time of day", page: Page::Look, kind: Kind::Cycle(TIMES), default: 0, restart: Restart::Never, cli: cli_time, preset: false, help: "Follow the game clock or pin one time slot." },
     OptionDef { id: id::WEATHER, label: "Weather", page: Page::Look, kind: Kind::Cycle(WEATHERS), default: 0, restart: Restart::Never, cli: cli_weather, preset: false, help: "Follow the weather lottery or force one weather." },
+    OptionDef { id: id::UI, label: "Interface (UI)", page: Page::Look, kind: Kind::Cycle(UIS), default: 0, restart: Restart::Always, cli: cli_ui, preset: false, help: "Use the original game's layouts when local UI data is available, or the provisional debug UI." },
     // ---- Quality
     OptionDef { id: id::SHADOWS, label: "Shadows", page: Page::Quality, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_shadows, preset: true, help: "Sun shadows. Off saves about 1-2 ms per frame." },
     OptionDef { id: id::SHADOW_QUALITY, label: "Shadow quality", page: Page::Quality, kind: Kind::Cycle(LEVEL4), default: 1, restart: Restart::Never, cli: cli_shadow_quality, preset: true, help: "Low 1024 px / 100 m, medium 2048 px / 250 m, high 4096 px / 350 m, ultra 4096 px / 400 m." },
@@ -821,6 +835,11 @@ impl GraphicsSettings {
         }
         if let (Some(id), false) = (self.weather_id(), has_flag(cli, "--weather")) {
             args.extend(["--weather".to_string(), id.to_string()]);
+        }
+        // The saved interface applies at start-up (switching live would leave the other layer's
+        // screens half drawn); `--ui` / `PLA_UI` still win.
+        if self.get(id::UI) == 1 && !has_flag(cli, "--ui") && std::env::var_os("PLA_UI").is_none() {
+            args.extend(["--ui".to_string(), UIS[1].0.to_string()]);
         }
         args
     }
@@ -1620,7 +1639,7 @@ mod tests {
 
     #[test]
     fn rows_scroll_keeps_the_selection_visible() {
-        assert_eq!(rows_of(Page::Look).len(), 2 + 5 + 1);
+        assert_eq!(rows_of(Page::Look).len(), 2 + 6 + 1);
         assert_eq!(scroll_for(3, 0, 8), 0);
         assert_eq!(scroll_for(29, 0, 30), 30 - VISIBLE_ROWS);
         assert_eq!(scroll_for(2, 16, 30), 2);
@@ -1682,6 +1701,31 @@ mod tests {
         assert_eq!(cli_flags::value_of(&args, "--weather"), Some("4"));
         let args = s.startup_args(&a("viewer --time-slot 0 --weather=fog"));
         assert_eq!(args, a("viewer --time-slot 0 --weather=fog"));
+    }
+
+    #[test]
+    fn ui_option_is_saved_and_the_flag_overrides_it() {
+        assert_eq!(cli_ui(&a("v")).filter(|_| std::env::var_os("PLA_UI").is_none()), None);
+        assert_eq!(cli_ui(&a("v --ui debug")), Some(1));
+        assert_eq!(cli_ui(&a("v --ui=original")), Some(0));
+        let i = def_index(id::UI).unwrap();
+        assert!(needs_restart(i, &GraphicsSettings::default(), &{
+            let mut s = GraphicsSettings::default();
+            s.set(id::UI, 1);
+            s
+        }));
+        let mut s = GraphicsSettings::default();
+        s.set(id::UI, 1);
+        if std::env::var_os("PLA_UI").is_none() {
+            let args = s.startup_args(&a("viewer"));
+            assert_eq!(cli_flags::value_of(&args, "--ui"), Some("debug"));
+            assert_eq!(s.startup_args(&a("viewer --ui original")), a("viewer --ui original"));
+        }
+        let dir = tmp("ui_persist");
+        s.save(&dir).unwrap();
+        let text = std::fs::read_to_string(dir.join(FILE_NAME)).unwrap();
+        assert!(text.contains("ui = \"debug\""), "{text}");
+        assert_eq!(GraphicsSettings::parse(&text).get(id::UI), 1);
     }
 
     #[test]

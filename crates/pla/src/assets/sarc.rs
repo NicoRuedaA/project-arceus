@@ -5,13 +5,15 @@
 //!        data_offset u32 | version u16 (0x0100) | reserved u16
 //!   0x14 "SFAT" | header_size u16 (0x0C) | node_count u16 | hash_key u32
 //!   0x20 nodes: { hash u32, attrs u32, data_start u32, data_end u32 }
-//!        attrs = (0x01 << 24) | name_offset
-//!   then "SFNT" | header_size u16 (0x08) | name_count u16 | names (NUL-separated)
+//!        attrs = (0x01 << 24) | (name_offset / 4)
+//!   then "SFNT" | header_size u16 (0x08) | name_count u16 | names (NUL-terminated,
+//!        each padded to a 4-byte boundary; attrs counts 4-byte units)
 //!   file data at data_offset + node.data_start
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SarcEntry {
     pub hash: u32,
+    /// Byte offset of the entry name inside the SFNT name table.
     pub name_offset: u32,
     pub data_start: u32,
     pub data_end: u32,
@@ -62,7 +64,9 @@ impl Sarc {
             let data_end = u32::from_le_bytes(bytes[pos + 12..pos + 16].try_into().unwrap());
             entries.push(SarcEntry {
                 hash,
-                name_offset: attrs & 0x00FF_FFFF,
+                // The low 24 bits count 4-byte units (verified on the
+                // multi-file layout archives of `bin/appli`).
+                name_offset: (attrs & 0x00FF_FFFF) * 4,
                 data_start,
                 data_end,
             });
@@ -111,5 +115,50 @@ impl Sarc {
 
     pub fn find(&self, name: &str) -> Option<&SarcEntry> {
         self.entries.iter().find(|e| self.name(e) == name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Sarc;
+
+    /// Two-entry archive with the second name at a 4-byte-unit offset.
+    fn two_entry_sarc() -> Vec<u8> {
+        let names: &[u8] = b"a.txt\0\0\0timg/b.bntx\0\0";
+        let data_offset = 0x20 + 2 * 16 + 8 + names.len();
+        let mut b = Vec::new();
+        b.extend_from_slice(b"SARC");
+        b.extend_from_slice(&0x14u16.to_le_bytes());
+        b.extend_from_slice(&0xFEFFu16.to_le_bytes());
+        b.extend_from_slice(&((data_offset + 8) as u32).to_le_bytes());
+        b.extend_from_slice(&(data_offset as u32).to_le_bytes());
+        b.extend_from_slice(&0x0100u16.to_le_bytes());
+        b.extend_from_slice(&0u16.to_le_bytes());
+        b.extend_from_slice(b"SFAT");
+        b.extend_from_slice(&0x0Cu16.to_le_bytes());
+        b.extend_from_slice(&2u16.to_le_bytes());
+        b.extend_from_slice(&0x65u32.to_le_bytes());
+        for (attrs, start, end) in [(0x0100_0000u32, 0u32, 4u32), (0x0100_0002, 4, 8)] {
+            b.extend_from_slice(&0u32.to_le_bytes());
+            b.extend_from_slice(&attrs.to_le_bytes());
+            b.extend_from_slice(&start.to_le_bytes());
+            b.extend_from_slice(&end.to_le_bytes());
+        }
+        b.extend_from_slice(b"SFNT");
+        b.extend_from_slice(&8u16.to_le_bytes());
+        b.extend_from_slice(&0u16.to_le_bytes());
+        b.extend_from_slice(names);
+        b.extend_from_slice(b"AAAABBBB");
+        b
+    }
+
+    #[test]
+    fn names_use_four_byte_units() {
+        let bytes = two_entry_sarc();
+        let sarc = Sarc::parse(&bytes).unwrap();
+        assert_eq!(sarc.name(&sarc.entries[0]), "a.txt");
+        assert_eq!(sarc.name(&sarc.entries[1]), "timg/b.bntx");
+        assert_eq!(sarc.data(&bytes, &sarc.entries[1]).unwrap(), b"BBBB");
+        assert!(sarc.find("timg/b.bntx").is_some());
     }
 }

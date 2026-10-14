@@ -349,8 +349,9 @@ pub struct ShopTrigger {
     pub radius: f32,
 }
 
+/// Root of the provisional bag (hidden while the original one is shown, `orig_ui`).
 #[derive(Component)]
-struct BagRoot;
+pub struct BagRoot;
 
 #[derive(Component, Clone, Copy)]
 enum BagText {

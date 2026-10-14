@@ -157,6 +157,12 @@ pub enum Skip {
     UnknownDisplay(u8),
     /// Zero particles per emission or zero life.
     NoParticles,
+    /// The drawn texture is a normal map (`..._n`): data for the game's lighting shader, not a
+    /// picture. Drawn as a sprite it showed up as an opaque coloured rectangle.
+    NormalMap,
+    /// Base size 0 in both axes: the light sources (`light`, `point_light`) the game uses to
+    /// light the scene. Drawn as a sprite they showed up as a big opaque white disc.
+    Light,
     /// No texture in sampler 0 (e.g. the invisible `cmn_collision_dummy`): not drawn.
     NoTexture,
 }
@@ -169,6 +175,8 @@ impl Skip {
             Skip::Child => "child".into(),
             Skip::UnknownDisplay(v) => format!("display{v}"),
             Skip::NoParticles => "no_particles".into(),
+            Skip::NormalMap => "normal_map".into(),
+            Skip::Light => "light".into(),
             Skip::NoTexture => "no_texture".into(),
         }
     }
@@ -195,6 +203,11 @@ pub fn classify(e: &Emitter) -> Result<DrawShape, Skip> {
     };
     if e.emit_rate < 0.5 || e.life_frames <= 0 {
         return Err(Skip::NoParticles);
+    }
+    // Every emitter in the game data whose base size is 0 on both axes is a light source
+    // (`light` x6, `light_Copy1`, `point_light` x9 of 5987 drawable emitters).
+    if !(e.base_scale[0] > 0.0 || e.base_scale[1] > 0.0) {
+        return Err(Skip::Light);
     }
     if e.texture_ids[0].is_none() {
         return Err(Skip::NoTexture);
@@ -239,6 +252,14 @@ pub fn emitter_blend(e: &Emitter) -> BlendMode {
         BlendMode::Alpha if named_additive(&e.name) => BlendMode::Add,
         b => b,
     }
+}
+
+/// True for a normal-map texture (`upt_ew414_normal_n`, `upt_ew414_lumi_n`): the ground-rock
+/// and pillar emitters use them as lighting data of a mesh, and no picture is stored there. The
+/// 51 emitters of the game data that draw such a texture are skipped (a lit mesh is not
+/// supported yet), instead of an opaque rectangle of the map's purple/orange colours.
+pub fn is_normal_map(texture: &str) -> bool {
+    texture.to_ascii_lowercase().ends_with("_n")
 }
 
 /// A drawable emitter with its derived settings.
@@ -341,6 +362,10 @@ impl EffectDef {
             match classify(e) {
                 Ok(shape) => {
                     let (texture, slot) = drawn_texture(e, file);
+                    if texture.as_deref().is_some_and(is_normal_map) {
+                        def.skipped.push((e.name.clone(), Skip::NormalMap));
+                        continue;
+                    }
                     def.emitters.push(EmitterDef { emitter: e.clone(), shape, blend: emitter_blend(e), texture, slot })
                 }
                 Err(skip) => def.skipped.push((e.name.clone(), skip)),
@@ -749,6 +774,15 @@ mod tests {
     }
 
     #[test]
+    fn normal_map_textures_are_not_sprites() {
+        assert!(is_normal_map("upt_ew414_normal_n"));
+        assert!(is_normal_map("upt_ew414_lumi_n"));
+        assert!(!is_normal_map("cpt_0_circle0201"));
+        assert!(!is_normal_map("cpt_3_flow0017n"));
+        assert!(!is_normal_map("fxpt_2_line004_m"));
+    }
+
+    #[test]
     fn unsupported_emitters_are_skipped_with_a_reason() {
         let mut mesh = emitter("mesh");
         mesh.primitive_id = Some(3);
@@ -764,13 +798,15 @@ mod tests {
         streak.display = DisplayType::VelocityLook;
         let mut dummy = emitter("Emitter1");
         dummy.texture_ids = [None; 3];
-        let d = def_of(vec![emitter("glow"), mesh, ribbon, child, odd, none, streak, dummy]);
+        let mut light = emitter("point_light");
+        light.base_scale = [0.0, 0.0, 0.0];
+        let d = def_of(vec![emitter("glow"), mesh, ribbon, child, odd, none, streak, light, dummy]);
         assert_eq!(d.emitters.len(), 2);
         assert_eq!(d.emitters[1].shape, DrawShape::Streak);
         let reasons: Vec<Skip> = d.skipped.iter().map(|s| s.1).collect();
         assert_eq!(
             reasons,
-            vec![Skip::Mesh, Skip::Ribbon, Skip::Child, Skip::UnknownDisplay(7), Skip::NoParticles, Skip::NoTexture]
+            vec![Skip::Mesh, Skip::Ribbon, Skip::Child, Skip::UnknownDisplay(7), Skip::NoParticles, Skip::Light, Skip::NoTexture]
         );
     }
 

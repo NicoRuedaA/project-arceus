@@ -84,6 +84,8 @@ pub struct PlayerProgress {
     pub time_minutes: u16,
     /// Ids of collected field-item spawns (`data/field_item_spawns.tsv`, save format v7, Brief 12).
     pub picked: BTreeSet<u64>,
+    /// Ids of the beaten trainers (save format v8). Filled by [`apply_outcome`] on the first win.
+    pub defeated_trainers: BTreeSet<String>,
 }
 
 impl PlayerProgress {
@@ -104,6 +106,7 @@ impl PlayerProgress {
             rng_seed: if s.rng_seed == 0 { 0x5ca1_e001 } else { s.rng_seed },
             time_minutes: s.time_minutes,
             picked: s.picked.clone(),
+            defeated_trainers: s.defeated_trainers.clone(),
         }
     }
 
@@ -125,6 +128,7 @@ impl PlayerProgress {
             caught_count: self.caught_count,
             rng_seed: self.rng_seed,
             picked: self.picked.clone(),
+            defeated_trainers: self.defeated_trainers.clone(),
             ..PlayerSave::default()
         }
     }
@@ -459,6 +463,9 @@ pub struct BattleOutcome {
     /// `trainer_battle::trainer_prize_assumed`); `Some(0)` when the trainer stores no prize.
     /// `None` in wild battles, which pay [`victory_reward`].
     pub trainer_prize: Option<u32>,
+    /// Trainer battles: the id of the opponent (`giratina01`, `noble:<setting>`); `None` in wild
+    /// battles. A won battle against an id already in `defeated_trainers` pays no prize.
+    pub trainer_id: Option<String>,
 }
 
 /// Snapshot the session. Form and experience come from `sess.member_meta` (they change with
@@ -488,6 +495,7 @@ pub fn snapshot(sess: &ActiveBattleSession, roster: &[usize], bag_ids: &[u16]) -
         caught: wild.caught.then(|| PartyMember::from_combatant(wild)),
         rng: sess.rng.0,
         trainer_prize: sess.trainer.as_ref().map(|t| t.prize.unwrap_or(0)),
+        trainer_id: sess.trainer.as_ref().map(|t| t.id.clone()),
     }
 }
 
@@ -542,7 +550,15 @@ pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
         }
     } else if out.won {
         progress.defeated = progress.defeated.saturating_add(1);
-        progress.add_money(out.trainer_prize.unwrap_or_else(|| victory_reward(out.wild_level)));
+        // A trainer pays once: a rematch of an already-beaten trainer (possible through
+        // `--trainer`) pays nothing. Wild battles always pay.
+        let first_win = match &out.trainer_id {
+            Some(id) => progress.defeated_trainers.insert(id.clone()),
+            None => true,
+        };
+        if first_win {
+            progress.add_money(out.trainer_prize.unwrap_or_else(|| victory_reward(out.wild_level)));
+        }
     }
 }
 
@@ -1069,6 +1085,7 @@ mod tests {
             caught: None,
             rng: 77,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.party[0].hp, 12);
@@ -1102,10 +1119,43 @@ mod tests {
             caught: None,
             rng: 0,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.bag, BTreeMap::from([(10, 4)]));
         assert_eq!(p.rng_seed, 0x5ca1_e001, "zero rng does not overwrite the seed");
+    }
+
+    /// A trainer pays once: the first win records the id and pays, a rematch pays nothing; a
+    /// different trainer pays again; wild wins always pay.
+    #[test]
+    fn trainer_prize_is_paid_only_on_the_first_win() {
+        let mut p = progress2();
+        let money0 = p.money;
+        let win = |id: &str| BattleOutcome {
+            party: vec![],
+            bag: BTreeMap::new(),
+            wild_dex: 1,
+            wild_level: 10,
+            won: true,
+            caught: None,
+            rng: 1,
+            trainer_prize: Some(500),
+            trainer_id: Some(id.into()),
+        };
+        apply_outcome(&mut p, &win("giratina01"));
+        assert_eq!(p.money, money0 + 500);
+        assert!(p.defeated_trainers.contains("giratina01"));
+        apply_outcome(&mut p, &win("giratina01"));
+        assert_eq!(p.money, money0 + 500, "the rematch pays nothing");
+        apply_outcome(&mut p, &win("trainer04_01"));
+        assert_eq!(p.money, money0 + 1000, "another trainer pays");
+        let wild = BattleOutcome { trainer_prize: None, trainer_id: None, ..win("x") };
+        apply_outcome(&mut p, &wild);
+        assert_eq!(p.money, money0 + 1000 + victory_reward(10));
+        // The set survives to_save / from_save.
+        let back = PlayerProgress::from_save(&p.to_save("ha_area01", [0.0; 3], 0.0));
+        assert_eq!(back.defeated_trainers, p.defeated_trainers);
     }
 
     #[test]
@@ -1122,6 +1172,7 @@ mod tests {
             caught: None,
             rng: 1,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &base);
         assert_eq!((p.defeated, p.caught_count), (1, 0));
@@ -1160,6 +1211,7 @@ mod tests {
             caught: None,
             rng: 1,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.money, u32::MAX, "the prize saturates instead of overflowing");
@@ -1210,6 +1262,7 @@ mod tests {
             caught: Some(member(396, 9, 5)),
             rng: 1,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.party.len(), MAX_PARTY, "party stays full");
@@ -1266,6 +1319,7 @@ mod tests {
             caught: Some(member(396, 9, 5)),
             rng: 1,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.box_list.len(), MAX_BOX, "the box stays at the limit");

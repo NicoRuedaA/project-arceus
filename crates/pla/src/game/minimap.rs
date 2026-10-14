@@ -772,7 +772,9 @@ pub fn setup_minimap_ui(mut commands: Commands, hud: Query<Entity, With<WorldHud
             },
             BackgroundColor(Color::srgba(0.04, 0.06, 0.10, 0.92)),
             BorderColor::all(Color::srgba(0.35, 0.50, 0.70, 0.85)),
-            Visibility::Visible,
+            // Inherited (not Visible): an explicit Visible would stay on screen in battle and
+            // overlap the battle log, ignoring the hidden world HUD parent.
+            Visibility::Inherited,
         ))
         .with_children(|frame| {
             frame.spawn((

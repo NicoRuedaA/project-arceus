@@ -5,7 +5,9 @@
 
 use bevy::prelude::*;
 
+pub mod alpha_aura;
 pub mod art_style;
+pub mod normal_fix;
 pub mod audio;
 pub mod automation;
 pub mod bag_screen;
@@ -31,6 +33,7 @@ pub mod npc;
 pub mod render_look;
 pub mod input_map;
 pub mod interact;
+pub mod battle_camera;
 pub mod battle_visibility;
 pub mod blink;
 pub mod box_screen;
@@ -45,6 +48,7 @@ pub mod effects;
 pub mod follower;
 pub mod graphics_screen;
 pub mod navigation;
+pub mod orig_ui;
 pub mod outbreak;
 pub mod party_ops;
 pub mod party_progress;
@@ -66,6 +70,8 @@ pub mod capture_world;
 pub mod settings;
 pub mod shop;
 pub mod state;
+pub mod terrain_splat;
+pub mod summary_screen;
 pub mod throwing;
 pub mod trainer_battle;
 pub mod trainer_data;

@@ -607,7 +607,7 @@ pub fn sync_ui_visibility(
 /// Updates telemetry, coordinates, and nearby radar in the World HUD.
 pub fn update_world_hud_system(
     player_query: Query<&Transform, With<crate::game::PlayerAvatar>>,
-    wild_query: Query<(&Transform, &WildCreature), Without<crate::game::PlayerAvatar>>,
+    wild_query: Query<(&Transform, &WildCreature, Option<&crate::game::alpha_aura::AlphaAura>), Without<crate::game::PlayerAvatar>>,
     zone_info: Option<Res<ActiveZoneInfo>>,
     mut zone_query: Query<&mut Text, (With<WorldZoneText>, Without<WorldCoordinatesText>, Without<WorldRadarText>)>,
     mut coords_query: Query<&mut Text, (With<WorldCoordinatesText>, Without<WorldRadarText>, Without<WorldZoneText>)>,
@@ -633,24 +633,25 @@ pub fn update_world_hud_system(
     }
 
     // Find closest non-defeated wild creature
-    let mut closest_info: Option<(f32, &WildCreature, &'static str)> = None;
-    for (w_xf, wild) in &wild_query {
+    let mut closest_info: Option<(f32, &WildCreature, &'static str, bool)> = None;
+    for (w_xf, wild, alpha) in &wild_query {
         if wild.defeated {
             continue;
         }
         let diff = w_xf.translation - p_xf.translation;
         let dist = diff.length();
-        if closest_info.as_ref().map_or(true, |(d, _, _)| dist < *d) {
+        if closest_info.as_ref().map_or(true, |(d, ..)| dist < *d) {
             // Shared with the minimap compass so the radar and the compass cannot disagree.
             let dir = crate::game::minimap::compass_dir(diff.x, diff.z).label();
-            closest_info = Some((dist, wild, dir));
+            closest_info = Some((dist, wild, dir, alpha.is_some()));
         }
     }
 
     for mut text in &mut radar_query {
-        if let Some((dist, wild, dir)) = closest_info {
+        if let Some((dist, wild, dir, alpha)) = closest_info {
             text.0 = format!(
-                "NEARBY: #{} {} ({:.1}m) [{}]",
+                "NEARBY: {}#{} {} ({:.1}m) [{}]",
+                if alpha { "ALPHA " } else { "" },
                 wild.national_dex,
                 wild.species_name.to_uppercase(),
                 dist,

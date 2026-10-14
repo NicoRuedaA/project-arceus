@@ -54,12 +54,14 @@ cargo run -p pla --example battle_demo -- --trainer noble:nsi_ex_01_r       # a 
 
 All of them are windowless. In the viewer: walk to a red capsule (a trainer marker) and press **V**, or start with `--trainer trainer04_01` and press V anywhere.
 
+## Defeated trainers (save v8)
+Beaten trainers are saved (`PlayerProgress.defeated_trainers`, save format v8, see [save_game.md](save_game.md)). Decision: after a restart or Load the marker of a beaten trainer is grey, V next to it starts no battle and only shows the toast "<label> (<id>) was already defeated."; the prize is paid on the first win only. `--trainer <id>` (debug) still allows V to replay that trainer anywhere, but the rematch pays no prize. Headless test: `defeated_trainer_survives_save_and_load`.
+
 ## Not done / unknown
 
 - Which event starts which trainer battle (story scripts, out of scope); trainer models (Brief 31); trainer intro/defeat texts (game texts out of scope; labels only).
 - Money formula and the reader of slot 11; money lost on defeat (none is taken).
 - Expert AI sequences; style choice of trainers beyond the shared selector.
-- Defeated trainers are remembered for the session only (the save format would need v6).
 - Noble field phase: gauge, balm hits, stagger windows, field attacks (`boss_field_attacks.tsv` is loaded nowhere yet).
 - Send-out order, item counts, double battles (none found in the data).
 - The trainer's battle music event (`bgm` column, e.g. `PLAY_BGM_VS_TRAINER_01`) is kept in the session but not wired to the audio plugin.
