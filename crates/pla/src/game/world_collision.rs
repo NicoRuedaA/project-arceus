@@ -691,6 +691,12 @@ impl WorldCollision {
     /// Move the streaming radius to the player: insert placements entering the load radius and
     /// drop those leaving the unload radius (same hysteresis as the visual objects).
     pub fn stream_to(&mut self, player: Vec2) {
+        self.stream_to_scaled(player, 1.0);
+    }
+
+    /// [`Self::stream_to`] with the Graphics screen "Collision range" multiplier (1.0 = 200/230 m).
+    pub fn stream_to_scaled(&mut self, player: Vec2, scale: f32) {
+        let (load, unload) = (STREAM_LOAD * scale, STREAM_UNLOAD * scale);
         let mut changed = false;
         for i in 0..self.placements.len() {
             let p = &self.placements[i];
@@ -698,8 +704,8 @@ impl WorldCollision {
                 player,
                 Vec2::new(p.pos[0], p.pos[2]),
                 self.alive[i],
-                STREAM_LOAD,
-                STREAM_UNLOAD,
+                load,
+                unload,
             );
             if want != self.alive[i] {
                 self.alive[i] = want;
@@ -776,12 +782,16 @@ impl WorldCollision {
     }
 }
 
-fn stream_collision(mut wc: ResMut<WorldCollision>, player: Query<&Transform, With<PlayerAvatar>>) {
+fn stream_collision(
+    mut wc: ResMut<WorldCollision>,
+    player: Query<&Transform, With<PlayerAvatar>>,
+    dist: Option<Res<super::quality::StreamDistances>>,
+) {
     let Some(t) = player.iter().next() else {
         return;
     };
     let p = Vec2::new(t.translation.x, t.translation.z);
-    wc.stream_to(p);
+    wc.stream_to_scaled(p, super::quality::scale_of(dist.as_deref(), |d| d.collision));
 }
 
 /// Streams the collision shapes of placed objects around the player.

@@ -109,6 +109,8 @@ impl PlayEffect {
 #[derive(Resource, Debug, Clone, PartialEq)]
 pub struct EffectsSettings {
     pub quality: Quality,
+    /// Graphics screen "Particles" multiplier on top of the quality (1.0 = the quality's count).
+    pub particle_scale: f32,
     pub world_scale: f32,
     pub anchor_height: f32,
 }
@@ -212,7 +214,12 @@ impl Plugin for EffectsPlugin {
         let quality = self.resolve_quality();
         info!("effects: quality {}", quality.name());
         app.add_message::<PlayEffect>()
-            .insert_resource(EffectsSettings { quality, world_scale: WORLD_SCALE, anchor_height: ANCHOR_HEIGHT_M })
+            .insert_resource(EffectsSettings {
+                quality,
+                particle_scale: 1.0,
+                world_scale: WORLD_SCALE,
+                anchor_height: ANCHOR_HEIGHT_M,
+            })
             .init_resource::<EffectStats>()
             .insert_resource(EffectLibrary::new(
                 self.bin_root.clone().unwrap_or_else(crate::assets::ptcl_textures::default_bin_root),
@@ -493,7 +500,7 @@ fn spawn_particle_instance(
     if !ready.def.is_playable() {
         return;
     }
-    let sim = EffectSim::new(ready.def.clone(), emit_frames, settings.quality, seed);
+    let sim = EffectSim::with_scale(ready.def.clone(), emit_frames, settings.quality, settings.particle_scale, seed);
     let mut e = commands.spawn((
         Name::new(format!("particles {}", ready.def.path)),
         ParticleInstance { sim, rotation, scale: settings.world_scale },
@@ -528,12 +535,12 @@ fn tick_particles(
 ) {
     let dt_frames = time.delta_secs() * FPS;
     let live: usize = q.iter().map(|(_, p)| p.sim.live()).sum();
-    let mut budget = settings.quality.total_cap().saturating_sub(live);
+    let mut budget = sim::scaled_cap(settings.quality.total_cap(), settings.particle_scale).saturating_sub(live);
     let mut total = 0;
     let mut instances = 0;
     let mut dropped = 0;
     for (e, mut p) in &mut q {
-        p.sim.step(dt_frames, settings.quality.per_effect_cap(), &mut budget);
+        p.sim.step(dt_frames, sim::scaled_cap(settings.quality.per_effect_cap(), settings.particle_scale), &mut budget);
         dropped += p.sim.dropped;
         if p.sim.finished() || p.sim.frame > MAX_INSTANCE_FRAMES {
             commands.entity(e).despawn();

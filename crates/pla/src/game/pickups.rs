@@ -433,11 +433,15 @@ fn stream_pickups(
     progress: Option<Res<PlayerProgress>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    dist: Option<Res<super::quality::StreamDistances>>,
 ) {
     let Some(pt) = player.iter().next() else {
         return;
     };
     let pxz = Vec2::new(pt.translation.x, pt.translation.z);
+    // Graphics screen "Pickups range" multiplier (1.0 = 120 / 150 m).
+    let k = super::quality::scale_of(dist.as_deref(), |d| d.pickups);
+    let (load_r, unload_r) = (LOAD_RADIUS * k, UNLOAD_RADIUS * k);
     let collected = |id: u64| progress.as_deref().is_some_and(|p| p.picked.contains(&id));
     let p = &mut *pickups;
     let remove: Vec<u64> = p
@@ -454,8 +458,8 @@ fn stream_pickups(
                     pxz,
                     Vec2::new(s.pos[0], s.pos[2]),
                     true,
-                    LOAD_RADIUS,
-                    UNLOAD_RADIUS,
+                    load_r,
+                    unload_r,
                 )
         })
         .collect();
@@ -473,8 +477,8 @@ fn stream_pickups(
             pxz,
             Vec2::new(s.pos[0], s.pos[2]),
             false,
-            LOAD_RADIUS,
-            UNLOAD_RADIUS,
+            load_r,
+            unload_r,
         ) {
             continue;
         }

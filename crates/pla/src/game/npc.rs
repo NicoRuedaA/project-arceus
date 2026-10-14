@@ -528,7 +528,12 @@ pub fn step_bounded_look(current_yaw: f32, target_yaw: f32, rate_deg_s: f32, dt:
 }
 
 pub fn should_instance(player_xz: Vec2, npc_xz: Vec2, alive: bool) -> bool {
-    should_be_alive(player_xz, npc_xz, alive, LOAD_RADIUS, UNLOAD_RADIUS)
+    should_instance_scaled(player_xz, npc_xz, alive, 1.0)
+}
+
+/// [`should_instance`] with the Graphics screen "NPC range" multiplier (1.0 = 200 / 230 m).
+pub fn should_instance_scaled(player_xz: Vec2, npc_xz: Vec2, alive: bool, scale: f32) -> bool {
+    should_be_alive(player_xz, npc_xz, alive, LOAD_RADIUS * scale, UNLOAD_RADIUS * scale)
 }
 
 fn active_for_state(state: Option<Res<State<GameState>>>) -> bool {
@@ -582,9 +587,11 @@ fn stream_npcs(
     asset_server: Option<Res<AssetServer>>,
     mut meshes: Option<ResMut<Assets<Mesh>>>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
+    dist: Option<Res<super::quality::StreamDistances>>,
 ) {
     let Ok(player) = player.single() else { return };
     let player_xz = Vec2::new(player.translation.x, player.translation.z);
+    let k = super::quality::scale_of(dist.as_deref(), |d| d.npcs);
     let active_keys: HashMap<String, ()> =
         world.active.iter().map(|p| (p.key.clone(), ())).collect();
     let to_remove: Vec<(String, Entity)> = world
@@ -594,10 +601,11 @@ fn stream_npcs(
         .map(|(key, entity)| (key.clone(), *entity))
         .chain(world.spawned.iter().filter_map(|(key, entity)| {
             let placement = world.active.iter().find(|p| p.key == *key)?;
-            let alive = should_instance(
+            let alive = should_instance_scaled(
                 player_xz,
                 Vec2::new(placement.position[0], placement.position[2]),
                 true,
+                k,
             );
             (!alive).then_some((key.clone(), *entity))
         }))
@@ -612,10 +620,11 @@ fn stream_npcs(
         .iter()
         .filter(|placement| !world.spawned.contains_key(&placement.key))
         .filter(|placement| {
-            should_instance(
+            should_instance_scaled(
                 player_xz,
                 Vec2::new(placement.position[0], placement.position[2]),
                 false,
+                k,
             )
         })
         .cloned()

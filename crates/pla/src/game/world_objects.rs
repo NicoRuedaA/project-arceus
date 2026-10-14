@@ -336,9 +336,13 @@ fn stream_objects(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut water_materials: ResMut<Assets<WaterMaterial>>,
     mut water_bodies: Option<ResMut<WaterBodies>>,
+    dist: Option<Res<super::quality::StreamDistances>>,
 ) {
     let Some(pt) = player.iter().next() else { return };
     let pxz = Vec2::new(pt.translation.x, pt.translation.z);
+    // Graphics screen "Objects range" multiplier (1.0 = 200 / 230 m).
+    let k = super::quality::scale_of(dist.as_deref(), |d| d.objects);
+    let (load_r, unload_r) = (LOAD_RADIUS * k, UNLOAD_RADIUS * k);
     let wo = &mut *wo;
     let remove: Vec<usize> = wo
         .alive
@@ -346,7 +350,7 @@ fn stream_objects(
         .copied()
         .filter(|&i| {
             let p = &wo.placements[i];
-            !should_be_alive(pxz, Vec2::new(p.pos[0], p.pos[2]), true, LOAD_RADIUS, UNLOAD_RADIUS)
+            !should_be_alive(pxz, Vec2::new(p.pos[0], p.pos[2]), true, load_r, unload_r)
         })
         .collect();
     for i in remove {
@@ -360,7 +364,7 @@ fn stream_objects(
             continue;
         }
         let p = wo.placements[i].clone();
-        if !should_be_alive(pxz, Vec2::new(p.pos[0], p.pos[2]), false, LOAD_RADIUS, UNLOAD_RADIUS) {
+        if !should_be_alive(pxz, Vec2::new(p.pos[0], p.pos[2]), false, load_r, unload_r) {
             continue;
         }
         let Some((_, rel_path)) = wo.paths.get(&p.model).cloned() else { continue };

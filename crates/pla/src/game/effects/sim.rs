@@ -90,6 +90,23 @@ impl Quality {
     }
 }
 
+/// Particles spawned for an emission of `n` with the quality and an extra multiplier `scale`
+/// (at least 1 when `n > 0`, except `Off` or a zero multiplier).
+pub fn scaled_count_with(quality: Quality, scale: f32, n: u32) -> u32 {
+    if (scale - 1.0).abs() < f32::EPSILON {
+        return quality.scaled_count(n);
+    }
+    if n == 0 || quality == Quality::Off || scale <= 0.0 {
+        return 0;
+    }
+    ((n as f32 * quality.emission_scale() * scale).round() as u32).max(1)
+}
+
+/// A particle cap scaled by the Graphics screen multiplier.
+pub fn scaled_cap(cap: usize, scale: f32) -> usize {
+    (cap as f32 * scale.max(0.0)).round() as usize
+}
+
 /// Quality from the command line (`--effects X` or `--effects=X`), then the
 /// `PLA_EFFECTS` variable, then the `effects=` line of `settings.txt`, else Low.
 pub fn quality_from(args: &[String], env_value: Option<&str>, settings_text: Option<&str>) -> Quality {
@@ -382,6 +399,12 @@ pub struct EffectSim {
 impl EffectSim {
     /// `emit_frames`: emission window (the timeline's play length, or [`DEFAULT_EMIT_FRAMES`]).
     pub fn new(def: Arc<EffectDef>, emit_frames: u32, quality: Quality, seed: u64) -> EffectSim {
+        Self::with_scale(def, emit_frames, quality, 1.0, seed)
+    }
+
+    /// [`EffectSim::new`] with the Graphics screen's particle multiplier (`scale`, 1.0 = the
+    /// quality's own count) applied on top of the quality's emission scale.
+    pub fn with_scale(def: Arc<EffectDef>, emit_frames: u32, quality: Quality, scale: f32, seed: u64) -> EffectSim {
         let schedules: Vec<Vec<(u32, u32)>> = def
             .emitters
             .iter()
@@ -389,7 +412,7 @@ impl EffectSim {
                 e.emitter
                     .emission_schedule(emit_frames.max(1))
                     .into_iter()
-                    .map(|(f, n)| (f, quality.scaled_count(n)))
+                    .map(|(f, n)| (f, scaled_count_with(quality, scale, n)))
                     .filter(|(_, n)| *n > 0)
                     .collect()
             })
@@ -608,6 +631,18 @@ pub fn build_emitter_quads(sim: &EffectSim, emitter: usize, place: &Placement, v
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn particle_multiplier_scales_counts_and_caps() {
+        assert_eq!(scaled_count_with(Quality::Low, 1.0, 50), Quality::Low.scaled_count(50));
+        assert_eq!(scaled_count_with(Quality::High, 2.0, 50), 100);
+        assert_eq!(scaled_count_with(Quality::High, 0.5, 50), 25);
+        assert_eq!(scaled_count_with(Quality::High, 0.25, 1), 1, "at least one particle");
+        assert_eq!(scaled_count_with(Quality::High, 0.0, 50), 0);
+        assert_eq!(scaled_count_with(Quality::Off, 2.0, 50), 0);
+        assert_eq!(scaled_cap(1000, 1.5), 1500);
+        assert_eq!(scaled_cap(600, 0.0), 0);
+    }
     use crate::assets::ptcl::{Key, KeyTable};
 
     pub(crate) fn emitter(name: &str) -> Emitter {

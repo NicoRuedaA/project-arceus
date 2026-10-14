@@ -489,6 +489,8 @@ fn run_render(
             bin_root: bin_root.to_path_buf(),
             cache_root: cache_root.to_path_buf(),
             quality: grass,
+            grass_range: 1.0,
+            plants_range: 1.0,
         });
     }
     if area <= 5 {

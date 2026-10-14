@@ -36,6 +36,9 @@ pub struct VegetationPlugin {
     pub bin_root: PathBuf,
     pub cache_root: PathBuf,
     pub quality: GrassQuality,
+    /// Range multipliers (see [`VegetationConfig`]); 1.0 keeps the quality's own radii.
+    pub grass_range: f32,
+    pub plants_range: f32,
 }
 
 /// Live numbers for HUDs and tests.
@@ -56,8 +59,29 @@ pub struct VegetationConfig {
     bin_root: PathBuf,
     cache_root: PathBuf,
     pub quality: GrassQuality,
-    /// Quality the live chunks and densities were built with.
-    applied: GrassQuality,
+    /// Streaming radius multiplier of grass cards (graphics screen "Grass range"; 1.0 = 40 m at low).
+    pub grass_range: f32,
+    /// Streaming radius multiplier of every other plant ("Plants range"; 1.0 = 64 m at low).
+    pub plants_range: f32,
+    /// Quality and ranges the live chunks and densities were built with.
+    applied: (GrassQuality, f32, f32),
+}
+
+impl VegetationConfig {
+    /// A config with range multipliers 1.0 (tests and tools; the plugin builds its own).
+    pub fn new(area: u8, bin_root: PathBuf, cache_root: PathBuf, quality: GrassQuality) -> Self {
+        Self { area, bin_root, cache_root, quality, grass_range: 1.0, plants_range: 1.0, applied: (quality, 1.0, 1.0) }
+    }
+
+    fn wanted(&self) -> (GrassQuality, f32, f32) {
+        (self.quality, self.grass_range, self.plants_range)
+    }
+
+    /// Streaming radius of a plant model of `tris` triangles with the range multipliers.
+    pub fn radius_for(&self, tris: u32) -> f32 {
+        let mult = if tris <= 8 { self.grass_range } else { self.plants_range };
+        radius_for(tris, self.quality) * mult.clamp(0.25, 4.0)
+    }
 }
 
 fn grass_on(cfg: Res<VegetationConfig>) -> bool {
@@ -72,10 +96,10 @@ fn veg_requality(
     mut st: ResMut<VegetationState>,
     mut stats: ResMut<VegetationStats>,
 ) {
-    if cfg.applied == cfg.quality {
+    if cfg.applied == cfg.wanted() {
         return;
     }
-    cfg.applied = cfg.quality;
+    cfg.applied = cfg.wanted();
     for (_, chunk) in st.alive.drain() {
         for e in chunk.entities {
             commands.entity(e).despawn();
@@ -143,7 +167,9 @@ impl Plugin for VegetationPlugin {
             bin_root: self.bin_root.clone(),
             cache_root: self.cache_root.clone(),
             quality: self.quality,
-            applied: self.quality,
+            grass_range: self.grass_range,
+            plants_range: self.plants_range,
+            applied: (self.quality, self.grass_range, self.plants_range),
         })
         .init_resource::<VegetationState>()
         .init_resource::<VegetationStats>()
@@ -443,7 +469,7 @@ fn veg_poll_models(
         }
         rt.tris = prims.iter().map(|p| mesh_triangles(&p.mesh)).sum();
         rt.density = density_per_texel(rt.tris, texel, cfg.quality);
-        rt.radius = radius_for(rt.tris, cfg.quality);
+        rt.radius = cfg.radius_for(rt.tris);
         rt.prims = prims;
         rt.done = true;
         rt.gltf = None; // meshes were copied; release the glTF scene
@@ -548,6 +574,16 @@ fn veg_stream(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn range_multipliers_scale_each_kind_of_plant() {
+        let mut cfg = VegetationConfig::new(1, PathBuf::new(), PathBuf::new(), GrassQuality::Low);
+        assert_eq!((cfg.radius_for(4), cfg.radius_for(500)), (40.0, 64.0));
+        cfg.grass_range = 2.0;
+        cfg.plants_range = 0.5;
+        assert_eq!((cfg.radius_for(4), cfg.radius_for(500)), (80.0, 32.0));
+        assert_ne!(cfg.applied, cfg.wanted(), "a range change rebuilds the streaming");
+    }
 
     fn quad() -> Mesh {
         let mut m = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
