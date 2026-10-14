@@ -387,7 +387,7 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     **mientras juegas** y se recuerda al reiniciar. Navegas con flechas arriba/abajo (o W/S),
     cambias el valor con izquierda/derecha (o A/D) o con Enter, **Tab** (o RePág/AvPág) cambia de
     página, y **Esc** vuelve al menú de pausa. Tiene páginas: *Look* (Look vivid/classic, Character
-    style plain/original, Outlines, Time of day: auto o franja 0-3, Weather: auto o una de las 8),
+    style plain/original, Outlines, Time of day: auto o franja 0-3, Weather: auto o una de las 8, Interface (UI): original/debug, se aplica al reiniciar; `--ui` manda),
     *Quality* (Shadows, Grass off/low/high, Battle effects off/low/high) y *Post-processing* (SSAO,
     Bloom). Arriba hay una fila «Quality preset» (por ahora solo «default»; muestra «custom» si
     cambiaste algo) y abajo «Reset to defaults». Todo se aplica al instante; la única excepción es
