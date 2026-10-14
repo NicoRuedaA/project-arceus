@@ -19,7 +19,12 @@ use super::icons::IconIndex;
 use super::scene::{ExternalImage, NodeOverride, TextAlign};
 use super::{free_text, OrigScreen, OrigUiConfig, OrigUiSystems, ScreenId};
 use crate::battle_engine::Combatant;
+use crate::game::bag_screen::{
+    detail_for, pocket_codes, pocket_entries, screen_entries, BagItemTable, BagMode, BagRoot,
+    BagUi, ShopCatalog,
+};
 use crate::game::battle_controller::BattleAssets;
+use crate::game::battle_items::label;
 use crate::game::party_screen::{PartyScreenRoot, PartyScreenState};
 use crate::game::pause_menu::{
     menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, OPTIONS,
@@ -35,6 +40,8 @@ pub fn install(app: &mut App) {
     super::hide_when_shown::<PauseRoot>(app, ScreenId::PauseMenu);
     app.add_systems(Update, bind_party_screen.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<PartyScreenRoot>(app, ScreenId::Party);
+    app.add_systems(Update, bind_bag_screen.in_set(OrigUiSystems::Bind));
+    super::hide_when_shown::<BagRoot>(app, ScreenId::Bag);
 }
 
 /// The game's menu icon (texture base name) the port uses for each option. Only icons the
@@ -330,5 +337,183 @@ pub fn bind_party_screen(
         "T_info_00",
         "Party order is the stored order. HP 0 means fainted. Esc closes.",
     );
+}
+
+// --------------------------------------------------------------------------------------- bag
+
+/// Grid cells of the game's inventory layout (6 × 8 buttons the game places at run time).
+pub const BAG_CELLS: usize = 48;
+/// Cells the bag shows per page: the 5 × 4 slot circles of `bag_top_00`.
+pub const BAG_PAGE: usize = 20;
+
+/// Fill grid cell `k` (`L_btn_main_kk` of the inventory grid instance `grid`): place it at `pos`
+/// (layout pixels, the grid's own placement is run-time data), show `content` (icon, label) or
+/// an empty slot, and the game's select / unselect state.
+#[allow(clippy::too_many_arguments)]
+fn fill_cell(
+    s: &mut OrigScreen,
+    grid: usize,
+    k: usize,
+    pos: [f32; 2],
+    scale: f32,
+    shown: bool,
+    content: Option<(Option<ExternalImage>, String)>,
+    selected: bool,
+) {
+    let Some(node) = s.scene.find_in(grid, &format!("L_btn_main_{k:02}")) else {
+        return;
+    };
+    let Some(inst) = s.scene.instance_of_node(node) else {
+        return;
+    };
+    s.set_node(node, |o| {
+        o.visible = Some(shown);
+        o.translate = Some(pos);
+        o.scale = Some([scale, scale]);
+    });
+    if !shown {
+        return;
+    }
+    let set = |s: &mut OrigScreen, name: &str, f: &dyn Fn(&mut NodeOverride)| {
+        if let Some(n) = s.scene.find_in(inst, name) {
+            s.set_node(n, |o| f(o));
+        }
+    };
+    for hidden in [
+        "T_00",
+        "P_mask_price_00",
+        "P_base_price_00",
+        "P_icon_check_00",
+        "P_icon_favo_00",
+        "Pi_icon_use_field_00",
+        "P_blost_00",
+    ] {
+        set(s, hidden, &|o| o.visible = Some(false));
+    }
+    let (icon, label) = content.map_or((None, None), |(i, l)| (i, Some(l)));
+    let has_icon = icon.is_some();
+    set(s, "P_icon_00", &|o| {
+        o.visible = Some(has_icon);
+        o.image = icon.clone();
+    });
+    let has_label = label.is_some();
+    set(s, "T_01", &|o| {
+        o.visible = Some(has_label);
+        o.text = label.clone();
+    });
+    set(s, "P_base_catch_num_00", &|o| {
+        o.alpha = Some(if has_label { 255.0 } else { 0.0 })
+    });
+    s.freeze_end(inst, if selected { "select" } else { "unselect" }, "sel");
+}
+
+/// Bag (`bag_top_00` with its `inventory_00` grid): the current pocket's items as the game's
+/// item buttons (item icon + count), the selected cell highlighted, the item name and the port's
+/// detail line in the info panel, the pocket in the tab strip and the money. The neighbouring
+/// grids the game slides in from the sides are hidden. Shop mode keeps the provisional screen.
+#[allow(clippy::too_many_arguments)]
+pub fn bind_bag_screen(
+    config: Res<OrigUiConfig>,
+    ui: Option<Res<BagUi>>,
+    table: Option<Res<BagItemTable>>,
+    shops: Option<Res<ShopCatalog>>,
+    progress: Option<Res<PlayerProgress>>,
+    icons: Res<IconIndex>,
+    mut screens: Query<&mut OrigScreen>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::Bag) else {
+        return;
+    };
+    let open = ui
+        .as_ref()
+        .is_some_and(|u| u.open && u.mode == BagMode::Bag);
+    s.shown = open;
+    let (Some(ui), Some(table), Some(shops)) = (ui, table, shops) else {
+        return;
+    };
+    let Some(table) = table.0.as_ref().filter(|_| open) else {
+        return;
+    };
+    let empty = std::collections::BTreeMap::new();
+    let bag = progress.as_ref().map(|p| &p.bag).unwrap_or(&empty);
+    let entries = screen_entries(&ui, table, bag, &shops.0);
+    let page = ui.selected / BAG_PAGE;
+    if let Some(grid) = s.scene.part_instance("L_inventory_parts_00") {
+        for k in 0..BAG_CELLS {
+            let idx = page * BAG_PAGE + k;
+            let cell = (k < BAG_PAGE)
+                .then(|| entries.get(idx))
+                .flatten()
+                .map(|&(id, count)| (icons.item(id), format!("x{count}")));
+            let (col, row) = ((k % 5) as f32, (k / 5) as f32);
+            let shown = k < BAG_PAGE && cell.is_some();
+            fill_cell(
+                &mut s,
+                grid,
+                k,
+                [-788.0 + col * 156.0, 305.0 - row * 146.0],
+                1.0,
+                shown,
+                cell,
+                idx == ui.selected,
+            );
+        }
+    }
+    // The game slides the neighbouring pockets in from the sides: not shown at rest.
+    for n in 0..s.scene.nodes.len() {
+        if s.scene.nodes[n].pane.name.starts_with("N_sub_") {
+            s.set_node(n, |o| o.visible = Some(false));
+        }
+    }
+    let (heading, detail) = match entries
+        .get(ui.selected)
+        .and_then(|(id, c)| table.get(*id).map(|i| (i, *c)))
+    {
+        Some((item, count)) => (label(item), detail_for(item, count)),
+        None => ("Empty pocket".to_string(), String::new()),
+    };
+    s.set_in("L_info_item_00", "T_info_heading_00", |o| {
+        o.text = Some(heading)
+    });
+    s.set_in("L_info_item_00", "T_info_text_00", |o| {
+        o.text = Some(detail)
+    });
+    for n in ["T_num_in_storage_00", "T_num_in_storage_01"] {
+        s.set_in("L_info_item_00", n, |o| o.text = None);
+    }
+    let pockets = pocket_codes(table, bag);
+    let pocket = pockets.get(ui.pocket).copied().unwrap_or(0);
+    let n = pocket_entries(table, bag, pocket).len();
+    s.set_in("L_tab_disp_00", "T_text_00", |o| {
+        o.text = Some(format!("Pocket {pocket}"))
+    });
+    s.set_in("L_tab_disp_01", "T_text_00", |o| {
+        o.text = Some(format!("{n} items"))
+    });
+    let money = progress.as_ref().map_or(0, |p| p.money);
+    s.set_in("L_money_00", "T_param_money_00", |o| {
+        o.text = Some(money.to_string())
+    });
+    for n in ["T_param_add_00", "T_param_sub_00"] {
+        s.set_in("L_money_00", n, |o| o.text = None);
+    }
+    let msg = if ui.message.is_empty() {
+        "Left / Right: pocket   Up / Down: item   Enter: use   Esc: close".to_string()
+    } else {
+        ui.message.clone()
+    };
+    s.set_free_texts(vec![free_text(
+        60.0,
+        1020.0,
+        1800.0,
+        44.0,
+        26.0,
+        [0.92, 0.9, 0.82, 1.0],
+        TextAlign::Left,
+        msg,
+    )]);
 }
 
