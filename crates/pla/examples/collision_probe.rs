@@ -22,7 +22,8 @@ use pla::game::world_collision::{
     PLAYER_RADIUS,
 };
 use pla::game::world_objects::{
-    find_data_file, normalize_export_path, parse_placements, Placement, RotMode,
+    find_data_file, keep_streamable_placements, model_paths, normalize_export_path,
+    parse_placements_for_spawn, Placement, RotMode,
 };
 
 fn bin_root() -> PathBuf {
@@ -37,10 +38,17 @@ fn cache_root() -> PathBuf {
         .unwrap_or_else(|| "/home/nico/work/decompilacion/work/cache".into())
 }
 
+/// The placements the runtime streams (export-authoritative parse + export-index filter) and
+/// `WorldCollision` therefore covers: a `blocked` model with a `_col` entry but no exported glTF
+/// would be an invisible wall, so it stays out here too.
 fn placements_for(area: u8) -> Vec<Placement> {
     let text =
         std::fs::read_to_string(find_data_file("field_object_placements.tsv").unwrap()).unwrap();
-    parse_placements(&text, &format!("ha_area{area:02}"))
+    keep_streamable_placements(
+        parse_placements_for_spawn(&text, &format!("ha_area{area:02}")),
+        &std::collections::HashSet::new(),
+        &model_paths(&cache_root()),
+    )
 }
 
 /// glTF `path` -> (model path, export status) from `data/field_model_export_index.tsv`.

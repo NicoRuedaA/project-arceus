@@ -965,6 +965,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
             pla::game::world_collision::WorldCollisionPlugin {
                 area: area_idx,
                 bin_root: bin_root.clone(),
+                cache_root: cache_root.clone(),
                 rot_mode: pla::game::world_objects::rot_mode_from_args(&cli_args),
             },
             pla::game::lighting::ZoneLightingPlugin {

@@ -206,8 +206,11 @@ pub fn normalize_export_path(cache_root: &Path, stored: &str) -> Option<(PathBuf
     Some((cache_root.join(rel), format!("cache/{rel}")))
 }
 
-/// Map model name -> (filesystem PathBuf, relative asset path String) using the export index.
-fn model_paths(cache_root: &Path, area: u8) -> HashMap<String, (PathBuf, String)> {
+/// Map model name -> (filesystem PathBuf, relative asset path String) using the export index:
+/// every `ok` row resolved onto `cache_root` (see [`normalize_export_path`]). This is the table
+/// [`keep_streamable_placements`] checks; the placed-object collision shares it so both agree on
+/// which models exist.
+pub fn model_paths(cache_root: &Path) -> HashMap<String, (PathBuf, String)> {
     let mut m = HashMap::new();
     if let Some(text) = find_data_file("field_model_export_index.tsv").and_then(|p| std::fs::read_to_string(p).ok()) {
         for line in text.lines().filter(|l| !l.starts_with('#')) {
@@ -219,7 +222,6 @@ fn model_paths(cache_root: &Path, area: u8) -> HashMap<String, (PathBuf, String)
             }
         }
     }
-    let _ = area;
     m
 }
 
@@ -265,7 +267,7 @@ impl Plugin for WorldObjectsPlugin {
             return;
         };
         let all = parse_placements_for_spawn(&text, &area);
-        let paths = model_paths(&self.cache_root, self.area);
+        let paths = model_paths(&self.cache_root);
         let total = all.len();
         let overlap = all.iter().filter(|p| self.exclude_models.contains(&p.model)).count();
         let placements = keep_streamable_placements(all, &self.exclude_models, &paths);
