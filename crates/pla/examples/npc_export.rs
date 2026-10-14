@@ -224,7 +224,15 @@ fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>)
             }
             let set = r.get("motion_set").cloned().unwrap_or_default();
             let listed = r.get("controller_clips").cloned().unwrap_or_default();
-            let clips = load_clips(&bytes, &gp, &format!("bin/chara/data/cc/motion/base/{set}"), &set, &listed, &mut notes);
+            let mut clips = load_clips(&bytes, &gp, &format!("bin/chara/data/cc/motion/base/{set}"), &set, &listed, &mut notes);
+            if !clips.iter().any(|(n, _)| n == "idle") {
+                // Held-item / lsp sets (cb1000_00_lsp...) have no standing wait loop: borrow the default adult set of the same
+                // body type (SUPPOSED: the game keeps the held-item pose as an extra layer on top of it).
+                let fem = r.get("dress_model").is_some_and(|d| d.chars().nth(1) == Some('f'));
+                let fallback = if fem { "cb0001_02_adl_f" } else { "cb0001_00_adl_m" };
+                notes.push(format!("no idle in {set}: using {fallback}"));
+                clips = load_clips(&bytes, &gp, &format!("bin/chara/data/cc/motion/base/{fallback}"), fallback, "", &mut notes);
+            }
             (skl, clips)
         }
         "tr" => {
@@ -247,12 +255,31 @@ fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>)
         other => return Err(format!("{id}: unsupported kind {other:?}")),
     };
     // build_player_skeleton expects extension rig ranges in ascending order (face 72 before dress 137).
+    // An extension skeleton without a rig offset adds no rig nodes (e.g. df_dress0004_00_vi_middle_f_a): skip it.
+    exts.retain(|(part, b)| {
+        let keep = rig_offset(b) != u32::MAX;
+        if !keep {
+            notes.push(format!("{part}: extension skeleton has no rig offset, skipped"));
+        }
+        keep
+    });
     exts.sort_by_key(|(_, b)| rig_offset(b));
     let skel = build_player_skeleton(&skeleton_bytes, &exts)?;
     notes.extend(skel.notes.iter().cloned());
     let mut usable = Vec::new();
-    for (name, clip) in clips {
-        match pla::assets::gltf_export::animation_tracks_from_tr(&skel.skeleton, &clip) {
+    for (name, mut clip) in clips {
+        let mut result = pla::assets::gltf_export::animation_tracks_from_tr(&skel.skeleton, &clip);
+        if result.is_err() {
+            // Some clips animate nodes the selected skeleton does not have (face/eye helpers...): keep only the tracks
+            // that resolve by name (partial mapping, SUPPOSED harmless for body idle/walk).
+            let before = clip.tracks.len();
+            clip.tracks.retain(|t| skel.skeleton.nodes.iter().any(|n| n.name == t.name));
+            if clip.tracks.len() < before && !clip.tracks.is_empty() {
+                notes.push(format!("clip {name}: dropped {} of {before} tracks absent from the skeleton", before - clip.tracks.len()));
+                result = pla::assets::gltf_export::animation_tracks_from_tr(&skel.skeleton, &clip);
+            }
+        }
+        match result {
             Ok(_) => usable.push((name, clip)),
             Err(e) => notes.push(format!("clip {name}: {e}")),
         }

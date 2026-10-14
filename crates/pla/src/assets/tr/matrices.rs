@@ -134,20 +134,26 @@ impl TrSkl {
         let mut records = Vec::with_capacity(skeleton.bind_count);
         for at in buffer.vector(&root, 2)? {
             let table = buffer.table(at, 3)?;
-            let flags = [
-                buffer.range(buffer.required(&table, 0, 1)?, 1)?[0],
-                buffer.range(buffer.required(&table, 1, 1)?, 1)?[0],
-            ];
+            // An omitted flag byte reads as the demonstrated value 1 (SUPPOSED: trainer skeletons such as tr0015
+            // captain4 / tr0007 si1 omit fields that equal the common value).
+            let flag = |id: usize| -> Result<u8, String> {
+                match buffer.field(&table, id, 1)? {
+                    Some(at) => Ok(buffer.range(at, 1)?[0]),
+                    None => Ok(1),
+                }
+            };
+            let flags = [flag(0)?, flag(1)?];
             if flags != [1, 1] {
                 return Err("unsupported skeleton bind flags".into());
             }
             let matrix = buffer.table(buffer.target(buffer.required(&table, 2, 4)?)?, 4)?;
             let mut rows = TrSklMatrix::IDENTITY.rows;
-            for (column, values) in (0..4)
-                .map(|column| buffer.vec3(&matrix, column))
-                .enumerate()
-            {
-                for (row, value) in values?.iter().enumerate() {
+            for column in 0..4 {
+                // An omitted column keeps the identity value already in `rows`.
+                if buffer.field(&matrix, column, 12)?.is_none() {
+                    continue;
+                }
+                for (row, value) in buffer.vec3(&matrix, column)?.iter().enumerate() {
                     rows[row][column] = f64::from(*value);
                 }
             }

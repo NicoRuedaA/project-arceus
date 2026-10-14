@@ -12,16 +12,14 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-use bevy::animation::graph::{AnimationGraph, AnimationGraphHandle, AnimationNodeIndex};
-use bevy::animation::transition::AnimationTransitions;
-use bevy::animation::AnimationPlayer;
-use bevy::gltf::Gltf;
 use bevy::prelude::*;
-use bevy::world_serialization::WorldAssetRoot;
 
 use super::clock::GameClock;
 use super::navigation::GameNavmeshResource;
+use super::npc_model::{model_source, spawn_capsule, NpcModelCache, NpcModelPlugin, MODEL_ROOT_ABOVE_GROUND};
+pub use super::npc_model::NpcModelSource;
 use super::state::GameState;
+use super::trainer_encounter::TrainerWorld;
 use super::ui::ActiveZoneInfo;
 use super::world_objects::{
     find_data_file, should_be_alive, DEFAULT_CACHE_ROOT, LOAD_RADIUS, UNLOAD_RADIUS,
@@ -29,7 +27,9 @@ use super::world_objects::{
 use super::PlayerAvatar;
 
 /// The NPC root is placed at the ground point and the exported model is lowered by this amount.
-pub const NPC_ROOT_ABOVE_GROUND: f32 = 0.9;
+pub const NPC_ROOT_ABOVE_GROUND: f32 = MODEL_ROOT_ABOVE_GROUND;
+/// NPC entities created per frame at most (nearest first).
+pub const NPC_SPAWNS_PER_FRAME: usize = 8;
 /// The source sheet has no NPC routes. This is an explicit runtime contract, not an inferred path.
 pub const NPC_ROUTE_CONFIDENCE: &str = "UNKNOWN";
 
@@ -130,26 +130,6 @@ pub struct NpcInstance {
     pub route_confidence: &'static str,
 }
 
-/// Requested exported NPC scene, analogous to `PlayerModelSource` but kept NPC-specific so the
-/// player query remains unambiguous.
-#[derive(Component, Debug, Clone)]
-pub struct NpcModelSource {
-    pub gltf: Handle<Gltf>,
-}
-
-#[derive(Component, Debug, Clone, Copy)]
-struct NpcSceneSpawned;
-
-#[derive(Component, Debug, Clone, Copy)]
-struct NpcFallbackSpawned;
-
-#[derive(Component, Debug, Clone)]
-#[allow(dead_code)]
-struct NpcAnimState {
-    player: Entity,
-    idle_node: AnimationNodeIndex,
-}
-
 /// The root-yaw look-at state. Head/torso bone rotation is not fabricated because the existing
 /// player/model API does not expose a stable NPC rig contract; root yaw is bounded and deterministic.
 #[derive(Component, Debug, Clone, Copy)]
@@ -228,18 +208,9 @@ impl Plugin for NpcPlugin {
         let Some(world) = self.load_world() else {
             return;
         };
-        app.insert_resource(world).add_systems(
-            Update,
-            (
-                refresh_npc_selection,
-                stream_npcs,
-                spawn_npc_scene,
-                wire_npc_animation,
-                fallback_npc_models,
-                npc_look_at,
-            )
-                .chain(),
-        );
+        app.add_plugins(NpcModelPlugin)
+            .insert_resource(world)
+            .add_systems(Update, (refresh_npc_selection, stream_npcs, npc_look_at).chain());
     }
 }
 
@@ -541,6 +512,7 @@ fn refresh_npc_selection(
     zone: Option<Res<ActiveZoneInfo>>,
     clock: Option<Res<GameClock>>,
     state: Option<Res<State<GameState>>>,
+    trainers: Option<Res<TrainerWorld>>,
 ) {
     if !active_for_state(state) {
         return;
@@ -559,6 +531,8 @@ fn refresh_npc_selection(
             .placements
             .iter()
             .filter(|row| row.area == zone.area)
+            // A placed trainer is drawn by its marker (trainer_encounter), not twice.
+            .filter(|row| !trainers.as_ref().is_some_and(|t| t.markers && t.placements.iter().any(|p| p.key == row.key)))
             .cloned()
             .collect::<Vec<_>>(),
         slot,
@@ -580,6 +554,7 @@ fn stream_npcs(
     player: Query<&Transform, With<PlayerAvatar>>,
     nav: Option<Res<GameNavmeshResource>>,
     asset_server: Option<Res<AssetServer>>,
+    mut models: ResMut<NpcModelCache>,
     mut meshes: Option<ResMut<Assets<Mesh>>>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
 ) {
@@ -607,7 +582,7 @@ fn stream_npcs(
         world.spawned.remove(&key);
     }
 
-    let to_spawn: Vec<NpcPlacement> = world
+    let mut to_spawn: Vec<NpcPlacement> = world
         .active
         .iter()
         .filter(|placement| !world.spawned.contains_key(&placement.key))
@@ -620,6 +595,13 @@ fn stream_npcs(
         })
         .cloned()
         .collect();
+    // Nearest first, a few per frame: a crowded square fills in over several frames, no hitch.
+    to_spawn.sort_by(|a, b| {
+        let da = Vec2::new(a.position[0], a.position[2]).distance_squared(player_xz);
+        let db = Vec2::new(b.position[0], b.position[2]).distance_squared(player_xz);
+        da.total_cmp(&db)
+    });
+    to_spawn.truncate(NPC_SPAWNS_PER_FRAME);
     for placement in to_spawn {
         let entity = spawn_npc(
             &mut commands,
@@ -627,6 +609,7 @@ fn stream_npcs(
             &placement,
             nav.as_deref(),
             asset_server.as_deref(),
+            &mut models,
             meshes.as_deref_mut(),
             materials.as_deref_mut(),
         );
@@ -640,6 +623,7 @@ fn spawn_npc(
     placement: &NpcPlacement,
     nav: Option<&GameNavmeshResource>,
     asset_server: Option<&AssetServer>,
+    models: &mut NpcModelCache,
     mut meshes: Option<&mut Assets<Mesh>>,
     mut materials: Option<&mut Assets<StandardMaterial>>,
 ) -> Entity {
@@ -677,19 +661,11 @@ fn spawn_npc(
         .and_then(|appearance| appearance.name.as_deref())
         .or(placement.chara_id.as_deref())
         .unwrap_or(placement.chara_hash.as_str());
-    let model_file = world.cache_root.join("npc").join(model_id).join("npc.gltf");
-    if let Some(asset_server) = asset_server.filter(|_| model_file.is_file()) {
-        let work_root = PathBuf::from("work")
-            .canonicalize()
-            .unwrap_or_else(|_| PathBuf::from("work"));
-        let rel = super::player_anim::asset_path(&model_file, &work_root);
-        entity.insert(NpcModelSource {
-            gltf: asset_server.load(rel),
-        });
-    } else if let (Some(meshes), Some(materials)) =
-        (meshes.as_deref_mut(), materials.as_deref_mut())
-    {
-        spawn_capsule_fallback(&mut entity, meshes, materials);
+    let info = models.info(&world.cache_root, model_id);
+    if let (Some(asset_server), Some(info)) = (asset_server, info) {
+        entity.insert(model_source(asset_server, &info, 1.0));
+    } else if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
+        spawn_capsule(&mut entity, meshes, materials, Color::srgb(0.35, 0.5, 0.58));
     }
     entity.id()
 }
@@ -698,131 +674,6 @@ fn stable_seed(value: &str) -> u64 {
     value.bytes().fold(0xcbf29ce484222325u64, |hash, byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3)
     })
-}
-
-fn spawn_capsule_fallback(
-    entity: &mut EntityCommands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-) {
-    entity.with_children(|parent| {
-        parent.spawn((
-            Mesh3d(meshes.add(Capsule3d::new(0.3, 1.0))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgb(0.35, 0.5, 0.58),
-                perceptual_roughness: 0.8,
-                ..default()
-            })),
-            Transform::from_xyz(0.0, -NPC_ROOT_ABOVE_GROUND, 0.0),
-        ));
-    });
-}
-
-fn spawn_npc_scene(
-    mut commands: Commands,
-    gltfs: Option<Res<Assets<Gltf>>>,
-    q: Query<(Entity, &NpcModelSource), (With<NpcInstance>, Without<NpcSceneSpawned>)>,
-) {
-    let Some(gltfs) = gltfs else { return };
-    for (entity, source) in &q {
-        let Some(gltf) = gltfs.get(&source.gltf) else {
-            continue;
-        };
-        let Some(scene) = gltf
-            .default_scene
-            .clone()
-            .or_else(|| gltf.scenes.first().cloned())
-        else {
-            continue;
-        };
-        commands
-            .entity(entity)
-            .insert(NpcSceneSpawned)
-            .with_children(|parent| {
-                parent.spawn((
-                    WorldAssetRoot(scene),
-                    Transform::from_xyz(0.0, -NPC_ROOT_ABOVE_GROUND, 0.0),
-                    Visibility::default(),
-                ));
-            });
-    }
-}
-
-fn wire_npc_animation(
-    mut commands: Commands,
-    gltfs: Option<Res<Assets<Gltf>>>,
-    graphs: Option<ResMut<Assets<AnimationGraph>>>,
-    q: Query<(Entity, &NpcModelSource), (With<NpcSceneSpawned>, Without<NpcAnimState>)>,
-    children: Query<&Children>,
-    mut players: Query<&mut AnimationPlayer>,
-) {
-    let (Some(gltfs), Some(mut graphs)) = (gltfs, graphs) else {
-        return;
-    };
-    for (entity, source) in &q {
-        let Some(gltf) = gltfs.get(&source.gltf) else {
-            continue;
-        };
-        let Some(idle) = gltf.named_animations.get("idle").cloned() else {
-            continue;
-        };
-        let Some(player_entity) = children
-            .iter_descendants(entity)
-            .find(|descendant| players.get(*descendant).is_ok())
-        else {
-            continue;
-        };
-        let (graph, idle_node) = AnimationGraph::from_clip(idle);
-        let graph_handle = graphs.add(graph);
-        if let Ok(mut player) = players.get_mut(player_entity) {
-            let mut transitions = AnimationTransitions::new();
-            transitions
-                .play(&mut player, idle_node, std::time::Duration::ZERO)
-                .repeat();
-            commands
-                .entity(player_entity)
-                .insert((AnimationGraphHandle(graph_handle), transitions));
-            commands.entity(entity).try_insert(NpcAnimState {
-                player: player_entity,
-                idle_node,
-            });
-        }
-    }
-}
-
-fn fallback_npc_models(
-    mut commands: Commands,
-    asset_server: Option<Res<AssetServer>>,
-    meshes: Option<ResMut<Assets<Mesh>>>,
-    materials: Option<ResMut<Assets<StandardMaterial>>>,
-    q: Query<
-        (Entity, &NpcModelSource),
-        (
-            With<NpcInstance>,
-            Without<NpcSceneSpawned>,
-            Without<NpcFallbackSpawned>,
-        ),
-    >,
-) {
-    let (Some(asset_server), Some(mut meshes), Some(mut materials)) =
-        (asset_server, meshes, materials)
-    else {
-        return;
-    };
-    for (entity, source) in &q {
-        if !matches!(
-            asset_server.load_state(&source.gltf),
-            bevy::asset::LoadState::Failed(_)
-        ) {
-            continue;
-        }
-        commands
-            .entity(entity)
-            .try_remove::<NpcModelSource>()
-            .try_insert(NpcFallbackSpawned);
-        let mut entity_commands = commands.entity(entity);
-        spawn_capsule_fallback(&mut entity_commands, &mut meshes, &mut materials);
-    }
 }
 
 fn npc_look_at(

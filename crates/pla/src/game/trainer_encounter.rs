@@ -26,7 +26,9 @@ use super::save_wire::SaveToast;
 use super::state::{not_paused, GameState};
 use super::trainer_data::{NobleCatalog, TrainerCatalog};
 use super::ui::ActiveZoneInfo;
-use super::world_objects::find_data_file;
+use super::npc::NpcWorld;
+use super::npc_model::{model_source, NpcModelCache, NpcModelPlugin, NpcModelSource, NpcSceneSpawned};
+use super::world_objects::{find_data_file, DEFAULT_CACHE_ROOT};
 use super::PlayerAvatar;
 
 /// Distance (m) at which a trainer marker can be challenged.
@@ -169,7 +171,8 @@ impl TrainerEncounterPlugin {
 impl Plugin for TrainerEncounterPlugin {
     fn build(&self, app: &mut App) {
         let Some(world) = self.load_world() else { return };
-        app.insert_resource(world)
+        app.add_plugins(NpcModelPlugin)
+            .insert_resource(world)
             .init_resource::<DefeatedTrainers>()
             .add_systems(
                 Update,
@@ -177,6 +180,7 @@ impl Plugin for TrainerEncounterPlugin {
                     spawn_zone_trainers,
                     trainer_challenge.run_if(in_state(GameState::World)).run_if(not_paused),
                     record_trainer_result,
+                    grey_beaten_models,
                 ),
             )
             .add_systems(PostStartup, announce_forced_trainer)
@@ -217,14 +221,53 @@ fn hide_markers_in_battle(mut q: Query<&mut Visibility, With<TrainerNpc>>) {
     }
 }
 
+/// A beaten trainer whose model still has to be greyed (the capsule is greyed directly).
+#[derive(Component, Debug, Clone, Copy)]
+pub struct TrainerBeaten;
+
+/// Grey tint multiplied into the textures of a beaten trainer's model (same grey as the capsule).
+const BEATEN_GREY: Color = Color::srgb(0.45, 0.45, 0.5);
+
+/// Beaten trainers with a model: give every mesh of the scene its own grey copy of the material
+/// (the originals are shared by all instances of the same look). Runs once the scene exists.
+fn grey_beaten_models(
+    mut commands: Commands,
+    q: Query<Entity, (With<TrainerBeaten>, With<NpcSceneSpawned>)>,
+    children: Query<&Children>,
+    mut meshes: Query<&mut MeshMaterial3d<StandardMaterial>>,
+    materials: Option<ResMut<Assets<StandardMaterial>>>,
+) {
+    let Some(mut materials) = materials else { return };
+    for root in &q {
+        let mut done = 0;
+        for d in children.iter_descendants(root) {
+            if let Ok(mut m) = meshes.get_mut(d) {
+                if let Some(original) = materials.get(&m.0).cloned() {
+                    let handle = materials.add(StandardMaterial { base_color: BEATEN_GREY, ..original });
+                    m.0 = handle;
+                    done += 1;
+                }
+            }
+        }
+        // Meshes may appear a frame or two after the scene root: retry until there are some.
+        if done > 0 {
+            commands.entity(root).remove::<TrainerBeaten>();
+        }
+    }
+}
+
 /// Show the markers again; a beaten trainer's marker turns grey.
 fn show_markers_after_battle(
+    mut commands: Commands,
     defeated: Res<DefeatedTrainers>,
-    mut q: Query<(&TrainerNpc, &mut Visibility, Option<&MeshMaterial3d<StandardMaterial>>)>,
+    mut q: Query<(Entity, &TrainerNpc, &mut Visibility, Option<&MeshMaterial3d<StandardMaterial>>, Has<NpcModelSource>)>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
 ) {
-    for (npc, mut v, mat) in &mut q {
+    for (entity, npc, mut v, mat, has_model) in &mut q {
         *v = Visibility::Inherited;
+        if has_model && defeated.0.contains(&npc.trainer_id) {
+            commands.entity(entity).try_insert(TrainerBeaten);
+        }
         if defeated.0.contains(&npc.trainer_id) {
             if let (Some(mat), Some(materials)) = (mat, materials.as_deref_mut()) {
                 if let Some(mut m) = materials.get_mut(&mat.0) {
@@ -246,7 +289,11 @@ pub fn spawn_zone_trainers(
     mut last_area: Local<Option<String>>,
     mut meshes: Option<ResMut<Assets<Mesh>>>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
+    asset_server: Option<Res<AssetServer>>,
+    models: Option<ResMut<NpcModelCache>>,
+    npc_world: Option<Res<NpcWorld>>,
 ) {
+    let mut models = models;
     if !world.markers {
         return;
     }
@@ -269,8 +316,16 @@ pub fn spawn_zone_trainers(
             Visibility::Inherited,
             Name::new(format!("trainer {}", p.key)),
         ));
-        if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
-            let color = if beaten { Color::srgb(0.45, 0.45, 0.5) } else { Color::srgb(0.85, 0.2, 0.25) };
+        // Real model when the NPC export of this character exists (same cache as npc.rs); else the capsule marker.
+        let cache_root = npc_world.as_ref().map_or_else(|| PathBuf::from(DEFAULT_CACHE_ROOT), |w| w.cache_root.clone());
+        let info = models.as_mut().and_then(|m| m.info(&cache_root, &p.model_pack));
+        if let (Some(asset_server), Some(info)) = (asset_server.as_deref(), info) {
+            e.insert(model_source(asset_server, &info, 1.0));
+            if beaten {
+                e.insert(TrainerBeaten);
+            }
+        } else if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
+            let color = if beaten { BEATEN_GREY } else { Color::srgb(0.85, 0.2, 0.25) };
             e.insert((
                 Mesh3d(meshes.add(Capsule3d::new(0.35, 1.1))),
                 MeshMaterial3d(materials.add(StandardMaterial { base_color: color, ..default() })),
