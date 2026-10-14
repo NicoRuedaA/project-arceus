@@ -1003,9 +1003,22 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     add_viewer_systems(app);
 }
 
+/// Malformed command-line values (game::cli_flags) also go to the start-up toast, once.
+fn show_flag_warnings(mut toast: ResMut<pla::game::save_wire::SaveToast>) {
+    let w = pla::game::cli_flags::warnings();
+    if w.is_empty() {
+        return;
+    }
+    let joined = w.join("  |  ");
+    let text = if toast.text.is_empty() { joined } else { format!("{}  |  {joined}", toast.text) };
+    toast.show(text);
+    toast.timer = 10.0;
+}
+
 /// The viewer's own systems (the game plugins are added by [`configure_viewer`]).
 fn add_viewer_systems(app: &mut App) {
     app.add_systems(Update, apply_safe_spawn_request);
+    app.add_systems(PostStartup, show_flag_warnings);
     app.add_systems(Startup, (setup_scene, setup_game_ui, spawn_aim_hint));
     app.add_systems(
         Update,

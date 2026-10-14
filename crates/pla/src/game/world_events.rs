@@ -30,6 +30,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use bevy::prelude::*;
 
+use super::cli_flags::{parse_or_warn, report_bad_value};
 use super::clock::GameClock;
 use super::distortion::{
     DistortionCue, DistortionData, DistortionMachine, EventSpawnSlot, Phase, WormholeConfig,
@@ -302,18 +303,22 @@ impl WorldEventsConfig {
         let d = Self::default();
         Self {
             enabled: !args.iter().any(|a| a == "--no-world-events"),
-            story: val("--story")
-                .and_then(|s| s.parse().ok())
+            story: parse_or_warn(args, "--story", "a whole number", d.story, |_: &u32| true)
                 .unwrap_or(d.story),
-            seed: val("--event-seed")
-                .and_then(|s| s.parse().ok())
+            seed: parse_or_warn(args, "--event-seed", "a whole number", d.seed, |_: &u64| true)
                 .unwrap_or(d.seed),
-            time_scale: val("--event-time-scale")
-                .and_then(|s| s.parse::<f32>().ok())
-                .filter(|v| v.is_finite() && *v > 0.0)
-                .unwrap_or(1.0),
+            time_scale: parse_or_warn(args, "--event-time-scale", "a number > 0", 1, |v: &f32| {
+                v.is_finite() && *v > 0.0
+            })
+            .unwrap_or(1.0),
             distortion_now: args.iter().any(|a| a == "--distortion-now"),
-            force_outbreak: val("--outbreak").map(|s| s.parse::<u16>().ok()),
+            force_outbreak: val("--outbreak").map(|s| {
+                let id = s.trim().parse::<u16>().ok();
+                if id.is_none() && !s.trim().eq_ignore_ascii_case("off") {
+                    report_bad_value("--outbreak", &s, "an outbreak id or 'off'", "off");
+                }
+                id
+            }),
             teleport_to_event: !args.iter().any(|a| a == "--no-teleport-to-event"),
         }
     }

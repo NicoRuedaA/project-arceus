@@ -223,22 +223,20 @@ impl GameClock {
 
 /// Value of `--time-slot N` when the flag is present and in range (0..=3).
 pub fn time_slot_arg(args: &[String]) -> Option<usize> {
-    args.iter()
-        .position(|a| a == "--time-slot")
-        .and_then(|i| args.get(i + 1))
-        .and_then(|s| s.parse::<usize>().ok())
-        .filter(|s| *s < SLOT_COUNT)
+    super::cli_flags::parse_or_warn(args, "--time-slot", "a slot 0-3", "the clock", |s: &usize| *s < SLOT_COUNT)
 }
 
 /// Value of `--time-scale X` (game minutes per real second); a bad or negative value falls back to
 /// the ASSUMED default.
 pub fn time_scale_from_args(args: &[String]) -> f32 {
-    args.iter()
-        .position(|a| a == "--time-scale")
-        .and_then(|i| args.get(i + 1))
-        .and_then(|s| s.parse::<f32>().ok())
-        .filter(|v| v.is_finite() && *v >= 0.0)
-        .unwrap_or(DEFAULT_MINUTES_PER_REAL_SECOND)
+    super::cli_flags::parse_or_warn(
+        args,
+        "--time-scale",
+        "a number >= 0",
+        DEFAULT_MINUTES_PER_REAL_SECOND,
+        |v: &f32| v.is_finite() && *v >= 0.0,
+    )
+    .unwrap_or(DEFAULT_MINUTES_PER_REAL_SECOND)
 }
 
 /// The clock the app starts with: `--time-slot` pins to that slot, otherwise `--time-scale` runs

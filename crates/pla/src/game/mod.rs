@@ -34,6 +34,7 @@ pub mod battle_visibility;
 pub mod blink;
 pub mod box_screen;
 pub mod catch_rate;
+pub mod cli_flags;
 pub mod clock;
 pub mod crafting;
 pub mod crafting_ui;

@@ -357,11 +357,13 @@ impl GrassQuality {
     }
     /// `--grass off|low|high` from CLI arguments (default low).
     pub fn from_args(args: &[String]) -> Self {
-        args.iter()
-            .position(|a| a == "--grass")
-            .and_then(|i| args.get(i + 1))
-            .and_then(|v| Self::parse(v))
-            .unwrap_or_default()
+        let Some(raw) = crate::game::cli_flags::value_of(args, "--grass") else {
+            return Self::default();
+        };
+        Self::parse(raw).unwrap_or_else(|| {
+            crate::game::cli_flags::report_bad_value("--grass", raw, "off|low|high", "low");
+            Self::default()
+        })
     }
     /// Target triangles per square metre of masked ground (ASSUMED budget, not game data).
     pub fn tri_budget_per_m2(self) -> f32 {

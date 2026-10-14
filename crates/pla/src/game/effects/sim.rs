@@ -93,12 +93,12 @@ impl Quality {
 /// Quality from the command line (`--effects X` or `--effects=X`), then the
 /// `PLA_EFFECTS` variable, then the `effects=` line of `settings.txt`, else Low.
 pub fn quality_from(args: &[String], env_value: Option<&str>, settings_text: Option<&str>) -> Quality {
-    let from_args = args.iter().enumerate().find_map(|(i, a)| {
-        if a == "--effects" {
-            args.get(i + 1).and_then(|v| Quality::parse(v))
-        } else {
-            a.strip_prefix("--effects=").and_then(Quality::parse)
+    let from_args = crate::game::cli_flags::value_of(args, "--effects").and_then(|v| {
+        let q = Quality::parse(v);
+        if q.is_none() {
+            crate::game::cli_flags::report_bad_value("--effects", v, "off|low|high", "the default");
         }
+        q
     });
     let from_settings = || {
         settings_text?.lines().find_map(|l| {
