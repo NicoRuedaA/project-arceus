@@ -16,8 +16,15 @@ use super::bntx::TextureData;
 use super::terrain::TerrainArea;
 
 /// World-space divisor applied to `SplatST` for the detail tiling period:
-/// `repeats_per_metre = ST / DETAIL_TILE_DIVISOR`. **Assumption**, not decoded.
-pub const DETAIL_TILE_DIVISOR: f32 = 32.0;
+/// `repeats_per_metre = ST / DETAIL_TILE_DIVISOR`, i.e. a layer tiles every
+/// `DETAIL_TILE_DIVISOR / SplatST` metres. **Assumption**, not decoded.
+///
+/// 4.0 puts the ground features at the player's scale (SUPUESTO, chosen by eye on the windowless
+/// captures; the old 32 painted ~1.5-2 m grass blades, bigger than the player). Resulting tile
+/// spans: grass01 `SplatST` 2.5 -> 1.6 m (was 12.8 m), cliff01 4.0-5.0 -> 1.0-0.8 m, gravel
+/// 2.0-2.5 -> 2.0-1.6 m, snow (area 05) 8.0 -> 0.5 m. `--terrain-tile-divisor F` overrides it at
+/// runtime.
+pub const DETAIL_TILE_DIVISOR: f32 = 4.0;
 
 /// Default side of the baked area albedo (the CLI default; 2048 stays available).
 pub const DEFAULT_BAKE_SIZE: u32 = 4096;
@@ -148,7 +155,7 @@ pub struct ResolvedLayer<'a> {
     pub tex: Cow<'a, TextureData>,
     /// Improved PNG used instead of the original, if any.
     pub override_file: Option<PathBuf>,
-    /// SplatST x scale (repeats per `DETAIL_TILE_DIVISOR` metres).
+    /// SplatST x scale: `tiling` repeats per `DETAIL_TILE_DIVISOR` metres.
     pub tiling: f32,
 }
 
@@ -441,7 +448,8 @@ mod tests {
         TextureData { width: w, height: h, rgba: (0..w * h).flat_map(|_| [c[0], c[1], c[2], 255]).collect() }
     }
 
-    /// One layer (slot 0, weight 1 everywhere), 100 m extent, tiling 32 => 1 repeat per metre.
+    /// One layer (slot 0, weight 1 everywhere), 100 m extent, tiling 4 => 1 repeat per metre
+    /// (`SplatST / DETAIL_TILE_DIVISOR` = 4 / 4).
     fn area_with(tex: TextureData) -> TerrainArea {
         let mut g = HashMap::new();
         g.insert("ha_test_alb.bntx".to_string(), tex);
@@ -459,7 +467,7 @@ mod tests {
             material: Some(TerrainMaterial {
                 slots: TrMtr { textures: vec![("ha_test_alb.bntx".into(), "SplatColor0".into())], flags: vec![] },
                 parameter_candidates: vec![],
-                splat_tiling: vec![[32.0, 32.0]],
+                splat_tiling: vec![[4.0, 4.0]],
             }),
             ground_textures: g,
             unresolved_ground_textures: vec![],

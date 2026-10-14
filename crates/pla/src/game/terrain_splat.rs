@@ -138,7 +138,8 @@ pub struct TerrainSplatSettings {
     /// 0 = plain weights, else [`HEIGHT_STRENGTH`]-like strength.
     pub height_strength: f32,
     /// Metres per `SplatST` unit: a layer repeats `SplatST / tile_divisor` times per metre.
-    /// Default [`DETAIL_TILE_DIVISOR`] (32, the bake's guess); SUPUESTO.
+    /// Default [`DETAIL_TILE_DIVISOR`] (4.0, the shared assumption: grass tiles every 1.6 m);
+    /// SUPUESTO, `--terrain-tile-divisor` overrides it.
     pub tile_divisor: f32,
     pub debug_view: TerrainDebugView,
 }
@@ -178,7 +179,7 @@ impl TerrainSplatSettings {
     /// `--terrain bake|splat` (default splat), `--terrain-layer-size 256..4096` (power of two),
     /// `--terrain-layers 1..8`, `--terrain-triplanar on|off`, `--terrain-antitile on|off`,
     /// `--terrain-normals layers|baked`, `--terrain-debug off|weights|detail`,
-    /// `--terrain-tile-divisor F` (default 32: a layer repeats `SplatST / F` times per metre).
+    /// `--terrain-tile-divisor F` (default 4: a layer repeats `SplatST / F` times per metre).
     pub fn from_args(args: &[String]) -> Self {
         let mut s = Self::default();
         if let Some(v) = cli_flags::value_of(args, "--terrain") {
@@ -1262,14 +1263,28 @@ mod tests {
 
     #[test]
     fn tiling_math_and_uniform() {
-        assert!((repeats_per_metre(5.0) - 5.0 / 32.0).abs() < 1e-7);
-        assert!((repeats_per_metre(0.0) - 1.0 / 32.0).abs() < 1e-7, "a missing ST falls back to 1");
+        assert!((repeats_per_metre(5.0) - 5.0 / DETAIL_TILE_DIVISOR).abs() < 1e-7);
+        assert!(
+            (repeats_per_metre(0.0) - 1.0 / DETAIL_TILE_DIVISOR).abs() < 1e-7,
+            "a missing ST falls back to 1"
+        );
         assert!((repeats_per_metre_with(2.5, 8.0) - 2.5 / 8.0).abs() < 1e-7);
-        assert!((repeats_per_metre_with(2.5, 0.0) - 2.5 / 32.0).abs() < 1e-7, "a bad divisor falls back to 32");
+        assert!(
+            (repeats_per_metre_with(2.5, 0.0) - 2.5 / DETAIL_TILE_DIVISOR).abs() < 1e-7,
+            "a bad divisor falls back to the default"
+        );
         let b = build_splat_data(&area(), None, 64).unwrap();
         let u = splat_uniform(&b, &TerrainSplatSettings::default());
-        assert_eq!(u.rep_lo, Vec4::new(4.0 / 32.0, 5.0 / 32.0, 0.0, 0.0));
-        assert_eq!(u.rep_hi.x, 2.5 / 32.0);
+        assert_eq!(
+            u.rep_lo,
+            Vec4::new(
+                4.0 / DETAIL_TILE_DIVISOR,
+                5.0 / DETAIL_TILE_DIVISOR,
+                0.0,
+                0.0
+            )
+        );
+        assert_eq!(u.rep_hi.x, 2.5 / DETAIL_TILE_DIVISOR);
         assert_eq!(u.cliff_lo, Vec4::new(1.0, 0.0, 0.0, 0.0));
         assert_eq!((u.enabled_lo, u.enabled_hi), (Vec4::new(1.0, 1.0, 0.0, 0.0), Vec4::new(1.0, 0.0, 0.0, 0.0)));
         assert_eq!(u.area.x, 100.0);
