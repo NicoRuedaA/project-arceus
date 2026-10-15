@@ -3,6 +3,14 @@
 //! The state machine is deliberately independent from Bevy and from the battle engine. Numeric
 //! defaults in [`BehaviorParams::assumed`] are port policy, not decoded game data; the evidence
 //! ledger in `data/wild_behavior.tsv` keeps that distinction explicit.
+//!
+//! Sleep: the game keeps a sleeping state for wild Pokémon (capture ×4 while sleeping in
+//! `common_capture_config.bin`, a dedicated player face reaction keyed `wild_poke_sleep_base`
+//! and native AI states 4/7 in `FUN_024e26b4`), but no hour window or probability lives in the
+//! 104 app-config tables. The port follows the external notes (PROBABLE): a creature that
+//! finishes a patrol leg may fall asleep for 30–60 s; only the species the game gives the
+//! "caught while they were sleeping" research task (task kind 11, see [`SLEEP_TASK_SPECIES`])
+//! are eligible. All the timing constants are declared next to [`SLEEP_CYCLE_CHANCE`].
 
 use bevy::prelude::Component;
 
@@ -44,7 +52,8 @@ pub struct Perception {
     pub noise: Noise,
     /// True means the player is concealed and cannot be perceived by this policy.
     pub player_hidden: bool,
-    /// Optional 24-hour clock. `None` keeps sleep disabled.
+    /// Optional 24-hour clock for the (unset-by-default) hour-window sleep policy. The patrol
+    /// sleep does not need it.
     pub hour: Option<f32>,
 }
 
@@ -60,6 +69,26 @@ impl Perception {
     }
 }
 
+/// PROBABLE (external notes, not present in the game's config tables): chance that a creature
+/// falling out of a completed patrol leg (Wander → Idle) dozes off. The notes give 10–15 %;
+/// the midpoint is used.
+pub const SLEEP_CYCLE_CHANCE: f32 = 0.125;
+/// PROBABLE (external notes): sleep lasts 30–60 s.
+pub const SLEEP_DURATION_MIN_S: f32 = 30.0;
+pub const SLEEP_DURATION_MAX_S: f32 = 60.0;
+
+/// Species with the game's "Number you've caught while they were sleeping" research task
+/// (`data/dex_tasks.tsv` rows with kind 11; cross-checked against the public task lists).
+/// These are the only per-species sleep evidence in the game tables, so the port limits the
+/// random patrol sleep to them. Sorted.
+pub const SLEEP_TASK_SPECIES: [u16; 11] =
+    [37, 58, 108, 113, 143, 172, 173, 175, 239, 240, 417];
+
+/// Whether a species may fall asleep during patrol (see [`SLEEP_TASK_SPECIES`]).
+pub fn sleep_capable(species: u16) -> bool {
+    SLEEP_TASK_SPECIES.contains(&species)
+}
+
 /// Tunable state-machine parameters. Values from [`assumed`](Self::assumed) are provisional.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BehaviorParams {
@@ -72,6 +101,13 @@ pub struct BehaviorParams {
     pub chase_distance: f32,
     pub attack_distance: f32,
     pub sleep_window: Option<(f32, f32)>,
+    /// Species eligibility for the patrol sleep (see [`sleep_capable`]).
+    pub can_sleep: bool,
+    /// Chance to fall asleep when a patrol leg completes (0 disables the roll).
+    pub sleep_chance: f32,
+    /// Sleep duration draw bounds, in seconds.
+    pub sleep_min_s: f32,
+    pub sleep_max_s: f32,
 }
 
 impl BehaviorParams {
@@ -88,6 +124,10 @@ impl BehaviorParams {
                 chase_distance: 0.0,
                 attack_distance: 0.0,
                 sleep_window: None,
+                can_sleep: false,
+                sleep_chance: SLEEP_CYCLE_CHANCE,
+                sleep_min_s: SLEEP_DURATION_MIN_S,
+                sleep_max_s: SLEEP_DURATION_MAX_S,
             },
             Archetype::Timid => Self {
                 archetype,
@@ -99,6 +139,10 @@ impl BehaviorParams {
                 chase_distance: 0.0,
                 attack_distance: 0.0,
                 sleep_window: None,
+                can_sleep: false,
+                sleep_chance: SLEEP_CYCLE_CHANCE,
+                sleep_min_s: SLEEP_DURATION_MIN_S,
+                sleep_max_s: SLEEP_DURATION_MAX_S,
             },
             Archetype::Aggressive => Self {
                 archetype,
@@ -110,6 +154,10 @@ impl BehaviorParams {
                 chase_distance: 18.0,
                 attack_distance: 2.5,
                 sleep_window: None,
+                can_sleep: false,
+                sleep_chance: SLEEP_CYCLE_CHANCE,
+                sleep_min_s: SLEEP_DURATION_MIN_S,
+                sleep_max_s: SLEEP_DURATION_MAX_S,
             },
         }
     }
@@ -123,13 +171,14 @@ pub struct StepResult {
     pub changed: bool,
 }
 
-/// Mutable deterministic state. The seed is retained for future evidence-backed random
-/// branches; no random branch is enabled until the source data justifies one.
+/// Mutable deterministic state. The seed drives the evidence-backed patrol-sleep roll.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Machine {
     pub seed: u64,
     pub state: State,
     pub state_time_s: f32,
+    /// Remaining patrol sleep in seconds (0 = not a timed sleep).
+    pub sleep_remaining_s: f32,
 }
 
 impl Machine {
@@ -138,7 +187,33 @@ impl Machine {
             seed,
             state: State::Idle,
             state_time_s: 0.0,
+            sleep_remaining_s: 0.0,
         }
+    }
+
+    /// Deterministic uniform draw in `[0, 1)` from the machine seed (LCG step).
+    fn next_unit(&mut self) -> f64 {
+        self.seed = self
+            .seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (self.seed >> 33) as f64 / (1u64 << 31) as f64
+    }
+
+    /// Draw the patrol sleep: eligible species only, one roll per completed patrol leg.
+    fn try_fall_asleep(&mut self, params: BehaviorParams) {
+        if !params.can_sleep || !params.sleep_chance.is_finite() || params.sleep_chance <= 0.0 {
+            return;
+        }
+        let roll = self.next_unit();
+        if roll >= f64::from(params.sleep_chance.clamp(0.0, 1.0)) {
+            return;
+        }
+        let lo = params.sleep_min_s.max(0.0);
+        let hi = params.sleep_max_s.max(lo);
+        let draw = lo + ((hi - lo) as f64 * self.next_unit()) as f32;
+        self.sleep_remaining_s = draw;
+        self.set_state(State::Sleep);
     }
 
     /// Advance one tick. Non-finite or negative deltas are treated as zero.
@@ -161,10 +236,20 @@ impl Machine {
                 }
             }
             State::Sleep => {
-                if !sleeping_at(perception.hour, params.sleep_window) {
-                    self.set_state(State::Idle);
-                } else if noticed {
+                if noticed {
                     self.set_state(State::Alert);
+                } else if params.sleep_window.is_some()
+                    && !sleeping_at(perception.hour, params.sleep_window)
+                {
+                    self.set_state(State::Idle);
+                } else if self.sleep_remaining_s > 0.0 {
+                    self.sleep_remaining_s = (self.sleep_remaining_s - dt).max(0.0);
+                    if self.sleep_remaining_s == 0.0 {
+                        self.set_state(State::Idle);
+                    }
+                } else if params.sleep_window.is_none() {
+                    // Timed sleep with an exhausted timer cannot persist.
+                    self.set_state(State::Idle);
                 }
             }
             State::Alert => {
@@ -214,11 +299,16 @@ impl Machine {
         }
     }
 
-    /// Mirrors the already-existing wander loop without overwriting reaction states.
-    pub fn sync_wander_phase(&mut self, walking: bool) {
+    /// Mirrors the already-existing wander loop without overwriting reaction states. A
+    /// Wander → Idle edge is a completed patrol leg and rolls the patrol sleep once.
+    pub fn sync_wander_phase(&mut self, walking: bool, params: BehaviorParams) {
         let target = if walking { State::Wander } else { State::Idle };
         if matches!(self.state, State::Idle | State::Wander) && self.state != target {
+            let completed_patrol = self.state == State::Wander && target == State::Idle;
             self.set_state(target);
+            if completed_patrol {
+                self.try_fall_asleep(params);
+            }
         }
     }
 
@@ -226,6 +316,9 @@ impl Machine {
         if self.state != state {
             self.state = state;
             self.state_time_s = 0.0;
+            if state != State::Sleep {
+                self.sleep_remaining_s = 0.0;
+            }
         }
     }
 }
@@ -466,6 +559,106 @@ mod tests {
             inputs.map(|input| machine.step(0.25, params, input).current)
         };
         assert_eq!(run(), run());
+    }
+
+    #[test]
+    fn sleep_species_match_the_game_task_table() {
+        let mut species: Vec<u16> = include_str!("../../../../data/dex_tasks.tsv")
+            .lines()
+            .filter(|line| !line.starts_with('#') && !line.starts_with("species:"))
+            .filter_map(|line| {
+                let mut fields = line.split('\t');
+                let species = fields.next()?.parse::<u16>().ok()?;
+                let _slot = fields.next()?;
+                let kind = fields.next()?.parse::<u8>().ok()?;
+                (kind == 11).then_some(species)
+            })
+            .collect();
+        species.sort_unstable();
+        species.dedup();
+        assert_eq!(species, SLEEP_TASK_SPECIES.to_vec());
+        assert!(sleep_capable(143)); // Snorlax
+        assert!(!sleep_capable(399)); // Bidoof
+    }
+
+    #[test]
+    fn completed_patrol_sleeps_a_capable_creature_until_the_timer_runs_out() {
+        let params = BehaviorParams {
+            can_sleep: true,
+            sleep_chance: 1.0,
+            sleep_min_s: 30.0,
+            sleep_max_s: 60.0,
+            ..BehaviorParams::assumed(Archetype::Passive)
+        };
+        let mut machine = Machine::new(11);
+        machine.sync_wander_phase(true, params);
+        assert_eq!(machine.state, State::Wander);
+        machine.sync_wander_phase(false, params);
+        assert_eq!(machine.state, State::Sleep);
+        assert!((30.0..=60.0).contains(&machine.sleep_remaining_s));
+        // A quiet, distant player does not wake it; the timer does.
+        assert_eq!(
+            machine.step(1.0, params, Perception::quiet(50.0)).current,
+            State::Sleep
+        );
+        assert_eq!(
+            machine
+                .step(120.0, params, Perception::quiet(50.0))
+                .current,
+            State::Idle
+        );
+        assert_eq!(machine.sleep_remaining_s, 0.0);
+    }
+
+    #[test]
+    fn sleep_roll_is_deterministic_and_gated_by_eligibility() {
+        let eligible = BehaviorParams {
+            can_sleep: true,
+            sleep_chance: 0.125,
+            ..BehaviorParams::assumed(Archetype::Passive)
+        };
+        let run = || {
+            let mut machine = Machine::new(0x51ee);
+            machine.sync_wander_phase(true, eligible);
+            machine.sync_wander_phase(false, eligible);
+            machine.state
+        };
+        assert_eq!(run(), run(), "same seed must reproduce the roll");
+
+        let ineligible = BehaviorParams {
+            can_sleep: false,
+            ..eligible
+        };
+        let mut machine = Machine::new(11);
+        machine.sync_wander_phase(true, ineligible);
+        machine.sync_wander_phase(false, ineligible);
+        assert_eq!(machine.state, State::Idle);
+
+        let disabled = BehaviorParams {
+            sleep_chance: 0.0,
+            ..eligible
+        };
+        let mut machine = Machine::new(11);
+        machine.sync_wander_phase(true, disabled);
+        machine.sync_wander_phase(false, disabled);
+        assert_eq!(machine.state, State::Idle);
+    }
+
+    #[test]
+    fn noticed_player_wakes_a_sleeping_creature() {
+        let params = BehaviorParams {
+            can_sleep: true,
+            sleep_chance: 1.0,
+            ..BehaviorParams::assumed(Archetype::Passive)
+        };
+        let mut machine = Machine::new(12);
+        machine.sync_wander_phase(true, params);
+        machine.sync_wander_phase(false, params);
+        assert_eq!(machine.state, State::Sleep);
+        assert_eq!(
+            machine.step(0.1, params, Perception::quiet(1.0)).current,
+            State::Alert
+        );
     }
 
     #[test]

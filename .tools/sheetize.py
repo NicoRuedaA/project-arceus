@@ -93,6 +93,10 @@ _add("data/pml_learnsets", PML, "level-up and tutor learnsets", requires="bin/pm
 _add("data/poke_drop_items", ".tools/decode_drop_items.py",
      "Pokémon drop items (field per-key table + battle grit bracket table)",
      requires="bin/pokemon/data/poke_drop_item.bin; bin/pokemon/data/poke_drop_item_battle.bin")
+_add("data/crafting_recipe_routes", ".tools/decode_recipe_routes.py",
+     "recipe item acquisition routes (Galaxy rank rewards, shop stock, event grants, field placement)",
+     requires="bin/haxe/release/event/rankupevent.blua; bin/haxe/release/event/ev_main_*.blua; "
+              "bin/appli/shop/bin/ha_shop_data.bin; bin/field; bin/pml/item/item.dat")
 
 # --- schemas / trace (hand curated) -----------------------------------------------------
 for _stem in (

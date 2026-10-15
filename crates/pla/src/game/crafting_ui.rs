@@ -233,6 +233,7 @@ fn handle_crafting_input(
             }
             Err(CraftError::MissingMaterial { .. }) => "Missing materials.".into(),
             Err(CraftError::OutputStackFull { .. }) => "Output stack is full.".into(),
+            Err(CraftError::RecipeItemMissing { .. }) => "You don't own this recipe.".into(),
             Err(CraftError::UnknownCondition) => "Condition unknown; crafting refused.".into(),
             Err(CraftError::UnsupportedCondition(_)) => "Condition not supported yet.".into(),
             Err(CraftError::InvalidRecipe) => "Recipe data is invalid.".into(),

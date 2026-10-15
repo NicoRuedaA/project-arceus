@@ -3,8 +3,21 @@
 
 The game stores the recipe list as ``MakeList``: a root table containing a
 vector of ``MakeListEntry`` tables.  This decoder keeps the wire fields
-lossless, emits a compact material join for the port, and never invents an
-unlock condition because the source schema has no condition field.
+lossless and emits a compact material join for the port.
+
+Unlock condition: the wire table has no condition field; the recipe's F01
+value *is* the unlock condition.  F01 is the id of the recipe item itself
+(1640 "Poké Ball Recipe" for the first row), an ordinary bag item that the
+player obtains from events (``ItemCommand.ItemGetMessage``, e.g.
+``ev_main_014205`` grants 1640, ``ev_main_014930`` 1656, ``ev_main_027210``
+1646, ``ev_main_030810`` 1671, ``ev_main_036020`` 1647) and from shop stock
+(table ``70894275551592854`` in ``data/shop_stock.tsv``).  Every one of the 43
+F01 ids decodes to an item named "<product> Recipe"/"Receta de <product>" whose
+description says "A recipe for crafting <product>…", is absent from every
+material list (never consumed), and is stored in the satchel.  The emitted
+condition is therefore ``own_item:<F01>``: available while that item is held.
+Status PROBABLE: item identity and acquisition are VERIFIED from the game's own
+text and scripts, but the native menu's presence check was not traced.
 
 Game binaries are intentionally not part of the repository.  Supply a local
 source with ``--input`` (or ``PLA_MAKELIST_BIN``); the generated sheet records
@@ -215,7 +228,11 @@ def write_sheet(output: Path, source: Path, data: bytes, rows: list[Recipe], ite
         stream.write(f"# source_sha256: {source_hash}\n")
         stream.write(f"# source_size: {len(data)}\n")
         stream.write(f"# schema: {SCHEMA_URL} @ {SCHEMA_COMMIT}\n")
-        stream.write("# condition: UNKNOWN; MakeList.fbs has no unlock-condition field\n")
+        stream.write(
+            "# condition: own_item:<recipe_item_id>; held recipe item unlocks the recipe "
+            "(not a material, not consumed); item identity/acquisition VERIFIED, "
+            "native presence check PROBABLE (see .tools/decode_crafting.py docstring)\n"
+        )
         csv_writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
         csv_writer.writerow(columns)
         for row in rows:
@@ -234,7 +251,7 @@ def write_sheet(output: Path, source: Path, data: bytes, rows: list[Recipe], ite
                     *material_ids,
                     *material_quantities,
                     material_text,
-                    "UNKNOWN",
+                    f"own_item:{row.recipe_item_id}",
                     row.source_record_offset,
                     join_status,
                     "VERIFIED",
@@ -264,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"item_id_join=UNKNOWN referenced={referenced}")
     else:
         print(f"item_id_join=VERIFIED matched={matched}/{referenced}")
-    print("condition=UNKNOWN rows=all (no condition field in MakeList.fbs)")
+    print("condition=own_item:<recipe_item_id> rows=all (held recipe item unlocks the recipe)")
     return 0
 
 
