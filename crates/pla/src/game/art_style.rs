@@ -65,8 +65,8 @@ pub const RIM_COLOR_FALLBACK: [f32; 3] = [1.0, 1.0, 0.784_314];
 /// a little gradient is kept so large curved surfaces do not look like flat decals.
 pub const BAND_STRENGTH: f32 = 0.85;
 /// The shadow-map factor is also banded with a smooth step between these values. ASSUMED.
-pub const SHADOW_BAND_LO: f32 = 0.30;
-pub const SHADOW_BAND_HI: f32 = 0.70;
+pub const SHADOW_BAND_LO: f32 = 0.10;
+pub const SHADOW_BAND_HI: f32 = 0.90;
 /// Multiplier applied to the shaded side (linear rgb) for a cool shadow. ASSUMED (the brief asks
 /// for cool sun shadows; the sheet `SubColor` of category 1 is warm in the day slot and its role
 /// is not proven, so it is not used here).

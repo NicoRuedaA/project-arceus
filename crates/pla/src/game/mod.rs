@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 pub mod alpha_aura;
 pub mod art_style;
+pub mod face_shading;
 pub mod normal_fix;
 pub mod audio;
 pub mod automation;
