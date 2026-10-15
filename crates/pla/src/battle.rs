@@ -9,13 +9,13 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Table {
+pub(crate) struct Table {
     headers: Vec<String>,
-    rows: Vec<BTreeMap<String, String>>,
+    pub(crate) rows: Vec<BTreeMap<String, String>>,
 }
 
 impl Table {
-    fn load(path: &Path, key_column: Option<&str>) -> Result<Self, String> {
+    pub(crate) fn load(path: &Path, key_column: Option<&str>) -> Result<Self, String> {
         let text =
             fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
         let mut lines = text
@@ -67,7 +67,7 @@ impl Table {
             .find(|row| row.get(column).is_some_and(|v| v == value))
     }
 
-    fn value<'a>(row: &'a BTreeMap<String, String>, key: &str) -> Result<&'a str, String> {
+    pub(crate) fn value<'a>(row: &'a BTreeMap<String, String>, key: &str) -> Result<&'a str, String> {
         row.get(key)
             .map(String::as_str)
             .ok_or_else(|| format!("missing field {key}"))

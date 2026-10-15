@@ -19,6 +19,7 @@ use super::save_game::{PartyMember, PlayerSave, SaveFile, SaveGame, MAX_BOX, MAX
 use super::ui::ActiveZoneInfo;
 use super::PlayerAvatar;
 use crate::battle::{BattleData, BattleMove};
+use crate::battle_engine::drops::DropTable;
 use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Battle, Combatant, Event, XorShift32};
 
@@ -604,6 +605,20 @@ pub fn note_encounter(progress: &mut PlayerProgress, wild_dex: u16) {
 /// counters the port feeds (catches for kind 0, moves used against the wild for kind 1), the
 /// prize money for a win and the caught Pokemon (party if there is room, otherwise the box list).
 pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
+    apply_outcome_with_drops(progress, out, None)
+}
+
+/// [`apply_outcome`] plus the decoded drop tables: a won or caught battle rolls the battle
+/// grit table for the opponent's level (PROBABLE level brackets, see
+/// `battle_engine::drops`). One item per successful slot; the tables carry no count. The
+/// roll uses the battle's own generator state (`out.rng`), so it is deterministic. The field
+/// material table stays unused because its species key has not been resolved (see
+/// `reports/data-progress/drop_items.md`).
+pub fn apply_outcome_with_drops(
+    progress: &mut PlayerProgress,
+    out: &BattleOutcome,
+    drops: Option<&DropTable>,
+) {
     apply_sync(progress, out);
     progress.seen.insert(out.wild_dex);
     for &move_id in &out.moves_used_on_wild {
@@ -629,6 +644,17 @@ pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
         };
         if first_win {
             progress.add_money(out.trainer_prize.unwrap_or_else(|| victory_reward(out.wild_level)));
+        }
+    }
+    if out.caught.is_some() || out.won {
+        if let Some(table) = drops {
+            if let Some(row) = table.battle_for_level(out.wild_level) {
+                let mut rng = XorShift32(out.rng.max(1));
+                for item in DropTable::roll_battle(row, &mut rng) {
+                    let count = progress.bag.entry(item).or_insert(0);
+                    *count = count.saturating_add(1);
+                }
+            }
         }
     }
 }
@@ -1075,7 +1101,8 @@ fn battle_wire(
         (None, true) => {
             tracker.started = false;
             if let Some(out) = tracker.last.take() {
-                apply_outcome(&mut progress, &out);
+                let drops = assets.as_ref().and_then(|a| a.drops.as_deref());
+                apply_outcome_with_drops(&mut progress, &out, drops);
             }
             let ok = do_save(&mut game, &progress, &play, &zone, &player, None, &mut toast);
             if ok && settings.selftest {
@@ -1305,6 +1332,43 @@ mod tests {
         p.add_money(u32::MAX);
         p.add_money(5);
         assert_eq!(p.money, u32::MAX);
+    }
+
+    /// D4: a win or a catch rolls the decoded battle grit table for the opponent's level
+    /// (PROBABLE level brackets); a run adds nothing and the roll is seeded by the battle RNG.
+    #[test]
+    fn drop_items_arrive_after_a_win_or_a_catch() {
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let drops = DropTable::load(&dir).expect("drop table");
+        let base = BattleOutcome {
+            party: vec![],
+            bag: BTreeMap::new(),
+            wild_dex: 25,
+            wild_level: 100,
+            won: true,
+            caught: None,
+            rng: 0x1234,
+            trainer_prize: None,
+            trainer_id: None,
+            moves_used_on_wild: Vec::new(),
+        };
+        let mut p = progress2();
+        p.bag.clear();
+        apply_outcome_with_drops(&mut p, &base, Some(&drops));
+        assert_eq!(p.bag.get(&1759), Some(&1), "bracket 100 always drops Grit Dust");
+        let dropped: u16 = p.bag.values().sum();
+        assert!((1..=4).contains(&dropped), "one item per successful slot: {dropped}");
+        let ran = BattleOutcome { won: false, ..base.clone() };
+        apply_outcome_with_drops(&mut p, &ran, Some(&drops));
+        assert_eq!(p.bag.values().copied().sum::<u16>(), dropped, "running drops nothing");
+        let mut r = progress2();
+        r.bag.clear();
+        apply_outcome_with_drops(&mut r, &base, Some(&drops));
+        assert_eq!(r.bag, p.bag, "same battle RNG state, same drops");
+        let mut q = progress2();
+        q.bag.clear();
+        apply_outcome(&mut q, &base);
+        assert!(q.bag.is_empty(), "without the tables the outcome is unchanged");
     }
 
     #[test]

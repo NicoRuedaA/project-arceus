@@ -90,6 +90,9 @@ _add("data/shop_stock", ".tools/decode_shop_data.py",
      "shop stock rows (Field_00 hash, slot, Field_01 hash, item id; hash meaning unknown)",
      requires="bin/appli/shop/bin/ha_shop_data.bin")
 _add("data/pml_learnsets", PML, "level-up and tutor learnsets", requires="bin/pml/waza_oboe/waza_oboe_total.wazaoboe")
+_add("data/poke_drop_items", ".tools/decode_drop_items.py",
+     "Pokémon drop items (field per-key table + battle grit bracket table)",
+     requires="bin/pokemon/data/poke_drop_item.bin; bin/pokemon/data/poke_drop_item_battle.bin")
 
 # --- schemas / trace (hand curated) -----------------------------------------------------
 for _stem in (

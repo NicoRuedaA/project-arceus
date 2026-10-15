@@ -4,6 +4,7 @@
 use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 
 pub mod abilities;
+pub mod drops;
 pub mod effects;
 pub mod items;
 pub mod progression;

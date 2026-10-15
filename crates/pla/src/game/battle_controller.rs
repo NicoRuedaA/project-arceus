@@ -25,6 +25,7 @@ use super::battle_turns::{style_word, turn_order_lines};
 pub use super::catch_rate::{CatchRateSource, CatchRateTable, CAPTURE_CATCH_RATE_PLACEHOLDER};
 use crate::battle::BattleData;
 use crate::battle_engine::abilities::AbilityRules;
+use crate::battle_engine::drops::DropTable;
 use crate::battle_engine::effects::{MoveEffectsTable, Stages};
 use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::progression::ProgressionTables;
@@ -106,6 +107,9 @@ pub struct BattleAssets {
     pub progression: Option<Arc<ProgressionTables>>,
     /// Turn flow of new battles (default PLA queue; `--classic-turns` / `PLA_TURNS=classic`).
     pub turn_mode: TurnMode,
+    /// Decoded drop tables (`data/poke_drop_items.tsv`); `None` disables the drops when a
+    /// battle is won or a Pokemon is caught.
+    pub drops: Option<Arc<DropTable>>,
 }
 
 impl BattleAssets {
@@ -122,6 +126,10 @@ impl BattleAssets {
             .map_err(|e| eprintln!("progression tables unavailable ({e}); no experience or evolution"))
             .ok()
             .map(Arc::new);
+        let drops = DropTable::load(root)
+            .map_err(|e| eprintln!("drop tables unavailable ({e}); no items are dropped"))
+            .ok()
+            .map(Arc::new);
         Ok(Self {
             data: Arc::new(BattleData::load(root)?),
             move_effects: MoveEffectsTable::load(root)?,
@@ -131,6 +139,7 @@ impl BattleAssets {
             move_styles,
             progression,
             turn_mode: TurnMode::from_env_and_args(),
+            drops,
         })
     }
 }
