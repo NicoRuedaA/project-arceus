@@ -367,6 +367,8 @@ pub enum ScreenName {
     Crafting,
     Shop,
     Graphics,
+    /// The customization screen (Brief 36).
+    Customize,
     /// Close whatever is open (Escape, repeated).
     Close,
 }
@@ -655,6 +657,7 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
                 "crafting" => ScreenName::Crafting,
                 "shop" => ScreenName::Shop,
                 "graphics" => ScreenName::Graphics,
+                "customize" | "dressup" => ScreenName::Customize,
                 "close" | "none" => ScreenName::Close,
                 _ => return Err(format!("unknown screen '{s}' (pause|bag|party|summary|box|dex|crafting|shop|graphics|close)")),
             })
@@ -1376,6 +1379,9 @@ pub fn open_screens(world: &World) -> Vec<&'static str> {
     if world.get_resource::<super::graphics_screen::GraphicsScreenState>().is_some_and(|s| s.open) {
         out.push("graphics");
     }
+    if world.get_resource::<super::customize_screen::CustomizeScreenState>().is_some_and(|s| s.open) {
+        out.push("customize");
+    }
     let paused = world.get_resource::<Paused>().is_some_and(|p| p.0);
     let suppressed = world.get_resource::<PauseMenuSuppressed>().is_some_and(|p| p.0);
     if paused && !suppressed && out.is_empty() {
@@ -1416,6 +1422,7 @@ fn open_screen(app: &mut App, ctx: &mut Ctx, s: ScreenName) -> Result<Value, Str
         ScreenName::Crafting => raise::<super::crafting_ui::CraftingOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Shop => raise::<ShopOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Graphics => raise::<super::pause_menu::GraphicsOpenRequested>(world, |r| r.0 = true)?,
+        ScreenName::Customize => raise::<super::customize_screen::CustomizeOpenRequested>(world, |r| r.0 = true)?,
         ScreenName::Close => {
             for _ in 0..4 {
                 if open_screens(app.world()).iter().all(|n| *n == "main_menu") {

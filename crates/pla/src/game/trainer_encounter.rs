@@ -543,6 +543,7 @@ mod tests {
             loaded: false,
             message: String::new(),
             play_seconds: 0,
+            look: crate::game::dressup::PlayerLook::default(),
         };
         SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(dir)), start, &WireCli::default());
         app.add_plugins(plugin);

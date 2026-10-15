@@ -146,7 +146,15 @@ enum CameraMode {
 /// Real player glTF (asset path under the work root), or `None` for the capsule avatar.
 #[derive(Resource, Default)]
 struct PlayerModelConfig {
+    /// Merged fallback glTF (asset-relative).
     asset_rel: Option<String>,
+    /// Asset-relative directory holding the per-piece dress-up exports
+    /// (`<cache>/player/parts`); `None` keeps the merged model.
+    parts_base: Option<String>,
+    /// Filesystem root of the asset server (`work`), to check the piece files exist.
+    work_root: PathBuf,
+    /// The look to dress the avatar with (defaults until the save provides one).
+    look: pla::game::dressup::PlayerLook,
 }
 
 #[derive(Resource)]
@@ -535,6 +543,10 @@ fn main() -> ExitCode {
     }
     let settings_dir =
         remote.as_ref().map_or_else(UserSettings::default_dir, |r| r.config.settings_dir());
+    let parts_base = {
+        let parts = cache_root.join("player").join("parts");
+        parts.is_dir().then(|| pla::game::player_anim::asset_path(&parts, &work_abs))
+    };
     configure_viewer(
         &mut app,
         ViewerSetup {
@@ -545,6 +557,9 @@ fn main() -> ExitCode {
             player_model: PlayerModelConfig {
                 asset_rel: player_model_file
                     .map(|f| pla::game::player_anim::asset_path(&f, &work_abs)),
+                parts_base,
+                work_root: work_abs.clone(),
+                look: wire_start.look.clone(),
             },
             initial_mode,
             user_settings: UserSettings::load_from_dir(&settings_dir),
@@ -1015,6 +1030,11 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
+    // Dress-up (Brief 36): per-piece player spawn + colours, the customization screen and the
+    // face expressions (Brief 22).
+    app.add_plugins(pla::game::dressup::DressupPlugin);
+    app.add_plugins(pla::game::customize_screen::CustomizeScreenPlugin);
+    app.add_plugins(pla::game::face_expr::FaceExpressionPlugin);
     app.add_plugins(art_style);
     app.add_plugins(pla::game::alpha_aura::AlphaAuraPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::normal_fix::NormalMapFixPlugin);
@@ -1173,6 +1193,12 @@ fn add_viewer_systems(app: &mut App) {
     app.add_systems(
         Update,
         bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
+    );
+    // The customize camera override also needs its own registration (20-system limit) but must
+    // land between the camera input and the transform update of the chain above.
+    app.add_systems(
+        Update,
+        customize_camera_override.after(camera_controls).before(update_camera_transform),
     );
     app.init_resource::<ArenaExtents>();
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
@@ -1402,20 +1428,60 @@ fn setup_scene(
             Visibility::default(),
         ))
         .id();
-    match &player_model.asset_rel {
-        Some(rel) => {
-            commands
-                .entity(player_body)
-                .insert(pla::game::player_anim::PlayerModelSource {
-                    gltf: asset_server.load(rel.clone()),
-                });
-        }
-        None => {
-            commands.entity(player_body).with_children(|parent| {
-                spawn_capsule_avatar(parent, &mut meshes, &mut materials);
+    // Dress-up path (Brief 36): one scene per worn piece when the per-piece export exists;
+    // otherwise the merged model; otherwise the capsule.
+    let piece_sources = player_model.parts_base.as_ref().and_then(|base| {
+        let variant = player_model.look.variant.tag();
+        let mut pieces = Vec::new();
+        for (slot, stem) in player_model.look.pieces() {
+            let dir = format!("{base}/{variant}/{stem}");
+            let fs_gltf = player_model.work_root.join(format!("{dir}/piece.gltf"));
+            if !fs_gltf.is_file() {
+                eprintln!("Dress-up piece {dir}/piece.gltf is missing; using the merged model");
+                return None;
+            }
+            let colors = std::fs::read_to_string(player_model.work_root.join(format!("{dir}/colors.tsv")))
+                .ok()
+                .map(|text| {
+                    text.lines()
+                        .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
+                        .filter_map(|l| {
+                            let cols: Vec<&str> = l.split('\t').collect();
+                            (cols.len() >= 3).then(|| (cols[0].to_owned(), cols[1].to_owned(), cols[2].to_owned()))
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            pieces.push(pla::game::dressup::PieceRequest {
+                slot,
+                gltf: asset_server.load(format!("{dir}/piece.gltf")),
+                dir,
+                colors,
             });
         }
+        Some(pieces)
+    });
+    if let Some(pieces) = piece_sources {
+        commands
+            .entity(player_body)
+            .insert(pla::game::dressup::PlayerPieceSources { pieces });
+    } else {
+        match &player_model.asset_rel {
+            Some(rel) => {
+                commands
+                    .entity(player_body)
+                    .insert(pla::game::player_anim::PlayerModelSource {
+                        gltf: asset_server.load(rel.clone()),
+                    });
+            }
+            None => {
+                commands.entity(player_body).with_children(|parent| {
+                    spawn_capsule_avatar(parent, &mut meshes, &mut materials);
+                });
+            }
+        }
     }
+    commands.insert_resource(pla::game::dressup::PlayerLookState::new(player_model.look.clone()));
 
     // Third-person Orbit Camera with centered aiming crosshair ("X").
     commands
@@ -2355,6 +2421,29 @@ fn player_locomotion(
             };
         }
     }
+}
+
+/// While the customization screen is open, park the camera in front of the player at a close
+/// distance so every change (hair, colours, clothes) is visible. Runs between `camera_controls`
+/// and `update_camera_transform`, so the override lasts exactly one frame each time.
+fn customize_camera_override(
+    screen: Option<Res<pla::game::customize_screen::CustomizeScreenState>>,
+    mut camera_ctrl: ResMut<CameraController>,
+    avatar: Query<&Transform, (With<pla::game::PlayerAvatar>, Without<Camera3d>)>,
+) {
+    let Some(screen) = screen else { return };
+    if !screen.open {
+        return;
+    }
+    let Ok(xf) = avatar.single() else { return };
+    // Model front is +Z; put the camera on that side, looking back at the face.
+    let facing = xf.rotation * Vec3::Z;
+    let yaw = facing.x.atan2(facing.z) + std::f32::consts::PI;
+    camera_ctrl.yaw = yaw;
+    camera_ctrl.pitch = 0.02;
+    camera_ctrl.distance = 2.2;
+    camera_ctrl.target_distance = 2.2;
+    camera_ctrl.mode = CameraMode::OrbitDefault;
 }
 
 /// Camera input and state updates (implements PLA dec319 kinematics).
@@ -4304,7 +4393,12 @@ mod startup_schedule_guard {
             bin_root: bin_root.clone(),
             cache_root,
             main_menu: has("--menu"),
-            player_model: PlayerModelConfig { asset_rel: None },
+            player_model: PlayerModelConfig {
+                asset_rel: None,
+                parts_base: None,
+                work_root: scratch.to_path_buf(),
+                look: pla::game::dressup::PlayerLook::default_for(pla::game::dressup::LookVariant::P1),
+            },
             initial_mode: CameraMode::OrbitDefault,
             user_settings: UserSettings::default(),
             settings_dir: scratch.to_path_buf(),

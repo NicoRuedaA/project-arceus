@@ -266,6 +266,9 @@ pub struct StartupState {
     pub play_seconds: u64,
     pub loaded: bool,
     pub message: String,
+    /// The saved player look (Brief 36). A save without the `look_` section (up to v9) loads
+    /// the variant's default look.
+    pub look: super::dressup::PlayerLook,
 }
 
 impl StartupState {
@@ -293,6 +296,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
+            look: super::dressup::PlayerLook::default_for(super::dressup::LookVariant::P1),
         };
     }
     match game.load() {
@@ -306,6 +310,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             progress: PlayerProgress::from_save(&s),
             loaded: true,
             message: game.message.clone().unwrap_or_default(),
+            look: super::dressup::PlayerLook::default_for(super::dressup::LookVariant::P1),
         },
         None => StartupState {
             progress: PlayerProgress::new_game(),
@@ -317,6 +322,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
+            look: super::dressup::PlayerLook::default_for(super::dressup::LookVariant::P1),
         },
     }
 }
@@ -1051,6 +1057,7 @@ mod tests {
             play_seconds: 0,
             loaded: true,
             message: String::new(),
+            look: crate::game::dressup::PlayerLook::default(),
         };
         assert_eq!(s.position_in_area(0), Some([520.0, 69.4, 417.7]));
         assert_eq!(s.position_in_area(1), None);
@@ -1633,6 +1640,7 @@ mod tests {
             play_seconds: 0,
             loaded: false,
             message: String::new(),
+            look: crate::game::dressup::PlayerLook::default(),
         };
         SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(&dir)), start, &WireCli::default());
         let player = app
@@ -1694,6 +1702,7 @@ mod tests {
             play_seconds: 0,
             loaded: false,
             message: String::new(),
+            look: crate::game::dressup::PlayerLook::default(),
         };
         SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(&dir)), start, &WireCli::default());
         app.update();

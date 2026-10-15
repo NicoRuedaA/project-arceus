@@ -79,7 +79,7 @@ pub fn option_icon(o: MenuOption) -> &'static str {
         MenuOption::Pokedex | MenuOption::Save | MenuOption::Load => "report",
         MenuOption::Crafting => "making",
         MenuOption::Shop => "buy",
-        MenuOption::InvertX | MenuOption::InvertY | MenuOption::Volume | MenuOption::Graphics => "settings",
+        MenuOption::InvertX | MenuOption::InvertY | MenuOption::Volume | MenuOption::Graphics | MenuOption::Customize => "settings",
         MenuOption::SafeSpawn => "net",
         MenuOption::Rest => "passive",
     }

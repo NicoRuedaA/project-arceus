@@ -289,6 +289,8 @@ pub fn asset_path(file: &Path, work_root: &Path) -> String {
 }
 
 /// Request: render the player from this glTF (placed on a `PlayerAvatar` entity).
+/// The fallback path: one merged glTF. The dress-up path (`game::dressup`) spawns one
+/// [`PlayerSceneRef`] per worn piece instead and does not use this component.
 #[derive(Component)]
 pub struct PlayerModelSource {
     pub gltf: Handle<Gltf>,
@@ -297,6 +299,16 @@ pub struct PlayerModelSource {
 /// Marks that the scene child has been spawned.
 #[derive(Component)]
 pub struct PlayerSceneSpawned;
+
+/// One spawned player scene (a worn piece, or the merged model): its glTF handle and slot tag.
+/// Every scene carries the same skeleton node names and clip names, so the animation driver in
+/// this module can play the same clip on all of them.
+#[derive(Component, Clone)]
+pub struct PlayerSceneRef {
+    pub gltf: Handle<Gltf>,
+    /// Slot tag for reports and debugging (`merged`, `hair`, `face`, ...).
+    pub slot: String,
+}
 
 /// Smoothed planar speed of the avatar (m/s), measured from its transform.
 #[derive(Component, Default)]
@@ -308,15 +320,27 @@ pub struct PlayerMotion {
 /// Number of clip slots ([`PlayerClip`] covers all 17 exported clips except `idle2`).
 pub const CLIP_SLOTS: usize = 16;
 
+/// One wired scene of the player model: its `AnimationPlayer` and the graph node of every clip
+/// it carries (indices are per graph, so each scene keeps its own table).
+#[derive(Debug, Clone)]
+pub struct SceneAnim {
+    pub player: Entity,
+    pub nodes: [Option<AnimationNodeIndex>; CLIP_SLOTS],
+    /// Face-clip nodes in [`super::face_expr::FACE_CLIP_NAMES`] order (only the face piece
+    /// carries them).
+    pub face: [Option<AnimationNodeIndex>; super::face_expr::FACE_CLIP_SLOTS],
+}
+
 /// Runtime animation state once the model has been wired.
 #[derive(Component)]
 pub struct PlayerAnimState {
-    pub player: Entity,
-    pub nodes: [Option<AnimationNodeIndex>; CLIP_SLOTS],
+    /// One entry per spawned scene (one worn piece, or the single merged model).
+    pub scenes: Vec<SceneAnim>,
     pub current: PlayerClip,
-    /// Bone whose horizontal translation is pinned (root motion), if found.
-    pub root_bone: Option<Entity>,
-    pub rest: Vec3,
+    /// `origin` bone of every scene with its rest translation (root motion is pinned there).
+    pub roots: Vec<(Entity, Vec3)>,
+    /// Face clip currently playing on the face scene, if any.
+    pub face_current: Option<usize>,
 }
 
 fn slot(c: PlayerClip) -> usize {
@@ -337,6 +361,7 @@ fn spawn_scene(
             // The glTF origin is at the feet; the avatar root is AVATAR_ROOT_ABOVE_GROUND higher.
             p.spawn((
                 WorldAssetRoot(scene),
+                PlayerSceneRef { gltf: src.gltf.clone(), slot: "merged".into() },
                 Transform::from_xyz(0.0, -AVATAR_ROOT_ABOVE_GROUND, 0.0),
                 Visibility::default(),
             ));
@@ -344,60 +369,107 @@ fn spawn_scene(
     }
 }
 
+/// Build the animation graph of ONE player scene: the body clips it carries plus its face clips.
+/// Returns the player entity, the per-clip node tables and the graph handle.
+fn build_scene_graph(
+    gltf: &Gltf,
+    graphs: &mut Assets<AnimationGraph>,
+) -> Option<(AnimationGraphHandle, [Option<AnimationNodeIndex>; CLIP_SLOTS], [Option<AnimationNodeIndex>; super::face_expr::FACE_CLIP_SLOTS])> {
+    let clip = |c: PlayerClip| gltf.named_animations.get(c.gltf_name()).cloned();
+    let idle = clip(PlayerClip::Idle)?;
+    let (mut graph, idle_node) = AnimationGraph::from_clip(idle);
+    let mut nodes = [None; CLIP_SLOTS];
+    nodes[slot(PlayerClip::Idle)] = Some(idle_node);
+    for c in ALL_CLIPS.into_iter().filter(|c| *c != PlayerClip::Idle) {
+        nodes[slot(c)] = clip(c).map(|h| graph.add_clip(h, 1.0, graph.root));
+    }
+    let mut face = [None; super::face_expr::FACE_CLIP_SLOTS];
+    for (i, name) in super::face_expr::FACE_CLIP_NAMES.iter().enumerate() {
+        face[i] = gltf.named_animations.get(*name).map(|h| graph.add_clip(h.clone(), 1.0, graph.root));
+    }
+    Some((AnimationGraphHandle(graphs.add(graph)), nodes, face))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn wire_player(
     mut commands: Commands,
     gltfs: Res<Assets<Gltf>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
-    q: Query<(Entity, &PlayerModelSource), (With<PlayerSceneSpawned>, Without<PlayerAnimState>)>,
+    q: Query<Entity, (With<PlayerSceneSpawned>, Without<PlayerAnimState>)>,
     children: Query<&Children>,
+    refs: Query<&PlayerSceneRef>,
     mut players: Query<&mut AnimationPlayer>,
     names: Query<(&Name, &Transform)>,
     mut toast: Option<ResMut<super::save_wire::SaveToast>>,
 ) {
-    for (e, src) in &q {
-        let Some(gltf) = gltfs.get(&src.gltf) else { continue };
-        let missing = missing_skill_clips(|n| gltf.named_animations.contains_key(n));
-        if !missing.is_empty() {
-            let msg = format!(
-                "Player model export is outdated (no {} clip): dodge and crouch cannot animate. Run ./install.sh to refresh it.",
-                missing.join("/")
-            );
-            eprintln!("warning: {msg}");
-            if let Some(t) = toast.as_deref_mut() {
-                t.show(msg);
+    for e in &q {
+        // Every spawned scene (one per worn piece, or the merged model) must be ready: its glTF
+        // loaded and its scene instance produced the AnimationPlayer.
+        let scene_roots: Vec<(Entity, Handle<Gltf>, String)> = children
+            .iter_descendants(e)
+            .filter_map(|d| refs.get(d).ok().map(|r| (d, r.gltf.clone(), r.slot.clone())))
+            .collect();
+        if scene_roots.is_empty() {
+            continue;
+        }
+        let mut scenes: Vec<SceneAnim> = Vec::new();
+        let mut roots: Vec<(Entity, Vec3)> = Vec::new();
+        let mut ready = true;
+        for (root, gltf_h, _slot_tag) in scene_roots {
+            let Some(gltf) = gltfs.get(&gltf_h) else {
+                ready = false;
+                break;
+            };
+            let Some(player_e) = children.iter_descendants(root).find(|d| players.get(*d).is_ok()) else {
+                ready = false;
+                break;
+            };
+            let Some((graph_h, nodes, face)) = build_scene_graph(gltf, &mut graphs) else {
+                ready = false;
+                break;
+            };
+            let mut transitions = AnimationTransitions::new();
+            if let Ok(mut player) = players.get_mut(player_e) {
+                if let Some(idle) = nodes[slot(PlayerClip::Idle)] {
+                    transitions.play(&mut player, idle, Duration::ZERO).repeat();
+                }
+            }
+            commands.entity(player_e).insert((graph_h, transitions));
+            if let Some(bone) = children
+                .iter_descendants(root)
+                .find(|d| names.get(*d).is_ok_and(|(n, _)| n.as_str() == ROOT_MOTION_BONE))
+            {
+                let rest = names.get(bone).map_or(Vec3::ZERO, |(_, t)| t.translation);
+                roots.push((bone, rest));
+            }
+            scenes.push(SceneAnim { player: player_e, nodes, face });
+        }
+        if !ready || scenes.is_empty() {
+            continue;
+        }
+        // Outdated export warning (the first scene's glTF carries the clip set).
+        if scenes.first().is_some() {
+            if let Some(r) = refs.iter().next() {
+                if let Some(gltf) = gltfs.get(&r.gltf) {
+                    let missing = missing_skill_clips(|n| gltf.named_animations.contains_key(n));
+                    if !missing.is_empty() {
+                        let msg = format!(
+                            "Player model export is outdated (no {} clip): dodge and crouch cannot animate. Run ./install.sh to refresh it.",
+                            missing.join("/")
+                        );
+                        eprintln!("warning: {msg}");
+                        if let Some(t) = toast.as_deref_mut() {
+                            t.show(msg);
+                        }
+                    }
+                }
             }
         }
-        // The scene instance must have produced the AnimationPlayer first.
-        let Some(player_e) = children.iter_descendants(e).find(|d| players.get(*d).is_ok()) else {
-            continue;
-        };
-        let clip = |c: PlayerClip| gltf.named_animations.get(c.gltf_name()).cloned();
-        let Some(idle) = clip(PlayerClip::Idle) else { continue };
-        let (mut graph, idle_node) = AnimationGraph::from_clip(idle);
-        let mut nodes = [None; CLIP_SLOTS];
-        nodes[slot(PlayerClip::Idle)] = Some(idle_node);
-        for c in ALL_CLIPS.into_iter().filter(|c| *c != PlayerClip::Idle) {
-            nodes[slot(c)] = clip(c).map(|h| graph.add_clip(h, 1.0, graph.root));
-        }
-        let graph_h = graphs.add(graph);
-
-        let mut transitions = AnimationTransitions::new();
-        if let Ok(mut player) = players.get_mut(player_e) {
-            transitions.play(&mut player, idle_node, Duration::ZERO).repeat();
-        }
-        commands.entity(player_e).insert((AnimationGraphHandle(graph_h), transitions));
-
-        let root_bone = children
-            .iter_descendants(e)
-            .find(|d| names.get(*d).is_ok_and(|(n, _)| n.as_str() == ROOT_MOTION_BONE));
-        let rest = root_bone.and_then(|b| names.get(b).ok()).map_or(Vec3::ZERO, |(_, t)| t.translation);
         commands.entity(e).insert(PlayerAnimState {
-            player: player_e,
-            nodes,
+            scenes,
             current: PlayerClip::Idle,
-            root_bone,
-            rest,
+            roots,
+            face_current: None,
         });
     }
 }
@@ -436,15 +508,23 @@ fn switch_clips(
         let swimming = swim.is_some_and(|s| s.state == SwimState::Swimming);
         let mut want = select_clip_motion(st.current, motion.speed, swimming, air, skills);
         // A clip missing from the file (an older cached export) falls back along `fallback_clip`.
-        while st.nodes[slot(want)].is_none() && want != PlayerClip::Idle {
+        while want != PlayerClip::Idle
+            && !st.scenes.iter().any(|s| s.nodes[slot(want)].is_some())
+        {
             want = fallback_clip(want);
         }
         if want == st.current {
             continue;
         }
-        let Some(node) = st.nodes[slot(want)] else { continue };
-        if let Ok((mut player, mut tr)) = players.get_mut(st.player) {
-            tr.play(&mut player, node, FADE).repeat();
+        let mut played = false;
+        for scene in &st.scenes {
+            let Some(node) = scene.nodes[slot(want)] else { continue };
+            if let Ok((mut player, mut tr)) = players.get_mut(scene.player) {
+                tr.play(&mut player, node, FADE).repeat();
+                played = true;
+            }
+        }
+        if played {
             st.current = want;
         }
     }
@@ -453,15 +533,21 @@ fn switch_clips(
 /// Runs after the animation system wrote the bone transforms and before they propagate.
 fn pin_root_motion(q: Query<&PlayerAnimState>, mut bones: Query<&mut Transform>) {
     for st in &q {
-        let Some(bone) = st.root_bone else { continue };
-        if let Ok(mut t) = bones.get_mut(bone) {
-            let fixed = strip_root_motion(t.translation, st.rest);
-            if fixed != t.translation {
-                t.translation = fixed;
+        for (bone, rest) in &st.roots {
+            if let Ok(mut t) = bones.get_mut(*bone) {
+                let fixed = strip_root_motion(t.translation, *rest);
+                if fixed != t.translation {
+                    t.translation = fixed;
+                }
             }
         }
     }
 }
+
+/// Ordering anchor: everything that must run after the player's clip switching (the facial
+/// expressions, `game::face_expr`) is ordered `.after(PlayerAnimSystems)`.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PlayerAnimSystems;
 
 /// Adds the player model animation systems. Requires the same reflect-type registration
 /// as `PokemonAnimPlugin` (idempotent), so it works with or without that plugin.
@@ -470,7 +556,7 @@ pub struct PlayerAnimPlugin;
 impl Plugin for PlayerAnimPlugin {
     fn build(&self, app: &mut App) {
         app.world().resource::<AppTypeRegistry>().write().register_derived_types();
-        app.add_systems(Update, (spawn_scene, wire_player, track_motion, switch_clips).chain());
+        app.add_systems(Update, (spawn_scene, wire_player, track_motion, switch_clips).chain().in_set(PlayerAnimSystems));
         app.add_systems(
             PostUpdate,
             pin_root_motion
