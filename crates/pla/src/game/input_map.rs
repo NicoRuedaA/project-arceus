@@ -18,6 +18,8 @@
 //! | Aim toggle | Z / Tab | ZL |
 //! | Dodge (roll) | H | Y (north) |
 //! | Crouch (toggle) | Left Ctrl | R3, right stick click |
+//! | Ride: mount / dismount (Brief 38) | V | Minus (Select; port choice, the original's call-ride binding is not decoded) |
+//! | Ride: cycle mount (Brief 38) | G | not mapped |
 //! | Jump / grab climbable | K | X (west; the original jumps only while riding; port choice) |
 //! | Throw | not mapped | ZR |
 //! | Confirm | Enter / NumpadEnter / Space | A (south) |
@@ -62,6 +64,11 @@ pub enum Action {
     Jump,
     /// Crouch toggle (Brief 22). The original's crouch binding is not known; port choice.
     Crouch,
+    /// Mount / dismount the selected ride Pokémon (Brief 38). The original calls the ride
+    /// on the west/North button while on foot; the port binds `V` (gamepad `Select`).
+    Ride,
+    /// Cycle the selected ride Pokémon (Brief 38); keyboard-only dev key `G`.
+    RideCycle,
     Aim,
     Throw,
     Prev,
@@ -235,6 +242,13 @@ impl RawInput {
         if keys.just_pressed(KeyCode::KeyK) {
             key_pressed.push(Action::Jump);
         }
+        // V / G (Brief 38): free keys; the original call-ride binding is not decoded.
+        if keys.just_pressed(KeyCode::KeyV) {
+            key_pressed.push(Action::Ride);
+        }
+        if keys.just_pressed(KeyCode::KeyG) {
+            key_pressed.push(Action::RideCycle);
+        }
 
         Self {
             key_move,
@@ -253,10 +267,11 @@ impl RawInput {
 
         // The same physical button may map to a field action and a battle action
         // (e.g. Y: dodge in the world, Fight in battle); consumers are state gated.
-        const BUTTONS: [(GamepadButton, Action); 17] = [
+        const BUTTONS: [(GamepadButton, Action); 18] = [
             (GamepadButton::South, Action::Confirm),
             (GamepadButton::East, Action::Cancel),
             (GamepadButton::Start, Action::Menu),
+            (GamepadButton::Select, Action::Ride),
             (GamepadButton::DPadUp, Action::Prev),
             (GamepadButton::DPadLeft, Action::Prev),
             (GamepadButton::DPadDown, Action::Next),

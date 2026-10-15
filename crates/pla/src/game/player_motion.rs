@@ -30,6 +30,7 @@ use bevy::prelude::*;
 use super::input_map::{Action, ActionState};
 use super::interact::{climb_step, nearest_climbable, ClimbBoundary, Climbable};
 use super::player_anim::AVATAR_ROOT_ABOVE_GROUND;
+use super::ride::GlideMount;
 use super::state::{GameState, Paused};
 use super::water::{PlayerSwim, SwimState};
 use super::zone::TerrainResource;
@@ -88,7 +89,14 @@ pub fn jump_apex_height(speed: f32, gravity: f32) -> f32 {
 ///
 /// `vertical_speed` is +up. Returns `(new speed, dy)`; `dy` is what the transform gets.
 pub fn air_step(vertical_speed: f32, dt: f32) -> (f32, f32) {
-    let speed = (vertical_speed - GRAVITY * dt).max(-MAX_FALL_SPEED);
+    air_step_capped(vertical_speed, dt, MAX_FALL_SPEED)
+}
+
+/// [`air_step`] with an explicit fall-speed cap: a glide mount ([`GlideMount`], Brief 38)
+/// falls no faster than its cap while the cap holds under gravity.
+pub fn air_step_capped(vertical_speed: f32, dt: f32, fall_cap: f32) -> (f32, f32) {
+    let cap = fall_cap.max(0.1);
+    let speed = (vertical_speed - GRAVITY * dt).max(-cap);
     // Trapezoid (average of the old and new speed): exact for constant gravity, so the
     // simulated apex matches `v^2 / 2g` at any frame rate.
     (speed, 0.5 * (vertical_speed + speed) * dt)
@@ -256,19 +264,33 @@ pub fn ensure_motion_state(
     }
 }
 
+/// Frame inputs of [`apply_vertical_motion`]: the avatar transform and motion state, its
+/// swim state (`game::water`) and the glide marker of a flyer mount (`game::ride`).
+type VerticalInputs<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static mut Transform,
+        &'static mut PlayerMotionState,
+        Option<&'static PlayerSwim>,
+        Option<&'static GlideMount>,
+    ),
+    With<PlayerAvatar>,
+>;
+
 /// Jump / fall / land / climb. Runs after the viewer's horizontal locomotion, before the
 /// camera and HUD systems read the final transform of the frame.
 pub fn apply_vertical_motion(
     time: Res<Time>,
     input: Res<ActionState>,
-    mut q: Query<(&mut Transform, &mut PlayerMotionState, Option<&PlayerSwim>), With<PlayerAvatar>>,
+    mut q: VerticalInputs,
     climbables: Query<&Climbable>,
     terrain: Option<Res<TerrainResource>>,
     navmesh: Option<Res<GameNavmeshResource>>,
     mut last_position: Local<Option<Vec3>>,
 ) {
     let dt = time.delta_secs();
-    let Ok((mut tf, mut state, swim)) = q.single_mut() else {
+    let Ok((mut tf, mut state, swim, glide)) = q.single_mut() else {
         return;
     };
 
@@ -340,7 +362,9 @@ pub fn apply_vertical_motion(
         }
     }
     if state.mode == MotionMode::Airborne {
-        let (speed, dy) = air_step(state.vertical_speed, dt);
+        // A glide mount (Braviary, Brief 38) caps the fall speed with its own value.
+        let cap = glide.map_or(MAX_FALL_SPEED, |g| g.fall_cap);
+        let (speed, dy) = air_step_capped(state.vertical_speed, dt, cap);
         state.vertical_speed = speed;
         state.fall_distance += (-dy).max(0.0);
         tf.translation.y += dy;
@@ -389,6 +413,23 @@ pub fn apply_vertical_motion(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_glide_cap_slows_the_fall() {
+        // Free fall reaches the terminal speed; the same fall under a 2 m/s glide cap does not.
+        let dt = 1.0 / 60.0;
+        let mut v = 0.0_f32;
+        let mut v_glide = 0.0_f32;
+        for _ in 0..600 {
+            (v, _) = air_step(v, dt);
+            (v_glide, _) = air_step_capped(v_glide, dt, 2.0);
+        }
+        assert!(v <= -MAX_FALL_SPEED + 1e-3);
+        assert!((v_glide + 2.0).abs() < 1e-3, "{v_glide}");
+        // Rising is not capped (a glide does not slow the jump's ascent).
+        let (up, _) = air_step_capped(JUMP_SPEED, dt, 2.0);
+        assert!(up > 0.0);
+    }
 
     #[test]
     fn jump_apex_matches_the_formula() {
