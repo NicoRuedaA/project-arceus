@@ -4,7 +4,7 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 9
+//! PLASAVE 10
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
@@ -22,7 +22,11 @@
 //! v1-v6 file an empty picked set. v8 adds `defeated_trainers`, the ids of the beaten trainers
 //! (`data/trainer_index.tsv` ids such as `giratina01`, or `noble:<setting>`); a v1-v7 file loads with
 //! an empty set. v9 adds `research`, the per-species Pokédex research counters
-//! (`species:kind:target:count`, Brief 43); a v1-v8 file loads with an empty map.
+//! (`species:kind:target:count`, Brief 43); a v1-v8 file loads with an empty map. v10 adds the
+//! dress-up look as its own `look_` section (`look_variant`, `look_hair`, `look_hair_color`,
+//! `look_eyebrow_color`, `look_eye_color`, `look_skin_tone`, `look_outfit`, `look_hat`,
+//! `look_glasses`, `look_shoes`, `look_bag`; Brief 36); a v1-v9 file loads the default look of
+//! the p1 variant, which is exactly the model every earlier build rendered.
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -40,7 +44,7 @@ use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 9;
+pub const CURRENT_VERSION: u32 = 10;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
@@ -252,6 +256,9 @@ pub struct PlayerSave {
     /// exactly like the decoded task catalog (`game::dex::DexTask::counter_target`). Zero entries
     /// are dropped, like `bag`. A v1-v8 file loads with the map empty.
     pub research: BTreeMap<(u16, u8, u16), u32>,
+    /// The protagonist's dress-up look (format v10, Brief 36). A v1-v9 file loads the default
+    /// look; unknown pieces are sanitized to the defaults by the loader, not refused.
+    pub look: super::dressup::PlayerLook,
 }
 
 impl Default for PlayerSave {
@@ -275,6 +282,7 @@ impl Default for PlayerSave {
             picked: BTreeSet::new(),
             defeated_trainers: BTreeSet::new(),
             research: BTreeMap::new(),
+            look: super::dressup::PlayerLook::default(),
         }
     }
 }
@@ -305,6 +313,9 @@ impl PlayerSave {
             if species == 0 || species > 905 || kind > 27 {
                 return bad(format!("research counter ({species},{kind},{target}) is outside the decoded task domain"));
             }
+        }
+        if !valid_look_text(&self.look) {
+            return bad("the look section holds an id with whitespace, `=` or a control character".into());
         }
         if u32::from(self.time_minutes) >= MINUTES_PER_DAY {
             return bad(format!("time_minutes {} is not a minute of day (< {MINUTES_PER_DAY})", self.time_minutes));
@@ -383,6 +394,11 @@ impl PlayerSave {
                 .collect::<Vec<_>>()
                 .join(","),
         );
+        for line in self.look.save_lines() {
+            if let Some((k, v)) = line.split_once('=') {
+                kv(k, v.to_owned());
+            }
+        }
         for m in &self.party {
             kv("member", member_line(m));
         }
@@ -441,6 +457,7 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
             6 => migrate_v6_to_v7(lines),
             7 => migrate_v7_to_v8(lines),
             8 => migrate_v8_to_v9(lines),
+            9 => migrate_v9_to_v10(lines),
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -533,11 +550,43 @@ fn migrate_v8_to_v9(lines: Vec<String>) -> Vec<String> {
     lines
 }
 
+/// v9 -> v10 is this task (Brief 36): v10 adds the `look_` section (the dress-up look). Every
+/// key defaults when missing, so no line has to change; this arm documents the step and is the
+/// only version bump Brief 36 owns.
+fn migrate_v9_to_v10(lines: Vec<String>) -> Vec<String> {
+    lines
+}
+
+/// The look ids must be plain text (no whitespace, `=`, `,` or `|`); the catalogue membership is
+/// checked by the loader's `sanitize`, so a save from another catalogue still loads.
+fn valid_look_text(look: &super::dressup::PlayerLook) -> bool {
+    let stems = [
+        look.hair.as_str(),
+        look.hat.as_str(),
+        look.glasses.as_str(),
+        look.shoes.as_str(),
+        look.bag.as_str(),
+        look.hair_color.as_str(),
+        look.eyebrow_color.as_str(),
+        look.eye_color.as_str(),
+    ];
+    let outfit_ok = match &look.outfit {
+        super::dressup::Outfit::Set(stem) => valid_look_id(stem),
+        super::dressup::Outfit::TopBottom { top, bottom } => valid_look_id(top) && valid_look_id(bottom),
+    };
+    outfit_ok && stems.iter().all(|s| valid_look_id(s))
+}
+
+fn valid_look_id(id: &str) -> bool {
+    id.chars().all(|c| !c.is_whitespace() && c != '=' && c != ',' && c != '|' && !c.is_control())
+}
+
 // ---------------------------------------------------------------- parsing
 
 fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
     let mut s = PlayerSave::default();
     let mut seen_keys: BTreeSet<&str> = BTreeSet::new();
+    let mut look_keys: BTreeMap<String, String> = BTreeMap::new();
     for (i, line) in lines.iter().enumerate() {
         let ln = i + 3;
         let err = |msg: &str| SaveError::Parse { line: ln, msg: msg.to_owned() };
@@ -595,9 +644,13 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
             }
             "member" => s.party.push(parse_member(v).map_err(|m| err(&m))?),
             "box" => s.box_pokemon.push(parse_member(v).map_err(|m| err(&m))?),
+            k if k.starts_with("look_") => {
+                look_keys.insert(k.to_owned(), v.to_owned());
+            }
             _ => return Err(err("unknown key")),
         }
     }
+    s.look = super::dressup::PlayerLook::from_save(&look_keys);
     for required in ["zone", "pos", "yaw", "time_minutes", "money", "rng_seed"] {
         if !seen_keys.contains(required) {
             return Err(SaveError::Invalid(format!("missing field `{required}`")));
@@ -1212,7 +1265,7 @@ mod tests {
     fn defeated_trainers_round_trip_and_v7_migration() {
         let s = sample();
         let text = s.encode().unwrap();
-        assert!(text.starts_with("PLASAVE 9\n"));
+        assert!(text.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
         assert!(text.contains("\ndefeated_trainers=giratina01,noble:nsi_ex_01\n"), "{text}");
         assert_eq!(PlayerSave::decode(&text).unwrap().defeated_trainers, s.defeated_trainers);
         let body = "zone=ha_area01\npos=1,2,3\nyaw=0\ntime_minutes=900\nmoney=10\nrng_seed=2\n\
@@ -1237,7 +1290,7 @@ mod tests {
     fn research_counters_round_trip_and_v8_migration() {
         let s = sample();
         let text = s.encode().unwrap();
-        assert!(text.starts_with("PLASAVE 9\n"));
+        assert!(text.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
         assert!(
             text.contains("\nresearch=25:0:0:10,25:1:84:12,722:1:33:3\n"),
             "{text}"
@@ -1260,6 +1313,49 @@ mod tests {
         let mut s = sample();
         s.research.insert((25, 0, 0), 0);
         assert!(s.encode().is_err(), "a zero count cannot be written");
+    }
+
+    /// v10: the `look_` section (Brief 36) round-trips; a literal v9 body loads the default look
+    /// and re-saves as v10; ids with whitespace are refused.
+    #[test]
+    fn look_section_round_trips_and_v9_migration() {
+        use super::super::dressup::{LookVariant, Outfit, PlayerLook};
+        let mut s = sample();
+        let mut look = PlayerLook::default_for(LookVariant::P2);
+        look.hair_color = "blond".into();
+        look.eyebrow_color = "white".into();
+        look.eye_color = "green".into();
+        look.skin_tone = 2;
+        look.hat = "p2_hdw0005_00_headband".into();
+        look.glasses = "p2_eyew0003_00_sunglass".into();
+        look.outfit = Outfit::TopBottom {
+            top: "p2_tps0003_00_kimono".into(),
+            bottom: "p2_btm0003_00_long".into(),
+        };
+        s.look = look.clone();
+        let text = s.encode().unwrap();
+        assert!(text.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
+        assert!(text.contains("\nlook_hair_color=blond\n"), "{text}");
+        assert!(text.contains("\nlook_outfit=top:p2_tps0003_00_kimono|bottom:p2_btm0003_00_long\n"), "{text}");
+        assert_eq!(PlayerSave::decode(&text).unwrap().look, look);
+
+        // A v9 file has no look section: the default look of p1 is used (exactly the model every
+        // earlier build rendered) and the re-save carries the section.
+        let body = "zone=ha_area01\npos=1,2,3\nyaw=0\ntime_minutes=900\nmoney=10\nrng_seed=2\n\
+                    research=25:0:0:10\nEND\n";
+        let v9 = format!("PLASAVE 9\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let m = PlayerSave::decode(&v9).unwrap();
+        assert_eq!(m.version, CURRENT_VERSION);
+        assert_eq!(m.look, PlayerLook::default_for(LookVariant::P1));
+        assert_eq!(m.research.len(), 1, "v9 data is kept");
+        assert!(m.encode().unwrap().contains("\nlook_variant=p1\n"));
+
+        let mut bad = sample();
+        bad.look.hair = "p1 hrs".into();
+        assert!(bad.encode().is_err(), "an id with whitespace is refused");
+        let bad_body = "zone=z\npos=0,0,0\nyaw=0\ntime_minutes=0\nmoney=0\nrng_seed=1\nlook_hair=a,b\nEND\n";
+        let t = format!("PLASAVE 10\nCHECKSUM {:016x}\n{bad_body}", fnv1a64(bad_body.as_bytes()));
+        assert!(PlayerSave::decode(&t).is_err(), "an id with a comma is refused");
     }
 
     /// `time_minutes` round-trips and is validated to be a real minute of day.

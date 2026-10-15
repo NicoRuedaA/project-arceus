@@ -237,6 +237,8 @@ fn main() -> ExitCode {
     let mut demo_output_dir = None;
     let mut controls_demo_dir: Option<PathBuf> = None;
     let mut player_variant = String::from("p1");
+    let mut look_spec: Option<String> = None;
+    let mut face_spec: Option<String> = None;
     let mut debug_zone_links = false;
     let mut main_menu = false;
 
@@ -323,6 +325,15 @@ fn main() -> ExitCode {
                 if let Some(v) = args.next() {
                     player_variant = v.to_lowercase();
                 }
+            }
+            // `--look variant=p2,hair=p2_hrs0003_00_ponytail,hair_color=blond,skin=2,...`
+            // (Brief 36; debug/capture aid, the customization screen is the normal way).
+            "--look" => {
+                look_spec = args.next();
+            }
+            // `--face serious` forces a facial expression (debug/capture aid, Brief 22).
+            "--face" => {
+                face_spec = args.next();
             }
             "--debug-zone-links" => {
                 debug_zone_links = true;
@@ -547,6 +558,56 @@ fn main() -> ExitCode {
         let parts = cache_root.join("player").join("parts");
         parts.is_dir().then(|| pla::game::player_anim::asset_path(&parts, &work_abs))
     };
+    // The look: the save's when loaded, overridden key by key with `--look`.
+    let mut look = wire_start.look.clone();
+    if let Some(spec) = &look_spec {
+        let catalog = pla::game::dressup::LookCatalog::builtin();
+        for part in spec.split(',').filter(|p| !p.is_empty()) {
+            let Some((key, value)) = part.split_once('=') else { continue };
+            match key {
+                "variant" => {
+                    if let Some(v) = pla::game::dressup::LookVariant::parse(value) {
+                        let mut next = pla::game::dressup::PlayerLook::default_for(v);
+                        next.hair_color = look.hair_color.clone();
+                        next.eyebrow_color = look.eyebrow_color.clone();
+                        next.eye_color = look.eye_color.clone();
+                        next.skin_tone = look.skin_tone;
+                        look = next;
+                    }
+                }
+                "hair" => look.hair = value.to_owned(),
+                "hair_color" => look.hair_color = value.to_owned(),
+                "eyebrow_color" => look.eyebrow_color = value.to_owned(),
+                "eye_color" => look.eye_color = value.to_owned(),
+                "skin" | "skin_tone" => look.skin_tone = value.parse().unwrap_or(look.skin_tone),
+                "outfit" | "dress" => look.outfit = pla::game::dressup::Outfit::Set(value.to_owned()),
+                "top" => {
+                    let bottom = match &look.outfit {
+                        pla::game::dressup::Outfit::TopBottom { bottom, .. } => bottom.clone(),
+                        _ => catalog.default_stem(look.variant.tag(), "btm").unwrap_or_default(),
+                    };
+                    look.outfit = pla::game::dressup::Outfit::TopBottom { top: value.to_owned(), bottom };
+                }
+                "bottom" => {
+                    let top = match &look.outfit {
+                        pla::game::dressup::Outfit::TopBottom { top, .. } => top.clone(),
+                        _ => catalog.default_stem(look.variant.tag(), "tps").unwrap_or_default(),
+                    };
+                    look.outfit = pla::game::dressup::Outfit::TopBottom { top, bottom: value.to_owned() };
+                }
+                "hat" => look.hat = if value == "none" { String::new() } else { value.to_owned() },
+                "glasses" => look.glasses = if value == "none" { String::new() } else { value.to_owned() },
+                "shoes" => look.shoes = value.to_owned(),
+                "bag" => look.bag = value.to_owned(),
+                _ => eprintln!("--look: unknown key {key}"),
+            }
+        }
+        let notes = look.sanitize(&catalog);
+        for n in &notes {
+            eprintln!("--look: {n}");
+        }
+        println!("Player look: {}", look.save_lines().join(" "));
+    }
     configure_viewer(
         &mut app,
         ViewerSetup {
@@ -554,12 +615,13 @@ fn main() -> ExitCode {
             bin_root: bin_root.clone(),
             cache_root,
             main_menu,
+            forced_face: face_spec.as_deref().and_then(pla::game::face_expr::FaceExpression::parse),
             player_model: PlayerModelConfig {
                 asset_rel: player_model_file
                     .map(|f| pla::game::player_anim::asset_path(&f, &work_abs)),
                 parts_base,
                 work_root: work_abs.clone(),
-                look: wire_start.look.clone(),
+                look,
             },
             initial_mode,
             user_settings: UserSettings::load_from_dir(&settings_dir),
@@ -790,6 +852,8 @@ struct ViewerSetup {
     cache_root: PathBuf,
     /// `--menu`: start in the main menu instead of the world.
     main_menu: bool,
+    /// `--face <name>`: force a facial expression (debug/capture aid, Brief 22).
+    forced_face: Option<pla::game::face_expr::FaceExpression>,
     player_model: PlayerModelConfig,
     initial_mode: CameraMode,
     user_settings: UserSettings,
@@ -832,6 +896,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         bin_root,
         cache_root,
         main_menu,
+        forced_face,
         player_model,
         initial_mode,
         user_settings,
@@ -1035,6 +1100,10 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::dressup::DressupPlugin);
     app.add_plugins(pla::game::customize_screen::CustomizeScreenPlugin);
     app.add_plugins(pla::game::face_expr::FaceExpressionPlugin);
+    if let Some(f) = forced_face {
+        app.world_mut().resource_mut::<pla::game::face_expr::FaceExpressionState>().forced = Some(f);
+        println!("Forced face expression: {f:?}");
+    }
     app.add_plugins(art_style);
     app.add_plugins(pla::game::alpha_aura::AlphaAuraPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::normal_fix::NormalMapFixPlugin);
@@ -2436,9 +2505,10 @@ fn customize_camera_override(
         return;
     }
     let Ok(xf) = avatar.single() else { return };
-    // Model front is +Z; put the camera on that side, looking back at the face.
+    // The orbit camera sits at lookAt + (sin(yaw), *, cos(yaw)) * dist: yaw 0 is the player's
+    // front view (checked in a windowless capture), so the override keeps the avatar's yaw.
     let facing = xf.rotation * Vec3::Z;
-    let yaw = facing.x.atan2(facing.z) + std::f32::consts::PI;
+    let yaw = facing.x.atan2(facing.z);
     camera_ctrl.yaw = yaw;
     camera_ctrl.pitch = 0.02;
     camera_ctrl.distance = 2.2;
@@ -4393,6 +4463,7 @@ mod startup_schedule_guard {
             bin_root: bin_root.clone(),
             cache_root,
             main_menu: has("--menu"),
+            forced_face: None,
             player_model: PlayerModelConfig {
                 asset_rel: None,
                 parts_base: None,

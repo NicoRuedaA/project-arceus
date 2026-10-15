@@ -102,6 +102,29 @@ pub const HOLD_TICK_HZ: f32 = 30.0;
 pub struct FaceExpressionState {
     pub current: FaceExpression,
     pub hold: f32,
+    /// Debug/test override (`--face serious`): while set, this expression wins over the live
+    /// game state. `None` in normal play.
+    pub forced: Option<FaceExpression>,
+}
+
+impl FaceExpression {
+    /// Parse the decoded expression names (`player_face_config.bin`, `data/character_face.tsv`).
+    pub fn parse(name: &str) -> Option<Self> {
+        Some(match name {
+            "normal" => Self::Normal,
+            "damage" => Self::Damage,
+            "serious" => Self::Serious,
+            "rejoice" => Self::Rejoice,
+            "trouble" => Self::Trouble,
+            "smile" => Self::Smile,
+            "sad" => Self::Sad,
+            "relief" => Self::Relief,
+            "anger" => Self::Anger,
+            "unique1" => Self::Unique1,
+            "unique2" => Self::Unique2,
+            _ => return None,
+        })
+    }
 }
 
 /// The expression the game state asks for right now, before the hold timer is applied.
@@ -151,8 +174,11 @@ fn drive_face_expression(
     };
     *last_result = result;
     let dt = time.delta_secs();
-    let (want, hold) = select_expression(&state, hidden, fresh, dt);
-    if want == state.current && hold == state.hold {
+    let (want, hold) = match state.forced {
+        Some(f) => (f, 0.0),
+        None => select_expression(&state, hidden, fresh, dt),
+    };
+    if want == state.current && hold == state.hold && state.forced.is_none() {
         return;
     }
     state.current = want;

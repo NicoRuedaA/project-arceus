@@ -722,8 +722,13 @@ def run_pokemon(ctx: Context, step: Step) -> None:
 
 
 def player_cmd(ctx: Context, stage: Path) -> list[str]:
+    # Merged model (locomotion fallback) + the per-piece dress-up catalogue (Brief 36): one glTF
+    # per catalogue stem under `player/parts`, plus data/player_parts_index.tsv.
     return [str(ctx.example("player_export")), str(ctx.layout.bin_root / "archive" / "chara" / "data"),
-            str(stage / "player")]
+            str(stage / "player"),
+            "--catalog", str(REPO / "data" / "player_parts_catalog.tsv"),
+            "--parts-out", str(stage / "player" / "parts"),
+            "--parts-index", str(REPO / "data" / "player_parts_index.tsv")]
 
 
 # Clips the viewer needs from the player glTF (game::player_anim). Exports made before Brief 22
@@ -740,6 +745,30 @@ def player_outputs_ok(ctx: Context) -> bool:
         names = {a.get("name") for a in gltf.get("animations", [])}
         if not all(c in names for c in PLAYER_REQUIRED_CLIPS):
             return False
+    # The dress-up pieces (Brief 36): one glTF per catalogue stem, plus the face clips on the
+    # face piece (the expressions are drawn from them).
+    try:
+        rows = [
+            l.split("\t")
+            for l in (REPO / "data" / "player_parts_index.tsv").read_text(encoding="utf-8").splitlines()
+            if not l.startswith("#") and l.strip()
+        ]
+    except OSError:
+        return False
+    ok_rows = [r for r in rows if len(r) > 3 and r[3] == "ok"]
+    if len(ok_rows) < 134:
+        return False
+    for r in ok_rows:
+        if not (ctx.layout.cache / r[5]).is_file():
+            return False
+    face = ctx.layout.cache / "player" / "parts" / "p1" / "p1_face0001_00_default" / "piece.gltf"
+    try:
+        gltf = json.loads(face.read_text())
+    except (OSError, ValueError):
+        return False
+    names = {a.get("name") for a in gltf.get("animations", [])}
+    if not {"face_01", "face_11", "eye_close"} <= names:
+        return False
     return True
 
 
