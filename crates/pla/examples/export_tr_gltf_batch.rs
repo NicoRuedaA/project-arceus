@@ -116,6 +116,7 @@ fn export_one(
                         .to_owned(),
                     base_color_uri,
                     normal_uri,
+                    base_color_factor: None,
                 });
                 material_index = Some(0);
             }

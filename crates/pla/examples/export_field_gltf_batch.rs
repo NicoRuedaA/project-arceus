@@ -346,6 +346,7 @@ fn export_model(
                 name: format!("{block_name}_mat"),
                 base_color_uri: Some(uri),
                 normal_uri: None, // Flat baseColor shading; normal map skipped as unproven shading
+                base_color_factor: None,
             });
             Some(export.materials.len() - 1)
         };

@@ -12,10 +12,21 @@
 //! Usage: player_export <archive/chara/data dir> <out dir> [--variant p1|p2] [--parts stem,stem,..]
 //!        [--name <output stem>] [--index <tsv>]
 //!        [--hair-color R,G,B|name] [--eye-color R,G,B|name] [--skin-tone N] [--no-hair-eye-color]
+//!
+//! Dress-up catalogue (Brief 36): with `--catalog <tsv> --parts-out <dir> --parts-index <tsv>`
+//! the exporter writes ONE glTF per catalogue piece (`data/player_parts_catalog.tsv`, read from
+//! `chara/table/dressup_table_p*.bin`) into `<parts-out>/<variant>/<stem>/piece.gltf`, each over
+//! the shared biped base + its own extension skeleton, with every body clip plus the REAL face
+//! clips of `pc/dressup_motion.gfpak` (`00011..00021_faceNN_loop`, `00201_eye_close01`) that the
+//! player face rig can resolve. Hair/eyebrow/eye colour variants are baked as PNGs and listed in
+//! `<piece>/colors.tsv`; skin tones are left to the glTF `baseColorFactor`.
 
 use pla::assets::{
     gfpak::GfPak,
-    player_model::{build_player_skeleton, read_skin_color_table, write_player_gltf, PlayerExportOptions, PlayerSkeleton},
+    player_model::{
+        build_player_skeleton, read_skin_color_table, write_player_gltf, PlayerExportOptions, PlayerSkeleton,
+        DEFAULT_EYE_RGB, EYE_COLOR_PALETTE, HAIR_COLOR_PALETTE,
+    },
     pokemon_model::{assemble_pack_with, LayerBlendFormula, PackLayout, PokemonModel},
     tr,
 };
@@ -69,47 +80,25 @@ fn category_dir(stem: &str) -> Result<&'static str, String> {
     })
 }
 
-/// The 15 hair colour names of `appli/table/hair/hair_color_table.bin` (ids hair_color_01..15,
-/// names only: the RGB values are NOT in the game data found). RGB below is ASSUMED, picked to
-/// match the names; used by `--hair-color <name>`.
-const HAIR_PALETTE: &[(&str, [u8; 3])] = &[
-    ("darkbrown", [72, 48, 34]),
-    ("darknavy", [28, 34, 62]),
-    ("platinumbrown", [150, 112, 82]),
-    ("black", [30, 28, 30]),
-    ("white", [235, 232, 226]),
-    ("red", [170, 48, 40]),
-    ("navy", [48, 70, 130]),
-    ("turquoise", [60, 170, 170]),
-    ("violet", [130, 80, 160]),
-    ("orange", [220, 130, 50]),
-    ("peach", [240, 170, 150]),
-    ("milk", [220, 190, 160]),
-    ("skyblue", [120, 180, 230]),
-    ("gray", [150, 150, 155]),
-    ("blond", [225, 190, 100]),
-];
-
-/// Eye colour names seen in the dressup table face variants (`p?_face0001_00_default_<name>`),
-/// RGB ASSUMED. The first listed variant after the plain one is `white`; the plain default has no colour name.
-/// Default iris colour: blue-grey like the real-game reference screenshot (ASSUMED RGB; the data has names only).
-const DEFAULT_EYE_RGB: [u8; 3] = [88, 118, 150];
-
-const EYE_PALETTE: &[(&str, [u8; 3])] = &[
-    ("brown", [90, 58, 36]),
-    ("hazel", [130, 95, 50]),
-    ("black", [30, 26, 26]),
-    ("gray", [130, 135, 140]),
-    ("blue", [60, 100, 190]),
-    ("ultramarine", [40, 60, 170]),
-    ("green", [60, 150, 80]),
-    ("yellowgreen", [150, 185, 60]),
-    ("yellow", [225, 200, 60]),
-    ("red", [190, 50, 50]),
-    ("poppyred", [215, 70, 60]),
-    ("purple", [130, 70, 160]),
-    ("lavender", [175, 150, 215]),
-    ("white", [235, 235, 235]),
+/// Face clips of `pc/dressup_motion.gfpak` (VERIFIED names, from the animation controller
+/// `pc/0006.bin`-style listing of that pack): 11 expression/mouth-shape loops and the blink.
+/// `DRESSUP_MOTION_STATE` is the FNV-1a 64 state of their (unknown) directory text, recovered by
+/// inverting the hashes of six known names; a second, smaller copy of the same names exists in
+/// the pack (NPC face rig: no eyeball/upper-eyelid tracks) and is NOT used.
+const DRESSUP_MOTION_STATE: u64 = 3_548_500_725_770_503_767;
+const FACE_CLIPS: &[(&str, &str)] = &[
+    ("00011_face01_loop", "face_01"),
+    ("00012_face02_loop", "face_02"),
+    ("00013_face03_loop", "face_03"),
+    ("00014_face04_loop", "face_04"),
+    ("00015_face05_loop", "face_05"),
+    ("00016_face06_loop", "face_06"),
+    ("00017_face07_loop", "face_07"),
+    ("00018_face08_loop", "face_08"),
+    ("00019_face09_loop", "face_09"),
+    ("00020_face10_loop", "face_10"),
+    ("00021_face11_loop", "face_11"),
+    ("00201_eye_close01", "eye_close"),
 ];
 
 fn parse_color(spec: &str, palette: &[(&str, [u8; 3])]) -> Result<[u8; 3], String> {
@@ -189,7 +178,7 @@ fn export_variant(
     let mut options = options;
     // ASSUMED defaults (no RGB in the data): franchise protagonists, dark brown (p1) / light brown (p2).
     if options.hair_rgb.is_none() && !no_colors {
-        options.hair_rgb = Some(if v == "p1" { HAIR_PALETTE[0].1 } else { HAIR_PALETTE[2].1 });
+        options.hair_rgb = Some(if v == "p1" { HAIR_COLOR_PALETTE[0].1 } else { HAIR_COLOR_PALETTE[2].1 });
     }
     if options.eye_rgb.is_none() && !no_colors {
         options.eye_rgb = Some(DEFAULT_EYE_RGB);
@@ -289,6 +278,272 @@ fn export_variant(
     })
 }
 
+/// The face clips of `pc/dressup_motion.gfpak` (expression loops + blink), parsed and with the
+/// `chara_root_exp` bookkeeping track dropped like the body clips. Missing pack or entries are
+/// reported and skipped (an older dump must not fail the export).
+fn load_face_clips(chara: &PathBuf) -> Result<Vec<(String, tr::TrAnmClip)>, String> {
+    let pack_path = chara.join("pc/dressup_motion.gfpak");
+    let bytes = fs::read(&pack_path).map_err(|e| format!("{}: {e}", pack_path.display()))?;
+    let pack = GfPak::parse(&bytes)?;
+    let mut clips = Vec::new();
+    for (file, export_name) in FACE_CLIPS {
+        let full = format!("/{file}.tranm");
+        let hash = fnv_continue(DRESSUP_MOTION_STATE, full.as_bytes());
+        let Some(i) = pack.entry_path_hashes.iter().position(|h| *h == hash) else {
+            println!("face clip {file}: hash not in dressup_motion.gfpak");
+            continue;
+        };
+        let data = pack.decoded_data(&bytes, &pack.entries[i])?;
+        match tr::TrAnm::parse_tracks(&data) {
+            Ok(mut clip) => {
+                // `chara_root_exp` and `head_dummy` are helper tracks that name no bone of the
+                // player skeleton (the base has `chara_root` and `head`); dropped, not applied.
+                clip.tracks.retain(|t| t.name != "chara_root_exp" && t.name != "head_dummy");
+                println!(
+                    "face clip {file} -> {export_name}: {} frames @ {} fps, {} tracks",
+                    clip.frame_count,
+                    clip.frame_rate,
+                    clip.tracks.len()
+                );
+                clips.push(((*export_name).to_owned(), clip));
+            }
+            Err(e) => println!("face clip {file}: {e}"),
+        }
+    }
+    Ok(clips)
+}
+
+struct PieceRow {
+    variant: String,
+    slot: String,
+    stem: String,
+    gltf: String,
+    status: &'static str,
+    reason: String,
+    primitives: usize,
+    clips: usize,
+    color_variants: usize,
+    height_m: Option<f32>,
+}
+
+fn read_catalog(path: &str) -> Result<Vec<(String, String, String, usize)>, String> {
+    let text = fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+    let mut out = Vec::new();
+    for line in text.lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()) {
+        let cols: Vec<&str> = line.split('\t').collect();
+        if cols.len() < 5 || cols[0] == "variant:string*" {
+            continue;
+        }
+        let count = cols[3].parse::<usize>().unwrap_or(0);
+        out.push((cols[0].to_owned(), cols[1].to_owned(), cols[2].to_owned(), count));
+    }
+    if out.is_empty() {
+        return Err(format!("{path}: no catalogue rows"));
+    }
+    Ok(out)
+}
+
+/// One glTF per catalogue piece (Brief 36). Each piece is self-contained: the shared biped base
+/// plus its own extension skeleton, every body clip and the face clips it can resolve, its own
+/// textures (default colours baked; hair/eyebrow/eye palettes written as variants + colors.tsv).
+#[allow(clippy::too_many_arguments)]
+fn export_catalog(
+    chara: &PathBuf,
+    parts_out: &PathBuf,
+    parts_index: &str,
+    catalog_path: &str,
+    skeleton_bytes: &[u8],
+    skin_rows: &[[u8; 3]],
+    body_clips: &[(String, tr::TrAnmClip)],
+    face_clips: &[(String, tr::TrAnmClip)],
+    variants: &[String],
+) -> Result<(), String> {
+    let catalog = read_catalog(catalog_path)?;
+    let mut rows = Vec::new();
+    for v in variants {
+        for (variant, slot, stem, colour_count) in catalog.iter().filter(|(variant, _, _, _)| variant == v) {
+            let path = parts_out.join(variant).join(stem).join("piece.gltf");
+            let row = match export_piece(chara, &path, variant, slot, stem, skeleton_bytes, skin_rows, body_clips, face_clips) {
+                Ok((primitives, clips, colors, height)) => PieceRow {
+                    variant: variant.clone(),
+                    slot: slot.clone(),
+                    stem: stem.clone(),
+                    gltf: index_path(parts_out, variant, stem),
+                    status: "ok",
+                    reason: format!("catalogue rows: {colour_count}"),
+                    primitives,
+                    clips,
+                    color_variants: colors,
+                    height_m: height,
+                },
+                Err(e) => {
+                    println!("{stem}: BLOCKED {e}");
+                    PieceRow {
+                        variant: variant.clone(),
+                        slot: slot.clone(),
+                        stem: stem.clone(),
+                        gltf: index_path(parts_out, variant, stem),
+                        status: "blocked",
+                        reason: e.replace(['\t', '\n'], " ").chars().take(200).collect(),
+                        primitives: 0,
+                        clips: 0,
+                        color_variants: 0,
+                        height_m: None,
+                    }
+                }
+            };
+            println!(
+                "{} {}: {} parts={} prims={} clips={} colors={} h={:?}",
+                row.variant, row.stem, row.status, 1, row.primitives, row.clips, row.color_variants, row.height_m
+            );
+            rows.push(row);
+        }
+    }
+    let ok = rows.iter().filter(|r| r.status == "ok").count();
+    let mut tsv = String::from(
+        "# sheet: data/player_parts_index\n# version: 1\n# generator: crates/pla/examples/player_export.rs\n# target: Pokémon Legends: Arceus v262144 dress-up pieces (one glTF per catalogue stem, shared biped base)\n# note: `gltf` is relative to the cache root when the export ran inside it; `colour_variants` counts the baked hair/eyebrow/eye PNGs listed in the piece's colors.tsv.\nvariant:string*\tslot:enum*\tstem:string*\tstatus:enum\treason:string?\tgltf:string\tprimitive_count:u16\tclip_count:u8\tcolour_variants:u16\theight_m:f32\n",
+    );
+    for r in &rows {
+        tsv.push_str(&format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            r.variant,
+            r.slot,
+            r.stem,
+            r.status,
+            r.reason,
+            r.gltf,
+            r.primitives,
+            r.clips,
+            r.color_variants,
+            r.height_m.map_or_else(|| "0".to_owned(), |h| format!("{h:.3}"))
+        ));
+    }
+    fs::write(parts_index, tsv).map_err(|e| e.to_string())?;
+    println!("{parts_index}: {} pieces, {ok} ok", rows.len());
+    Ok(())
+}
+
+/// Path written into the index: relative to the cache root when the export runs inside it
+/// (`.../cache/player/parts/...`), else absolute.
+fn index_path(parts_out: &PathBuf, variant: &str, stem: &str) -> String {
+    let rel = PathBuf::from("player").join("parts").join(variant).join(stem).join("piece.gltf");
+    if parts_out.ends_with(PathBuf::from("player").join("parts")) {
+        rel.to_string_lossy().replace('\\', "/")
+    } else {
+        parts_out.join(variant).join(stem).join("piece.gltf").to_string_lossy().replace('\\', "/")
+    }
+}
+
+/// The `.trskl` extension skeleton of a pack, when it has one.
+fn read_piece_ext(chara: &PathBuf, variant: &str, cat: &str, stem: &str) -> Result<Option<(String, Vec<u8>)>, String> {
+    let pack = chara.join(format!("pc/{variant}/model/{cat}/{stem}.gfpak"));
+    if !pack.is_file() {
+        return Ok(None);
+    }
+    let bytes = fs::read(&pack).map_err(|e| e.to_string())?;
+    let gp = GfPak::parse(&bytes)?;
+    let base = format!("bin/chara/data/pc/{variant}/model/{cat}/{stem}");
+    if let Some(i) = gp.entry_index_by_path(&format!("{base}/{stem}.trskl"))? {
+        return Ok(Some((stem.to_owned(), gp.decoded_data(&bytes, &gp.entries[i])?)));
+    }
+    Ok(None)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn export_piece(
+    chara: &PathBuf,
+    gltf: &PathBuf,
+    variant: &str,
+    slot: &str,
+    stem: &str,
+    skeleton_bytes: &[u8],
+    skin_rows: &[[u8; 3]],
+    body_clips: &[(String, tr::TrAnmClip)],
+    face_clips: &[(String, tr::TrAnmClip)],
+) -> Result<(usize, usize, usize, Option<f32>), String> {
+    let cat = category_dir(stem)?;
+    let pack = chara.join(format!("pc/{variant}/model/{cat}/{stem}.gfpak"));
+    let layout = PackLayout {
+        base: format!("bin/chara/data/pc/{variant}/model/{cat}/{stem}"),
+        mdl_dir: "",
+        anm_dir: "",
+        skeleton: Some(skeleton_bytes),
+        allow_ik: true,
+    };
+    let model = assemble_pack_with(&pack, &layout).map_err(|e| format!("{stem}: {e}"))?;
+    // The piece's own extension skeleton, plus the canonical extensions of the other rig ranges
+    // its vertices may reference (the eyebrow and some hats skin to the FACE rig; a piece of one
+    // slot replaces that slot's canonical extension, ranges are per slot: face 74, hair 125,
+    // clothes 147+, see reports/data-progress/player_model.md).
+    let own = read_piece_ext(chara, variant, cat, stem)?;
+    let face_default = format!("{variant}_face0001_00_default");
+    let hair_default = if variant == "p1" { format!("{variant}_hrs0001_00_default") } else { format!("{variant}_hrs0002_00_default") };
+    let dress_default = format!("{variant}_drs0001_00_default");
+    let face_canonical = read_piece_ext(chara, variant, "face", &face_default)?;
+    let hair_canonical = read_piece_ext(chara, variant, "hair", &hair_default)?;
+    let dress_canonical = read_piece_ext(chara, variant, "dress", &dress_default)?;
+    let missing = |what: &str| format!("no {what} extension skeleton");
+    let mut exts: Vec<(String, Vec<u8>)> = Vec::new();
+    match slot {
+        "face" => exts.push(own.or(face_canonical).ok_or_else(|| missing("face"))?),
+        "hrs" => {
+            exts.push(face_canonical.ok_or_else(|| missing("face"))?);
+            // Some short hairstyles carry no extension at all (base head bones only).
+            exts.extend(own.or(hair_canonical));
+            exts.extend(dress_canonical);
+        }
+        "drs" | "tps" | "btm" => {
+            exts.push(face_canonical.ok_or_else(|| missing("face"))?);
+            exts.extend(hair_canonical);
+            exts.push(own.or(dress_canonical).ok_or_else(|| missing("dress"))?);
+        }
+        _ => {
+            exts.push(face_canonical.ok_or_else(|| missing("face"))?);
+            exts.extend(hair_canonical);
+            exts.push(own.or(dress_canonical).ok_or_else(|| missing("clothes"))?);
+        }
+    }
+    let skel: PlayerSkeleton = build_player_skeleton(skeleton_bytes, &exts)?;
+    // Every clip whose tracks all name bones of THIS piece's skeleton (the face piece carries the
+    // face rig and therefore the face clips; body pieces get the body clips).
+    let mut usable: Vec<(String, tr::TrAnmClip)> = Vec::new();
+    for (name, clip) in body_clips.iter().chain(face_clips.iter()) {
+        match pla::assets::gltf_export::animation_tracks_from_tr(&skel.skeleton, clip) {
+            Ok(_) => usable.push((name.clone(), clip.clone())),
+            Err(e) => {
+                if slot == "face" && face_clips.iter().any(|(n, _)| n == name) {
+                    println!("  face piece: clip {name} not usable: {e}");
+                }
+            }
+        }
+    }
+    let face_piece = slot == "face";
+    let options = PlayerExportOptions {
+        skip_hidden: false,
+        skin_rgb: skin_rows.first().copied(),
+        hair_rgb: Some(if variant == "p1" { HAIR_COLOR_PALETTE[0].1 } else { HAIR_COLOR_PALETTE[2].1 }),
+        eye_rgb: Some(DEFAULT_EYE_RGB),
+        color_variants: matches!(slot, "hrs" | "eyb" | "face"),
+        skin_unbaked: true,
+    };
+    let dir = gltf.parent().ok_or("piece gltf has no parent")?;
+    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let report = write_player_gltf(&[&model], &skel, &usable, gltf, Some(LayerBlendFormula::MaskLerp), options)?;
+    if !report.color_files.is_empty() {
+        let mut tsv = String::from(
+            "# sheet: dress-up colour variants for this piece\n# set:enum*\tname:string*\tfile:string\n",
+        );
+        for (set, name, file) in &report.color_files {
+            tsv.push_str(&format!("{set}\t{name}\t{file}\n"));
+        }
+        fs::write(dir.join("colors.tsv"), tsv).map_err(|e| e.to_string())?;
+    }
+    let primitives = model.meshes.iter().filter(|m| m.lod == Some(0)).count();
+    let height = bbox(std::slice::from_ref(&model), false).map(|(mn, mx)| mx[1] - mn[1]);
+    let _ = face_piece;
+    Ok((primitives, usable.len(), report.color_files.len(), height))
+}
+
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.len() < 2 {
@@ -312,14 +567,16 @@ fn main() -> Result<(), String> {
         .collect();
     println!("skin_color_table rows: {skin_rows:?}");
     let no_colors = args.iter().any(|a| a == "--no-hair-eye-color");
-    let hair_rgb = opt("--hair-color").map(|c| parse_color(&c, HAIR_PALETTE)).transpose()?;
-    let eye_rgb = opt("--eye-color").map(|c| parse_color(&c, EYE_PALETTE)).transpose()?;
+    let hair_rgb = opt("--hair-color").map(|c| parse_color(&c, HAIR_COLOR_PALETTE)).transpose()?;
+    let eye_rgb = opt("--eye-color").map(|c| parse_color(&c, EYE_COLOR_PALETTE)).transpose()?;
     let skin_index = opt("--skin-tone").or_else(|| opt("--skin")).map_or(Some(0), |s| s.parse::<usize>().ok());
     let options = PlayerExportOptions {
         skip_hidden: args.iter().any(|a| a == "--skip-hide"),
         skin_rgb: if args.iter().any(|a| a == "--no-skin-tone") { None } else { skin_index.and_then(|i| skin_rows.get(i).copied()) },
         hair_rgb,
         eye_rgb,
+        color_variants: false,
+        skin_unbaked: false,
     };
 
     // Shared skeleton: the p2 base pack is the only one that carries a trskl.
@@ -367,6 +624,15 @@ fn main() -> Result<(), String> {
             }
             Err(e) => println!("clip {file}: {e}"),
         }
+    }
+
+    // Dress-up catalogue mode (Brief 36): one glTF per piece, over the shared biped base.
+    if let Some(catalog_path) = opt("--catalog") {
+        let parts_out = opt("--parts-out").map(PathBuf::from).ok_or("--catalog needs --parts-out <dir>")?;
+        let parts_index = opt("--parts-index").ok_or("--catalog needs --parts-index <tsv>")?;
+        let face_clips = load_face_clips(&chara)?;
+        println!("face clips: {} parsed", face_clips.len());
+        return export_catalog(&chara, &parts_out, &parts_index, &catalog_path, &skeleton_bytes, &skin_rows, &clips, &face_clips, &variants);
     }
 
     let mut rows = Vec::new();

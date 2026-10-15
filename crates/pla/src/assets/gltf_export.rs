@@ -30,6 +30,10 @@ pub struct GltfMaterial {
     /// URI relative to the output `.gltf` file. Use a portable relative path.
     pub base_color_uri: Option<String>,
     pub normal_uri: Option<String>,
+    /// glTF `baseColorFactor` (linear RGBA). When `None` the factor is omitted and the
+    /// texture is used as-is. The player dress-up export writes the chosen skin tone here
+    /// so the untinted albedo can be recoloured at run time by multiplying the factor.
+    pub base_color_factor: Option<[f32; 4]>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -679,6 +683,9 @@ impl GltfExport {
                     let texture = unique_images.iter().position(|v| v == uri).unwrap();
                     pbr["baseColorTexture"] = json!({"index": texture});
                 }
+                if let Some(factor) = material.base_color_factor {
+                    pbr["baseColorFactor"] = json!(factor);
+                }
                 let mut value = json!({"name": material.name, "pbrMetallicRoughness": pbr});
                 if let Some(uri) = &material.normal_uri {
                     let texture = unique_images.iter().position(|v| v == uri).unwrap();
@@ -910,6 +917,7 @@ mod tests {
                 name: "test".into(),
                 base_color_uri: Some("../../png/color.png".into()),
                 normal_uri: Some("../../png/normal.png".into()),
+                base_color_factor: None,
             }],
             ..Default::default()
         };
