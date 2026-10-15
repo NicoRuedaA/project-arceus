@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 252,
+    "file_count": 250,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -114,10 +114,6 @@
       {
         "path": "crates/pla/examples/door_pairs_report.rs",
         "sha256": "ab9245857ffca3285bdeb62b9d8ebcc6576726cfb1c68518295419d405251f01"
-      },
-      {
-        "path": "crates/pla/examples/door_reach_report.rs",
-        "sha256": "7452f22ed063c1164f6d7deffae7dbf9ac0d496faa891a858c035784a35e3e47"
       },
       {
         "path": "crates/pla/examples/dump_bntx.rs",
@@ -229,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "28230e041f5acc9fdac540068d488c2dc738aff6ea9cf56cd892b6c3b82c7171"
+        "sha256": "23a0460de9dcd41e844abbe5a9db6f752306f9ddc4323543c3ad3b7eca35cb00"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -377,7 +373,7 @@
       },
       {
         "path": "crates/pla/src/assets/navmesh.rs",
-        "sha256": "fbd83fa450ec3e3c6fa28d63b287cf832b69d5f4ac12f7533149fbfd7f3fc5df"
+        "sha256": "881343e25c63ded195ab728b7c1548a7c6cf57e13f0f44d185d4846676d65697"
       },
       {
         "path": "crates/pla/src/assets/player_model.rs",
@@ -529,7 +525,7 @@
       },
       {
         "path": "crates/pla/src/game/art_style.rs",
-        "sha256": "a6a7fbca9cb97fa9fd0a8936d17fce5c9ae11ae2a70a27d8d1db5d2d3d939ec1"
+        "sha256": "d88044921f489580d7f90b8508d1894ddc9f3070f11917a5cbe00ad70188d3dd"
       },
       {
         "path": "crates/pla/src/game/audio/catalog.rs",
@@ -573,11 +569,11 @@
       },
       {
         "path": "crates/pla/src/game/battle_camera.rs",
-        "sha256": "5ca31ab9e4dd9ceee68973731a614b7b9b466753ec4d6c388d31d596de1bcda8"
+        "sha256": "854060a6c60596cd38fa5928605b80ab2df1fb12ee4d47dbda860cd748335214"
       },
       {
         "path": "crates/pla/src/game/battle_controller.rs",
-        "sha256": "1093a327bdee099cb57d459c4a13449d1cb8f0a5619bca12b519d35aa877b9e5"
+        "sha256": "189f899712b8da06559cabee6bb6e3315161c1d065fa8820ef250526c6d0bb6a"
       },
       {
         "path": "crates/pla/src/game/battle_demo.rs",
@@ -585,7 +581,7 @@
       },
       {
         "path": "crates/pla/src/game/battle_flow_headless.rs",
-        "sha256": "96bb96ee2bbc9fd5f1fd36f213f69704cfe24118b19d990b4180dbdfe6cfeb96"
+        "sha256": "64e23b7e36ea8c3798db5f6d0aafaef22a12b91907b381751c65005d40c143eb"
       },
       {
         "path": "crates/pla/src/game/battle_input.rs",
@@ -665,7 +661,7 @@
       },
       {
         "path": "crates/pla/src/game/door_pairs.rs",
-        "sha256": "aea60fd75de837cfe59067c3c77097fbbd495e6d19c9f250ecdca820902b6ce4"
+        "sha256": "0dec5629e0281bc81aaecd1fb1cc27ad9ff8cd15741e83d61aae84bb2c2a4d78"
       },
       {
         "path": "crates/pla/src/game/effects/library.rs",
@@ -685,7 +681,7 @@
       },
       {
         "path": "crates/pla/src/game/effects.rs",
-        "sha256": "b23d8d4337ad61e14808de4b7c87bae13d994d58a65de981f409d13712d4bd5a"
+        "sha256": "ba1242014b33724dea4708849830c9362440bd6e3099705f6d6efb7252baefcb"
       },
       {
         "path": "crates/pla/src/game/evolution_fx.rs",
@@ -693,7 +689,7 @@
       },
       {
         "path": "crates/pla/src/game/face_shading.rs",
-        "sha256": "b71752fc2ff8aac23e4a7a6b3d5f2d0dbeb042c4fa04231304db649238a7c284"
+        "sha256": "f238bae53bea265c048fa0dbac0674e359a5d6fa4e1a2620888b482c44b271f7"
       },
       {
         "path": "crates/pla/src/game/follower.rs",
@@ -710,10 +706,6 @@
       {
         "path": "crates/pla/src/game/interact.rs",
         "sha256": "a4337b6fa8a656c8ad323c21e562a2aa9ff4942cae3769496724e00fb5ee4a9f"
-      },
-      {
-        "path": "crates/pla/src/game/interior.rs",
-        "sha256": "898e5d1829aad83c4473489fed0145b4d836f4e8734a369406270d1f17c64542"
       },
       {
         "path": "crates/pla/src/game/ledge.rs",
@@ -733,7 +725,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "89ea7858fbb82762d0534317988383b18b605555c25330af014309594b90bfa9"
+        "sha256": "3359b18e69d42e8359146d8836bfe056322e77ce63ce219f68df8b237ace8601"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -797,7 +789,7 @@
       },
       {
         "path": "crates/pla/src/game/orig_ui/tests.rs",
-        "sha256": "631029712c1747889e5b668ae6c7f7ca89374bc2c64ce4c6d601dfb2821cd262"
+        "sha256": "1e7d9827f3456fe31b14515dc74275ed5d076880935d39c2c936145449ae90e1"
       },
       {
         "path": "crates/pla/src/game/outbreak.rs",
@@ -861,7 +853,7 @@
       },
       {
         "path": "crates/pla/src/game/save_wire.rs",
-        "sha256": "ae6d17ffa2d13fd6be9176a30c6c2655d046b69b066babd267ee2bfcb9712cea"
+        "sha256": "5769bb20d2c9d2c6406b18ea6c638a579f92b78e14aafce6dfb81d423b991d27"
       },
       {
         "path": "crates/pla/src/game/schedule_check.rs",
@@ -897,7 +889,7 @@
       },
       {
         "path": "crates/pla/src/game/trainer_battle.rs",
-        "sha256": "fedc133af7a38b2ae651e5dc48c5ab9364ffa8e71d35bed4df58fd1914bcd01a"
+        "sha256": "8e2d57b2ecaf3f9fa100c8c8f7b5b4bdb13a9c34fd5afc8679339bd7975439f5"
       },
       {
         "path": "crates/pla/src/game/trainer_data.rs",
@@ -905,7 +897,7 @@
       },
       {
         "path": "crates/pla/src/game/trainer_encounter.rs",
-        "sha256": "1d2a9ba6c51a8874feff485777cb8733a03fab4fb673b6500d555cefac9183cb"
+        "sha256": "c28d0b30216d08f64bdc82a4e93efcc6815c975cc453174742d6b91092011df3"
       },
       {
         "path": "crates/pla/src/game/ui.rs",
@@ -937,7 +929,7 @@
       },
       {
         "path": "crates/pla/src/game/world_collision.rs",
-        "sha256": "ebace7382dcf56873f9a54ab3b903bfb67051c7232a9614590ca0ad47ee60805"
+        "sha256": "1d494509967767e61f37b54f58f8242fdb3ef6a9947d9f5303bcd7b52beb6303"
       },
       {
         "path": "crates/pla/src/game/world_events.rs",
@@ -945,11 +937,11 @@
       },
       {
         "path": "crates/pla/src/game/world_objects.rs",
-        "sha256": "2951a023de4a58cfd3e1836aa33939482541ccee36f7d48a80155b36dce90452"
+        "sha256": "93703fc615f8c4336c7b3a1f31fab2e3039320bb65f2afbbb6ff51e32e44a73c"
       },
       {
         "path": "crates/pla/src/game/zone.rs",
-        "sha256": "148c98adaa1e8ad866cb67b302aaf4f4a583ee60d4d3a51868450ce9b87b1121"
+        "sha256": "8a64351d219ac0997b037f205dcd1104673804c30fd9040517c752cfa1b2d2cf"
       },
       {
         "path": "crates/pla/src/host/mod.rs",
@@ -1085,7 +1077,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "6a93ebfc823611b6a0dd713ed8f18f942f9d1b6017c7f0e96b539050f71b80b1"
+    "sha256": "298184b85f56196143f0fedefb1fddd6b6a861cea1435cf0b13f895adfcba84f"
   },
   "state_partitions": {
     "analysis_documentation_status": {

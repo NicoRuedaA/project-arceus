@@ -595,7 +595,17 @@ impl ActiveBattleSession {
             return;
         }
         let (label, base, kind) = (t.label.clone(), t.prize_base, t.kind);
-        let last_level = self.battle.combatants[self.opponent()].level;
+        // "Last opponent Pokemon" is the last member of the trainer's whole team (its stored
+        // order), not whichever member happens to be active at the end: the switch AI can leave
+        // another member out when the battle closes.
+        let last_level = self
+            .battle
+            .sides
+            .get(1)
+            .and_then(|side| side.last())
+            .and_then(|&i| self.battle.combatants.get(i))
+            .map(|c| c.level)
+            .unwrap_or_else(|| self.battle.combatants[self.opponent()].level);
         let mut lines = Vec::new();
         let mut prize = None;
         match self.battle.winner_side() {

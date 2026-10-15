@@ -205,8 +205,9 @@ impl CollisionGrid {
             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
 
-    /// Every triangle hit along a ray, as ray parameters.
-    pub fn ray_hits(&self, origin: Vec3, dir: Vec3, max_dist: f32) -> Vec<f32> {
+    /// Every triangle hit along a ray as `(instance id, ray parameter)`; two triangles sharing
+    /// an edge report one hit.
+    fn ray_hits_all(&self, origin: Vec3, dir: Vec3, max_dist: f32) -> Vec<(u32, f32)> {
         let dir = dir.normalize_or_zero();
         if dir == Vec3::ZERO || max_dist <= 0.0 {
             return Vec::new();
@@ -234,15 +235,27 @@ impl CollisionGrid {
                 });
                 if let Some(t) = ray_triangle(origin, dir, t0, t1, t2) {
                     if t <= max_dist {
-                        out.push(t);
+                        out.push((id, t));
                     }
                 }
             }
         }
-        // Two triangles sharing an edge both report a hit on that edge; keep one.
-        out.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        out.dedup_by(|a, b| (*a - *b).abs() < 1e-3);
+        out.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        out.dedup_by(|a, b| (a.1 - b.1).abs() < 1e-3);
         out
+    }
+
+    /// Every triangle hit along a ray, as ray parameters.
+    pub fn ray_hits(&self, origin: Vec3, dir: Vec3, max_dist: f32) -> Vec<f32> {
+        self.ray_hits_all(origin, dir, max_dist).into_iter().map(|(_, t)| t).collect()
+    }
+
+    /// Instance ids of the meshes a ray crosses (deduplicated).
+    pub fn ray_hits_ids(&self, origin: Vec3, dir: Vec3, max_dist: f32) -> Vec<u32> {
+        let mut ids: Vec<u32> = self.ray_hits_all(origin, dir, max_dist).into_iter().map(|(id, _)| id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        ids
     }
 
     /// Inside/outside test by odd parity along three axes (majority vote).
@@ -635,6 +648,8 @@ pub struct WorldCollision {
     /// Per-model parsed mesh (`None` = the model has no collision entry).
     models: HashMap<String, Option<Arc<CollisionMesh>>>,
     alive: Vec<bool>,
+    /// Grid instance id -> index into `placements` (same order as `rebuild` inserts them).
+    instance_placements: Vec<usize>,
     rot_mode: RotMode,
     /// Diagnostics.
     pub placements_total: usize,
@@ -655,6 +670,30 @@ impl WorldCollision {
     /// Push the player capsule out of walls (`PLAYER_RADIUS` × `PLAYER_HEIGHT`).
     pub fn push_player_out(&self, xz: Vec2, y: f32) -> Vec2 {
         self.push_out_xz(xz.x, y, xz.y, PLAYER_RADIUS, PLAYER_HEIGHT)
+    }
+
+    /// True when placed-object geometry (houses, fences, rocks) lies on the segment
+    /// `from..to`. Used by the battle camera to find a spot behind the creatures with a
+    /// clear line of sight.
+    pub fn segment_blocked(&self, from: Vec3, to: Vec3) -> bool {
+        let d = to - from;
+        let len = d.length();
+        len > 1e-4 && self.grid.raycast(from, d / len, len).is_some()
+    }
+
+    /// Indices (into the live placement set) of the placed objects a segment crosses.
+    /// The battle camera uses them to hide exactly the objects that block the creatures.
+    pub fn segment_blocked_placements(&self, from: Vec3, to: Vec3) -> Vec<usize> {
+        let d = to - from;
+        let len = d.length();
+        if len <= 1e-4 {
+            return Vec::new();
+        }
+        self.grid
+            .ray_hits_ids(from, d / len, len)
+            .into_iter()
+            .filter_map(|id| self.instance_placements.get(id as usize).copied())
+            .collect()
     }
 
     /// Number of live collision instances (for tests/probes).
@@ -686,6 +725,7 @@ impl WorldCollision {
     /// Rebuild the grid from the live placement set.
     fn rebuild(&mut self) {
         self.grid.clear();
+        self.instance_placements.clear();
         for i in 0..self.placements.len() {
             if !self.alive[i] {
                 continue;
@@ -695,7 +735,9 @@ impl WorldCollision {
                 continue;
             };
             let tf = placement_transform(&self.placements[i], self.rot_mode);
-            self.grid.insert(mesh, tf);
+            let id = self.grid.insert(mesh, tf);
+            debug_assert_eq!(id as usize, self.instance_placements.len());
+            self.instance_placements.push(i);
         }
     }
 
@@ -822,6 +864,7 @@ impl WorldCollision {
             cache_root: cache_root.as_ref().to_path_buf(),
             models: HashMap::new(),
             alive: vec![false; placements_total],
+            instance_placements: Vec::new(),
             rot_mode,
             placements_total,
             placements_with_collision,
@@ -962,6 +1005,44 @@ mod tests {
     }
 
     #[test]
+    fn segment_blocked_sees_placed_geometry_in_between() {
+        let mut wc = WorldCollision {
+            grid: CollisionGrid::new(CELL),
+            packs: CollisionPacks { packs: Vec::new() },
+            placements: Vec::new(),
+            paths: HashMap::new(),
+            models: HashMap::new(),
+            alive: Vec::new(),
+            instance_placements: Vec::new(),
+            rot_mode: RotMode::YawY,
+            placements_total: 0,
+            placements_with_collision: 0,
+            meshes_parsed: 0,
+            triangles: 0,
+        };
+        // A closed 2x2x2 box centred on the origin (x/z in [-1, 1], y in [0, 2]).
+        wc.grid.insert(Arc::new(box_shell_mesh()), Mat4::IDENTITY);
+        // Camera side (-z) to the look side (+z), crossing the box: blocked.
+        assert!(wc.segment_blocked(Vec3::new(0.0, 1.2, -3.0), Vec3::new(0.0, 0.8, 3.0)));
+        // A segment that misses the box sideways: clear.
+        assert!(!wc.segment_blocked(Vec3::new(3.0, 1.2, -3.0), Vec3::new(3.0, 0.8, 3.0)));
+        // A segment that stops before reaching the box: clear.
+        assert!(!wc.segment_blocked(Vec3::new(0.0, 1.2, -3.0), Vec3::new(0.0, 1.0, -1.5)));
+        // Zero-length segment: never blocked.
+        assert!(!wc.segment_blocked(Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)));
+        // The single grid instance (id 0) belongs to live placement 7: the blocked segment names it.
+        wc.instance_placements.push(7);
+        assert_eq!(
+            wc.segment_blocked_placements(Vec3::new(0.0, 1.2, -3.0), Vec3::new(0.0, 0.8, 3.0)),
+            vec![7]
+        );
+        assert!(wc
+            .segment_blocked_placements(Vec3::new(3.0, 1.2, -3.0), Vec3::new(3.0, 0.8, 3.0))
+            .is_empty());
+        assert!(wc.segment_blocked_placements(Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)).is_empty());
+    }
+
+    #[test]
     fn replacing_placements_drops_the_old_area_walls() {
         let mut wc = WorldCollision {
             grid: CollisionGrid::new(CELL),
@@ -971,6 +1052,7 @@ mod tests {
             cache_root: PathBuf::new(),
             models: HashMap::new(),
             alive: Vec::new(),
+            instance_placements: Vec::new(),
             rot_mode: RotMode::YawY,
             placements_total: 0,
             placements_with_collision: 0,
