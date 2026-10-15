@@ -111,6 +111,37 @@ stride 68), `pm0628_00_41` exports static only (bind rig 23 node 25 residual
 - Format 54 semantics, and the meaning of the ID 5 attribute in the 40/52-byte
   layouts, remain unknown.
 
+## Follow-up (2026-10-15): the 10 static-only Pokémon packs
+
+The Pokémon side of this brief left 10 packs exporting static because their
+authored bind records contradict the rest pose (`validate_bind_rest_pose`). A
+per-record diagnostic (`examples/pokemon_bind_dump`, raw tables under
+`work/census/modelos19/`) shows three distinct causes:
+
+| Cause | Packs | Shape of the evidence |
+| --- | --- | --- |
+| Euler-singularity noise | pm0094 (teeth, x≈-π), pm0356 | record = inverse(global) within 4.0e-4 / 4.9e-4 |
+| Record = inverse of the node's LOCAL transform | pm0315 (12/48: fingers, feelers, legs), pm1003 (2/54: fingers) | `\|bind - inverse(local)\|` = 2e-8, `\|bind - inverse(global)\|` = 1.9 |
+| Bind matching neither product | pm0081 (foot, 1.49), pm0397 (eyelids, 0.052 / 2.0), pm0628 (feeler, 0.035) | all four candidates at or above the residual |
+
+Fix (export policy, `pokemon_model::export_bind_records`): authored records are
+kept when both identity products are within `POKEMON_BIND_EPSILON` = 1e-3
+(same bound as the player skeleton lane); a record beyond it is rebuilt as
+`inverse(reference rest global)`, so the exported skeleton deforms by the
+identity at rest. The pack files are never modified; the index records how many
+records were rebuilt per pack (7 packs, 1 to 12 records each).
+
+Evidence: rendering one case-2 pack (pm0315) offscreen at rest with the
+authored records shows dislocated appendages (silhouette IoU 0.73 against the
+static mesh); with rebuilt records it matches the static mesh (IoU 0.9975).
+All 9 recovered packs render at rest with their baked textures
+(`/home/nico/work/capturas_modelos19/pokemon/recovered_*.png`) and all 1067
+Pokémon glTFs pass the structural verifier with 0 errors. Measured: 344 → 353
+packs with 10 clips, static-only 10 → 1 (`pm0407_01_00`: its `defaultwait` clip
+declares duplicate track names; whether the game plays it as authored is
+**unknown**). Animation over time and native parity stay unverified (no game
+runtime was exercised); the rebuilt-rest-pose display is PROBABLE, not proven.
+
 ## Reproduce
 
 ```bash
