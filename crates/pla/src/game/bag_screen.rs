@@ -985,6 +985,7 @@ mod tests {
             max_quantity: 999,
             effect_kind: 1,
             pocket_code: pocket,
+            storage_class: 0,
             ball_category: None,
             hp_heal: HpHeal::Fixed(30),
             cures: vec![],

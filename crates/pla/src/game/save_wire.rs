@@ -13,13 +13,14 @@ use bevy::prelude::*;
 
 use super::battle_controller::{ActiveBattleSession, BattleAssets, MemberMeta, WILD};
 use super::battle_items;
+use super::dex::ResearchCounters;
 use super::play_time::PlayTime;
 use super::save_game::{PartyMember, PlayerSave, SaveFile, SaveGame, MAX_BOX, MAX_PARTY};
 use super::ui::ActiveZoneInfo;
 use super::PlayerAvatar;
 use crate::battle::{BattleData, BattleMove};
 use crate::battle_engine::items::{ItemBag, ItemTable};
-use crate::battle_engine::{Battle, Combatant, XorShift32};
+use crate::battle_engine::{Battle, Combatant, Event, XorShift32};
 
 /// Level of the demo lead (matches `ActivePokemonState::level` in the viewer).
 pub const DEFAULT_LEAD_LEVEL: u8 = 25;
@@ -86,6 +87,10 @@ pub struct PlayerProgress {
     pub picked: BTreeSet<u64>,
     /// Ids of the beaten trainers (save format v8). Filled by [`apply_outcome`] on the first win.
     pub defeated_trainers: BTreeSet<String>,
+    /// Pokédex research counters (save format v9, Brief 43): `(species, kind, target) -> count`,
+    /// keyed like the decoded task catalog (`game::dex::DexTask::counter_target`). Fed by
+    /// [`apply_outcome`] for the kinds whose events the port implements.
+    pub research: ResearchCounters,
 }
 
 impl PlayerProgress {
@@ -107,6 +112,7 @@ impl PlayerProgress {
             time_minutes: s.time_minutes,
             picked: s.picked.clone(),
             defeated_trainers: s.defeated_trainers.clone(),
+            research: s.research.clone(),
         }
     }
 
@@ -129,6 +135,7 @@ impl PlayerProgress {
             rng_seed: self.rng_seed,
             picked: self.picked.clone(),
             defeated_trainers: self.defeated_trainers.clone(),
+            research: self.research.clone(),
             ..PlayerSave::default()
         }
     }
@@ -136,6 +143,15 @@ impl PlayerProgress {
     /// Add money (saturating).
     pub fn add_money(&mut self, amount: u32) {
         self.money = self.money.saturating_add(amount);
+    }
+
+    /// Advance one Pokédex research counter by `amount` (saturating). The key is the decoded task
+    /// key: `(species, kind, target)`; only the kinds the port feeds ([`super::dex::KIND_CAUGHT`],
+    /// [`super::dex::KIND_USED_MOVE`]) are written by [`apply_outcome`].
+    pub fn note_research(&mut self, species: u16, kind: u8, target: u16, amount: u32) -> u32 {
+        let entry = self.research.entry((species, kind, target)).or_insert(0);
+        *entry = entry.saturating_add(amount);
+        *entry
     }
 
     /// Store `m` in the box. Returns its slot, or [`BoxError::BoxFull`] at [`MAX_BOX`].
@@ -473,6 +489,9 @@ pub struct BattleOutcome {
     /// Trainer battles: the id of the opponent (`giratina01`, `noble:<setting>`); `None` in wild
     /// battles. A won battle against an id already in `defeated_trainers` pays no prize.
     pub trainer_id: Option<String>,
+    /// Move ids the party used against the wild Pokemon this battle, in use order (hits and
+    /// misses). Feeds the Pokédex "used move" research counter (kind 1) for `wild_dex`.
+    pub moves_used_on_wild: Vec<u16>,
 }
 
 /// Snapshot the session. Form and experience come from `sess.member_meta` (they change with
@@ -503,7 +522,35 @@ pub fn snapshot(sess: &ActiveBattleSession, roster: &[usize], bag_ids: &[u16]) -
         rng: sess.rng.0,
         trainer_prize: sess.trainer.as_ref().map(|t| t.prize.unwrap_or(0)),
         trainer_id: sess.trainer.as_ref().map(|t| t.id.clone()),
+        moves_used_on_wild: moves_used_on_wild(sess),
     }
+}
+
+/// Move ids the party used against the wild Pokemon, in log order. Both hits (`UsedMove`) and
+/// misses (`Missed`) count as uses; the id is matched by name inside the actor's own slots, where
+/// a name cannot repeat.
+fn moves_used_on_wild(sess: &ActiveBattleSession) -> Vec<u16> {
+    let mut out = Vec::new();
+    for event in &sess.event_log {
+        let (actor, target, name) = match event {
+            Event::UsedMove { actor, target, name, .. } | Event::Missed { actor, target, name } => {
+                (*actor, *target, name)
+            }
+            _ => continue,
+        };
+        if target != WILD {
+            continue;
+        }
+        if let Some(slot) = sess
+            .battle
+            .combatants
+            .get(actor)
+            .and_then(|c| c.moves.iter().find(|m| m.data.name == *name))
+        {
+            out.push(slot.data.id);
+        }
+    }
+    out
 }
 
 /// Candidate item ids for syncing the bag back: the menu entries plus anything already stored.
@@ -541,14 +588,19 @@ pub fn note_encounter(progress: &mut PlayerProgress, wild_dex: u16) {
     progress.seen.insert(wild_dex);
 }
 
-/// Apply a finished battle: sync, then seen / caught / defeated counters, the prize money for a
-/// win and the caught Pokemon (party if there is room, otherwise the box list).
+/// Apply a finished battle: sync, then seen / caught / defeated counters, the Pokédex research
+/// counters the port feeds (catches for kind 0, moves used against the wild for kind 1), the
+/// prize money for a win and the caught Pokemon (party if there is room, otherwise the box list).
 pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
     apply_sync(progress, out);
     progress.seen.insert(out.wild_dex);
+    for &move_id in &out.moves_used_on_wild {
+        progress.note_research(out.wild_dex, super::dex::KIND_USED_MOVE, move_id, 1);
+    }
     if let Some(m) = &out.caught {
         progress.caught.insert(out.wild_dex);
         progress.caught_count = progress.caught_count.saturating_add(1);
+        progress.note_research(out.wild_dex, super::dex::KIND_CAUGHT, 0, 1);
         if progress.party.len() < MAX_PARTY {
             progress.party.push(m.clone());
         } else if progress.deposit(m.clone()).is_err() {
@@ -1110,6 +1162,7 @@ mod tests {
             rng: 77,
             trainer_prize: None,
             trainer_id: None,
+            moves_used_on_wild: Vec::new(),
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.party[0].hp, 12);
@@ -1144,6 +1197,7 @@ mod tests {
             rng: 0,
             trainer_prize: None,
             trainer_id: None,
+            moves_used_on_wild: Vec::new(),
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.bag, BTreeMap::from([(10, 4)]));
@@ -1166,6 +1220,7 @@ mod tests {
             rng: 1,
             trainer_prize: Some(500),
             trainer_id: Some(id.into()),
+            moves_used_on_wild: Vec::new(),
         };
         apply_outcome(&mut p, &win("giratina01"));
         assert_eq!(p.money, money0 + 500);
@@ -1197,6 +1252,7 @@ mod tests {
             rng: 1,
             trainer_prize: None,
             trainer_id: None,
+            moves_used_on_wild: Vec::new(),
         };
         apply_outcome(&mut p, &base);
         assert_eq!((p.defeated, p.caught_count), (1, 0));
@@ -1236,12 +1292,50 @@ mod tests {
             rng: 1,
             trainer_prize: None,
             trainer_id: None,
+            moves_used_on_wild: Vec::new(),
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.money, u32::MAX, "the prize saturates instead of overflowing");
         assert!(victory_reward(1) > 0);
         assert!(victory_reward(50) > victory_reward(49), "the prize grows with the wild level");
         assert_eq!(victory_reward(0), 50, "ASSUMED formula: 50 + 10 x level");
+    }
+
+    /// Brief 43 wiring: a catch advances the species' kind-0 counter once per catch; every move
+    /// the party used against the wild (hits and misses, in order) advances its own kind-1
+    /// counter; a loss or a run still counts the moves but no catch; other kinds stay untouched.
+    #[test]
+    fn research_counters_follow_catches_and_moves_used() {
+        let mut p = progress2();
+        let base = BattleOutcome {
+            party: vec![],
+            bag: BTreeMap::new(),
+            wild_dex: 25,
+            wild_level: 17,
+            won: false,
+            caught: None,
+            rng: 1,
+            trainer_prize: None,
+            trainer_id: None,
+            moves_used_on_wild: vec![84, 84, 85],
+        };
+        apply_outcome(&mut p, &base);
+        assert_eq!(p.research.get(&(25, 1, 84)), Some(&2), "two hits with the same move");
+        assert_eq!(p.research.get(&(25, 1, 85)), Some(&1));
+        assert_eq!(p.research.get(&(25, 0, 0)), None, "no catch, no kind-0 counter");
+        let catch = BattleOutcome {
+            won: false,
+            caught: Some(member(25, 9, 5)),
+            ..base.clone()
+        };
+        apply_outcome(&mut p, &catch);
+        assert_eq!(p.research.get(&(25, 0, 0)), Some(&1));
+        assert_eq!(p.research.get(&(25, 1, 84)), Some(&4), "moves accumulate across battles");
+        // The counters survive to_save / from_save.
+        let back = PlayerProgress::from_save(&p.to_save("ha_area01", [0.0; 3], 0.0));
+        assert_eq!(back.research, p.research);
+        // Only the fed kinds are written: no kind-2/other entries appear.
+        assert!(p.research.keys().all(|&(_, kind, _)| kind <= 1));
     }
 
     #[test]
@@ -1287,6 +1381,7 @@ mod tests {
             rng: 1,
             trainer_prize: None,
             trainer_id: None,
+            moves_used_on_wild: Vec::new(),
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.party.len(), MAX_PARTY, "party stays full");
@@ -1344,6 +1439,7 @@ mod tests {
             rng: 1,
             trainer_prize: None,
             trainer_id: None,
+            moves_used_on_wild: Vec::new(),
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.box_list.len(), MAX_BOX, "the box stays at the limit");

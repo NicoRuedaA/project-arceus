@@ -9,8 +9,9 @@
 //! Usage: pokemon_batch_export <archive/pokemon dir> <output-dir> <output-index.tsv> [--force] [--only <stem>]
 
 use pla::assets::pokemon_model::{
-    assemble_pack, battle_clip_names, write_skinned_lod_level_clips_variant,
+    assemble_pack, battle_clip_names, export_bind_records, write_skinned_lod_level_clips_variant,
     write_skinned_lod_level_variant, write_static_lod_level_baked_variant, LayerBlendFormula,
+    POKEMON_BIND_EPSILON,
 };
 use std::{
     env, fs,
@@ -70,6 +71,16 @@ fn export_pack(pack: &Path, out: &Path, stem: &str, rare: bool) -> Outcome {
     };
     let mut clips = 0;
     let mut notes: Vec<String> = Vec::new();
+    if model.skeleton.is_some() && !model.bind_records.is_empty() {
+        if let Ok((_, rebuilt)) = export_bind_records(&model, POKEMON_BIND_EPSILON) {
+            if rebuilt > 0 {
+                notes.push(format!(
+                    "bind: {rebuilt}/{} records rebuilt from the reference rest pose",
+                    model.bind_records.len()
+                ));
+            }
+        }
+    }
     let prefix = if rare {
         format!("{stem}_rare")
     } else {

@@ -132,14 +132,10 @@ def run(args: argparse.Namespace) -> int:
     shots.mkdir(parents=True, exist_ok=True)
     for old in shots.glob("smoke_*.png"):
         old.unlink()
-    # `--dir` must also reach the viewer: its own automation socket lives in that directory
-    # (parallel sessions sharing work/automation clobber each other's sockets).
-    viewer_args = ["--area", "1", "--trainer", "giratina01"]
-    if args.dir:
-        viewer_args += ["--automation-dir", str(adir)]
     start = argparse.Namespace(
         no_gpu=args.no_gpu, release=args.release, no_build=args.no_build, bin=None, size=None,
-        timeout=args.timeout, viewer_args=viewer_args,
+        timeout=args.timeout,
+        viewer_args=["--area", "1", "--trainer", "giratina01", "--automation-dir", str(adir)],
     )
     print("[smoke] starting the viewer (automation, area 01, trainer giratina01)", flush=True)
     rc = gamectl.start(adir, start)
@@ -274,6 +270,7 @@ def summary(s: Smoke) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--dir", help="automation directory (default work/automation)")
     p.add_argument("--no-gpu", action="store_true")
     p.add_argument("--release", action="store_true")
     p.add_argument("--no-build", action="store_true")

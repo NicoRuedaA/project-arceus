@@ -203,7 +203,7 @@ impl Shop {
             return Err(ShopError::BadQuantity);
         }
         let item = table.get(item_id).ok_or(ShopError::UnknownItem)?;
-        if item.price == 0 {
+        if item.price == 0 || item.is_key_item() {
             return Err(ShopError::NotSellable);
         }
         let have = progress.bag.get(&item_id).copied().unwrap_or(0);
@@ -239,6 +239,7 @@ mod tests {
             max_quantity: 999,
             effect_kind: 1,
             pocket_code: pocket,
+            storage_class: 0,
             ball_category: None,
             hp_heal: HpHeal::Fixed(20),
             cures: vec![],
@@ -357,6 +358,13 @@ mod tests {
         assert_eq!(s.sell(&mut p0, &t, 4, 1), Err(ShopError::NotSellable));
         let mut p0 = progress_with(&[], 0);
         assert_eq!(s.sell(&mut p0, &t, 4, 1), Err(ShopError::NotSellable));
+        // A key item (storage_class 1) is never sellable, even with a price (Brief 23).
+        let mut key = fx(111, 5000, 0);
+        key.storage_class = 1;
+        let kt = ItemTable::from_items([key]);
+        let mut pk = progress_with(&[(111, 1)], 0);
+        assert_eq!(s.sell(&mut pk, &kt, 111, 1), Err(ShopError::NotSellable));
+        assert_eq!(pk.bag.get(&111), Some(&1), "the key item stays in the bag");
         // the last unit removes the bag entry entirely
         assert_eq!(s.sell(&mut p, &t, 17, 1).unwrap(), 100);
         assert!(!p.bag.contains_key(&17));

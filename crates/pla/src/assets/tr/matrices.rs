@@ -55,6 +55,48 @@ impl TrSklMatrix {
         }
         Ok(difference)
     }
+
+    /// Inverse of an affine matrix (linear block plus translation). Used only by
+    /// export-time bind reconstruction; a singular linear block fails loudly.
+    pub fn invert(&self) -> Result<Self, String> {
+        self.finite()?;
+        let m = &self.rows;
+        let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+            - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+        if !det.is_finite() || det.abs() < 1.0e-12 {
+            return Err("singular skeleton matrix".into());
+        }
+        let inv = 1.0 / det;
+        let adjugate = [
+            [
+                (m[1][1] * m[2][2] - m[1][2] * m[2][1]) * inv,
+                (m[0][2] * m[2][1] - m[0][1] * m[2][2]) * inv,
+                (m[0][1] * m[1][2] - m[0][2] * m[1][1]) * inv,
+            ],
+            [
+                (m[1][2] * m[2][0] - m[1][0] * m[2][2]) * inv,
+                (m[0][0] * m[2][2] - m[0][2] * m[2][0]) * inv,
+                (m[0][2] * m[1][0] - m[0][0] * m[1][2]) * inv,
+            ],
+            [
+                (m[1][0] * m[2][1] - m[1][1] * m[2][0]) * inv,
+                (m[0][1] * m[2][0] - m[0][0] * m[2][1]) * inv,
+                (m[0][0] * m[1][1] - m[0][1] * m[1][0]) * inv,
+            ],
+        ];
+        let translation = [m[0][3], m[1][3], m[2][3]];
+        let mut rows = TrSklMatrix::IDENTITY.rows;
+        for row in 0..3 {
+            rows[row][..3].copy_from_slice(&adjugate[row]);
+            rows[row][3] = -(adjugate[row][0] * translation[0]
+                + adjugate[row][1] * translation[1]
+                + adjugate[row][2] * translation[2]);
+        }
+        let result = Self { rows };
+        result.finite()?;
+        Ok(result)
+    }
 }
 
 /// Serialized bind record. Flags are retained without invented runtime meaning.
@@ -261,5 +303,53 @@ impl TrSkl {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invert_is_the_two_sided_inverse() {
+        let matrix = TrSklMatrix {
+            rows: [
+                [0.0, 1.0, 0.0, 0.5],
+                [1.0, 0.0, 0.0, -0.25],
+                [0.0, 0.0, 1.0, 2.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+        };
+        let inverse = matrix.invert().expect("invertible");
+        let product = matrix.multiply(&inverse).expect("multiply");
+        assert!(
+            product
+                .max_abs_difference(&TrSklMatrix::IDENTITY)
+                .expect("difference")
+                < 1.0e-12
+        );
+        let other = inverse.multiply(&matrix).expect("multiply");
+        assert!(
+            other
+                .max_abs_difference(&TrSklMatrix::IDENTITY)
+                .expect("difference")
+                < 1.0e-12
+        );
+    }
+
+    #[test]
+    fn invert_rejects_singular_and_non_finite() {
+        let singular = TrSklMatrix {
+            rows: [
+                [1.0, 2.0, 3.0, 0.0],
+                [2.0, 4.0, 6.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+        };
+        assert!(singular.invert().is_err());
+        let mut non_finite = TrSklMatrix::IDENTITY.clone();
+        non_finite.rows[0][3] = f64::NAN;
+        assert!(non_finite.invert().is_err());
     }
 }
