@@ -135,23 +135,30 @@ impl BattleAssets {
 }
 
 /// Move loadout (real move names from `pml_moves`); unknown species get a plain default.
+///
+/// Every pick must be a move *usable in this game*: its `waza` record has `style_flag = 1`
+/// and the game ships a `bin/effect/battle/sequence/ewNNN.wbin` timeline for it (see
+/// `reports/data-progress/effects.md`). Moves with `style_flag = 0` (growl, take-down,
+/// wing-attack, sand-attack, leer, ...) exist in the learnsets as tutor leftovers but the
+/// game never plays them, so a battler built on them has no move effect at all.
 pub fn moveset(species: &str) -> &'static [&'static str] {
     match species {
         "pikachu" => &["thunderbolt", "quick-attack", "thunder-wave", "iron-tail"],
-        "bidoof" => &["tackle", "bite", "growl", "take-down"],
-        "starly" => &["wing-attack", "quick-attack", "growl", "sand-attack"],
-        "shinx" => &["tackle", "leer", "bite", "spark"],
+        "bidoof" => &["tackle", "bite", "rollout", "crunch"],
+        "starly" => &["quick-attack", "gust", "aerial-ace", "double-edge"],
+        "shinx" => &["tackle", "bite", "spark", "thunder-shock"],
         _ => &["tackle", "quick-attack"],
     }
 }
 
 /// Wild-side loadout; a few species have their own, the rest use the plain default.
+/// Same usable-move rule as [`moveset`].
 fn wild_moveset(species: &str) -> &'static [&'static str] {
     match species {
-        "pikachu" => &["spark", "quick-attack", "thunder-wave", "growl"],
-        "bidoof" => &["tackle", "bite", "growl"],
-        "starly" => &["quick-attack", "wing-attack", "growl"],
-        "shinx" => &["tackle", "leer", "bite", "spark"],
+        "pikachu" => &["spark", "quick-attack", "thunder-wave", "thunder-shock"],
+        "bidoof" => &["tackle", "bite", "rollout"],
+        "starly" => &["quick-attack", "gust", "aerial-ace"],
+        "shinx" => &["tackle", "bite", "spark", "thunder-shock"],
         _ => &["tackle"],
     }
 }
