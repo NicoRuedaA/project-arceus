@@ -1011,6 +1011,7 @@ mod tests {
             packs: CollisionPacks { packs: Vec::new() },
             placements: Vec::new(),
             paths: HashMap::new(),
+            cache_root: PathBuf::new(),
             models: HashMap::new(),
             alive: Vec::new(),
             instance_placements: Vec::new(),
