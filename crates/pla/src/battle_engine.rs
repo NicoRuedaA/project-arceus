@@ -3,12 +3,14 @@
 
 use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 
+pub mod abilities;
 pub mod effects;
 pub mod items;
 pub mod progression;
 pub mod rules;
 pub mod statuses;
 pub mod styles;
+use abilities::AbilityState;
 use effects::{EffectEvent, MoveEffectsTable, Stages};
 use items::ItemTable;
 
@@ -76,6 +78,9 @@ pub struct Combatant {
     pub moves: Vec<MoveSlot>,
     pub status: Option<MajorStatus>,
     pub caught: bool,
+    /// Active ability id (0 = none). Taken from the species' first slot; only Slow Start
+    /// (112) and Flower Gift (122) have an effect, and only with `Battle::set_abilities`.
+    pub ability: u16,
     pub effort: [u8; 6],
     /// Nature percentages in HP/Atk/Def/SpA/SpD/Spe order. The nature table
     /// mapping is not in the checked-in personal table, so callers provide it.
@@ -123,6 +128,7 @@ impl Combatant {
             )
         });
         let max_hp = stats[0];
+        let ability = species.abilities[0];
         Self {
             attack: stats[1],
             defense: stats[2],
@@ -136,6 +142,7 @@ impl Combatant {
             moves: moves.into_iter().map(MoveSlot::new).collect(),
             status: None,
             caught: false,
+            ability,
             effort,
             nature_percent,
             action_class: 0,
@@ -254,6 +261,8 @@ pub struct Battle {
     pla_damage: bool,
     /// Agile/Strong styles, the PLA action-order queue and Fixated (all opt-in; see styles.rs).
     styles: styles::StyleState,
+    /// The two live abilities, Slow Start and Flower Gift (opt-in; see abilities.rs).
+    abilities: AbilityState,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -315,6 +324,7 @@ impl Battle {
             rule_events: Vec::new(),
             pla_damage: false,
             styles: styles::StyleState::default(),
+            abilities: AbilityState::default(),
         })
     }
 
@@ -367,12 +377,20 @@ impl Battle {
         let a = self.combatants.get(actor)?;
         let t = self.combatants.get(target)?;
         let m = a.moves.get(move_slot)?;
-        Some(expected_damage(a, t, &m.data, &self.type_chart, self.pla_damage))
+        Some(expected_damage(
+            a,
+            t,
+            &m.data,
+            &self.type_chart,
+            self.pla_damage,
+            self.slow_start_active(actor),
+        ))
     }
 
     /// Choose the move with the highest estimated expected damage (no critical chance).
     pub fn best_damage_action(&self, actor: usize) -> Option<Action> {
         let target = self.target_for(actor)?;
+        let slow_start = self.slow_start_active(actor);
         self.combatants
             .get(actor)?
             .moves
@@ -386,6 +404,7 @@ impl Battle {
                     &a.data,
                     &self.type_chart,
                     self.pla_damage,
+                    slow_start,
                 )
                 .total_cmp(&expected_damage(
                     &self.combatants[actor],
@@ -393,6 +412,7 @@ impl Battle {
                     &b.data,
                     &self.type_chart,
                     self.pla_damage,
+                    slow_start,
                 ))
             })
             .map(|(move_slot, _)| Action { actor, move_slot })
@@ -422,6 +442,7 @@ impl Battle {
         }
         self.turn += 1;
         events.push(Event::TurnStarted(self.turn));
+        self.ability_turn_start();
         let order = actions
             .iter()
             .copied()
@@ -445,6 +466,7 @@ impl Battle {
                         priority,
                         self.weather,
                         self.trick_room,
+                        self.slow_start_active(action.actor),
                     ),
                 )
             })
@@ -600,6 +622,7 @@ impl Battle {
             let mut critical = false;
             let mut multiplier = 1.0;
             let mut landed = 0;
+            let slow_start = self.slow_start_active(action.actor);
             for _ in 0..hits {
                 let (d, c, m) = calculate_damage(
                     &self.combatants[action.actor],
@@ -613,6 +636,7 @@ impl Battle {
                     ranks,
                     drowsy_bonus,
                     pla_formula,
+                    slow_start,
                     rng,
                 );
                 // Opt-in Fixated multipliers (no-op unless `set_fixated` was used).
@@ -699,6 +723,7 @@ impl Battle {
         self.status_turns_end_of_turn();
         self.stage_turns_end_of_turn();
         self.status_end_of_turn(&mut events);
+        self.ability_end_of_turn();
         if let Some(winner) = self.winner_side() {
             self.ended = true;
             events.push(Event::BattleEnded {
@@ -931,14 +956,22 @@ fn turn_order_key(
     priority: i8,
     weather: BattleWeather,
     trick_room: bool,
+    slow_start: bool,
 ) -> (u8, i8, u32) {
-    let speed = agility(actor, weather, trick_room);
+    let speed = agility(actor, weather, trick_room, slow_start);
     (actor.action_class, priority, speed & rules::AGILITY_KEY_MASK)
 }
 
 /// VERIFIED agility value (see `turn_order_key`) before it is packed into the 13-bit key.
 /// The PLA action-order queue reads the same value without the reversal (`reverse = false`).
-pub(crate) fn agility(actor: &Combatant, weather: BattleWeather, reverse: bool) -> u32 {
+/// `slow_start` applies Slow Start's Q12 x0.5 as the last modifier (PROBABLE order; see
+/// abilities.rs).
+pub(crate) fn agility(
+    actor: &Combatant,
+    weather: BattleWeather,
+    reverse: bool,
+    slow_start: bool,
+) -> u32 {
     let mut speed = q12_mul(actor.speed, u32::from(actor.speed_modifier_q12));
     if (weather == BattleWeather::Sun && actor.species.types.iter().any(|t| t == "Grass"))
         || (weather == BattleWeather::Snow && actor.species.types.iter().any(|t| t == "Ice"))
@@ -947,6 +980,9 @@ pub(crate) fn agility(actor: &Combatant, weather: BattleWeather, reverse: bool) 
     }
     if actor.status == Some(MajorStatus::Paralysis) {
         speed /= 2;
+    }
+    if slow_start {
+        speed = q12_mul(speed, abilities::HALF_Q12);
     }
     speed = speed.min(rules::AGILITY_CAP);
     if reverse {
@@ -961,19 +997,19 @@ fn expected_damage(
     movement: &BattleMove,
     chart: &TypeChart,
     pla: bool,
+    slow_start: bool,
 ) -> f32 {
     let (attack, defense) = if movement.category == "Physical" {
         (attacker.attack, target.defense)
     } else {
         (attacker.special_attack, target.special_defense)
     };
-    let base = rules::base_damage(
-        pla,
-        u32::from(movement.power),
-        attack,
-        u32::from(attacker.level),
-        defense,
-    );
+    let power = if slow_start && movement.category == "Physical" {
+        q12_mul(u32::from(movement.power), abilities::HALF_Q12)
+    } else {
+        u32::from(movement.power)
+    };
+    let base = rules::base_damage(pla, power, attack, u32::from(attacker.level), defense);
     let stab = attacker
         .species
         .types
@@ -986,6 +1022,7 @@ fn expected_damage(
 /// VERIFIED damage pipeline: PLA base formula (when `pla_formula`) with rank states, Q12 modifier, rain/Fire x0.75,
 /// critical x1.5, 85-100 % roll, STAB x1.25, type category, burn/physical and
 /// frostbite/special x50 %, drowsy defender x133 % (when `drowsy_bonus`), minimum 1.
+/// `slow_start` halves the power of physical moves (PROBABLE target of the game's halving).
 #[allow(clippy::too_many_arguments)]
 fn calculate_damage(
     attacker: &Combatant,
@@ -999,6 +1036,7 @@ fn calculate_damage(
     ranks: (i8, i8),
     drowsy_bonus: bool,
     pla_formula: bool,
+    slow_start: bool,
     rng: &mut impl BattleRng,
 ) -> (u32, bool, f32) {
     let (attack, defense) = if category == "Physical" {
@@ -1006,7 +1044,10 @@ fn calculate_damage(
     } else {
         (attacker.special_attack, target.special_defense)
     };
-    let power = q12_mul(u32::from(power), u32::from(attacker.power_modifier_q12));
+    let mut power = q12_mul(u32::from(power), u32::from(attacker.power_modifier_q12));
+    if slow_start && category == "Physical" {
+        power = q12_mul(power, abilities::HALF_Q12);
+    }
     let attack = q12_mul(attack, u32::from(attacker.attack_modifier_q12));
     let defense = q12_mul(defense, u32::from(target.defense_modifier_q12));
     let base = rules::base_damage(pla_formula, power, attack, u32::from(attacker.level), defense);
@@ -1205,6 +1246,7 @@ mod tests {
             (0, 0),
             false,
             true,
+            false,
             &mut Fixed(vec![0, 0]),
         );
         assert!(critical);
@@ -1221,6 +1263,7 @@ mod tests {
             (0, 0),
             false,
             true,
+            false,
             &mut Fixed(vec![1, 15]),
         );
         assert!(!critical);
@@ -1238,6 +1281,7 @@ mod tests {
             (0, 0),
             false,
             true,
+            false,
             &mut Fixed(vec![1, 15]),
         );
         assert_eq!(multiplier, 0.0);

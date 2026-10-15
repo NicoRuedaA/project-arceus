@@ -188,6 +188,7 @@ pub(crate) fn rebuild_battle(
         b.set_item_table(t);
     }
     b.set_status_rules(old.status_rules());
+    b.set_abilities(old.ability_rules());
     if let Some(t) = old.move_styles().cloned() {
         b.set_move_styles(t);
     }

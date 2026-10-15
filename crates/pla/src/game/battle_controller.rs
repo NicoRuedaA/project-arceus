@@ -24,6 +24,7 @@ pub use super::battle_turns::TurnMode;
 use super::battle_turns::{style_word, turn_order_lines};
 pub use super::catch_rate::{CatchRateSource, CatchRateTable, CAPTURE_CATCH_RATE_PLACEHOLDER};
 use crate::battle::BattleData;
+use crate::battle_engine::abilities::AbilityRules;
 use crate::battle_engine::effects::{MoveEffectsTable, Stages};
 use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::progression::ProgressionTables;
@@ -361,6 +362,9 @@ impl ActiveBattleSession {
                 battle.set_move_effects(a.move_effects.clone());
                 battle.set_item_table(a.items.clone());
                 battle.set_status_rules(a.status_rules);
+                // The two live abilities of the game (Slow Start, Flower Gift);
+                // `PLA_ABILITIES=off` turns them off for comparison captures.
+                battle.set_abilities(AbilityRules::from_env());
                 if let Some(t) = &a.move_styles {
                     battle.set_move_styles(t.clone());
                 }
@@ -557,10 +561,12 @@ impl ActiveBattleSession {
         let statuses = self.battle.take_status_events();
         let rules = self.battle.take_rule_events();
         let styles = self.battle.take_style_events();
+        let abilities = self.battle.take_ability_events();
         let names = self.names();
         let name = |i: usize| names[i].clone();
         let mut lines = battle_log::format_turn(&name, &events, &effects, &statuses, &rules, status_moves);
         battle_log::insert_style_lines(&mut lines, &name, &styles);
+        lines.extend(battle_log::ability_lines(&name, &abilities));
         let after_active = self.active_player();
         if after_active != before_active && !self.battle.ended {
             let at = lines

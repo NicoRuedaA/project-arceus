@@ -422,6 +422,7 @@ pub fn install_party(
     let items = sess.battle.item_table().cloned();
     let styles = sess.battle.move_styles().cloned();
     let rules = sess.battle.status_rules();
+    let abilities = sess.battle.ability_rules();
     let mut combatants = Vec::with_capacity(mons.len() + 1);
     let mut side = Vec::new();
     for (j, c) in mons.into_iter().enumerate() {
@@ -449,6 +450,7 @@ pub fn install_party(
         battle.set_item_table(t);
     }
     battle.set_status_rules(rules);
+    battle.set_abilities(abilities);
     if let Some(t) = styles {
         battle.set_move_styles(t);
     }

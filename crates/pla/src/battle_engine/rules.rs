@@ -392,6 +392,7 @@ mod tests {
                 ranks,
                 true,
                 true,
+                false,
                 &mut Fixed(vec![1, 15]),
             )
             .0
@@ -414,16 +415,16 @@ mod tests {
             let mut c = b.combatants[0].clone();
             c.speed = 9000;
             assert_eq!(
-                turn_order_key(&c, 0, BattleWeather::Clear, false).2,
+                turn_order_key(&c, 0, BattleWeather::Clear, false, false).2,
                 9000 & 0x1fff
             );
             c.speed = 12_000; // capped at 10000, then packed: 10000 & 8191 = 1808
-            assert_eq!(turn_order_key(&c, 0, BattleWeather::Clear, false).2, 1808);
+            assert_eq!(turn_order_key(&c, 0, BattleWeather::Clear, false, false).2, 1808);
             c.speed = 100; // reversed: 9900 & 8191 = 1708
-            assert_eq!(turn_order_key(&c, 0, BattleWeather::Clear, true).2, 1708);
+            assert_eq!(turn_order_key(&c, 0, BattleWeather::Clear, true, false).2, 1708);
             c.speed = 300; // sun does not boost a non-Grass type; paralysis halves: 150
             c.status = Some(MajorStatus::Paralysis);
-            assert_eq!(turn_order_key(&c, 0, BattleWeather::Sun, false).2, 150);
+            assert_eq!(turn_order_key(&c, 0, BattleWeather::Sun, false, false).2, 150);
         }
 
         #[test]
