@@ -1793,6 +1793,15 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
     });
     let battle = battle_json(world);
     let counts = entity_counts(world);
+    let ride = world.get_resource::<super::ride::RideState>().map(|r| {
+        json!({
+            "mounted": r.mounted.map(|k| format!("{k:?}")),
+            "selected": format!("{:?}", r.selected),
+            "stamina": round2(r.stamina),
+            "transition": round2(r.transition),
+            "camera_bonus": round2(r.camera_bonus()),
+        })
+    });
     json!({
         "game_state": game_state,
         "next_state": next_state,
@@ -1800,6 +1809,7 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
         "zone_loading": loading,
         "zone": zone,
         "player": player,
+        "ride": ride,
         "clock": clock,
         "weather": weather,
         "progress": progress,

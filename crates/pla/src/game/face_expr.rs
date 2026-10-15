@@ -243,7 +243,7 @@ mod tests {
         assert_eq!(expr, FaceExpression::Trouble);
         assert!((hold - LOSE_KEEP_FRAMES / HOLD_TICK_HZ).abs() < 1e-6);
         // While the hold runs, the expression stays even if the tracker no longer changes.
-        let held = FaceExpressionState { current: FaceExpression::Rejoice, hold: 1.0 };
+        let held = FaceExpressionState { current: FaceExpression::Rejoice, hold: 1.0, forced: None };
         let (expr, hold) = select_expression(&held, false, None, 0.5);
         assert_eq!(expr, FaceExpression::Rejoice);
         assert!((hold - 0.5).abs() < 1e-6);

@@ -1131,6 +1131,8 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(effects);
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
+    // Ride Pokémon (Brief 38): mount/dismount (V, gamepad Select), cycle (G), decoded speeds.
+    app.add_plugins(pla::game::ride::RidePlugin);
     app.add_plugins(pla::game::player_motion::PlayerMotionPlugin);
     app.add_plugins(pla::game::player_skills::PlayerSkillsPlugin);
     app.add_plugins(pla::game::blink::BlinkPlugin);
@@ -2248,6 +2250,7 @@ fn player_locomotion(
     mut skills_query: Query<&mut pla::game::player_skills::PlayerSkillState, With<PlayerAvatar>>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
     mut swim_query: Query<&mut PlayerSwim, With<PlayerAvatar>>,
+    ride: Option<Res<pla::game::ride::RideState>>,
 ) {
     use pla::game::player_motion::MotionMode;
     let Ok(mut transform) = player_query.single_mut() else {
@@ -2275,7 +2278,10 @@ fn player_locomotion(
             let n = if input_dir.length() > 1.0 { input_dir.normalize() } else { input_dir };
             let want = forward * n.y + right * n.x;
             let facing3 = transform.rotation * Vec3::Z;
-            let can_roll = motion_mode == MotionMode::Grounded && !was_swimming;
+            // No dodge roll while a mount is ridden (the original cannot roll mounted).
+            let can_roll = motion_mode == MotionMode::Grounded
+                && !was_swimming
+                && ride.as_ref().is_none_or(|r| !r.is_mounted());
             let started = sk.begin_dodge(
                 can_roll,
                 Vec2::new(want.x, want.z),
@@ -2302,14 +2308,27 @@ fn player_locomotion(
         // Sprinting is not allowed in water; swimming is slower than walking. In the air the
         // ground speed is scaled by the decoded control_airMoveRate (game::player_motion);
         // while climbing the vertical system holds the avatar in place horizontally.
-        let ground_speed = if is_sprinting { 8.0 } else { 4.5 };
-        let ground_speed = if crouching {
+        // Mounted (Brief 38): the decoded per-mount speeds of game::ride replace both the
+        // on-foot values and the swim speed (a mounted Basculegion swims at its own speeds).
+        let mounted_speed = ride
+            .as_ref()
+            .and_then(|r| r.mounted_speed(input_norm.length(), is_sprinting));
+        let ground_speed = mounted_speed.unwrap_or(if is_sprinting { 8.0 } else { 4.5 });
+        let ground_speed = if crouching && mounted_speed.is_none() {
             pla::game::player_skills::crouch_speed(ground_speed)
         } else {
             ground_speed
         };
         let speed = if dodge.is_some() {
             pla::game::player_skills::roll_speed()
+        } else if let Some(ground) = mounted_speed {
+            // A mounted glider keeps its decoded fly speed in the air; the ground mounts
+            // keep their decoded speed too (no separate air tier is decoded).
+            if motion_mode == MotionMode::Airborne {
+                ride.as_ref().and_then(|r| r.air_speed()).unwrap_or(ground)
+            } else {
+                ground
+            }
         } else if was_swimming {
             SWIM_SPEED
         } else if motion_mode == MotionMode::Airborne {
@@ -2528,6 +2547,7 @@ fn camera_controls(
     mut camera_ctrl: ResMut<CameraController>,
     settings: Res<UserSettings>,
     paused: Res<Paused>,
+    ride: Option<Res<pla::game::ride::RideState>>,
 ) {
     if paused.0 {
         mouse_motion.clear();
@@ -2579,9 +2599,11 @@ fn camera_controls(
             (camera_ctrl.target_distance - zoom * 4.0 * dt).clamp(1.5, 12.0);
     }
 
-    // In Aim mode, camera distance contracts and reticle becomes visible.
+    // In Aim mode, camera distance contracts and reticle becomes visible. A ride mount pulls
+    // the orbit camera back by its transition-eased bonus (Brief 38, `game::ride`).
+    let ride_bonus = ride.as_ref().map_or(0.0, |r| r.camera_bonus());
     let desired_dist = match camera_ctrl.mode {
-        CameraMode::OrbitDefault => camera_ctrl.target_distance,
+        CameraMode::OrbitDefault => camera_ctrl.target_distance + ride_bonus,
         CameraMode::AimOverShoulder => 2.2,
     };
     camera_ctrl.distance += (desired_dist - camera_ctrl.distance) * (10.0 * dt).min(1.0);

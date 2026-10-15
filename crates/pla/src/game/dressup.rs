@@ -25,7 +25,7 @@ use bevy::prelude::*;
 use super::art_style::ToonMaterial;
 use bevy::world_serialization::WorldAssetRoot;
 
-use super::player_anim::{PlayerMotion, PlayerSceneRef, PlayerSceneSpawned};
+use super::player_anim::{PlayerModelScene, PlayerMotion, PlayerSceneRef, PlayerSceneSpawned};
 use super::PlayerAvatar;
 use crate::assets::player_model::{EYE_COLOR_PALETTE, HAIR_COLOR_PALETTE};
 
@@ -408,6 +408,8 @@ fn spawn_piece_scenes(
                 p.spawn((
                     WorldAssetRoot(scene),
                     PlayerSceneRef { gltf: piece.gltf.clone(), slot: piece.slot.into() },
+                    // Every piece scene is lifted onto the saddle together while riding.
+                    PlayerModelScene,
                     PieceScene { slot: piece.slot },
                     Transform::from_xyz(0.0, -super::player_anim::AVATAR_ROOT_ABOVE_GROUND, 0.0),
                     Visibility::default(),

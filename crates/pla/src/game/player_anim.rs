@@ -310,6 +310,13 @@ pub struct PlayerSceneRef {
     pub slot: String,
 }
 
+/// The glTF scene child of the avatar (feet at the scene origin). `game::ride` moves it up
+/// onto the saddle while a mount is active, so the component marks exactly the entity whose
+/// local Y is the seat height. Every dress-up piece scene carries it too, so a mount lifts the
+/// whole dressed character.
+#[derive(Component)]
+pub struct PlayerModelScene;
+
 /// Smoothed planar speed of the avatar (m/s), measured from its transform.
 #[derive(Component, Default)]
 pub struct PlayerMotion {
@@ -359,7 +366,9 @@ fn spawn_scene(
         };
         commands.entity(e).insert((PlayerSceneSpawned, PlayerMotion::default())).with_children(|p| {
             // The glTF origin is at the feet; the avatar root is AVATAR_ROOT_ABOVE_GROUND higher.
+            // `PlayerModelScene` is the entity `game::ride` lifts onto the saddle.
             p.spawn((
+                PlayerModelScene,
                 WorldAssetRoot(scene),
                 PlayerSceneRef { gltf: src.gltf.clone(), slot: "merged".into() },
                 Transform::from_xyz(0.0, -AVATAR_ROOT_ABOVE_GROUND, 0.0),
@@ -503,10 +512,18 @@ type ClipInputs = (
 fn switch_clips(
     mut q: Query<ClipInputs>,
     mut players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
+    ride: Option<Res<super::ride::RideState>>,
 ) {
+    // No ride clips exist in the exported player glTF (`dressup_motion.gfpak`, which would
+    // carry them, is not exported), so a mounted player keeps the idle clip (Brief 38).
+    let mounted = ride.as_ref().is_some_and(|r| r.is_mounted());
     for (mut st, motion, swim, air, skills) in &mut q {
         let swimming = swim.is_some_and(|s| s.state == SwimState::Swimming);
-        let mut want = select_clip_motion(st.current, motion.speed, swimming, air, skills);
+        let mut want = if mounted {
+            PlayerClip::Idle
+        } else {
+            select_clip_motion(st.current, motion.speed, swimming, air, skills)
+        };
         // A clip missing from the file (an older cached export) falls back along `fallback_clip`.
         while want != PlayerClip::Idle
             && !st.scenes.iter().any(|s| s.nodes[slot(want)].is_some())

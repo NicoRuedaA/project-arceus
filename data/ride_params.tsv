@@ -1,0 +1,1240 @@
+# sheet: data/ride_params
+# version: 1
+# generator: .tools/decode_ride.py
+# target: Pokemon Legends: Arceus v262144 ride parameters (bin/misc/app_config/ride_*.bin)
+# note: values are byte-exact strings from the file (copy of the parameter's value vector);
+# note: `kind_hash` is the parameter table's u64 field 1 (same for whole groups; meaning UNKNOWN).
+# note: `type_code` is the file's own type tag (1 int, 2-4 numeric, 7 easing, 18 bool-ish, 42949xxxxx enums).
+# note: `min`/`max` are the file's own bounds, not proven inputs.
+# note: parameter semantics are LIKELY from the English names; units are NOT proven (reports/data-progress/mounts.md).
+file:string*	name:string*	value:string?	kind_hash:string	type_code:u32	min:string?	max:string?
+ride_common_config	waza_hit_collison_is_debug_apply		fddf046586eb1768	18		
+ride_common_config	waza_hit_collison_is_debug_draw		fddf046586eb1768	4294967162		
+ride_common_config	waza_hit_collison_odoshishi_offset	0	83ed851d141159db	2	-20	20
+ride_common_config	waza_hit_collison_odoshishi_hight	1.1	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_odoshishi_radius	1.15	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_ringuma_offset	0	83ed851d141159db	2	-20	20
+ride_common_config	waza_hit_collison_ringuma_hight	0.3	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_ringuma_radius	1.75	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_basurao_offset	0	83ed851d141159db	2	-20	20
+ride_common_config	waza_hit_collison_basurao_hight	0.15	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_basurao_radius	1.35	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_nyuura_offset	0	83ed851d141159db	2	-20	20
+ride_common_config	waza_hit_collison_nyuura_hight	1.2	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_nyuura_radius	0.75	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_whooguru_offset	0	83ed851d141159db	2	-20	20
+ride_common_config	waza_hit_collison_whooguru_hight	0.75	a5c98482aa1be127	2	0.01	20
+ride_common_config	waza_hit_collison_whooguru_radius	1.4	a5c98482aa1be127	2	0.01	20
+ride_common_config	change_basurao_to_whooguru_height	3.9	a5c98482aa1be127	2	0	20
+ride_common_config	change_to_basurao_waterdepth	0.6	a5c98482aa1be127	2	0	2
+ride_common_config	change_basurao_to_odosisi_waterdepth	0.45	a5c98482aa1be127	2	0	2
+ride_common_config	change_ride_to_player_waterdepth	0.9	a5c98482aa1be127	2	0	2
+ride_common_config	change_player_to_ride_waterdepth	0.75	a5c98482aa1be127	2	0	2
+ride_common_config	change_to_basurao_capsule_cast_radius	0	a5c98482aa1be127	2	0	2
+ride_common_config	change_to_basurao_capsule_cast_length	0	a5c98482aa1be127	2	0	2
+ride_common_config	change_basurao_to_odosisi_height	1	a5c98482aa1be127	2	0	5
+ride_common_config	disable_action_button_by_other_button_show_frame	20	7eb05ea826bffefb	18	0	90
+ride_common_config	odoshishi_look_mode_change	〇	fddf046586eb1768	4294967162		
+ride_common_config	odoshishi_interpolation_time	4	a5c98482aa1be127	2	0	20
+ride_common_config	move_look_at_magin_deg	5	a5c98482aa1be127	2	0	90
+ride_common_config	move_look_at_rotation_rate	2	a5c98482aa1be127	2	-10	10
+ride_common_config	move_look_at_rotation_max	100	a5c98482aa1be127	2	-40	40
+ride_common_config	move_look_at_speed_rate	15	a5c98482aa1be127	2	-10	15
+ride_common_config	move_look_at_disable_speed_rate	0.5	a5c98482aa1be127	2	-10	10
+ride_common_config	move_stop_move_keep_frame	15	7eb05ea826bffefb	2	0	90
+ride_common_config	run_stop_run_keep_frame	15	7eb05ea826bffefb	2	0	90
+ride_common_config	dash_keep_frame	20	7eb05ea826bffefb	2	0	90
+ride_change_config	start_rim_rgb	3	83ed851d141159db	2	0	10
+ride_change_config	start_rim_alpha	1	a5c98482aa1be127	2	0	1
+ride_change_config	start_rim_power	0.7	a5c98482aa1be127	2	0	10
+ride_change_config	start_rim_keep_frame	2	7eb05ea826bffefb	18	0	180
+ride_change_config	start_rim_end_easing_frame	15	7eb05ea826bffefb	18	0	180
+ride_change_config	start_rim_end_easing_func	OUT_SINE	1de31201e57d012b	4294967010		
+ride_change_config	end_rim_power	1.5	a5c98482aa1be127	2	0	10
+ride_change_config	effect_scale_player	0.45	a5c98482aa1be127	2	0	5
+ride_change_config	effect_scale_odoshishi	1	a5c98482aa1be127	2	0	5
+ride_change_config	effect_scale_ringuma	1.25	a5c98482aa1be127	2	0	5
+ride_change_config	effect_scale_basurao	1.2	a5c98482aa1be127	2	0	5
+ride_change_config	effect_scale_nyuura	0.85	a5c98482aa1be127	2	0	5
+ride_change_config	effect_scale_whooguru	1.4	a5c98482aa1be127	2	0	5
+ride_change_config	enable_change_jump		fddf046586eb1768	4294966138		
+ride_change_config	enable_ride_off_player_effect		fddf046586eb1768	4294966002		
+ride_change_config	enable_ride_on_player_effect		fddf046586eb1768	4294965866		
+ride_change_config	camera_start_interpolation_frame	30	7eb05ea826bffefb	4294965578	1	300
+ride_change_config	camera_start_interpolation_type	INOUT_SINE	1de31201e57d012b	4294965586		
+ride_change_config	camera_start_orbit_rate	-1	a5c98482aa1be127	3	-1	1
+ride_change_config	camera_end_interpolation_frame	30	7eb05ea826bffefb	4294965170	1	300
+ride_change_config	camera_end_interpolation_interpolation_type	INOUT_SINE	1de31201e57d012b	4294965018		
+ride_change_config	camera_end_orbit_rate	-1	a5c98482aa1be127	3	-1	1
+ride_change_config	ride_off_air_speed_rate	0.66	a5c98482aa1be127	3	0	2
+ride_change_config	ride_change_air_speed_rate	0.66	a5c98482aa1be127	3	0	2
+ride_change_config	ride_change_basurao_speed_rate	0.66	a5c98482aa1be127	3	0	2
+ride_change_config	odoshishi_to_nyuura_check_radius_geta	0	a5c98482aa1be127	2	0	10
+ride_change_config	ringuma_to_nyuura_check_radius_geta	0	a5c98482aa1be127	2	0	10
+ride_change_config	basurao_to_nyuura_check_radius_geta	0	a5c98482aa1be127	2	0	10
+ride_change_config	whooguru_to_nyuura_check_radius_geta	0	a5c98482aa1be127	2	0	10
+ride_change_config	ride_icon_change_delay_frame	18	7eb05ea826bffefb	2	0	10
+ride_change_config	ride_to_ride_icon_include_whooguru	〇	fddf046586eb1768	4294963770		
+ride_change_config	whooguru_change_check_radius	0.35	a5c98482aa1be127	3	0	2
+ride_change_config	whooguru_change_offset_y	1	a5c98482aa1be127	3	0	2
+ride_change_config	whooguru_change_height	1.8	a5c98482aa1be127	3	0	2
+ride_odoshishi_config	dash_voice_interval_frame	45	7eb05ea826bffefb	18	0	150
+ride_odoshishi_config	start_voice_mouch_open_frame	45	7eb05ea826bffefb	18	0	150
+ride_odoshishi_config	move_jump_front_power_walk	4	a5c98482aa1be127	3	0.01	30
+ride_odoshishi_config	move_jump_front_power_run	7	a5c98482aa1be127	3	0.01	30
+ride_odoshishi_config	move_jump_front_power_dash	9	a5c98482aa1be127	3	0.01	30
+ride_odoshishi_config	move_jump_up_power	8.75	a5c98482aa1be127	3	0.01	30
+ride_odoshishi_config	stay_jump_up_power	8.75	a5c98482aa1be127	3	0.01	30
+ride_odoshishi_config	action_voice_mouch_open_frame	45	7eb05ea826bffefb	4294966298	0	150
+ride_odoshishi_config	player_attach_joint_name	parts	98af6d0680d3870f	4294966314		
+ride_odoshishi_config	ride_off_player_offset	0	83ed851d141159db	2	-2	2
+ride_odoshishi_config	dash_eff_emission_ratio_scale	0.75	a5c98482aa1be127	3	0.01	1
+ride_odoshishi_config	dash_eff_particle_life_scale	0.49	a5c98482aa1be127	3	0.01	1
+ride_odoshishi_config	dash_eff_delay_frame	30	7eb05ea826bffefb	4294965618	1	150
+ride_odoshishi_config	physics_height	1	a5c98482aa1be127	3	0.001	5
+ride_odoshishi_config	physics_radius	0.5	a5c98482aa1be127	3	0	5
+ride_odoshishi_config	physics_maxslope	50	a5c98482aa1be127	1	0	89
+ride_odoshishi_config	control_gravity_rate	2.5	a5c98482aa1be127	3	0	10
+ride_odoshishi_config	control_physics_maxslidingSpeed	12	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_physics_slidingSlope	35	a5c98482aa1be127	2	0	89
+ride_odoshishi_config	control_autoMoveAnimation	〇	fddf046586eb1768	4294964866		
+ride_odoshishi_config	control_autoJumpAnimation	〇	fddf046586eb1768	4294964586		
+ride_odoshishi_config	control_autoStartTurnMove		fddf046586eb1768	4294964458		
+ride_odoshishi_config	control_autoStartTurnDeg	10	a5c98482aa1be127	4294964330		
+ride_odoshishi_config	control_autoForwardDirection	〇	fddf046586eb1768	4294964346		
+ride_odoshishi_config	control_autoForwardEasing	0.5	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	control_dashForwardEasing	1.25	a5c98482aa1be127	2	0	10
+ride_odoshishi_config	control_stopTurnForwardEasing	0.25	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	control_stopTurnRunDashForwardEasing	0.15	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	control_stopTurnTime	0.4	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_odoshishi_config	control_input_walk	0.01	a5c98482aa1be127	2	0	1.5
+ride_odoshishi_config	control_input_run	0.97	a5c98482aa1be127	2	0	1.5
+ride_odoshishi_config	control_input_dash	1.5	a5c98482aa1be127	2	0	1.5
+ride_odoshishi_config	control_speed_stop	0	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_speed_walk	3	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_speed_run	8	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_speed_dash	11	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_rootMotionRate	30	a5c98482aa1be127	2	0	100
+ride_odoshishi_config	control_moveRootMotionAmplifier	1	a5c98482aa1be127	2	0	5
+ride_odoshishi_config	control_maxCrouchingSpeed	0	a5c98482aa1be127	2	0	0
+ride_odoshishi_config	control_maxFallSpeed	50	a5c98482aa1be127	2	0	100
+ride_odoshishi_config	control_firstJumpPower	9	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_secondJumpPower	6	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_thirdJumpPower	2	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_fourthJumpPower	1	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_jumpAccelerationRate	1.2	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_jumpAdditionalMaxPower	1	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_secondaryJumpAccelerationRate	1.5	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_maxSlidingSpeed	7	a5c98482aa1be127	2	0	20
+ride_odoshishi_config	control_slidingSlope	25	a5c98482aa1be127	2	0	89
+ride_odoshishi_config	control_mudEnterDepth	0.2	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_mudExitDepth	0.1	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_waterEnterDepth	0.5	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_waterExitDepth	0.4	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_swimEnterDepth	1	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_swimExitDepth	0	a5c98482aa1be127	2	0	2
+ride_odoshishi_config	control_stepHeightMin	0.01	a5c98482aa1be127	3	0	3
+ride_odoshishi_config	control_stepHeightMax	0.4	a5c98482aa1be127	3	0	3
+ride_odoshishi_config	control_isDirtMoveEnable	〇	fddf046586eb1768	4294959754		
+ride_odoshishi_config	control_dirtMoveTurnTimeRate	1	a5c98482aa1be127	2	0	10
+ride_odoshishi_config	control_enableAirMove	〇	fddf046586eb1768	4294959338		
+ride_odoshishi_config	control_airMoveRate	0.25	a5c98482aa1be127	3	0	10
+ride_odoshishi_config	control_airMoveRotation		fddf046586eb1768	4294959082		
+ride_odoshishi_config	control_airHorizontalVelocityMax	30	a5c98482aa1be127	3	0	10
+ride_odoshishi_config	control_airMoveForwardEasing	0.85	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	control_directionRecordSize	4	7eb05ea826bffefb	4294958818	1	10
+ride_odoshishi_config	control_directionDegAmplifier	1.7	a5c98482aa1be127	2	0	10
+ride_odoshishi_config	control_directionDegMin	5	a5c98482aa1be127	2	0	90
+ride_odoshishi_config	anm_control_moveFrontName	move_front	98af6d0680d3870f	4294958410		
+ride_odoshishi_config	anm_control_moveFrontEasingTime	0.133333333333333	a5c98482aa1be127	7	0	1
+ride_odoshishi_config	anm_control_moveFrontInputMin	0	a5c98482aa1be127	2	-10	10
+ride_odoshishi_config	anm_control_moveFrontInputMax	1.5	a5c98482aa1be127	2	-10	10
+ride_odoshishi_config	anm_control_moveStopName	move_stop_trigger	98af6d0680d3870f	4294957834		
+ride_odoshishi_config	anm_control_moveLeftName	move_left	98af6d0680d3870f	4294957546		
+ride_odoshishi_config	anm_control_moveLeftEasingTime	0.0666666	a5c98482aa1be127	7	0	1
+ride_odoshishi_config	anm_control_moveLeftInputMin	-1	a5c98482aa1be127	2	-180	180
+ride_odoshishi_config	anm_control_moveLeftInputMax	1	a5c98482aa1be127	2	-180	180
+ride_odoshishi_config	anm_control_slopeName	slope	98af6d0680d3870f	4294957130		
+ride_odoshishi_config	anm_control_slopeEasingTime	0.1333333	a5c98482aa1be127	7	0	1
+ride_odoshishi_config	anm_control_slopeInputMin	-45	a5c98482aa1be127	2	-90	90
+ride_odoshishi_config	anm_control_slopeInputMax	50	a5c98482aa1be127	2	-90	90
+ride_odoshishi_config	anm_control_aerialName	aerial	98af6d0680d3870f	4294956586		
+ride_odoshishi_config	anm_control_aerialMin	-1	7eb05ea826bffefb	4294956458	-1	1
+ride_odoshishi_config	anm_control_aerialMax	1	7eb05ea826bffefb	4294956330	-1	1
+ride_odoshishi_config	anm_control_aerialLandingTypeName	landing_type_int	98af6d0680d3870f	4294956026		
+ride_odoshishi_config	actvolume_rate	1.7	a5c98482aa1be127	2	0	10
+ride_odoshishi_config	enable_jump	〇	fddf046586eb1768	4294955938		
+ride_odoshishi_config	camera_dash_start_interpolation_frame	70	7eb05ea826bffefb	4294955794	1	300
+ride_odoshishi_config	camera_dash_start_interpolation_type	INOUT_SINE	1de31201e57d012b	4294955642		
+ride_odoshishi_config	camera_dash_start_orbit_rate	0.26	a5c98482aa1be127	3	-1	1
+ride_odoshishi_config	camera_dash_end_interpolation_frame	30	7eb05ea826bffefb	4294955362	1	300
+ride_odoshishi_config	camera_dash_end_interpolation_type	INOUT_SINE	1de31201e57d012b	4294955066		
+ride_odoshishi_config	camera_dash_end_orbit_rate	-1	a5c98482aa1be127	3	-1	1
+ride_odoshishi_config	randam_wait_motion_interval_min	90	7eb05ea826bffefb	4294954802	1	300
+ride_odoshishi_config	randam_wait_motion_interval_max	180	7eb05ea826bffefb	4294954818	1	500
+ride_odoshishi_config	randam_wait_motion_over_looking_motion_weight	2	7eb05ea826bffefb	4294954666	1	10
+ride_odoshishi_config	randam_wait_motion_foot_action_motion_weight	1	7eb05ea826bffefb	4294954514	1	10
+ride_odoshishi_config	randam_move_motion_interval_min	90	7eb05ea826bffefb	4294954378	1	300
+ride_odoshishi_config	randam_move_motion_interval_max	180	7eb05ea826bffefb	4294954242	1	500
+ride_odoshishi_config	randam_move_motion_over_looking_motion_weight	1	7eb05ea826bffefb	4294954090	1	10
+ride_odoshishi_config	move_stop_move_keep_frame	3	7eb05ea826bffefb	2	0	90
+ride_odoshishi_config	run_stop_run_keep_frame	3	7eb05ea826bffefb	2	0	90
+ride_odoshishi_config	penalty_landHeight0	10	a5c98482aa1be127	4294953706	0	100
+ride_odoshishi_config	penalty_landHeight1	13	a5c98482aa1be127	4294953434	0	100
+ride_odoshishi_config	penalty_landHeight2	17	a5c98482aa1be127	4294953314	0	100
+ride_odoshishi_config	penalty_landHeight3	22	a5c98482aa1be127	4294953194	0	100
+ride_odoshishi_config	penalty_landDamage0	0	a5c98482aa1be127	4294953074	0	100
+ride_odoshishi_config	penalty_landDamage1	45	a5c98482aa1be127	4294952954	0	100
+ride_odoshishi_config	penalty_landDamage2	55	a5c98482aa1be127	4294952834	0	100
+ride_odoshishi_config	penalty_landDamage3	70	a5c98482aa1be127	4294952714	0	100
+ride_odoshishi_config	penalty_landShake0		fddf046586eb1768	4294952594		
+ride_odoshishi_config	penalty_landShake1		fddf046586eb1768	4294952474		
+ride_odoshishi_config	penalty_landShake2	〇	fddf046586eb1768	4294952354		
+ride_odoshishi_config	penalty_landShake3	〇	fddf046586eb1768	4294952234		
+ride_odoshishi_config	penalty_shallowLandHeight0	10	a5c98482aa1be127	4294952106	0	100
+ride_odoshishi_config	penalty_shallowLandHeight1	13	a5c98482aa1be127	4294951978	0	100
+ride_odoshishi_config	penalty_shallowLandHeight2	17	a5c98482aa1be127	4294951850	0	100
+ride_odoshishi_config	penalty_shallowLandHeight3	22	a5c98482aa1be127	4294951722	0	100
+ride_odoshishi_config	penalty_shallowLandDamage0	0	a5c98482aa1be127	4294951594	0	100
+ride_odoshishi_config	penalty_shallowLandDamage1	45	a5c98482aa1be127	4294951466	0	100
+ride_odoshishi_config	penalty_shallowLandDamage2	55	a5c98482aa1be127	4294951338	0	100
+ride_odoshishi_config	penalty_shallowLandDamage3	70	a5c98482aa1be127	4294951210	0	100
+ride_odoshishi_config	penalty_shallowLandShake0		fddf046586eb1768	4294951082		
+ride_odoshishi_config	penalty_shallowLandShake1		fddf046586eb1768	4294950954		
+ride_odoshishi_config	penalty_shallowLandShake2	〇	fddf046586eb1768	4294950826		
+ride_odoshishi_config	penalty_shallowLandShake3	〇	fddf046586eb1768	4294950698		
+ride_odoshishi_config	penalty_deepLandHeight0	10	a5c98482aa1be127	4294950722	0	100
+ride_odoshishi_config	penalty_deepLandHeight1	13	a5c98482aa1be127	4294950594	0	100
+ride_odoshishi_config	penalty_deepLandHeight2	17	a5c98482aa1be127	4294950466	0	100
+ride_odoshishi_config	penalty_deepLandHeight3	1000	a5c98482aa1be127	4294950330	0	1000
+ride_odoshishi_config	penalty_deepLandDamage0	0	a5c98482aa1be127	4294950202	0	100
+ride_odoshishi_config	penalty_deepLandDamage1	0	a5c98482aa1be127	4294950074	0	100
+ride_odoshishi_config	penalty_deepLandDamage2	0	a5c98482aa1be127	4294949946	0	100
+ride_odoshishi_config	penalty_deepLandDamage3	0	a5c98482aa1be127	4294949818	0	100
+ride_odoshishi_config	penalty_deepLandShake0		fddf046586eb1768	4294949690		
+ride_odoshishi_config	penalty_deepLandShake1		fddf046586eb1768	4294949562		
+ride_odoshishi_config	penalty_deepLandShake2		fddf046586eb1768	4294949434		
+ride_odoshishi_config	penalty_deepLandShake3		fddf046586eb1768	4294949306		
+ride_odoshishi_config	effect_waterfall_water_scale_0	1	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_water_scale_1	1.2	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_water_scale_2	1.4	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_water_scale_3	1.6	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_water_scale_4	1.8	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_mud_scale_0	1	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_mud_scale_1	1.2	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_mud_scale_2	1.4	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_mud_scale_3	1.6	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_waterfall_mud_scale_4	1.8	a5c98482aa1be127	3	0	20
+ride_odoshishi_config	effect_watermove_water_scale	1.5	a5c98482aa1be127	2		
+ride_odoshishi_config	effect_watermove_mud_scale	1.5	a5c98482aa1be127	2		
+ride_odoshishi_config	vibration_ground_no_reaction	VIB_FLD_RIDE_CKC_M	51ca52fdbbb50776	4294947370		
+ride_odoshishi_config	vibration_ground_easy_reaction	VIB_FLD_JIMEN_RAKKA_S	51ca52fdbbb50776	4294947218		
+ride_odoshishi_config	vibration_ground_normal_reaction	VIB_FLD_JIMEN_RAKKA_M	51ca52fdbbb50776	4294947210		
+ride_odoshishi_config	vibration_ground_hard_reaction	VIB_FLD_JIMEN_RAKKA_L	51ca52fdbbb50776	4294946906		
+ride_odoshishi_config	vibration_ground_very_hard_reaction	VIB_FLD_JIMEN_RAKKA_L	51ca52fdbbb50776	4294946898		
+ride_odoshishi_config	vibration_waterground_no_reaction	VIB_FLD_RIDE_CKC_M	51ca52fdbbb50776	4294946594		
+ride_odoshishi_config	vibration_waterground_easy_reaction	VIB_FLD_MIZU_RAKKA_S	51ca52fdbbb50776	4294946586		
+ride_odoshishi_config	vibration_waterground_normal_reaction	VIB_FLD_MIZU_RAKKA_M	51ca52fdbbb50776	4294946274		
+ride_odoshishi_config	vibration_waterground_hard_reaction	VIB_FLD_MIZU_RAKKA_L	51ca52fdbbb50776	4294946266		
+ride_odoshishi_config	vibration_waterground_very_hard_reaction	VIB_FLD_MIZU_RAKKA_L	51ca52fdbbb50776	4294946098		
+ride_odoshishi_config	vibration_odosisi_jump_ground	VIB_FLD_ODS_CKC_M	51ca52fdbbb50776	4294945946		
+ride_odoshishi_config	duration_walk_start_to_walk	0	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	duration_walk_start_to_run	0.25	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	duration_walk_start_to_dash	0.25	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	duration_run_start_to_walk	0.25	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	duration_run_start_to_run	0	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	duration_run_start_to_dash	0.25	a5c98482aa1be127	2	0	1
+ride_odoshishi_config	unstoppable_by_down		fddf046586eb1768	4294945010		
+ride_odoshishi_config	hasSlidingAnimation	〇	fddf046586eb1768	4294944738		
+ride_basurao_config	dash_voice_interval_frame	45	7eb05ea826bffefb	18	0	150
+ride_basurao_config	start_voice_mouch_open_frame	45	7eb05ea826bffefb	18	0	150
+ride_basurao_config	action_voice_mouch_open_frame	45	7eb05ea826bffefb	4294967162	0	150
+ride_basurao_config	player_attach_joint_name	origin	98af6d0680d3870f	4294967026		
+ride_basurao_config	ride_off_player_offset	0	83ed851d141159db	2	-2	2
+ride_basurao_config	change_from_water_offfset_y	0.1	a5c98482aa1be127	3	0	2
+ride_basurao_config	change_from_ride_offfset_y	0.05	a5c98482aa1be127	3	0	2
+ride_basurao_config	change_from_player_offfset_y	0.05	a5c98482aa1be127	3	0	2
+ride_basurao_config	move_jump_front_power_walk	3	a5c98482aa1be127	3	0.01	30
+ride_basurao_config	move_jump_front_power_run	6	a5c98482aa1be127	3	0.01	30
+ride_basurao_config	move_jump_front_power_dash	9	a5c98482aa1be127	3	0.01	30
+ride_basurao_config	move_jump_up_power	8	a5c98482aa1be127	3	0.01	30
+ride_basurao_config	stay_jump_up_power	8	a5c98482aa1be127	3	0.01	30
+ride_basurao_config	dash_eff_emission_ratio_scale	1	a5c98482aa1be127	3	0.01	1
+ride_basurao_config	dash_eff_particle_life_scale	0.9	a5c98482aa1be127	3	0.01	1
+ride_basurao_config	dash_eff_delay_frame	20	7eb05ea826bffefb	4294965210	1	150
+ride_basurao_config	thorw_dash_disable_frame	18	7eb05ea826bffefb	4294965082	0	150
+ride_basurao_config	physics_height	0.001	a5c98482aa1be127	3	0.001	5
+ride_basurao_config	physics_radius	0.9	a5c98482aa1be127	3	0	5
+ride_basurao_config	physics_maxslope	33	a5c98482aa1be127	1	0	89
+ride_basurao_config	control_gravity_rate	1	a5c98482aa1be127	3	0	10
+ride_basurao_config	control_physics_maxslidingSpeed	7	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_physics_slidingSlope	25	a5c98482aa1be127	2	0	25
+ride_basurao_config	control_autoMoveAnimation	〇	fddf046586eb1768	4294964322		
+ride_basurao_config	control_autoJumpAnimation	〇	fddf046586eb1768	4294964042		
+ride_basurao_config	control_autoStartTurnMove		fddf046586eb1768	4294963914		
+ride_basurao_config	control_autoStartTurnDeg	10	a5c98482aa1be127	4294963786		
+ride_basurao_config	control_autoForwardDirection	〇	fddf046586eb1768	4294963802		
+ride_basurao_config	control_autoForwardEasing	0.26	a5c98482aa1be127	2	0	1
+ride_basurao_config	control_dashForwardEasing	0.5	a5c98482aa1be127	2	0	10
+ride_basurao_config	control_stopTurnForwardEasing	0.2	a5c98482aa1be127	2	0	1
+ride_basurao_config	control_stopTurnRunDashForwardEasing	0.2	a5c98482aa1be127	2	0	1
+ride_basurao_config	control_stopTurnTime	0.2	a5c98482aa1be127	2	0	1
+ride_basurao_config	control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_basurao_config	control_input_walk	0.01	a5c98482aa1be127	2	0	1.5
+ride_basurao_config	control_input_run	0.97	a5c98482aa1be127	2	0	1.5
+ride_basurao_config	control_input_dash	1.5	a5c98482aa1be127	2	0	1.5
+ride_basurao_config	control_speed_stop	0	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_speed_walk	5	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_speed_run	8	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_speed_dash	11	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_rootMotionRate	30	a5c98482aa1be127	2	0	100
+ride_basurao_config	control_moveRootMotionAmplifier	1	a5c98482aa1be127	2	0	5
+ride_basurao_config	control_maxCrouchingSpeed	0	a5c98482aa1be127	2	0	0
+ride_basurao_config	control_maxFallSpeed	50	a5c98482aa1be127	2	0	100
+ride_basurao_config	control_firstJumpPower	8	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_secondJumpPower	6	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_thirdJumpPower	2	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_fourthJumpPower	1	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_jumpAccelerationRate	1.1	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_jumpAdditionalMaxPower	1	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_secondaryJumpAccelerationRate	1.5	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_maxSlidingSpeed	7	a5c98482aa1be127	2	0	20
+ride_basurao_config	control_slidingSlope	25	a5c98482aa1be127	2	0	89
+ride_basurao_config	control_mudEnterDepth	0.2	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_mudExitDepth	0.1	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_waterEnterDepth	0.5	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_waterExitDepth	0.4	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_swimEnterDepth	1	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_swimExitDepth	0	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_stepHeightMin	0.05	a5c98482aa1be127	3	0	2
+ride_basurao_config	control_stepHeightMax	0.4	a5c98482aa1be127	3	0	2
+ride_basurao_config	control_isDirtMoveEnable		fddf046586eb1768	4294959218		
+ride_basurao_config	control_enableAirMove	〇	fddf046586eb1768	4294959090		
+ride_basurao_config	control_airMoveRate	1	a5c98482aa1be127	3	0	10
+ride_basurao_config	control_airNormalMoveRate	0.12	a5c98482aa1be127	2	0	10
+ride_basurao_config	control_airGhostMoveRate	0.15	a5c98482aa1be127	2	0	10
+ride_basurao_config	control_airMoveRotation		fddf046586eb1768	4294958418		
+ride_basurao_config	control_airHorizontalVelocityMax	11	a5c98482aa1be127	3	0	10
+ride_basurao_config	control_airGhostMoveForwardEasing	1.25	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_airNormalMoveForwardEasing	0.65	a5c98482aa1be127	2	0	2
+ride_basurao_config	control_directionRecordSize	3	7eb05ea826bffefb	4294958010	1	10
+ride_basurao_config	control_directionDegAmplifier	7.5	a5c98482aa1be127	2	0	10
+ride_basurao_config	control_directionDegMin	5	a5c98482aa1be127	2	0	90
+ride_basurao_config	anm_control_moveFrontName	move_front	98af6d0680d3870f	4294957602		
+ride_basurao_config	anm_control_moveFrontEasingTime	0.1333333	a5c98482aa1be127	7	0	1
+ride_basurao_config	anm_control_moveFrontInputMin	0	a5c98482aa1be127	2	-10	10
+ride_basurao_config	anm_control_moveFrontInputMax	1.5	a5c98482aa1be127	2	-10	10
+ride_basurao_config	anm_control_moveStopName	move_stop_trigger	98af6d0680d3870f	4294957034		
+ride_basurao_config	anm_control_moveLeftName	move_left	98af6d0680d3870f	4294956746		
+ride_basurao_config	anm_control_moveLeftEasingTime	0.0666666	a5c98482aa1be127	7	0	1
+ride_basurao_config	anm_control_moveLeftInputMin	-1	a5c98482aa1be127	2	-180	180
+ride_basurao_config	anm_control_moveLeftInputMax	1	a5c98482aa1be127	2	-180	180
+ride_basurao_config	anm_control_slopeName		98af6d0680d3870f	4294956186		
+ride_basurao_config	anm_control_slopeEasingTime	0	a5c98482aa1be127	7	0	1
+ride_basurao_config	anm_control_slopeInputMin	0	a5c98482aa1be127	2	-90	90
+ride_basurao_config	anm_control_slopeInputMax	0	a5c98482aa1be127	2	-90	90
+ride_basurao_config	anm_control_aerialName	aerial	98af6d0680d3870f	4294955802		
+ride_basurao_config	anm_control_aerialMin	-1	7eb05ea826bffefb	4294955674	-1	1
+ride_basurao_config	anm_control_aerialMax	1	7eb05ea826bffefb	4294955546	-1	1
+ride_basurao_config	anm_control_aerialLandingTypeName	landing_type_int	98af6d0680d3870f	4294955242		
+ride_basurao_config	actvolume_rate	1.7	a5c98482aa1be127	2	0	10
+ride_basurao_config	debug_effect_enable	〇	fddf046586eb1768	4294955146		
+ride_basurao_config	control_preJumpRotationRate	2	a5c98482aa1be127	2	0	10
+ride_basurao_config	rim_startRGB	0	83ed851d141159db	3	0	1
+ride_basurao_config	rim_startAlpha	0	a5c98482aa1be127	3	0	1
+ride_basurao_config	rim_startPower	0.75	a5c98482aa1be127	3	0	10
+ride_basurao_config	rim_startEaseFunc	OUT_QUAD	1de31201e57d012b	4294954514		
+ride_basurao_config	rim_startEaseTime	0	a5c98482aa1be127	3	0	10
+ride_basurao_config	rim_keepRGB	4	83ed851d141159db	3	0	10
+ride_basurao_config	rim_keepAlpha	1	a5c98482aa1be127	3	0	10
+ride_basurao_config	rim_keepPower	4.5	a5c98482aa1be127	3	0	10
+ride_basurao_config	rim_keepEaseFunc	OUT_EXPO	1de31201e57d012b	4294953898		
+ride_basurao_config	rim_keepEaseTime	1	a5c98482aa1be127	3	0	10
+ride_basurao_config	rim_endRGB	0	83ed851d141159db	3	0	10
+ride_basurao_config	rim_endAlpha	0	a5c98482aa1be127	3	0	10
+ride_basurao_config	rim_endPower	1	a5c98482aa1be127	3	0	10
+ride_basurao_config	rim_endEaseFunc	OUT_QUAD	1de31201e57d012b	4294953138		
+ride_basurao_config	rim_endEaseTime	0.4	a5c98482aa1be127	3	0	10
+ride_basurao_config	vfx_normal_move_particle_scale	1	a5c98482aa1be127	1	0	3
+ride_basurao_config	vfx_normal_move_directional_vel	0.5	a5c98482aa1be127	1	0	10
+ride_basurao_config	vfx_dash_move_particle_scale	1.5	a5c98482aa1be127	1	0	3
+ride_basurao_config	vfx_dash_move_directional_vel	1.5	a5c98482aa1be127	1	0	10
+ride_basurao_config	vfx_normal_dash_easefunc	LINEAR	1de31201e57d012b	4294952338		
+ride_basurao_config	vfx_normal_dash_easetime	0.133	a5c98482aa1be127	3	0	1
+ride_basurao_config	vfx_dash_partice_scale_method	SetEmissionParticleScaleXY	51ca52fdbbb50776	4294952042		
+ride_basurao_config	castLengthToGround	0.75	a5c98482aa1be127	2	0	10
+ride_basurao_config	castNormalDegToGround	55	a5c98482aa1be127	2	0	90
+ride_basurao_config	castLengthToGroundBattle	15	a5c98482aa1be127	2	0	10
+ride_basurao_config	camera_dash_start_interpolation_frame	70	7eb05ea826bffefb	4294951506	1	300
+ride_basurao_config	camera_dash_start_interpolation_type	INOUT_SINE	1de31201e57d012b	4294951506		
+ride_basurao_config	camera_dash_start_orbit_rate	0.19	a5c98482aa1be127	3	-1	1
+ride_basurao_config	camera_dash_end_interpolation_frame	30	7eb05ea826bffefb	4294951226	1	300
+ride_basurao_config	camera_dash_end_interpolation_type	INOUT_SINE	1de31201e57d012b	4294950930		
+ride_basurao_config	camera_dash_end_orbit_rate	-1	a5c98482aa1be127	3	-1	1
+ride_basurao_config	penalty_landHeight0	97	a5c98482aa1be127	4294950826	0	100
+ride_basurao_config	penalty_landHeight1	98	a5c98482aa1be127	4294950554	0	100
+ride_basurao_config	penalty_landHeight2	99	a5c98482aa1be127	4294950434	0	100
+ride_basurao_config	penalty_landHeight3	100	a5c98482aa1be127	4294950314	0	100
+ride_basurao_config	penalty_landDamage0	0	a5c98482aa1be127	4294950194	0	100
+ride_basurao_config	penalty_landDamage1	45	a5c98482aa1be127	4294950074	0	100
+ride_basurao_config	penalty_landDamage2	55	a5c98482aa1be127	4294949954	0	100
+ride_basurao_config	penalty_landDamage3	70	a5c98482aa1be127	4294949834	0	100
+ride_basurao_config	penalty_shallowLandHeight0	97	a5c98482aa1be127	4294949706	0	100
+ride_basurao_config	penalty_shallowLandHeight1	98	a5c98482aa1be127	4294949578	0	100
+ride_basurao_config	penalty_shallowLandHeight2	99	a5c98482aa1be127	4294949450	0	100
+ride_basurao_config	penalty_shallowLandHeight3	100	a5c98482aa1be127	4294949322	0	100
+ride_basurao_config	penalty_shallowLandDamage0	0	a5c98482aa1be127	4294949194	0	100
+ride_basurao_config	penalty_shallowLandDamage1	45	a5c98482aa1be127	4294949066	0	100
+ride_basurao_config	penalty_shallowLandDamage2	55	a5c98482aa1be127	4294948938	0	100
+ride_basurao_config	penalty_shallowLandDamage3	70	a5c98482aa1be127	4294948810	0	100
+ride_basurao_config	penalty_deepLandHeight0	997	a5c98482aa1be127	4294948682	0	1000
+ride_basurao_config	penalty_deepLandHeight1	998	a5c98482aa1be127	4294948554	0	1000
+ride_basurao_config	penalty_deepLandHeight2	999	a5c98482aa1be127	4294948426	0	1000
+ride_basurao_config	penalty_deepLandHeight3	1000	a5c98482aa1be127	4294948442	0	1000
+ride_basurao_config	penalty_deepLandDamage0	0	a5c98482aa1be127	4294948314	0	100
+ride_basurao_config	penalty_deepLandDamage1	0	a5c98482aa1be127	4294948186	0	100
+ride_basurao_config	penalty_deepLandDamage2	0	a5c98482aa1be127	4294948058	0	100
+ride_basurao_config	penalty_deepLandDamage3	0	a5c98482aa1be127	4294947930	0	100
+ride_basurao_config	effect_waterfall_water_scale_0	1	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_water_scale_1	1.2	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_water_scale_2	1.4	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_water_scale_3	1.6	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_water_scale_4	1.8	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_mud_scale_0	1	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_mud_scale_1	1.2	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_mud_scale_2	1.4	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_mud_scale_3	1.6	a5c98482aa1be127	3	0	20
+ride_basurao_config	effect_waterfall_mud_scale_4	1.8	a5c98482aa1be127	3	0	20
+ride_basurao_config	work	1	a5c98482aa1be127	2	-10	10
+ride_basurao_config	vibration_ground_no_reaction		51ca52fdbbb50776	4294946170		
+ride_basurao_config	vibration_ground_easy_reaction		51ca52fdbbb50776	4294946186		
+ride_basurao_config	vibration_ground_normal_reaction		51ca52fdbbb50776	4294945898		
+ride_basurao_config	vibration_ground_hard_reaction		51ca52fdbbb50776	4294945914		
+ride_basurao_config	vibration_ground_very_hard_reaction		51ca52fdbbb50776	4294945626		
+ride_basurao_config	vibration_waterground_no_reaction		51ca52fdbbb50776	4294945490		
+ride_basurao_config	vibration_waterground_easy_reaction		51ca52fdbbb50776	4294945354		
+ride_basurao_config	vibration_waterground_normal_reaction		51ca52fdbbb50776	4294945362		
+ride_basurao_config	vibration_waterground_hard_reaction		51ca52fdbbb50776	4294945074		
+ride_basurao_config	vibration_waterground_very_hard_reaction		51ca52fdbbb50776	4294944930		
+ride_basurao_config	unstoppable_by_down	〇	fddf046586eb1768	4294944810		
+ride_basurao_config	hasSlidingAnimation		fddf046586eb1768	4294944690		
+ride_basurao_config	control_forwardCheckLengthInBattle	2.2	a5c98482aa1be127	3	0	10
+ride_basurao_config	control_forwardCheckHeigthInBattle	1.1	a5c98482aa1be127	3	0	10
+ride_basurao_config	ungroundableCountOnStart	3	7eb05ea826bffefb	4294944426	0	10
+ride_nyuura_config	climb_move_speed_max	4.8	a5c98482aa1be127	2	0	20
+ride_nyuura_config	climb_move_motion_speed_limit	2	a5c98482aa1be127	2	0	20
+ride_nyuura_config	climb_move_work_radius	0.524	a5c98482aa1be127	2	0	20
+ride_nyuura_config	start_voice_mouch_open_frame	45	7eb05ea826bffefb	18	0	150
+ride_nyuura_config	action_voice_mouch_open_frame	45	7eb05ea826bffefb	18	0	150
+ride_nyuura_config	happy_voice_mouch_open_frame	45	7eb05ea826bffefb	4294967162	0	150
+ride_nyuura_config	player_attach_joint_name	origin	98af6d0680d3870f	4294967026		
+ride_nyuura_config	ride_off_player_offset	0	83ed851d141159db	2	-2	2
+ride_nyuura_config	enable_kabe_oshikomi_start	〇	fddf046586eb1768	4294966762		
+ride_nyuura_config	enable_kabe_botton_start	〇	fddf046586eb1768	4294966482		
+ride_nyuura_config	kabe_oshikomi_frame	5	7eb05ea826bffefb	4294966362	0	30
+ride_nyuura_config	kabe_oshikomi_frame_air	2	7eb05ea826bffefb	4294966386	0	30
+ride_nyuura_config	kabe_button_buffer_frame	20	7eb05ea826bffefb	4294966106	0	90
+ride_nyuura_config	kabe_jump_down_stick_range	30	a5c98482aa1be127	2	0	90
+ride_nyuura_config	kabe_jump_up_stick_range	45	a5c98482aa1be127	2	0	90
+ride_nyuura_config	walk_launch_angle_start_border_deg	40	a5c98482aa1be127	3	1	180
+ride_nyuura_config	climbing_angle_lower_limit_deg	45	a5c98482aa1be127	3	1	180
+ride_nyuura_config	climbing_angle_lower_limit_move_buffer_deg	25	a5c98482aa1be127	3	1	180
+ride_nyuura_config	climbing_angle_upper_limit_deg	150	a5c98482aa1be127	3	1	180
+ride_nyuura_config	climbing_angle_start_border_deg	50	a5c98482aa1be127	3	1	180
+ride_nyuura_config	climbing_move_angle_buffer_count	30	7eb05ea826bffefb	4294965146	0	60
+ride_nyuura_config	climbing_move_geta	-0.01	a5c98482aa1be127	3	-1	1
+ride_nyuura_config	climbing_move_up_pass_length	0.5	a5c98482aa1be127	2	0	10
+ride_nyuura_config	climbing_move_down_pass_length	2	a5c98482aa1be127	2	0	10
+ride_nyuura_config	climbing_move_normal_update_speed	2	a5c98482aa1be127	2	0	10
+ride_nyuura_config	climbing_move_normal_update_rate	1	a5c98482aa1be127	2	0	10
+ride_nyuura_config	climbing_start_natural_start_border	65	a5c98482aa1be127	2	0	90
+ride_nyuura_config	climbing_end_natural_end_border	65	a5c98482aa1be127	2	0	90
+ride_nyuura_config	climbing_end_down_check_input_y	-0.7	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	climbing_end_down_check_oshikomi_frame	5	7eb05ea826bffefb	4294963738	0	30
+ride_nyuura_config	climbing_end_down_check_geta	0.2	a5c98482aa1be127	2	0	1
+ride_nyuura_config	climbing_end_down_check_deg	25	a5c98482aa1be127	3	1	180
+ride_nyuura_config	climbing_end_up_check_input_y	0.7	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	climbing_end_up_check_input_y_02	0.3	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	climbing_stop_end_up_enable		fddf046586eb1768	4294963202		
+ride_nyuura_config	climbing_hand_air_check_length	1.6	a5c98482aa1be127	2	0	10
+ride_nyuura_config	climbing_hand_air_check_offset	0.25	83ed851d141159db	2	-2	2
+ride_nyuura_config	dislike_move_stop_fame	2	7eb05ea826bffefb	4294962642	0	90
+ride_nyuura_config	first_climbing_start_cam_change_frame	25	a5c98482aa1be127	4294962650	0	300
+ride_nyuura_config	first_climbing_start_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294962346		
+ride_nyuura_config	first_climbing_start_cam_change_orbit_distance_rate	0.48	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	up_climbing_start_cam_change_frame	22	a5c98482aa1be127	4294962194	0	300
+ride_nyuura_config	up_climbing_start_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294962042		
+ride_nyuura_config	up_climbing_start_cam_change_orbit_distance_rate	0.48	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	up_climbing_start_move_start_frame	3	7eb05ea826bffefb	4294961738	0	300
+ride_nyuura_config	up_climbing_start_move_end_frame	8	7eb05ea826bffefb	4294961450	0	300
+ride_nyuura_config	up_climbing_start_move_ease_func	INOUT_SINE	1de31201e57d012b	4294961306		
+ride_nyuura_config	down_climbing_start_cam_change_frame	32	a5c98482aa1be127	4294961314	0	300
+ride_nyuura_config	down_climbing_start_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294961010		
+ride_nyuura_config	down_climbing_start_cam_change_orbit_distance_rate	0.68	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	down_climbing_start_move_start_frame	4	7eb05ea826bffefb	4294960706	0	300
+ride_nyuura_config	down_climbing_start_move_end_frame	19	7eb05ea826bffefb	4294960570	0	300
+ride_nyuura_config	down_climbing_start_rot_end_frame	12	7eb05ea826bffefb	4294960434	0	300
+ride_nyuura_config	down_climbing_start_move_ease_func	INOUT_SINE	1de31201e57d012b	4294960290		
+ride_nyuura_config	down_climbing_start_rot_ease_func	OUT_CIRC	1de31201e57d012b	4294960146		
+ride_nyuura_config	air_climbing_start_cam_change_frame	15	a5c98482aa1be127	4294960010	0	300
+ride_nyuura_config	air_climbing_start_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294960010		
+ride_nyuura_config	air_climbing_start_cam_change_orbit_distance_rate	-1	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	air_climbing_start_move_start_frame	1	7eb05ea826bffefb	4294959714	0	300
+ride_nyuura_config	air_climbing_start_move_end_frame	3	7eb05ea826bffefb	4294959426	0	300
+ride_nyuura_config	air_climbing_start_move_ease_func	INOUT_SINE	1de31201e57d012b	4294959282		
+ride_nyuura_config	natural_climbing_start_cam_change_frame	6	a5c98482aa1be127	4294959290	0	300
+ride_nyuura_config	natural_climbing_start_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294958986		
+ride_nyuura_config	natural_climbing_start_cam_change_orbit_distance_rate	0.48	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	natural_climbing_start_move_start_frame	0	7eb05ea826bffefb	4294958682	0	300
+ride_nyuura_config	natural_climbing_start_move_end_frame	6	7eb05ea826bffefb	4294958690	0	300
+ride_nyuura_config	natural_climbing_start_move_ease_func	INOUT_SINE	1de31201e57d012b	4294958538		
+ride_nyuura_config	up_climbing_end_move_start_frame	5	7eb05ea826bffefb	4294958250	0	300
+ride_nyuura_config	up_climbing_end_move_end_frame	20	7eb05ea826bffefb	4294958266	0	300
+ride_nyuura_config	up_climbing_end_move_ease_func	INOUT_SINE	1de31201e57d012b	4294958122		
+ride_nyuura_config	up_climbing_end_cam_change_frame	20	a5c98482aa1be127	4294957834	0	300
+ride_nyuura_config	up_climbing_end_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294957834		
+ride_nyuura_config	up_climbing_end_cam_change_orbit_distance_rate	0.68	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	down_climbing_end_move_start_frame	5	7eb05ea826bffefb	4294957538	0	300
+ride_nyuura_config	down_climbing_end_move_end_frame	7	7eb05ea826bffefb	4294957250	0	300
+ride_nyuura_config	down_climbing_end_move_ease_func	INOUT_SINE	1de31201e57d012b	4294957106		
+ride_nyuura_config	down_climbing_end_cam_change_frame	20	a5c98482aa1be127	4294956970	0	300
+ride_nyuura_config	down_climbing_end_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294956970		
+ride_nyuura_config	down_climbing_end_cam_change_orbit_distance_rate	0.68	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	air_climbing_end_move_start_frame	1	7eb05ea826bffefb	4294956666	0	300
+ride_nyuura_config	air_climbing_end_move_end_frame	1	7eb05ea826bffefb	4294956530	0	300
+ride_nyuura_config	air_climbing_end_move_ease_func	INOUT_SINE	1de31201e57d012b	4294956386		
+ride_nyuura_config	air_climbing_end_cam_change_frame	20	a5c98482aa1be127	4294956098	0	300
+ride_nyuura_config	air_climbing_end_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294956098		
+ride_nyuura_config	air_climbing_end_cam_change_orbit_distance_rate	-1	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	natural_climbing_end_move_start_frame	1	7eb05ea826bffefb	4294955650	0	300
+ride_nyuura_config	natural_climbing_end_move_end_frame	1	7eb05ea826bffefb	4294955514	0	300
+ride_nyuura_config	natural_climbing_end_move_ease_func	INOUT_SINE	1de31201e57d012b	4294955370		
+ride_nyuura_config	natural_climbing_end_cam_change_frame	20	a5c98482aa1be127	4294955378	0	300
+ride_nyuura_config	natural_climbing_end_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294955074		
+ride_nyuura_config	natural_climbing_end_cam_change_orbit_distance_rate	0.68	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	jump_climbing_end_move_start_frame	13	7eb05ea826bffefb	4294954922	0	300
+ride_nyuura_config	jump_climbing_end_move_end_frame	24	7eb05ea826bffefb	4294954634	0	300
+ride_nyuura_config	jump_climbing_end_move_ease_func	INOUT_SINE	1de31201e57d012b	4294954490		
+ride_nyuura_config	jump_climbing_end_cam_change_frame	24	a5c98482aa1be127	4294954354	0	300
+ride_nyuura_config	jump_climbing_end_cam_change_ease_func	INOUT_SINE	1de31201e57d012b	4294954354		
+ride_nyuura_config	jump_climbing_end_cam_change_orbit_distance_rate	-1	a5c98482aa1be127	2	-1	1
+ride_nyuura_config	down_climbing_start_start_curve_point_offset	0.7	a5c98482aa1be127	2	-10	10
+ride_nyuura_config	down_climbing_start_end_curve_point_offset	0.7	a5c98482aa1be127	2	-10	10
+ride_nyuura_config	up_climbing_end_start_curve_point_offset	2.5	a5c98482aa1be127	2	-10	10
+ride_nyuura_config	up_climbing_end_end_curve_point_offset	2.5	a5c98482aa1be127	2	-10	10
+ride_nyuura_config	climbing_eff_distance_limit	0.4	a5c98482aa1be127	2	0	2
+ride_nyuura_config	climbing_eff_ray_check_before	0.6	a5c98482aa1be127	2	0	2
+ride_nyuura_config	climbing_eff_ray_check_length	2	a5c98482aa1be127	2	0	5
+ride_nyuura_config	climbing_body_distance_default	0.524	a5c98482aa1be127	3	0	2
+ride_nyuura_config	climbing_body_distance_buffer	0.1	a5c98482aa1be127	3	0	2
+ride_nyuura_config	climbing_end_happy_height	25	a5c98482aa1be127	2	0	50
+ride_nyuura_config	climbing_move_stop_frame	10	7eb05ea826bffefb	4294952642	0	300
+ride_nyuura_config	climbing_move_stop_ease_func	INOUT_SINE	1de31201e57d012b	4294952498		
+ride_nyuura_config	climbing_move_delay	0.5	a5c98482aa1be127	4294952226		
+ride_nyuura_config	climbing_start_check_overlap_buffer	0	a5c98482aa1be127	3	-5	5
+ride_nyuura_config	climbing_start_check_range	0.4	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_start_check_back_offset	0	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_start_check_hight_offset_start	0.05	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_start_check_hight_offset_step	1	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_down_start_check_hight_offset_start	0	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_down_start_check_hight_offset_step	0.5	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_start_check_hight_offset_back_start	0.05	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_start_check_hight_offset_back_step	0.5	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_start_check_hight_offset_foward_start	0	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_start_check_hight_offset_foward_step	0.5	a5c98482aa1be127	3	0	5
+ride_nyuura_config	climbing_start_check_hight_offset_count	3	7eb05ea826bffefb	4294950450	1	10
+ride_nyuura_config	climbing_start_air_check_hight_offset_count	1	7eb05ea826bffefb	4294950306	1	10
+ride_nyuura_config	climbing_start_add_check_step_count	3	7eb05ea826bffefb	4294950170	1	10
+ride_nyuura_config	climbing_start_add_check_start_angle	-40	a5c98482aa1be127	3	0	180
+ride_nyuura_config	climbing_start_add_check_step_angle	80	a5c98482aa1be127	3	0	180
+ride_nyuura_config	climbing_down_start_add_check_start_angle	-30	a5c98482aa1be127	3	0	180
+ride_nyuura_config	climbing_down_start_add_check_step_angle	60	a5c98482aa1be127	3	0	180
+ride_nyuura_config	check_normal_ray_offset	0.5	a5c98482aa1be127	3	0	10
+ride_nyuura_config	check_normal_ray_behind_offset	-0.5	a5c98482aa1be127	3	-10	10
+ride_nyuura_config	check_normal_ray_front_offset	0.5	a5c98482aa1be127	3	-10	10
+ride_nyuura_config	check_normal_ray_left_offset	-0.5	a5c98482aa1be127	3	-10	10
+ride_nyuura_config	check_normal_ray_right_offset	0.5	a5c98482aa1be127	3	-10	10
+ride_nyuura_config	check_normal_ray_lost_ground_hight_offset	0.5	a5c98482aa1be127	3	-10	10
+ride_nyuura_config	climbing_move_arc_angle	10	a5c98482aa1be127	3	0	90
+ride_nyuura_config	climbing_move_angular_speed	5	a5c98482aa1be127	3	0	90
+ride_nyuura_config	climbing_move_arc_angular_speed	20	a5c98482aa1be127	3	0	90
+ride_nyuura_config	climbing_move_angular_diff_limit	70	a5c98482aa1be127	3	0	90
+ride_nyuura_config	jump_power_back	3	a5c98482aa1be127	3	0	10
+ride_nyuura_config	jump_power_up	4.75	a5c98482aa1be127	3	0	10
+ride_nyuura_config	unstoppable_by_down		fddf046586eb1768	4294947970		
+ride_nyuura_config	climing_start_check_range	0.4	a5c98482aa1be127	3	0	10
+ride_nyuura_config	climing_start_check_range_for_nyuura	0.4	a5c98482aa1be127	3	0	10
+ride_nyuura_config	climing_start_check_range_for_nyuura_air	0.5	a5c98482aa1be127	3	0	10
+ride_nyuura_config	climing_start_check_range_for_air	1	a5c98482aa1be127	3	0	10
+ride_nyuura_config	climing_start_check_air_check_count	3	7eb05ea826bffefb	4294947258	1	10
+ride_nyuura_config	climing_start_check_air_buffer_frame	10	7eb05ea826bffefb	4294947114	1	10
+ride_nyuura_config	up_start_climing_result_buffer_frame	20	7eb05ea826bffefb	4294946970	1	10
+ride_nyuura_config	down_start_climing_result_buffer_frame	15	7eb05ea826bffefb	4294946826	1	10
+ride_nyuura_config	up_end_point_check_forward_01	2.3	a5c98482aa1be127	3	0	10
+ride_nyuura_config	up_end_point_check_height_01	2.3	a5c98482aa1be127	3	0	10
+ride_nyuura_config	up_end_point_check_forward_02	3.2	a5c98482aa1be127	3	0	10
+ride_nyuura_config	up_end_point_check_height_02	2.5	a5c98482aa1be127	3	0	10
+ride_nyuura_config	up_end_point_check_back	2.05	a5c98482aa1be127	3	0	10
+ride_nyuura_config	up_end_point_oshikomi_frame	5	7eb05ea826bffefb	4294946010	0	10
+ride_nyuura_config	down_start_point_start_offset	0.3	a5c98482aa1be127	3	0	10
+ride_nyuura_config	down_start_point_check_up	1	a5c98482aa1be127	3	0	10
+ride_nyuura_config	down_start_point_check_forward	2.5	a5c98482aa1be127	3	0	10
+ride_nyuura_config	down_start_point_check_down	4	a5c98482aa1be127	3	0	10
+ride_nyuura_config	down_start_point_check_back	4	a5c98482aa1be127	3	0	10
+ride_nyuura_config	air_climbing_end_move_cool_frame	15	7eb05ea826bffefb	4294945186	0	60
+ride_nyuura_config	climbing_candidacy_offset	0	83ed851d141159db	2	-2	2
+ride_nyuura_controller_config	nyuura_radius	0.9012	a5c98482aa1be127	4	0.001	5
+ride_nyuura_controller_config	physics_height	0.001	a5c98482aa1be127	3	0.001	5
+ride_nyuura_controller_config	physics_radius	0.9	a5c98482aa1be127	3	0	5
+ride_nyuura_controller_config	physics_maxslope	60	a5c98482aa1be127	1	0	89
+ride_nyuura_controller_config	control_gravity_rate	1.4	a5c98482aa1be127	3	0	10
+ride_nyuura_controller_config	control_physics_maxslidingSpeed	7	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_physics_slidingSlope	45	a5c98482aa1be127	2	0	25
+ride_nyuura_controller_config	control_autoMoveAnimation	〇	fddf046586eb1768	18		
+ride_nyuura_controller_config	control_autoJumpAnimation	〇	fddf046586eb1768	18		
+ride_nyuura_controller_config	control_autoStartTurnMove		fddf046586eb1768	4294967170		
+ride_nyuura_controller_config	control_autoStartTurnDeg	10	a5c98482aa1be127	4294967042		
+ride_nyuura_controller_config	control_autoForwardDirection	〇	fddf046586eb1768	4294966762		
+ride_nyuura_controller_config	control_autoForwardEasing	0.35	a5c98482aa1be127	2	0	1
+ride_nyuura_controller_config	control_stopTurnForwardEasing	0.2	a5c98482aa1be127	2	0	1
+ride_nyuura_controller_config	control_stopTurnTime	0.2	a5c98482aa1be127	2	0	1
+ride_nyuura_controller_config	control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_nyuura_controller_config	control_input_walk	0.01	a5c98482aa1be127	2	0	1.5
+ride_nyuura_controller_config	control_input_run	0.97	a5c98482aa1be127	2	0	1.5
+ride_nyuura_controller_config	control_input_dash	1.5	a5c98482aa1be127	2	0	1.5
+ride_nyuura_controller_config	control_speed_stop	0	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_speed_walk	2	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_speed_run	6.2	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_speed_dash	8.4	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_rootMotionRate	30	a5c98482aa1be127	2	0	100
+ride_nyuura_controller_config	control_moveRootMotionAmplifier	1	a5c98482aa1be127	2	0	5
+ride_nyuura_controller_config	control_maxCrouchingSpeed	0	a5c98482aa1be127	2	0	0
+ride_nyuura_controller_config	control_maxFallSpeed	50	a5c98482aa1be127	2	0	100
+ride_nyuura_controller_config	control_firstJumpPower	6.5	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_secondJumpPower	6	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_thirdJumpPower	2	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_fourthJumpPower	1	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_jumpAccelerationRate	1.2	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_jumpAdditionalMaxPower	1	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_secondaryJumpAccelerationRate	1.5	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_maxSlidingSpeed	7	a5c98482aa1be127	2	0	20
+ride_nyuura_controller_config	control_slidingSlope	25	a5c98482aa1be127	2	0	89
+ride_nyuura_controller_config	control_mudEnterDepth	0.2	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_mudExitDepth	0.1	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_waterEnterDepth	0.5	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_waterExitDepth	0.4	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_swimEnterDepth	1	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_swimExitDepth	0	a5c98482aa1be127	2	0	2
+ride_nyuura_controller_config	control_stepHeightMin	0.01	a5c98482aa1be127	3	0	3
+ride_nyuura_controller_config	control_stepHeightMax	0.4	a5c98482aa1be127	3	0	3
+ride_nyuura_controller_config	control_isDirtMoveEnable	〇	fddf046586eb1768	4294962458		
+ride_nyuura_controller_config	control_dirtMoveTurnTimeRate	1	a5c98482aa1be127	2	0	10
+ride_nyuura_controller_config	control_enableAirMove	〇	fddf046586eb1768	4294962338		
+ride_nyuura_controller_config	control_airMoveRate	0.5	a5c98482aa1be127	3	0	10
+ride_nyuura_controller_config	control_airMoveRotation		fddf046586eb1768	4294962090		
+ride_nyuura_controller_config	control_airHorizontalVelocityMax	8	a5c98482aa1be127	3	0	10
+ride_nyuura_controller_config	control_airMoveForwardEasing	0.4	a5c98482aa1be127	2	0	1
+ride_nyuura_controller_config	anm_control_moveFrontName	move_front	98af6d0680d3870f	4294961530		
+ride_nyuura_controller_config	anm_control_moveFrontEasingTime	0.1333333	a5c98482aa1be127	7	0	1
+ride_nyuura_controller_config	anm_control_moveFrontInputMin	0	a5c98482aa1be127	2	-10	10
+ride_nyuura_controller_config	anm_control_moveFrontInputMax	1.5	a5c98482aa1be127	2	-10	10
+ride_nyuura_controller_config	anm_control_moveStopName	move_stop_trigger	98af6d0680d3870f	4294960962		
+ride_nyuura_controller_config	anm_control_moveLeftName	move_left	98af6d0680d3870f	4294960970		
+ride_nyuura_controller_config	anm_control_moveLeftEasingTime	0.0666666	a5c98482aa1be127	7	0	1
+ride_nyuura_controller_config	anm_control_moveLeftInputMin	-1	a5c98482aa1be127	2	-180	180
+ride_nyuura_controller_config	anm_control_moveLeftInputMax	1	a5c98482aa1be127	2	-180	180
+ride_nyuura_controller_config	anm_control_slopeName	slope	98af6d0680d3870f	4294960258		
+ride_nyuura_controller_config	anm_control_slopeEasingTime	0.1333333	a5c98482aa1be127	7	0	1
+ride_nyuura_controller_config	anm_control_slopeInputMin	-45	a5c98482aa1be127	2	-90	90
+ride_nyuura_controller_config	anm_control_slopeInputMax	50	a5c98482aa1be127	2	-90	90
+ride_nyuura_controller_config	anm_control_aerialName	aerial	98af6d0680d3870f	4294959714		
+ride_nyuura_controller_config	anm_control_aerialMin	-1	7eb05ea826bffefb	4294959586	-1	1
+ride_nyuura_controller_config	anm_control_aerialMax	1	7eb05ea826bffefb	4294959458	-1	1
+ride_nyuura_controller_config	anm_control_aerialLandingTypeName	landing_type_int	98af6d0680d3870f	4294959450		
+ride_nyuura_controller_config	actvolume_rate	1.7	a5c98482aa1be127	2	0	10
+ride_nyuura_controller_config	randam_wait_motion_interval_min	180	7eb05ea826bffefb	4294959194	1	300
+ride_nyuura_controller_config	randam_wait_motion_interval_max	360	7eb05ea826bffefb	4294958914	1	500
+ride_nyuura_controller_config	randam_climbing_wait_motion_interval_min	90	7eb05ea826bffefb	4294958914	1	300
+ride_nyuura_controller_config	randam_climbing_wait_motion_interval_max	180	7eb05ea826bffefb	4294958770	1	500
+ride_nyuura_controller_config	randam_wait_motion_over_looking_motion_weight	1	7eb05ea826bffefb	4294958474	1	10
+ride_nyuura_controller_config	randam_wait_motion_re_carry_motion_weight	1	7eb05ea826bffefb	4294958474	1	10
+ride_nyuura_controller_config	randam_move_motion_interval_min	120	7eb05ea826bffefb	4294958194	1	300
+ride_nyuura_controller_config	randam_move_motion_interval_max	240	7eb05ea826bffefb	4294958058	1	500
+ride_nyuura_controller_config	randam_move_motion_over_looking_motion_weight	1	7eb05ea826bffefb	4294957906	1	10
+ride_nyuura_controller_config	penalty_landHeight0	10	a5c98482aa1be127	4294957930	0	100
+ride_nyuura_controller_config	penalty_landHeight1	13	a5c98482aa1be127	4294957810	0	100
+ride_nyuura_controller_config	penalty_landHeight2	17	a5c98482aa1be127	4294957690	0	100
+ride_nyuura_controller_config	penalty_landHeight3	22	a5c98482aa1be127	4294957570	0	100
+ride_nyuura_controller_config	penalty_landDamage0	0	a5c98482aa1be127	4294957450	0	100
+ride_nyuura_controller_config	penalty_landDamage1	45	a5c98482aa1be127	4294957330	0	100
+ride_nyuura_controller_config	penalty_landDamage2	55	a5c98482aa1be127	4294957210	0	100
+ride_nyuura_controller_config	penalty_landDamage3	70	a5c98482aa1be127	4294957090	0	100
+ride_nyuura_controller_config	penalty_shallowLandHeight0	10	a5c98482aa1be127	4294956962	0	100
+ride_nyuura_controller_config	penalty_shallowLandHeight1	13	a5c98482aa1be127	4294956834	0	100
+ride_nyuura_controller_config	penalty_shallowLandHeight2	17	a5c98482aa1be127	4294956706	0	100
+ride_nyuura_controller_config	penalty_shallowLandHeight3	22	a5c98482aa1be127	4294956578	0	100
+ride_nyuura_controller_config	penalty_shallowLandDamage0	0	a5c98482aa1be127	4294956450	0	100
+ride_nyuura_controller_config	penalty_shallowLandDamage1	45	a5c98482aa1be127	4294956322	0	100
+ride_nyuura_controller_config	penalty_shallowLandDamage2	55	a5c98482aa1be127	4294956194	0	100
+ride_nyuura_controller_config	penalty_shallowLandDamage3	70	a5c98482aa1be127	4294956066	0	100
+ride_nyuura_controller_config	penalty_deepLandHeight0	10	a5c98482aa1be127	4294955794	0	100
+ride_nyuura_controller_config	penalty_deepLandHeight1	13	a5c98482aa1be127	4294955666	0	100
+ride_nyuura_controller_config	penalty_deepLandHeight2	17	a5c98482aa1be127	4294955538	0	100
+ride_nyuura_controller_config	penalty_deepLandHeight3	1000	a5c98482aa1be127	4294955402	0	1000
+ride_nyuura_controller_config	penalty_deepLandDamage0	0	a5c98482aa1be127	4294955274	0	100
+ride_nyuura_controller_config	penalty_deepLandDamage1	0	a5c98482aa1be127	4294955146	0	100
+ride_nyuura_controller_config	penalty_deepLandDamage2	0	a5c98482aa1be127	4294955018	0	100
+ride_nyuura_controller_config	penalty_deepLandDamage3	0	a5c98482aa1be127	4294954890	0	100
+ride_nyuura_controller_config	effect_waterfall_water_scale_0	1	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_water_scale_1	1.2	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_water_scale_2	1.4	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_water_scale_3	1.6	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_water_scale_4	1.8	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_mud_scale_0	1	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_mud_scale_1	1.2	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_mud_scale_2	1.4	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_mud_scale_3	1.6	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_waterfall_mud_scale_4	1.8	a5c98482aa1be127	3	0	20
+ride_nyuura_controller_config	effect_watermove_water_scale	1.25	a5c98482aa1be127	2		
+ride_nyuura_controller_config	effect_watermove_mud_scale	1.25	a5c98482aa1be127	2		
+ride_nyuura_controller_config	vibration_ground_no_reaction	VIB_FLD_RIDE_CKC_M	51ca52fdbbb50776	4294953242		
+ride_nyuura_controller_config	vibration_ground_easy_reaction	VIB_FLD_JIMEN_RAKKA_S	51ca52fdbbb50776	4294953090		
+ride_nyuura_controller_config	vibration_ground_normal_reaction	VIB_FLD_JIMEN_RAKKA_M	51ca52fdbbb50776	4294952786		
+ride_nyuura_controller_config	vibration_ground_hard_reaction	VIB_FLD_JIMEN_RAKKA_L	51ca52fdbbb50776	4294952778		
+ride_nyuura_controller_config	vibration_ground_very_hard_reaction	VIB_FLD_JIMEN_RAKKA_L	51ca52fdbbb50776	4294952474		
+ride_nyuura_controller_config	vibration_waterground_no_reaction	VIB_FLD_RIDE_CKC_M	51ca52fdbbb50776	4294952466		
+ride_nyuura_controller_config	vibration_waterground_easy_reaction	VIB_FLD_MIZU_RAKKA_S	51ca52fdbbb50776	4294952162		
+ride_nyuura_controller_config	vibration_waterground_normal_reaction	VIB_FLD_MIZU_RAKKA_M	51ca52fdbbb50776	4294952146		
+ride_nyuura_controller_config	vibration_waterground_hard_reaction	VIB_FLD_MIZU_RAKKA_L	51ca52fdbbb50776	4294951842		
+ride_nyuura_controller_config	vibration_waterground_very_hard_reaction	VIB_FLD_MIZU_RAKKA_L	51ca52fdbbb50776	4294951674		
+ride_nyuura_controller_config	hasSlidingAnimation		fddf046586eb1768	4294951698		
+ride_ringuma_config	search_voice_interval_frame	4	7eb05ea826bffefb	18	0	150
+ride_ringuma_config	dash_voice_interval_frame	45	7eb05ea826bffefb	4294967170	0	150
+ride_ringuma_config	start_voice_mouch_open_frame	45	7eb05ea826bffefb	18	0	150
+ride_ringuma_config	action_voice_mouch_open_frame	45	7eb05ea826bffefb	4294967162	0	150
+ride_ringuma_config	is_search_ceneter_head		fddf046586eb1768	4294967034		
+ride_ringuma_config	new_mode_enable	〇	fddf046586eb1768	4294966914		
+ride_ringuma_config	not_hit_dig_enable		fddf046586eb1768	4294966514		
+ride_ringuma_config	player_attach_joint_name	parts_01	98af6d0680d3870f	4294966378		
+ride_ringuma_config	ride_off_player_offset	0	83ed851d141159db	2	-2	2
+ride_ringuma_config	q_mode_enable	〇	fddf046586eb1768	4294966106		
+ride_ringuma_config	SerachHeadOffset	1.5	a5c98482aa1be127	2	0.01	5
+ride_ringuma_config	search_collison_radius	310	a5c98482aa1be127	2	0.01	400
+ride_ringuma_config	lv01_distance	70	a5c98482aa1be127	2	0.01	200
+ride_ringuma_config	lv01_angle_deg	180	a5c98482aa1be127	2	0.01	180
+ride_ringuma_config	lv02_distance	90	a5c98482aa1be127	2	0.01	100
+ride_ringuma_config	lv02_angle_deg	50	a5c98482aa1be127	2	0.01	180
+ride_ringuma_config	lv03_distance	2.6	a5c98482aa1be127	2	0.01	100
+ride_ringuma_config	lv03_angle_deg	180	a5c98482aa1be127	2	0.01	180
+ride_ringuma_config	effect_search_shinpuku_min	0.08	a5c98482aa1be127	2	0.01	5
+ride_ringuma_config	effect_search_shinpuku_max	0.4	a5c98482aa1be127	2	0.01	5
+ride_ringuma_config	effect_search_shuuki_min	30	a5c98482aa1be127	1	1	120
+ride_ringuma_config	effect_search_shuuki_max	5	a5c98482aa1be127	1	1	120
+ride_ringuma_config	effect_dash_interval_scale_start	7.51	a5c98482aa1be127	2	0.01	20
+ride_ringuma_config	effect_dash_interval_scale_end	3.76	a5c98482aa1be127	2	0.01	20
+ride_ringuma_config	effect_dash_interval_scale_ease_func	OUT_QUART	1de31201e57d012b	4294964058		
+ride_ringuma_config	effect_dash_scale_start	1.24	a5c98482aa1be127	2	0.01	20
+ride_ringuma_config	effect_dash_scale_end	3.35	a5c98482aa1be127	2	0.01	20
+ride_ringuma_config	effect_dash_scale_ease_func	LINEAR	1de31201e57d012b	4294963650		
+ride_ringuma_config	voice_enable_seach_voice		fddf046586eb1768	4294963522		
+ride_ringuma_config	voice_seach_voice_interval_start	90	7eb05ea826bffefb	2	1	300
+ride_ringuma_config	voice_seach_voice_interval_end	30	7eb05ea826bffefb	2	1	300
+ride_ringuma_config	voice_seach_voice_ease_func	LINEAR	1de31201e57d012b	4294963114		
+ride_ringuma_config	dig_found_wait_frame_min	60	7eb05ea826bffefb	4294962986	0	600
+ride_ringuma_config	dig_found_wait_frame_max	60	7eb05ea826bffefb	4294962858	0	600
+ride_ringuma_config	dig_random_found_wait_frame_min	30	7eb05ea826bffefb	4294963002	0	600
+ride_ringuma_config	dig_random_found_wait_frame_max	60	7eb05ea826bffefb	4294962866	0	600
+ride_ringuma_config	dig_not_found_wait_frame_min	25	7eb05ea826bffefb	4294962730	0	600
+ride_ringuma_config	dig_not_found_wait_frame_max	25	7eb05ea826bffefb	4294962594	0	600
+ride_ringuma_config	dig_random_found_hit	30	7eb05ea826bffefb	4294962466	0	100
+ride_ringuma_config	lv00_turn_easing_time	0.13	a5c98482aa1be127	3	0.001	10
+ride_ringuma_config	lv01_turn_easing_time	0.13	a5c98482aa1be127	3	0.001	10
+ride_ringuma_config	lv02_turn_easing_time	0.13	a5c98482aa1be127	3	0.001	10
+ride_ringuma_config	lv03_turn_easing_time	0.39	a5c98482aa1be127	3	0.001	10
+ride_ringuma_config	happy_cancel_wait_frame	60	7eb05ea826bffefb	4294961514	0	300
+ride_ringuma_config	lv02_dash_speed_flap	0.7	a5c98482aa1be127	3	0.001	1
+ride_ringuma_config	lv02_dash_speed_up_ease_func	INOUT_SINE	1de31201e57d012b	4294961242		
+ride_ringuma_config	lv02_dash_speed_down_ease_func	IN_CUBIC	1de31201e57d012b	4294961378		
+ride_ringuma_config	lv01_effect_rate	0.3	a5c98482aa1be127	2	0.01	2
+ride_ringuma_config	lv02_effect_rate	1	a5c98482aa1be127	2	0.01	2
+ride_ringuma_config	move_input	0.05	a5c98482aa1be127	2	0	1
+ride_ringuma_config	dash_eff_delay_frame	25	7eb05ea826bffefb	4294960594	1	150
+ride_ringuma_config	dash_eff_emission_ratio_scale_min	0.25	a5c98482aa1be127	3	0.01	1
+ride_ringuma_config	dash_eff_emission_ratio_scale_min	0.25	a5c98482aa1be127	3	0.01	1
+ride_ringuma_config	dash_eff_emission_ratio_scale_max	0.85	a5c98482aa1be127	3	0.01	1
+ride_ringuma_config	dash_eff_particle_life_scale_min	0.9	a5c98482aa1be127	3	0.01	1
+ride_ringuma_config	dash_eff_particle_life_scale_max	0.74	a5c98482aa1be127	3	0.01	1
+ride_ringuma_config	serch_type_sp_distance	300	a5c98482aa1be127	2	0.01	200
+ride_ringuma_config	serch_type_long_distance	150	a5c98482aa1be127	2	0.01	200
+ride_ringuma_config	serch_type_normal_distance	70	a5c98482aa1be127	2	0.01	200
+ride_ringuma_config	serch_type_short_distance	10	a5c98482aa1be127	2	0.01	200
+ride_ringuma_config	dig_check_offset	0	83ed851d141159db	2	-2	2
+ride_ringuma_config	dig_check_length	3	a5c98482aa1be127	2	-2	2
+ride_ringuma_config	camera_dash_start_interpolation_frame	70	7eb05ea826bffefb	4294958906	1	300
+ride_ringuma_config	camera_dash_start_interpolation_type	INOUT_SINE	1de31201e57d012b	4294959034		
+ride_ringuma_config	camera_dash_start_orbit_rate	0.7	a5c98482aa1be127	3	-1	1
+ride_ringuma_config	camera_dash_end_interpolation_frame	30	7eb05ea826bffefb	4294958754	1	300
+ride_ringuma_config	camera_dash_end_interpolation_type	INOUT_SINE	1de31201e57d012b	4294958330		
+ride_ringuma_config	camera_dash_end_orbit_rate	-1	a5c98482aa1be127	3	-1	1
+ride_ringuma_config	search_effect_scale_near	2.5	a5c98482aa1be127	2	0.01	3
+ride_ringuma_config	search_effect_scale_far	1	a5c98482aa1be127	2	0.01	3
+ride_ringuma_config	search_effect_scale_ease	LINEAR	1de31201e57d012b	4294957794		
+ride_ringuma_config	search_effect_scale_not_hit	0.8	a5c98482aa1be127	2	0.01	3
+ride_ringuma_config	search_effect_emission_ratio_scale_near	0.75	a5c98482aa1be127	2	0.1	1
+ride_ringuma_config	search_effect_emission_ratio_scale_far	0.4	a5c98482aa1be127	2	0.1	1
+ride_ringuma_config	search_effect_emission_ratio_scale_ease	IN_SINE	1de31201e57d012b	4294957490		
+ride_ringuma_config	search_effect_emission_ratio_scale_not_hit	0.15	a5c98482aa1be127	2	0.1	1
+ride_ringuma_config	search_effect_life_scale_near	1	a5c98482aa1be127	2	0.01	1
+ride_ringuma_config	search_effect_life_scale_far	1	a5c98482aa1be127	2	0.01	1
+ride_ringuma_config	search_effect_life_scale_ease	IN_QUART	1de31201e57d012b	4294956626		
+ride_ringuma_config	search_effect_life_scale_not_hit	1	a5c98482aa1be127	2	0.01	1
+ride_ringuma_config	search_effect_color0_normal_ease	INOUT_QUART	1de31201e57d012b	4294956610		
+ride_ringuma_config	search_effect_color1_normal_ease	INOUT_QUART	1de31201e57d012b	4294956186		
+ride_ringuma_config	search_effect_color0_normal_near	1.95	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha0_normal_near	1	a5c98482aa1be127	2	0	20
+ride_ringuma_config	search_effect_color1_normal_near	8.02	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha1_normal_near	1	a5c98482aa1be127	2	0	1
+ride_ringuma_config	search_effect_color0_normal_far	1	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha0_normal_far	1	a5c98482aa1be127	2	0	20
+ride_ringuma_config	search_effect_color1_normal_far	8.23	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha1_normal_far	1	a5c98482aa1be127	2	0	1
+ride_ringuma_config	search_effect_color0_quest_ease	IN_QUART	1de31201e57d012b	4294954906		
+ride_ringuma_config	search_effect_color1_quest_ease	IN_QUART	1de31201e57d012b	4294955042		
+ride_ringuma_config	search_effect_color0_quest_near	0.5	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha0_quest_near	1	a5c98482aa1be127	2	0	20
+ride_ringuma_config	search_effect_color1_quest_near	0.1	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha1_quest_near	1	a5c98482aa1be127	2	0	1
+ride_ringuma_config	search_effect_color0_quest_far	0	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha0_quest_far	1	a5c98482aa1be127	2	0	20
+ride_ringuma_config	search_effect_color1_quest_far	0	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha1_quest_far	1	a5c98482aa1be127	2	0	1
+ride_ringuma_config	search_effect_color0_not_hit	5	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha0_not_hit	1	a5c98482aa1be127	2	0	20
+ride_ringuma_config	search_effect_color1_not_hit	1.08	83ed851d141159db	2	0	20
+ride_ringuma_config	search_effect_alpha1_not_hit	1	a5c98482aa1be127	2	0	1
+ride_ringuma_config	dash_max_move_keep_frame	60	7eb05ea826bffefb	4294953266	1	300
+ride_ringuma_config	react_se_skip_count	1	7eb05ea826bffefb	4294952866	1	10
+ride_ringuma_config	unstoppable_by_down		fddf046586eb1768	4294952746		
+ride_ringuma_controller_config	lv00_control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv00_control_input_walk	0.01	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv00_control_input_run	0.97	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv00_control_input_dash	1.5	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv00_control_move_front_stop	0	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv00_control_move_front_walk	0.5	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv00_control_move_front_run	1	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv00_control_move_front_dash	1.5	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv01_control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv01_control_input_walk	0.01	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv01_control_input_run	0.97	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv01_control_input_dash	1.5	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv01_control_move_front_stop	0	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv01_control_move_front_walk	0.5	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv01_control_move_front_run	1	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv01_control_move_front_dash	1.5	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv02_control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv02_control_input_walk	0.01	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv02_control_input_run	0.01	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv02_control_input_dash	0.97	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv02_control_move_front_stop	0	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv02_control_move_front_walk	0.5	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv02_control_move_front_run	1	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv02_control_move_front_dash_min	1	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv02_control_move_front_dash_max	2	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv03_control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv03_control_input_walk	0.01	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv03_control_input_run	1.5	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv03_control_input_dash	1.5	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	lv03_control_move_front_stop	0	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv03_control_move_front_walk	0.5	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv03_control_move_front_run	1	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	lv03_control_move_front_dash	1.5	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	physics_height	0.001	a5c98482aa1be127	3	0.001	5
+ride_ringuma_controller_config	physics_radius	0.9	a5c98482aa1be127	3	0	5
+ride_ringuma_controller_config	physics_maxslope	50	a5c98482aa1be127	1	0	89
+ride_ringuma_controller_config	control_gravity_rate	1	a5c98482aa1be127	3	0	10
+ride_ringuma_controller_config	control_physics_maxslidingSpeed	7	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_physics_slidingSlope	25	a5c98482aa1be127	2	0	25
+ride_ringuma_controller_config	control_autoMoveAnimation	〇	fddf046586eb1768	18		
+ride_ringuma_controller_config	control_autoJumpAnimation	〇	fddf046586eb1768	18		
+ride_ringuma_controller_config	control_autoStartTurnMove		fddf046586eb1768	4294967170		
+ride_ringuma_controller_config	control_autoStartTurnDeg	10	a5c98482aa1be127	4294967042		
+ride_ringuma_controller_config	control_autoForwardDirection	〇	fddf046586eb1768	4294966762		
+ride_ringuma_controller_config	control_autoForwardEasing	0.35	a5c98482aa1be127	2	0	1
+ride_ringuma_controller_config	control_stopTurnForwardEasing	0.25	a5c98482aa1be127	2	0	1
+ride_ringuma_controller_config	control_stopTurnTime	0.25	a5c98482aa1be127	2	0	1
+ride_ringuma_controller_config	control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	control_input_walk	0.35	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	control_input_run	0.7	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	control_input_dash	1.05	a5c98482aa1be127	2	0	1.5
+ride_ringuma_controller_config	control_speed_stop	0	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_speed_walk	2	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_speed_run	5	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_speed_dash	6	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_rootMotionRate	30	a5c98482aa1be127	2	0	100
+ride_ringuma_controller_config	control_moveRootMotionAmplifier	1	a5c98482aa1be127	2	0	5
+ride_ringuma_controller_config	control_maxCrouchingSpeed	0	a5c98482aa1be127	2	0	0
+ride_ringuma_controller_config	control_maxFallSpeed	50	a5c98482aa1be127	2	0	100
+ride_ringuma_controller_config	control_firstJumpPower	4	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_secondJumpPower	6	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_thirdJumpPower	2	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_fourthJumpPower	1	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_jumpAccelerationRate	1.2	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_jumpAdditionalMaxPower	1	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_secondaryJumpAccelerationRate	1.5	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_maxSlidingSpeed	12	a5c98482aa1be127	2	0	20
+ride_ringuma_controller_config	control_slidingSlope	35	a5c98482aa1be127	2	0	89
+ride_ringuma_controller_config	control_mudEnterDepth	0.2	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_mudExitDepth	0.1	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_waterEnterDepth	0.5	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_waterExitDepth	0.4	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_swimEnterDepth	1	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_swimExitDepth	0	a5c98482aa1be127	2	0	2
+ride_ringuma_controller_config	control_stepHeightMin	0.01	a5c98482aa1be127	3	0	3
+ride_ringuma_controller_config	control_stepHeightMax	0.4	a5c98482aa1be127	3	0	3
+ride_ringuma_controller_config	control_isDirtMoveEnable		fddf046586eb1768	4294962442		
+ride_ringuma_controller_config	control_enableAirMove	〇	fddf046586eb1768	4294962314		
+ride_ringuma_controller_config	control_airMoveRate	0.25	a5c98482aa1be127	3	0	10
+ride_ringuma_controller_config	control_airMoveRotation		fddf046586eb1768	4294962202		
+ride_ringuma_controller_config	control_airHorizontalVelocityMax	11	a5c98482aa1be127	3	0	10
+ride_ringuma_controller_config	control_airMoveForwardEasing	1	a5c98482aa1be127	2	0	1
+ride_ringuma_controller_config	anm_control_moveFrontName	move_front	98af6d0680d3870f	4294961642		
+ride_ringuma_controller_config	anm_control_moveFrontEasingTime	0.1333333	a5c98482aa1be127	7	0	1
+ride_ringuma_controller_config	anm_control_moveFrontInputMin	0	a5c98482aa1be127	2	-10	10
+ride_ringuma_controller_config	anm_control_moveFrontInputMax	1.5	a5c98482aa1be127	2	-10	10
+ride_ringuma_controller_config	anm_control_moveStopName	move_stop_trigger	98af6d0680d3870f	4294961074		
+ride_ringuma_controller_config	anm_control_moveLeftName	move_left	98af6d0680d3870f	4294961082		
+ride_ringuma_controller_config	anm_control_moveLeftEasingTime	0.0666666	a5c98482aa1be127	7	0	1
+ride_ringuma_controller_config	anm_control_moveLeftInputMin	-1	a5c98482aa1be127	2	-180	180
+ride_ringuma_controller_config	anm_control_moveLeftInputMax	1	a5c98482aa1be127	2	-180	180
+ride_ringuma_controller_config	anm_control_slopeName	slope	98af6d0680d3870f	4294960370		
+ride_ringuma_controller_config	anm_control_slopeEasingTime	0.1333333	a5c98482aa1be127	7	0	1
+ride_ringuma_controller_config	anm_control_slopeInputMin	-45	a5c98482aa1be127	2	-90	90
+ride_ringuma_controller_config	anm_control_slopeInputMax	50	a5c98482aa1be127	2	-90	90
+ride_ringuma_controller_config	anm_control_aerialName	aerial	98af6d0680d3870f	4294959826		
+ride_ringuma_controller_config	anm_control_aerialMin	-1	7eb05ea826bffefb	4294959698	-1	1
+ride_ringuma_controller_config	anm_control_aerialMax	1	7eb05ea826bffefb	4294959570	-1	1
+ride_ringuma_controller_config	anm_control_aerialLandingTypeName	landing_type_int	98af6d0680d3870f	4294959562		
+ride_ringuma_controller_config	actvolume_rate	1.7	a5c98482aa1be127	2	0	10
+ride_ringuma_controller_config	penalty_landHeight0	10	a5c98482aa1be127	4294959170	0	100
+ride_ringuma_controller_config	penalty_landHeight1	13	a5c98482aa1be127	4294959194	0	100
+ride_ringuma_controller_config	penalty_landHeight2	17	a5c98482aa1be127	4294959074	0	100
+ride_ringuma_controller_config	penalty_landHeight3	22	a5c98482aa1be127	4294958954	0	100
+ride_ringuma_controller_config	penalty_landDamage0	0	a5c98482aa1be127	4294958834	0	100
+ride_ringuma_controller_config	penalty_landDamage1	45	a5c98482aa1be127	4294958714	0	100
+ride_ringuma_controller_config	penalty_landDamage2	55	a5c98482aa1be127	4294958594	0	100
+ride_ringuma_controller_config	penalty_landDamage3	70	a5c98482aa1be127	4294958474	0	100
+ride_ringuma_controller_config	penalty_shallowLandHeight0	10	a5c98482aa1be127	4294958346	0	100
+ride_ringuma_controller_config	penalty_shallowLandHeight1	13	a5c98482aa1be127	4294958218	0	100
+ride_ringuma_controller_config	penalty_shallowLandHeight2	17	a5c98482aa1be127	4294958090	0	100
+ride_ringuma_controller_config	penalty_shallowLandHeight3	22	a5c98482aa1be127	4294957962	0	100
+ride_ringuma_controller_config	penalty_shallowLandDamage0	0	a5c98482aa1be127	4294957834	0	100
+ride_ringuma_controller_config	penalty_shallowLandDamage1	45	a5c98482aa1be127	4294957706	0	100
+ride_ringuma_controller_config	penalty_shallowLandDamage2	55	a5c98482aa1be127	4294957578	0	100
+ride_ringuma_controller_config	penalty_shallowLandDamage3	70	a5c98482aa1be127	4294957450	0	100
+ride_ringuma_controller_config	penalty_deepLandHeight0	10	a5c98482aa1be127	4294957178	0	100
+ride_ringuma_controller_config	penalty_deepLandHeight1	13	a5c98482aa1be127	4294957050	0	100
+ride_ringuma_controller_config	penalty_deepLandHeight2	17	a5c98482aa1be127	4294956922	0	100
+ride_ringuma_controller_config	penalty_deepLandHeight3	22	a5c98482aa1be127	4294956794	0	100
+ride_ringuma_controller_config	penalty_deepLandDamage0	0	a5c98482aa1be127	4294956666	0	100
+ride_ringuma_controller_config	penalty_deepLandDamage1	45	a5c98482aa1be127	4294956538	0	100
+ride_ringuma_controller_config	penalty_deepLandDamage2	55	a5c98482aa1be127	4294956410	0	100
+ride_ringuma_controller_config	penalty_deepLandDamage3	70	a5c98482aa1be127	4294956282	0	100
+ride_ringuma_controller_config	effect_waterfall_water_scale_0	1	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_water_scale_1	1.2	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_water_scale_2	1.4	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_water_scale_3	1.6	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_water_scale_4	1.8	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_mud_scale_0	1	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_mud_scale_1	1.2	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_mud_scale_2	1.4	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_mud_scale_3	1.6	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_waterfall_mud_scale_4	1.8	a5c98482aa1be127	3	0	20
+ride_ringuma_controller_config	effect_watermove_water_scale	1.75	a5c98482aa1be127	2		
+ride_ringuma_controller_config	effect_watermove_mud_scale	1.75	a5c98482aa1be127	2		
+ride_ringuma_controller_config	vibration_ground_no_reaction	VIB_FLD_RIDE_CKC_M	51ca52fdbbb50776	4294954634		
+ride_ringuma_controller_config	vibration_ground_easy_reaction	VIB_FLD_JIMEN_RAKKA_S	51ca52fdbbb50776	4294954482		
+ride_ringuma_controller_config	vibration_ground_normal_reaction	VIB_FLD_JIMEN_RAKKA_M	51ca52fdbbb50776	4294954178		
+ride_ringuma_controller_config	vibration_ground_hard_reaction	VIB_FLD_JIMEN_RAKKA_L	51ca52fdbbb50776	4294954170		
+ride_ringuma_controller_config	vibration_ground_very_hard_reaction	VIB_FLD_JIMEN_RAKKA_L	51ca52fdbbb50776	4294953866		
+ride_ringuma_controller_config	vibration_waterground_no_reaction	VIB_FLD_RIDE_CKC_M	51ca52fdbbb50776	4294953858		
+ride_ringuma_controller_config	vibration_waterground_easy_reaction	VIB_FLD_MIZU_RAKKA_S	51ca52fdbbb50776	4294953554		
+ride_ringuma_controller_config	vibration_waterground_normal_reaction	VIB_FLD_MIZU_RAKKA_M	51ca52fdbbb50776	4294953538		
+ride_ringuma_controller_config	vibration_waterground_hard_reaction	VIB_FLD_MIZU_RAKKA_L	51ca52fdbbb50776	4294953234		
+ride_ringuma_controller_config	vibration_waterground_very_hard_reaction	VIB_FLD_MIZU_RAKKA_L	51ca52fdbbb50776	4294953066		
+ride_ringuma_controller_config	hasSlidingAnimation	〇	fddf046586eb1768	4294953090		
+ride_whooguru_config	start_voice_mouch_open_frame	45	7eb05ea826bffefb	18	0	150
+ride_whooguru_config	action_voice_mouch_open_frame	45	7eb05ea826bffefb	4294967162	0	150
+ride_whooguru_config	player_attach_joint_name	parts_03	98af6d0680d3870f	18		
+ride_whooguru_config	ride_off_player_offset	0	83ed851d141159db	2	-2	2
+ride_whooguru_config	enable_swoop_y_reverse		fddf046586eb1768	4294966722		
+ride_whooguru_config	move_input	0.05	a5c98482aa1be127	2	0	1
+ride_whooguru_config	grounding_slope_angle	40	a5c98482aa1be127	2	0	90
+ride_whooguru_config	air_resistance_rate	0.28	a5c98482aa1be127	3	0.01	1
+ride_whooguru_config	move_speed_decay_rate	0.06	a5c98482aa1be127	3	0.01	1
+ride_whooguru_config	collision_offset_y	0	a5c98482aa1be127	2	-10	10
+ride_whooguru_config	model_offset_y	0	a5c98482aa1be127	2	-10	10
+ride_whooguru_config	first_fly_end_y_speed	0	a5c98482aa1be127	3	0	10
+ride_whooguru_config	first_fly_move_speed_rate	2	a5c98482aa1be127	3	0	10
+ride_whooguru_config	ride_to_ride_icon_change_first_fly_move_speed_rate	3.5	a5c98482aa1be127	3	0	10
+ride_whooguru_config	plus_first_fly_move_speed_rate	3.5	a5c98482aa1be127	3	0	10
+ride_whooguru_config	main_turn_easing_time	3	a5c98482aa1be127	3	0	1
+ride_whooguru_config	main_move_turn_easing_time	2	a5c98482aa1be127	3	0	1
+ride_whooguru_config	main_max_fall_speed	0.2	a5c98482aa1be127	2	0.01	15
+ride_whooguru_config	main_max_move_speed	9.5	a5c98482aa1be127	2	0.01	15
+ride_whooguru_config	main_debug_air_jump_speed	1000	a5c98482aa1be127	1	0	2000
+ride_whooguru_config	main_move_yaw_max_diff	45	a5c98482aa1be127	1	0	180
+ride_whooguru_config	main_move_speed_rate	9	a5c98482aa1be127	3	0	10
+ride_whooguru_config	swoop_max_move_speed	16	a5c98482aa1be127	2	0.01	20
+ride_whooguru_config	swoop_pitch_defult	-21	a5c98482aa1be127	2	-90	90
+ride_whooguru_config	swoop_pitch_down	20	a5c98482aa1be127	2	-90	90
+ride_whooguru_config	swoop_yaw_speed_max	2.3	a5c98482aa1be127	3	0	90
+ride_whooguru_config	swoop_yaw_speed_rotation_rate	0.8	a5c98482aa1be127	3	0	1
+ride_whooguru_config	swoop_camera_pitch	-41	a5c98482aa1be127	2	-90	90
+ride_whooguru_config	swoop_camera_interpolation_frame	30	7eb05ea826bffefb	4294963530	1	300
+ride_whooguru_config	swoop_camera_interpolation_type	INOUT_SINE	1de31201e57d012b	4294963386		
+ride_whooguru_config	swoop_camera_behind_delay_rate	0.7	a5c98482aa1be127	3	0.01	1
+ride_whooguru_config	swoop_pitch_retun_rotation_rate	0.05	a5c98482aa1be127	3	0	1
+ride_whooguru_config	swoop_pitch_update_rotation_rate	0.15	a5c98482aa1be127	3	0	1
+ride_whooguru_config	swoop_move_speed_rate	2.5	a5c98482aa1be127	3	0	10
+ride_whooguru_config	swoop_yaw_motion_rate	1.5	a5c98482aa1be127	3	0	10
+ride_whooguru_config	swoop_hight_limit_higher	3.5	a5c98482aa1be127	3	0	10
+ride_whooguru_config	swoop_hight_limit_lower	3	a5c98482aa1be127	3	0	10
+ride_whooguru_config	swoop_brake_rate_xz	0	a5c98482aa1be127	2	0	1
+ride_whooguru_config	swoop_brake_rate_y	0.5	a5c98482aa1be127	2	0	1
+ride_whooguru_config	eff_trajectory_main_enable_speed	6	a5c98482aa1be127	2	0	10
+ride_whooguru_config	eff_trajectory_scale_normal	1	83ed851d141159db	4294961906	0.1	10
+ride_whooguru_config	eff_trajectory_alpha_normal	0.5	a5c98482aa1be127	4294962066	0	1
+ride_whooguru_config	eff_trajectory_scale_swoop	0.5	83ed851d141159db	2	0.1	10
+ride_whooguru_config	eff_trajectory_alpha_swoop	0.8	a5c98482aa1be127	4294961514	0	1
+ride_whooguru_config	turn_speed_max_rate	1	a5c98482aa1be127	3	0.01	3
+ride_whooguru_config	turn_speed_rate	1	a5c98482aa1be127	3	0.01	3
+ride_whooguru_config	add_turn_start_diff	45	a5c98482aa1be127	3	0.01	150
+ride_whooguru_config	add_turn_start_move_left	0.4	a5c98482aa1be127	3	-1	1
+ride_whooguru_config	add_turn_end_move_left	0.8	a5c98482aa1be127	3	-1	1
+ride_whooguru_config	unstoppable_by_down	〇	fddf046586eb1768	4294960738		
+ride_whooguru_config	ceiling_check_length	3.5	a5c98482aa1be127	2	0	5
+ride_whooguru_controller_config	physics_height	0.001	a5c98482aa1be127	3	0.001	5
+ride_whooguru_controller_config	physics_radius	0.9	a5c98482aa1be127	3	0	5
+ride_whooguru_controller_config	physics_maxslope	45	a5c98482aa1be127	1	0	89
+ride_whooguru_controller_config	control_gravity_rate	1	a5c98482aa1be127	3	0	10
+ride_whooguru_controller_config	control_physics_maxslidingSpeed	7	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_physics_slidingSlope	25	a5c98482aa1be127	2	0	25
+ride_whooguru_controller_config	control_autoMoveAnimation	〇	fddf046586eb1768	18		
+ride_whooguru_controller_config	control_autoJumpAnimation	〇	fddf046586eb1768	18		
+ride_whooguru_controller_config	control_autoStartTurnMove		fddf046586eb1768	4294967170		
+ride_whooguru_controller_config	control_autoStartTurnDeg	10	a5c98482aa1be127	4294967042		
+ride_whooguru_controller_config	control_autoForwardDirection	〇	fddf046586eb1768	4294966762		
+ride_whooguru_controller_config	control_autoForwardEasing	0.07	a5c98482aa1be127	2	0	1
+ride_whooguru_controller_config	control_stopTurnForwardEasing	0.45	a5c98482aa1be127	2	0	1
+ride_whooguru_controller_config	control_stopTurnTime	1.5	a5c98482aa1be127	2	0	1
+ride_whooguru_controller_config	control_input_stop	0	a5c98482aa1be127	2	0	1.5
+ride_whooguru_controller_config	control_input_walk	0.01	a5c98482aa1be127	2	0	1.5
+ride_whooguru_controller_config	control_input_run	0.97	a5c98482aa1be127	2	0	1.5
+ride_whooguru_controller_config	control_input_dash	1.5	a5c98482aa1be127	2	0	1.5
+ride_whooguru_controller_config	control_speed_stop	0	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_speed_walk	2	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_speed_run	5	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_speed_dash	6	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_rootMotionRate	30	a5c98482aa1be127	2	0	100
+ride_whooguru_controller_config	control_moveRootMotionAmplifier	1	a5c98482aa1be127	2	0	5
+ride_whooguru_controller_config	control_maxCrouchingSpeed	0	a5c98482aa1be127	2	0	0
+ride_whooguru_controller_config	control_maxFallSpeed	24.5	a5c98482aa1be127	2	0	100
+ride_whooguru_controller_config	control_firstJumpPower	4	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_secondJumpPower	6	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_thirdJumpPower	2	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_fourthJumpPower	1	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_jumpAccelerationRate	1.2	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_jumpAdditionalMaxPower	1	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_secondaryJumpAccelerationRate	1.5	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_maxSlidingSpeed	7	a5c98482aa1be127	2	0	20
+ride_whooguru_controller_config	control_slidingSlope	25	a5c98482aa1be127	2	0	89
+ride_whooguru_controller_config	control_mudEnterDepth	0.2	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_mudExitDepth	0.1	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_waterEnterDepth	0.5	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_waterExitDepth	0.4	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_swimEnterDepth	1	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_swimExitDepth	0	a5c98482aa1be127	2	0	2
+ride_whooguru_controller_config	control_stepHeightMin	0.1	a5c98482aa1be127	2	0	5
+ride_whooguru_controller_config	control_stepHeightMax	0.4	a5c98482aa1be127	2	0	5
+ride_whooguru_controller_config	control_isDirtMoveEnable		fddf046586eb1768	4294962450		
+ride_whooguru_controller_config	anm_control_moveFrontName	move_front	98af6d0680d3870f	4294962458		
+ride_whooguru_controller_config	anm_control_moveFrontEasingTime	0.1333333	a5c98482aa1be127	7	0	1
+ride_whooguru_controller_config	anm_control_moveFrontInputMin	0	a5c98482aa1be127	2	-10	10
+ride_whooguru_controller_config	anm_control_moveFrontInputMax	1	a5c98482aa1be127	2	-10	10
+ride_whooguru_controller_config	anm_control_moveStopName	move_stop_trigger	98af6d0680d3870f	4294961746		
+ride_whooguru_controller_config	anm_control_moveLeftName	move_left	98af6d0680d3870f	4294961754		
+ride_whooguru_controller_config	anm_control_moveLeftEasingTime	0.7	a5c98482aa1be127	7	0	1
+ride_whooguru_controller_config	anm_control_moveLeftEasingTimeAccel	0.3	a5c98482aa1be127	7	0	1
+ride_whooguru_controller_config	anm_control_moveLeftInputMin	-1	a5c98482aa1be127	2	-180	180
+ride_whooguru_controller_config	anm_control_moveLeftInputMax	1	a5c98482aa1be127	2	-180	180
+ride_whooguru_controller_config	anm_control_slopeName		98af6d0680d3870f	4294961058		
+ride_whooguru_controller_config	anm_control_slopeEasingTime	0	a5c98482aa1be127	7	0	1
+ride_whooguru_controller_config	anm_control_slopeInputMin	0	a5c98482aa1be127	2	-90	90
+ride_whooguru_controller_config	anm_control_slopeInputMax	0	a5c98482aa1be127	2	-90	90
+ride_whooguru_controller_config	anm_control_aerialName	aerial	98af6d0680d3870f	4294960378		
+ride_whooguru_controller_config	anm_control_aerialMin	-1	7eb05ea826bffefb	4294960250	-1	1
+ride_whooguru_controller_config	anm_control_aerialMax	1	7eb05ea826bffefb	4294960122	-1	1
+ride_whooguru_controller_config	anm_control_aerialLandingTypeName	landing_type_int	98af6d0680d3870f	4294960114		
+ride_whooguru_controller_config	actvolume_rate	1.7	a5c98482aa1be127	2	0	10
+ride_whooguru_controller_config	randam_wait_motion_interval_min	90	7eb05ea826bffefb	4294959858	1	300
+ride_whooguru_controller_config	randam_wait_motion_interval_max	180	7eb05ea826bffefb	4294959578	1	500
+ride_whooguru_controller_config	randam_wait_motion_over_looking_motion_weight	1	7eb05ea826bffefb	4294959426	1	10
+ride_whooguru_controller_config	randam_move_motion_interval_min	120	7eb05ea826bffefb	4294959290	1	300
+ride_whooguru_controller_config	randam_move_motion_interval_max	240	7eb05ea826bffefb	4294959154	1	500
+ride_whooguru_controller_config	randam_move_motion_over_looking_motion_weight	1	7eb05ea826bffefb	4294959002	1	10
+ride_whooguru_controller_config	penalty_landHeight0	7	a5c98482aa1be127	4294959026	0	100
+ride_whooguru_controller_config	penalty_landHeight1	12	a5c98482aa1be127	4294958906	0	100
+ride_whooguru_controller_config	penalty_landHeight2	17	a5c98482aa1be127	4294958786	0	100
+ride_whooguru_controller_config	penalty_landHeight3	22	a5c98482aa1be127	4294958666	0	100
+ride_whooguru_controller_config	penalty_landDamage0	0	a5c98482aa1be127	4294958546	0	100
+ride_whooguru_controller_config	penalty_landDamage1	0	a5c98482aa1be127	4294958426	0	100
+ride_whooguru_controller_config	penalty_landDamage2	0	a5c98482aa1be127	4294958306	0	100
+ride_whooguru_controller_config	penalty_landDamage3	0	a5c98482aa1be127	4294958186	0	100
+ride_whooguru_controller_config	penalty_shallowLandHeight0	7	a5c98482aa1be127	4294958058	0	100
+ride_whooguru_controller_config	penalty_shallowLandHeight1	12	a5c98482aa1be127	4294957930	0	100
+ride_whooguru_controller_config	penalty_shallowLandHeight2	17	a5c98482aa1be127	4294957802	0	100
+ride_whooguru_controller_config	penalty_shallowLandHeight3	22	a5c98482aa1be127	4294957674	0	100
+ride_whooguru_controller_config	penalty_shallowLandDamage0	0	a5c98482aa1be127	4294957546	0	100
+ride_whooguru_controller_config	penalty_shallowLandDamage1	0	a5c98482aa1be127	4294957418	0	100
+ride_whooguru_controller_config	penalty_shallowLandDamage2	0	a5c98482aa1be127	4294957290	0	100
+ride_whooguru_controller_config	penalty_shallowLandDamage3	0	a5c98482aa1be127	4294957162	0	100
+ride_whooguru_controller_config	penalty_deepLandHeight0	7	a5c98482aa1be127	4294956890	0	100
+ride_whooguru_controller_config	penalty_deepLandHeight1	12	a5c98482aa1be127	4294956762	0	100
+ride_whooguru_controller_config	penalty_deepLandHeight2	17	a5c98482aa1be127	4294956634	0	100
+ride_whooguru_controller_config	penalty_deepLandHeight3	1000	a5c98482aa1be127	4294956498	0	1000
+ride_whooguru_controller_config	penalty_deepLandDamage0	0	a5c98482aa1be127	4294956370	0	100
+ride_whooguru_controller_config	penalty_deepLandDamage1	0	a5c98482aa1be127	4294956242	0	100
+ride_whooguru_controller_config	penalty_deepLandDamage2	0	a5c98482aa1be127	4294956114	0	100
+ride_whooguru_controller_config	penalty_deepLandDamage3	0	a5c98482aa1be127	4294955986	0	100
+ride_whooguru_controller_config	effect_waterfall_water_scale_0	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_water_scale_1	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_water_scale_2	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_water_scale_3	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_water_scale_4	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_mud_scale_0	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_mud_scale_1	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_mud_scale_2	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_mud_scale_3	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	effect_waterfall_mud_scale_4	0	a5c98482aa1be127	3	0	20
+ride_whooguru_controller_config	vibration_ground_no_reaction		51ca52fdbbb50776	4294954634		
+ride_whooguru_controller_config	vibration_ground_easy_reaction		51ca52fdbbb50776	4294954354		
+ride_whooguru_controller_config	vibration_ground_normal_reaction		51ca52fdbbb50776	4294954362		
+ride_whooguru_controller_config	vibration_ground_hard_reaction		51ca52fdbbb50776	4294954082		
+ride_whooguru_controller_config	vibration_ground_very_hard_reaction		51ca52fdbbb50776	4294954090		
+ride_whooguru_controller_config	vibration_waterground_no_reaction		51ca52fdbbb50776	4294953954		
+ride_whooguru_controller_config	vibration_waterground_easy_reaction		51ca52fdbbb50776	4294953818		
+ride_whooguru_controller_config	vibration_waterground_normal_reaction		51ca52fdbbb50776	4294953530		
+ride_whooguru_controller_config	vibration_waterground_hard_reaction		51ca52fdbbb50776	4294953538		
+ride_whooguru_controller_config	vibration_waterground_very_hard_reaction		51ca52fdbbb50776	4294953394		
+ride_whooguru_controller_config	hasSlidingAnimation		fddf046586eb1768	4294953274		
+ride_odoshishi_collision_config	bw_01_node_name	spine_01	98af6d0680d3870f	18		
+ride_odoshishi_collision_config	bw_01_hight	0.5	a5c98482aa1be127	3	0.001	20
+ride_odoshishi_collision_config	bw_01_radius	0.4	a5c98482aa1be127	2	0.01	20
+ride_odoshishi_collision_config	bw_01_offset	-0.5	83ed851d141159db	3	-2	2
+ride_odoshishi_collision_config	bw_01_rot	0	83ed851d141159db	3	-180	180
+ride_odoshishi_collision_config	bw_02_node_name	neck	98af6d0680d3870f	4294966642		
+ride_odoshishi_collision_config	bw_02_hight	0.5	a5c98482aa1be127	3	0.001	20
+ride_odoshishi_collision_config	bw_02_radius	0.4	a5c98482aa1be127	2	0.01	20
+ride_odoshishi_collision_config	bw_02_offset	-0.5	83ed851d141159db	3	-2	2
+ride_odoshishi_collision_config	bw_02_rot	0	83ed851d141159db	3	-180	180
+ride_odoshishi_collision_config	bw_03_node_name		98af6d0680d3870f	18		
+ride_odoshishi_collision_config	bw_03_hight	1	a5c98482aa1be127	3	0.001	20
+ride_odoshishi_collision_config	bw_03_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_odoshishi_collision_config	bw_03_offset	0	83ed851d141159db	3	-2	2
+ride_odoshishi_collision_config	bw_03_rot	0	83ed851d141159db	3	-180	180
+ride_odoshishi_collision_config	bw_04_node_name		98af6d0680d3870f	4294966690		
+ride_odoshishi_collision_config	bw_04_hight	1	a5c98482aa1be127	3	0.001	20
+ride_odoshishi_collision_config	bw_04_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_odoshishi_collision_config	bw_04_offset	0	83ed851d141159db	3	-2	2
+ride_odoshishi_collision_config	bw_04_rot	0	83ed851d141159db	3	-180	180
+ride_odoshishi_collision_config	talk_radius	2.25	a5c98482aa1be127	2	0.01	10
+ride_odoshishi_collision_config	Item_pick_radius	1.85	a5c98482aa1be127	2	0.01	10
+ride_basurao_collision_config	bw_01_node_name	waist	98af6d0680d3870f	18		
+ride_basurao_collision_config	bw_01_hight	0.8	a5c98482aa1be127	3	0.001	20
+ride_basurao_collision_config	bw_01_radius	0.65	a5c98482aa1be127	2	0.01	20
+ride_basurao_collision_config	bw_01_offset	0	83ed851d141159db	3	-2	2
+ride_basurao_collision_config	bw_01_rot	90	83ed851d141159db	3	-180	180
+ride_basurao_collision_config	bw_02_node_name	tail_01	98af6d0680d3870f	18		
+ride_basurao_collision_config	bw_02_hight	0.7	a5c98482aa1be127	3	0.001	20
+ride_basurao_collision_config	bw_02_radius	0.5	a5c98482aa1be127	2	0.01	20
+ride_basurao_collision_config	bw_02_offset	0	83ed851d141159db	3	-2	2
+ride_basurao_collision_config	bw_02_rot	0	83ed851d141159db	3	-180	180
+ride_basurao_collision_config	bw_03_node_name		98af6d0680d3870f	4294966026		
+ride_basurao_collision_config	bw_03_hight	1	a5c98482aa1be127	3	0.001	20
+ride_basurao_collision_config	bw_03_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_basurao_collision_config	bw_03_offset	0	83ed851d141159db	3	-2	2
+ride_basurao_collision_config	bw_03_rot	0	83ed851d141159db	3	-180	180
+ride_basurao_collision_config	bw_04_node_name		98af6d0680d3870f	4294965418		
+ride_basurao_collision_config	bw_04_hight	1	a5c98482aa1be127	3	0.001	20
+ride_basurao_collision_config	bw_04_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_basurao_collision_config	bw_04_offset	0	83ed851d141159db	3	-2	2
+ride_basurao_collision_config	bw_04_rot	0	83ed851d141159db	3	-180	180
+ride_basurao_collision_config	talk_radius	2.25	a5c98482aa1be127	2	0.01	10
+ride_basurao_collision_config	Item_pick_radius	1.85	a5c98482aa1be127	2	0.01	10
+ride_nyuura_collision_config	bw_01_node_name	waist	98af6d0680d3870f	18		
+ride_nyuura_collision_config	bw_01_hight	0.6	a5c98482aa1be127	3	0.001	20
+ride_nyuura_collision_config	bw_01_radius	0.25	a5c98482aa1be127	2	0.01	20
+ride_nyuura_collision_config	bw_01_offset	-0.5	83ed851d141159db	3	-2	2
+ride_nyuura_collision_config	bw_01_rot	0	83ed851d141159db	3	-180	180
+ride_nyuura_collision_config	bw_02_node_name	head	98af6d0680d3870f	18		
+ride_nyuura_collision_config	bw_02_hight	0.1	a5c98482aa1be127	3	0.001	20
+ride_nyuura_collision_config	bw_02_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_nyuura_collision_config	bw_02_offset	-0.1	83ed851d141159db	3	-2	2
+ride_nyuura_collision_config	bw_02_rot	0	83ed851d141159db	3	-180	180
+ride_nyuura_collision_config	bw_03_node_name	parts_01	98af6d0680d3870f	4294966002		
+ride_nyuura_collision_config	bw_03_hight	0.25	a5c98482aa1be127	3	0.001	20
+ride_nyuura_collision_config	bw_03_radius	0.45	a5c98482aa1be127	2	0.01	20
+ride_nyuura_collision_config	bw_03_offset	0.2	83ed851d141159db	3	-2	2
+ride_nyuura_collision_config	bw_03_rot	-90	83ed851d141159db	3	-180	180
+ride_nyuura_collision_config	bw_04_node_name		98af6d0680d3870f	4294965394		
+ride_nyuura_collision_config	bw_04_hight	1	a5c98482aa1be127	3	0.001	20
+ride_nyuura_collision_config	bw_04_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_nyuura_collision_config	bw_04_offset	0	83ed851d141159db	3	-2	2
+ride_nyuura_collision_config	bw_04_rot	0	83ed851d141159db	3	-180	180
+ride_nyuura_collision_config	talk_radius	2.25	a5c98482aa1be127	2	0.01	10
+ride_nyuura_collision_config	Item_pick_radius	1.85	a5c98482aa1be127	2	0.01	10
+ride_ringuma_collision_config	bw_01_node_name	spine_02	98af6d0680d3870f	18		
+ride_ringuma_collision_config	bw_01_hight	0.5	a5c98482aa1be127	3	0.001	20
+ride_ringuma_collision_config	bw_01_radius	0.65	a5c98482aa1be127	2	0.01	20
+ride_ringuma_collision_config	bw_01_offset	-1	83ed851d141159db	3	-2	2
+ride_ringuma_collision_config	bw_01_rot	0	83ed851d141159db	3	-180	180
+ride_ringuma_collision_config	bw_02_node_name	spine_03	98af6d0680d3870f	18		
+ride_ringuma_collision_config	bw_02_hight	0.4	a5c98482aa1be127	3	0.001	20
+ride_ringuma_collision_config	bw_02_radius	0.8	a5c98482aa1be127	2	0.01	20
+ride_ringuma_collision_config	bw_02_offset	0	83ed851d141159db	3	-2	2
+ride_ringuma_collision_config	bw_02_rot	0	83ed851d141159db	3	-180	180
+ride_ringuma_collision_config	bw_03_node_name	head	98af6d0680d3870f	4294966018		
+ride_ringuma_collision_config	bw_03_hight	0.001	a5c98482aa1be127	3	0.001	20
+ride_ringuma_collision_config	bw_03_radius	0.4	a5c98482aa1be127	2	0.01	20
+ride_ringuma_collision_config	bw_03_offset	-0.1	83ed851d141159db	3	-2	2
+ride_ringuma_collision_config	bw_03_rot	0	83ed851d141159db	3	-180	180
+ride_ringuma_collision_config	bw_04_node_name		98af6d0680d3870f	4294966050		
+ride_ringuma_collision_config	bw_04_hight	1	a5c98482aa1be127	3	0.001	20
+ride_ringuma_collision_config	bw_04_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_ringuma_collision_config	bw_04_offset	0	83ed851d141159db	3	-2	2
+ride_ringuma_collision_config	bw_04_rot	0	83ed851d141159db	3	-180	180
+ride_ringuma_collision_config	talk_radius	2.25	a5c98482aa1be127	2	0.01	10
+ride_ringuma_collision_config	Item_pick_radius	1.85	a5c98482aa1be127	2	0.01	10
+ride_whooguru_collision_config	bw_01_node_name	waist	98af6d0680d3870f	18		
+ride_whooguru_collision_config	bw_01_hight	0.5	a5c98482aa1be127	3	0.001	20
+ride_whooguru_collision_config	bw_01_radius	0.5	a5c98482aa1be127	2	0.01	20
+ride_whooguru_collision_config	bw_01_offset	-0.5	83ed851d141159db	3	-2	2
+ride_whooguru_collision_config	bw_01_rot	0	83ed851d141159db	3	-180	180
+ride_whooguru_collision_config	bw_02_node_name	head	98af6d0680d3870f	18		
+ride_whooguru_collision_config	bw_02_hight	0.001	a5c98482aa1be127	3	0.001	20
+ride_whooguru_collision_config	bw_02_radius	0.5	a5c98482aa1be127	2	0.01	20
+ride_whooguru_collision_config	bw_02_offset	0	83ed851d141159db	3	-2	2
+ride_whooguru_collision_config	bw_02_rot	90	83ed851d141159db	3	-180	180
+ride_whooguru_collision_config	bw_03_node_name		98af6d0680d3870f	4294966002		
+ride_whooguru_collision_config	bw_03_hight	1	a5c98482aa1be127	3	0.001	20
+ride_whooguru_collision_config	bw_03_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_whooguru_collision_config	bw_03_offset	0	83ed851d141159db	3	-2	2
+ride_whooguru_collision_config	bw_03_rot	0	83ed851d141159db	3	-180	180
+ride_whooguru_collision_config	bw_04_node_name		98af6d0680d3870f	4294965394		
+ride_whooguru_collision_config	bw_04_hight	1	a5c98482aa1be127	3	0.001	20
+ride_whooguru_collision_config	bw_04_radius	0.3	a5c98482aa1be127	2	0.01	20
+ride_whooguru_collision_config	bw_04_offset	0	83ed851d141159db	3	-2	2
+ride_whooguru_collision_config	bw_04_rot	0	83ed851d141159db	3	-180	180
+ride_whooguru_collision_config	talk_radius	2.25	a5c98482aa1be127	2	0.01	10
+ride_whooguru_collision_config	Item_pick_radius	0	a5c98482aa1be127	2	0.01	10
