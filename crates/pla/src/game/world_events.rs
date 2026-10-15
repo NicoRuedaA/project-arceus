@@ -12,9 +12,10 @@
 //! through [`ConsumedSpawners`]; its slot gets a new generation (= a new spawner id).
 //!
 //! Conditions: species weights are multiplied by the decoded time-slot and weather multipliers of
-//! each slot (from the sheets; 0 = never). Alpha slots are skipped because `WildCreature` has no
-//! alpha flag yet (Brief 17). Story value: the port has no story progress, so `--story <n>`
-//! sets it; default [`DEFAULT_STORY`] (ASSUMED: post-game, everything unlocked).
+//! each slot (from the sheets; 0 = never). Alpha slots are kept with their decoded weights, so an
+//! event roll keeps the native ~1 % alpha chance (Brief 17 remainder). Story value: the port has
+//! no story progress, so `--story <n>` sets it; default [`DEFAULT_STORY`] (ASSUMED: post-game,
+//! everything unlocked).
 //!
 //! Cues: every transition is printed, sent as a [`WorldEventCue`] message and shown in the HUD
 //! toast; placeholder visuals are a translucent dome sphere (distortion), a thin pillar
@@ -26,20 +27,30 @@
 //!
 //! Flags: `--no-world-events`, `--story <n>`, `--event-seed <u64>`, `--event-time-scale <f>`
 //! (speeds the distortion timers), `--distortion-now` (skip the first Idle timer),
-//! `--outbreak <id|off>` (force the outbreak of the start area or disable outbreaks).
+//! `--outbreak <id|mmo|off>` (force a standard or massive outbreak of the start area, or disable
+//! outbreaks).
+//!
+//! Massive mass outbreaks: the decoded group keys never resolve against any encounter table, so
+//! the delivered species come from the external player notes' per-zone pools (PROBABLE, see
+//! [`super::outbreak::MMO_SPECIES_POOLS`]). Wave 1 size (8..10) and the +12 rare tries are the
+//! decoded settings; the second-wave split (765/120/85/30) and its alpha chances (10 % / 9 %)
+//! are the notes'. Wave 2 of a spot starts when its first wave is cleared.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bevy::prelude::*;
 
 use super::cli_flags::{parse_or_warn, report_bad_value};
 use super::clock::GameClock;
 use super::distortion::{
-    DistortionCue, DistortionData, DistortionMachine, EventSpawnSlot, Phase, WormholeConfig,
-    ITEM_DROPS_PER_DISTORTION,
+    DistortionCue, DistortionData, DistortionMachine, EventSpawnSlot, Phase, SpawnerRole,
+    WormholeConfig, ITEM_DROPS_PER_DISTORTION,
 };
 use super::input_map::{Action, ActionState};
-use super::outbreak::{encount_keys, massive_outbreak_report, MassiveOutbreakReport, OutbreakData};
+use super::outbreak::{
+    encount_keys, massive_outbreak_report, mmo_wave_plan, species_id_by_name, MassiveOutbreakReport,
+    MmoArea, MmoWave2Plan, OutbreakData, MMO_SENTINEL,
+};
 use super::save_wire::{PlayerProgress, SaveToast};
 use super::state::{not_paused, GameState};
 use super::ui::ActiveZoneInfo;
@@ -273,7 +284,8 @@ pub struct WorldEventsConfig {
     pub seed: u64,
     pub time_scale: f32,
     pub distortion_now: bool,
-    /// `Some(None)` = outbreaks off, `Some(Some(id))` = force that id in the start area.
+    /// `Some(None)` = outbreaks off, `Some(Some(id))` = force that id in the start area,
+    /// `Some(Some(MMO_SENTINEL))` = force a massive mass outbreak in the start area.
     pub force_outbreak: Option<Option<u16>>,
     /// With `--distortion-now` / `--outbreak N`: place the player near the forced event once
     /// (`--no-teleport-to-event` keeps the start position).
@@ -315,9 +327,13 @@ impl WorldEventsConfig {
             .unwrap_or(1.0),
             distortion_now: args.iter().any(|a| a == "--distortion-now"),
             force_outbreak: val("--outbreak").map(|s| {
-                let id = s.trim().parse::<u16>().ok();
-                if id.is_none() && !s.trim().eq_ignore_ascii_case("off") {
-                    report_bad_value("--outbreak", &s, "an outbreak id or 'off'", "off");
+                let s = s.trim();
+                if s.eq_ignore_ascii_case("mmo") {
+                    return Some(MMO_SENTINEL);
+                }
+                let id = s.parse::<u16>().ok();
+                if id.is_none() && !s.eq_ignore_ascii_case("off") {
+                    report_bad_value("--outbreak", &s, "an outbreak id, 'mmo' or 'off'", "off");
                 }
                 id
             }),
@@ -363,12 +379,60 @@ pub struct ActiveOutbreak {
     pub total: u16,
     pub cleared: u16,
     pub slots: Vec<SlotState>,
+    /// Second wave of a massive mass outbreak (PROBABLE split, external notes); `None` for a
+    /// standard outbreak or when the split answered "no second wave".
+    pub mmo_wave2: Option<MmoWave2Plan>,
+    /// True while the outbreak is a massive one (slot keys `mmo:`, +12 rare tries).
+    pub mmo: bool,
 }
 
 impl ActiveOutbreak {
     /// Slots that still hold a Pokémon.
     pub fn live_slots(&self) -> usize {
         self.slots.iter().filter(|s| !s.retired).count()
+    }
+
+    /// Replace the cleared first wave with the planned second wave of a massive outbreak.
+    /// Returns false when the spot has no second wave.
+    fn start_mmo_wave2(&mut self, rng: &mut u64) -> bool {
+        let Some(w2) = self.mmo_wave2.take() else { return false };
+        let Some(dex) = species_id_by_name(&w2.species) else { return false };
+        let count = w2.count.max(1);
+        let (lo, hi) = self
+            .slots
+            .first()
+            .and_then(|s| s.slot.slots.first())
+            .map_or((1, 1), |e| (e.min_level, e.max_level));
+        let alpha_roll = |rng: &mut u64| (splitmix64(rng) % 1000) < u64::from(w2.alpha_per_mille);
+        self.slots = (0..count)
+            .map(|k| {
+                let pos = self.slots.get(usize::from(k)).map(|s| s.slot.pos);
+                let alpha = alpha_roll(rng);
+                SlotState::new(EventSpawnSlot {
+                    key: format!("mmo2:{}:{}:{k}", self.area, self.id),
+                    pos: pos.unwrap_or(Vec3::ZERO),
+                    radius: 7.0,
+                    slots: vec![EventSlot {
+                        species_id: dex,
+                        species: w2.species.clone(),
+                        form: 0,
+                        alpha,
+                        // A fixed-alpha row when the note's chance fired, a normal one otherwise.
+                        weight: 100,
+                        min_level: lo,
+                        max_level: hi,
+                        time: [1.0; 4],
+                        weather: [1.0; 8],
+                        condition: String::new(),
+                    }],
+                    role: SpawnerRole::Main,
+                })
+            })
+            .collect();
+        self.species = w2.species.clone();
+        self.total = count;
+        self.cleared = 0;
+        true
     }
 
     /// A slot's Pokémon was cleared: count it, then refill the slot with a new id while more
@@ -424,6 +488,9 @@ pub struct WorldEvents {
     pub distortions: DistortionData,
     pub outbreaks: OutbreakData,
     pub mmo: Option<MassiveOutbreakReport>,
+    /// Decoded massive-outbreak settings per area (`world_events_mmo_areas.tsv`); empty when the
+    /// sheet is absent (the MMO then stays unavailable).
+    pub mmo_areas: BTreeMap<String, MmoArea>,
     /// Main area (`ha_areaNN`) the events run in.
     pub area: String,
     pub day: u32,
@@ -459,6 +526,7 @@ impl WorldEvents {
             distortions,
             outbreaks,
             mmo: None,
+            mmo_areas: BTreeMap::new(),
             area: String::new(),
             day: 0,
             machine: None,
@@ -522,40 +590,77 @@ impl WorldEvents {
             ));
         }
         let area = self.area.clone();
+        let force_mmo = matches!(self.config.force_outbreak, Some(Some(id)) if id == MMO_SENTINEL);
         let id = match self.config.force_outbreak {
             Some(None) => None,
             Some(Some(id)) if !self.start_area_forced => {
                 self.start_area_forced = true;
-                self.outbreaks
-                    .spawners
-                    .contains_key(&(area.clone(), id))
-                    .then_some(id)
+                if id == MMO_SENTINEL {
+                    // The massive outbreak keeps the day's normal spot draw for its location.
+                    self.outbreaks
+                        .draw(&area, self.config.story, self.day, self.config.seed)
+                } else {
+                    self.outbreaks
+                        .spawners
+                        .contains_key(&(area.clone(), id))
+                        .then_some(id)
+                }
             }
             _ => self
                 .outbreaks
                 .draw(&area, self.config.story, self.day, self.config.seed),
         };
         if let Some(id) = id {
-            let slots: Vec<SlotState> = self
+            // Massive outbreak (Brief 39 + Brief 17 remainder): the species pool is the external
+            // notes' per-zone list (PROBABLE), the sizes and the +12 tries are decoded settings.
+            let mmo_plan = if force_mmo {
+                self.mmo_areas
+                    .get(&area)
+                    .and_then(|s| mmo_wave_plan(&area, s, self.config.seed ^ u64::from(self.day)))
+            } else {
+                None
+            };
+            let mut slots: Vec<SlotState> = self
                 .outbreaks
                 .spawn_slots(&area, id, self.config.seed ^ u64::from(self.day))
                 .into_iter()
                 .map(SlotState::new)
                 .collect();
-            let species = self.outbreaks.species(&area, id).unwrap_or("?").to_string();
-            let total = self
-                .outbreaks
-                .roll_total(&area, id, self.day, self.config.seed);
-            let mut slots = slots;
+            let (species, total, mmo_wave2, mmo) = match &mmo_plan {
+                Some(plan) => {
+                    let Some(dex) = species_id_by_name(&plan.wave1_species) else {
+                        self.dirty = true;
+                        return cues;
+                    };
+                    let total = plan.wave1_count;
+                    for (k, s) in slots.iter_mut().enumerate() {
+                        s.slot.key = format!("mmo:{area}:{id}:{k}");
+                        for e in s.slot.slots.iter_mut() {
+                            e.species_id = dex;
+                            e.species = plan.wave1_species.clone();
+                            e.alpha = false;
+                            e.weight = 100;
+                        }
+                    }
+                    (plan.wave1_species.clone(), total, plan.wave2.clone(), true)
+                }
+                None => (
+                    self.outbreaks.species(&area, id).unwrap_or("?").to_string(),
+                    self.outbreaks.roll_total(&area, id, self.day, self.config.seed),
+                    None,
+                    false,
+                ),
+            };
             for s in slots.iter_mut().skip(usize::from(total)) {
                 s.retired = true;
             }
             let pos = slots.first().map_or(Vec3::ZERO, |s| s.slot.pos);
+            let label = if mmo { "massive mass outbreak" } else { "mass outbreak" };
             cues.push(self.cue(
                 WorldEventKind::OutbreakStart,
                 pos,
                 format!(
-                    "mass outbreak {id} in {area}: {total} x {species} near ({:.0}, {:.0})",
+                    "{label} {id} in {area}: {total} x {species} near ({:.0}, {:.0})",
                     pos.x, pos.z
                 ),
             ));
@@ -567,6 +672,8 @@ impl WorldEvents {
                 total,
                 cleared: 0,
                 slots,
+                mmo_wave2,
+                mmo,
             });
         }
         self.dirty = true;
@@ -713,6 +820,8 @@ impl WorldEvents {
             }
         }
         let mut ended = None;
+        let mut wave2 = None;
+        let mut rng = self.rng;
         if let Some(o) = self.outbreak.as_mut() {
             for i in 0..o.slots.len() {
                 if !o.slots[i].retired && consumed(&o.slots[i].spawner_id()) {
@@ -721,8 +830,22 @@ impl WorldEvents {
                 }
             }
             if o.cleared >= o.total {
-                ended = Some((o.id, o.species.clone(), o.cleared));
+                // A massive outbreak with a planned second wave rolls it in instead of ending.
+                if o.mmo && o.mmo_wave2.is_some() && o.start_mmo_wave2(&mut rng) {
+                    wave2 = Some((o.id, o.species.clone(), o.total));
+                    self.dirty = true;
+                } else {
+                    ended = Some((o.id, o.species.clone(), o.cleared));
+                }
             }
+        }
+        self.rng = rng;
+        if let Some((id, species, n)) = wave2 {
+            out.push(self.cue(
+                WorldEventKind::OutbreakStart,
+                self.outbreak.as_ref().and_then(|o| o.slots.first()).map_or(Vec3::ZERO, |s| s.slot.pos),
+                format!("massive outbreak {id}: second wave, {n} x {species}"),
+            ));
         }
         if let Some((id, species, n)) = ended {
             self.outbreak = None;
@@ -954,6 +1077,9 @@ pub fn load_world_events(config: WorldEventsConfig) -> Option<WorldEvents> {
             known.extend(encount_keys(&d));
         }
         ev.mmo = Some(massive_outbreak_report(&groups, &known));
+    }
+    if let Some(text) = read("world_events_mmo_areas.tsv") {
+        ev.mmo_areas = MmoArea::parse(&text);
     }
     Some(ev)
 }

@@ -15,9 +15,17 @@
 //!   defeated or caught, or when the day changes. How the game draws ids is UNKNOWN.
 //!
 //! Massive mass outbreaks: the per-area settings and the 166 groups are decoded, but none of the
-//! encounter keys the groups use exists in any decoded table, so their species are UNKNOWN.
-//! [`massive_outbreak_report`] resolves what it can (0 keys today) and every unresolved group is
-//! skipped; nothing is invented.
+//! encounter keys the groups use exists in any decoded table (the key names are built at run time
+//! in code that no local file reaches), so the **group to species mapping is UNKNOWN**.
+//! [`massive_outbreak_report`] keeps the proof. The runtime instead uses:
+//! - the decoded per-area settings (`data/world_events_mmo_areas.tsv`: wave sizes 8..10 and 6..7,
+//!   `f14`/`f17` = 12 extra rare tries) — VERIFIED values, PROBABLE meaning (external notes);
+//! - the per-zone species pools of the external player notes ([`MMO_SPECIES_POOLS`]), labelled
+//!   PROBABLE, split into base forms (names that the decoded outbreak spawners of the zone also
+//!   carry, VERIFIED subset) and evolution-stage extras (notes only);
+//! - the second-wave outcome split (765/120/85/30 per mille) and the second-wave alpha chances
+//!   (10 % base / 9 % evolution), both PROBABLE (external notes; the decoded group child weights
+//!   81/10/9 carry the same 10/9 pair).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -39,6 +47,20 @@ pub struct OutbreakArea {
     /// Unexplained raw values (20 and 25 in every row).
     pub f1_raw: u32,
     pub f7_raw: u32,
+}
+
+impl OutbreakArea {
+    /// Extra rare tries of a standard mass outbreak (`f7_raw` = 25 in every area; VERIFIED
+    /// value, PROBABLE meaning from the external notes).
+    pub fn rare_bonus_tries(&self) -> u32 {
+        self.f7_raw
+    }
+
+    /// Activation chance per map transition in per cent (`f1_raw` = 20 in every area; VERIFIED
+    /// value, PROBABLE meaning from the external notes).
+    pub fn activation_percent(&self) -> u32 {
+        self.f1_raw
+    }
 }
 
 /// The single spawner of one outbreak id.
@@ -210,6 +232,322 @@ pub fn encount_keys(text: &str) -> BTreeSet<String> {
     (0..s.len()).map(|r| s.get(r, "encount_key").to_string()).filter(|k| !k.is_empty()).collect()
 }
 
+// ------------------------------------------------- massive mass outbreaks (MMO) data
+
+/// `--outbreak mmo`: force a massive mass outbreak in the start area.
+pub const MMO_SENTINEL: u16 = u16::MAX;
+
+/// Extra rare tries an event spawner id carries: `we:ob:` (standard outbreak) = 25 (`f7_raw`,
+/// decoded), `we:mmo` (massive outbreak) = 12 (`f14`/`f17`, decoded), anything else = 0.
+/// The meaning of both numbers is PROBABLE (external notes).
+pub fn event_rare_bonus_tries(spawner_id: &str) -> u32 {
+    if spawner_id.starts_with("we:ob") {
+        super::rare_palette::RARE_TRY_BONUS_OUTBREAK
+    } else if spawner_id.starts_with("we:mmo") {
+        super::rare_palette::RARE_TRY_BONUS_MMO
+    } else {
+        0
+    }
+}
+
+/// One area of `data/world_events_mmo_areas.tsv` (columns `f02_raw`..`f17_raw`).
+///
+/// VERIFIED values: `wave1` 8..10 (`f07`/`f08`), `wave2` 6..7 (`f09`/`f10`), `f14` and `f17` = 12.
+/// PROBABLE meaning (external notes): first wave size, second wave size, +12 extra rare tries.
+/// The external note says the second wave holds 6-8; the decoded pair is 6..7, so the port keeps
+/// the decoded 6..7.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MmoArea {
+    pub area: String,
+    pub open_flag: String,
+    pub wave1_min: u16,
+    pub wave1_max: u16,
+    pub wave2_min: u16,
+    pub wave2_max: u16,
+    pub rare_bonus_tries: u32,
+}
+
+impl MmoArea {
+    pub fn parse(text: &str) -> BTreeMap<String, MmoArea> {
+        let s = Sheet::parse(text);
+        let u = |r: usize, n: &str| s.get(r, n).parse::<u32>().unwrap_or(0);
+        (0..s.len())
+            .map(|r| {
+                let area = s.get(r, "area").to_string();
+                let wave1_min = u(r, "f07_raw") as u16;
+                let wave1_max = u(r, "f08_raw") as u16;
+                let wave2_min = u(r, "f09_raw") as u16;
+                let wave2_max = u(r, "f10_raw") as u16;
+                (
+                    area.clone(),
+                    MmoArea {
+                        area,
+                        open_flag: s.get(r, "open_flag").to_string(),
+                        wave1_min,
+                        wave1_max: wave1_max.max(wave1_min),
+                        wave2_min,
+                        wave2_max: wave2_max.max(wave2_min),
+                        rare_bonus_tries: u(r, "f14_raw"),
+                    },
+                )
+            })
+            .collect()
+    }
+}
+
+/// Per-zone massive-outbreak species pool.
+///
+/// **PROBABLE: external player notes only** (they are not shipped with the repository; the report
+/// cites the figures, not the document). The note's list for every zone is split by
+/// [`mmo_pool_split`] against the decoded outbreak spawners of the zone:
+/// - names that the decoded spawners also carry are the zone's **base forms** (VERIFIED subset);
+/// - the rest are **evolution-stage extras** the notes attribute to the second waves.
+///
+/// The decoded massive-outbreak group keys never resolved against any encounter table, so this
+/// per-zone pool is the runtime's only species source and stays labelled PROBABLE.
+pub const MMO_SPECIES_POOLS: &[(&str, &[&str])] = &[
+    (
+        "ha_area01",
+        &[
+            "pikachu", "raichu", "pichu", "zubat", "golbat", "crobat", "paras", "parasect",
+            "psyduck", "golduck", "abra", "kadabra", "alakazam", "geodude", "graveler", "golem",
+            "ponyta", "rapidash", "mr-mime", "mime-jr", "scyther", "magikarp", "gyarados",
+            "eevee", "snorlax", "munchlax", "qwilfish", "stantler", "wurmple", "silcoon",
+            "beautifly", "cascoon", "dustox", "spheal", "sealeo", "chimchar", "monferno",
+            "infernape", "starly", "staravia", "staraptor", "bidoof", "bibarel", "kricketot",
+            "kricketune", "shinx", "luxio", "luxray", "combee", "buizel", "floatzel", "cherubi",
+            "shellos", "gastrodon", "drifloon", "drifblim", "buneary", "lopunny", "happiny",
+            "chansey",
+        ],
+    ),
+    (
+        "ha_area02",
+        &[
+            "paras", "parasect", "psyduck", "golduck", "geodude", "graveler", "gastly",
+            "haunter", "gengar", "onix", "steelix", "lickitung", "lickilicky", "rhyhorn",
+            "rhydon", "rhyperior", "chansey", "happiny", "tangela", "tangrowth", "cyndaquil",
+            "quilava", "typhlosion", "togepi", "sudowoodo", "bonsly", "yanma", "yanmega",
+            "murkrow", "honchkrow", "unown", "teddiursa", "ursaring", "ursaluna", "swinub",
+            "piloswine", "roselia", "budew", "roserade", "barboach", "whiscash", "turtwig",
+            "grotle", "torterra", "kricketot", "kricketune", "combee", "pachirisu", "stunky",
+            "skuntank", "bronzor", "bronzong", "spiritomb", "hippopotas", "hippowdon", "skorupi",
+            "drapion", "croagunk", "toxicroak", "carnivine", "petilil", "lilligant", "goomy",
+            "sliggoo", "goodra",
+        ],
+    ),
+    (
+        "ha_area03",
+        &[
+            "vulpix", "growlithe", "machop", "machoke", "tentacool", "tentacruel", "chansey",
+            "happiny", "tangela", "tangrowth", "magmar", "magby", "togepi", "aipom", "ambipom",
+            "qwilfish", "remoraid", "octillery", "mantine", "mantyke", "duskull", "dusclops",
+            "spheal", "sealeo", "walrein", "piplup", "prinplup", "empoleon", "starly", "staravia",
+            "staraptor", "buizel", "floatzel", "shellos", "gastrodon", "drifloon", "drifblim",
+            "glameow", "purugly", "chatot", "skorupi", "drapion", "finneon", "lumineon",
+            "basculin",
+        ],
+    ),
+    (
+        "ha_area04",
+        &[
+            "clefairy", "clefable", "cleffa", "zubat", "golbat", "geodude", "graveler", "golem",
+            "ponyta", "rapidash", "gastly", "haunter", "gengar", "onix", "voltorb", "electrode",
+            "rhyhorn", "rhydon", "rhyperior", "chansey", "happiny", "mr-mime", "mime-jr",
+            "scyther", "electabuzz", "elekid", "electivire", "magikarp", "gyarados", "sudowoodo",
+            "bonsly", "yanma", "yanmega", "misdreavus", "mismagius", "gligar", "gliscor",
+            "heracross", "sneasel", "sneasler", "teddiursa", "ursaring", "nosepass", "probopass",
+            "roselia", "budew", "duskull", "dusclops", "dusknoir", "chimecho", "chingling",
+            "shinx", "luxio", "luxray", "stunky", "skuntank", "bronzor", "bronzong", "gible",
+            "gabite", "garchomp", "hippopotas", "hippowdon", "snover", "abomasnow", "croagunk",
+            "toxicroak", "rotom", "goomy", "sliggoo", "rowlet", "dartrix", "decidueye",
+        ],
+    ),
+    (
+        "ha_area05",
+        &[
+            "vulpix", "ninetales", "abra", "kadabra", "alakazam", "machop", "machoke", "machamp",
+            "gastly", "haunter", "gengar", "lickitung", "lickilicky", "chansey", "happiny",
+            "magmar", "magby", "eevee", "aipom", "ambipom", "misdreavus", "mismagius", "gligar",
+            "sneasel", "swinub", "piloswine", "mamoswine", "stantler", "ralts", "kirlia",
+            "gardevoir", "gallade", "duskull", "dusclops", "dusknoir", "froslass", "chimecho",
+            "chingling", "snorunt", "glalie", "bidoof", "bibarel", "pachirisu", "drifloon",
+            "drifblim", "buneary", "lopunny", "glameow", "purugly", "bronzor", "bronzong",
+            "munchlax", "gible", "gabite", "riolu", "lucario", "snover", "abomasnow", "basculin",
+            "oshawott", "dewott", "samurott", "zorua", "zoroark", "rufflet", "braviary",
+            "bergmite", "avalugg",
+        ],
+    ),
+];
+
+/// Split a zone's PROBABLE pool against the decoded outbreak species of the zone.
+/// Returns `(base, extras)` where `base` are the names the decoded spawners also carry.
+pub fn mmo_pool_split(area: &str, decoded: &BTreeSet<String>) -> (Vec<&'static str>, Vec<&'static str>) {
+    let pool = MMO_SPECIES_POOLS
+        .iter()
+        .find(|(a, _)| *a == area)
+        .map(|(_, names)| *names)
+        .unwrap_or(&[]);
+    let mut base = Vec::new();
+    let mut extras = Vec::new();
+    for n in pool {
+        if decoded.contains(*n) {
+            base.push(*n);
+        } else {
+            extras.push(*n);
+        }
+    }
+    (base, extras)
+}
+
+/// Second-wave outcome of a massive outbreak.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MmoWave2Outcome {
+    /// No second wave.
+    None,
+    /// Standard second wave (evolutions / alphas).
+    Standard,
+    /// Wave marked with the Guaya (Occa) berry icon.
+    Berry,
+    /// Wave marked with the star icon (guaranteed second wave).
+    Star,
+}
+
+/// **PROBABLE (external notes)**: second-wave outcome split, per mille (765/120/85/30).
+/// The decoded files do not carry this split anywhere the generator found.
+pub const MMO_WAVE2_WEIGHTS: [(MmoWave2Outcome, u32); 4] = [
+    (MmoWave2Outcome::None, 765),
+    (MmoWave2Outcome::Standard, 120),
+    (MmoWave2Outcome::Berry, 85),
+    (MmoWave2Outcome::Star, 30),
+];
+
+/// **PROBABLE (external notes)**: alpha chance of a base-form second-wave creature, per mille.
+/// The decoded massive-outbreak group children carry the weights 81/10/9, the same 10/9 pair.
+pub const MMO_WAVE2_ALPHA_BASE_PER_MILLE: u32 = 100;
+/// **PROBABLE (external notes)**: alpha chance of an evolution second-wave creature, per mille.
+pub const MMO_WAVE2_ALPHA_EVOLUTION_PER_MILLE: u32 = 90;
+
+/// One massive-outbreak wave plan for a zone (deterministic in `seed`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct MmoWavePlan {
+    pub wave1_species: String,
+    pub wave1_count: u16,
+    pub wave2: Option<MmoWave2Plan>,
+}
+
+/// The second wave of an [`MmoWavePlan`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct MmoWave2Plan {
+    pub outcome: MmoWave2Outcome,
+    pub species: String,
+    pub count: u16,
+    /// Per-mille chance that a second-wave creature is an alpha (100 base form, 90 evolution).
+    pub alpha_per_mille: u32,
+}
+
+/// Plan the waves of one massive outbreak spot: wave 1 from the zone's base forms, wave 2 from
+/// the note's outcome split (its species is an evolution extra when the zone has one). `None`
+/// when the zone has no usable pool.
+pub fn mmo_wave_plan(area: &str, settings: &MmoArea, seed: u64) -> Option<MmoWavePlan> {
+    // The decoded outbreak species of the zone: read from the same sheets the runtime uses.
+    let decoded = decoded_outbreak_species(area);
+    let (base, extras) = mmo_pool_split(area, &decoded);
+    if base.is_empty() {
+        return None;
+    }
+    let mut rng = seed ^ hash_str(area) ^ 0x4d4d_4f00;
+    let pick = |list: &[&'static str], rng: &mut u64| -> String {
+        list[(splitmix64(rng) % list.len() as u64) as usize].to_string()
+    };
+    let wave1_species = pick(&base, &mut rng);
+    let wave1_count = rng_range(
+        &mut rng,
+        u32::from(settings.wave1_min.max(1)),
+        u32::from(settings.wave1_max.max(settings.wave1_min)),
+    ) as u16;
+    let total: u32 = MMO_WAVE2_WEIGHTS.iter().map(|(_, w)| w).sum();
+    let mut roll = (splitmix64(&mut rng) % u64::from(total)) as u32;
+    let mut outcome = MmoWave2Outcome::None;
+    for (o, w) in MMO_WAVE2_WEIGHTS {
+        if roll < w {
+            outcome = o;
+            break;
+        }
+        roll -= w;
+    }
+    let wave2 = (outcome != MmoWave2Outcome::None).then(|| {
+        let (species, alpha_per_mille) = if extras.is_empty() {
+            (pick(&base, &mut rng), MMO_WAVE2_ALPHA_BASE_PER_MILLE)
+        } else {
+            (pick(&extras, &mut rng), MMO_WAVE2_ALPHA_EVOLUTION_PER_MILLE)
+        };
+        MmoWave2Plan {
+            outcome,
+            species,
+            count: rng_range(
+                &mut rng,
+                u32::from(settings.wave2_min.max(1)),
+                u32::from(settings.wave2_max.max(settings.wave2_min)),
+            ) as u16,
+            alpha_per_mille,
+        }
+    });
+    Some(MmoWavePlan {
+        wave1_species,
+        wave1_count,
+        wave2,
+    })
+}
+
+/// The species the decoded outbreak spawners of `area` carry (`world_events_outbreak_spawners`).
+/// Falls back to an empty set when the sheet is unavailable.
+pub fn decoded_outbreak_species(area: &str) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let Some(path) = super::world_objects::find_data_file("world_events_outbreak_spawners.tsv")
+    else {
+        return out;
+    };
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return out;
+    };
+    let s = Sheet::parse(&text);
+    for r in 0..s.len() {
+        if s.get(r, "area") == area {
+            let sp = s.get(r, "species").to_lowercase();
+            if !sp.is_empty() {
+                out.insert(sp);
+            }
+        }
+    }
+    out
+}
+
+/// National dex id of a lower-case species name (`data/pml_personal.tsv`, cached).
+pub fn species_id_by_name(name: &str) -> Option<u16> {
+    use std::collections::HashMap;
+    use std::sync::OnceLock;
+    static MAP: OnceLock<HashMap<String, u16>> = OnceLock::new();
+    let map = MAP.get_or_init(|| {
+        let mut m = HashMap::new();
+        let Some(path) = super::world_objects::find_data_file("pml_personal.tsv") else {
+            return m;
+        };
+        let Ok(text) = std::fs::read_to_string(path) else {
+            return m;
+        };
+        for line in text.lines().filter(|l| !l.starts_with('#') && !l.starts_with("dex_index")) {
+            let f: Vec<&str> = line.split('\t').collect();
+            if f.len() >= 2 {
+                if let Ok(id) = f[0].parse::<u16>() {
+                    m.entry(f[1].to_lowercase()).or_insert(id);
+                }
+            }
+        }
+        m
+    });
+    map.get(&name.to_lowercase()).copied()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -312,5 +650,99 @@ mod tests {
         let first = encount_keys(&groups).into_iter().next().unwrap();
         known.insert(first);
         assert_eq!(massive_outbreak_report(&groups, &known).resolved_keys, 1);
+    }
+
+    /// The regular mass-outbreak values the runtime reads: 20 (activation %), 10..15 (size),
+    /// 25 (extra rare tries), all VERIFIED as values, cross-checked against the external notes.
+    #[test]
+    fn regular_outbreak_values_are_the_decoded_ones() {
+        let Some(d) = real() else {
+            eprintln!("[skip] outbreak sheets not found");
+            return;
+        };
+        for a in d.areas.values() {
+            assert_eq!(a.activation_percent(), 20);
+            assert_eq!(a.rare_bonus_tries(), 25);
+            assert_eq!((a.total_min, a.total_max), (10, 15));
+        }
+    }
+
+    /// The massive-outbreak settings are the decoded ones and the note's two 12s live in them.
+    #[test]
+    fn mmo_settings_match_the_decoded_sheet() {
+        let Some(text) = read("world_events_mmo_areas.tsv") else {
+            eprintln!("[skip] mmo areas sheet not found");
+            return;
+        };
+        let areas = MmoArea::parse(&text);
+        assert_eq!(areas.len(), 5);
+        for (area, s) in &areas {
+            assert_eq!(
+                s.open_flag,
+                format!(
+                    "FSYS_NEW_OUTBREAK_OPEN_{}",
+                    area.trim_start_matches("ha_").to_uppercase()
+                )
+            );
+            assert_eq!((s.wave1_min, s.wave1_max), (8, 10), "{area}");
+            assert_eq!((s.wave2_min, s.wave2_max), (6, 7), "{area}");
+            assert_eq!(s.rare_bonus_tries, 12, "{area}");
+        }
+    }
+
+    /// Every name of the PROBABLE pools must resolve in `pml_personal.tsv`, the base part must
+    /// be a subset of the decoded outbreak spawners, and the split must cover the whole pool.
+    #[test]
+    fn mmo_species_pools_resolve_and_split() {
+        let mut checked = 0;
+        for (area, pool) in MMO_SPECIES_POOLS {
+            let decoded = decoded_outbreak_species(area);
+            assert!(!decoded.is_empty(), "{area}: decoded outbreak spawners");
+            let (base, extras) = mmo_pool_split(area, &decoded);
+            assert_eq!(base.len() + extras.len(), pool.len(), "{area}: split covers the pool");
+            assert!(base.len() > 20, "{area}: plenty of base forms match the game data");
+            for n in base.iter().chain(extras.iter()) {
+                assert!(
+                    species_id_by_name(n).is_some(),
+                    "{area}: pool name {n} not in pml_personal.tsv"
+                );
+                checked += 1;
+            }
+            assert!(base.iter().all(|n| decoded.contains(*n)), "{area}: base is the verified part");
+        }
+        assert!(checked > 250, "the five pools carry hundreds of names, got {checked}");
+    }
+
+    /// The wave plan is deterministic, inside the decoded sizes, and its second wave uses the
+    /// evolution extras with the note's alpha chance.
+    #[test]
+    fn mmo_wave_plan_is_deterministic_and_bounded() {
+        let Some(text) = read("world_events_mmo_areas.tsv") else {
+            eprintln!("[skip] mmo areas sheet not found");
+            return;
+        };
+        let areas = MmoArea::parse(&text);
+        let s = &areas["ha_area02"];
+        let mut outcomes = BTreeSet::new();
+        let mut species = BTreeSet::new();
+        for seed in 0..500 {
+            let plan = mmo_wave_plan("ha_area02", s, seed).expect("pool");
+            assert!((8..=10).contains(&plan.wave1_count), "wave 1 size");
+            assert_eq!(plan, mmo_wave_plan("ha_area02", s, seed).expect("pool"));
+            species.insert(plan.wave1_species.clone());
+            if let Some(w2) = plan.wave2 {
+                assert!((6..=7).contains(&w2.count), "wave 2 size");
+                assert!(
+                    w2.alpha_per_mille == MMO_WAVE2_ALPHA_BASE_PER_MILLE
+                        || w2.alpha_per_mille == MMO_WAVE2_ALPHA_EVOLUTION_PER_MILLE
+                );
+                outcomes.insert(w2.outcome);
+                species.insert(w2.species);
+            } else {
+                outcomes.insert(MmoWave2Outcome::None);
+            }
+        }
+        assert!(species.len() > 5, "both waves draw several species, got {}", species.len());
+        assert!(outcomes.len() >= 3, "the outcome split fires over 500 seeds: {outcomes:?}");
     }
 }

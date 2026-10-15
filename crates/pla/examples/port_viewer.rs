@@ -1823,6 +1823,8 @@ fn stream_wild_spawners(
     safety: Res<pla::game::wild::EncounterSafety>,
     time: Res<Time>,
     dist: Option<Res<pla::game::quality::StreamDistances>>,
+    progress: Res<PlayerProgress>,
+    dex_tasks: Res<pla::game::dex::DexTasks>,
 ) {
     let Ok(p_xf) = player_query.single() else {
         return;
@@ -1894,14 +1896,51 @@ fn stream_wild_spawners(
             .unwrap_or(spawner.pos.y);
         let spawn_y = surface_y + 0.45;
 
-        // Ensure glTF is loading
+        // Rare palette ("shiny", Brief 17 remainder): decoded extra tries of the species research
+        // entry and of the active world event, rolled once per spawner with the port's seed.
+        // The 1/4096 base denominator is PROBABLE (external notes; see `rare_palette`).
+        let bonus = pla::game::outbreak::event_rare_bonus_tries(&spawner.spawner_id);
+        let points = pla::game::dex::species_points(&dex_tasks.entries, &progress.research, dex);
+        let rare_ctx = pla::game::rare_palette::RareContext {
+            research_level_10: pla::game::dex::species_level(points) >= 10,
+            research_perfect: pla::game::dex::species_perfect(
+                &dex_tasks.entries,
+                &progress.research,
+                dex,
+            ),
+            charm: false, // no shiny charm item in the port yet
+            event_bonus: bonus,
+        };
+        let mut rare = pla::game::rare_palette::is_rare(
+            seed ^ pla::game::wild::hash_str(&spawner.spawner_id),
+            rare_ctx,
+        );
+        let mut alpha = variant.alpha;
+        if pla::game::debug_flags::force_spawn_rare() {
+            rare = true;
+        }
+        if pla::game::debug_flags::force_spawn_alpha() {
+            alpha = true;
+        }
+        // An alpha (decoded or forced) uses the decoded LL field scale (2.5).
+        let size_scale = if alpha {
+            pla::game::wild::ALPHA_FIELD_SCALE
+        } else {
+            variant.size_scale
+        };
+
+        // Ensure glTF is loading. A rare creature without an exported rare material keeps the
+        // normal model (only the current cache's rare exports decide; the flag stays on the
+        // entity so the status is not lost).
         let asset_key = PokemonAssetKey {
             dex,
             form: variant.form,
-            rare: false,
+            rare,
         };
         if !pokemon_catalog.handles.contains_key(&asset_key) {
-            if let Some(rel_path) = resolve_pokemon_gltf_rel(dex, asset_key.form, asset_key.rare) {
+            let rel = resolve_pokemon_gltf_rel(dex, asset_key.form, asset_key.rare)
+                .or_else(|| resolve_pokemon_gltf_rel(dex, asset_key.form, false));
+            if let Some(rel_path) = rel {
                 let handle: Handle<Gltf> = asset_server.load(rel_path);
                 pokemon_catalog.handles.insert(asset_key, handle);
             }
@@ -1924,13 +1963,12 @@ fn stream_wild_spawners(
                 PokemonSpawn {
                     national_dex: dex,
                     form: variant.form,
-                    // No native shiny probability is decoded; alpha does not imply rare palette.
-                    rare: false,
-                    alpha: variant.alpha,
-                    size_scale: variant.size_scale,
+                    rare,
+                    alpha,
+                    size_scale,
                 },
                 Transform::from_xyz(spawn_x, spawn_y, spawn_z)
-                    .with_scale(Vec3::splat(variant.size_scale)),
+                    .with_scale(Vec3::splat(size_scale)),
                 Visibility::default(),
             ))
             .with_children(|parent| {
@@ -1945,7 +1983,7 @@ fn stream_wild_spawners(
             })
             .id();
         // Alpha slot: the aura (glow, smoke, light) goes on the creature root (game::alpha_aura).
-        if variant.alpha {
+        if alpha {
             commands.entity(entity).insert(pla::game::alpha_aura::AlphaAura::default());
         }
 
