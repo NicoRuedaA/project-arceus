@@ -461,8 +461,10 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
                 cascades: shadow.cascades,
                 shadow_max_distance: shadow.max_distance,
                 shadow_first_cascade: shadow.first_cascade,
-                shadow_depth_bias: 0.05,
-                shadow_normal_bias: 1.4,
+                // Raised from 0.05 / 1.4: the old values left ragged self-shadow patches on the
+                // player's clothes, hair and face (shadow acne). Checked by eye, windowless.
+                shadow_depth_bias: 0.3,
+                shadow_normal_bias: 0.5,
                 post_saturation: 1.15,
                 contrast: 1.12,
                 ssao: settings.ssao,

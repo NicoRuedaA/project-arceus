@@ -27,14 +27,27 @@ pub fn is_two_channel_normal_map(rgba: &[u8]) -> bool {
     rgba.len() >= 4 && rgba.len() % 4 == 0 && rgba.chunks_exact(4).all(|px| px[2] == 0)
 }
 
-/// Rebuilds the blue channel of a two-channel normal map in place. Texels whose (x, y) lie
-/// outside the unit disc are clamped to z = 0 (a vector lying in the surface plane).
+/// How much of the decoded relief is kept (1 = as decoded). The relief of the character maps is
+/// strong and sharp; under the two-tone sun shading it crosses the light/shade threshold in many
+/// places and paints ragged light patches over clothes, scarf and hair (seen on the player). Half
+/// the slope keeps the folds but not the speckle. ASSUMED, picked by eye on the player.
+pub const RELIEF_STRENGTH: f32 = 0.5;
+
+/// Rebuilds the blue channel of a two-channel normal map in place and scales its relief by
+/// [`RELIEF_STRENGTH`]. Texels whose (x, y) lie outside the unit disc are clamped to z = 0 (a
+/// vector lying in the surface plane) before the scaling.
 pub fn reconstruct_blue(rgba: &mut [u8]) {
+    let to_byte = |v: f32| ((v * 0.5 + 0.5) * 255.0).round().clamp(0.0, 255.0) as u8;
     for px in rgba.chunks_exact_mut(4) {
         let x = px[0] as f32 / 255.0 * 2.0 - 1.0;
         let y = px[1] as f32 / 255.0 * 2.0 - 1.0;
         let z = (1.0 - x * x - y * y).max(0.0).sqrt();
-        px[2] = ((z * 0.5 + 0.5) * 255.0).round().clamp(0.0, 255.0) as u8;
+        // Scale the slope (x/z, y/z), then renormalise.
+        let (sx, sy, sz) = (x * RELIEF_STRENGTH, y * RELIEF_STRENGTH, z);
+        let len = (sx * sx + sy * sy + sz * sz).sqrt().max(1e-6);
+        px[0] = to_byte(sx / len);
+        px[1] = to_byte(sy / len);
+        px[2] = to_byte(sz / len);
     }
 }
 
@@ -106,6 +119,7 @@ pub struct NormalMapFixPlugin;
 impl Plugin for NormalMapFixPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, fix_two_channel_normals);
+        super::face_shading::add_systems(app);
     }
 }
 
