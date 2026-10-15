@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 248,
+    "file_count": 249,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -525,7 +525,7 @@
       },
       {
         "path": "crates/pla/src/game/art_style.rs",
-        "sha256": "f1cbfe63a9a4189ee4dd20c28c9daf99bba750effe3fa696082958edaf39a9fb"
+        "sha256": "a6a7fbca9cb97fa9fd0a8936d17fce5c9ae11ae2a70a27d8d1db5d2d3d939ec1"
       },
       {
         "path": "crates/pla/src/game/audio/catalog.rs",
@@ -684,6 +684,10 @@
         "sha256": "a87f982c6d91558a891d98abdf4c42f5d561052ab3be5d8bfc5b4b4aea421951"
       },
       {
+        "path": "crates/pla/src/game/face_shading.rs",
+        "sha256": "b71752fc2ff8aac23e4a7a6b3d5f2d0dbeb042c4fa04231304db649238a7c284"
+      },
+      {
         "path": "crates/pla/src/game/follower.rs",
         "sha256": "58b716fa5ab67c29f04a6860691f3b4f6f51db6091526cc2e02c8f611efb10bf"
       },
@@ -717,7 +721,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "618b1ea1e64aaf00bf8f3546993aad9203c7293cb10b3bc7b7aadcf00c9edc2b"
+        "sha256": "6de22c4017cd68b833735fc4c1e1419f04f7c4352ff10f5a38160fc90f6c17c6"
       },
       {
         "path": "crates/pla/src/game/navigation.rs",
@@ -725,7 +729,7 @@
       },
       {
         "path": "crates/pla/src/game/normal_fix.rs",
-        "sha256": "ae97583ed0047d6dacb91b2b33a0dc0a34cde4183832c525d4b84f9ee2897325"
+        "sha256": "ba723c22e8dadd62565f02472deb5948b8d0d2781cb88c7997fe63c507158446"
       },
       {
         "path": "crates/pla/src/game/npc.rs",
@@ -833,7 +837,7 @@
       },
       {
         "path": "crates/pla/src/game/render_look.rs",
-        "sha256": "e2270349e45e11f369119216b6522c5b9f23db1c2cc11c7b35babea322e59067"
+        "sha256": "e3f84516a40897b2137c2e4a250d7f43e36d2bb58ce5ef65bc08f671a79e4f2b"
       },
       {
         "path": "crates/pla/src/game/save_game.rs",
@@ -1069,7 +1073,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "c8abffacce3355183c79d98d1618235799b4dabf98196d27b9c286b32f4f1832"
+    "sha256": "58bece59aadab704c0ba909c11ab673ac68ea3083fb7e90677e60ca74a4c7545"
   },
   "state_partitions": {
     "analysis_documentation_status": {
