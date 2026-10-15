@@ -225,7 +225,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "94e97d7861c518851f3e9646875646bb95b82d55e7f4225132101d0fbb6c1848"
+        "sha256": "10d311199f14ddae571946c6149907ec025b958aa58594e0538839223397623a"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -569,11 +569,11 @@
       },
       {
         "path": "crates/pla/src/game/battle_camera.rs",
-        "sha256": "5ca31ab9e4dd9ceee68973731a614b7b9b466753ec4d6c388d31d596de1bcda8"
+        "sha256": "854060a6c60596cd38fa5928605b80ab2df1fb12ee4d47dbda860cd748335214"
       },
       {
         "path": "crates/pla/src/game/battle_controller.rs",
-        "sha256": "1093a327bdee099cb57d459c4a13449d1cb8f0a5619bca12b519d35aa877b9e5"
+        "sha256": "189f899712b8da06559cabee6bb6e3315161c1d065fa8820ef250526c6d0bb6a"
       },
       {
         "path": "crates/pla/src/game/battle_demo.rs",
@@ -677,7 +677,7 @@
       },
       {
         "path": "crates/pla/src/game/effects.rs",
-        "sha256": "b23d8d4337ad61e14808de4b7c87bae13d994d58a65de981f409d13712d4bd5a"
+        "sha256": "ba1242014b33724dea4708849830c9362440bd6e3099705f6d6efb7252baefcb"
       },
       {
         "path": "crates/pla/src/game/evolution_fx.rs",
@@ -921,7 +921,7 @@
       },
       {
         "path": "crates/pla/src/game/world_collision.rs",
-        "sha256": "5e66bbe2b84a87336c269611079bce6dfb20735128fb2b7d8d619fff24cb5d74"
+        "sha256": "1d494509967767e61f37b54f58f8242fdb3ef6a9947d9f5303bcd7b52beb6303"
       },
       {
         "path": "crates/pla/src/game/world_events.rs",
@@ -929,7 +929,7 @@
       },
       {
         "path": "crates/pla/src/game/world_objects.rs",
-        "sha256": "6902a680276541840ec72300848c03ff6ffe43dac1e26edccadaa018f54135b7"
+        "sha256": "93703fc615f8c4336c7b3a1f31fab2e3039320bb65f2afbbb6ff51e32e44a73c"
       },
       {
         "path": "crates/pla/src/game/zone.rs",
@@ -1069,7 +1069,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "6ac6829521035e916db3d0e16c6bf9536ae562fd3e024ce2488a02942f997495"
+    "sha256": "0257bbbff76687911242f3b0ecca86eb1d04bce197212ecac57143ed67bf3e74"
   },
   "state_partitions": {
     "analysis_documentation_status": {
