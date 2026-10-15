@@ -101,7 +101,7 @@ blink (mesh hide, Brief 22) is unchanged; `eye_close` is the real blink pose if 
 
 ## Verification
 
-* `cargo test -p pla --lib`: 1,099 pass (new: catalogue/piece/spawn/save/expression tests).
+* `cargo test -p pla --lib`: 1,110 pass (on merged main; 1,099 on the branch before the ride merge) (new: catalogue/piece/spawn/save/expression tests).
 * Startup guard `cargo test -p pla --example port_viewer startup_schedule_guard`: 11 pass.
 * Windowless smoke (`smoke_viewer.py`): 62/62.
 * Windowless GPU captures (`work/capturas_personaliz/`): default p1 look; blond ponytail + green
