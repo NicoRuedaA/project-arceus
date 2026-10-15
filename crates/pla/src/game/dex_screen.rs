@@ -743,16 +743,18 @@ dex_index_national:u16\tspecies_name:string\tform:u8\tis_active:bool\n\
                 move_target: 0,
                 type_byte: 0,
                 param5: 0,
+                field14: 10,
+                field15: 0,
                 thresholds: [1, 2, 4, 6, 10],
                 steps: 5,
             }],
         };
         let mut counters = ResearchCounters::new();
         assert_eq!(research_suffix(&tasks, &counters, 25), "", "unregistered: no suffix");
-        assert_eq!(rank_line(&tasks, &counters), "Rank 1  |  0 pts  |  next rank at 1800");
+        assert_eq!(rank_line(&tasks, &counters), "Rank 0  |  0 pts  |  next rank at 500");
         counters.insert((25, KIND_CAUGHT, 0), 4);
         assert_eq!(research_suffix(&tasks, &counters, 25), "  ·  lv4 30p");
-        assert_eq!(rank_line(&tasks, &counters), "Rank 1  |  30 pts  |  next rank at 1800");
+        assert_eq!(rank_line(&tasks, &counters), "Rank 0  |  30 pts  |  next rank at 500");
     }
 
     /// The task panel lists the selected species' tasks with their counters and thresholds; an
@@ -770,6 +772,8 @@ dex_index_national:u16\tspecies_name:string\tform:u8\tis_active:bool\n\
                     move_target: 0,
                     type_byte: 0,
                     param5: 0,
+                    field14: 10,
+                    field15: 0,
                     thresholds: [1, 2, 4, 6, 10],
                     steps: 5,
                 },
@@ -780,6 +784,8 @@ dex_index_national:u16\tspecies_name:string\tform:u8\tis_active:bool\n\
                     move_target: 84,
                     type_byte: 0,
                     param5: 0,
+                    field14: 10,
+                    field15: 0,
                     thresholds: [3, 6, 12, 25, 0],
                     steps: 4,
                 },

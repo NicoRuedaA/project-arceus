@@ -12,9 +12,15 @@ one windowless `look_headless --clock-report` run (six renders in a single proce
   default weights in `data/weather/weather_lottery_matrix.tsv` (40/20/15/10/5/5/3/2) and the 12 spawn
   multipliers (4 time slots then 8 weathers) in `data/field_spawn_conditions.tsv`.
 - **VERIFIED**: slot index 3 is night (spawn data: 23 night-only species land in the 4th multiplier).
-- **ASSUMED**: the order of slots 0..2 (morning/day/evening; identical everywhere in the spawn data), the
-  clock hours of every slot, and the `f1/f2` interval units (read as whole game hours: 2..4 or 4..6).
-  `reports/data-progress/world_events.md` states that the hour boundaries are not in any unpacked file.
+- **PROBABLE (external hint, no game file carries the hours)**: the band boundaries are 05:00, 12:00,
+  18:00 and 21:00 (morning 05-12, day 12-18, evening 18-21, night 21-05) and the default speed is one
+  game minute per real second (one game hour per real minute, a day in 24 real minutes) — the hint's
+  rate, which the old default already used. `reports/data-progress/world_events.md` states that the
+  hour boundaries are not in any unpacked file. The hint was adopted as PROBABLE (not verified): its
+  four bands are consistent with the verified slot order and with slot 3 = night, and nothing in the
+  data contradicts it.
+- **ASSUMED**: the order of slots 0..2 (morning/day/evening; identical everywhere in the spawn data),
+  and the `f1/f2` interval units (read as whole game hours: 2..4 or 4..6).
 - **UNKNOWN**: the game's clock rate, the weather transition visuals, the `light.gfpak` weather "modifier"
   (offsets/factors) and the 63 `local_weather` placements. No decoded per-weather fog/light numbers exist,
   so every visual response below is this port's own.
@@ -23,16 +29,16 @@ one windowless `look_headless --clock-report` run (six renders in a single proce
 
 - `GameClock { minutes_per_real_second, t_hours, pinned }`, pure and unit-tested; advances only while the
   world/battle runs and not paused (same run condition as play time). Default speed **1.0 game minute per
-  real second** (a game day = 24 real minutes) — ASSUMED, `--time-scale X` overrides it.
+  real second** (a game day = 24 real minutes) — PROBABLE (the hint's rate), `--time-scale X` overrides it.
 - `slot_blend(t)` returns the two surrounding slots and a smoothstep factor. Slot centres sit at
-  03:00/09:00/15:00/21:00, so the boundaries are at 00:00/06:00/12:00/18:00 with a 50/50 mix — the
-  **ASSUMED** 6-hour layout the brief asked for. At a centre the factor is exactly 0, so `--time-slot N`
-  (which pins the clock to the slot centre) still shows exactly the decoded slot.
+  08:30/15:00/19:30/01:00, so the band boundaries are 05:00/12:00/18:00/21:00 with a 50/50 mix —
+  PROBABLE hours (the hint). At a centre the factor is exactly 0, so `--time-slot N` (which pins the
+  clock to the slot centre) still shows exactly the decoded slot.
 - `blend_env(a, b, f)` interpolates two `ZoneEnv`s component-wise (linear RGB; sun direction mixed and
   re-normalised, degenerate pairs fall back to the first slot). ASSUMED shape.
 - Rest: the pause-menu Rest row (Brief 21) heals and now **advances the clock to the start of the next
-  slot** (ASSUMED; the original's tent menu offers a chosen phase, `n2-base-camps-and-travel.md` §2, and its
-  durations are not decoded). The toast shows the new time.
+  band** (05:00/12:00/18:00/21:00; the original's tent menu offers a chosen phase,
+  `n2-base-camps-and-travel.md` §2, matching those four starts, `FUN_02499418`). The toast shows the new time.
 
 ## Lighting (`game/lighting.rs`)
 
@@ -79,7 +85,7 @@ game content; whether the transition "feels" right must be judged by the maintai
 
 `CURRENT_VERSION = 6` (v5 is the party experience from connected progression). `PlayerSave::time_slot` (0..3) is replaced by `time_minutes` (0..1439, the clock's
 minute of day); `PlayerProgress.time_minutes` mirrors the live clock every frame. Migration v5→v6 rewrites
-`time_slot=N` to the centre minute of that slot (N=0→540, 1→900, 2→1260, 3→180; the slot hours are ASSUMED)
+`time_slot=N` to the centre minute of that band (N=0→510, 1→900, 2→1170, 3→60; the band hours are PROBABLE)
 and a v5 file without the line gets the default start (15:00). v1-v4 files pass through their earlier steps
 (v4→v5 adds the unknown experience) and are converted the same way. Out-of-range minutes are refused on write and on read.
 
@@ -90,11 +96,17 @@ and a v5 file without the line gets the default start (15:00). v1-v4 files pass 
   and lighting tests run against the committed TSVs.
 - The single windowless run above (six views, one process, no window).
 - Not verified: anything in a played/viewer session (rule 7), the original game's own look and timing.
+- **Band update (2026-10-15):** the 05/12/18/21 bands, the 08:30/15:00/19:30/01:00 centres, the
+  next-band rest jump and the v5→v6 migration centres are covered by `clock.rs`, `save_game.rs` and
+  `dex_screen.rs` unit tests; full `cargo test -p pla --lib` green at merge time (1138 passed before
+  the final merge) and the windowless smoke run green; not seen on screen by any agent.
 
 ## Unknown / not done
 
-- Real slot hours, real clock rate, real weather durations and visuals, `light.gfpak` weather modifier,
-  `local_weather` placements and the `disable_system_flag` semantics are UNKNOWN.
+- The real slot hours are not in any unpacked file (the 05/12/18/21 bands are PROBABLE from the
+  external hint); the game's own clock rate stays undecoded (the 1 min/s default matches the hint);
+  real weather durations and visuals, `light.gfpak` weather modifier, `local_weather` placements and
+  the `disable_system_flag` semantics are UNKNOWN.
 - The clock exists (`GameClock::slot()`) but wild spawning still ignores the decoded `time_*`/`weather_*`
   multipliers (`data/field_spawn_conditions.tsv`) — that wiring is a follow-up; the report
   `world_events.md` describes the intended formula `weight x time_<slot> x weather_<w>`.

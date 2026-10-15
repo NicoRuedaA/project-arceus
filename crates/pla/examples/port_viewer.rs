@@ -4935,6 +4935,8 @@ mod alpha_spawn {
         app.insert_resource(PokemonCatalogResource { handles: HashMap::new(), spawned: HashSet::new() });
         app.init_resource::<ConsumedSpawners>();
         app.init_resource::<pla::game::wild::EncounterSafety>();
+        app.insert_resource(PlayerProgress::default());
+        app.insert_resource(pla::game::dex::DexTasks::default());
         app.insert_resource(ActiveAreaSpawners {
             spawners: vec![spawner("normal", 3.0, false), spawner("alpha", -3.0, true)],
             ..Default::default()
