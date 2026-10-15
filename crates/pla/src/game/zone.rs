@@ -1054,6 +1054,11 @@ pub fn apply_zone_change(
         .map(|t| t.area.instances.iter().map(|i| i.model_name.clone()).collect())
         .unwrap_or_default();
     crate::game::world_objects::reload_world_objects(world, area_idx, &tree_models);
+    // The climb surfaces also live in the old area's frame: swap them for the new area's.
+    match crate::game::climb_surfaces::reload_climb_surfaces(world, area_idx) {
+        Some(n) => println!("Climb surfaces ha_area{area_idx:02}: {n} cliff surfaces installed"),
+        None => eprintln!("zone: climb surfaces plugin is not installed; nothing to reload"),
+    }
     crate::game::lighting::reload_zone_environment(world, &request.zone);
     // The old area's creatures live in the old frame: remove them, then stream the new table
     // (an unreadable table leaves the new area empty rather than replaying the old spawners).
@@ -1144,6 +1149,8 @@ fn apply_interior_change(
         }
     }
     crate::game::world_objects::reload_world_objects_zone(world, &request.zone, &HashSet::new());
+    // An interior has no derived climb surfaces: the parent area's cliffs live in another frame.
+    crate::game::climb_surfaces::reload_climb_surfaces(world, u8::MAX);
     // Lighting: the sub-area's own decoded rows when the sheet has any, else its `env_set`.
     if !crate::game::lighting::reload_zone_environment(world, &request.zone) {
         crate::game::lighting::reload_zone_environment(world, &plan.env_zone);

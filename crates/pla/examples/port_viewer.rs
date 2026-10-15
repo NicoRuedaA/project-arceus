@@ -1137,6 +1137,9 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::player_skills::PlayerSkillsPlugin);
     app.add_plugins(pla::game::blink::BlinkPlugin);
     app.add_plugins(pla::game::interact::InteractPlugin);
+    // Real climbable cliff surfaces of the start area (Brief 13 follow-up; zone changes reload
+    // them in `game::zone`).
+    app.add_plugins(pla::game::climb_surfaces::ClimbSurfacesPlugin { area: area_idx });
     // Installed after InputMapPlugin: MainMenuPlugin adds that plugin itself when it is
     // missing, and Bevy panics when the same plugin is added twice.
     if main_menu {

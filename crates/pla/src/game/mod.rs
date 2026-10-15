@@ -46,6 +46,7 @@ pub mod dressup;
 pub mod face_expr;
 pub mod catch_rate;
 pub mod cli_flags;
+pub mod climb_surfaces;
 pub mod clock;
 pub mod crafting;
 pub mod crafting_ui;

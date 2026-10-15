@@ -58,9 +58,11 @@ entries decode with a non-empty name; 258/261 numeric values lie inside the file
 
 ## Not derived from data
 
-- No ladder, rope, vine or climb-surface placement is decoded: `bg_event` placements exist (13-40
-  records per main area) but their record semantics are unknown, and none of the 55 `gimmick_*`
-  models is a ladder. Climbables are test-only plus `PLA_DEBUG_CLIMB=1`.
+- ~~No ladder, rope, vine or climb-surface placement is decoded~~ **Resolved 2026-10-15**: the
+  original has no ladder or rope objects at all (`ropes_ladders_unknown.md`); the real climbable
+  surfaces are the terrain cliffs, derived from the heightmaps with the decoded Sneasler angle
+  rule and loaded per area from `data/field_climb_surfaces.tsv` (`climb_surfaces.md`). The debug
+  ladder (`PLA_DEBUG_CLIMB=1`) stays for eyeballing without data.
 - No climb clip exists in the 423 exported-capable player clips by name (see Brief 22 below); the
   climb uses `walk` as a placeholder.
 - Doors, warps and ropes tied to zone changes are Brief 8b (another worktree), not here.

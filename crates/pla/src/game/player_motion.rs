@@ -397,6 +397,10 @@ pub fn apply_vertical_motion(
         match boundary {
             ClimbBoundary::Top => {
                 tf.translation.y = c.top.y + AVATAR_ROOT_ABOVE_GROUND;
+                // Step off onto the surface top, which for a cliff sits elsewhere than the
+                // base (the real sheet's crest); the debug ladder keeps base == top.
+                tf.translation.x = c.top.x;
+                tf.translation.z = c.top.z;
                 state.end_climb();
                 state.supported = true;
             }
@@ -669,6 +673,46 @@ mod tests {
         assert!(state.climb.is_none());
         let y = app.world().get::<Transform>(e).unwrap().translation.y;
         assert!((y - top).abs() < 1e-4, "stepped off at the top: {y}");
+    }
+
+    #[test]
+    fn headless_cliff_steps_off_on_the_crest() {
+        // A derived cliff's top sits elsewhere than its base: reaching the top lands the avatar
+        // on the crest's horizontal position, not above the foot.
+        let mut app = motion_app();
+        let e = avatar(&mut app);
+        let mut cliff = ladder_at(Vec3::ZERO);
+        cliff.top = Vec3::new(4.0, 3.0, -2.0);
+        app.world_mut().spawn(cliff);
+        app.update();
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Enter);
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::Enter);
+        assert_eq!(
+            app.world().get::<PlayerMotionState>(e).unwrap().mode,
+            MotionMode::Climbing
+        );
+        // Climb to the top.
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyW);
+        for _ in 0..400 {
+            app.update();
+        }
+        let state = *app.world().get::<PlayerMotionState>(e).unwrap();
+        assert_eq!(state.mode, MotionMode::Grounded, "stepped off at the top");
+        let tf = app.world().get::<Transform>(e).unwrap().translation;
+        assert!((tf.x - 4.0).abs() < 1e-4, "steps onto the crest x: {tf}");
+        assert!((tf.z + 2.0).abs() < 1e-4, "steps onto the crest z: {tf}");
+        assert!(
+            (tf.y - (3.0 + crate::game::player_anim::AVATAR_ROOT_ABOVE_GROUND)).abs() < 1e-4,
+            "crest height: {tf}"
+        );
     }
 
     #[test]
