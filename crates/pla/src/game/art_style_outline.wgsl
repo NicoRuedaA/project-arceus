@@ -31,6 +31,10 @@ struct OutlineUniform {
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(100) var<uniform> outline: OutlineUniform;
 
+// World-space depth bias (metres) along the camera ray so concave back-face folds (lips, nostrils,
+// ears, collar creases) stay behind adjacent front faces while the outer silhouette remains visible.
+const OUTLINE_DEPTH_BIAS_M: f32 = 0.04;
+
 @vertex
 fn vertex(vertex: Vertex) -> VertexOutput {
     var out: VertexOutput;
@@ -53,9 +57,11 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     out.world_normal = n;
     out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4<f32>(vertex.position, 1.0));
 
-    var clip = position_world_to_clip(out.world_position.xyz);
+    let to_vertex = out.world_position.xyz - view.world_position;
+    let dist = length(to_vertex);
+    let biased_world = out.world_position.xyz + (to_vertex / max(dist, 1e-4)) * OUTLINE_DEPTH_BIAS_M;
+    var clip = position_world_to_clip(biased_world);
     // outline_width_px()
-    let dist = length(view.world_position - out.world_position.xyz);
     let fade = 1.0 - smoothstep(outline.params.z, outline.params.w, dist);
     let px = max(outline.params.x * view.viewport.w / 1080.0 * fade, 0.0);
     let nc = (view.clip_from_world * vec4<f32>(n, 0.0)).xy;

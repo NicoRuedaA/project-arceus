@@ -11,29 +11,103 @@
 //!
 //! ASSUMED: the original game does something similar; the exact method is not decoded.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use bevy::asset::AssetId;
-use bevy::mesh::VertexAttributeValues;
+use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::*;
 
-/// Share of the sphere normal in the final normal for faces. ASSUMED, picked by eye.
-pub const FACE_BLEND: f32 = 0.9;
+/// Share of the dome normal in the final normal for faces, hair and clothes. ASSUMED, picked by eye.
+pub const FACE_BLEND: f32 = 0.92;
+pub const HAIR_BLEND: f32 = 0.85;
+pub const CLOTH_BLEND: f32 = 0.75;
+/// Shared head-dome centre at the base of the skull in character model space for multi-part hair
+/// (`hair_*`, `hide_*`) and internal mouth meshes so adjacent pieces share one continuous dome.
+pub const HAIR_DOME_CENTRE: Vec3 = Vec3::new(0.0, 1.18, -0.02);
 
-/// Whether a mesh is the face skin (`<part>_mesh_shape#<material>` glTF name). Only this mesh is
-/// softened: it is one piece, so its own bounding box gives a sensible ball centre. Eyebrows,
-/// eyelashes, eyes and the inside of the mouth are small separate pieces and keep their normals;
-/// hair keeps its normals too (its patches come from the normal map, see `normal_fix`).
+/// Whether a mesh is a character part whose normals should be softened (`<part>_mesh_shape#<material>`
+/// glTF name, with or without the `.material-name` suffix added by `bevy_gltf` on `Mesh3d` child
+/// entities). Eyes, eyebrows and eyelashes keep their sharp normals.
 pub fn blend_for_mesh_name(name: &str) -> Option<f32> {
-    (name == "face_mesh_shape#face_skin").then_some(FACE_BLEND)
+    let mesh_name = name.split('.').next().unwrap_or(name);
+    if matches!(
+        mesh_name,
+        "face_mesh_shape#face_skin"
+            | "mouth_mesh_shape#face_skin"
+            | "tongue_mesh_shape#face_skin"
+            | "tooth_mesh_shape#face"
+    ) {
+        Some(FACE_BLEND)
+    } else if mesh_name.ends_with("#hairstyle") {
+        Some(HAIR_BLEND)
+    } else if mesh_name.ends_with("#body")
+        || mesh_name.ends_with("#body_skin")
+        || mesh_name.ends_with("#shoes")
+        || mesh_name.ends_with("#baggage")
+    {
+        Some(CLOTH_BLEND)
+    } else {
+        None
+    }
 }
 
-/// Blends `normals` towards `normalize(position - centre)` by `blend` (0..1). Vertices at the
-/// centre keep their normal. Result vectors are unit length.
+/// Welds split UV-seam normals at identical positions and runs `passes` rounds of triangle-neighbour
+/// Laplacian normal averaging so sharp 1-triangle cloth wrinkles do not speckle the toon threshold.
+pub fn smooth_mesh_normals(positions: &[[f32; 3]], normals: &mut [[f32; 3]], indices: &[u32], passes: usize) {
+    if positions.is_empty() || positions.len() != normals.len() {
+        return;
+    }
+    let quant = |p: [f32; 3]| [(p[0] * 10_000.0).round() as i32, (p[1] * 10_000.0).round() as i32, (p[2] * 10_000.0).round() as i32];
+    let mut groups: HashMap<[i32; 3], Vec<usize>> = HashMap::new();
+    for (i, p) in positions.iter().enumerate() {
+        groups.entry(quant(*p)).or_default().push(i);
+    }
+    let mut adj: Vec<Vec<usize>> = vec![Vec::new(); positions.len()];
+    for tri in indices.chunks_exact(3) {
+        let (a, b, c) = (tri[0] as usize, tri[1] as usize, tri[2] as usize);
+        if a < positions.len() && b < positions.len() && c < positions.len() {
+            adj[a].extend([b, c]);
+            adj[b].extend([a, c]);
+            adj[c].extend([a, b]);
+        }
+    }
+    for _ in 0..passes {
+        // Weld co-located seam vertices first.
+        for verts in groups.values() {
+            if verts.len() > 1 {
+                let sum = verts.iter().fold(Vec3::ZERO, |acc, &i| acc + Vec3::from(normals[i]));
+                if let Some(avg) = sum.try_normalize() {
+                    let arr = avg.to_array();
+                    for &i in verts {
+                        normals[i] = arr;
+                    }
+                }
+            }
+        }
+        let prev: Vec<Vec3> = normals.iter().map(|n| Vec3::from(*n)).collect();
+        for (i, nbrs) in adj.iter().enumerate() {
+            if nbrs.is_empty() {
+                continue;
+            }
+            let sum = nbrs.iter().fold(prev[i] * 2.0, |acc, &j| acc + prev[j]);
+            if let Some(avg) = sum.try_normalize() {
+                normals[i] = avg.to_array();
+            }
+        }
+    }
+}
+
+/// Blends `normals` towards a dome direction from `centre` by `blend` (0..1). Vertices below
+/// `centre.y` are lifted to a gentle upward tilt so an overhead sun does not cast a dark lower-hemisphere
+/// "beard" across the cheeks, mouth, chin or sleeves. Vertices at the centre keep their normal.
 pub fn spherize_normals(positions: &[[f32; 3]], normals: &mut [[f32; 3]], centre: Vec3, blend: f32) {
     let blend = blend.clamp(0.0, 1.0);
     for (p, n) in positions.iter().zip(normals.iter_mut()) {
-        let radial = Vec3::from(*p) - centre;
+        let mut radial = Vec3::from(*p) - centre;
+        if radial.y < 0.0 {
+            let horiz = Vec2::new(radial.x, radial.z).length();
+            radial.y = horiz * 0.35;
+        }
         let Some(radial) = radial.try_normalize() else { continue };
         let old = Vec3::from(*n).try_normalize().unwrap_or(radial);
         *n = old.lerp(radial, blend).try_normalize().unwrap_or(old).to_array();
@@ -55,17 +129,36 @@ pub fn head_centre(positions: &[[f32; 3]]) -> Option<Vec3> {
     Some(Vec3::new(mid.x, mid.y, hi.z - width * 0.5))
 }
 
-fn soften_mesh(mesh: &mut Mesh, blend: f32) -> bool {
+fn soften_mesh(mesh: &mut Mesh, name: &str, blend: f32) -> bool {
     let Some(VertexAttributeValues::Float32x3(positions)) = mesh.attribute(Mesh::ATTRIBUTE_POSITION) else {
         return false;
     };
     let positions = positions.clone();
-    let Some(centre) = head_centre(&positions) else { return false };
+    let indices: Vec<u32> = match mesh.indices() {
+        Some(Indices::U32(v)) => v.clone(),
+        Some(Indices::U16(v)) => v.iter().map(|&i| u32::from(i)).collect(),
+        None => Vec::new(),
+    };
+    let mesh_name = name.split('.').next().unwrap_or(name);
+    let is_head_shared = mesh_name.ends_with("#hairstyle")
+        || matches!(
+            mesh_name,
+            "mouth_mesh_shape#face_skin" | "tongue_mesh_shape#face_skin" | "tooth_mesh_shape#face"
+        );
+    let centre = if is_head_shared {
+        HAIR_DOME_CENTRE
+    } else {
+        let Some(c) = head_centre(&positions) else { return false };
+        c
+    };
     let Some(VertexAttributeValues::Float32x3(normals)) = mesh.attribute_mut(Mesh::ATTRIBUTE_NORMAL) else {
         return false;
     };
     if normals.len() != positions.len() {
         return false;
+    }
+    if !indices.is_empty() {
+        smooth_mesh_normals(&positions, normals, &indices, 4);
     }
     spherize_normals(&positions, normals, centre, blend);
     true
@@ -82,7 +175,7 @@ fn soften_character_normals(
             continue;
         }
         if let Some(mut mesh) = meshes.get_mut(&mesh3d.0) {
-            soften_mesh(&mut mesh, blend);
+            soften_mesh(&mut mesh, name.as_str(), blend);
         }
     }
 }
@@ -97,15 +190,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_the_face_skin_mesh_is_softened() {
+    fn character_face_hair_and_cloth_meshes_are_softened() {
         assert_eq!(blend_for_mesh_name("face_mesh_shape#face_skin"), Some(FACE_BLEND));
+        assert_eq!(
+            blend_for_mesh_name("face_mesh_shape#face_skin.face_mesh_shape#face_skin-material"),
+            Some(FACE_BLEND)
+        );
+        assert_eq!(blend_for_mesh_name("mouth_mesh_shape#face_skin"), Some(FACE_BLEND));
+        assert_eq!(blend_for_mesh_name("tooth_mesh_shape#face"), Some(FACE_BLEND));
+        assert_eq!(blend_for_mesh_name("hair_mesh_shape#hairstyle"), Some(HAIR_BLEND));
+        assert_eq!(
+            blend_for_mesh_name("hair_mesh_shape#hairstyle.hair_mesh_shape#hairstyle-material"),
+            Some(HAIR_BLEND)
+        );
+        assert_eq!(blend_for_mesh_name("hide_b_mesh_shape#hairstyle"), Some(HAIR_BLEND));
+        assert_eq!(blend_for_mesh_name("uppercloth_mesh_shape#body"), Some(CLOTH_BLEND));
         assert_eq!(blend_for_mesh_name("face_mesh_shape#eye"), None);
         assert_eq!(blend_for_mesh_name("eyelash_mesh_shape#face"), None);
         assert_eq!(blend_for_mesh_name("eyebrow_mesh_shape#eyebrow"), None);
-        assert_eq!(blend_for_mesh_name("hair_mesh_shape#hairstyle"), None);
-        assert_eq!(blend_for_mesh_name("mouth_mesh_shape#face_skin"), None);
         assert_eq!(blend_for_mesh_name("eye_mesh_shape#eye"), None);
-        assert_eq!(blend_for_mesh_name("uppercloth_mesh_shape#body"), None);
         assert_eq!(blend_for_mesh_name("no_hash"), None);
     }
 
@@ -117,6 +220,13 @@ mod tests {
         let n = Vec3::from(normals[0]);
         assert!((n.length() - 1.0).abs() < 1e-5);
         assert!(n.z > 0.9, "now mostly radial: {n:?}");
+
+        // Co-located seam vertices are welded and smoothed across triangle neighbours.
+        let seam_pos = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let mut seam_nrm = [[0.6, 0.0, 0.8], [-0.6, 0.0, 0.8], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0]];
+        smooth_mesh_normals(&seam_pos, &mut seam_nrm, &[0, 2, 3, 1, 2, 3], 2);
+        assert!((seam_nrm[0][0] - seam_nrm[1][0]).abs() < 1e-5, "co-located seam welded");
+        assert!(seam_nrm[0][2] > 0.95);
     }
 
     #[test]

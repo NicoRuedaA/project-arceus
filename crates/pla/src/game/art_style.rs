@@ -447,11 +447,15 @@ pub struct ArtStyleParams {
 }
 
 /// Should a mesh get an outline shell? Not for blended materials (glass, highlights), meshes without
-/// normals or with morph targets (the shell does not morph), or eyes (an eye shell would draw a dark
-/// disc on the face). ASSUMED rule.
+/// normals or with morph targets (the shell does not morph), or internal eye/mouth detail meshes
+/// (`eye`, `eyebrow`, `eyelash`, `mouth`, `tooth`, `tongue`) whose shells would poke through the face.
+/// ASSUMED rule.
 pub fn wants_outline(name: Option<&str>, alpha: &AlphaMode, has_normals: bool, has_morphs: bool) -> bool {
-    let eye = name.is_some_and(|n| n.to_ascii_lowercase().contains("eye"));
-    matches!(alpha, AlphaMode::Opaque | AlphaMode::Mask(_)) && has_normals && !has_morphs && !eye
+    let facial_detail = name.is_some_and(|n| {
+        let lower = n.to_ascii_lowercase();
+        lower.contains("eye") || lower.contains("mouth") || lower.contains("tooth") || lower.contains("tongue")
+    });
+    matches!(alpha, AlphaMode::Opaque | AlphaMode::Mask(_)) && has_normals && !has_morphs && !facial_detail
 }
 
 #[allow(clippy::type_complexity)]
@@ -492,8 +496,13 @@ fn apply_art_style(
             let (toon_h, outline_h) = cache
                 .entry(mat.0.id())
                 .or_insert_with(|| {
+                    let mut toon_base = base.clone();
+                    // Character normal maps lack vertex tangents and pollute the normal prepass (SSAO)
+                    // and PBR lighting with ragged blotches; clear the normal map on the toon copy while
+                    // keeping the original StandardMaterial untouched for `revert_art_style`.
+                    toon_base.normal_map_texture = None;
                     let toon = toon_mats.add(ToonMaterial {
-                        base: base.clone(),
+                        base: toon_base,
                         extension: ToonExt { params: ToonUniform::from(&params.toon) },
                     });
                     let outline = outline_mats.add(OutlineMaterial {
@@ -731,6 +740,9 @@ mod tests {
         assert!(wants_outline(Some("body_mesh"), &AlphaMode::Opaque, true, false));
         assert!(wants_outline(None, &AlphaMode::Mask(0.5), true, false));
         assert!(!wants_outline(Some("eye_mesh_shape#eye"), &AlphaMode::Opaque, true, false));
+        assert!(!wants_outline(Some("mouth_mesh_shape#face_skin"), &AlphaMode::Opaque, true, false));
+        assert!(!wants_outline(Some("tooth_mesh_shape#face"), &AlphaMode::Opaque, true, false));
+        assert!(!wants_outline(Some("tongue_mesh_shape#face_skin"), &AlphaMode::Opaque, true, false));
         assert!(!wants_outline(Some("body"), &AlphaMode::Blend, true, false));
         assert!(!wants_outline(Some("body"), &AlphaMode::Opaque, false, false));
         assert!(!wants_outline(Some("body"), &AlphaMode::Opaque, true, true));

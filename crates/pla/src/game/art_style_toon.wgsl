@@ -36,10 +36,11 @@ struct ToonUniform {
 
 // Bevy's diffuse BRDF is Burley; 1/pi is its Lambert approximation, close enough for a delta.
 const INV_PI: f32 = 0.318309886;
-// Share of the normal-mapped normal in the normal used for the two-tone threshold (0 = smooth only).
-// Share of the (screen-space and material) ambient occlusion kept on characters.
-const AO_KEPT: f32 = 0.35;
+// Share of the normal-mapped normal in the normal used for character lighting (0 = smooth only).
+// Share of the (screen-space and material) ambient occlusion and self-shadowing kept on characters.
+const AO_KEPT: f32 = 0.15;
 const RELIEF_IN_BAND: f32 = 0.0;
+const SHADOW_IN_BAND: f32 = 0.0;
 
 @fragment
 fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> FragmentOutput {
@@ -53,20 +54,26 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> Fragment
     }
 
     // Screen-space AO is noisy on small skinned models (dark ragged blotches on clothes and hair):
-    // keep only a third of it.
+    // keep only a small fraction of it.
     pbr_input.diffuse_occlusion = mix(vec3<f32>(1.0), pbr_input.diffuse_occlusion, AO_KEPT);
     pbr_input.specular_occlusion = mix(1.0, pbr_input.specular_occlusion, AO_KEPT);
+    // Apply the smoothed normal and suppress coarse cascade self-shadowing BEFORE `apply_pbr_lighting`
+    // so Bevy's Burley diffuse, specular and environment terms use the same normal and shadow state
+    // that `lambert` subtracts below (preventing normal-map relief bleed on clothes, scarf and hair).
+    let N = normalize(mix(pbr_input.world_normal, pbr_input.N, RELIEF_IN_BAND));
+    pbr_input.N = N;
+    let receives_shadow = (pbr_input.flags & MESH_FLAGS_SHADOW_RECEIVER_BIT) != 0u;
+    if SHADOW_IN_BAND <= 0.0 {
+        pbr_input.flags = pbr_input.flags & ~MESH_FLAGS_SHADOW_RECEIVER_BIT;
+    }
     var color = apply_pbr_lighting(pbr_input);
 
     if view_bindings::lights.n_directional_lights > 0u {
         let light = &view_bindings::lights.directional_lights[0];
-        // The light/shade threshold uses mostly the smooth surface normal: the normal map's fine
-        // relief crossing a hard threshold paints ragged patches (clothes, scarf, hair).
-        let N = normalize(mix(pbr_input.world_normal, pbr_input.N, RELIEF_IN_BAND));
         let ndl = dot(N, (*light).direction_to_light);
 
         var shadow = 1.0;
-        if ((pbr_input.flags & MESH_FLAGS_SHADOW_RECEIVER_BIT) != 0u
+        if (receives_shadow
                 && ((*light).flags & mesh_view_types::DIRECTIONAL_LIGHT_FLAGS_SHADOWS_ENABLED_BIT) != 0u) {
             let view_z = dot(vec4<f32>(
                 view_bindings::view.view_from_world[0].z,
@@ -74,8 +81,9 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> Fragment
                 view_bindings::view.view_from_world[2].z,
                 view_bindings::view.view_from_world[3].z
             ), pbr_input.world_position);
-            shadow = shadows::fetch_directional_shadow(
+            let raw_shadow = shadows::fetch_directional_shadow(
                 0u, pbr_input.world_position, pbr_input.world_normal, view_z, pbr_input.frag_coord.xy);
+            shadow = mix(1.0, raw_shadow, SHADOW_IN_BAND);
         }
 
         // banded_light(): blend of Bevy's Lambert factor and the two-tone ramp x banded shadow.
