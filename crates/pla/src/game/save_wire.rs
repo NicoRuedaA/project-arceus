@@ -282,6 +282,9 @@ pub struct StartupState {
     pub play_seconds: u64,
     pub loaded: bool,
     pub message: String,
+    /// The saved player look (Brief 36). A save without the `look_` section (up to v9) loads
+    /// the variant's default look.
+    pub look: super::dressup::PlayerLook,
 }
 
 impl StartupState {
@@ -309,6 +312,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
+            look: super::dressup::PlayerLook::default_for(super::dressup::LookVariant::P1),
         };
     }
     match game.load() {
@@ -322,6 +326,11 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             progress: PlayerProgress::from_save(&s),
             loaded: true,
             message: game.message.clone().unwrap_or_default(),
+            look: {
+                let mut look = s.look.clone();
+                look.sanitize(&super::dressup::LookCatalog::builtin());
+                look
+            },
         },
         None => StartupState {
             progress: PlayerProgress::new_game(),
@@ -333,6 +342,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
             play_seconds: 0,
             loaded: false,
             message: game.message.clone().unwrap_or_default(),
+            look: super::dressup::PlayerLook::default_for(super::dressup::LookVariant::P1),
         },
     }
 }
@@ -881,6 +891,7 @@ fn do_save(
     play: &PlayTime,
     zone: &ActiveZoneInfo,
     player: &Query<&Transform, With<PlayerAvatar>>,
+    look: Option<&super::dressup::PlayerLookState>,
     toast: &mut SaveToast,
 ) -> bool {
     let Some((pos, yaw)) = pose(player) else {
@@ -889,6 +900,10 @@ fn do_save(
     };
     let mut save = progress.to_save(&zone.area, pos, yaw);
     save.play_seconds = play.seconds;
+    // The dress-up look lives in the live resource (Brief 36, format v10).
+    if let Some(look) = look {
+        save.look = look.look.clone();
+    }
     let ok = game.save(save);
     toast.show(game.message.clone().unwrap_or_default());
     ok
@@ -936,6 +951,7 @@ pub fn load_action(
     mut game: ResMut<SaveGame>,
     mut progress: ResMut<PlayerProgress>,
     mut play: ResMut<PlayTime>,
+    look: Option<ResMut<super::dressup::PlayerLookState>>,
     clock: Option<ResMut<super::clock::GameClock>>,
     session: Option<Res<ActiveBattleSession>>,
     mut toast: ResMut<SaveToast>,
@@ -959,6 +975,14 @@ pub fn load_action(
     };
     *progress = PlayerProgress::from_save(&save);
     *play = PlayTime::from_seconds(save.play_seconds);
+    // The dress-up look of the loaded save becomes the live look (Brief 36, format v10).
+    if let Some(look) = look {
+        let mut look = look;
+        let mut loaded = save.look.clone();
+        let catalog = super::dressup::LookCatalog::builtin();
+        loaded.sanitize(&catalog);
+        look.look = loaded;
+    }
     if let Some(mut clock) = clock {
         clock.t_hours = f32::from(save.time_minutes) / 60.0;
     }
@@ -975,6 +999,7 @@ fn save_hotkey(
     play: Res<PlayTime>,
     zone: Res<ActiveZoneInfo>,
     player: Query<&Transform, With<PlayerAvatar>>,
+    look: Option<Res<super::dressup::PlayerLookState>>,
     mut toast: ResMut<SaveToast>,
     session: Option<Res<ActiveBattleSession>>,
 ) {
@@ -986,7 +1011,7 @@ fn save_hotkey(
         toast.show("Can't save during a battle.");
         return;
     }
-    do_save(&mut game, &progress, &play, &zone, &player, &mut toast);
+    do_save(&mut game, &progress, &play, &zone, &player, look.as_deref(), &mut toast);
 }
 
 fn zone_autosave(
@@ -995,11 +1020,12 @@ fn zone_autosave(
     progress: Res<PlayerProgress>,
     play: Res<PlayTime>,
     player: Query<&Transform, With<PlayerAvatar>>,
+    look: Option<Res<super::dressup::PlayerLookState>>,
     mut toast: ResMut<SaveToast>,
     session: Option<Res<ActiveBattleSession>>,
 ) {
     if zone.is_changed() && !zone.is_added() && session.is_none() {
-        do_save(&mut game, &progress, &play, &zone, &player, &mut toast);
+        do_save(&mut game, &progress, &play, &zone, &player, look.as_deref(), &mut toast);
     }
 }
 
@@ -1049,7 +1075,7 @@ fn battle_wire(
             if let Some(out) = tracker.last.take() {
                 apply_outcome(&mut progress, &out);
             }
-            let ok = do_save(&mut game, &progress, &play, &zone, &player, &mut toast);
+            let ok = do_save(&mut game, &progress, &play, &zone, &player, None, &mut toast);
             if ok && settings.selftest {
                 run_selftest(&game, &progress, &tracker.before);
             }
@@ -1103,6 +1129,7 @@ mod tests {
             play_seconds: 0,
             loaded: true,
             message: String::new(),
+            look: crate::game::dressup::PlayerLook::default(),
         };
         assert_eq!(s.position_in_area(0), Some([520.0, 69.4, 417.7]));
         assert_eq!(s.position_in_area(1), None);
@@ -1729,6 +1756,7 @@ mod tests {
             play_seconds: 0,
             loaded: false,
             message: String::new(),
+            look: crate::game::dressup::PlayerLook::default(),
         };
         SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(&dir)), start, &WireCli::default());
         let player = app
@@ -1790,6 +1818,7 @@ mod tests {
             play_seconds: 0,
             loaded: false,
             message: String::new(),
+            look: crate::game::dressup::PlayerLook::default(),
         };
         SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(&dir)), start, &WireCli::default());
         app.update();

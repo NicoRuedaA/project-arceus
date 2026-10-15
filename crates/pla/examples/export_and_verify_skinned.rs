@@ -38,6 +38,7 @@ fn export_skinned_item_201() -> Result<PathBuf, String> {
                 name: "item_201_material".into(),
                 base_color_uri: Some(rel_uri),
                 normal_uri: None,
+                base_color_factor: None,
             });
             material_idx = Some(0);
         }

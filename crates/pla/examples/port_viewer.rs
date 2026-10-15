@@ -146,7 +146,15 @@ enum CameraMode {
 /// Real player glTF (asset path under the work root), or `None` for the capsule avatar.
 #[derive(Resource, Default)]
 struct PlayerModelConfig {
+    /// Merged fallback glTF (asset-relative).
     asset_rel: Option<String>,
+    /// Asset-relative directory holding the per-piece dress-up exports
+    /// (`<cache>/player/parts`); `None` keeps the merged model.
+    parts_base: Option<String>,
+    /// Filesystem root of the asset server (`work`), to check the piece files exist.
+    work_root: PathBuf,
+    /// The look to dress the avatar with (defaults until the save provides one).
+    look: pla::game::dressup::PlayerLook,
 }
 
 #[derive(Resource)]
@@ -229,6 +237,8 @@ fn main() -> ExitCode {
     let mut demo_output_dir = None;
     let mut controls_demo_dir: Option<PathBuf> = None;
     let mut player_variant = String::from("p1");
+    let mut look_spec: Option<String> = None;
+    let mut face_spec: Option<String> = None;
     let mut debug_zone_links = false;
     let mut main_menu = false;
 
@@ -315,6 +325,15 @@ fn main() -> ExitCode {
                 if let Some(v) = args.next() {
                     player_variant = v.to_lowercase();
                 }
+            }
+            // `--look variant=p2,hair=p2_hrs0003_00_ponytail,hair_color=blond,skin=2,...`
+            // (Brief 36; debug/capture aid, the customization screen is the normal way).
+            "--look" => {
+                look_spec = args.next();
+            }
+            // `--face serious` forces a facial expression (debug/capture aid, Brief 22).
+            "--face" => {
+                face_spec = args.next();
             }
             "--debug-zone-links" => {
                 debug_zone_links = true;
@@ -535,6 +554,60 @@ fn main() -> ExitCode {
     }
     let settings_dir =
         remote.as_ref().map_or_else(UserSettings::default_dir, |r| r.config.settings_dir());
+    let parts_base = {
+        let parts = cache_root.join("player").join("parts");
+        parts.is_dir().then(|| pla::game::player_anim::asset_path(&parts, &work_abs))
+    };
+    // The look: the save's when loaded, overridden key by key with `--look`.
+    let mut look = wire_start.look.clone();
+    if let Some(spec) = &look_spec {
+        let catalog = pla::game::dressup::LookCatalog::builtin();
+        for part in spec.split(',').filter(|p| !p.is_empty()) {
+            let Some((key, value)) = part.split_once('=') else { continue };
+            match key {
+                "variant" => {
+                    if let Some(v) = pla::game::dressup::LookVariant::parse(value) {
+                        let mut next = pla::game::dressup::PlayerLook::default_for(v);
+                        next.hair_color = look.hair_color.clone();
+                        next.eyebrow_color = look.eyebrow_color.clone();
+                        next.eye_color = look.eye_color.clone();
+                        next.skin_tone = look.skin_tone;
+                        look = next;
+                    }
+                }
+                "hair" => look.hair = value.to_owned(),
+                "hair_color" => look.hair_color = value.to_owned(),
+                "eyebrow_color" => look.eyebrow_color = value.to_owned(),
+                "eye_color" => look.eye_color = value.to_owned(),
+                "skin" | "skin_tone" => look.skin_tone = value.parse().unwrap_or(look.skin_tone),
+                "outfit" | "dress" => look.outfit = pla::game::dressup::Outfit::Set(value.to_owned()),
+                "top" => {
+                    let bottom = match &look.outfit {
+                        pla::game::dressup::Outfit::TopBottom { bottom, .. } => bottom.clone(),
+                        _ => catalog.default_stem(look.variant.tag(), "btm").unwrap_or_default(),
+                    };
+                    look.outfit = pla::game::dressup::Outfit::TopBottom { top: value.to_owned(), bottom };
+                }
+                "bottom" => {
+                    let top = match &look.outfit {
+                        pla::game::dressup::Outfit::TopBottom { top, .. } => top.clone(),
+                        _ => catalog.default_stem(look.variant.tag(), "tps").unwrap_or_default(),
+                    };
+                    look.outfit = pla::game::dressup::Outfit::TopBottom { top, bottom: value.to_owned() };
+                }
+                "hat" => look.hat = if value == "none" { String::new() } else { value.to_owned() },
+                "glasses" => look.glasses = if value == "none" { String::new() } else { value.to_owned() },
+                "shoes" => look.shoes = value.to_owned(),
+                "bag" => look.bag = value.to_owned(),
+                _ => eprintln!("--look: unknown key {key}"),
+            }
+        }
+        let notes = look.sanitize(&catalog);
+        for n in &notes {
+            eprintln!("--look: {n}");
+        }
+        println!("Player look: {}", look.save_lines().join(" "));
+    }
     configure_viewer(
         &mut app,
         ViewerSetup {
@@ -542,9 +615,13 @@ fn main() -> ExitCode {
             bin_root: bin_root.clone(),
             cache_root,
             main_menu,
+            forced_face: face_spec.as_deref().and_then(pla::game::face_expr::FaceExpression::parse),
             player_model: PlayerModelConfig {
                 asset_rel: player_model_file
                     .map(|f| pla::game::player_anim::asset_path(&f, &work_abs)),
+                parts_base,
+                work_root: work_abs.clone(),
+                look,
             },
             initial_mode,
             user_settings: UserSettings::load_from_dir(&settings_dir),
@@ -775,6 +852,8 @@ struct ViewerSetup {
     cache_root: PathBuf,
     /// `--menu`: start in the main menu instead of the world.
     main_menu: bool,
+    /// `--face <name>`: force a facial expression (debug/capture aid, Brief 22).
+    forced_face: Option<pla::game::face_expr::FaceExpression>,
     player_model: PlayerModelConfig,
     initial_mode: CameraMode,
     user_settings: UserSettings,
@@ -817,6 +896,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         bin_root,
         cache_root,
         main_menu,
+        forced_face,
         player_model,
         initial_mode,
         user_settings,
@@ -1015,6 +1095,15 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
+    // Dress-up (Brief 36): per-piece player spawn + colours, the customization screen and the
+    // face expressions (Brief 22).
+    app.add_plugins(pla::game::dressup::DressupPlugin);
+    app.add_plugins(pla::game::customize_screen::CustomizeScreenPlugin);
+    app.add_plugins(pla::game::face_expr::FaceExpressionPlugin);
+    if let Some(f) = forced_face {
+        app.world_mut().resource_mut::<pla::game::face_expr::FaceExpressionState>().forced = Some(f);
+        println!("Forced face expression: {f:?}");
+    }
     app.add_plugins(art_style);
     app.add_plugins(pla::game::alpha_aura::AlphaAuraPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::normal_fix::NormalMapFixPlugin);
@@ -1175,6 +1264,12 @@ fn add_viewer_systems(app: &mut App) {
     app.add_systems(
         Update,
         bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
+    );
+    // The customize camera override also needs its own registration (20-system limit) but must
+    // land between the camera input and the transform update of the chain above.
+    app.add_systems(
+        Update,
+        customize_camera_override.after(camera_controls).before(update_camera_transform),
     );
     app.init_resource::<ArenaExtents>();
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
@@ -1404,20 +1499,60 @@ fn setup_scene(
             Visibility::default(),
         ))
         .id();
-    match &player_model.asset_rel {
-        Some(rel) => {
-            commands
-                .entity(player_body)
-                .insert(pla::game::player_anim::PlayerModelSource {
-                    gltf: asset_server.load(rel.clone()),
-                });
-        }
-        None => {
-            commands.entity(player_body).with_children(|parent| {
-                spawn_capsule_avatar(parent, &mut meshes, &mut materials);
+    // Dress-up path (Brief 36): one scene per worn piece when the per-piece export exists;
+    // otherwise the merged model; otherwise the capsule.
+    let piece_sources = player_model.parts_base.as_ref().and_then(|base| {
+        let variant = player_model.look.variant.tag();
+        let mut pieces = Vec::new();
+        for (slot, stem) in player_model.look.pieces() {
+            let dir = format!("{base}/{variant}/{stem}");
+            let fs_gltf = player_model.work_root.join(format!("{dir}/piece.gltf"));
+            if !fs_gltf.is_file() {
+                eprintln!("Dress-up piece {dir}/piece.gltf is missing; using the merged model");
+                return None;
+            }
+            let colors = std::fs::read_to_string(player_model.work_root.join(format!("{dir}/colors.tsv")))
+                .ok()
+                .map(|text| {
+                    text.lines()
+                        .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
+                        .filter_map(|l| {
+                            let cols: Vec<&str> = l.split('\t').collect();
+                            (cols.len() >= 3).then(|| (cols[0].to_owned(), cols[1].to_owned(), cols[2].to_owned()))
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            pieces.push(pla::game::dressup::PieceRequest {
+                slot,
+                gltf: asset_server.load(format!("{dir}/piece.gltf")),
+                dir,
+                colors,
             });
         }
+        Some(pieces)
+    });
+    if let Some(pieces) = piece_sources {
+        commands
+            .entity(player_body)
+            .insert(pla::game::dressup::PlayerPieceSources { pieces });
+    } else {
+        match &player_model.asset_rel {
+            Some(rel) => {
+                commands
+                    .entity(player_body)
+                    .insert(pla::game::player_anim::PlayerModelSource {
+                        gltf: asset_server.load(rel.clone()),
+                    });
+            }
+            None => {
+                commands.entity(player_body).with_children(|parent| {
+                    spawn_capsule_avatar(parent, &mut meshes, &mut materials);
+                });
+            }
+        }
     }
+    commands.insert_resource(pla::game::dressup::PlayerLookState::new(player_model.look.clone()));
 
     // Third-person Orbit Camera with centered aiming crosshair ("X").
     commands
@@ -2374,6 +2509,30 @@ fn player_locomotion(
             };
         }
     }
+}
+
+/// While the customization screen is open, park the camera in front of the player at a close
+/// distance so every change (hair, colours, clothes) is visible. Runs between `camera_controls`
+/// and `update_camera_transform`, so the override lasts exactly one frame each time.
+fn customize_camera_override(
+    screen: Option<Res<pla::game::customize_screen::CustomizeScreenState>>,
+    mut camera_ctrl: ResMut<CameraController>,
+    avatar: Query<&Transform, (With<pla::game::PlayerAvatar>, Without<Camera3d>)>,
+) {
+    let Some(screen) = screen else { return };
+    if !screen.open {
+        return;
+    }
+    let Ok(xf) = avatar.single() else { return };
+    // The orbit camera sits at lookAt + (sin(yaw), *, cos(yaw)) * dist: yaw 0 is the player's
+    // front view (checked in a windowless capture), so the override keeps the avatar's yaw.
+    let facing = xf.rotation * Vec3::Z;
+    let yaw = facing.x.atan2(facing.z);
+    camera_ctrl.yaw = yaw;
+    camera_ctrl.pitch = 0.02;
+    camera_ctrl.distance = 2.2;
+    camera_ctrl.target_distance = 2.2;
+    camera_ctrl.mode = CameraMode::OrbitDefault;
 }
 
 /// Camera input and state updates (implements PLA dec319 kinematics).
@@ -4326,7 +4485,13 @@ mod startup_schedule_guard {
             bin_root: bin_root.clone(),
             cache_root,
             main_menu: has("--menu"),
-            player_model: PlayerModelConfig { asset_rel: None },
+            forced_face: None,
+            player_model: PlayerModelConfig {
+                asset_rel: None,
+                parts_base: None,
+                work_root: scratch.to_path_buf(),
+                look: pla::game::dressup::PlayerLook::default_for(pla::game::dressup::LookVariant::P1),
+            },
             initial_mode: CameraMode::OrbitDefault,
             user_settings: UserSettings::default(),
             settings_dir: scratch.to_path_buf(),

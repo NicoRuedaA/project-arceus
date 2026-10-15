@@ -796,6 +796,7 @@ pub fn write_skinned_lod(
             name: format!("material-entry-{}", material.entry_index),
             base_color_uri: base_uri,
             normal_uri,
+            base_color_factor: None,
         });
         Some(0)
     } else {
@@ -1189,6 +1190,7 @@ fn add_static_material(
             name: format!("{}-material", mesh.name),
             base_color_uri: base_uri,
             normal_uri,
+            base_color_factor: None,
         });
         Some(index)
     } else {
@@ -1231,6 +1233,19 @@ pub(crate) fn save_player_eye_texture(
     mesh: &PokemonLodMesh,
     eye_rgb: [u8; 3],
     gltf_path: &Path,
+) -> Result<String, String> {
+    save_player_eye_texture_named(model, mesh, eye_rgb, gltf_path, "")
+}
+
+/// As [`save_player_eye_texture`], with a `name` tag (e.g. `brown`) appended to the output
+/// filename (`<albedo>_eyecolor_<name>.png`). Used by the dress-up export to bake one eye
+/// texture per catalogue eye colour on the shared grey albedo.
+pub(crate) fn save_player_eye_texture_named(
+    model: &PokemonModel,
+    mesh: &PokemonLodMesh,
+    eye_rgb: [u8; 3],
+    gltf_path: &Path,
+    name: &str,
 ) -> Result<String, String> {
     const EMISSION_GAIN: f32 = 1.0;
     const IRIS_EMISSION_SHARE: f32 = 0.5;
@@ -1306,8 +1321,9 @@ pub(crate) fn save_player_eye_texture(
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .collect::<String>()
     };
+    let tag = if name.is_empty() { String::new() } else { format!("_{}", safe(name)) };
     let filename = format!(
-        "{}_eyecolor.png",
+        "{}_eyecolor{tag}.png",
         safe(albedo_file.trim_end_matches(".bntx"))
     );
     let output = gltf_path.parent().unwrap_or_else(|| Path::new("."));

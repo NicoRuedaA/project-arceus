@@ -47,6 +47,8 @@ pub enum MenuOption {
     InvertY,
     Volume,
     Graphics,
+    /// The customization screen (`game::customize_screen`, Brief 36).
+    Customize,
     SafeSpawn,
     Save,
     Load,
@@ -55,7 +57,7 @@ pub enum MenuOption {
 }
 
 /// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 17] = [
+pub const OPTIONS: [MenuOption; 18] = [
     MenuOption::Resume,
     MenuOption::Bag,
     MenuOption::Party,
@@ -68,6 +70,7 @@ pub const OPTIONS: [MenuOption; 17] = [
     MenuOption::InvertY,
     MenuOption::Volume,
     MenuOption::Graphics,
+    MenuOption::Customize,
     MenuOption::SafeSpawn,
     MenuOption::Save,
     MenuOption::Load,
@@ -109,6 +112,8 @@ pub enum Screen {
     Crafting,
     /// The graphics settings screen (`game::graphics_screen`).
     Graphics,
+    /// The customization screen (`game::customize_screen`).
+    Customize,
     /// The bag plugin's shop mode on shop 0 (the same test shop as `--debug-shop`).
     Shop,
 }
@@ -131,6 +136,7 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
         MenuOption::Crafting => MenuAction::OpenScreen(Screen::Crafting),
         MenuOption::Shop => MenuAction::OpenScreen(Screen::Shop),
         MenuOption::Graphics => MenuAction::OpenScreen(Screen::Graphics),
+        MenuOption::Customize => MenuAction::OpenScreen(Screen::Customize),
         MenuOption::InvertX => {
             settings.invert_camera_x = !settings.invert_camera_x;
             MenuAction::SettingsChanged
@@ -172,6 +178,7 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
         MenuOption::Shop => "Shop (test shop)".into(),
         MenuOption::InvertX => format!("Invert camera X axis: {}", on_off(settings.invert_camera_x)),
         MenuOption::InvertY => format!("Invert camera Y axis: {}", on_off(settings.invert_camera_y)),
+        MenuOption::Customize => "Customize".into(),
         MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
         MenuOption::Graphics => "Graphics...".into(),
         MenuOption::SafeSpawn => "Back to safe spawn".into(),
@@ -231,6 +238,10 @@ pub struct ShopOpenRequested(pub bool);
 #[derive(Resource, Debug, Default)]
 pub struct GraphicsOpenRequested(pub bool);
 
+/// Set to `true` by the pause menu's `Customize` row; the customization screen consumes it.
+#[derive(Resource, Debug, Default)]
+pub struct CustomizeOpenRequested(pub bool);
+
 /// One-shot requests of the action rows (save, load, rest, back to the safe spawn).
 #[derive(SystemParam)]
 pub struct ActionRequests<'w> {
@@ -252,6 +263,7 @@ pub struct ScreenRequests<'w> {
     crafting: Option<ResMut<'w, CraftingOpenRequested>>,
     shop: Option<ResMut<'w, ShopOpenRequested>>,
     graphics: Option<ResMut<'w, GraphicsOpenRequested>>,
+    customize: Option<ResMut<'w, super::customize_screen::CustomizeOpenRequested>>,
 }
 
 impl ScreenRequests<'_> {
@@ -265,6 +277,7 @@ impl ScreenRequests<'_> {
             Screen::Crafting => self.crafting.as_deref_mut().map(|r| &mut r.0),
             Screen::Shop => self.shop.as_deref_mut().map(|r| &mut r.0),
             Screen::Graphics => self.graphics.as_deref_mut().map(|r| &mut r.0),
+            Screen::Customize => self.customize.as_deref_mut().map(|r| &mut r.0),
         };
         match flag {
             Some(flag) => {
@@ -286,6 +299,7 @@ pub fn screen_unavailable_text(screen: Screen, in_world: bool) -> String {
         Screen::Crafting => "Crafting",
         Screen::Shop => "Shop",
         Screen::Graphics => "Graphics",
+        Screen::Customize => "Customize",
     };
     if in_world {
         format!("{name} is not available in this build.")
@@ -708,11 +722,16 @@ mod tests {
         let mut s = UserSettings::default();
         let vol = OPTIONS.iter().position(|o| *o == MenuOption::Volume).unwrap();
         assert_eq!(OPTIONS[vol + 1], MenuOption::Graphics);
-        assert_eq!(OPTIONS[vol + 2], MenuOption::SafeSpawn);
+        assert_eq!(OPTIONS[vol + 2], MenuOption::Customize);
+        assert_eq!(OPTIONS[vol + 3], MenuOption::SafeSpawn);
         assert_eq!(activate(MenuOption::Graphics, &mut s), MenuAction::OpenScreen(Screen::Graphics));
         assert_eq!(option_label(MenuOption::Graphics, &s), "Graphics...");
         assert_eq!(s, UserSettings::default());
         assert!(screen_unavailable_text(Screen::Graphics, true).contains("Graphics"));
+        // The customization row (Brief 36) opens its screen right after Graphics.
+        assert_eq!(activate(MenuOption::Customize, &mut s), MenuAction::OpenScreen(Screen::Customize));
+        assert_eq!(option_label(MenuOption::Customize, &s), "Customize");
+        assert!(screen_unavailable_text(Screen::Customize, true).contains("Customize"));
     }
 
     #[test]

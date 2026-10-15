@@ -13,7 +13,7 @@
 
 use super::{
     gltf_export,
-    pokemon_model::{add_static_material_for_player, save_player_eye_texture, LayerBlendFormula, PokemonModel},
+    pokemon_model::{add_static_material_for_player, save_player_eye_texture, save_player_eye_texture_named, LayerBlendFormula, PokemonModel},
     tr::{TrAnmClip, TrSkl, TrSklBindRecord, TrSklMatrix, TrSklNode, TrSklTransform},
 };
 use std::path::Path;
@@ -21,6 +21,49 @@ use std::path::Path;
 /// Bind/rest-pose agreement tolerance (metres). The Pokémon exports use 1e-4; the player's hair
 /// extension bones disagree by up to 4.5e-4 (0.45 mm), so 1e-3 is used here and documented.
 pub const BIND_EPSILON: f64 = 1.0e-3;
+
+/// The 15 hair colour names of `appli/table/hair/hair_color_table.bin` (ids `hair_color_01..15`,
+/// NAMES VERIFIED in the data, RGB NOT present there) with RGB values ASSUMED to match the names.
+/// The eyebrows follow the same ids (dress-up slot "eyebrow colour").
+pub const HAIR_COLOR_PALETTE: &[(&str, [u8; 3])] = &[
+    ("darkbrown", [72, 48, 34]),
+    ("darknavy", [28, 34, 62]),
+    ("platinumbrown", [150, 112, 82]),
+    ("black", [30, 28, 30]),
+    ("white", [235, 232, 226]),
+    ("red", [170, 48, 40]),
+    ("navy", [48, 70, 130]),
+    ("turquoise", [60, 170, 170]),
+    ("violet", [130, 80, 160]),
+    ("orange", [220, 130, 50]),
+    ("peach", [240, 170, 150]),
+    ("milk", [220, 190, 160]),
+    ("skyblue", [120, 180, 230]),
+    ("gray", [150, 150, 155]),
+    ("blond", [225, 190, 100]),
+];
+
+/// The 14 eye colour names of the dress-up table face variants
+/// (`p?_face0001_00_default_<name>`), NAMES VERIFIED, RGB ASSUMED to match the names.
+pub const EYE_COLOR_PALETTE: &[(&str, [u8; 3])] = &[
+    ("brown", [90, 58, 36]),
+    ("hazel", [130, 95, 50]),
+    ("black", [30, 26, 26]),
+    ("gray", [130, 135, 140]),
+    ("blue", [60, 100, 190]),
+    ("ultramarine", [40, 60, 170]),
+    ("green", [60, 150, 80]),
+    ("yellowgreen", [150, 185, 60]),
+    ("yellow", [225, 200, 60]),
+    ("red", [190, 50, 50]),
+    ("poppyred", [215, 70, 60]),
+    ("purple", [130, 70, 160]),
+    ("lavender", [175, 150, 215]),
+    ("white", [235, 235, 235]),
+];
+
+/// Default iris colour (ASSUMED; the data has names only): blue-grey like the reference screenshots.
+pub const DEFAULT_EYE_RGB: [u8; 3] = [88, 118, 150];
 
 /// Merged skeleton and the vertex-joint remapping tables.
 #[derive(Debug, Clone)]
@@ -292,6 +335,23 @@ pub struct PlayerExportOptions {
     /// albedo, normalised on its brightest iris pixels. Sclera and highlight stay albedo + emission.
     /// ASSUMED RGB, as above.
     pub eye_rgb: Option<[u8; 3]>,
+    /// Write the whole colour palettes (hair 15, eyebrow 15, eye 14) of the shared grey albedos
+    /// next to the glTF, so the runtime can swap the iris/hair texture for the chosen colour.
+    /// (Clothes colour variants are NOT covered: how the catalogue index maps to the outfit
+    /// texture is UNKNOWN.)
+    pub color_variants: bool,
+    /// Leave skin-bound albedos untinted and write the skin tone into the glTF `baseColorFactor`
+    /// instead; the runtime then multiplies the material's base colour (identical maths, no
+    /// 1 MB PNG per tone). Used by the per-piece dress-up export.
+    pub skin_unbaked: bool,
+}
+
+/// Files written by [`write_player_gltf`] beyond the glTF itself.
+#[derive(Debug, Default, Clone)]
+pub struct PlayerExportReport {
+    /// `(set, name, file)` for every colour-variant PNG written (`set` = `hair` | `eyebrow` | `eye`,
+    /// `file` relative to the glTF). The runtime swaps the base-colour texture by set + name.
+    pub color_files: Vec<(String, String, String)>,
 }
 
 /// How a grey albedo is normalised before the colour multiply.
@@ -366,8 +426,9 @@ pub fn write_player_gltf(
     gltf_path: impl AsRef<Path>,
     formula: Option<LayerBlendFormula>,
     options: PlayerExportOptions,
-) -> Result<(), String> {
+) -> Result<PlayerExportReport, String> {
     let mut export = gltf_export::GltfExport::default();
+    let mut report = PlayerExportReport::default();
     let out_dir = gltf_path.as_ref().parent().unwrap_or_else(|| Path::new("."));
     for part in parts {
         for mesh in part.meshes.iter().filter(|m| m.lod == Some(0)) {
@@ -378,17 +439,48 @@ pub fn write_player_gltf(
             if let Some(index) = material {
                 let uri = export.materials[index].base_color_uri.clone();
                 if let Some(uri) = uri {
-                    let tinted = if let (Some(rgb), true) = (options.skin_rgb, is_skin_binding(&mesh.material_binding)) {
-                        Some(tint_png(out_dir, &uri, rgb, None, "skintone")?)
-                    } else if let (Some(rgb), true) = (options.hair_rgb, uri.contains("_hairstyle_alb") || uri.contains("_eyebrow_alb")) {
-                        Some(tint_png(out_dir, &uri, rgb, Some(GreyRef::Mean), "haircolor")?)
-                    } else if let (Some(rgb), true) = (options.eye_rgb, uri.contains("_eye_alb")) {
-                        Some(save_player_eye_texture(part, mesh, rgb, gltf_path.as_ref())?)
+                    let is_skin = is_skin_binding(&mesh.material_binding);
+                    let is_hair = uri.contains("_hairstyle_alb");
+                    let is_eyebrow = uri.contains("_eyebrow_alb");
+                    let is_eye = uri.contains("_eye_alb");
+                    if is_skin && options.skin_unbaked {
+                        // Untinted albedo + baseColorFactor: the runtime multiplies the skin tone.
+                        if let Some(rgb) = options.skin_rgb {
+                            export.materials[index].base_color_factor = Some(std::array::from_fn(|i| {
+                                if i < 3 { srgb_to_linear(f32::from(rgb[i]) / 255.0) } else { 1.0 }
+                            }));
+                        }
                     } else {
-                        None
-                    };
-                    if tinted.is_some() {
-                        export.materials[index].base_color_uri = tinted;
+                        let tinted = if let (Some(rgb), true) = (options.skin_rgb, is_skin) {
+                            Some(tint_png(out_dir, &uri, rgb, None, "skintone")?)
+                        } else if let (Some(rgb), true) = (options.hair_rgb, is_hair || is_eyebrow) {
+                            Some(tint_png(out_dir, &uri, rgb, Some(GreyRef::Mean), "haircolor")?)
+                        } else if let (Some(rgb), true) = (options.eye_rgb, is_eye) {
+                            Some(save_player_eye_texture(part, mesh, rgb, gltf_path.as_ref())?)
+                        } else {
+                            None
+                        };
+                        if tinted.is_some() {
+                            export.materials[index].base_color_uri = tinted;
+                        }
+                    }
+                    if options.color_variants {
+                        if is_hair {
+                            for (name, rgb) in HAIR_COLOR_PALETTE {
+                                let file = tint_png(out_dir, &uri, *rgb, Some(GreyRef::Mean), &format!("haircolor_{name}"))?;
+                                report.color_files.push(("hair".into(), (*name).into(), file));
+                            }
+                        } else if is_eyebrow {
+                            for (name, rgb) in HAIR_COLOR_PALETTE {
+                                let file = tint_png(out_dir, &uri, *rgb, Some(GreyRef::Mean), &format!("eyebrowcolor_{name}"))?;
+                                report.color_files.push(("eyebrow".into(), (*name).into(), file));
+                            }
+                        } else if is_eye {
+                            for (name, rgb) in EYE_COLOR_PALETTE {
+                                let file = save_player_eye_texture_named(part, mesh, *rgb, gltf_path.as_ref(), name)?;
+                                report.color_files.push(("eye".into(), (*name).into(), file));
+                            }
+                        }
                     }
                 }
             }
@@ -428,7 +520,8 @@ pub fn write_player_gltf(
     }
     let root = export.skins.first().and_then(|s| s.skeleton);
     pokemon_model_add_mesh_nodes(&mut export, root)?;
-    export.write(gltf_path)
+    export.write(gltf_path)?;
+    Ok(report)
 }
 
 fn pokemon_model_add_mesh_nodes(export: &mut gltf_export::GltfExport, parent: Option<usize>) -> Result<(), String> {
