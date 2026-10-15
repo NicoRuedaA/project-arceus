@@ -869,7 +869,7 @@
       },
       {
         "path": "crates/pla/src/game/terrain_splat.rs",
-        "sha256": "8de2690049c23f3a69696dd95dff8bcd711d486b1fd6d53334ade93aa93e25b2"
+        "sha256": "1835a7f5841e7ab8f391ba1a2d5d03e10592b06957212c587ee8e7bbab127b5c"
       },
       {
         "path": "crates/pla/src/game/throwing.rs",
@@ -893,7 +893,7 @@
       },
       {
         "path": "crates/pla/src/game/vegetation.rs",
-        "sha256": "e07db3e370945a76354badef2ead74bdcb5facfc75f552c7e55d944edb8ec4a3"
+        "sha256": "6c5e1f8ddf2a51783306a572c8b072c9de7f6125c7cf845f10cc81f67dfac595"
       },
       {
         "path": "crates/pla/src/game/water.rs",
@@ -925,7 +925,7 @@
       },
       {
         "path": "crates/pla/src/game/world_objects.rs",
-        "sha256": "bfa0436072084ac7d882d9a7fe7c04909c41a2bfc2167813f4e78b92d0fd2e63"
+        "sha256": "6902a680276541840ec72300848c03ff6ffe43dac1e26edccadaa018f54135b7"
       },
       {
         "path": "crates/pla/src/game/zone.rs",
@@ -1069,7 +1069,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "6c793f4a3b577b4c2ca6811225eaa17329f4b91e5bfb3fa3c0e1eea8b2b3c163"
+    "sha256": "c8abffacce3355183c79d98d1618235799b4dabf98196d27b9c286b32f4f1832"
   },
   "state_partitions": {
     "analysis_documentation_status": {
