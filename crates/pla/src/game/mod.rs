@@ -45,6 +45,7 @@ pub mod cli_flags;
 pub mod clock;
 pub mod crafting;
 pub mod crafting_ui;
+pub mod dex;
 pub mod dex_screen;
 pub mod distortion;
 pub mod effects;

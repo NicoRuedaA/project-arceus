@@ -2987,6 +2987,7 @@ fn creature_encounter_system(
     mut next_state: ResMut<NextState<GameState>>,
     battle_db: Res<LoadedBattle>,
     pkmn_state: Res<ActivePokemonState>,
+    stealth: Option<Res<pla::game::player_skills::PlayerStealth>>,
     battle_assets: Option<Res<BattleAssets>>,
 ) {
     let Ok(player_xf) = player_query.single() else {
@@ -2999,27 +3000,41 @@ fn creature_encounter_system(
     let interact_pressed = keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Enter);
 
     let grace = safety.grace_active();
+    let hidden = stealth.as_ref().is_some_and(|s| s.hidden);
     for (entity, wild_xf, mut wild, behavior) in &mut wild_query {
         if wild.defeated || wild.in_battle {
             continue;
         }
 
         let dist = player_xf.translation.distance(wild_xf.translation);
-        // Automatic: only an aggressive creature already chasing/attacking, very close (SUPUESTO).
-        // Manual (E / Enter): up to 4 m. Neither during the arrival grace period.
-        let aggressive_engaged = behavior.is_some_and(|b| {
-            b.params.archetype == pla::game::wild_behavior::Archetype::Aggressive
-                && matches!(
-                    b.machine.state,
-                    pla::game::wild_behavior::State::Chase | pla::game::wild_behavior::State::Attack
-                )
+        // The creature's reaction decides whether it engages at all: `encounter_intent` ignores a
+        // hidden player and lets alerted, chasing and attacking creatures engage (an attack at
+        // close range is a surprise). The port policy below keeps the distance and grace checks.
+        let intent = behavior.map_or(pla::game::wild_behavior::EncounterIntent::Ignore, |b| {
+            pla::game::wild_behavior::encounter_intent(
+                b.machine.state,
+                hidden,
+                dist,
+                b.params.attack_distance,
+            )
         });
+        let aggressive_engaged = matches!(
+            intent,
+            pla::game::wild_behavior::EncounterIntent::Engage { .. }
+        );
         if pla::game::wild::auto_encounter_allowed(dist, aggressive_engaged, grace)
             || pla::game::wild::manual_encounter_allowed(dist, interact_pressed, grace)
         {
+            let surprise = matches!(
+                intent,
+                pla::game::wild_behavior::EncounterIntent::Engage { surprise: true }
+            );
             println!(
-                "*** WILD ENCOUNTER TRIGGERED! Approached #{} {} (dist: {:.2}m) ***",
-                wild.national_dex, wild.species_name, dist
+                "*** WILD ENCOUNTER TRIGGERED! Approached #{} {} (dist: {:.2}m){} ***",
+                wild.national_dex,
+                wild.species_name,
+                dist,
+                if surprise { " (surprise attack)" } else { "" }
             );
 
             wild.in_battle = true;

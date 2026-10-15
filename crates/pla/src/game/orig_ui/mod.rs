@@ -181,10 +181,12 @@ pub enum ScreenId {
     Box,
     Dex,
     Map,
+    /// Graphics settings (Esc menu -> "Graphics..."), the game's `option_settings_00` list.
+    Options,
 }
 
 impl ScreenId {
-    pub const ALL: [ScreenId; 14] = [
+    pub const ALL: [ScreenId; 15] = [
         ScreenId::BattleHud,
         ScreenId::BattleEnemyPlate,
         ScreenId::BattleTimeline,
@@ -199,6 +201,7 @@ impl ScreenId {
         ScreenId::Box,
         ScreenId::Dex,
         ScreenId::Map,
+        ScreenId::Options,
     ];
 
     /// (screen document id, layout name).
@@ -218,6 +221,7 @@ impl ScreenId {
             ScreenId::Box => ("box", "box_top_00"),
             ScreenId::Dex => ("gfpak_poke_dex", "pokedex_detail_00"),
             ScreenId::Map => ("gfpak_map", "map_top_00"),
+            ScreenId::Options => ("option", "option_settings_00"),
         }
     }
 
@@ -230,6 +234,7 @@ impl ScreenId {
             | ScreenId::Dex
             | ScreenId::Summary
             | ScreenId::Map
+            | ScreenId::Options
             | ScreenId::Party => Color::srgba(0.07, 0.07, 0.09, 0.97),
             _ => Color::NONE,
         }
@@ -243,9 +248,12 @@ impl ScreenId {
             ScreenId::BattleMessage => 165,
             ScreenId::BattleCommand | ScreenId::BattleMoves => 170,
             ScreenId::Map => 180,
-            ScreenId::Bag | ScreenId::Box | ScreenId::Dex | ScreenId::Summary | ScreenId::Party => {
-                190
-            }
+            ScreenId::Bag
+            | ScreenId::Box
+            | ScreenId::Dex
+            | ScreenId::Summary
+            | ScreenId::Options
+            | ScreenId::Party => 190,
             ScreenId::PauseMenu => 200,
         }
     }
@@ -1130,6 +1138,7 @@ pub fn hides_minimap(id: ScreenId) -> bool {
             | ScreenId::Bag
             | ScreenId::Box
             | ScreenId::Dex
+            | ScreenId::Options
     )
 }
 
