@@ -79,6 +79,7 @@ pub mod save_wire;
 pub mod schedule_check;
 pub mod spawn_point;
 pub mod capture_world;
+pub mod rare_palette;
 pub mod settings;
 pub mod shop;
 pub mod state;

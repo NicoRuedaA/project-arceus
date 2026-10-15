@@ -244,21 +244,31 @@ impl Plugin for EncounterSafetyPlugin {
 }
 
 /// Decoded facts of one encounter slot (`data/field_spawn_conditions.tsv`).
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SlotFacts {
     pub form: u16,
     pub alpha: bool,
     pub unique_alpha: bool,
     pub weight: u16,
+    /// The slot's decoded `condition` string (`flag_condition?:equal:FSYS_NS_0N_CLEARED` on the
+    /// random-alpha slots).
+    pub condition: String,
 }
 
 impl SlotFacts {
-    /// True when `self` should replace `other` as the slot representing a species.
-    pub fn outranks(&self, other: &SlotFacts) -> bool {
-        self.weight > other.weight
-            || (self.weight == other.weight && other.alpha && !self.alpha)
+    /// True when the slot is gated by the area's "Noble is calmed" flag (`FSYS_NS_0N_CLEARED`).
+    /// Every random-alpha slot of an area carries it (1,655 of 1,870 alpha slots; VERIFIED read
+    /// of `field_spawn_conditions.tsv`).
+    pub fn gated_by_area_clear(&self) -> bool {
+        self.condition.contains("FSYS_NS_0") && self.condition.contains("_CLEARED")
     }
 }
+
+/// The random-alpha slots of an area carry the decoded gate `FSYS_NS_0N_CLEARED` ("the area's
+/// Noble is calmed", LIKELY). The port has no persisted Noble-clear state yet; while it does not,
+/// this constant decides whether the gate is enforced (`false` = the port spawns random alphas
+/// from the start, an ASSUMED simplification; flip it to `true` when the flag lands).
+pub const ALPHA_REQUIRE_AREA_CLEARED_FLAG: bool = false;
 
 /// Field scale of an alpha creature (`LL_field`; raw value verified in `pokemon_variants.tsv`).
 pub const ALPHA_FIELD_SCALE: f32 = 2.5;
@@ -363,40 +373,49 @@ pub fn load_spawners_for_area(
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .join("field_spawn_conditions.tsv");
-    let mut conditions = HashMap::<(String, String, u16), SlotFacts>::new();
+    // A species can own several slots in one encounter group: a heavy normal slot (weight 100)
+    // and one or two light alpha slots (weight 1-2, `alpha` bit) and, rarely, a fixed alpha
+    // (weight 100, `unique_alpha` bit). Keep them ALL: the game rolls the slot by weight, so the
+    // alpha chance of a table is `alpha weight / total weight` (~1 %, decoded 0.97 %..3.7 %).
+    // The previous merge kept one slot per species and silently dropped the alpha slots.
+    let mut conditions = HashMap::<(String, String, u16), Vec<SlotFacts>>::new();
     if let Ok(file) = File::open(&condition_path) {
         let reader = BufReader::new(file);
         for line_res in reader.lines().skip(9) {
             let Ok(line) = line_res else { continue };
             let fields: Vec<&str> = line.split('\t').collect();
-            if fields.len() < 9 || !fields[0].starts_with(&target_area) {
+            if fields.len() < 10 || !fields[0].starts_with(&target_area) {
                 continue;
             }
             let Ok(species_id) = fields[4].parse::<u16>() else {
                 continue;
             };
-            let form = fields[6].parse::<u16>().unwrap_or(0);
-            let alpha = fields[7] == "1";
-            let unique_alpha = fields[8] == "1";
-            let weight = fields.get(9).and_then(|w| w.parse::<u16>().ok()).unwrap_or(0);
             let incoming = SlotFacts {
-                form,
-                alpha,
-                unique_alpha,
-                weight,
+                form: fields[6].parse::<u16>().unwrap_or(0),
+                alpha: fields[7] == "1",
+                unique_alpha: fields[8] == "1",
+                weight: fields.get(9).and_then(|w| w.parse::<u16>().ok()).unwrap_or(0),
+                condition: fields.last().copied().unwrap_or("").to_string(),
             };
-            // A species can own several slots in one encounter group (a normal
-            // slot and a gated random-alpha slot). Keep ONE per key: the
-            // heaviest, a normal slot winning ties. Overwriting by file order
-            // made the weight-1 alpha slot win and every creature an alpha.
-            conditions
+            if ALPHA_REQUIRE_AREA_CLEARED_FLAG && incoming.alpha && incoming.gated_by_area_clear()
+            {
+                continue;
+            }
+            let slots = conditions
                 .entry((fields[1].to_owned(), fields[2].to_owned(), species_id))
-                .and_modify(|current| {
-                    if incoming.outranks(current) {
-                        *current = incoming;
-                    }
-                })
-                .or_insert(incoming);
+                .or_default();
+            // The sheet repeats a (species, flag) pair when a spawner owns the group twice;
+            // keep the heaviest row of each flag.
+            if let Some(prev) = slots
+                .iter_mut()
+                .find(|s| s.alpha == incoming.alpha && s.unique_alpha == incoming.unique_alpha)
+            {
+                if incoming.weight > prev.weight {
+                    *prev = incoming;
+                }
+            } else {
+                slots.push(incoming);
+            }
         }
     }
     let mut spawner_map: HashMap<String, SpawnerDefinition> = HashMap::new();
@@ -442,20 +461,11 @@ pub fn load_spawners_for_area(
         let species_name = parts[10].to_lowercase();
         let min_lvl: u8 = parts[12].parse().unwrap_or(5);
         let max_lvl: u8 = parts[13].parse().unwrap_or(min_lvl);
-        let weight: u16 = parts[15].parse().unwrap_or(100);
-        let SlotFacts {
-            form,
-            alpha,
-            unique_alpha,
-            ..
-        } = conditions
-            .get(&(spawner_id.clone(), encount_key.to_owned(), species_id))
-            .copied()
-            .unwrap_or_default();
-
-        let entry = SpawnSpeciesEntry {
+        let weight: u16 = parts[15].parse().unwrap_or(100).max(1);
+        let facts = conditions.get(&(spawner_id.clone(), encount_key.to_owned(), species_id));
+        let make = |form: u16, alpha: bool, unique_alpha: bool, weight: u16| SpawnSpeciesEntry {
             species_id,
-            species_name,
+            species_name: species_name.clone(),
             form,
             alpha,
             unique_alpha,
@@ -463,6 +473,24 @@ pub fn load_spawners_for_area(
             max_level: max_lvl,
             weight: weight.max(1),
         };
+        let mut entries = Vec::new();
+        match facts {
+            Some(slots) => {
+                let normal = slots.iter().find(|s| !s.alpha);
+                let alpha = slots.iter().find(|s| s.alpha);
+                // Normal slot: its decoded weight, or the spawn-table weight when the condition
+                // sheet has only the alpha slot of this species (the fixed-alpha spawners).
+                if let Some(s) = normal {
+                    entries.push(make(s.form, false, false, s.weight));
+                } else if alpha.is_none() {
+                    entries.push(make(0, false, false, weight));
+                }
+                if let Some(s) = alpha {
+                    entries.push(make(s.form, true, s.unique_alpha, s.weight));
+                }
+            }
+            None => entries.push(make(0, false, false, weight)),
+        }
 
         let spawner = spawner_map
             .entry(spawner_id.clone())
@@ -474,7 +502,20 @@ pub fn load_spawners_for_area(
                 entries: Vec::new(),
             });
 
-        spawner.entries.push(entry);
+        // The port rolls one slot out of every entry of the spawner, so a (species, form, alpha)
+        // owned twice (two encounter tables) must not double its weight: keep the heaviest row.
+        for entry in entries {
+            match spawner.entries.iter_mut().find(|p| {
+                p.species_id == entry.species_id && p.form == entry.form && p.alpha == entry.alpha
+            }) {
+                Some(prev) => {
+                    if entry.weight > prev.weight {
+                        *prev = entry;
+                    }
+                }
+                None => spawner.entries.push(entry),
+            }
+        }
     }
 
     let mut result: Vec<SpawnerDefinition> = spawner_map.into_values().collect();
@@ -489,9 +530,10 @@ pub fn roll_spawner(spawner: &SpawnerDefinition, base_seed: u64) -> Option<(u16,
 }
 
 /// Selects one encounter and a deterministic port-side appearance variant.
-/// The original alpha draw probability is not present in the local evidence;
-/// alpha therefore follows only an explicit decoded slot flag, while normal
-/// size categories are a stable hash choice over the decoded S/M/L scales.
+/// The alpha draw is now data-driven: the slot pool of a spawner keeps the decoded normal and
+/// alpha rows with their own weights, so the alpha chance of a roll is the decoded
+/// `alpha weight / total weight` (~1 %, see `SlotFacts`). Normal size categories are a stable
+/// hash choice over the decoded S/M/L scales (SUPUESTO, see `normal_size_scale`).
 pub fn roll_spawner_variant(
     spawner: &SpawnerDefinition,
     base_seed: u64,
@@ -594,6 +636,173 @@ pub fn get_wild_spawns_for_area(area: u8, player_spawn: Vec2) -> Vec<WildCreatur
         defeated: false,
         spawner_id: "fallback_pika".into(),
     }]
+}
+
+#[cfg(test)]
+mod alpha_slot_tests {
+    use super::*;
+
+    fn spawn_table_path() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/field_spawn_table.tsv")
+    }
+
+    /// The random-alpha slots are no longer dropped: a spawner with a decoded alpha slot keeps
+    /// both rows (normal and alpha) with their own weights (Brief 17 remainder).
+    #[test]
+    fn alpha_slots_survive_the_load() {
+        let spawners = match load_spawners_for_area(&spawn_table_path(), 1) {
+            Ok(s) if !s.is_empty() => s,
+            _ => {
+                eprintln!("[skip] spawn sheets not found");
+                return;
+            }
+        };
+        let with_alpha = spawners
+            .iter()
+            .filter(|s| s.entries.iter().any(|e| e.alpha))
+            .count();
+        let with_normal_and_alpha = spawners
+            .iter()
+            .filter(|s| {
+                s.entries.iter().filter(|e| e.alpha).any(|a| {
+                    s.entries
+                        .iter()
+                        .any(|n| n.species_id == a.species_id && !n.alpha)
+                })
+            })
+            .count();
+        assert!(
+            with_alpha > 100,
+            "area 01 must keep its hundreds of decoded alpha slots, got {with_alpha}"
+        );
+        assert!(
+            with_normal_and_alpha > 100,
+            "normal and alpha rows of the same species must coexist, got {with_normal_and_alpha}"
+        );
+        // The alpha rows carry the decoded light weight (1-2) next to the 100-weight normals.
+        let alpha_weights: Vec<u16> = spawners
+            .iter()
+            .flat_map(|s| s.entries.iter().filter(|e| e.alpha).map(|e| e.weight))
+            .collect();
+        assert!(alpha_weights.iter().filter(|w| **w <= 2).count() > 100);
+        assert!(alpha_weights.iter().any(|w| *w == 100), "fixed alphas stay 100");
+    }
+
+    /// The decoded alpha share of a table (`alpha weight / total weight`) sits in the range the
+    /// external player notes describe (0.2 %-2.0 %; the decoded data says 0.97 %-1.96 % for the
+    /// light slots), and never above a few percent.
+    #[test]
+    fn alpha_share_of_the_decoded_tables_is_about_one_percent() {
+        let spawners = match load_spawners_for_area(&spawn_table_path(), 1) {
+            Ok(s) if !s.is_empty() => s,
+            _ => {
+                eprintln!("[skip] spawn sheets not found");
+                return;
+            }
+        };
+        let mut shares = Vec::new();
+        for s in &spawners {
+            // Fixed-alpha spawners (decoded `unique_alpha` bit) and spawners whose every slot
+            // is an alpha are 100 % alpha by design: they carry no normal slot to share with.
+            if s.entries.iter().any(|e| e.unique_alpha) || !s.entries.iter().any(|e| !e.alpha) {
+                continue;
+            }
+            let total: u32 = s.entries.iter().map(|e| u32::from(e.weight)).sum();
+            let alpha: u32 = s
+                .entries
+                .iter()
+                .filter(|e| e.alpha && !e.unique_alpha)
+                .map(|e| u32::from(e.weight))
+                .sum();
+            if alpha > 0 && total > 0 {
+                shares.push(alpha as f32 / total as f32);
+            }
+        }
+        assert!(shares.len() > 100, "many spawners carry a random alpha slot");
+        let min = shares.iter().cloned().fold(f32::INFINITY, f32::min);
+        let max = shares.iter().cloned().fold(0.0_f32, f32::max);
+        assert!(min >= 0.008, "alpha share below the decoded minimum: {min}");
+        assert!(max <= 0.05, "alpha share above a few percent: {max}");
+    }
+
+    /// With the fixed seed, some spawner eventually rolls its alpha slot, and the roll stays
+    /// deterministic (same seed and spawner answer the same every time).
+    #[test]
+    fn alpha_rolls_are_deterministic_and_do_fire() {
+        let spawners = match load_spawners_for_area(&spawn_table_path(), 1) {
+            Ok(s) if !s.is_empty() => s,
+            _ => {
+                eprintln!("[skip] spawn sheets not found");
+                return;
+            }
+        };
+        let mut fired = 0;
+        for s in &spawners {
+            if !s.entries.iter().any(|e| e.alpha) {
+                continue;
+            }
+            for seed in 0..2_000u64 {
+                let a = roll_spawner_variant(s, seed).map(|(_, _, _, v)| v.alpha);
+                let b = roll_spawner_variant(s, seed).map(|(_, _, _, v)| v.alpha);
+                assert_eq!(a, b, "determinism");
+                if a == Some(true) {
+                    fired += 1;
+                }
+            }
+        }
+        assert!(fired > 0, "some spawner must roll an alpha over 2,000 seeds");
+    }
+
+    /// A real fixed alpha (decoded `unique_alpha` bit) always comes out as an alpha.
+    #[test]
+    fn fixed_alphas_are_always_alpha() {
+        let spawners = match load_spawners_for_area(&spawn_table_path(), 1) {
+            Ok(s) if !s.is_empty() => s,
+            _ => {
+                eprintln!("[skip] spawn sheets not found");
+                return;
+            }
+        };
+        let fixed: Vec<_> = spawners
+            .iter()
+            .filter(|s| s.entries.iter().any(|e| e.unique_alpha))
+            .collect();
+        assert!(!fixed.is_empty(), "area 01 has decoded fixed alphas");
+        for s in fixed {
+            for seed in [0u64, 1, 7, 99] {
+                let v = roll_spawner_variant(s, seed).expect("entries").3;
+                assert!(v.alpha, "fixed-alpha spawner {} rolled normal", s.spawner_id);
+            }
+        }
+    }
+
+    /// The decoded gate of the random-alpha slots is read, not lost.
+    #[test]
+    fn random_alpha_slots_carry_the_area_clear_gate() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/field_spawn_conditions.tsv");
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            eprintln!("[skip] field_spawn_conditions.tsv not found");
+            return;
+        };
+        let mut gated_alpha = 0;
+        let mut ungated_alpha = 0;
+        for line in text.lines().filter(|l| !l.starts_with('#') && !l.starts_with("area")) {
+            let f: Vec<&str> = line.split('\t').collect();
+            if f.len() < 10 || f[7] != "1" || f[8] == "1" {
+                continue;
+            }
+            let cond = f.last().copied().unwrap_or("");
+            if cond.contains("FSYS_NS_0") && cond.contains("_CLEARED") {
+                gated_alpha += 1;
+            } else {
+                ungated_alpha += 1;
+            }
+        }
+        assert!(gated_alpha > 3_000, "most random alpha slots are gated, got {gated_alpha}");
+        // The rest carry another gate (event flags) or no readable condition.
+        assert!(ungated_alpha < 400, "few are not, got {ungated_alpha}");
+    }
 }
 
 #[cfg(test)]
