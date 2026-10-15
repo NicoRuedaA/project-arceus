@@ -1736,6 +1736,34 @@ mod tests {
             "s09 needs the measured wide reach, got {:.2}",
             reach.of(s09)
         );
+        // The reach guarantees the closest walkable point fires; find it by sampling (the
+        // automation teleport snaps to a face centroid, which can sit farther away).
+        let mut closest = s09.pos;
+        let mut best = f32::INFINITY;
+        let mut steps = 0i32;
+        while steps <= 60 {
+            let off = steps as f32 * 0.05;
+            for (dx, dz) in [(0.0, off), (0.0, -off), (off, 0.0), (-off, 0.0), (off, off), (-off, -off), (off, -off), (-off, off)] {
+                let (x, z) = (s09.pos.x + dx, s09.pos.z + dz);
+                if !nav.primary().is_walkable(x, z) {
+                    continue;
+                }
+                let d = (x - s09.pos.x).powi(2) + (z - s09.pos.z).powi(2);
+                if d < best {
+                    best = d;
+                    closest = bevy::math::Vec3::new(x, 0.0, z);
+                }
+            }
+            steps += 1;
+        }
+        assert!(best.is_finite(), "s09 has a walkable point within 3 m");
+        assert!(
+            in_trigger(s09, closest.x, closest.z, reach.of(s09)),
+            "the closest walkable point of s09 ({:.2}, {:.2}) must fire (reach {:.3})",
+            closest.x,
+            closest.z,
+            reach.of(s09)
+        );
         // Inside s03_a the player walked to (10.12, 10.32) and could leave.
         let nav = crate::assets::navmesh::AreaNavigation::load_named(&bin_root, "ha_area00_s03_a", 255)
             .expect("s03_a navmesh");
