@@ -996,7 +996,47 @@ pub fn option_notes(option: &str, s: &GraphicsSettings) -> Vec<&'static str> {
     n
 }
 
-/// Text of a row.
+/// Name and value halves of a row: the provisional screen joins them into one line ("name:
+/// value"), the original options screen (`orig_ui`) draws them in separate text panes (row
+/// heading and value box). Markers ("(restart)", option notes, "[command line]") stay with the
+/// value, exactly as [`row_label`] appends them.
+pub fn row_name_value(
+    row: Row,
+    page: Page,
+    page_count: usize,
+    page_index: usize,
+    s: &GraphicsSettings,
+    startup: &GraphicsSettings,
+    overridden: &[&str],
+) -> (String, String) {
+    match row {
+        Row::Page => (
+            "Page".to_string(),
+            format!("< {} >  ({}/{})", page.label(), page_index + 1, page_count),
+        ),
+        Row::Preset => (
+            "Quality preset".to_string(),
+            s.preset().map_or("Custom", |i| PRESETS[i].label).to_string(),
+        ),
+        Row::Reset => ("Reset to defaults".to_string(), String::new()),
+        Row::Option(i) => {
+            let d = &OPTION_DEFS[i];
+            let mut value = s.value_label(i);
+            if needs_restart(i, startup, s) {
+                value.push_str(" (restart)");
+            }
+            for note in option_notes(d.id, s) {
+                value.push_str(note);
+            }
+            if overridden.contains(&d.id) {
+                value.push_str(" [command line]");
+            }
+            (d.label.to_string(), value)
+        }
+    }
+}
+
+/// Text of a row (the provisional screen's single line).
 pub fn row_label(
     row: Row,
     page: Page,
@@ -1006,27 +1046,25 @@ pub fn row_label(
     startup: &GraphicsSettings,
     overridden: &[&str],
 ) -> String {
+    let (name, value) = row_name_value(row, page, page_count, page_index, s, startup, overridden);
+    if value.is_empty() {
+        name
+    } else {
+        format!("{name}: {value}")
+    }
+}
+
+/// Position of a slider row inside its range (0 = minimum, 1 = maximum); `None` for other rows.
+/// The original options screen drives the game's own `control_slider` gauge animation with it.
+pub fn slider_ratio(row: Row, s: &GraphicsSettings) -> Option<f32> {
     match row {
-        Row::Page => format!("Page: < {} >  ({}/{})", page.label(), page_index + 1, page_count),
-        Row::Preset => format!(
-            "Quality preset: {}",
-            s.preset().map_or("Custom", |i| PRESETS[i].label)
-        ),
-        Row::Reset => "Reset to defaults".to_string(),
-        Row::Option(i) => {
-            let d = &OPTION_DEFS[i];
-            let mut t = format!("{}: {}", d.label, s.value_label(i));
-            if needs_restart(i, startup, s) {
-                t.push_str(" (restart)");
+        Row::Option(i) => match OPTION_DEFS[i].kind {
+            Kind::Slider { min, max, .. } if max > min => {
+                Some(((s.value_at(i) - min) as f32 / (max - min) as f32).clamp(0.0, 1.0))
             }
-            for note in option_notes(d.id, s) {
-                t.push_str(note);
-            }
-            if overridden.contains(&d.id) {
-                t.push_str(" [command line]");
-            }
-            t
-        }
+            _ => None,
+        },
+        _ => None,
     }
 }
 
