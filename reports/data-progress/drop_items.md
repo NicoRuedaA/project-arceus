@@ -57,6 +57,16 @@ field key is **not resolved** and is reported as such.
   string convention is not recovered. Quantities and the exact trigger (defeat vs capture vs
   any battle end) are not decoded either.
 
+## Next step for the field key (not done in this session)
+
+An external oracle (user-provided notes, held outside the repository: treat as a hint, not
+game data) lists expected species -> drop pairs for several species families (regular and
+rare slot) plus the slot probability ranges. A next session should use it to validate hash
+or index hypotheses against those expected pairs instead of the name-template sweep that
+already failed (FNV-1a/FNV-1 64-bit over ~1.2 M templates, no match). The field key ->
+species mapping stays UNKNOWN until such a hypothesis reproduces the oracle pairs from the
+decoded table bytes.
+
 ## Sources for the public knowledge checks
 
 - pkNX schemas: <https://github.com/kwsch/pkNX/tree/master/FlatBuffers/Arceus/Schemas/Poke>
