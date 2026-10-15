@@ -379,6 +379,8 @@ pub enum EntityKind {
     Trainer,
     Player,
     Camera,
+    /// The lead-party follower.
+    Follower,
     /// Every entity with a `Name`.
     Named,
 }
@@ -690,8 +692,9 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
                     "trainer" | "trainers" => EntityKind::Trainer,
                     "player" => EntityKind::Player,
                     "camera" => EntityKind::Camera,
+                    "follower" | "followers" => EntityKind::Follower,
                     "named" | "name" | "all" => EntityKind::Named,
-                    _ => return Err(format!("unknown filter '{f}' (wild|npc|trainer|player|camera|named)")),
+                    _ => return Err(format!("unknown filter '{f}' (wild|npc|trainer|player|camera|follower|named)")),
                 },
                 limit: bounded(get_u64(o, "limit")?.unwrap_or(50), "limit", 1000)?,
             }
@@ -1837,13 +1840,33 @@ fn entities_json(world: &mut World, kind: EntityKind, limit: usize) -> Value {
             "species": x.0.species_name, "dex": x.0.national_dex, "level": x.0.level, "alpha": x.2,
             "in_battle": x.0.in_battle, "defeated": x.0.defeated, "real_model": x.1, "spawner": x.0.spawner_id,
         })),
-        EntityKind::Npc => collect!((&super::npc::NpcInstance, Has<super::npc::NpcModelSource>), |e, t, x| json!({
-            "key": x.0.key, "chara": x.0.chara_id, "idle_clip": x.0.idle_clip, "model_source": x.1,
-        })),
+        EntityKind::Npc => collect!(
+            (
+                &super::npc::NpcInstance,
+                Has<super::npc::NpcModelSource>,
+                &super::npc::NpcLookState,
+                Has<super::npc::NpcLookBones>,
+            ),
+            |e, t, x| json!({
+                "key": x.0.key, "chara": x.0.chara_id, "idle_clip": x.0.idle_clip, "model_source": x.1,
+                "look_yaw_deg": x.2.yaw.to_degrees(), "gaze_deg": x.2.gaze.to_degrees(),
+                "head_yaw_deg": x.2.head_yaw.to_degrees(), "trunk_yaw_deg": x.2.trunk_yaw.to_degrees(),
+                "look_bones": x.3,
+            })
+        ),
         EntityKind::Trainer => collect!((&TrainerNpc, Has<super::npc::NpcModelSource>, Has<super::trainer_encounter::TrainerBeaten>), |e, t, x| json!({
             "key": x.0.key, "trainer_id": x.0.trainer_id, "model_source": x.1, "beaten_pending_grey": x.2,
         })),
         EntityKind::Player => collect!(&PlayerAvatar, |e, t, x| { let _ = x; json!({"player": true}) }),
+        EntityKind::Follower => collect!(
+            (&super::follower::Follower, &super::follower::FollowerState, Has<super::pokemon_anim::PokemonAnimSource>),
+            |e, t, x| json!({
+                "species": x.0.species, "form": x.0.form,
+                "state_pos": [x.1.pos.0, x.1.pos.1], "speed": x.1.speed, "yaw_deg": x.1.yaw.to_degrees(),
+                "walked": x.1.walked, "teleports": x.1.teleports, "trail": x.1.trail.len(),
+                "anim_source": x.2,
+            })
+        ),
         EntityKind::Camera => collect!(&Camera, |e, t, x| json!({"order": x.order, "active": x.is_active})),
         EntityKind::Named => collect!(&Name, |e, t, x| json!({"name": x.as_str()})),
     }

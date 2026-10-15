@@ -146,6 +146,12 @@ pub fn trainer_prize_assumed(prize_base: u32, last_level: u8) -> u32 {
 }
 
 /// Score rules of a trainer's AI modules (only fully mapped rules; see `battle_ai`).
+///
+/// Expert and Allowance modules are wired with the rules whose predicates are complete:
+/// `expert_friendly_fire` (double battles only, never in this port's singles),
+/// `expert_lock_on_bonus` (dormant: the engine has no lock-on state yet) and the two decoded
+/// Allowance HP tiers (no sheet trainer carries the bit, so it stays dormant on real data).
+/// The Expert per-move sequence handlers stay UNKNOWN (no `aiSeqNo` in the move table).
 pub fn trainer_rules(ai: &TrainerAi) -> Vec<&'static str> {
     let mut rules = Vec::new();
     if ai.basic {
@@ -154,6 +160,14 @@ pub fn trainer_rules(ai: &TrainerAi) -> Vec<&'static str> {
     if ai.strong {
         rules.push("strong_non_max_damage");
         rules.push(HIGH_AFFINITY_RULE);
+    }
+    if ai.expert {
+        rules.push("expert_friendly_fire");
+        rules.push("expert_lock_on_bonus");
+    }
+    if ai.allowance {
+        rules.push("allowance_hp_under_20");
+        rules.push("allowance_hp_under_40");
     }
     rules
 }
@@ -217,25 +231,23 @@ fn move_affinities(battle: &Battle, data: &BattleData, actor: usize, target: usi
         .collect()
 }
 
-/// ASSUMED proxy of "bench maximum calculated damage": best `power x effectiveness x STAB`.
-fn damage_proxy(battle: &Battle, data: &BattleData, actor: usize, target: usize) -> f32 {
-    let me = &battle.combatants[actor];
-    let foe = &battle.combatants[target].species.types;
+/// "Bench maximum calculated damage": the best engine damage estimate of `actor` against
+/// `target` (the same estimator the move AI uses; no critical chance).
+fn damage_proxy(battle: &Battle, actor: usize, target: usize) -> f32 {
+    let Some(me) = battle.combatants.get(actor) else { return 0.0 };
     me.moves
         .iter()
-        .filter(|m| m.pp > 0 && m.data.power > 0)
-        .map(|m| {
-            let stab = if me.species.types.contains(&m.data.move_type) { 1.5 } else { 1.0 };
-            f32::from(m.data.power) * type_effectiveness(data.type_chart(), &m.data.move_type, foe) * stab
-        })
+        .enumerate()
+        .filter(|(_, m)| m.pp > 0 && m.data.power > 0)
+        .filter_map(|(slot, _)| battle.damage_estimate(actor, slot, target))
         .fold(0.0, f32::max)
 }
 
-fn best_of(battle: &Battle, data: &BattleData, candidates: &[usize], target: usize) -> Option<usize> {
+fn best_of(battle: &Battle, candidates: &[usize], target: usize) -> Option<usize> {
     candidates
         .iter()
         .copied()
-        .max_by(|a, b| damage_proxy(battle, data, *a, target).total_cmp(&damage_proxy(battle, data, *b, target)))
+        .max_by(|a, b| damage_proxy(battle, *a, target).total_cmp(&damage_proxy(battle, *b, target)))
 }
 
 /// Switch AI (`PokeChangeAI`, only with the Change bit), after the recovered rules:
@@ -269,11 +281,11 @@ pub fn choose_switch(
     if !active.is_empty() && active.iter().all(|a| *a == 0) {
         let se: Vec<usize> = bench.iter().copied().filter(|&i| has(i, &|a| a > 7)).collect();
         if !se.is_empty() && rng.below(100) < SWITCH_BREAK_SE_CHANCE {
-            return best_of(battle, data, &se, target);
+            return best_of(battle, &se, target);
         }
         let any: Vec<usize> = bench.iter().copied().filter(|&i| has(i, &|a| a > 0)).collect();
         if !any.is_empty() && rng.below(100) < SWITCH_BREAK_ANY_CHANCE {
-            return best_of(battle, data, &any, target);
+            return best_of(battle, &any, target);
         }
         return None;
     }
@@ -300,10 +312,10 @@ pub fn choose_switch(
         }
     }
     if !immune.is_empty() && rng.below(100) < SWITCH_BETTER_IMMUNE_CHANCE {
-        return best_of(battle, data, &immune, target);
+        return best_of(battle, &immune, target);
     }
     if !resist.is_empty() && rng.below(100) < SWITCH_BETTER_RESIST_CHANCE {
-        return best_of(battle, data, &resist, target);
+        return best_of(battle, &resist, target);
     }
     None
 }
@@ -655,6 +667,48 @@ mod tests {
     fn prize_placeholder_is_base_times_level() {
         assert_eq!(trainer_prize_assumed(20, 30), 600);
         assert_eq!(trainer_prize_assumed(u32::MAX, 100), u32::MAX);
+    }
+
+    #[test]
+    fn ai_module_bits_pick_the_mapped_rules() {
+        assert!(trainer_rules(&TrainerAi::default()).is_empty());
+        let all = TrainerAi {
+            basic: true,
+            strong: true,
+            expert: true,
+            allowance: true,
+            item: true,
+            change: true,
+        };
+        let rules = trainer_rules(&all);
+        for want in [
+            "basic_affinity_ineffective",
+            "strong_non_max_damage",
+            HIGH_AFFINITY_RULE,
+            "expert_friendly_fire",
+            "expert_lock_on_bonus",
+            "allowance_hp_under_20",
+            "allowance_hp_under_40",
+        ] {
+            assert!(rules.contains(&want), "{want} missing from {rules:?}");
+        }
+        // Expert without Strong: the high-affinity rule stays out.
+        let expert = TrainerAi { expert: true, ..TrainerAi::default() };
+        let rules = trainer_rules(&expert);
+        assert!(rules.contains(&"expert_lock_on_bonus"));
+        assert!(!rules.contains(&HIGH_AFFINITY_RULE));
+        // Every trainer of the sheets yields a runnable rule list (basic trainers included).
+        let Some((_, c)) = fixtures() else { return };
+        let mut expert_count = 0;
+        for t in c.trainers.values() {
+            let rules = trainer_rules(&t.ai);
+            if t.ai.expert {
+                expert_count += 1;
+                assert!(rules.contains(&"expert_lock_on_bonus"), "{}: {rules:?}", t.id);
+            }
+            assert_eq!(rules.is_empty(), !t.ai.basic && !t.ai.strong && !t.ai.expert && !t.ai.allowance);
+        }
+        assert!(expert_count > 100, "expert trainers: {expert_count}");
     }
 
     #[test]

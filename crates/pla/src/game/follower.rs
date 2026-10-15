@@ -7,6 +7,17 @@
 //! speed ([`crate::game::pokemon_anim::walk_playback_speed`]) and the idle/walk switch
 //! come from `game::pokemon_anim`: the follower is one more creature of that pipeline.
 //!
+//! Separation (play-test 2026-10-15: "the follower walks through the player"):
+//! - While moving, a step that would enter the player's disc slides along the separation
+//!   circle by the same arc length (see [`slide_around_player`]): the follower steps aside
+//!   smoothly instead of being pushed, so the player can never drag it.
+//! - When the player stands still for [`STOP_REPOSITION_DELAY`] and the follower is in
+//!   front of them, the aim point moves to the spot behind the player's facing: the
+//!   follower walks around and returns to its place.
+//! - [`MIN_SEPARATION`] remains the hard floor (the safety net when the circle is off the
+//!   mesh), and the drive system runs after the frame's locomotion so the floor also holds
+//!   at the frame boundary.
+//!
 //! Verified by unit tests and one headless Bevy test (a synthetic player walking a
 //! circle); never checked visually. The model front axis (+Z, the
 //! [`crate::game::wild_wander::yaw_for`] convention) is unverified, exactly as in
@@ -48,6 +59,10 @@ pub const MIN_SEPARATION: f32 = 1.4;
 /// The aim point is kept at least this far from the player (so the follower stops at a
 /// comfortable 1.5-2 m instead of pressing against the floor above).
 pub const MIN_TARGET_DISTANCE: f32 = 1.8;
+/// When the player has been standing still this long (seconds), a follower left in front of
+/// them walks back to the spot behind the player. SUPUESTO: the game gives no decoded value
+/// for this delay; 0.5 s avoids reacting to a one-frame stop.
+pub const STOP_REPOSITION_DELAY: f32 = 0.5;
 /// Trail steps shorter than this are not recorded (the player is standing still).
 const TRAIL_MIN_STEP: f32 = 0.02;
 /// Upper bound of recorded trail positions (bounded memory).
@@ -130,6 +145,13 @@ pub struct FollowerState {
     pub walked: f32,
     /// How many times the follower had to teleport (diagnostics / tests).
     pub teleports: u32,
+    /// Last player position seen by [`step`] (still-time detection).
+    last_player: Option<Vec2>,
+    /// Seconds the player has been standing still (within [`TRAIL_MIN_STEP`]).
+    pub still: f32,
+    /// While the player stands still: the follower is walking around to the spot behind them
+    /// (set when the aim point is on the front side; cleared when the player moves).
+    pub repositioning: bool,
 }
 
 impl FollowerState {
@@ -141,6 +163,9 @@ impl FollowerState {
             trail: FollowerTrail::default(),
             walked: 0.0,
             teleports: 0,
+            last_player: None,
+            still: 0.0,
+            repositioning: false,
         }
     }
 }
@@ -165,13 +190,25 @@ fn push_out(p: Vec2, player: Vec2, radius: f32, fallback: Vec2) -> Vec2 {
 
 /// Advances the follower by `dt` seconds towards the point [`FOLLOW_DISTANCE`] behind
 /// `player` along the recorded path, never closer than [`MIN_SEPARATION`] to the player.
-/// `walkable` is the navmesh query; a caller without a navmesh (flat fallback world) passes a
-/// predicate that is always true.
-pub fn step(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32, f32) -> bool) {
+/// `facing` is the planar direction the player's model faces (used when the player stands
+/// still, see [`STOP_REPOSITION_DELAY`]). `walkable` is the navmesh query; a caller without a
+/// navmesh (flat fallback world) passes a predicate that is always true.
+pub fn step(
+    st: &mut FollowerState,
+    player: Vec2,
+    facing: Vec2,
+    dt: f32,
+    walkable: &dyn Fn(f32, f32) -> bool,
+) {
     if dt <= 0.0 {
         return;
     }
-    advance(st, player, dt, walkable);
+    st.still = match st.last_player {
+        Some(last) if last.distance(player) < TRAIL_MIN_STEP => st.still + dt,
+        _ => 0.0,
+    };
+    st.last_player = Some(player);
+    advance(st, player, facing, dt, walkable);
     // Hard floor, applied after every outcome (also when the follower was still turning or
     // stopped): when the player walks into it, it is pushed out, never overlapped.
     let here = Vec2::new(st.pos.0, st.pos.1);
@@ -196,7 +233,13 @@ pub fn step(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32
     }
 }
 
-fn advance(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32, f32) -> bool) {
+fn advance(
+    st: &mut FollowerState,
+    player: Vec2,
+    facing: Vec2,
+    dt: f32,
+    walkable: &dyn Fn(f32, f32) -> bool,
+) {
     st.trail.push(player);
     let here = Vec2::new(st.pos.0, st.pos.1);
     let mut target = st.trail.point_behind(FOLLOW_DISTANCE).unwrap_or(player);
@@ -204,6 +247,22 @@ fn advance(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32,
     // outside the comfort radius, on the side where the follower already is.
     if target.distance(player) < MIN_TARGET_DISTANCE {
         target = push_out(target, player, MIN_TARGET_DISTANCE, here - player);
+    }
+    // Standing player: the recorded path can leave the aim point in front of them (they
+    // walked backwards). A follower left on that side walks around to the spot behind the
+    // player; the latch keeps the aim there until the player moves again, so the arc cannot
+    // flip half-way (see the play-test fix 2026-10-15).
+    if st.still < STOP_REPOSITION_DELAY {
+        st.repositioning = false;
+    } else {
+        let facing = facing.try_normalize().unwrap_or(Vec2::Y);
+        let behind = player - facing * FOLLOW_DISTANCE;
+        if !st.repositioning && (target - player).dot(facing) > 0.0 && walkable(behind.x, behind.y) {
+            st.repositioning = true;
+        }
+        if st.repositioning {
+            target = behind;
+        }
     }
 
     // Left behind (or the zone changed and the player was repositioned): teleport onto the
@@ -239,24 +298,71 @@ fn advance(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32,
         return;
     }
 
-    // Face the target; advance only once roughly facing it (same rule as wild_wander).
+    // Face the target; advance only once roughly facing it (same rule as wild_wander) --
+    // except when the player blocks the way: the step aside is what keeps the models apart,
+    // so it runs even while the body is still turning (its arc rate is capped below so the
+    // turn can keep up).
     let heading = yaw_for(to.x, to.y);
     st.yaw = turn_towards(st.yaw, heading, TURN_RATE, dt);
-    if angle_diff(st.yaw, heading).abs() > MOVE_ANGLE {
-        return;
-    }
 
     let advance = (st.speed * dt).min(d);
     let delta = to / d * advance;
-    let moved = if walkable(here.x, here.y) {
+    let direct = if walkable(here.x, here.y) {
         slide_move(here, delta, |p| walkable(p.x, p.y))
     } else {
         // Started off the mesh (e.g. spawned behind a wall): head straight for the target,
         // which lies on the player's walkable path.
         here + delta
     };
+    let blocked = direct.distance(player) < MIN_SEPARATION;
+    if !blocked && angle_diff(st.yaw, heading).abs() > MOVE_ANGLE {
+        return;
+    }
+    let moved = slide_around_player(here, direct, player, to, facing, dt, walkable);
     st.walked += here.distance(moved);
     st.pos = (moved.x, moved.y);
+}
+
+/// Keeps the moving follower out of the player's disc: when the direct move would end inside
+/// [`MIN_SEPARATION`], it slides along the separation circle by the same arc length, towards
+/// the side that keeps closing on the aim direction `to` instead of crossing the player (a
+/// smooth step aside, no teleport). Falls back to the direct move when both candidates are off
+/// the navmesh; the hard floor in [`step`] is then the safety net.
+fn slide_around_player(
+    here: Vec2,
+    moved: Vec2,
+    player: Vec2,
+    to: Vec2,
+    facing: Vec2,
+    dt: f32,
+    walkable: &dyn Fn(f32, f32) -> bool,
+) -> Vec2 {
+    let off = moved - player;
+    if off.length() >= MIN_SEPARATION {
+        return moved;
+    }
+    let radial = here - player;
+    let radial = if radial.length() > 1e-3 {
+        radial.normalize()
+    } else {
+        (-to).try_normalize().or_else(|| (-facing).try_normalize()).unwrap_or(Vec2::NEG_Y)
+    };
+    // The arc never turns faster than the body: the yaw-towards-target can keep up, so the
+    // movement gate above never throttles the step aside into a stop-and-go.
+    let step_ang = (here.distance(moved) / MIN_SEPARATION).min(TURN_RATE * dt);
+    let rotate = |v: Vec2, a: f32| Vec2::new(v.x * a.cos() - v.y * a.sin(), v.x * a.sin() + v.y * a.cos());
+    let mut best: Option<(f32, Vec2)> = None;
+    for sign in [1.0_f32, -1.0] {
+        let cand = player + rotate(radial, sign * step_ang) * MIN_SEPARATION;
+        if !walkable(cand.x, cand.y) {
+            continue;
+        }
+        let score = (cand - here).dot(to);
+        if best.is_none_or(|(b, _)| score > b) {
+            best = Some((score, cand));
+        }
+    }
+    best.map_or(moved, |(_, cand)| cand)
 }
 
 /// Asset-server path of the exported batch model for `species`/`form`
@@ -357,8 +463,10 @@ fn drive_follower(
     // Without a navmesh (flat fallback world) every spot is walkable and no height is known.
     let walkable = |x: f32, z: f32| nav.as_ref().is_none_or(|n| n.is_walkable(x, z));
     let player = Vec2::new(player_tf.translation.x, player_tf.translation.z);
+    let front = player_tf.rotation * Vec3::Z;
+    let facing = Vec2::new(front.x, front.z).try_normalize().unwrap_or(Vec2::Y);
     for (mut tf, mut st) in &mut followers {
-        step(&mut st, player, dt, &walkable);
+        step(&mut st, player, facing, dt, &walkable);
         tf.translation.x = st.pos.0;
         tf.translation.z = st.pos.1;
         if let Some(h) = nav.as_ref().and_then(|n| n.height_at(st.pos.0, st.pos.1)) {
@@ -389,7 +497,15 @@ impl Plugin for FollowerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (sync_follower, drive_follower.run_if(not_paused))
+            // After the frame's locomotion (the viewer's horizontal move runs before
+            // `PlayerMotionSet`): the follower then reacts to the player's final position of
+            // the frame, so the separation floor holds at the sampled frame boundary too.
+            (
+                sync_follower,
+                drive_follower
+                    .run_if(not_paused)
+                    .after(super::player_motion::PlayerMotionSet),
+            )
                 .chain()
                 .run_if(in_state(GameState::World)),
         );
@@ -409,6 +525,8 @@ mod tests {
 
     const DT: f32 = 1.0 / 60.0;
     const WALK_SPEED: f32 = 4.5;
+    /// Player facing used by the tests that do not exercise the model yaw.
+    const FACE: Vec2 = Vec2::Y;
 
     fn all(_: f32, _: f32) -> bool {
         true
@@ -499,7 +617,7 @@ mod tests {
         let mut dists = Vec::new();
         for i in 0..1200 {
             player.x += WALK_SPEED * DT;
-            step(&mut st, player, DT, &all);
+            step(&mut st, player, FACE, DT, &all);
             if i > 300 {
                 dists.push(dist(&st, player));
             }
@@ -522,7 +640,7 @@ mod tests {
         st.trail
             .seed([Vec2::new(-FOLLOW_DISTANCE, 0.0), Vec2::ZERO]);
         for _ in 0..600 {
-            step(&mut st, Vec2::ZERO, DT, &all);
+            step(&mut st, Vec2::ZERO, FACE, DT, &all);
         }
         let d = dist(&st, Vec2::ZERO);
         eprintln!("standing player: {d:.3} m away");
@@ -539,7 +657,7 @@ mod tests {
         let mut st = FollowerState::new((40.0, 0.0), 0.0);
         st.trail
             .seed([Vec2::new(-FOLLOW_DISTANCE, 0.0), Vec2::ZERO]);
-        step(&mut st, Vec2::ZERO, DT, &all);
+        step(&mut st, Vec2::ZERO, FACE, DT, &all);
         assert_eq!(st.teleports, 1);
         assert!(
             dist(&st, Vec2::ZERO) <= FOLLOW_DISTANCE + 1e-3,
@@ -547,7 +665,7 @@ mod tests {
             st.pos
         );
         for _ in 0..120 {
-            step(&mut st, Vec2::ZERO, DT, &all);
+            step(&mut st, Vec2::ZERO, FACE, DT, &all);
         }
         assert_eq!(st.teleports, 1, "no repeated teleport while close");
         assert!(dist(&st, Vec2::ZERO) <= FOLLOW_DISTANCE + ARRIVE_EPS + 0.05);
@@ -568,7 +686,7 @@ mod tests {
                 walk(player.x, player.y),
                 "player left the corridor at {player:?}"
             );
-            step(&mut st, player, DT, &walk);
+            step(&mut st, player, FACE, DT, &walk);
             assert!(
                 walk(st.pos.0, st.pos.1),
                 "follower left the navmesh at {:?}",
@@ -596,13 +714,13 @@ mod tests {
         let mut i = 0;
         for _ in 0..300 {
             player.x += WALK_SPEED * DT;
-            step(&mut st, player, DT, &all);
+            step(&mut st, player, FACE, DT, &all);
             check(&st, player, i);
             i += 1;
         }
         for _ in 0..600 {
             player.x -= WALK_SPEED * DT; // 180-degree reversal
-            step(&mut st, player, DT, &all);
+            step(&mut st, player, FACE, DT, &all);
             check(&st, player, i);
             i += 1;
         }
@@ -610,14 +728,14 @@ mod tests {
         for k in 0..600 {
             let a = k as f32 * 0.02;
             player += Vec2::new(a.cos(), a.sin() * 0.3) * (8.0 * DT) * if k % 200 < 100 { 1.0 } else { -1.0 };
-            step(&mut st, player, DT, &all);
+            step(&mut st, player, FACE, DT, &all);
             check(&st, player, i);
             i += 1;
         }
         eprintln!("min separation over reversals: {min_d:.3} m");
         assert!(min_d >= MIN_SEPARATION - 1e-3, "overlap: {min_d}");
         for _ in 0..600 {
-            step(&mut st, player, DT, &all);
+            step(&mut st, player, FACE, DT, &all);
         }
         let d = dist(&st, player);
         assert!((1.5..=3.0).contains(&d), "resting distance {d}");
@@ -630,7 +748,7 @@ mod tests {
         let player = Vec2::new(0.0, 0.0);
         let mut st = FollowerState::new((0.0, -0.3), 0.0); // behind the player, on the edge
         st.trail.seed([Vec2::new(0.0, -FOLLOW_DISTANCE), player]);
-        step(&mut st, player, DT, &walk);
+        step(&mut st, player, FACE, DT, &walk);
         let d = dist(&st, player);
         assert!(d >= MIN_SEPARATION - 1e-3, "still overlapping: {d}");
         assert!(walk(st.pos.0, st.pos.1), "ended off the navmesh: {:?}", st.pos);
@@ -640,8 +758,102 @@ mod tests {
     fn standing_on_the_follower_pushes_it_out_instead_of_overlapping() {
         let mut st = FollowerState::new((0.0, 0.0), 0.0);
         st.trail.seed([Vec2::new(-FOLLOW_DISTANCE, 0.0), Vec2::ZERO]);
-        step(&mut st, Vec2::ZERO, DT, &all);
+        step(&mut st, Vec2::ZERO, FACE, DT, &all);
         assert!(dist(&st, Vec2::ZERO) >= MIN_SEPARATION - 1e-4, "{:?}", st.pos);
+    }
+
+    #[test]
+    fn walks_around_the_player_instead_of_being_pushed_through() {
+        // The play-test case: the player turns around and walks straight at the follower
+        // that stands in their way. The follower slides around the player instead of being
+        // dragged in front of them, with no per-frame jump, and ends up behind.
+        let mut st = FollowerState::new((0.0, MIN_SEPARATION + 0.1), 0.0); // in the player's way
+        st.trail.seed([Vec2::new(0.0, -FOLLOW_DISTANCE), Vec2::ZERO]);
+        let mut player = Vec2::ZERO;
+        let mut prev = Vec2::new(st.pos.0, st.pos.1);
+        let mut min_d = f32::MAX;
+        let mut max_step = 0.0f32;
+        let mut max_side = 0.0f32;
+        for i in 0..240 {
+            player.y += WALK_SPEED * DT;
+            step(&mut st, player, FACE, DT, &all);
+            let here = Vec2::new(st.pos.0, st.pos.1);
+            max_step = max_step.max(prev.distance(here));
+            min_d = min_d.min(here.distance(player));
+            if i > 30 {
+                max_side = max_side.max((here - player).x.abs());
+            }
+            prev = here;
+        }
+        eprintln!(
+            "through: min {min_d:.3} m, max step {max_step:.3} m/frame, max side {max_side:.3} m"
+        );
+        assert!(min_d >= MIN_SEPARATION - 1e-3, "overlap {min_d}");
+        assert!(max_step <= MAX_SPEED * DT + 0.05, "jerk {max_step} m/frame");
+        assert!(max_side > 0.5, "went straight through (side {max_side})");
+        let here = Vec2::new(st.pos.0, st.pos.1);
+        assert!(
+            (here - player).dot(FACE) < 0.0,
+            "not behind after the pass: {here:?} vs {player:?}"
+        );
+        // The player stops: it settles behind at the follow distance.
+        for _ in 0..600 {
+            step(&mut st, player, FACE, DT, &all);
+        }
+        let d = dist(&st, player);
+        let here = Vec2::new(st.pos.0, st.pos.1);
+        assert!((1.5..=3.0).contains(&d), "resting distance {d}");
+        assert!(here.y < player.y, "resting behind: {here:?}");
+    }
+
+    #[test]
+    fn a_follower_left_in_front_walks_back_behind_the_stopped_player() {
+        // The player walked backwards (facing +z) and stopped: the recorded path puts the
+        // aim point in front of them, where the follower already stands. After the stop
+        // delay the follower must walk around to the spot behind the player.
+        let mut st = FollowerState::new((0.0, MIN_SEPARATION + 0.01), 0.0);
+        // The path goes from +z (where the player came from) to the origin (player).
+        st.trail.seed([Vec2::new(0.0, 4.0), Vec2::ZERO]);
+        let mut prev = Vec2::new(st.pos.0, st.pos.1);
+        let mut max_step = 0.0f32;
+        let mut min_d = f32::MAX;
+        let mut max_front = f32::MAX; // smallest distance seen while in front (never < floor)
+        for i in 0..900 {
+            step(&mut st, Vec2::ZERO, FACE, DT, &all);
+            let here = Vec2::new(st.pos.0, st.pos.1);
+            if i % 120 == 0 {
+                eprintln!("i {i:4} pos ({:.3},{:.3}) ang {:.1}", here.x, here.y, here.to_angle().to_degrees());
+            }
+            max_step = max_step.max(prev.distance(here));
+            let d = here.distance(Vec2::ZERO);
+            min_d = min_d.min(d);
+            if here.dot(FACE) > 0.0 {
+                max_front = max_front.min(d);
+            }
+            prev = here;
+        }
+        let here = Vec2::new(st.pos.0, st.pos.1);
+        eprintln!(
+            "reposition: end {here:?}, min {min_d:.3} m, min while in front {max_front:.3} m, max step {max_step:.3} m/frame"
+        );
+        assert!(min_d >= MIN_SEPARATION - 1e-3, "overlap {min_d}");
+        assert!(max_step <= MAX_SPEED * DT + 0.05, "jerk {max_step} m/frame");
+        assert!(here.dot(FACE) < 0.0, "still in front: {here:?}");
+        let d = here.distance(Vec2::ZERO);
+        assert!((1.5..=3.0).contains(&d), "resting distance {d}");
+        assert!(st.still > STOP_REPOSITION_DELAY, "still {}", st.still);
+    }
+
+    #[test]
+    fn still_time_counts_only_standing_still() {
+        let mut st = FollowerState::new((0.0, 2.0), 0.0);
+        st.trail.seed([Vec2::new(-FOLLOW_DISTANCE, 0.0), Vec2::ZERO]);
+        for _ in 0..60 {
+            step(&mut st, Vec2::ZERO, FACE, DT, &all);
+        }
+        assert!(st.still > 0.9, "still {}", st.still);
+        step(&mut st, Vec2::new(0.5, 0.0), FACE, DT, &all);
+        assert_eq!(st.still, 0.0, "a player step resets the still timer");
     }
 
     // ---------------------------------------------------------------- headless Bevy
