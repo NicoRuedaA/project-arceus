@@ -54,7 +54,7 @@ fn trainer_mode(root: &PathBuf, id: &str) -> Result<(), String> {
         inputs
     };
     if id == "all" {
-        let (mut won, mut lost, mut draw, mut open, mut prize) = (0, 0, 0, 0, 0u64);
+        let (mut won, mut lost, mut draw, mut open) = (0, 0, 0, 0);
         for t in catalog.trainers.keys() {
             let mut s = start(t)?;
             play(&mut s);
@@ -70,13 +70,12 @@ fn trainer_mode(root: &PathBuf, id: &str) -> Result<(), String> {
                     println!("unfinished: {t} after {} turns", s.battle.turn);
                 }
             }
-            prize += u64::from(s.trainer.as_ref().and_then(|x| x.prize).unwrap_or(0));
         }
         println!(
             "trainers played: {}  player won: {won}  player lost: {lost}  draw: {draw}  unfinished: {open}  (player party L{level}, seed {seed})",
             catalog.len()
         );
-        println!("total prize money paid (ASSUMED formula prize_base x last level): {prize}");
+        println!("trainers pay no money (see reports/data-progress/trainer_money.md); wins give experience only");
         return Ok(());
     }
     let mut s = start(id)?;
@@ -87,13 +86,12 @@ fn trainer_mode(root: &PathBuf, id: &str) -> Result<(), String> {
     let t = s.trainer.as_ref().ok_or("not a trainer battle")?;
     println!("---");
     println!(
-        "trainer {} ({}), AI {}, team {}, player inputs {inputs}, winner side {:?}, prize {:?} (ASSUMED formula)",
+        "trainer {} ({}), AI {}, team {}, player inputs {inputs}, winner side {:?} (no prize: trainers pay no money)",
         t.id,
         t.label,
         t.ai.profile(),
         s.battle.sides[1].len(),
-        s.battle.winner_side(),
-        t.prize
+        s.battle.winner_side()
     );
     Ok(())
 }
