@@ -753,7 +753,7 @@
       },
       {
         "path": "crates/pla/src/game/interior.rs",
-        "sha256": "898e5d1829aad83c4473489fed0145b4d836f4e8734a369406270d1f17c64542"
+        "sha256": "fbc2cc4b782bc0e7843ecf88969f8851cd94176e99d1b022f7e7ec05179cc2fe"
       },
       {
         "path": "crates/pla/src/game/ledge.rs",
@@ -769,7 +769,7 @@
       },
       {
         "path": "crates/pla/src/game/minimap.rs",
-        "sha256": "560ccd04f3ad81f41ddcaf307b9a7a3f095d1c6756be50c54fdc075b06c45c35"
+        "sha256": "599ea3da4277576937b5ef616bbf387de3991bd8cf420ccd5bf1d8acaa46c988"
       },
       {
         "path": "crates/pla/src/game/mod.rs",
@@ -825,7 +825,7 @@
       },
       {
         "path": "crates/pla/src/game/orig_ui/menus.rs",
-        "sha256": "2a89e47c25000e0da345a1bd1bcea652ce90a94dc755c85fefa7ef869c874caf"
+        "sha256": "c44c2eabd4fded9c149571ab8230ad5b845d2b36ba15fbab5bfd085da3e22829"
       },
       {
         "path": "crates/pla/src/game/orig_ui/mod.rs",
@@ -1133,7 +1133,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "40196e04fa71cfe4bdfb1d13dd33d30dfa6ebdf91cf829280cd1673f6ace727e"
+    "sha256": "077853c980d6c0aab45e1a6b6e5a77fc5629a13e53ed89939700d6de98fa1bc2"
   },
   "state_partitions": {
     "analysis_documentation_status": {
