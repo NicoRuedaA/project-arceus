@@ -275,7 +275,6 @@ def main() -> int:
     p.add_argument("--release", action="store_true")
     p.add_argument("--no-build", action="store_true")
     p.add_argument("--timeout", type=float, default=900.0)
-    p.add_argument("--dir", help="automation directory (default work/automation); passed to the viewer too")
     return run(p.parse_args())
 
 
