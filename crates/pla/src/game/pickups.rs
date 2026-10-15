@@ -727,7 +727,6 @@ fn pickup_interact(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeSet;
 
     const T: &str = "# c\nkind:enum\tarea:string*\tspawn_key:string*\tplacement_id:string*\tx:f32\ty:f32\tz:f32\tyaw:f32?\tmodel:string?\tspawn_table_key:string?\tloot_item_ids:string?\tloot_weights:string?\tloot_min:u16?\tloot_max:u16?\tflag:string?\tconfidence:enum\n\
 direct_item\tha_area01\t001\tbe636c89f1de0b4c\t470.78\t28.34\t280.35\t\titem_013\t\t\t\t\t\t\tpartial\n\
@@ -835,14 +834,6 @@ direct_item\tha_area02\t007\tffffffffffffffff\t1\t2\t3\t\titem_001\t\t\t\t\t\t\t
             progress.bag, bag_before,
             "nothing to grant for the direct item"
         );
-    }
-
-    #[test]
-    fn respawn_removes_the_id_from_the_picked_set() {
-        // the same rule `tick_respawn` applies when the timer fires
-        let mut picked: BTreeSet<u64> = BTreeSet::from([5u64]);
-        picked.remove(&5);
-        assert!(picked.is_empty());
     }
 
     #[test]

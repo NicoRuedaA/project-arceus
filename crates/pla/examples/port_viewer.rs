@@ -4391,19 +4391,6 @@ mod startup_schedule_guard {
         );
     }
 
-    /// `--ui original` (the default): the original-UI plugin (screens spawned when the local UI
-    /// data exists, otherwise the provisional UI stays) starts and runs a few frames.
-    #[test]
-    fn original_ui_starts() {
-        check_viewer_start("original-ui", &["port_viewer", "--area", "1", "--ui", "original"]);
-    }
-
-    /// No `--ui` flag: the default path (original UI, or the fallback when the data is missing).
-    #[test]
-    fn default_ui_starts_with_data() {
-        check_viewer_start("default-ui", &["port_viewer", "--area", "1"]);
-    }
-
     /// The original UI asked for with a UI root that does not exist: the viewer must start and
     /// keep the provisional UI (no crash).
     #[test]

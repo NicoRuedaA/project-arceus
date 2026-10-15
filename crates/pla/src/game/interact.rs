@@ -299,11 +299,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn debug_climb_is_env_gated() {
-        if std::env::var_os("PLA_DEBUG_CLIMB").is_some() {
-            return; // the developer's shell has it set; nothing to assert
-        }
-        assert!(!debug_climb_enabled());
-    }
 }

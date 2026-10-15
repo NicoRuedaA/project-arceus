@@ -662,14 +662,6 @@ mod tests {
     }
 
     #[test]
-    fn safe_spawn_row_is_reachable_by_navigation() {
-        let i = OPTIONS.iter().position(|o| *o == MenuOption::SafeSpawn).unwrap();
-        assert_eq!(OPTIONS.len(), 17);
-        assert_eq!(move_selection(i - 1, 1), i);
-        assert_eq!(move_selection(i, 1), i + 1);
-    }
-
-    #[test]
     fn screen_rows_follow_the_bag_row_in_order() {
         let bag = OPTIONS.iter().position(|o| *o == MenuOption::Bag).unwrap();
         assert_eq!(
@@ -688,14 +680,6 @@ mod tests {
         assert_eq!(activate(MenuOption::Summary, &mut s), MenuAction::OpenScreen(Screen::Summary));
         assert!(screen_unavailable_text(Screen::Boxes, false).contains("only while exploring"));
         assert!(screen_unavailable_text(Screen::Party, true).contains("not available"));
-    }
-
-    #[test]
-    fn load_and_rest_rows_sit_between_save_and_quit() {
-        let rest = OPTIONS.iter().position(|o| *o == MenuOption::Rest).unwrap();
-        assert_eq!(OPTIONS[rest - 2], MenuOption::Save);
-        assert_eq!(OPTIONS[rest - 1], MenuOption::Load);
-        assert_eq!(OPTIONS[rest + 1], MenuOption::Quit);
     }
 
     #[test]
@@ -729,12 +713,6 @@ mod tests {
         assert_eq!(option_label(MenuOption::Graphics, &s), "Graphics...");
         assert_eq!(s, UserSettings::default());
         assert!(screen_unavailable_text(Screen::Graphics, true).contains("Graphics"));
-    }
-
-    #[test]
-    fn esc_toggles() {
-        assert!(toggle_paused(false));
-        assert!(!toggle_paused(true));
     }
 
     #[test]

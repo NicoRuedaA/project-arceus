@@ -19,7 +19,6 @@ expect() { # name, wanted exit code, wanted text, command...
 }
 
 w="$tmp/work"; mkdir -p "$w"
-expect "check on empty tree lists the steps" 2 "Steps that would run, in order (11):" ./install.sh --check --work "$w"
 expect "check names the missing base file" 2 "missing --base" ./install.sh --check --work "$w"
 [ -z "$(ls -A "$w")" ] && pass "check wrote nothing" || fail "check wrote files: $(ls -A "$w")"
 

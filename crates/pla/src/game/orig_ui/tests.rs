@@ -251,88 +251,6 @@ fn menus_hide_the_corner_minimap() {
     assert!(!hides_minimap(ScreenId::Map));
 }
 
-#[test]
-#[ignore = "debug dump"]
-fn dump_pause_tab_quads() {
-    let Some(root) = local_root() else { return };
-    let mut lib = OrigUiLibrary::new(Some(root));
-    let (doc, layout) = ScreenId::PauseMenu.source();
-    let mut s = OrigScreen::new(ScreenId::PauseMenu, lib.scene(doc, layout).unwrap());
-    let inst = s.scene.part_instance("L_menu_00").unwrap();
-    s.freeze_end(inst, "select", "sel");
-    let f = s.evaluate();
-    for q in f
-        .quads
-        .iter()
-        .filter(|q| s.scene.nodes[q.node].instance == inst)
-    {
-        println!(
-            "{} vis={} a={:.2} c={:?} sz={:?} tex={:?} white={:?}",
-            s.scene.nodes[q.node].path, q.visible, q.alpha, q.center, q.size, q.texture, q.white
-        );
-    }
-}
-
-#[test]
-#[ignore = "debug dump: ORIG_DUMP=Screen x0,y0,x1,y1"]
-fn dump_quads_in_rect() {
-    let Some(root) = local_root() else { return };
-    let spec = std::env::var("ORIG_DUMP").unwrap_or_default();
-    let mut it = spec.split_whitespace();
-    let (Some(name), Some(rect)) = (it.next(), it.next()) else {
-        return;
-    };
-    let r: Vec<f32> = rect.split(',').map(|v| v.parse().unwrap()).collect();
-    let id = ScreenId::ALL
-        .into_iter()
-        .find(|i| format!("{i:?}") == name)
-        .unwrap();
-    let mut lib = OrigUiLibrary::new(Some(root));
-    let (doc, layout) = id.source();
-    let s = OrigScreen::new(id, lib.scene(doc, layout).unwrap());
-    let f = s.evaluate();
-    for q in f.quads.iter().filter(|q| {
-        q.visible
-            && q.center.x >= r[0]
-            && q.center.y >= r[1]
-            && q.center.x <= r[2]
-            && q.center.y <= r[3]
-    }) {
-        println!(
-            "{} c={:?} sz={:?} tex={:?}",
-            s.scene.nodes[q.node].path,
-            q.center,
-            q.size,
-            q.texture.as_deref().map(|t| t.rsplit('/').next().unwrap())
-        );
-    }
-}
-
-#[test]
-#[ignore = "debug dump"]
-fn dump_party_row_hide() {
-    let Some(root) = local_root() else { return };
-    let mut lib = OrigUiLibrary::new(Some(root));
-    let (doc, layout) = ScreenId::Party.source();
-    let mut s = OrigScreen::new(ScreenId::Party, lib.scene(doc, layout).unwrap());
-    let inst = s.scene.part_instance("L_list_base_00").unwrap();
-    for h in ["P_fx_bospoke_00", "L_icon_seibetsu_00"] {
-        let n = s.node_in_instance(inst, h).unwrap();
-        println!("hide {h} node {n} path {}", s.scene.nodes[n].path);
-        s.set_node(n, |o| o.visible = Some(false));
-    }
-    let f = s.evaluate();
-    for q in f.quads.iter().filter(|q| {
-        q.visible
-            && q.center.x >= 690.0
-            && q.center.y >= 180.0
-            && q.center.x <= 800.0
-            && q.center.y <= 240.0
-    }) {
-        println!("{} c={:?}", s.scene.nodes[q.node].path, q.center);
-    }
-}
-
 /// The party binding fills the rows from `PlayerProgress` and hides what the port has no data for.
 #[test]
 fn party_binding_fills_rows() {
@@ -428,48 +346,6 @@ fn party_binding_fills_rows() {
         }),
         "empty rows hidden"
     );
-}
-
-#[test]
-#[ignore = "debug dump"]
-fn dump_move_rows_select() {
-    let Some(root) = local_root() else { return };
-    let mut lib = OrigUiLibrary::new(Some(root));
-    let (doc, layout) = ScreenId::BattleMoves.source();
-    let mut s = OrigScreen::new(ScreenId::BattleMoves, lib.scene(doc, layout).unwrap());
-    for k in 0..2 {
-        let inst = s.scene.part_instance(&format!("L_waza_btn_0{k}")).unwrap();
-        s.freeze_end(inst, if k == 1 { "select" } else { "unselect" }, "sel");
-    }
-    let f = s.evaluate();
-    for k in 0..2 {
-        let inst = s.scene.part_instance(&format!("L_waza_btn_0{k}")).unwrap();
-        for q in f.quads.iter().filter(|q| s.scene.nodes[q.node].instance == inst && s.scene.nodes[q.node].pane.name.starts_with("P_base_0")) {
-            println!("row{k} {} vis={} a={:.2} white={:?} black={:?}", s.scene.nodes[q.node].pane.name, q.visible, q.alpha, q.white, q.black);
-        }
-    }
-    println!("{:?}", s.anim.tracks.iter().map(|t| (t.instance, t.anim.clone(), t.frame, t.mode)).collect::<Vec<_>>());
-}
-
-#[test]
-#[ignore = "debug dump"]
-fn dump_map_area_highlight() {
-    let Some(root) = local_root() else { return };
-    let mut lib = OrigUiLibrary::new(Some(root));
-    let (doc, layout) = ScreenId::Map.source();
-    let mut s = OrigScreen::new(ScreenId::Map, lib.scene(doc, layout).unwrap());
-    s.set_visible("N_area_vfx_00", true);
-    let inst = s.scene.part_instance("L_area_vfx_00").unwrap();
-    for tag in ["select", "active", "keep", "select_state"] {
-        s.freeze_end(inst, tag, "sel");
-        let f = s.evaluate();
-        for q in f.quads.iter().filter(|q| s.scene.nodes[q.node].instance == inst) {
-            println!(
-                "{tag}: {} vis={} a={:.2} mult={} add={} white={:?} black={:?} vc={:?}",
-                s.scene.nodes[q.node].path, q.visible, q.alpha, q.multiply, q.additive, q.white, q.black, q.vcol[0]
-            );
-        }
-    }
 }
 
 /// App with the original-UI render path and one screen `id`, plus `setup` for the resources and

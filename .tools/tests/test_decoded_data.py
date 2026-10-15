@@ -182,7 +182,7 @@ def validate_field_data() -> None:
         "pokemon/data/poke_event_encount.bin": ["u32", "u32", "absent", "u32"],
         "pokemon/data/poke_battle_spawn.bin": ["raw_u32"] * 6,
     }
-    romfs = Path("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
+    romfs = Path(__file__).resolve().parents[2].joinpath("work/pla/pk2/romfs_patched/bin")
     expected = []
     for source, layout in type_layouts.items():
         data = (romfs / source).read_bytes()
@@ -231,7 +231,7 @@ def validate_field_data() -> None:
 
 def validate_world_data() -> None:
     world_file = DATA_DIR / "world/wormhole_config_values.tsv"
-    source = Path("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/misc/app_config/field_wormhole_config.bin")
+    source = Path(__file__).resolve().parents[2].joinpath("work/pla/pk2/romfs_patched/bin/misc/app_config/field_wormhole_config.bin")
     with open(world_file, "r", encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
     assert len(rows) == 37, f"Expected 37 non-empty wormhole config values, got {len(rows)}"
@@ -257,7 +257,7 @@ def validate_world_data() -> None:
 
 def validate_shop_data() -> None:
     shop_file = DATA_DIR / "shop_stock.tsv"
-    source = Path("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin/appli/shop/bin/ha_shop_data.bin")
+    source = Path(__file__).resolve().parents[2].joinpath("work/pla/pk2/romfs_patched/bin/appli/shop/bin/ha_shop_data.bin")
     with open(shop_file, "r", encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(sheetize.data_lines(f), delimiter="\t"))
     assert source.is_file(), f"Missing exact source binary: {source}"

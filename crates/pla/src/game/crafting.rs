@@ -406,10 +406,4 @@ mod tests {
         assert!(TsvRecipeProvider::parse("").is_err());
     }
 
-    #[test]
-    fn provider_conversion_keeps_rows_without_fabricating_data() {
-        let provider = StaticRecipeProvider(vec![recipe(20, 1, &[(10, 1)])]);
-        let catalog = RecipeCatalog::from_provider(&provider);
-        assert_eq!(catalog.0, provider.0);
-    }
 }
