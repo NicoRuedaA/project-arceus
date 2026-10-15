@@ -29,6 +29,7 @@ use crate::battle_engine::drops::DropTable;
 use crate::battle_engine::effects::{MoveEffectsTable, Stages};
 use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::progression::ProgressionTables;
+use super::battle_ai::ItemUseTable;
 use crate::battle_engine::statuses::StatusRules;
 use crate::battle_engine::styles::{MoveStyleTable, Style, StyledAction};
 use crate::battle_engine::{
@@ -110,6 +111,9 @@ pub struct BattleAssets {
     /// Decoded drop tables (`data/poke_drop_items.tsv`); `None` disables the drops when a
     /// battle is won or a Pokemon is caught.
     pub drops: Option<Arc<DropTable>>,
+    /// Decoded `ItemUseAI` rules (`data/ai/item_use_rules.tsv`); `None` disables the rival's
+    /// item use (Brief D6).
+    pub item_rules: Option<Arc<ItemUseTable>>,
 }
 
 impl BattleAssets {
@@ -130,6 +134,10 @@ impl BattleAssets {
             .map_err(|e| eprintln!("drop tables unavailable ({e}); no items are dropped"))
             .ok()
             .map(Arc::new);
+        let item_rules = ItemUseTable::load(root)
+            .map_err(|e| eprintln!("item-use rules unavailable ({e}); the rival never uses items"))
+            .ok()
+            .map(Arc::new);
         Ok(Self {
             data: Arc::new(BattleData::load(root)?),
             move_effects: MoveEffectsTable::load(root)?,
@@ -140,6 +148,7 @@ impl BattleAssets {
             progression,
             turn_mode: TurnMode::from_env_and_args(),
             drops,
+            item_rules,
         })
     }
 }
@@ -281,6 +290,9 @@ pub struct ActiveBattleSession {
     pub progress: ProgressFlow,
     /// Trainer / boss battle facts (`None` in a wild battle); see `trainer_battle`.
     pub trainer: Option<TrainerBattleState>,
+    /// Decoded `ItemUseAI` rules (`data/ai/item_use_rules.tsv`); drives the trainer's item
+    /// use (Brief D6).
+    pub item_rules: Option<Arc<ItemUseTable>>,
 }
 
 impl ActiveBattleSession {
@@ -413,6 +425,7 @@ impl ActiveBattleSession {
             progression: assets.and_then(|a| a.progression.clone()),
             progress: ProgressFlow::default(),
             trainer: None,
+            item_rules: assets.and_then(|a| a.item_rules.clone()),
         };
         let mut start = vec!["Battle Started!".to_string()];
         if s.turn_mode.uses_queue() {
