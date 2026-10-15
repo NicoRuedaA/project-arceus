@@ -3,18 +3,23 @@
 //! The sheet `data/field_lighting_env.tsv` stores four time slots per environment parameter;
 //! `lighting.rs` reads them into [`ZoneEnv`]. This module owns *when* each slot applies:
 //!
-//! - A pure [`GameClock`] advancing at `--time-scale` game minutes per real second (ASSUMED speed;
-//!   the game's own clock rate is NOT decoded).
+//! - A pure [`GameClock`] advancing at `--time-scale` game minutes per real second. The default
+//!   speed is one game minute per real second (a game day in 24 real minutes) — PROBABLE: the
+//!   game's own clock rate is not decoded, but the external hint states exactly "one real minute
+//!   is one game hour", which is this rate. `--time-scale` overrides it.
 //! - `--time-slot N` still works: it pins the clock to the centre of slot N (no advance), so every
 //!   view stays reproducible.
-//! - [`slot_blend`] turns a time in hours into the two surrounding slots and a 0..1 factor. The
-//!   6-hour boundaries (slot centres at 03:00/09:00/15:00/21:00) are **ASSUMED**: no file in the
-//!   unpacked game states the hour ranges of the slots (see `reports/data-progress/world_events.md`,
-//!   "Time-of-day slot boundaries (hours) are not in these files").
+//! - [`slot_blend`] turns a time in hours into the two surrounding slots and a 0..1 factor, with
+//!   the two slots exactly 50/50 at a band boundary and exactly slot N at its centre.
+//! - The **band boundaries** are 05:00, 12:00, 18:00, 21:00 ([`SLOT_START_HOURS`]): morning
+//!   05-12, day 12-18, evening 18-21, night 21-05. PROBABLE: no unpacked file states the hours
+//!   (`reports/data-progress/world_events.md`, "Time-of-day slot boundaries (hours) are not in
+//!   these files"); the external hint fixes exactly these four (its rest menu jumps to the start
+//!   of each band, 05:00/12:00/18:00/21:00). Slot 3 = night is VERIFIED by the spawn multipliers;
+//!   the order of slots 0-2 (morning/day/evening) is ASSUMED (identical everywhere in the spawn
+//!   data).
 //! - [`blend_env`] interpolates two decoded [`ZoneEnv`]s component-wise (linear RGB), which is this
 //!   port's own interpretation (ASSUMED); the game blends slots its own way (not decoded).
-//! - Slot 3 = night is VERIFIED by the spawn multipliers; the order of slots 1-3 (day/evening) is
-//!   ASSUMED (they are identical everywhere in the spawn data).
 //!
 //! The save stores whole game minutes ([`crate::game::save_game`] v6), so a loaded game resumes at
 //! the exact time of day it was left at.
@@ -27,12 +32,15 @@ use super::save_wire::PlayerProgress;
 
 /// Number of decoded time slots (4).
 pub const SLOT_COUNT: usize = 4;
-/// Length of one slot's segment in hours (24 / 4). ASSUMED uniform.
-pub const HOURS_PER_SLOT: f32 = 6.0;
+/// First hour of each slot's band: morning 05:00, day 12:00, evening 18:00, night 21:00 (the last
+/// band wraps past midnight to 05:00). PROBABLE (external hint; no hour data in the unpacked
+/// game; see the module docs).
+pub const SLOT_START_HOURS: [f32; SLOT_COUNT] = [5.0, 12.0, 18.0, 21.0];
 /// Game minutes in a full day.
 pub const MINUTES_PER_DAY: u32 = 1440;
-/// ASSUMED clock speed: one game minute per real second (a full day in 24 real minutes). The
-/// original game's clock rate is not decoded. `--time-scale` overrides it.
+/// Default clock speed: one game minute per real second, i.e. one game hour per real minute (a
+/// full day in 24 real minutes). PROBABLE: not decoded from the game, and exactly the external
+/// hint's rate. `--time-scale` overrides it.
 pub const DEFAULT_MINUTES_PER_REAL_SECOND: f32 = 1.0;
 /// Start time of a fresh game, in game minutes (15:00, the centre of the "day" slot, which matches
 /// the previous fixed `DEFAULT_TIME_SLOT = 1`).
@@ -56,10 +64,11 @@ pub fn normalize_hours(t: f32) -> f32 {
     }
 }
 
-/// Centre of slot `s` in hours (03:00 night, 09:00 morning, 15:00 day, 21:00 evening). ASSUMED,
-/// like every hour boundary here.
+/// Centre of slot `s` in hours: 08:30 morning, 15:00 day, 19:30 evening, 01:00 night (the middle
+/// of each [`SLOT_START_HOURS`] band; the night band wraps).
 pub fn slot_centre_hours(slot: usize) -> f32 {
-    (3.0 + 6.0 * ((slot % SLOT_COUNT + 1) % SLOT_COUNT) as f32) % 24.0
+    const CENTRES: [f32; SLOT_COUNT] = [8.5, 15.0, 19.5, 1.0];
+    CENTRES[slot % SLOT_COUNT]
 }
 
 /// Centre of slot `s` in game minutes (0..1439).
@@ -67,13 +76,20 @@ pub fn slot_centre_minutes(slot: usize) -> u16 {
     (slot_centre_hours(slot) * 60.0) as u16
 }
 
-/// Slot whose 6-hour segment contains `t_hours`. Segment 0 (00:00-06:00) is night (slot 3),
-/// 1 morning (0), 2 day (1), 3 evening (2): slot 3 = night is VERIFIED by the spawn data, the
-/// 6-hour segments are ASSUMED.
+/// Slot whose band contains `t_hours`: night 21-05, morning 05-12, day 12-18, evening 18-21.
+/// Slot 3 = night is VERIFIED by the spawn data; the band hours are PROBABLE (see the module docs).
 pub fn slot_of_hours(t_hours: f32) -> usize {
     let t = normalize_hours(t_hours);
-    let block = (t / HOURS_PER_SLOT).floor() as i64;
-    ((block + 3).rem_euclid(SLOT_COUNT as i64)) as usize
+    // Ascending: [5, 12, 18, 21]; the gaps are slots 0, 1, 2 and the wrap 21..5 is slot 3.
+    if t < SLOT_START_HOURS[1] {
+        if t < SLOT_START_HOURS[0] { 3 } else { 0 }
+    } else if t < SLOT_START_HOURS[2] {
+        1
+    } else if t < SLOT_START_HOURS[3] {
+        2
+    } else {
+        3
+    }
 }
 
 /// Slot of a minute-of-day value.
@@ -82,14 +98,24 @@ pub fn slot_of_minutes(minutes: u16) -> usize {
 }
 
 /// The two slots bracketing `t_hours` and the smooth 0..1 factor between them. At a slot centre
-/// the result is `(slot, next, 0.0)` (exactly that slot's decoded values); at a segment boundary
-/// it is 50/50 (`f = 0.5`). Continuous everywhere; ASSUMED shape.
+/// the result is `(slot, next, 0.0)` (exactly that slot's decoded values); at a band boundary it
+/// is 50/50 (`f = 0.5`). Continuous everywhere; the shape (smoothstep halves) is ASSUMED.
 pub fn slot_blend(t_hours: f32) -> (usize, usize, f32) {
-    let u = normalize_hours(t_hours) / HOURS_PER_SLOT - 1.5;
-    let k = u.floor();
-    let f = smoothstep(u - k);
-    let a = (k as i64).rem_euclid(SLOT_COUNT as i64) as usize;
-    (a, (a + 1) % SLOT_COUNT, f)
+    let t = normalize_hours(t_hours);
+    let s = slot_of_hours(t);
+    let start = SLOT_START_HOURS[s];
+    let len = (SLOT_START_HOURS[(s + 1) % SLOT_COUNT] - start).rem_euclid(24.0);
+    // Offsets inside the band: at the boundary 0, at the centre `to_centre`, at the next
+    // boundary `len`; both halve-spans are nonzero (3.5/3/1.5/4 and 3.5/3/1.5/4 hours).
+    let u = (t - start).rem_euclid(24.0);
+    let to_centre = (slot_centre_hours(s) - start).rem_euclid(24.0);
+    if u < to_centre {
+        let f = 0.5 + 0.5 * smoothstep(u / to_centre);
+        ((s + SLOT_COUNT - 1) % SLOT_COUNT, s, f)
+    } else {
+        let f = 0.5 * smoothstep((u - to_centre) / (len - to_centre));
+        (s, (s + 1) % SLOT_COUNT, f)
+    }
 }
 
 fn mix1(a: f32, b: f32, f: f32) -> f32 {
@@ -186,14 +212,23 @@ impl GameClock {
         self.t_hours = (self.t_hours + dt_seconds * self.minutes_per_real_second / 60.0).rem_euclid(24.0);
     }
 
-    /// Rest: jump to the start of the next slot (ASSUMED duration; the original offers a choice of
-    /// phase, see the module docs). Pinned clocks do not move.
+    /// Rest: jump to the start of the next slot (05:00, 12:00, 18:00 or 21:00; ASSUMED duration;
+    /// the original offers a choice of phase, see the module docs). Pinned clocks do not move.
     pub fn advance_to_next_slot(&mut self) {
         if self.pinned || !REST_ADVANCES_TO_NEXT_SLOT {
             return;
         }
-        let next = (self.t_hours / HOURS_PER_SLOT).floor() + 1.0;
-        self.t_hours = (next * HOURS_PER_SLOT).rem_euclid(24.0);
+        let t = self.t_hours;
+        let mut best = f32::INFINITY;
+        for boundary in SLOT_START_HOURS {
+            let delta = (boundary - t).rem_euclid(24.0);
+            if delta > 1e-6 && delta < best {
+                best = delta;
+            }
+        }
+        if best.is_finite() {
+            self.t_hours = (t + best).rem_euclid(24.0);
+        }
     }
 
     /// Whole game minutes since midnight, 0..=1439.
@@ -311,18 +346,25 @@ mod tests {
             assert_eq!((a, b), (s, (s + 1) % SLOT_COUNT), "centre of slot {s}");
             assert!(f < 1e-6, "centre of slot {s} must be exactly that slot");
         }
-        // 09:00 = morning (slot 0), 15:00 day (1), 21:00 evening (2), 03:00 night (3).
+        // 08:30 = morning (slot 0), 15:00 day (1), 19:30 evening (2), 01:00 night (3).
+        assert_eq!(slot_centre_hours(0), 8.5);
+        assert_eq!(slot_centre_hours(1), 15.0);
+        assert_eq!(slot_centre_hours(2), 19.5);
+        assert_eq!(slot_centre_hours(3), 1.0);
         assert_eq!(slot_blend(9.0).0, 0);
         assert_eq!(slot_blend(15.0).0, 1);
-        assert_eq!(slot_blend(21.0).0, 2);
+        assert_eq!(slot_blend(21.0).0, 2, "21:00 is the evening/night boundary");
         assert_eq!(slot_blend(3.0).0, 3);
-        assert_eq!(slot_centre_minutes(0), 9 * 60);
-        assert_eq!(slot_centre_minutes(3), 3 * 60);
+        assert_eq!(slot_centre_minutes(0), 510);
+        assert_eq!(slot_centre_minutes(1), 15 * 60);
+        assert_eq!(slot_centre_minutes(2), 19 * 60 + 30);
+        assert_eq!(slot_centre_minutes(3), 60);
     }
 
     #[test]
     fn slot_boundaries_are_fifty_fifty() {
-        for h in [0.0, 6.0, 12.0, 18.0] {
+        // The four band boundaries: 05:00, 12:00, 18:00, 21:00 (PROBABLE hours).
+        for h in SLOT_START_HOURS {
             let (_, _, f) = slot_blend(h);
             assert!((f - 0.5).abs() < 1e-5, "boundary {h} must be 50/50, got {f}");
         }
@@ -330,17 +372,22 @@ mod tests {
 
     #[test]
     fn slot_segments_contain_their_slot() {
-        // night 00-06, morning 06-12, day 12-18, evening 18-24 (ASSUMED 6 h segments).
+        // morning 05-12, day 12-18, evening 18-21, night 21-05 (PROBABLE bands; slot 3 = night
+        // is VERIFIED by the spawn multipliers).
         assert_eq!(slot_of_hours(0.0), 3);
-        assert_eq!(slot_of_hours(5.99), 3);
-        assert_eq!(slot_of_hours(6.0), 0);
+        assert_eq!(slot_of_hours(4.99), 3);
+        assert_eq!(slot_of_hours(5.0), 0);
+        assert_eq!(slot_of_hours(8.5), 0);
         assert_eq!(slot_of_hours(11.9), 0);
         assert_eq!(slot_of_hours(12.0), 1);
         assert_eq!(slot_of_hours(17.9), 1);
         assert_eq!(slot_of_hours(18.0), 2);
-        assert_eq!(slot_of_hours(23.9), 2);
+        assert_eq!(slot_of_hours(20.9), 2);
+        assert_eq!(slot_of_hours(21.0), 3);
+        assert_eq!(slot_of_hours(23.9), 3);
         assert_eq!(slot_of_minutes(3 * 60), 3);
         assert_eq!(slot_of_minutes(14 * 60), 1);
+        assert_eq!(slot_of_minutes(6 * 60), 0);
     }
 
     #[test]
@@ -421,12 +468,15 @@ mod tests {
         let mut c = GameClock::from_minutes(1.0, 13 * 60); // 13:00 -> evening 18:00
         c.advance_to_next_slot();
         assert_eq!(c.hhmm(), "18:00");
-        let mut c = GameClock::from_minutes(1.0, 23 * 60); // 23:00 -> midnight
+        let mut c = GameClock::from_minutes(1.0, 18 * 60); // exactly a boundary -> the next one
         c.advance_to_next_slot();
-        assert_eq!(c.hhmm(), "00:00");
-        let mut c = GameClock::from_minutes(1.0, 30); // 00:30 -> 06:00
+        assert_eq!(c.hhmm(), "21:00");
+        let mut c = GameClock::from_minutes(1.0, 23 * 60); // 23:00 -> night's end 05:00
         c.advance_to_next_slot();
-        assert_eq!(c.hhmm(), "06:00");
+        assert_eq!(c.hhmm(), "05:00");
+        let mut c = GameClock::from_minutes(1.0, 30); // 00:30 -> 05:00
+        c.advance_to_next_slot();
+        assert_eq!(c.hhmm(), "05:00");
         let mut p = GameClock::pinned_at_slot(1);
         p.advance_to_next_slot();
         assert_eq!(p.hhmm(), "15:00", "a pinned clock does not rest-advance");
@@ -446,7 +496,7 @@ mod tests {
         assert_eq!(time_scale_from_args(&a(&["--time-scale", "NaN"])), DEFAULT_MINUTES_PER_REAL_SECOND);
         let pinned = clock_from_args(&a(&["--time-slot", "3"]), Some(123));
         assert!(pinned.pinned);
-        assert_eq!(pinned.hhmm(), "03:00");
+        assert_eq!(pinned.hhmm(), "01:00");
         let running = clock_from_args(&a(&["--time-scale", "10"]), Some(8 * 60));
         assert!(!running.pinned && running.minutes_per_real_second == 10.0);
         assert_eq!(running.hhmm(), "08:00");

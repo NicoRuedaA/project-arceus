@@ -18,7 +18,7 @@
 //! day, 0..1439; Brief 9). v7 adds `picked`, the ids of collected field-item spawns
 //! (`data/field_item_spawns.tsv`, Brief 12). Older files load via the migration chain: a v2 file
 //! gets an empty box, a v1-v3 file a play time of 0, a v1-v4 file every experience unknown, a
-//! v1-v5 file's `time_slot=N` becomes the centre minute of that slot (ASSUMED slot hours), and a
+//! v1-v5 file's `time_slot=N` becomes the centre minute of that slot (the PROBABLE band hours), and a
 //! v1-v6 file an empty picked set. v8 adds `defeated_trainers`, the ids of the beaten trainers
 //! (`data/trainer_index.tsv` ids such as `giratina01`, or `noble:<setting>`); a v1-v7 file loads with
 //! an empty set. v9 adds `research`, the per-species Pokédex research counters
@@ -512,9 +512,9 @@ fn migrate_v4_to_v5(lines: Vec<String>) -> Vec<String> {
 }
 
 /// v5 saves store the coarse `time_slot` 0..3; v6 stores `time_minutes` (Brief 9's game clock). The
-/// slot becomes the centre minute of its 6-hour segment (03:00/09:00/15:00/21:00; the slot hours are
-/// ASSUMED). A v5 file without the line (it was a required field, but be defensive) gets the
-/// default start time.
+/// slot becomes the centre minute of its band (01:00 night, 08:30 morning, 15:00 day, 19:30
+/// evening; the band hours are PROBABLE). A v5 file without the line (it was a required field, but
+/// be defensive) gets the default start time.
 fn migrate_v5_to_v6(mut lines: Vec<String>) -> Result<Vec<String>, SaveError> {
     let mut found = false;
     for (i, l) in lines.iter_mut().enumerate() {
@@ -1214,8 +1214,8 @@ mod tests {
     }
 
     /// A literal v5 body (ninth experience field, `time_slot`) loads through v5->v6 with an empty
-    /// picked set: the slot becomes the centre minute of its 6-hour segment
-    /// (03:00/09:00/15:00/21:00; slot hours ASSUMED) and the experience survives.
+    /// picked set: the slot becomes the centre minute of its band (01:00/08:30/15:00/19:30, the
+    /// PROBABLE band hours) and the experience survives.
     #[test]
     fn migration_v5_to_current_turns_the_slot_into_minutes() {
         let body = "zone=ha_area03\npos=7,0,-2\nyaw=2.0\ntime_slot=3\nplay_seconds=456\nmoney=99\nrng_seed=8\n\
@@ -1223,16 +1223,16 @@ mod tests {
         let text = format!("PLASAVE 5\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
         let s = PlayerSave::decode(&text).unwrap();
         assert_eq!(s.version, CURRENT_VERSION);
-        assert_eq!(s.time_minutes, 3 * 60, "night slot -> 03:00");
+        assert_eq!(s.time_minutes, 60, "night slot -> 01:00");
         assert_eq!(s.play_seconds, 456, "v5 data survives");
         assert_eq!(s.party[0].exp, Some(1234), "v5 experience survives");
         assert!(s.picked.is_empty(), "a v5 save has no picked spawns");
         let out = s.encode().unwrap();
         assert!(out.starts_with(&format!("PLASAVE {CURRENT_VERSION}\n")));
-        assert!(out.contains("\ntime_minutes=180\n"), "the new field is written on re-save");
+        assert!(out.contains("\ntime_minutes=60\n"), "the new field is written on re-save");
         assert!(!out.contains("time_slot="), "the old key is gone");
-        // Every slot maps to its centre: 0 -> 09:00, 1 -> 15:00, 2 -> 21:00.
-        for (slot, minutes) in [(0u32, 540u32), (1, 900), (2, 1260)] {
+        // Every slot maps to its centre: 0 -> 08:30, 1 -> 15:00, 2 -> 19:30.
+        for (slot, minutes) in [(0u32, 510u32), (1, 900), (2, 1170)] {
             let body = format!("zone=z\npos=0,0,0\nyaw=0\ntime_slot={slot}\nmoney=0\nrng_seed=1\nEND\n");
             let text = format!("PLASAVE 5\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
             assert_eq!(u32::from(PlayerSave::decode(&text).unwrap().time_minutes), minutes, "slot {slot}");

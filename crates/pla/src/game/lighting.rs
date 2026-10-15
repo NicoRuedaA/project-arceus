@@ -3,7 +3,7 @@
 //! Replaces the viewer's placeholder lights/sky with: one directional light, ambient light, a sky
 //! gradient dome, a clear colour and distance fog taken from the sheet. Since Brief 9 the four
 //! decoded time slots are blended over a running [`GameClock`] (see `clock.rs`): the environment
-//! follows the clock every frame (throttled to [`BLEND_STEPS`] steps per slot segment), and the
+//! follows the clock every frame (throttled to [`BLEND_STEPS`] steps per blend half), and the
 //! current weather (`weather.rs`) scales its fog and light.
 //! The Bevy-side look (shadows, grading, clouds, `--look classic|vivid`) lives in `render_look.rs`.
 //! Slot meaning (s0 morning, s1 day, s2 evening, s3 night) is INFERRED from colours and the spawn
@@ -48,7 +48,7 @@ pub const LUX_PER_INTENSITY: f32 = 2400.0;
 /// Sheet ambient (SubColor) -> Bevy ambient brightness (cd/m2), multiplied by SubColor alpha.
 pub const AMBIENT_BRIGHTNESS: f32 = 250.0;
 const SKY_RADIUS: f32 = 900.0;
-/// Environment refresh resolution: 64 steps per 6 h slot segment (one step ~5.6 s at the default
+/// Environment refresh resolution: 64 steps per blend half (one step 1.4 s .. 3.8 s at the default
 /// clock speed). The sky dome mesh is rebuilt at most this often; sun/ambient/fog follow the same
 /// steps. ASSUMED smoothness/CPU compromise.
 pub const BLEND_STEPS: u32 = 64;
