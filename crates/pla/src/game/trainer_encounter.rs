@@ -11,9 +11,11 @@
 //! Walk up to a marker (3 m) and press V to battle it. `--trainer <id>` (or `PLA_TRAINER`)
 //! lets V start that trainer anywhere (`noble:<setting>` starts a Noble's turn-based phase).
 //! `--no-trainers` (or `PLA_TRAINERS=0`) turns the markers off. Defeated trainers are kept for
-//! the save (format v8, `PlayerProgress.defeated_trainers`): after a restart their markers are grey,
-//! V near one only shows "already defeated" (no battle) and the prize is paid on the first win only.
-//! `--trainer <id>` still lets V replay that trainer anywhere (a debug rematch pays nothing).
+//! the save (format v8, `PlayerProgress.defeated_trainers`): after a restart their markers are grey
+//! and V near one only shows "already defeated" (no battle). Trainer battles pay no money (the
+//! game's prize field has no reader, see `reports/data-progress/trainer_money.md`); only the win
+//! is remembered. `--trainer <id>` still lets V replay that trainer anywhere (a debug rematch
+//! changes nothing).
 //!
 //! Markers are plain capsules (NPC models are Brief 31). Coordinates are used as stored, like
 //! `world_objects` does with the object placements (same frame: PROBABLE).
@@ -552,10 +554,10 @@ mod tests {
     }
 
     /// Headless Bevy: markers of the zone spawn, V next to one starts a trainer battle with the
-    /// saved party installed and the whole trainer party kept, the battle runs to its end, the
-    /// prize (ASSUMED formula) is paid on a win and the trainer is remembered.
+    /// saved party installed and the whole trainer party kept, the battle runs to its end, no
+    /// money is paid and the trainer is remembered.
     #[test]
-    fn walk_up_press_v_battle_and_get_paid() {
+    fn walk_up_press_v_battle_and_remember_the_win_without_paying() {
         let dir = std::env::temp_dir().join(format!("pla-trainer-enc-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -615,13 +617,14 @@ mod tests {
             *app.world_mut().resource_mut::<ActionState>() = ActionState::default();
         }
         app.update(); // Let Update systems record the finished trainer result.
-        let (prize, log) = {
+        let log = {
             let s = app.world().resource::<ActiveBattleSession>();
             assert!(s.battle.ended, "{:?}", s.log_lines);
             assert_eq!(s.battle.winner_side(), Some(Some(0)), "{:?}", s.log_lines);
-            (s.trainer.as_ref().unwrap().prize, s.log_lines.join("\n"))
+            s.log_lines.join("\n")
         };
         assert!(log.contains("You defeated"), "{log}");
+        assert!(!log.contains("money"), "trainers pay no money: {log}");
         // Leave the battle (it closes on Confirm once the after-battle steps are done).
         for _ in 0..40 {
             if app.world().get_resource::<ActiveBattleSession>().is_none() {
@@ -642,8 +645,7 @@ mod tests {
             .all(|(v, _)| *v == Visibility::Inherited);
         assert!(shown, "markers are shown again after the battle");
         let money = app.world().resource::<PlayerProgress>().money;
-        assert_eq!(money - money_before, prize.unwrap_or(0), "the trainer prize is paid, not the wild one");
-        assert!(prize.is_some_and(|p| p > 0), "guards store a prize base");
+        assert_eq!(money, money_before, "a trainer win pays no money");
         assert!(app.world().resource::<PlayerProgress>().defeated_trainers.contains(&id), "the win is remembered");
         let _ = std::fs::remove_dir_all(&dir);
         let _ = BattleInput::Confirm;
@@ -704,8 +706,8 @@ mod tests {
 
     /// Save v8: win a trainer battle (autosave), then (a) load in-process after forgetting it and
     /// (b) "restart" with a fresh app on the same save directory. Both times the trainer is still
-    /// beaten: its marker is grey, V next to it starts no battle (toast "already defeated") and no
-    /// prize is paid again.
+    /// beaten: its marker is grey and V next to it starts no battle (toast "already defeated").
+    /// Trainer battles pay no money, so the purse never moves.
     #[test]
     fn defeated_trainer_survives_save_and_load() {
         use crate::game::save_wire::LoadRequested;
@@ -731,8 +733,11 @@ mod tests {
         let money_before = app.world().resource::<PlayerProgress>().money;
         win_and_leave(&mut app);
         assert!(app.world().get_resource::<ActiveBattleSession>().is_none());
-        let paid = app.world().resource::<PlayerProgress>().money - money_before;
-        assert!(paid > 0, "the first win pays the prize");
+        assert_eq!(
+            app.world().resource::<PlayerProgress>().money,
+            money_before,
+            "a trainer win pays no money"
+        );
         assert!(app.world().resource::<PlayerProgress>().defeated_trainers.contains(&id));
         let n_grey = marker_colors(&mut app).iter().filter(|c| **c == BEATEN_COLOR).count();
         let cached_models = app.world_mut().query::<(&TrainerNpc, Has<NpcModelSource>)>().iter(app.world()).filter(|(_, model)| *model).count();
@@ -756,7 +761,7 @@ mod tests {
         press_v(&mut app);
         assert!(app.world().get_resource::<ActiveBattleSession>().is_none(), "V does not start the fight");
         assert!(app.world().resource::<SaveToast>().text.contains("already defeated"));
-        assert_eq!(app.world().resource::<PlayerProgress>().money, money_after_win, "no prize again");
+        assert_eq!(app.world().resource::<PlayerProgress>().money, money_after_win, "no money is ever paid");
         drop(app);
 
         // (b) restart: a brand-new app (new game in memory) on the same save dir, then Load.
@@ -773,7 +778,7 @@ mod tests {
         assert_eq!(marker_colors(&mut app2).iter().filter(|c| **c == BEATEN_COLOR).count(), n_grey);
         press_v(&mut app2);
         assert!(app2.world().get_resource::<ActiveBattleSession>().is_none(), "V does not start the fight after a restart");
-        assert_eq!(app2.world().resource::<PlayerProgress>().money, money_after_win, "prize not paid twice");
+        assert_eq!(app2.world().resource::<PlayerProgress>().money, money_after_win, "the purse stays put");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

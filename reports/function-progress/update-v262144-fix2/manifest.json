@@ -97,7 +97,7 @@
       },
       {
         "path": "crates/pla/examples/battle_demo.rs",
-        "sha256": "310cf6d8737bdf1a6145546e2e3a093a703e8374a43d89a2b81098639702822f"
+        "sha256": "057ecb56b318b3ecc3bd928d7234f2e38449f8c9cc9f39055ac99742d5392690"
       },
       {
         "path": "crates/pla/examples/blocked_models_census.rs",
@@ -905,11 +905,11 @@
       },
       {
         "path": "crates/pla/src/game/save_game.rs",
-        "sha256": "b55e3f0291719307e10b2902607a362b6945d957ea9d21c578157442c53949cb"
+        "sha256": "964cfeff2ef2b30c7b8a6e482a4cfaf5988f92f6a680456593bf94629d0d27ec"
       },
       {
         "path": "crates/pla/src/game/save_wire.rs",
-        "sha256": "8a1e7c7e8c5e0ed5cebe5260ca15e8a3d68a1e6155a3ee12dd2df364cbdc2197"
+        "sha256": "14ae45b4e81975322bfc6313837c57788c2f02190af32a3a36e3f842b3f3358d"
       },
       {
         "path": "crates/pla/src/game/schedule_check.rs",
@@ -945,15 +945,15 @@
       },
       {
         "path": "crates/pla/src/game/trainer_battle.rs",
-        "sha256": "387c94c637bf5fb24da01de7a6996c287afd1c4cc3a096870f12528e908ccfca"
+        "sha256": "697af600537653fb139d5fdfb3e687177aa2e6980b5a2afb78526684732a91c9"
       },
       {
         "path": "crates/pla/src/game/trainer_data.rs",
-        "sha256": "092edb3736c23c59b48a238e55a9d0bbc34c1f08a29a7af99cd3ec3c5a31b611"
+        "sha256": "7d69c26264a426e7e8565b9e1ccb054190cd50eac903cd7921441114d3fdda6d"
       },
       {
         "path": "crates/pla/src/game/trainer_encounter.rs",
-        "sha256": "7ac9ef00c732ac2477d88f3c604e82aef838e68d73a1005f6e5d70c91c179f90"
+        "sha256": "bea2843ac9e0d8cd15d7d613957dd44969477a28c54e101fc10aab0b4bdcd79e"
       },
       {
         "path": "crates/pla/src/game/ui.rs",
@@ -1133,7 +1133,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "9e724e44fb2d9bf97e9ffc91cce9c799c9e971c3672bb8ab5fd0f3ecae724f5a"
+    "sha256": "40196e04fa71cfe4bdfb1d13dd33d30dfa6ebdf91cf829280cd1673f6ace727e"
   },
   "state_partitions": {
     "analysis_documentation_status": {

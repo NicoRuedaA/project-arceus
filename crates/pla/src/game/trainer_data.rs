@@ -184,7 +184,9 @@ pub struct TrainerDef {
     /// Root slots 9 (LIKELY battle position x, y, z + yaw; the area is not stored).
     pub position: [f32; 3],
     pub yaw_deg: f32,
-    /// Root slot 11, ASSUMED prize base (no reader found in the code).
+    /// Root slot 11, exported raw: 'prize base' is ASSUMED and **no reader was found** in the
+    /// game code. The port pays nothing for a trainer win (see
+    /// `reports/data-progress/trainer_money.md`).
     pub prize_base: Option<u32>,
     /// Bag items the trainer may use (slots 12..15; LIKELY).
     pub items: Vec<u16>,
