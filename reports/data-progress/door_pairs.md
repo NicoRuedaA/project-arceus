@@ -28,8 +28,10 @@ viewer with one line. Windowless check: `cargo run -p pla --example door_pairs_r
 ## Unknown
 
 - **Ropes and ladders.** None of the 55 exported `gimmick_*` names is a rope or ladder (trees, rocks, crystals,
-  grass, boxes, balloons, snow, `yachi01`, two temple gates). `bg_event` types are not decoded. Nothing was hooked up;
-  `climbable_gimmick_candidates` returns an empty list on the real names.
+  grass, boxes, balloons, snow, `yachi01`, two temple gates). **Resolved 2026-10-15**: ropes and ladders do not
+  exist as objects anywhere in the field data (models, placements, audio); climbing is the ride-Sneasler wall
+  climb and the climbable surfaces are the terrain cliffs, derived and loaded since
+  `climb_surfaces.md`/`ropes_ladders_unknown.md`. The door prompt still does not hook up any climb interaction.
 - The door open/close animation and sound playback (`open_sound`/`close_sound` names are in the sheet; no audio here).
 
 ## 2026-10-15: interaction reach and interior destinations (Brief 37)
