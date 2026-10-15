@@ -17,6 +17,20 @@ pub fn placeholders() -> bool {
     enabled_from(std::env::var_os("PLA_DEBUG_PLACEHOLDERS"))
 }
 
+/// `PLA_DEBUG_FORCE_SPAWN_ALPHA`: force every newly streamed wild creature to be an alpha
+/// (test switch for no-window captures; the native chance comes from the decoded weights
+/// instead). Off unless set to anything other than `0`.
+pub fn force_spawn_alpha() -> bool {
+    enabled_from(std::env::var_os("PLA_DEBUG_FORCE_SPAWN_ALPHA"))
+}
+
+/// `PLA_DEBUG_FORCE_SPAWN_RARE`: force every newly streamed wild creature to use the rare palette
+/// (test switch for no-window captures; the native roll is `RareContext`). Off unless set to
+/// anything other than `0`.
+pub fn force_spawn_rare() -> bool {
+    enabled_from(std::env::var_os("PLA_DEBUG_FORCE_SPAWN_RARE"))
+}
+
 /// Pure part of [`placeholders`] (the env is process-global; tests check this directly).
 fn enabled_from(value: Option<std::ffi::OsString>) -> bool {
     value.is_some_and(|v| v != "0")
@@ -33,5 +47,9 @@ mod tests {
         assert!(!enabled_from(Some(OsString::from("0"))), "0 = off");
         assert!(enabled_from(Some(OsString::from("1"))));
         assert!(enabled_from(Some(OsString::from("yes"))));
+        // The capture switches share the same rule.
+        assert!(!enabled_from(None));
+        assert!(!enabled_from(Some(OsString::from("0"))));
+        assert!(enabled_from(Some(OsString::from("1"))));
     }
 }
