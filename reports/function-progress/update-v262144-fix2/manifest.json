@@ -525,7 +525,7 @@
       },
       {
         "path": "crates/pla/src/game/art_style.rs",
-        "sha256": "a6a7fbca9cb97fa9fd0a8936d17fce5c9ae11ae2a70a27d8d1db5d2d3d939ec1"
+        "sha256": "d88044921f489580d7f90b8508d1894ddc9f3070f11917a5cbe00ad70188d3dd"
       },
       {
         "path": "crates/pla/src/game/audio/catalog.rs",
@@ -689,7 +689,7 @@
       },
       {
         "path": "crates/pla/src/game/face_shading.rs",
-        "sha256": "b71752fc2ff8aac23e4a7a6b3d5f2d0dbeb042c4fa04231304db649238a7c284"
+        "sha256": "f238bae53bea265c048fa0dbac0674e359a5d6fa4e1a2620888b482c44b271f7"
       },
       {
         "path": "crates/pla/src/game/follower.rs",
@@ -889,7 +889,7 @@
       },
       {
         "path": "crates/pla/src/game/trainer_battle.rs",
-        "sha256": "fedc133af7a38b2ae651e5dc48c5ab9364ffa8e71d35bed4df58fd1914bcd01a"
+        "sha256": "8e2d57b2ecaf3f9fa100c8c8f7b5b4bdb13a9c34fd5afc8679339bd7975439f5"
       },
       {
         "path": "crates/pla/src/game/trainer_data.rs",
@@ -1077,7 +1077,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "2b9237ff7b8cc51838dc5c16388c83a4c9a4f18ddf0409fd191e7941ccaa578f"
+    "sha256": "298184b85f56196143f0fedefb1fddd6b6a861cea1435cf0b13f895adfcba84f"
   },
   "state_partitions": {
     "analysis_documentation_status": {
