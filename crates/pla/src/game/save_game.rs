@@ -249,7 +249,7 @@ pub struct PlayerSave {
     /// again.
     pub picked: BTreeSet<u64>,
     /// Ids of the trainers the player has beaten (format v8). Defeated trainers cannot be fought
-    /// again from their marker and their prize is paid only once. Ids contain no whitespace,
+    /// again from their marker. Trainer battles pay no money. Ids contain no whitespace,
     /// comma or `=`.
     pub defeated_trainers: BTreeSet<String>,
     /// Pokédex research counters (format v9, Brief 43): `(species, kind, target) -> count`, keyed

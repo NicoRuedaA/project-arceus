@@ -21,7 +21,8 @@ use super::navigation::GameNavmeshResource;
 use super::state::{GameState, Paused};
 use super::wild::{hash_str, splitmix64, ActiveAreaSpawners, WildCreature};
 use super::wild_behavior::{
-    Archetype, BehaviorParams, Machine, Noise, Perception, State as ReactionState, WildBehavior,
+    sleep_capable, Archetype, BehaviorParams, Machine, Noise, Perception,
+    State as ReactionState, WildBehavior,
 };
 use super::PlayerAvatar;
 
@@ -410,7 +411,7 @@ pub fn behavior_step(
         ReactionState::Idle | ReactionState::Wander => {
             st.alert = false;
             step(st, p, dt, None, walkable);
-            machine.sync_wander_phase(matches!(st.phase, Phase::Walk { .. }));
+            machine.sync_wander_phase(matches!(st.phase, Phase::Walk { .. }), params);
         }
         ReactionState::Sleep => st.alert = false,
         ReactionState::Alert | ReactionState::Attack => {
@@ -476,10 +477,16 @@ fn attach_wander(
             .map(|h| tf.translation.y - h);
         let seed = wander_seed(&wild.spawner_id, wild.national_dex);
         let behavior = match settings.as_deref() {
-            Some(s) if s.enabled => WildBehavior {
-                machine: Machine::new(seed),
-                params: BehaviorParams::assumed(s.archetype_for(seed)),
-            },
+            Some(s) if s.enabled => {
+                let mut behavior_params = BehaviorParams::assumed(s.archetype_for(seed));
+                // Only the species the game gives the "caught while sleeping" research task
+                // scratch that sleep can happen at all (see `sleep_capable`).
+                behavior_params.can_sleep = sleep_capable(wild.national_dex);
+                WildBehavior {
+                    machine: Machine::new(seed),
+                    params: behavior_params,
+                }
+            }
             _ => WildBehavior::assumed_passive(seed),
         };
         commands.entity(e).try_insert((
@@ -545,7 +552,8 @@ fn wander_system(
             behavior => {
                 step(&mut st, &home.params, dt, pl, &walkable);
                 if let Some(mut behavior) = behavior {
-                    behavior.machine.sync_wander_phase(matches!(st.phase, Phase::Walk { .. }));
+                    let WildBehavior { machine, params } = &mut *behavior;
+                    machine.sync_wander_phase(matches!(st.phase, Phase::Walk { .. }), *params);
                 }
             }
         }

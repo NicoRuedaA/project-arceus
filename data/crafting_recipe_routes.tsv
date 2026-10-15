@@ -1,0 +1,49 @@
+# sheet: data/crafting_recipe_routes
+# version: 1
+# generator: .tools/decode_recipe_routes.py
+# target: Pokémon Legends: Arceus update v262144 recipe item acquisition routes (Galaxy rank rewards, shop stock, event grants, field placement)
+# requires: bin/haxe/release/event/rankupevent.blua; bin/haxe/release/event/ev_main_*.blua; bin/appli/shop/bin/ha_shop_data.bin; bin/field; bin/pml/item/item.dat
+recipe_item_id:u16	recipe_id:u8	product_item_id:u32	route:string	rank:u8?	shop_hash:u64?	price:u32?	source:string	status:string
+1640	1	1710	story				ev_main_014205.blua.lua	verified
+1641	2	1711	rank	3			haxe/release/event/rankupevent.blua.lua	verified
+1642	3	1712	rank	6			haxe/release/event/rankupevent.blua.lua	verified
+1643	7	1713	rank	2			haxe/release/event/rankupevent.blua.lua	verified
+1644	42	1720	unknown					unknown
+1646	32	1717	story				ev_main_027210.blua.lua	verified
+1647	33	1716	story				ev_main_036020.blua.lua	verified
+1648	26	1690	shop		70894275551592854	20000	ha_shop_data.bin	verified
+1649	43	91	shop		70894275551592854	10000	ha_shop_data.bin	verified
+1650	27	1727	unknown					unknown
+1652	28	1724	shop		70894275551592854	1000	ha_shop_data.bin	verified
+1653	29	1725	shop		70894275551592854	1000	ha_shop_data.bin	verified
+1654	30	1726	shop		70894275551592854	1000	ha_shop_data.bin	verified
+1655	31	1728	shop		70894275551592854	1000	ha_shop_data.bin	verified
+1656	10	17	story				ev_main_014930.blua.lua	verified
+1657	11	26	rank	2			haxe/release/event/rankupevent.blua.lua	verified
+1658	12	25	rank	4			haxe/release/event/rankupevent.blua.lua	verified
+1659	13	24	rank	6			haxe/release/event/rankupevent.blua.lua	verified
+1660	14	23	rank	8			haxe/release/event/rankupevent.blua.lua	verified
+1661	15	1630	shop		70894275551592854	1000	ha_shop_data.bin	verified
+1662	16	1631	shop		70894275551592854	3000	ha_shop_data.bin	verified
+1663	17	1755	shop		70894275551592854	6000	ha_shop_data.bin	verified
+1664	20	54	unknown					unknown
+1665	19	1614	unknown					unknown
+1666	18	27	shop		70894275551592854	5000	ha_shop_data.bin	verified
+1667	21	28	rank	1			haxe/release/event/ev_main_015200.blua.lua	probable
+1668	22	29	shop		70894275551592854	25000	ha_shop_data.bin	verified
+1669	23	39	shop		70894275551592854	5000	ha_shop_data.bin	verified
+1670	24	41	shop		70894275551592854	25000	ha_shop_data.bin	verified
+1671	25	1693	story				ev_main_030810.blua.lua	verified
+1673	34	1756	shop		70894275551592854	1500	ha_shop_data.bin	verified
+1674	35	1757	shop		70894275551592854	1500	ha_shop_data.bin	verified
+1675	38	1616	shop		70894275551592854	4000	ha_shop_data.bin	verified
+1676	37	1758	shop		70894275551592854	8000	ha_shop_data.bin	verified
+1677	36	1615	shop		70894275551592854	16000	ha_shop_data.bin	verified
+1729	41	1619	unknown					unknown
+1730	39	1617	unknown					unknown
+1731	40	1618	unknown					unknown
+1751	8	1746	rank	5			haxe/release/event/rankupevent.blua.lua	verified
+1752	9	1747	rank	8			haxe/release/event/rankupevent.blua.lua	verified
+1753	4	1748	rank	1			haxe/release/event/ev_main_015200.blua.lua	probable
+1783	5	1749	rank	4			haxe/release/event/rankupevent.blua.lua	verified
+1784	6	1750	rank	7			haxe/release/event/rankupevent.blua.lua	verified
