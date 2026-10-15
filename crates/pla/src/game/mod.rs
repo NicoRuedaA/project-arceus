@@ -30,6 +30,7 @@ pub mod ledge;
 pub mod lighting;
 pub mod main_menu;
 pub mod minimap;
+pub mod noble_field;
 pub mod npc;
 pub mod npc_model;
 pub mod render_look;
