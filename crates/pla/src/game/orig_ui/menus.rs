@@ -29,8 +29,11 @@ use crate::game::box_screen::{
     BoxFocus, BoxScreenRoot, BoxScreenState, BoxSelection, GRID_COLUMNS, SLOTS_PER_BOX,
 };
 use crate::game::dex_screen::{visibility, DexCatalog, DexRoot, DexUi, DexVisibility};
+use crate::game::graphics_screen::{
+    self, GraphicsRuntime, GraphicsScreenState, GraphicsSettings,
+};
 use crate::game::minimap::{FullMapRoot, MinimapState};
-use crate::game::party_screen::{PartyCursor, PartyScreenRoot, PartyScreenState};
+use crate::game::party_screen::{PartyCursor, PartyOpsState, PartyScreenRoot, PartyScreenState};
 use crate::game::summary_screen::SummaryState;
 use crate::game::pause_menu::{
     menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, OPTIONS,
@@ -45,6 +48,11 @@ use crate::game::GameState;
 pub fn install(app: &mut App) {
     app.add_systems(Update, bind_pause_menu.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<PauseRoot>(app, ScreenId::PauseMenu);
+    app.add_systems(Update, bind_options_screen.in_set(OrigUiSystems::Bind));
+    super::hide_when_shown::<crate::game::graphics_screen::GraphicsScreenRoot>(
+        app,
+        ScreenId::Options,
+    );
     app.add_systems(Update, bind_party_screen.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<PartyScreenRoot>(app, ScreenId::Party);
     app.add_systems(Update, bind_bag_screen.in_set(OrigUiSystems::Bind));
@@ -271,6 +279,7 @@ pub fn bind_party_screen(
     config: Res<OrigUiConfig>,
     state: Option<Res<PartyScreenState>>,
     cursor: Option<Res<PartyCursor>>,
+    ops: Option<Res<PartyOpsState>>,
     summary: Option<Res<SummaryState>>,
     progress: Option<Res<PlayerProgress>>,
     assets: Option<Res<BattleAssets>>,
@@ -390,10 +399,250 @@ pub fn bind_party_screen(
             }
         }
     }
-    s.set_text(
-        "T_info_00",
-        "Up / Down: choose   Enter: summary   Esc: close",
+    // Operations submenu (Enter on a member): the port's own popup over the move panel.
+    let ops_open = ops.as_ref().is_some_and(|o| o.open);
+    let mut lines = Vec::new();
+    if ops_open {
+        let ops = ops.as_deref().expect("checked above");
+        let who = progress
+            .party
+            .get(sel)
+            .map(|m| member_info(assets, m).0)
+            .unwrap_or_default();
+        lines.push(free_text(
+            1260.0,
+            380.0,
+            620.0,
+            46.0,
+            26.0,
+            [0.98, 0.96, 0.85, 1.0],
+            TextAlign::Left,
+            format!("Actions: {who}"),
+        ));
+        for (i, op) in crate::game::party_screen::OPS.iter().enumerate() {
+            let selected = ops.selected == i;
+            lines.push(free_text(
+                1260.0,
+                432.0 + i as f32 * 46.0,
+                620.0,
+                44.0,
+                24.0,
+                if selected {
+                    [1.0, 0.82, 0.35, 1.0]
+                } else {
+                    [0.98, 0.96, 0.85, 1.0]
+                },
+                TextAlign::Left,
+                format!("{}{op}", if selected { "> " } else { "   " }),
+            ));
+        }
+        lines.push(free_text(
+            1260.0,
+            716.0,
+            620.0,
+            44.0,
+            22.0,
+            [0.75, 0.75, 0.72, 1.0],
+            TextAlign::Left,
+            if ops.message.is_empty() {
+                "Enter: choose   Esc: back".to_string()
+            } else {
+                ops.message.clone()
+            },
+        ));
+        s.set_free_quads(vec![super::free_rect(
+            Vec2::new(1560.0, 580.0),
+            Vec2::new(660.0, 420.0),
+            [0.03, 0.04, 0.06, 0.85],
+        )]);
+    } else {
+        s.set_free_quads(Vec::new());
+    }
+    // The game's own info strip (`T_info_00`) is not visible in this layout's resting state, so
+    // the port draws its own line at the bottom (same as the bag and box screens).
+    lines.push(free_text(
+        60.0,
+        1020.0,
+        1800.0,
+        44.0,
+        26.0,
+        [0.92, 0.9, 0.82, 1.0],
+        TextAlign::Left,
+        if ops_open {
+            "Enter: choose   Esc: back"
+        } else {
+            "Up / Down: choose   Enter: actions   Esc: close"
+        },
+    ));
+    s.set_free_texts(lines);
+}
+
+// ----------------------------------------------------------------------------------- options
+
+/// Row parts of the game's settings list (`option_settings_00`): `L_settings_list_00`..`13`. The
+/// port shows the first nine of them (the game's list box clips the ninth against its edge; the
+/// port's renderer has no scissor, so it drops the five off-box parts instead).
+pub const OPTION_ROW_PARTS: usize = 14;
+/// Rows shown at once (the port's window inside the fourteen parts).
+pub const OPTION_FULL_ROWS: usize = 9;
+
+/// First row shown so the selection stays inside [`OPTION_FULL_ROWS`] slots. Stateless: the
+/// caller keeps the returned window while the selection stays inside it.
+pub fn options_scroll(selected: usize, scroll: usize, total: usize) -> usize {
+    let max = total.saturating_sub(1);
+    let mut s = scroll.min(max);
+    if selected < s {
+        s = selected;
+    } else if selected >= s + OPTION_FULL_ROWS {
+        s = selected + 1 - OPTION_FULL_ROWS;
+    }
+    s.min(max)
+}
+
+/// The Graphics screen (Esc menu -> "Graphics...") in the game's own settings list: one
+/// `L_settings_list_XX` row per visible entry of the current page, the game's selection state on
+/// the cursor row and its slider gauge on slider rows. Read-only: keys stay in
+/// `game::graphics_screen` (the provisional screen owns the input and is hidden while this one
+/// shows). When the `option` layout is missing the provisional screen stays (single warning from
+/// the orig-UI library), so the screen never disappears.
+#[allow(clippy::too_many_arguments)]
+pub fn bind_options_screen(
+    config: Res<OrigUiConfig>,
+    state: Option<Res<GraphicsScreenState>>,
+    settings: Option<Res<GraphicsSettings>>,
+    runtime: Option<Res<GraphicsRuntime>>,
+    mut window: Local<(usize, usize)>,
+    mut screens: Query<&mut OrigScreen>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::Options) else {
+        return;
+    };
+    let open = state.as_ref().is_some_and(|st| st.open);
+    s.shown = open;
+    let (Some(state), Some(settings), Some(runtime)) = (state, settings, runtime) else {
+        return;
+    };
+    if !open {
+        return;
+    }
+    let pages = graphics_screen::visible_pages();
+    let page_index = state.page.min(pages.len() - 1);
+    let page = pages[page_index];
+    let rows = graphics_screen::rows_of(page);
+    // A page change starts at its top; moving the cursor keeps the window until the selection
+    // leaves the eight slots.
+    if window.0 != page_index {
+        *window = (page_index, 0);
+    }
+    window.1 = options_scroll(state.selected, window.1, rows.len());
+    let scroll = window.1;
+    for slot in 0..OPTION_ROW_PARTS {
+        let part = format!("L_settings_list_{slot:02}");
+        let Some(row) = rows.get(scroll + slot).copied().filter(|_| slot < OPTION_FULL_ROWS) else {
+            s.set_visible(&part, false);
+            continue;
+        };
+        s.set_visible(&part, true);
+        let selected = scroll + slot == state.selected;
+        let (name, value) = graphics_screen::row_name_value(
+            row,
+            page,
+            pages.len(),
+            page_index,
+            &settings,
+            &runtime.startup,
+            &runtime.overridden,
+        );
+        s.set_in(&part, "T_heading_00", |o| o.text = Some(name));
+        let Some(inst) = s.scene.part_instance(&part) else { continue };
+        // The game's selection state: heading dark on the highlighted row, boxes otherwise.
+        s.freeze(
+            inst,
+            if selected { "select_state" } else { "unselect_state" },
+            0.0,
+            "sel",
+        );
+        if let Some(ratio) = graphics_screen::slider_ratio(row, &settings) {
+            s.set_in(&part, "N_type_select_00", |o| o.visible = Some(false));
+            s.set_in(&part, "N_switch_slider_00", |o| o.visible = Some(true));
+            for k in 0..3 {
+                s.set_in(&part, &format!("N_switch_3_0{k}"), |o| {
+                    o.visible = Some(false)
+                });
+            }
+            // The value box is the row's own pane; the gauge is a nested part.
+            s.set_in(&part, "T_slider_current_param", |o| o.text = Some(value.clone()));
+            if let Some(node) = s.node_in_instance(inst, "L_option_slider_00") {
+                if let Some(slider) = s.scene.instance_of_node(node) {
+                    // `control_slider` frame 0 is the full bar and each step drops a tenth;
+                    // the port maps the value's ratio onto that (one step of headroom at the
+                    // full end; the art cannot empty completely).
+                    let len = s.anim_len(slider, "control_slider").unwrap_or(10.0);
+                    let frame = (((1.0 - ratio) * (len - 1.0)).round() + 1.0)
+                        .clamp(0.0, (len - 1.0).max(0.0));
+                    s.freeze(slider, "control_slider", frame, "gauge");
+                }
+            }
+        } else {
+            s.set_in(&part, "N_type_select_00", |o| o.visible = Some(true));
+            s.set_in(&part, "N_switch_slider_00", |o| o.visible = Some(false));
+            s.set_in(&part, "N_switch_3_00", |o| o.visible = Some(true));
+            s.set_in(&part, "N_switch_3_01", |o| o.visible = Some(false));
+            s.set_in(&part, "N_switch_3_02", |o| o.visible = Some(false));
+            // All three text-colour variants carry the value; the visible one is always 00
+            // (the framed box), so switching variants never blanks the text.
+            for v in 0..3 {
+                s.set_in(&part, &format!("T_option_heading_0{v}"), |o| {
+                    o.text = Some(value.clone())
+                });
+            }
+        }
+    }
+    // Footer: the selected option's help and the keys, in the port's own words (the game's own
+    // key guide is a separate layout and is not drawn).
+    let about = match rows.get(state.selected).copied() {
+        Some(graphics_screen::Row::Option(i)) => graphics_screen::OPTION_DEFS[i].help,
+        Some(graphics_screen::Row::Preset) => {
+            "Presets set every quality option at once; the look, time, weather, v-sync and FPS cap stay yours."
+        }
+        _ => "",
+    };
+    let more_up = if scroll > 0 { "▲ more above   " } else { "" };
+    let more_down = if scroll + OPTION_FULL_ROWS < rows.len() {
+        "▼ more below   "
+    } else {
+        ""
+    };
+    let info = format!(
+        "Page {}/{}   {more_up}{more_down}Up/Down select, Left/Right change, Tab page, Esc back",
+        page_index + 1,
+        pages.len()
     );
+    s.set_free_texts(vec![
+        free_text(
+            223.0,
+            790.0,
+            1474.0,
+            64.0,
+            26.0,
+            [0.95, 0.93, 0.85, 1.0],
+            TextAlign::Left,
+            about,
+        ),
+        free_text(
+            223.0,
+            856.0,
+            1474.0,
+            40.0,
+            22.0,
+            [0.72, 0.75, 0.78, 1.0],
+            TextAlign::Left,
+            info,
+        ),
+    ]);
 }
 
 // --------------------------------------------------------------------------------------- bag

@@ -90,3 +90,38 @@ Brief 16 of `docs/briefs-agentes.md` (worktree `follower`, branch `feat/follower
 - `crates/pla/src/game/mod.rs` (one `pub mod` line)
 - `crates/pla/examples/port_viewer.rs` (one `add_plugins` line)
 - `README.md`, `README.es.md` (one sentence each in the Visual subsystem row; figures identical)
+
+## Play-test fix (2026-10-15, branch `feat/mundo-vivo`)
+
+The maintainer reported "the follower walks through the player". Measured with
+`.tools/repro_follower.py` on the real viewer (`--automation --automation-no-gpu`, area 01:
+forward, 180-degree turn straight through the follower, stop, sprint; samples every frame):
+
+| Phase | Before | After |
+|---|---|---|
+| Walk through the follower | min 1.32 m, ends pressed in front | min 1.391 m (2-decimal state rounding), steps 0.96 m aside and ends 2.88 m behind |
+| Player stops | stuck at exactly 1.40 m **in front** with speed 12.0 | settles at 2.50 m **behind**, speed 0 (walked around) |
+| Sprint | min 1.26 m | min 2.76 m |
+
+Raw captures: `~/work/capturas_mundo_vivo/follower-before.json`, `follower-after.json`,
+screenshots `follower_side.png` / `follower_behind2.png` (GPU, offscreen, 2026-10-15).
+
+What changed in `follower.rs`:
+
+1. `slide_around_player`: a move that would enter the player's disc slides along the separation
+   circle by the same arc length, towards the side that keeps closing on the aim direction,
+   instead of crossing the player and being pushed radially. The arc rate is capped at the body
+   turn rate (`TURN_RATE`), so the yaw-towards-target can follow and the "face the target"
+   movement gate never throttles the step-aside into stop-and-go.
+2. Stop repositioning: after `STOP_REPOSITION_DELAY = 0.5 s` standing still, an aim point left
+   on the front side (the player walked backwards) is replaced by the spot behind the player's
+   facing; the latch holds until the player moves again, so the arc cannot flip half-way.
+3. `drive_follower` runs after the frame's locomotion (`PlayerMotionSet`), so the hard floor is
+   applied after the player's final position of the frame.
+
+SUPUESTO: the 0.5 s stop delay (not decoded); the strategy itself is port policy. The hard
+floor (1.4 m) and the teleport (15 m) are unchanged. Tests: `game::follower` 14/14, including
+`walks_around_the_player_instead_of_being_pushed_through` (no per-frame jump above
+`MAX_SPEED * dt`, lateral step > 0.5 m, ends behind) and
+`a_follower_left_in_front_walks_back_behind_the_stopped_player` (180-degree arc, min separation
+kept, max step 0.2 m/frame).

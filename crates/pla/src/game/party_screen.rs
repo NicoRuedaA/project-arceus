@@ -5,7 +5,12 @@
 //!
 //! Viewer wiring: the pause menu's `Party` row raises [`PartyOpenRequested`]; the screen then
 //! refreshes [`PartyScreenData`] from [`PlayerProgress`] (when that resource exists), freezes the
-//! world and closes on Cancel/Menu (Esc, Backspace, gamepad B/+). It is read-only.
+//! world and closes on Cancel/Menu (Esc, Backspace, gamepad B/+).
+//!
+//! Operations: Enter opens the list's submenu ([`PartyOpsState`], entries in [`OPS`]) whose
+//! entries run the validated [`super::party_ops`] functions on [`PlayerProgress`]: Summary,
+//! Move up / Move down (reorder), Send to box and Release (asked twice, like the box screen).
+//! Esc leaves the submenu first, then the screen.
 
 use bevy::prelude::*;
 
@@ -43,9 +48,102 @@ impl Default for PartyScreenState {
     }
 }
 
-/// Highlighted party row (Up / Down); Enter opens its summary (`game::summary_screen`).
+/// Highlighted party row (Up / Down); Enter opens its operations (`PartyOpsState`).
 #[derive(Resource, Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PartyCursor(pub usize);
+
+/// The operations submenu of the highlighted member (the game's party actions).
+pub const OPS: [&'static str; 6] =
+    ["Summary", "Move up", "Move down", "Send to box", "Release", "Cancel"];
+
+/// Open state, highlighted entry and last message of the operations submenu.
+#[derive(Resource, Debug, Clone, Default, PartialEq, Eq)]
+pub struct PartyOpsState {
+    pub open: bool,
+    pub selected: usize,
+    /// A release was asked once; the next confirm releases (same rule as the boxes screen).
+    pub pending_release: bool,
+    pub message: String,
+}
+
+/// What activating an operations entry did; the caller closes the submenu or opens the summary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpsAction {
+    /// The submenu stays open (reorder, store, release, message).
+    Stay,
+    /// The submenu closes (Cancel).
+    Close,
+    /// The caller opens the summary of the highlighted member.
+    Summary,
+}
+
+/// Apply operations entry `index` to party `member` through [`super::party_ops`] (the same
+/// validated operations the box screen uses). Messages stay in the port's own English words.
+pub fn use_party_op(
+    index: usize,
+    member: usize,
+    ops: &mut PartyOpsState,
+    cursor: &mut PartyCursor,
+    progress: &mut PlayerProgress,
+) -> OpsAction {
+    use super::party_ops::{move_party_to_box, release_party_member, reorder_party};
+    let len = progress.party.len();
+    if member >= len {
+        ops.message = "No party member there.".into();
+        return OpsAction::Stay;
+    }
+    match index {
+        0 => OpsAction::Summary,
+        1 | 2 => {
+            let target = if index == 1 {
+                member.checked_sub(1)
+            } else {
+                (member + 1 < len).then_some(member + 1)
+            };
+            match target {
+                None => ops.message = "Already at the end of the party.".into(),
+                Some(to) => match reorder_party(progress, member, to) {
+                    Ok(()) => {
+                        cursor.0 = to;
+                        ops.message = format!("Moved to slot {}.", to + 1);
+                    }
+                    Err(e) => ops.message = e.to_string(),
+                },
+            }
+            OpsAction::Stay
+        }
+        3 => {
+            match move_party_to_box(progress, member) {
+                Ok(slot) => {
+                    cursor.0 = cursor.0.min(progress.party.len().saturating_sub(1));
+                    ops.message = format!("Stored in box slot #{slot:03}.");
+                }
+                Err(e) => ops.message = e.to_string(),
+            }
+            OpsAction::Stay
+        }
+        4 => {
+            if !ops.pending_release {
+                ops.pending_release = true;
+                ops.message = format!(
+                    "Release {}? Choose Release again to confirm.",
+                    member_name(&progress.party[member])
+                );
+                return OpsAction::Stay;
+            }
+            ops.pending_release = false;
+            match release_party_member(progress, member) {
+                Ok(_) => {
+                    cursor.0 = member.min(progress.party.len().saturating_sub(1));
+                    ops.message = "Released. Bye-bye!".into();
+                }
+                Err(e) => ops.message = e.to_string(),
+            }
+            OpsAction::Stay
+        }
+        _ => OpsAction::Close,
+    }
+}
 
 /// Root marker, public so a headless caller can assert that the screen was installed.
 #[derive(Component, Debug, Clone, Copy)]
@@ -57,6 +155,9 @@ enum PartyText {
     Name(usize),
     Stats(usize),
     Moves(usize),
+    OpsTitle,
+    Ops(usize),
+    OpsMessage,
     Hint,
 }
 
@@ -69,6 +170,7 @@ impl Plugin for PartyScreenPlugin {
             .init_resource::<PartyScreenState>()
             .init_resource::<PartyOpenRequested>()
             .init_resource::<PartyCursor>()
+            .init_resource::<PartyOpsState>()
             .add_systems(Startup, spawn_party_screen)
             .add_systems(
                 Update,
@@ -146,6 +248,26 @@ fn spawn_party_screen(mut commands: Commands) {
                         });
                 }
                 panel.spawn((
+                    PartyText::OpsTitle,
+                    Text::new(""),
+                    TextFont::from_font_size(17.0),
+                    TextColor(Color::srgb(0.95, 0.9, 0.6)),
+                ));
+                for index in 0..OPS.len() {
+                    panel.spawn((
+                        PartyText::Ops(index),
+                        Text::new(""),
+                        TextFont::from_font_size(16.0),
+                        TextColor(Color::WHITE),
+                    ));
+                }
+                panel.spawn((
+                    PartyText::OpsMessage,
+                    Text::new(""),
+                    TextFont::from_font_size(14.0),
+                    TextColor(Color::srgb(0.95, 0.8, 0.5)),
+                ));
+                panel.spawn((
                     PartyText::Hint,
                     Text::new(""),
                     TextFont::from_font_size(13.0),
@@ -156,14 +278,15 @@ fn spawn_party_screen(mut commands: Commands) {
 }
 
 /// Opens on the pause menu's request and closes on Cancel/Menu, freezing the world meanwhile.
-/// Prev / Next move the cursor and Confirm opens the highlighted member's summary; while the
-/// summary is open it owns the input.
+/// Prev / Next move the cursor and Confirm opens the highlighted member's operations submenu;
+/// while the submenu or the summary is open they own the input (Esc leaves the submenu first).
 #[allow(clippy::too_many_arguments)]
 fn party_open_close(
     mut request: ResMut<PartyOpenRequested>,
     mut state: ResMut<PartyScreenState>,
     mut cursor: ResMut<PartyCursor>,
-    progress: Option<Res<PlayerProgress>>,
+    mut ops: ResMut<PartyOpsState>,
+    mut progress: Option<ResMut<PlayerProgress>>,
     summary: Option<Res<SummaryState>>,
     mut to_summary: Option<ResMut<SummaryFromParty>>,
     actions: Option<ResMut<ActionState>>,
@@ -174,6 +297,7 @@ fn party_open_close(
         request.0 = false;
         state.open = true;
         cursor.0 = 0;
+        *ops = PartyOpsState::default();
         freeze_for_screen(&mut paused, &mut suppressed, true);
         return;
     }
@@ -181,7 +305,44 @@ fn party_open_close(
         return;
     }
     let Some(mut actions) = actions else { return };
-    let len = progress.as_ref().map_or(0, |p| p.party.len());
+    if ops.open {
+        if actions.just_pressed(Action::Next) {
+            actions.consume(Action::Next);
+            ops.selected = (ops.selected + 1) % OPS.len();
+            ops.pending_release = false;
+        } else if actions.just_pressed(Action::Prev) {
+            actions.consume(Action::Prev);
+            ops.selected = (ops.selected + OPS.len() - 1) % OPS.len();
+            ops.pending_release = false;
+        }
+        if actions.just_pressed(Action::Confirm) {
+            actions.consume(Action::Confirm);
+            if let Some(progress) = progress.as_deref_mut() {
+                match use_party_op(ops.selected, cursor.0, &mut ops, &mut cursor, progress) {
+                    OpsAction::Summary => {
+                        ops.open = false;
+                        if let Some(req) = to_summary.as_deref_mut() {
+                            req.0 = Some(cursor.0);
+                        }
+                    }
+                    OpsAction::Close => {
+                        ops.open = false;
+                        ops.message.clear();
+                    }
+                    OpsAction::Stay => {}
+                }
+            }
+        }
+        if actions.just_pressed(Action::Cancel) || actions.just_pressed(Action::Menu) {
+            actions.consume(Action::Cancel);
+            actions.consume(Action::Menu);
+            ops.open = false;
+            ops.pending_release = false;
+            ops.message.clear();
+        }
+        return;
+    }
+    let len = progress.as_deref().map_or(0, |p| p.party.len());
     if len > 0 {
         if actions.just_pressed(Action::Next) {
             cursor.0 = (cursor.0 + 1) % len;
@@ -190,11 +351,11 @@ fn party_open_close(
         }
         cursor.0 = cursor.0.min(len - 1);
         if actions.just_pressed(Action::Confirm) {
-            if let Some(req) = to_summary.as_deref_mut() {
-                actions.consume(Action::Confirm);
-                req.0 = Some(cursor.0);
-                return;
-            }
+            actions.consume(Action::Confirm);
+            ops.open = true;
+            ops.selected = 0;
+            ops.pending_release = false;
+            ops.message.clear();
         }
     }
     if actions.just_pressed(Action::Cancel) || actions.just_pressed(Action::Menu) {
@@ -223,6 +384,7 @@ fn sync_party_screen(
     data: Res<PartyScreenData>,
     state: Res<PartyScreenState>,
     cursor: Option<Res<PartyCursor>>,
+    ops: Option<Res<PartyOpsState>>,
     mut root: Query<&mut Visibility, With<PartyScreenRoot>>,
     mut texts: Query<(&PartyText, &mut Text)>,
 ) {
@@ -236,6 +398,7 @@ fn sync_party_screen(
     if !state.open {
         return;
     }
+    let ops_open = ops.as_ref().is_some_and(|o| o.open);
 
     for (marker, mut text) in &mut texts {
         let desired = match marker {
@@ -249,7 +412,35 @@ fn sync_party_screen(
             }
             PartyText::Stats(index) => data.party.get(*index).map(member_stats).unwrap_or_default(),
             PartyText::Moves(index) => data.party.get(*index).map(member_moves).unwrap_or_default(),
-            PartyText::Hint => "Up / Down: choose   Enter: summary   Esc: close".to_string(),
+            PartyText::OpsTitle => {
+                if ops_open {
+                    let who = cursor
+                        .as_ref()
+                        .and_then(|c| data.party.get(c.0))
+                        .map(member_name)
+                        .unwrap_or_default();
+                    format!("Actions: {who}")
+                } else {
+                    String::new()
+                }
+            }
+            PartyText::Ops(index) => match (ops_open, ops.as_deref()) {
+                (true, Some(ops)) => ops
+                    .selected
+                    .eq(index)
+                    .then_some(OPS[*index])
+                    .map(|label| format!("> {label}"))
+                    .unwrap_or_else(|| format!("  {}", OPS[*index])),
+                _ => String::new(),
+            },
+            PartyText::OpsMessage => match (ops_open, ops.as_deref()) {
+                (true, Some(ops)) if !ops.message.is_empty() => ops.message.clone(),
+                (true, _) => "Enter: choose   Esc: back".to_string(),
+                _ => String::new(),
+            },
+            PartyText::Hint => {
+                "Up / Down: choose   Enter: actions   Esc: close".to_string()
+            }
         };
         if text.0 != desired {
             text.0 = desired;
@@ -331,6 +522,105 @@ mod tests {
         assert!(member_stats(&m).contains("HP 34"));
         assert!(member_stats(&m).contains("effort [1,2,3,4,5,6]"));
         assert!(member_moves(&m).contains("move #0033 (PP 12)"));
+    }
+
+    fn ops_app(n: usize) -> App {
+        use crate::game::input_map::InputMapPlugin;
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.add_plugins(InputMapPlugin);
+        app.init_resource::<Paused>();
+        app.init_resource::<PauseMenuSuppressed>();
+        app.init_resource::<SummaryFromParty>();
+        let mut progress = PlayerProgress::new_game();
+        progress.party = (0..n)
+            .map(|i| PartyMember {
+                species: 25 + i as u16,
+                level: 5,
+                hp: 10,
+                ..Default::default()
+            })
+            .collect();
+        progress.box_list.clear();
+        app.insert_resource(progress);
+        app.add_plugins(PartyScreenPlugin);
+        app
+    }
+
+    fn press(app: &mut App, key: KeyCode) {
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(key);
+        app.update();
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.release(key);
+        keys.clear();
+    }
+
+    /// Enter opens the operations submenu on the highlighted member; its entries run the
+    /// validated `party_ops` functions (reorder, send to box, release asked twice).
+    #[test]
+    fn operations_submenu_reorders_stores_and_releases_through_party_ops() {
+        let mut app = ops_app(3);
+        app.world_mut().resource_mut::<PartyOpenRequested>().0 = true;
+        app.update();
+        assert!(app.world().resource::<PartyScreenState>().open);
+        press(&mut app, KeyCode::Enter);
+        assert!(app.world().resource::<PartyOpsState>().open, "Enter opens the submenu");
+        assert_eq!(app.world().resource::<PartyOpsState>().selected, 0);
+        // Summary: asks the summary screen for the highlighted member and closes the submenu.
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(app.world().resource::<SummaryFromParty>().0, Some(0));
+        assert!(!app.world().resource::<PartyOpsState>().open);
+
+        // Move down: member 0 changes places with member 1 and the cursor follows it.
+        press(&mut app, KeyCode::Enter);
+        press(&mut app, KeyCode::ArrowDown);
+        press(&mut app, KeyCode::ArrowDown);
+        assert_eq!(app.world().resource::<PartyOpsState>().selected, 2);
+        press(&mut app, KeyCode::Enter);
+        let party: Vec<u16> = app
+            .world()
+            .resource::<PlayerProgress>()
+            .party
+            .iter()
+            .map(|m| m.species)
+            .collect();
+        assert_eq!(party, [26, 25, 27]);
+        assert_eq!(app.world().resource::<PartyCursor>().0, 1);
+        assert!(app.world().resource::<PartyOpsState>().message.contains("slot 2"));
+
+        // Send to box: the highlighted member leaves the party.
+        press(&mut app, KeyCode::ArrowDown);
+        press(&mut app, KeyCode::Enter);
+        let progress = app.world().resource::<PlayerProgress>();
+        assert_eq!(progress.party.iter().map(|m| m.species).collect::<Vec<_>>(), [26, 27]);
+        assert_eq!(progress.box_list.iter().map(|m| m.species).collect::<Vec<_>>(), [25]);
+        assert!(app.world().resource::<PartyOpsState>().message.contains("box slot #000"));
+
+        // Release asks twice, then refuses the last healthy member.
+        press(&mut app, KeyCode::ArrowDown);
+        press(&mut app, KeyCode::Enter);
+        assert!(app.world().resource::<PartyOpsState>().pending_release);
+        assert!(app.world().resource::<PartyOpsState>().message.contains("confirm"));
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(app.world().resource::<PlayerProgress>().party.len(), 1);
+        press(&mut app, KeyCode::Enter);
+        press(&mut app, KeyCode::Enter);
+        let ops = app.world().resource::<PartyOpsState>();
+        assert!(!ops.pending_release);
+        assert!(
+            ops.message.contains("non-fainted"),
+            "the last healthy member is protected: {}",
+            ops.message
+        );
+
+        // Esc leaves the submenu first, then the screen.
+        press(&mut app, KeyCode::Escape);
+        assert!(!app.world().resource::<PartyOpsState>().open);
+        assert!(app.world().resource::<PartyScreenState>().open);
+        press(&mut app, KeyCode::Escape);
+        assert!(!app.world().resource::<PartyScreenState>().open);
+        assert!(!app.world().resource::<Paused>().0, "resumes the world");
     }
 
     #[test]
