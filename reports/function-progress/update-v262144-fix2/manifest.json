@@ -249,7 +249,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "4dcde3fe42f382df8cc3f5c0cb9bdb8fa8dfa3b086a9ac3575363ce0cab7005f"
+        "sha256": "d6366ef41d915f2376bd215ffae870be40125c4de62760bee32d05bccc75f92e"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -1149,7 +1149,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "c854af45aff6ee8aee8a184fa9540ee2473f0f9005077272ba76372bad2aa86b"
+    "sha256": "6f47949acd0e0c760eeafa7f3f268e7c947b45dd04558d0a9632983162989b44"
   },
   "state_partitions": {
     "analysis_documentation_status": {

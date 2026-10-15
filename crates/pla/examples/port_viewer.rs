@@ -1826,8 +1826,10 @@ fn stream_wild_spawners(
     safety: Res<pla::game::wild::EncounterSafety>,
     time: Res<Time>,
     dist: Option<Res<pla::game::quality::StreamDistances>>,
-    progress: Res<PlayerProgress>,
-    dex_tasks: Res<pla::game::dex::DexTasks>,
+    // Optional so the synthetic spawn tests (and any app without the Pokédex screens) still
+    // spawn: without research data the rare roll keeps its base odds.
+    progress: Option<Res<PlayerProgress>>,
+    dex_tasks: Option<Res<pla::game::dex::DexTasks>>,
 ) {
     let Ok(p_xf) = player_query.single() else {
         return;
@@ -1903,14 +1905,17 @@ fn stream_wild_spawners(
         // entry and of the active world event, rolled once per spawner with the port's seed.
         // The 1/4096 base denominator is PROBABLE (external notes; see `rare_palette`).
         let bonus = pla::game::outbreak::event_rare_bonus_tries(&spawner.spawner_id);
-        let points = pla::game::dex::species_points(&dex_tasks.entries, &progress.research, dex);
-        let rare_ctx = pla::game::rare_palette::RareContext {
-            research_level_10: pla::game::dex::species_level(points) >= 10,
-            research_perfect: pla::game::dex::species_perfect(
-                &dex_tasks.entries,
-                &progress.research,
-                dex,
+        let (research_level_10, research_perfect) = match (progress.as_deref(), dex_tasks.as_deref())
+        {
+            (Some(p), Some(t)) => (
+                pla::game::dex::species_level(pla::game::dex::species_points(&t.entries, &p.research, dex)) >= 10,
+                pla::game::dex::species_perfect(&t.entries, &p.research, dex),
             ),
+            _ => (false, false),
+        };
+        let rare_ctx = pla::game::rare_palette::RareContext {
+            research_level_10,
+            research_perfect,
             charm: false, // no shiny charm item in the port yet
             event_bonus: bonus,
         };
