@@ -1,0 +1,12 @@
+# sheet: data/item_teach_moves
+# version: 1
+# generator: .tools/decode_wazashop.py
+# target: Pokemon Legends: Arceus update v262144 bin/pml/item/item.dat
+# result: 0 items teach a move. The game has no TM/disc item: the item record has no
+#   move-id parameter (see data/item_effects.tsv columns), no item name matches a move
+#   name in the shipped name tables (checked locally, not stored), and the teaching
+#   paths are the move shop (data/move_shop.tsv, 61 moves with prices) and the move
+#   reminder over move_tutor learnsets (data/pml_learnsets.tsv).
+# confidence: the negative result is PROBABLE: it rests on the decoded parameter set
+#   plus the local name cross-check, not on recovered text.
+item_id:u16	move:u16	confidence:string	source:string

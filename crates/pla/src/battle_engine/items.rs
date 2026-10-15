@@ -57,6 +57,11 @@ pub struct ItemEffect {
     /// LIKELY pocket code (raw field; 2 = balls, 6 = medicine, 7 = berries in the decoded
     /// shop stock, 0 = misc/other). Only used to group the bag screen.
     pub pocket_code: u8,
+    /// Key-item class: low nibble of the raw `+0x11` byte. `1` is the key-item class (Brief 23):
+    /// all 85 records are key items by name (Plates, Old Verses, Red Chain, Gracidea, Charms,
+    /// quest items) and none appears in `data/shop_stock.tsv`; 0 is the ordinary class and 2 is
+    /// UNKNOWN (45 unnamed ids). See [`ItemEffect::is_key_item`].
+    pub storage_class: u8,
     /// Capture table category (`Regular`, `Great`, `Ultra`, `Feather`, ...); `None` when
     /// the ball has no verified capture row.
     pub ball_category: Option<String>,
@@ -76,6 +81,13 @@ pub struct ItemEffect {
 impl ItemEffect {
     pub fn is_ball(&self) -> bool {
         self.effect_kind == 0 && self.ball_category.is_some()
+    }
+
+    /// Key item: cannot be sold and is not stocked by any shop (PROBABLE, Brief 23). The class is
+    /// `storage_class == 1`; the evidence is name-level (85/85 decoded records are key items) and
+    /// the empty intersection with the decoded shop stock.
+    pub fn is_key_item(&self) -> bool {
+        self.storage_class == 1
     }
 }
 
@@ -113,6 +125,7 @@ impl ItemTable {
         let c_max = col("max_quantity")?;
         let c_kind = col("effect_kind")?;
         let c_pocket = col("pocket_code")?;
+        let c_storage = col("storage_class")?;
         let c_ball = col("ball_category")?;
         let c_heal = col("hp_heal")?;
         let c_cures = [
@@ -145,6 +158,7 @@ impl ItemTable {
                 max_quantity: num(c_max)? as u16,
                 effect_kind: num(c_kind)? as u8,
                 pocket_code: num(c_pocket)? as u8,
+                storage_class: num(c_storage)? as u8,
                 ball_category: match v[c_ball] {
                     "none" | "" => None,
                     s => Some(s.to_owned()),
@@ -449,6 +463,33 @@ mod tests {
             t.get(1713).unwrap().ball_category.as_deref(),
             Some("Feather")
         );
+    }
+
+    /// Brief 23: the key-item class is `storage_class == 1`; the checked-in sheet has 85 of them
+    /// (all key items by name: Plates, Old Verses, Red Chain, Gracidea, quest items), none is a
+    /// ball, medicine or berry, and none is stocked by any shop.
+    #[test]
+    fn key_items_are_the_storage_class_one_rows() {
+        let t = ItemTable::load(root()).unwrap();
+        let key: Vec<u16> = (0..2000)
+            .filter_map(|id| t.get(id as u16).map(|i| (id as u16, i)))
+            .filter(|(_, i)| i.is_key_item())
+            .map(|(id, _)| id)
+            .collect();
+        assert_eq!(key.len(), 85, "key-item rows in the decoded sheet");
+        for id in [111, 298, 441, 455, 466, 632, 1787, 1828] {
+            assert!(key.contains(&id), "item {id} is a key item");
+        }
+        assert!(key.iter().all(|id| {
+            let item = t.get(*id).unwrap();
+            !item.is_ball() && item.cures.is_empty() && item.pocket_code != 7
+        }));
+        // Ordinary consumables keep the class 0 (Potion, Poké Ball, Oran Berry).
+        for id in [17, 4, 155] {
+            let item = t.get(id).unwrap();
+            assert!(!item.is_key_item(), "item {id} is not a key item");
+            assert_eq!(item.storage_class, 0);
+        }
     }
 
     #[test]
