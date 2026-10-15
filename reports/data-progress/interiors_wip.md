@@ -1,3 +1,9 @@
+# Interiors WIP Freeze (historical)
+
+**Superseded 2026-10-15 by `reports/data-progress/interiors.md`:** the runtime was rebuilt
+from scratch on top of the retained part-1 evidence and verified headless (tests, viewer
+captures, smoke). The freeze notes below describe the state on 2026-10-13.
+
 # Interiors WIP Freeze
 
 - **Freeze date:** 2026-10-13.

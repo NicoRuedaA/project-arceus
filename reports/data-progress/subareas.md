@@ -2,6 +2,10 @@
 
 Status: data investigation only. No runtime integration, viewer, window, audio, route, or player changes were made.
 
+> The runtime built on this evidence is described in `reports/data-progress/interiors.md`
+> (2026-10-15): the 55 sub-areas now load through their paired doors, with the per-door reach
+> measured against each sub-area navmesh.
+
 ## Verdict
 
 Subareas use coordinates local to their own area record and primary navmesh pack. The current evidence supports treating a
