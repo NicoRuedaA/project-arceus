@@ -115,6 +115,12 @@ fn rendering_a_shown_screen_spawns_quad_and_text_nodes() {
     };
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+    // Keep screen opening transitions deterministic: with the default real-time clock the map
+    // "current area glows" test flipped run to run (alpha ~0.24 at ~50 ms of accumulated real
+    // dt, right at the 0.3 threshold). Three fixed 500 ms steps complete any opening animation.
+    app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+        std::time::Duration::from_millis(500),
+    ));
     app.init_asset::<Image>();
     app.init_asset::<OrigUiMaterial>();
     app.insert_resource(UiTextureCache::new(root.clone()));
@@ -366,6 +372,12 @@ fn screen_app(
 ) -> (App, Entity) {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+    // Keep screen opening transitions deterministic: with the default real-time clock the map
+    // "current area glows" test flipped run to run (alpha ~0.24 at ~50 ms of accumulated real
+    // dt, right at the 0.3 threshold). Three fixed 500 ms steps complete any opening animation.
+    app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+        std::time::Duration::from_millis(500),
+    ));
     app.init_asset::<Image>();
     app.init_asset::<OrigUiMaterial>();
     app.insert_resource(UiTextureCache::new(root.clone()));

@@ -211,14 +211,34 @@ pub fn normalize_export_path(cache_root: &Path, stored: &str) -> Option<(PathBuf
 /// [`keep_streamable_placements`] checks; the placed-object collision shares it so both agree on
 /// which models exist.
 pub fn model_paths(cache_root: &Path) -> HashMap<String, (PathBuf, String)> {
+    match find_data_file("field_model_export_index.tsv").and_then(|p| std::fs::read_to_string(p).ok()) {
+        Some(text) => model_paths_from_text(&text, cache_root),
+        None => HashMap::new(),
+    }
+}
+
+/// [`model_paths`] over an already-read export index (one `ok` row per model, last wins).
+pub fn model_paths_from_text(text: &str, cache_root: &Path) -> HashMap<String, (PathBuf, String)> {
+    model_paths_filtered(text, cache_root, |_| true)
+}
+
+/// Export-index rows of one pack file (`<zone>.gfpak`): each sub-area exports its own copy of the
+/// same models under its own folder, so an interior load resolves them per pack.
+pub fn model_paths_for_pack(text: &str, cache_root: &Path, pack: &str) -> HashMap<String, (PathBuf, String)> {
+    model_paths_filtered(text, cache_root, |row_pack| row_pack == pack)
+}
+
+fn model_paths_filtered(
+    text: &str,
+    cache_root: &Path,
+    keep: impl Fn(&str) -> bool,
+) -> HashMap<String, (PathBuf, String)> {
     let mut m = HashMap::new();
-    if let Some(text) = find_data_file("field_model_export_index.tsv").and_then(|p| std::fs::read_to_string(p).ok()) {
-        for line in text.lines().filter(|l| !l.starts_with('#')) {
-            let c: Vec<&str> = line.split('\t').collect();
-            if c.len() >= 4 && c[3] == "ok" {
-                if let Some(pair) = normalize_export_path(cache_root, c[2]) {
-                    m.insert(c[1].to_string(), pair);
-                }
+    for line in text.lines().filter(|l| !l.starts_with('#')) {
+        let c: Vec<&str> = line.split('\t').collect();
+        if c.len() >= 4 && c[3] == "ok" && keep(c[0]) {
+            if let Some(pair) = normalize_export_path(cache_root, c[2]) {
+                m.insert(c[1].to_string(), pair);
             }
         }
     }
@@ -239,6 +259,9 @@ pub struct WorldObjectsPlugin {
 pub(crate) struct WorldObjects {
     placements: Vec<Placement>,
     paths: HashMap<String, (PathBuf, String)>,
+    /// Export-index cache root; a zone change re-resolves the paths per zone pack (the interior
+    /// scenes of Brief 37 each have their own exported folder).
+    cache_root: PathBuf,
     alive: HashMap<usize, Entity>,
     handles: HashMap<String, Handle<Gltf>>,
     prims: HashMap<String, Prims>,
@@ -280,6 +303,7 @@ impl Plugin for WorldObjectsPlugin {
         app.insert_resource(WorldObjects {
             placements,
             paths,
+            cache_root: self.cache_root.clone(),
             alive: HashMap::new(),
             handles: HashMap::new(),
             prims: HashMap::new(),
@@ -303,6 +327,33 @@ pub fn reload_world_objects(
     area_idx: u8,
     exclude_models: &HashSet<String>,
 ) -> Option<usize> {
+    if area_idx > 5 {
+        let old: Vec<Entity> = {
+            let mut wo = world.get_resource_mut::<WorldObjects>()?;
+            wo.handles.clear();
+            wo.prims.clear();
+            wo.water_meshes.clear();
+            let old: Vec<Entity> = wo.alive.drain().map(|(_, e)| e).collect();
+            wo.placements = Vec::new();
+            old
+        };
+        for entity in old {
+            world.despawn(entity);
+        }
+        println!("World objects ha_area{area_idx:02}: 0 placements installed for the zone change");
+        return Some(0);
+    }
+    reload_world_objects_zone(world, &format!("ha_area{area_idx:02}"), exclude_models)
+}
+
+/// [`reload_world_objects`] for any zone id (main area or interior sub-area, Brief 37): the paths
+/// are re-resolved against the zone's own export pack first (each sub-area exports its own copy of
+/// the room models), keeping the global table as fallback for shared models.
+pub fn reload_world_objects_zone(
+    world: &mut World,
+    zone: &str,
+    exclude_models: &HashSet<String>,
+) -> Option<usize> {
     let old: Vec<Entity> = {
         let mut wo = world.get_resource_mut::<WorldObjects>()?;
         wo.handles.clear();
@@ -320,23 +371,47 @@ pub fn reload_world_objects(
         bodies.bodies.clear();
         bodies.dropped = 0;
     }
-    let placements = if area_idx <= 5 {
-        let area = format!("ha_area{area_idx:02}");
+    let count = {
+        let wo = world.resource::<WorldObjects>();
+        let cache_root = wo.cache_root.clone();
         let text = find_data_file("field_object_placements.tsv")
             .and_then(|p| std::fs::read_to_string(p).ok())
             .unwrap_or_else(|| {
-                eprintln!("World objects: placement sheet not found on a zone change; {area} stays empty");
+                eprintln!("World objects: placement sheet not found on a zone change; {zone} stays empty");
                 String::new()
             });
-        let wo = world.resource::<WorldObjects>();
-        keep_streamable_placements(parse_placements_for_spawn(&text, &area), exclude_models, &wo.paths)
-    } else {
-        Vec::new()
+        let paths = if cache_root.as_os_str().is_empty() {
+            wo.paths.clone()
+        } else {
+            paths_for_zone(zone, &cache_root)
+        };
+        let placements = keep_streamable_placements(
+            parse_placements_for_spawn(&text, zone),
+            exclude_models,
+            &paths,
+        );
+        let count = placements.len();
+        let mut wo = world.resource_mut::<WorldObjects>();
+        wo.paths = paths;
+        wo.placements = placements;
+        count
     };
-    let count = placements.len();
-    world.resource_mut::<WorldObjects>().placements = placements;
-    println!("World objects ha_area{area_idx:02}: {count} placements installed for the zone change");
+    println!("World objects {zone}: {count} placements installed for the zone change");
     Some(count)
+}
+
+/// Export-index model paths for one zone: rows of `<zone>.gfpak` first (each sub-area exports its
+/// own copy of the room shells), the global table as fallback for models without a per-pack row.
+pub fn paths_for_zone(zone: &str, cache_root: &Path) -> HashMap<String, (PathBuf, String)> {
+    let Some(text) = find_data_file("field_model_export_index.tsv").and_then(|p| std::fs::read_to_string(p).ok())
+    else {
+        return model_paths(cache_root);
+    };
+    let mut paths = model_paths_for_pack(&text, cache_root, &format!("{zone}.gfpak"));
+    for (k, v) in model_paths_from_text(&text, cache_root) {
+        paths.entry(k).or_insert(v);
+    }
+    paths
 }
 
 /// Number of placements of the currently installed area (diagnostics and tests); `None` when the
@@ -353,12 +428,26 @@ impl WorldObjects {
         Self {
             placements,
             paths: HashMap::new(),
+            cache_root: PathBuf::new(),
             alive: HashMap::new(),
             handles: HashMap::new(),
             prims: HashMap::new(),
             water_meshes: HashMap::new(),
             skip_warned: HashSet::new(),
             rot_mode,
+        }
+    }
+
+    /// Like [`Self::for_tests`] but with a real export cache root, so a zone change resolves the
+    /// zone's own model paths (the interior tests of Brief 37).
+    pub fn for_tests_with_cache(
+        placements: Vec<Placement>,
+        rot_mode: RotMode,
+        cache_root: PathBuf,
+    ) -> Self {
+        Self {
+            cache_root,
+            ..Self::for_tests(placements, rot_mode)
         }
     }
 }

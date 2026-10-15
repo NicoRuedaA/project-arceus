@@ -9,7 +9,7 @@ Cómo leer las etiquetas:
 - **[EN MAIN]** = ya está en la versión principal del código (`main`) y lo vas a poder probar.
 - **[SIN CONECTAR]** = el código existe y pasa sus pruebas, pero el visor todavía no lo enseña.
   No lo busques en el juego: no lo vas a encontrar.
-- **[PENDIENTE]** = está en otra rama que aún no se ha unido a `main` (hoy solo `feat/interiors`). No está en tu juego.
+- **[PENDIENTE]** = está en otra rama que aún no se ha unido a `main` (hoy: `feat/terrain-splat`). No está en tu juego.
 - **SUPUESTO** = una cifra o un aspecto inventado por nosotros porque el juego original no lo
   dejó claro. Puede verse o notarse distinto al juego de verdad. Ver la sección 3.
 - **VERIFICADO** = comprobado con una prueba de código o una comprobación directa de datos; no
@@ -526,7 +526,7 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     Fallo: gente enterrada, flotando, apilada en un mismo punto, o apareciendo y desapareciendo.
     **Colores:** ropa, pelo y piel salen SUPUESTO (claros, pelo blanco-gris); lo conocido es
     la forma, no el color. No andan por rutas (no hay datos), solo están de pie.
-58. **Interiores de casas:** **[PENDIENTE]** (rama `feat/interiors`, en pausa). No puedes entrar (ver 2.13).
+58. **Interiores de casas:** **[EN MAIN]** (Brief 37, unido el 2026-10-15). Ya puedes entrar: ver el punto 60 y la prueba 61 (salir). Lo que ves dentro es la sala real del juego cuando hay modelo exportado; en 6 subáreas sin sala exportada aparece una sala provisional gris con un aviso `[SUPUESTO]` (no es dato del juego).
 
 ### 2.13 Puertas y cambio de zona  [EN MAIN]
 
@@ -534,8 +534,10 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     fundido a negro, carga y apareces en la zona de destino, con la luz, el cielo, los objetos
     colocados y los árboles de la zona nueva (se recargan). Fallo: sigues viendo la luz o los árboles
     de la zona anterior, la pantalla se queda en negro, apareces dentro de una pared.
-60. **Puertas a interiores.** La mitad de las puertas (55 de 110) llevan a interiores o subzonas.
-    El aviso lo dice y el cambio se rechaza con un mensaje. Eso es lo esperado: **no** es un fallo.
+60. **Puertas a interiores.** La mitad de las puertas (55 de 110) llevan a casas, cuevas, tiendas o al
+    templo. Pulsa **E** y entras con el mismo fundido: dentro verás la sala, su luz propia y sus cosas;
+    el aviso «[E] Enter ...» también aparece en la puerta de salida para volver. Fallo: pantalla negra,
+    aparecer fuera del navmesh, o una sala provisional `[SUPUESTO]` donde el juego real tiene geometría.
 61. **Volver.** Cruza una puerta, y vuelve por la misma. Cada puerta tiene su regreso (110 de 110
     comprobadas con datos). Fallo: no hay vuelta, o apareces donde no toca.
 62. **Viaje rápido (con `--debug-zone-links`).** T salta a la siguiente zona principal. P escribe
@@ -662,7 +664,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
 - **Cuerdas y escaleras:** no hay datos que digan cuáles son; ninguna de las 55 piezas de escenario
   examinadas lo es. DESCONOCIDO.
 - **Cuerdas, escaleras y superficies de trepar reales:** DESCONOCIDAS (saltar, caer, trepar e interactuar ya están en `main`).
-- **Interiores y subzonas (casas, cuevas, tiendas):** pendiente. Las puertas lo dicen y rechazan el cambio.
+- **Minimapa dentro de interiores:** sigue mostrando el último mapa del exterior; no hay mapa de interiores. PENDIENTE.
 - **Entrenadores derrotados:** ya se guardan (guardado v8, prueba 71). Los entrenadores de depuración `--trainer` se pueden repetir sin cobrar.
 - **IA experta** de entrenadores; **fase de campo de los Nobles** (medidor, bálsamos, ataques de campo);
   orden de salida de los Pokémon; combates dobles; música de combate de entrenador sin conectar.
@@ -702,11 +704,10 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
 
 | Rama | Qué trae | Estado |
 |---|---|---|
-| `feat/interiors` | Interiores y subzonas (casas, cuevas, tiendas) | Congelada, trabajo a medias en su worktree; no se puede entrar a ningún interior |
 | `feat/terrain-splat` | Suelo en tiempo real: texturas nítidas de cerca, roca sin estirar en paredes (`--terrain bake` para el de antes) | Terminada en su worktree, pendiente de unir; ver 2.11c |
 
-`feat/player-moves`, `feat/alpha-forms`, `feat/npc-world` y `feat/wire-viewer` **ya están unidas a
-`main`**; no queda nada pendiente de ellas. Lo único que no verás es lo de `feat/interiors`.
+`feat/player-moves`, `feat/alpha-forms`, `feat/npc-world`, `feat/wire-viewer` y la parte de interiores de
+`feat/interiors` **ya están unidas a `main`** (interiores, 2026-10-15); no queda nada pendiente de ellas.
 
 ---
 

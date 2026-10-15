@@ -31,3 +31,20 @@ viewer with one line. Windowless check: `cargo run -p pla --example door_pairs_r
   grass, boxes, balloons, snow, `yachi01`, two temple gates). `bg_event` types are not decoded. Nothing was hooked up;
   `climbable_gimmick_candidates` returns an empty list on the real names.
 - The door open/close animation and sound playback (`open_sound`/`close_sound` names are in the sheet; no audio here).
+
+## 2026-10-15: interaction reach and interior destinations (Brief 37)
+
+Both kinds of destination load now (main areas and interior sub-areas, see
+`reports/data-progress/interiors.md`), so the hint is the same for both
+(`[E] Enter <dest>`), and the prompt uses the *per-door reach* below, exactly like the E press.
+
+The decoded navmesh excludes the door openings (the original data keeps indoor and outdoor
+surfaces as separate islands), so the sheet trigger box can sit well away from any walkable point:
+the fixed 0.35 m pad of Brief 13 left the Jubilife houses unreachable on foot (the doors tested on
+2026-10-15 were 0.001 m to 0.65 m short; the S09 hall door needs ~1.9 m). `game::zone::DoorReachIndex`
+measures, once per area change, the distance from each door centre to the closest walkable face
+(one nearest-face query per door) and sets the door's reach to `max(0.75, distance + 0.1)`. Doors
+whose centre is on the navmesh keep the tight 0.75 m base margin (this is the sheet-level figure
+used by the `DoorPairStats::arrival_in_exit_box` check, still 0/110: arriving never re-uses its
+exit door with one E press at the base margin). `crates/pla/examples/door_reach_report.rs` prints
+the measured reach table (worst door: `DOOR_AREA00_S09_TO_AREA00`, ~2.4 m to its walkable island).
