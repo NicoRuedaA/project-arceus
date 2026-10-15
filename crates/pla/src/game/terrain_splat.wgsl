@@ -59,8 +59,20 @@ struct TerrainSplatUniform {
 @group(#{MATERIAL_BIND_GROUP}) @binding(107) var splat_control1: texture_2d<f32>;
 
 const SLOTS: u32 = 8u;
+// Anti-tiling (two samples per layer) is only paid for inside this fraction of the fade start.
+const ANTI_TILING_RANGE: f32 = 0.55;
+// Set per fragment by `terrain_surface`: anti-tiling on for this pixel.
+var<private> use_anti_tiling: bool = false;
 // Layers below this weight are not sampled at all.
 const MIN_WEIGHT: f32 = 0.004;
+// Share of the true face normal in the projection normal (0 = smooth mesh normal only).
+const STEEP_FACE_MIX: f32 = 0.6;
+// Detail fade distances are multiplied by this on fully steep faces.
+const STEEP_FADE_SCALE: f32 = 1.9;
+// Layer normal maps are only sampled inside this fraction of the fade start distance (saves the far, steep samples).
+const NORMAL_RANGE: f32 = 0.9;
+// ... and fade out from this fraction on (smooth hand-over to the baked normal).
+const NORMAL_FADE_FROM: f32 = 0.5;
 
 struct TerrainSurface {
     albedo: vec3<f32>,
@@ -114,7 +126,7 @@ fn decode_normal(t: vec4<f32>) -> vec3<f32> {
 // repetition of one tile; offsets only translate the UVs, so the normals stay valid.
 fn sample_layer(k: u32, uv: vec2<f32>, gx: vec2<f32>, gy: vec2<f32>, want_normal: bool) -> LayerSample {
     var out: LayerSample;
-    if terrain.flags.y > 0.5 {
+    if use_anti_tiling {
         let n = value_noise(uv * terrain.extra.z) * 8.0;
         let i = floor(n);
         let f = fract(n);
@@ -236,13 +248,25 @@ fn terrain_surface(p: vec3<f32>, geo_n: vec3<f32>, cam: vec3<f32>, macro_rgb: ve
     // Derivatives first, in uniform control flow; every sample below uses explicit gradients.
     let dpx = dpdx(p);
     let dpy = dpdy(p);
-    let n = normalize(geo_n);
+    // Projection normal: the interpolated mesh normal blended with the true face normal (from the
+    // screen derivatives, flipped to the mesh side). On the coarse terrain triangles of a cliff the
+    // smooth normal leans towards "up", which kept the top-down projection (stretched streaks)
+    // alive on steep faces; the face normal makes the side projections take over there.
+    let smooth_n = normalize(geo_n);
+    var face_n = normalize(cross(dpx, dpy));
+    face_n = select(-face_n, face_n, dot(face_n, smooth_n) >= 0.0);
+    let n = normalize(mix(smooth_n, face_n, STEEP_FACE_MIX));
 
     var out: TerrainSurface;
     out.albedo = macro_rgb;
     out.normal = base_n;
     let dist = distance(cam, p);
-    let detail = 1.0 - smoothstep(terrain.area.y, terrain.area.z, dist);
+    // Steep faces keep their layer detail much farther away: the macro colour is a TOP-DOWN bake,
+    // so on a far hillside it is a smooth, stretched smear (streaks along the fall line).
+    let steep_far = smoothstep(terrain.blend.z, terrain.blend.w, 1.0 - abs(n.y));
+    let far_scale = mix(1.0, STEEP_FADE_SCALE, steep_far);
+    use_anti_tiling = terrain.flags.y > 0.5 && dist < terrain.area.y * ANTI_TILING_RANGE;
+    let detail = 1.0 - smoothstep(terrain.area.y * far_scale, terrain.area.z * far_scale, dist);
     out.detail = detail;
     if detail <= 0.001 {
         return out;
@@ -300,7 +324,8 @@ fn terrain_surface(p: vec3<f32>, geo_n: vec3<f32>, cam: vec3<f32>, macro_rgb: ve
 
     // Sample every layer that has weight (every layer is triplanar on slopes, see
     // `triplanar_weights`; with triplanar off everything is top-down as in the bake).
-    let want_normal = terrain.flags.z > 0.5;
+    let normal_fade = 1.0 - smoothstep(terrain.area.y * NORMAL_FADE_FROM, terrain.area.y * NORMAL_RANGE, dist);
+    let want_normal = terrain.flags.z > 0.5 && normal_fade > 0.0;
     var bw = vec3<f32>(0.0, 1.0, 0.0);
     if terrain.flags.x > 0.5 {
         bw = triplanar_weights(n);
@@ -374,7 +399,7 @@ fn terrain_surface(p: vec3<f32>, geo_n: vec3<f32>, cam: vec3<f32>, macro_rgb: ve
 
     out.albedo = mix(macro_rgb, albedo, detail);
     if want_normal {
-        out.normal = normalize(mix(base_n, normalize(nsum + n * 1e-4), detail));
+        out.normal = normalize(mix(base_n, normalize(nsum + n * 1e-4), detail * normal_fade));
     }
     return out;
 }

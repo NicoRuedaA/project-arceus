@@ -261,6 +261,9 @@ pub fn merge_instances(
     if pos.is_empty() || idx.is_empty() || instances.is_empty() {
         return None;
     }
+    if let Some(card) = GrassCard::from_quad(pos, uvs, &idx) {
+        return Some(merge_cards(&card, normals.map(|n| n[0]), instances, ground_y, tint_a, tint_b));
+    }
     let n = instances.len();
     let mut p_out = Vec::with_capacity(n * pos.len());
     let mut n_out = Vec::with_capacity(n * pos.len());
@@ -299,6 +302,120 @@ pub fn merge_instances(
     mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, c_out);
     mesh.insert_indices(Indices::U32(i_out));
     Some(mesh)
+}
+
+/// Rows a grass card is cut into so it can bend (3 rows = 8 vertices and 6 triangles per card).
+const CARD_ROWS: usize = 3;
+
+/// The four corners of a plain grass card (one quad: 4 vertices, 2 triangles), sorted
+/// bottom-left, bottom-right, top-left, top-right, with their UVs (already as stored in the glTF).
+pub struct GrassCard {
+    pos: [Vec3; 4],
+    uv: [[f32; 2]; 4],
+}
+
+impl GrassCard {
+    /// `None` unless the mesh is exactly one quad standing upright (two corners at the lowest y).
+    pub fn from_quad(pos: &[[f32; 3]], uvs: Option<&Vec<[f32; 2]>>, idx: &[u32]) -> Option<Self> {
+        let uvs = uvs?;
+        if pos.len() != 4 || idx.len() != 6 {
+            return None;
+        }
+        let mut v: Vec<(Vec3, [f32; 2])> = pos.iter().zip(uvs.iter()).map(|(p, u)| (Vec3::from(*p), *u)).collect();
+        v.sort_by(|a, b| a.0.y.total_cmp(&b.0.y));
+        let (mut low, mut high) = (v[..2].to_vec(), v[2..].to_vec());
+        let h = high[0].0.y - low[0].0.y;
+        if h <= 1e-4 || (low[1].0.y - low[0].0.y).abs() > h * 0.05 || (high[1].0.y - high[0].0.y).abs() > h * 0.05 {
+            return None;
+        }
+        low.sort_by(|a, b| (a.0.x + a.0.z).total_cmp(&(b.0.x + b.0.z)));
+        high.sort_by(|a, b| (a.0.x + a.0.z).total_cmp(&(b.0.x + b.0.z)));
+        Some(Self {
+            pos: [low[0].0, low[1].0, high[0].0, high[1].0],
+            uv: [low[0].1, low[1].1, high[0].1, high[1].1],
+        })
+    }
+}
+
+/// Per-instance look of a grass card, derived from the instance's own random numbers so the same
+/// chunk always rebuilds the same blades: wider and shorter than the descriptor scale (the card
+/// texture is a tuft of thin leaves; at the raw scale they read as needles), and bent over.
+pub fn card_shape(inst: &PlantInstance) -> (f32, f32, f32) {
+    let f = |k: f32| (inst.tint * k + inst.yaw * 0.37 * k).fract().abs();
+    let width = 1.5 + 0.7 * f(7.31);
+    let height = 0.62 + 0.22 * f(3.17);
+    let lean = (f(5.13) - 0.5) * 2.0 * 0.5;
+    (width, height, lean)
+}
+
+/// Merge grass cards: like [`merge_instances`] but every card is cut into [`CARD_ROWS`] rows and
+/// curved (the lean grows with the square of the height, the tip drops a little) and its
+/// normals follow the curve, tilted towards the sky so the tufts are lit like soft ground cover.
+pub fn merge_cards(
+    card: &GrassCard,
+    card_normal: Option<[f32; 3]>,
+    instances: &[PlantInstance],
+    ground_y: impl Fn(f32, f32) -> f32,
+    tint_a: [f32; 4],
+    tint_b: [f32; 4],
+) -> Mesh {
+    let verts = (CARD_ROWS + 1) * 2;
+    let n = instances.len();
+    let mut p_out = Vec::with_capacity(n * verts);
+    let mut n_out = Vec::with_capacity(n * verts);
+    let mut u_out = Vec::with_capacity(n * verts);
+    let mut c_out = Vec::with_capacity(n * verts);
+    let mut i_out = Vec::with_capacity(n * CARD_ROWS * 6);
+    let facing = card_normal.map_or(1.0, |c| if c[2] < 0.0 { -1.0 } else { 1.0 });
+    for inst in instances {
+        let base = p_out.len() as u32;
+        let rot = Quat::from_rotation_y(inst.yaw);
+        let (width, height, lean) = card_shape(inst);
+        let (sx, sy) = (inst.scale_h * width, inst.scale_v * height);
+        let origin = Vec3::new(inst.x, ground_y(inst.x, inst.z), inst.z);
+        let t = inst.tint;
+        let color = [
+            tint_a[0] + (tint_b[0] - tint_a[0]) * t,
+            tint_a[1] + (tint_b[1] - tint_a[1]) * t,
+            tint_a[2] + (tint_b[2] - tint_a[2]) * t,
+            1.0,
+        ];
+        let card_h = card.pos[2].y - card.pos[0].y;
+        for r in 0..=CARD_ROWS {
+            let k = r as f32 / CARD_ROWS as f32;
+            // curve: leans out along the card normal, tip comes down a bit
+            let bend_z = lean * card_h * sy * k * k;
+            let drop = 1.0 - 0.2 * lean.abs() * k;
+            let slope = Vec3::new(0.0, -2.0 * lean * k, facing).normalize();
+            let nrm = (rot * (slope * 0.75 + Vec3::Y * 0.25)).normalize_or(Vec3::Y);
+            for side in 0..2 {
+                let lo = card.pos[side];
+                let hi = card.pos[2 + side];
+                let mut p = lo.lerp(hi, k);
+                p.x *= sx;
+                p.y = p.y * sy * drop;
+                p.z = p.z * sx + bend_z;
+                p_out.push((origin + rot * p).to_array());
+                n_out.push(nrm.to_array());
+                let (ul, uh) = (card.uv[side], card.uv[2 + side]);
+                let (u, v) = (ul[0] + (uh[0] - ul[0]) * k, ul[1] + (uh[1] - ul[1]) * k);
+                // same v flip as the generic path (glTF bottom-left origin -> Bevy top-left)
+                u_out.push([u, 1.0 - v]);
+                c_out.push(color);
+            }
+        }
+        for r in 0..CARD_ROWS as u32 {
+            let a = base + r * 2;
+            i_out.extend_from_slice(&[a, a + 1, a + 3, a, a + 3, a + 2]);
+        }
+    }
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, p_out);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, n_out);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, u_out);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, c_out);
+    mesh.insert_indices(Indices::U32(i_out));
+    mesh
 }
 
 fn mesh_triangles(m: &Mesh) -> u32 {
@@ -585,14 +702,15 @@ mod tests {
         assert_ne!(cfg.applied, cfg.wanted(), "a range change rebuilds the streaming");
     }
 
+    /// A generic (non-card) mesh: the quad plus one unused vertex, so it is not a plain grass card.
     fn quad() -> Mesh {
         let mut m = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
         m.insert_attribute(
             Mesh::ATTRIBUTE_POSITION,
-            vec![[-0.25f32, 0.0, 0.0], [0.25, 0.0, 0.0], [0.25, 0.25, 0.0], [-0.25, 0.25, 0.0]],
+            vec![[-0.25f32, 0.0, 0.0], [0.25, 0.0, 0.0], [0.25, 0.25, 0.0], [-0.25, 0.25, 0.0], [0.0, 0.0, 0.0]],
         );
-        m.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0f32, 0.0, 1.0]; 4]);
-        m.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0f32, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]);
+        m.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0f32, 0.0, 1.0]; 5]);
+        m.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0f32, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.5, 0.5]]);
         m.insert_indices(Indices::U16(vec![0, 1, 2, 0, 2, 3]));
         m
     }
@@ -605,7 +723,7 @@ mod tests {
     fn merge_counts_and_places_instances() {
         let insts = [inst(10.0, 20.0, 0.0), inst(30.0, 40.0, 1.0), inst(50.0, 60.0, 2.0)];
         let m = merge_instances(&quad(), &insts, |_, _| 5.0, [1.0; 4], [0.0, 1.0, 0.0, 1.0]).unwrap();
-        assert_eq!(m.count_vertices(), 12);
+        assert_eq!(m.count_vertices(), 15);
         assert_eq!(m.indices().unwrap().len(), 18);
         let Some(VertexAttributeValues::Float32x3(p)) = m.attribute(Mesh::ATTRIBUTE_POSITION) else { panic!() };
         // first instance, yaw 0: vertex 2 is (0.25, 0.25*2, 0) + origin (10, 5, 20)
@@ -615,9 +733,55 @@ mod tests {
         assert_eq!(uv[0], [0.0, 0.0]); // source v = 1 -> flipped to 0
         let Some(VertexAttributeValues::Float32x4(c)) = m.attribute(Mesh::ATTRIBUTE_COLOR) else { panic!() };
         assert_eq!(c[0], [0.5, 1.0, 0.5, 1.0]);
-        // indices of the second instance are offset by 4 vertices
+        // indices of the second instance are offset by 5 vertices
         let Indices::U32(i) = m.indices().unwrap() else { panic!() };
-        assert_eq!(&i[6..12], &[4, 5, 6, 4, 6, 7]);
+        assert_eq!(&i[6..12], &[5, 6, 7, 5, 7, 8]);
+    }
+
+    fn card() -> Mesh {
+        let mut m = quad();
+        m.insert_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            vec![[-0.3f32, 0.0, 0.0], [0.3, 0.0, 0.0], [0.3, 0.3, 0.0], [-0.3, 0.3, 0.0]],
+        );
+        m.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0f32, 0.0, 1.0]; 4]);
+        m.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0f32, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+        m.insert_indices(Indices::U16(vec![0, 1, 2, 0, 2, 3]));
+        m
+    }
+
+    #[test]
+    fn grass_cards_become_curved_wider_shorter_tufts() {
+        let insts: Vec<_> = (0..40).map(|k| PlantInstance { x: k as f32, z: 0.0, yaw: k as f32 * 0.7, scale_h: 1.0, scale_v: 1.0, tint: (k as f32 * 0.137).fract() }).collect();
+        let m = merge_instances(&card(), &insts, |_, _| 0.0, [1.0; 4], [1.0; 4]).unwrap();
+        assert_eq!(m.count_vertices(), 40 * (CARD_ROWS + 1) * 2);
+        assert_eq!(m.indices().unwrap().len(), 40 * CARD_ROWS * 6);
+        let Some(VertexAttributeValues::Float32x3(p)) = m.attribute(Mesh::ATTRIBUTE_POSITION) else { panic!() };
+        assert!(p.iter().all(|v| v.iter().all(|c| c.is_finite())));
+        let Some(VertexAttributeValues::Float32x3(n)) = m.attribute(Mesh::ATTRIBUTE_NORMAL) else { panic!() };
+        assert!(n.iter().all(|v| (Vec3::from(*v).length() - 1.0).abs() < 1e-4));
+        // every card ends lower than the raw 0.3 m card and wider than the raw 0.6 m
+        let per = (CARD_ROWS + 1) * 2;
+        for chunk in p.chunks(per) {
+            let top = chunk[per - 1][1].max(chunk[per - 2][1]);
+            assert!(top < 0.3 && top > 0.1, "tip height {top}");
+            let w = (Vec3::from(chunk[0]) - Vec3::from(chunk[1])).length();
+            assert!(w > 0.6 * 1.4 && w < 0.6 * 2.3, "width {w}");
+        }
+        // the tips are bent away from the base line for at least some instances
+        assert!(p.chunks(per).any(|c| {
+            let mid = Vec3::from(c[per - 1]) + Vec3::from(c[per - 2]) - Vec3::from(c[0]) - Vec3::from(c[1]);
+            Vec3::new(mid.x, 0.0, mid.z).length() > 0.05
+        }));
+    }
+
+    #[test]
+    fn card_shape_stays_in_range() {
+        for k in 0..200 {
+            let i = PlantInstance { x: 0.0, z: 0.0, yaw: k as f32 * 0.31, scale_h: 1.0, scale_v: 1.0, tint: (k as f32 * 0.071).fract() };
+            let (w, h, l) = card_shape(&i);
+            assert!((1.5..=2.2).contains(&w) && (0.62..=0.84).contains(&h) && l.abs() <= 0.5, "{w} {h} {l}");
+        }
     }
 
     #[test]
