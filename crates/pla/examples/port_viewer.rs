@@ -1144,12 +1144,19 @@ fn add_viewer_systems(app: &mut App) {
     );
     app.init_resource::<ArenaExtents>();
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
-    app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
+    app.add_systems(OnExit(GameState::Battle), (cleanup_battle_arena, restore_battle_occluders));
     app.add_systems(
         Update,
         (measure_arena_models, publish_foe_height)
             .chain()
             .run_if(in_state(GameState::Battle)),
+    );
+    // After `update_camera_transform`, so it hides the objects blocking the final camera.
+    app.add_systems(
+        Update,
+        hide_battle_occluders
+            .run_if(in_state(GameState::Battle))
+            .after(update_camera_transform),
     );
     app.add_systems(
         Update,
@@ -2435,6 +2442,32 @@ fn spawn_aim_hint(mut commands: Commands) {
     ));
 }
 
+/// Cache of the battle camera placement: trail hit rays against placed objects are expensive, so
+/// a placement is kept while the two creatures and the opponent size do not change, and recomputed
+/// at least every `BATTLE_CAM_TTL` frames (the object streaming can still add a blocker late).
+#[derive(Default)]
+struct BattleCameraCache {
+    key: Option<(Vec3, Vec3, pla::game::battle_camera::ModelSize)>,
+    pose: (Vec3, Vec3),
+    age: u32,
+}
+
+const BATTLE_CAM_TTL: u32 = 60;
+
+impl BattleCameraCache {
+    fn matches(&self, p: Vec3, w: Vec3, foe: pla::game::battle_camera::ModelSize) -> bool {
+        self.age < BATTLE_CAM_TTL
+            && self
+                .key
+                .is_some_and(|(cp, cw, cf)| {
+                    cp.distance_squared(p) < 1e-4
+                        && cw.distance_squared(w) < 1e-4
+                        && (cf.height - foe.height).abs() < 1e-3
+                        && (cf.radius - foe.radius).abs() < 1e-3
+                })
+    }
+}
+
 /// Transform solver using canonical PLA spherical coordinates:
 /// ΔX = dist * cos(pitch) * sin(yaw)
 /// ΔY = dist * sin(pitch)
@@ -2453,6 +2486,8 @@ fn update_camera_transform(
         ),
     >,
     extents: Option<Res<ArenaExtents>>,
+    world_collision: Option<Res<pla::game::world_collision::WorldCollision>>,
+    mut battle_cam_cache: Local<BattleCameraCache>,
     mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
 ) {
     let Ok(player_xf) = player_query.single() else {
@@ -2478,7 +2513,31 @@ fn update_camera_transform(
         if let (Some(p), Some(w)) = (p_pos, w_pos) {
             // Frame the whole opponent: a giant (Giratina) needs the camera further back/up.
             let foe = extents.as_ref().map(|e| e.size[1]).unwrap_or_default();
-            let (cam_pos, look_target) = pla::game::battle_camera::pose(p, w, foe);
+            // Placed world objects (rocks, houses, fences) can sit right where the camera goes:
+            // step forward / lift / shift sideways until both creatures are in a clear sight
+            // line (the look-at point itself can sit next to a rock face), keeping the side and
+            // the opponent's framing. Objects that still block are hidden by
+            // `hide_battle_occluders` for this battle. The hit rays are expensive, so the result
+            // is cached while the creatures stand still (battle) and refreshed by TTL.
+            let (cam_pos, look_target) = if battle_cam_cache.matches(p, w, foe) {
+                battle_cam_cache.age += 1;
+                battle_cam_cache.pose
+            } else {
+                let pose = match world_collision.as_deref() {
+                    Some(wc) => {
+                        let clear = |from: Vec3, _to: Vec3| {
+                            wc.segment_blocked(from, p + Vec3::Y * 0.5)
+                                || wc.segment_blocked(from, w + Vec3::Y * 0.5)
+                        };
+                        pla::game::battle_camera::pose_clear_of(p, w, foe, &clear)
+                    }
+                    None => pla::game::battle_camera::pose(p, w, foe),
+                };
+                battle_cam_cache.key = Some((p, w, foe));
+                battle_cam_cache.pose = pose;
+                battle_cam_cache.age = 0;
+                pose
+            };
             cam_xf.translation = cam_pos;
             cam_xf.look_at(look_target, Vec3::Y);
             return;
@@ -2523,6 +2582,77 @@ fn update_camera_transform(
 
     cam_xf.translation = eye_pos;
     cam_xf.look_at(look_target, Vec3::Y);
+}
+
+/// Cache of the occluder set: the hit rays only run again when the camera or a creature moves,
+/// or every `BATTLE_CAM_TTL` frames.
+#[derive(Default)]
+struct BattleOccluderCache {
+    key: Option<(Vec3, Vec3, Vec3)>,
+    blocked: Vec<usize>,
+    age: u32,
+}
+
+/// Hides placed world objects (rocks, houses, fences) that block the sight line from the battle
+/// camera to either creature, and restores any that stop blocking. Runs during a battle after
+/// the camera has been placed; [`restore_battle_occluders`] undoes it when the battle ends.
+fn hide_battle_occluders(
+    world_collision: Option<Res<pla::game::world_collision::WorldCollision>>,
+    arena_query: Query<
+        (&pla::game::pokemon_anim::PokemonBattleSlot, &Transform),
+        (With<BattleArenaMarker>, Without<Camera3d>, Without<PlayerAvatar>),
+    >,
+    camera_query: Query<&Transform, (With<Camera3d>, Without<BattleArenaMarker>, Without<PlayerAvatar>)>,
+    mut objects: Query<(&pla::game::world_objects::PlacedObject, &mut Visibility)>,
+    mut cache: Local<BattleOccluderCache>,
+) {
+    let Some(wc) = world_collision else { return };
+    let Ok(cam) = camera_query.single() else { return };
+    let mut p = None;
+    let mut w = None;
+    for (slot, xf) in &arena_query {
+        if slot.0 == 0 {
+            p = Some(xf.translation);
+        } else {
+            w = Some(xf.translation);
+        }
+    }
+    let (Some(p), Some(w)) = (p, w) else { return };
+    let eye = cam.translation;
+    let fresh = cache.age < BATTLE_CAM_TTL
+        && cache
+            .key
+            .is_some_and(|(c, cp, cw)| c.distance_squared(eye) < 1e-4 && cp.distance_squared(p) < 1e-4 && cw.distance_squared(w) < 1e-4);
+    if fresh {
+        cache.age += 1;
+    } else {
+        let mut blocked: Vec<usize> = Vec::new();
+        for pt in [p, w] {
+            for i in wc.segment_blocked_placements(eye, pt + Vec3::Y * 0.5) {
+                if !blocked.contains(&i) {
+                    blocked.push(i);
+                }
+            }
+        }
+        cache.key = Some((eye, p, w));
+        cache.blocked = blocked;
+        cache.age = 0;
+    }
+    for (obj, mut vis) in &mut objects {
+        let hide = cache.blocked.contains(&obj.0);
+        if (*vis == Visibility::Hidden) != hide {
+            *vis = if hide { Visibility::Hidden } else { Visibility::Inherited };
+        }
+    }
+}
+
+/// Restores every placed object hidden by [`hide_battle_occluders`] when the battle ends.
+fn restore_battle_occluders(mut objects: Query<&mut Visibility, With<pla::game::world_objects::PlacedObject>>) {
+    for mut vis in &mut objects {
+        if *vis == Visibility::Hidden {
+            *vis = Visibility::Inherited;
+        }
+    }
 }
 
 /// Selects the active throwable with keyboard shortcuts:
@@ -3991,6 +4121,25 @@ mod battle_arena_framing {
         assert!(cam.translation.distance(want) < 0.05, "camera {:?} is not the battle framing {want:?}", cam.translation);
         let to_foe = (w - cam.translation).normalize();
         assert!(cam.forward().as_vec3().dot(to_foe) > 0.8, "camera does not look at the opponent");
+    }
+
+    /// The expensive hit-ray placement is cached while the two creatures stand still (a battle
+    /// does not re-run the ray search every frame) and is refreshed by the TTL.
+    #[test]
+    fn battle_camera_placement_is_cached_while_nothing_moves() {
+        let mut cache = BattleCameraCache::default();
+        let (p, w) = (Vec3::new(-0.7, 0.0, -1.8), Vec3::new(0.9, 0.0, -4.4));
+        let foe = ModelSize { height: 2.0, radius: 1.0 };
+        assert!(!cache.matches(p, w, foe), "an empty cache never matches");
+        cache.key = Some((p, w, foe));
+        cache.pose = (Vec3::X, Vec3::ZERO);
+        cache.age = 0;
+        assert!(cache.matches(p, w, foe));
+        cache.age = BATTLE_CAM_TTL;
+        assert!(!cache.matches(p, w, foe), "the TTL expires");
+        cache.age = 0;
+        assert!(!cache.matches(p, w + Vec3::X * 0.1, foe), "a moved creature invalidates the cache");
+        assert!(!cache.matches(p, w, ModelSize { height: 3.0, radius: 1.0 }), "a re-measured opponent invalidates the cache");
     }
 
     /// A giant opponent (meshes taller than the arena spacing) is measured, pushed away from the
