@@ -28,7 +28,7 @@ use super::state::{not_paused, GameState};
 use super::trainer_data::{NobleCatalog, TrainerCatalog};
 use super::ui::ActiveZoneInfo;
 use super::navigation::GameNavmeshResource;
-use super::npc::{snap_ground_y, NpcWorld};
+use super::npc::{snap_ground_y, NpcLookState, NpcWorld};
 use super::player_motion::ground_surface_y;
 use super::zone::TerrainResource;
 use super::npc_model::{model_source, NpcModelCache, NpcModelPlugin, NpcModelSource, NpcSceneSpawned};
@@ -349,6 +349,7 @@ pub fn spawn_zone_trainers(
             .with_rotation(Quat::from_rotation_y(p.yaw_deg.to_radians()));
         let mut e = commands.spawn((
             TrainerNpc { key: p.key.clone(), trainer_id: p.trainer_id.clone() },
+            NpcLookState::new(p.yaw_deg.to_radians()),
             xf,
             Visibility::Inherited,
             Name::new(format!("trainer {}", p.key)),

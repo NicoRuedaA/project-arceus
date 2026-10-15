@@ -361,6 +361,15 @@ impl Battle {
         })
     }
 
+    /// Estimated damage of one move slot of `actor` against `target`, with the same estimator
+    /// [`Battle::best_damage_action`] uses (no critical chance, deterministic roll).
+    pub fn damage_estimate(&self, actor: usize, move_slot: usize, target: usize) -> Option<f32> {
+        let a = self.combatants.get(actor)?;
+        let t = self.combatants.get(target)?;
+        let m = a.moves.get(move_slot)?;
+        Some(expected_damage(a, t, &m.data, &self.type_chart, self.pla_damage))
+    }
+
     /// Choose the move with the highest estimated expected damage (no critical chance).
     pub fn best_damage_action(&self, actor: usize) -> Option<Action> {
         let target = self.target_for(actor)?;

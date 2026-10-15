@@ -18,7 +18,10 @@ use super::clock::GameClock;
 use super::navigation::GameNavmeshResource;
 use super::player_motion::ground_surface_y;
 use super::zone::TerrainResource;
-use super::npc_model::{model_source, spawn_capsule, NpcModelCache, NpcModelPlugin, MODEL_ROOT_ABOVE_GROUND};
+use super::npc_model::{
+    model_source, spawn_capsule, NpcModelCache, NpcModelPlugin, NpcSceneSpawned,
+    MODEL_ROOT_ABOVE_GROUND,
+};
 pub use super::npc_model::NpcModelSource;
 use super::state::GameState;
 use super::trainer_encounter::TrainerWorld;
@@ -128,8 +131,12 @@ pub struct NpcAnimationClip {
     pub looped: bool,
 }
 
-/// Values used by the bounded root-yaw look-at fallback. The values themselves are decoded config;
-/// their use here is a port policy and is therefore not native-behaviour proof.
+/// Values used by the bounded root-yaw and head/torso look-at. The values themselves are decoded
+/// config; their use here is a port policy and is therefore not native-behaviour proof.
+///
+/// `head_*` and `trunk_*` fields: the speeds, the ease time and the root angle are decoded
+/// (`data/npc_config.tsv`, `character_look_at_config`); the trunk share, the trunk speed factor
+/// and the per-bone angle clamps are SUPUESTO (not decoded anywhere).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NpcTuning {
     pub forward_range_m: f32,
@@ -138,6 +145,16 @@ pub struct NpcTuning {
     pub close_angle_deg: f32,
     pub look_behind_angle_deg: f32,
     pub head_rotation_speed_deg_s: f32,
+    pub head_start_speed_deg_s: f32,
+    pub head_disable_speed_deg_s: f32,
+    pub head_ease_time_s: f32,
+    /// SUPUESTO: how much of the look the torso takes before the head.
+    pub trunk_share: f32,
+    /// SUPUESTO: torso speed as a fraction of the head speed (slower, as a body turns).
+    pub trunk_speed_scale: f32,
+    /// SUPUESTO: per-bone yaw clamps (a human head does not spin around).
+    pub head_max_deg: f32,
+    pub trunk_max_deg: f32,
 }
 
 impl Default for NpcTuning {
@@ -149,6 +166,13 @@ impl Default for NpcTuning {
             close_angle_deg: 360.0,
             look_behind_angle_deg: 135.0,
             head_rotation_speed_deg_s: 60.0,
+            head_start_speed_deg_s: 140.0,
+            head_disable_speed_deg_s: 80.0,
+            head_ease_time_s: 0.5,
+            trunk_share: 0.5,
+            trunk_speed_scale: 0.5,
+            head_max_deg: 70.0,
+            trunk_max_deg: 30.0,
         }
     }
 }
@@ -177,12 +201,52 @@ pub struct NpcInstance {
     pub route_confidence: &'static str,
 }
 
-/// The root-yaw look-at state. Head/torso bone rotation is not fabricated because the existing
-/// player/model API does not expose a stable NPC rig contract; root yaw is bounded and deterministic.
+/// The look-at state: the bounded root yaw plus the head/torso bone offsets towards the player.
+///
+/// Bone names are VERIFIED on every exported NPC skeleton (166/166 of `work/cache/npc/*/npc.gltf`
+/// carry `head` and `spine_03`; `look` is a look-at helper node that drives nothing by itself).
+/// The offsets are applied after the animation system wrote the clip pose, so they add to the
+/// idle motion instead of replacing it (see [`apply_npc_look_bones`]).
 #[derive(Component, Debug, Clone, Copy)]
-struct NpcLookState {
-    base_yaw: f32,
-    yaw: f32,
+pub struct NpcLookState {
+    pub base_yaw: f32,
+    pub yaw: f32,
+    /// World-space residual yaw the bones still have to cover (radians, `yaw_for` sign).
+    pub gaze: f32,
+    /// Current trunk / head bone yaw offsets (radians, about the bone-local +X = world up).
+    pub trunk_yaw: f32,
+    pub head_yaw: f32,
+    /// Seconds since look-at activated (drives the decoded start-speed ease).
+    phase_s: f32,
+    active: bool,
+}
+
+impl NpcLookState {
+    pub fn new(base_yaw: f32) -> Self {
+        Self {
+            base_yaw,
+            yaw: base_yaw,
+            gaze: 0.0,
+            trunk_yaw: 0.0,
+            head_yaw: 0.0,
+            phase_s: 0.0,
+            active: false,
+        }
+    }
+}
+
+/// The head and torso bone entities of one NPC, once its model scene is spawned.
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct NpcLookBones {
+    pub head: Option<Entity>,
+    pub trunk: Option<Entity>,
+}
+
+/// Marks a bone driven by [`apply_npc_look_bones`] and remembers its animated base rotation.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct NpcLookBoneState {
+    base: Quat,
+    last_set: Option<Quat>,
 }
 
 /// Runtime plugin. It loads only the already-decoded Brief 31 sheets.
@@ -257,7 +321,16 @@ impl Plugin for NpcPlugin {
         };
         app.add_plugins(NpcModelPlugin)
             .insert_resource(world)
-            .add_systems(Update, (refresh_npc_selection, stream_npcs, npc_look_at).chain());
+            .add_systems(
+                Update,
+                (refresh_npc_selection, stream_npcs, npc_look_at, wire_npc_look_bones).chain(),
+            )
+            .add_systems(
+                PostUpdate,
+                apply_npc_look_bones
+                    .after(bevy::app::AnimationSystems)
+                    .before(bevy::transform::TransformSystems::Propagate),
+            );
     }
 }
 
@@ -441,6 +514,23 @@ pub fn parse_npc_config(text: &str) -> NpcTuning {
             .get("npc_head_rotation_speed_per_sec")
             .copied()
             .unwrap_or(d.head_rotation_speed_deg_s),
+        head_start_speed_deg_s: values
+            .get("npc_head_start_rotation_speed_per_sec")
+            .copied()
+            .unwrap_or(d.head_start_speed_deg_s),
+        head_disable_speed_deg_s: values
+            .get("npc_head_disable_rotation_speed_per_sec")
+            .copied()
+            .unwrap_or(d.head_disable_speed_deg_s),
+        head_ease_time_s: values
+            .get("npc_head_rotation_speed_ease_time")
+            .copied()
+            .unwrap_or(d.head_ease_time_s),
+        // SUPUESTO: not decoded; see `NpcTuning` docs.
+        trunk_share: d.trunk_share,
+        trunk_speed_scale: d.trunk_speed_scale,
+        head_max_deg: d.head_max_deg,
+        trunk_max_deg: d.trunk_max_deg,
     }
 }
 
@@ -727,10 +817,7 @@ fn spawn_npc(
             idle_clip,
             route_confidence: NPC_ROUTE_CONFIDENCE,
         },
-        NpcLookState {
-            base_yaw,
-            yaw: base_yaw,
-        },
+        NpcLookState::new(base_yaw),
         Transform::from_xyz(
             placement.position[0],
             ground_y + NPC_ROOT_ABOVE_GROUND,
@@ -765,7 +852,13 @@ fn npc_look_at(
     player: Query<&Transform, With<PlayerAvatar>>,
     mut npcs: Query<
         (&mut Transform, &mut NpcLookState),
-        (With<NpcInstance>, Without<PlayerAvatar>),
+        (
+            Or<(
+                With<NpcInstance>,
+                With<super::trainer_encounter::TrainerNpc>,
+            )>,
+            Without<PlayerAvatar>,
+        ),
     >,
     state: Option<Res<State<GameState>>>,
 ) {
@@ -774,11 +867,12 @@ fn npc_look_at(
     }
     let Ok(player) = player.single() else { return };
     let tuning = tuning.map_or_else(NpcTuning::default, |world| world.tuning);
+    let dt = time.delta_secs();
     for (mut transform, mut look) in &mut npcs {
         let dx = player.translation.x - transform.translation.x;
         let dz = player.translation.z - transform.translation.z;
         let distance = (dx * dx + dz * dz).sqrt();
-        let target = if distance <= tuning.close_range_m {
+        let looked_at = if distance <= tuning.close_range_m {
             Some(look_target_from_vector(
                 look.base_yaw,
                 dx,
@@ -794,14 +888,120 @@ fn npc_look_at(
         } else {
             None
         };
-        let target = target.unwrap_or(look.base_yaw);
-        look.yaw = step_bounded_look(
-            look.yaw,
-            target,
-            tuning.head_rotation_speed_deg_s,
-            time.delta_secs(),
-        );
+        let target = looked_at.unwrap_or(look.base_yaw);
+        look.yaw = step_bounded_look(look.yaw, target, tuning.head_rotation_speed_deg_s, dt);
         transform.rotation = Quat::from_rotation_y(look.yaw);
+
+        // Head / torso: cover the residual between the root yaw and the actual player
+        // direction (the root clamps at `look_behind_angle_deg`; the bones reach further).
+        let active = looked_at.is_some();
+        if active != look.active {
+            look.active = active;
+            look.phase_s = 0.0;
+        }
+        look.phase_s = if active { look.phase_s + dt } else { 0.0 };
+        look.gaze = if active {
+            angle_diff(look.yaw, dx.atan2(dz))
+        } else {
+            0.0
+        };
+        let (trunk_target, head_target) = look_bone_targets(look.gaze, &tuning);
+        let speed = bone_speed_deg_s(&tuning, active, look.phase_s);
+        look.trunk_yaw = step_bone_yaw(look.trunk_yaw, trunk_target, speed * tuning.trunk_speed_scale, dt);
+        look.head_yaw = step_bone_yaw(look.head_yaw, head_target, speed, dt);
+    }
+}
+
+/// Clamps and splits a world-space look residual (radians, `yaw_for` sign) between the torso
+/// and the head bone: the torso takes its share first, the head takes the rest inside its own
+/// clamp. SUPUESTO: share and clamps are port policy, not decoded values.
+pub fn look_bone_targets(gaze: f32, tuning: &NpcTuning) -> (f32, f32) {
+    let trunk_max = tuning.trunk_max_deg.to_radians();
+    let head_max = tuning.head_max_deg.to_radians();
+    let trunk = (gaze * tuning.trunk_share).clamp(-trunk_max, trunk_max);
+    let head = (gaze - trunk).clamp(-head_max, head_max);
+    (trunk, head)
+}
+
+/// Moves a bone offset towards `target` by at most `speed_deg_s * dt`.
+pub fn step_bone_yaw(value: f32, target: f32, speed_deg_s: f32, dt: f32) -> f32 {
+    let max_step = speed_deg_s.max(0.0).to_radians() * dt.max(0.0);
+    let delta = target - value;
+    if delta.abs() <= max_step {
+        target
+    } else {
+        value + max_step * delta.signum()
+    }
+}
+
+/// Rotation speed of one bone servo: while the NPC looks at the player, the decoded start
+/// speed eases (linearly; the ease curve function is not decoded, SUPUESTO) into the steady
+/// speed over `head_ease_time_s`; while released it returns at the decoded disable speed.
+pub fn bone_speed_deg_s(tuning: &NpcTuning, active: bool, phase_s: f32) -> f32 {
+    if !active {
+        return tuning.head_disable_speed_deg_s;
+    }
+    let t = if tuning.head_ease_time_s > 0.0 {
+        (phase_s / tuning.head_ease_time_s).clamp(0.0, 1.0)
+    } else {
+        1.0
+    };
+    tuning.head_start_speed_deg_s * (1.0 - t) + tuning.head_rotation_speed_deg_s * t
+}
+
+/// Finds the `head` and `spine_03` bones of a spawned NPC model once (VERIFIED node names in
+/// the exported skeletons) and tags them for [`apply_npc_look_bones`].
+fn wire_npc_look_bones(
+    mut commands: Commands,
+    q: Query<(Entity, Option<&NpcLookBones>), (With<NpcLookState>, With<NpcSceneSpawned>)>,
+    children: Query<&Children>,
+    names: Query<&Name>,
+) {
+    for (root, wired) in &q {
+        if wired.is_some() {
+            continue;
+        }
+        let (mut head, mut trunk) = (None, None);
+        for d in children.iter_descendants(root) {
+            let Ok(name) = names.get(d) else { continue };
+            match name.as_str() {
+                "head" if head.is_none() => head = Some(d),
+                "spine_03" if trunk.is_none() => trunk = Some(d),
+                _ => {}
+            }
+        }
+        if head.is_none() && trunk.is_none() {
+            continue;
+        }
+        for d in [head, trunk].into_iter().flatten() {
+            commands.entity(d).insert(NpcLookBoneState {
+                base: Quat::IDENTITY,
+                last_set: None,
+            });
+        }
+        commands.entity(root).insert(NpcLookBones { head, trunk });
+    }
+}
+
+/// Adds the head/torso offsets on top of the animated pose. Runs after the animation system
+/// (which rewrites the bones every frame) and before the transform propagation, like the
+/// creature root-motion pin. When a clip does not animate a bone (fallback models, no clip),
+/// the stored base rotation is reused: the offset never compounds frame over frame.
+fn apply_npc_look_bones(
+    looks: Query<(&NpcLookState, &NpcLookBones)>,
+    mut bones: Query<(&mut Transform, &mut NpcLookBoneState)>,
+) {
+    for (look, refs) in &looks {
+        for (entity, offset) in [(refs.trunk, look.trunk_yaw), (refs.head, look.head_yaw)] {
+            let Some(entity) = entity else { continue };
+            let Ok((mut t, mut st)) = bones.get_mut(entity) else { continue };
+            if st.last_set != Some(t.rotation) {
+                st.base = t.rotation; // a fresh pose from the clip this frame
+            }
+            let yaw = Quat::from_axis_angle(Vec3::X, offset);
+            t.rotation = st.base * yaw;
+            st.last_set = Some(t.rotation);
+        }
     }
 }
 
@@ -904,10 +1104,87 @@ mod tests {
 
     #[test]
     fn config_parser_uses_decoded_reaction_and_look_values() {
-        let text = "file:string*\tparam:string*\tvalue:string\n npc_ai_config\tOutdoor_ForwardReactionRange_Distance\t3.5\n character_look_at_config\tnpc_head_rotation_speed_per_sec\t60\n";
+        let text = "file:string*\tparam:string*\tvalue:string\n npc_ai_config\tOutdoor_ForwardReactionRange_Distance\t3.5\n character_look_at_config\tnpc_head_rotation_speed_per_sec\t60\n character_look_at_config\tnpc_head_start_rotation_speed_per_sec\t140\n character_look_at_config\tnpc_head_rotation_speed_ease_time\t0.5\n character_look_at_config\tnpc_head_disable_rotation_speed_per_sec\t80\n";
         let tuning = parse_npc_config(text);
         assert_eq!(tuning.forward_range_m, 3.5);
         assert_eq!(tuning.head_rotation_speed_deg_s, 60.0);
+        assert_eq!(tuning.head_start_speed_deg_s, 140.0);
+        assert_eq!(tuning.head_ease_time_s, 0.5);
+        assert_eq!(tuning.head_disable_speed_deg_s, 80.0);
+    }
+
+    #[test]
+    fn look_bone_targets_split_and_clamp() {
+        let t = NpcTuning::default();
+        assert_eq!(look_bone_targets(0.0, &t), (0.0, 0.0));
+        // 86 degrees: the torso takes half (43) clamped to 30, the head the remaining 56.
+        let (trunk, head) = look_bone_targets(86.0f32.to_radians(), &t);
+        assert!((trunk.to_degrees() - 30.0).abs() < 1e-4, "{trunk}");
+        assert!((head.to_degrees() - 56.0).abs() < 1e-4, "{head}");
+        // 180 degrees: both clamped (30 + 70).
+        let (trunk, head) = look_bone_targets(std::f32::consts::PI, &t);
+        assert!((trunk.to_degrees() - 30.0).abs() < 1e-4, "{trunk}");
+        assert!((head.to_degrees() - 70.0).abs() < 1e-4, "{head}");
+        // Negative side mirrors, and the bones never exceed trunk + head.
+        let (trunk, head) = look_bone_targets(-std::f32::consts::PI, &t);
+        assert!(trunk < 0.0 && head < 0.0);
+        assert!((trunk + head).abs() <= (30.0 + 70.0f32).to_radians() + 1e-4);
+    }
+
+    #[test]
+    fn bone_speeds_follow_the_decoded_config() {
+        let t = NpcTuning::default();
+        // Start 140 deg/s easing into the steady 60 over 0.5 s; return at 80.
+        assert_eq!(bone_speed_deg_s(&t, true, 0.0), 140.0);
+        assert_eq!(bone_speed_deg_s(&t, true, 0.25), 100.0);
+        assert_eq!(bone_speed_deg_s(&t, true, 0.5), 60.0);
+        assert_eq!(bone_speed_deg_s(&t, true, 9.0), 60.0);
+        assert_eq!(bone_speed_deg_s(&t, false, 0.0), 80.0);
+        // One step never exceeds the speed.
+        let v = step_bone_yaw(0.0, 1.0f32.to_radians(), 60.0, 1.0 / 60.0);
+        assert!((v.to_degrees() - 1.0).abs() < 1e-4, "{v}");
+        // A settled servo holds its target.
+        assert_eq!(step_bone_yaw(0.5, 0.5, 60.0, 1.0 / 60.0), 0.5);
+    }
+
+    #[test]
+    fn head_and_torso_bones_are_wired_by_their_exported_names_and_do_not_compound() {
+        // Headless Bevy: a root whose model scene carries the exported bone names gets wired,
+        // and the apply system turns exactly those bones by the servo offsets.
+        let mut app = App::new();
+        let head = app.world_mut().spawn((Name::new("head"), Transform::default())).id();
+        let trunk = app.world_mut().spawn((Name::new("spine_03"), Transform::default())).id();
+        let other = app.world_mut().spawn((Name::new("waist"), Transform::default())).id();
+        let root = app
+            .world_mut()
+            .spawn((NpcLookState::new(0.0), NpcSceneSpawned, Transform::default()))
+            .id();
+        app.world_mut().entity_mut(root).add_children(&[head, trunk, other]);
+        app.add_systems(Update, (wire_npc_look_bones, apply_npc_look_bones));
+        app.update();
+        let bones = *app.world().get::<NpcLookBones>(root).expect("wired");
+        assert_eq!(bones.head, Some(head));
+        assert_eq!(bones.trunk, Some(trunk));
+        assert!(app.world().get::<NpcLookBoneState>(head).is_some());
+        assert!(app.world().get::<NpcLookBoneState>(trunk).is_some());
+        assert!(app.world().get::<NpcLookBoneState>(other).is_none(), "only the named bones");
+        // Apply a head/torso offset (about the bone-local +X, the world up of the rig).
+        {
+            let mut look = app.world_mut().get_mut::<NpcLookState>(root).unwrap();
+            look.head_yaw = 0.5;
+            look.trunk_yaw = -0.25;
+        }
+        app.update();
+        let head_rot = app.world().get::<Transform>(head).unwrap().rotation;
+        let want = Quat::from_axis_angle(Vec3::X, 0.5);
+        assert!((head_rot.dot(want).abs() - 1.0).abs() < 1e-5, "{head_rot:?}");
+        let trunk_rot = app.world().get::<Transform>(trunk).unwrap().rotation;
+        let want = Quat::from_axis_angle(Vec3::X, -0.25);
+        assert!((trunk_rot.dot(want).abs() - 1.0).abs() < 1e-5, "{trunk_rot:?}");
+        // A bone whose clip does not rewrite it keeps its pose: applying again does not spin.
+        app.update();
+        let again = app.world().get::<Transform>(head).unwrap().rotation;
+        assert!((again.dot(head_rot).abs() - 1.0).abs() < 1e-6, "compounded: {again:?}");
     }
 
     #[test]

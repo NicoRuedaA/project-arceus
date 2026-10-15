@@ -154,3 +154,47 @@ Tests to write then: 3-vs-3 headless battle to the end with a fixed seed, forced
 ## Unknown (summary)
 
 Money formula and the reader of slot 11; root slot 10 and slot 6 sequence role; member slot 16; send-out order; balm damage per hit and stagger timings; meaning of noble encounter slots 3, 13..15, 32 and attack numbers; the name label of groups 19/36; which event starts which trainer battle (story, out of scope).
+
+## AI and Noble field phase update (2026-10-15, branch `feat/mundo-vivo`)
+
+Trainer AI (`game/trainer_battle.rs`, `game/battle_ai.rs`, `src/battle.rs`):
+
+* `trainer_rules` now honours the Expert and Allowance module bits. Expert adds
+  `expert_friendly_fire` (double battles only, never in this port's singles) and
+  `expert_lock_on_bonus`; Allowance adds the two decoded HP tiers (`allowance_hp_under_20`,
+  `allowance_hp_under_40`). Neither bit changes the current 377-trainer data by itself
+  (Allowance appears on 0 trainers; the lock-on rule needs a state the engine lacks).
+* `expert_lock_on_bonus` is now fully mapped: predicate read from the decompiled
+  `battle.lua` (`IsPokeLockOn(attacker)` and the move id not in {192, 223, 517, 47, 48, 320,
+  95, 59, 87, 123, 411, 542}), +2 on the 78 % gate. It stays dormant because the engine has no
+  lock-on state (UNKNOWN): the rule fires only when `AiFacts::attacker_lock_on` is set.
+* Gated rules now roll **per rule with that rule's sheet percentage**
+  (`BattleData::rule_chance_pct`), matching the script's per-check `IfRand`; before, every gated
+  rule shared one 70 % roll.
+* `choose_switch` ranks bench candidates with the engine's own damage estimator
+  (`Battle::damage_estimate`, the same one `best_damage_action` uses) instead of the ASSUMED
+  `power x effectiveness x STAB` proxy.
+* Still UNKNOWN: the Expert `aiSeqNo` sequence handlers (the move table carries no `aiSeqNo`)
+  and the native move-vs-switch score comparison (the switch decision keeps its recovered
+  gates).
+* Tests: `ai_module_bits_pick_the_mapped_rules` (bit -> rules, 208 expert trainers checked),
+  `expert_lock_on_bonus_matches_the_script_excluded_set` (every excluded id plus gate
+  outcomes), plus the existing switch/item/gate tests (205 battle tests green).
+
+Noble field phase (`game/noble_field.rs`, new): the rules model of the action part, fed by the
+already-decoded `data/boss_battles.tsv` (gauge capacity, balm item) and
+`data/boss_field_attacks.tsv` (109 attacks: kind, knock, status, `h` variants).
+
+* Checkpoints at 75/50/25 % lock gauge progress and open the stagger window; 0 % dispatches the
+  pacification (`result_nushi`); crossing 50 % starts phase 2 (SUPUESTO: the trigger point is
+  not decoded, the aura modes are). While locked the gauge holds at the crossed threshold
+  (SUPUESTO reading of "locks progress"). `open_turn_battle()` models the bridge into the
+  existing turn-based `start_noble`. Phase 2 uses the `h` attacks (ASSUMED from the `h` name
+  segment).
+* UNKNOWN as named parameters: balm damage per hit (`BALM_DAMAGE_ASSUMED = 100`) and the
+  stagger length (`STAGGER_SECONDS_ASSUMED = 8 s`); rematches (no gauge capacity) have no field
+  phase.
+* Tests: 6 (checkpoints/lock/stagger/pacify, single-big-hit clamp, per-phase attacks, rematches,
+  and a real-sheet check: 109 rows, ns06 11 with 6 `h`, ns02 4 with 1 `h`, matching
+  `boss_battles` counts). The in-world system (roaming Noble, telegraphed attacks, balm
+  ballistics) stays pending under Brief D5.
