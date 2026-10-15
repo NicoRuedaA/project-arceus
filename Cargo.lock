@@ -499,6 +499,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_anti_alias"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dde973fc942cb596b03cae0dbece0a4d9dc2d2790bbc9852aa415affc1210d3a"
+dependencies = [
+ "bevy_app",
+ "bevy_asset",
+ "bevy_camera",
+ "bevy_core_pipeline",
+ "bevy_derive",
+ "bevy_diagnostic",
+ "bevy_ecs",
+ "bevy_image",
+ "bevy_math",
+ "bevy_reflect",
+ "bevy_render",
+ "bevy_shader",
+ "bevy_utils",
+ "tracing",
+]
+
+[[package]]
 name = "bevy_app"
 version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -955,6 +977,7 @@ dependencies = [
  "bevy_a11y",
  "bevy_android",
  "bevy_animation",
+ "bevy_anti_alias",
  "bevy_app",
  "bevy_asset",
  "bevy_camera",
@@ -4213,13 +4236,16 @@ dependencies = [
  "bevy_audio",
  "bevy_gltf",
  "mlua",
+ "naga",
  "oozextract",
  "phf",
  "phf_codegen",
  "png",
+ "serde",
  "serde_json",
  "sheetty",
  "tegra_swizzle",
+ "wgpu",
 ]
 
 [[package]]

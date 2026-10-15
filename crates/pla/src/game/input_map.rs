@@ -16,7 +16,9 @@
 //! | Zoom | R (closer) / F (farther) | not mapped |
 //! | Sprint | Shift (held) | L3, left stick click (held) |
 //! | Aim toggle | Z / Tab | ZL |
-//! | Dodge | not mapped | Y |
+//! | Dodge (roll) | H | Y (north) |
+//! | Crouch (toggle) | Left Ctrl | R3, right stick click |
+//! | Jump / grab climbable | K | X (west; the original jumps only while riding; port choice) |
 //! | Throw | not mapped | ZR |
 //! | Confirm | Enter / NumpadEnter / Space | A (south) |
 //! | Cancel | Escape / Backspace | B (east) |
@@ -55,6 +57,11 @@ pub enum Action {
     Menu,
     Sprint,
     Dodge,
+    /// Jump / climb grab (Brief 13). The original has no plain on-foot jump
+    /// (jumping is a ride action there), so the binding is a port choice.
+    Jump,
+    /// Crouch toggle (Brief 22). The original's crouch binding is not known; port choice.
+    Crouch,
     Aim,
     Throw,
     Prev,
@@ -217,6 +224,17 @@ impl RawInput {
         if keys.any_just_pressed([KeyCode::KeyZ, KeyCode::Tab]) {
             key_pressed.push(Action::Aim);
         }
+        // H / Left Ctrl: free keys (Brief 22); the original bindings are not known.
+        if keys.just_pressed(KeyCode::KeyH) {
+            key_pressed.push(Action::Dodge);
+        }
+        if keys.just_pressed(KeyCode::ControlLeft) {
+            key_pressed.push(Action::Crouch);
+        }
+        // K, not X: the viewer already uses X to throw bait while aiming.
+        if keys.just_pressed(KeyCode::KeyK) {
+            key_pressed.push(Action::Jump);
+        }
 
         Self {
             key_move,
@@ -235,7 +253,7 @@ impl RawInput {
 
         // The same physical button may map to a field action and a battle action
         // (e.g. Y: dodge in the world, Fight in battle); consumers are state gated.
-        const BUTTONS: [(GamepadButton, Action); 15] = [
+        const BUTTONS: [(GamepadButton, Action); 17] = [
             (GamepadButton::South, Action::Confirm),
             (GamepadButton::East, Action::Cancel),
             (GamepadButton::Start, Action::Menu),
@@ -244,8 +262,10 @@ impl RawInput {
             (GamepadButton::DPadDown, Action::Next),
             (GamepadButton::DPadRight, Action::Next),
             (GamepadButton::North, Action::Dodge),
-            (GamepadButton::North, Action::OpenFight),
+                        (GamepadButton::North, Action::OpenFight),
             (GamepadButton::West, Action::OpenSwitch),
+            (GamepadButton::West, Action::Jump),
+            (GamepadButton::RightThumb, Action::Crouch),
             (GamepadButton::LeftTrigger, Action::OpenItem),
             (GamepadButton::RightTrigger, Action::OpenRun),
             (GamepadButton::RightTrigger2, Action::Throw),
@@ -516,6 +536,32 @@ mod tests {
         assert!(state.just_pressed(Action::OpenCapture));
         assert!(state.just_pressed(Action::Aim));
         assert!(state.pressed(Action::Sprint));
+    }
+
+    #[test]
+    fn jump_maps_to_keyboard_k_and_pad_west() {
+        let raw = RawInput::from_keyboard(&keyboard(&[KeyCode::KeyK]));
+        assert_eq!(raw.key_pressed, vec![Action::Jump]);
+        let mut raw = RawInput::default();
+        raw.merge_gamepad(&gamepad(&[GamepadButton::West]));
+        let state = actions(&raw);
+        assert!(state.just_pressed(Action::Jump));
+        // North stays the dodge button; it must not also jump.
+        let mut raw = RawInput::default();
+        raw.merge_gamepad(&gamepad(&[GamepadButton::North]));
+        let state = actions(&raw);
+        assert!(state.just_pressed(Action::Dodge));
+        assert!(!state.just_pressed(Action::Jump));
+    }
+
+    #[test]
+    fn dodge_and_crouch_have_keyboard_and_pad_bindings() {
+        let raw = RawInput::from_keyboard(&keyboard(&[KeyCode::KeyH, KeyCode::ControlLeft]));
+        assert!(raw.key_pressed.contains(&Action::Dodge));
+        assert!(raw.key_pressed.contains(&Action::Crouch));
+        let mut raw = RawInput::default();
+        raw.merge_gamepad(&gamepad(&[GamepadButton::RightThumb]));
+        assert!(actions(&raw).just_pressed(Action::Crouch));
     }
 
     #[test]

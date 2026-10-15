@@ -480,7 +480,14 @@ pub struct TerrainResource {
 pub struct ZoneBinRoot(pub PathBuf);
 
 /// Resolves baked terrain albedo texture for the given area from cache or bakes at startup.
+/// The baked terrain albedo, reduced to the Graphics screen "Terrain texture" size
+/// ([`super::quality::terrain_texture_max`], 0 = as baked).
 pub fn resolve_terrain_albedo(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
+    resolve_terrain_albedo_full(area_idx, area_data)
+        .map(|t| super::quality::limit_texture(t, super::quality::terrain_texture_max(), true))
+}
+
+fn resolve_terrain_albedo_full(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
     let candidate_dirs = [
         std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
         Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
@@ -531,7 +538,13 @@ pub fn resolve_terrain_albedo(area_idx: u8, area_data: &TerrainArea) -> Option<T
 /// Resolves baked terrain tangent-space normals from cache (same search order as the
 /// albedo), else bakes them at startup. `None` when the area has no layer
 /// normals or the bake fails, so the terrain keeps its albedo-only look.
+/// The baked terrain normals, reduced like [`resolve_terrain_albedo`].
 pub fn resolve_terrain_normals(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
+    resolve_terrain_normals_full(area_idx, area_data)
+        .map(|t| super::quality::limit_texture(t, super::quality::terrain_texture_max(), false))
+}
+
+fn resolve_terrain_normals_full(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
     let candidate_dirs = [
         std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
         Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
@@ -713,6 +726,8 @@ pub enum ZoneChangeSource {
     FastTravel,
     /// Debug key under `--debug-zone-links`.
     Debug,
+    /// The pause menu's Load game row (back to where the save was made).
+    LoadGame,
 }
 
 /// Request to load `zone` and place the player at `spawn` (destination frame) facing `yaw_deg`.
@@ -918,7 +933,9 @@ pub fn apply_zone_change(
     }
     // Placed-object walls live in the old area's frame: swap them for the new area's (or none),
     // otherwise the old houses would stand as invisible walls in the new area.
-    if let Some(mut walls) = world.get_resource_mut::<crate::game::world_collision::WorldCollision>() {
+    if let Some(mut walls) =
+        world.get_resource_mut::<crate::game::world_collision::WorldCollision>()
+    {
         if let Err(e) = walls.switch_area(area_idx) {
             eprintln!("zone: no placed-object walls in ha_area{area_idx:02}: {e}");
         }
@@ -956,15 +973,45 @@ pub fn apply_zone_change(
         let safe = safe_start_for(area_idx, mesh, &comps);
         landing_point(mesh, &comps, wanted, safe)
     });
-    Ok(landing.unwrap_or((wanted, request.spawn.y)))
+    let (mut xz, mut y) = landing.unwrap_or((wanted, request.spawn.y));
+    // The decoded arrival can coincide with an NPC placement (the capture showed the player fused
+    // into the area 00 elder): nudge the landing out of the nearest active spot, re-reading the
+    // navmesh height under the nudged point when it is still walkable.
+    if let Some(npcs) = world.get_resource::<crate::game::npc::NpcWorld>() {
+        if let Some(clear) =
+            crate::game::npc::landing_clear_of_npcs(xz, npcs.spots_in_area(&request.zone))
+        {
+            if let Some(nav) = world.get_resource::<GameNavmeshResource>() {
+                let mesh = nav.nav.primary();
+                let comps = sp::components(mesh);
+                if let sp::PointStatus::Walkable { y: clear_y, .. } =
+                    sp::classify_point(mesh, &comps, clear.x, clear.y)
+                {
+                    y = clear_y;
+                }
+            }
+            println!(
+                "Zone change: landing ({:.1}, {:.1}) moved to ({:.1}, {:.1}) to clear an NPC",
+                xz.x, xz.y, clear.x, clear.y
+            );
+            xz = clear;
+        }
+    }
+    Ok((xz, y))
 }
 
 /// Despawn every creature streamed from the previous area's spawners (with its model children)
 /// and install `spawners` as the active table. Clearing only the tracking map would orphan those
 /// entities: nothing would ever unload them again.
-pub fn replace_area_spawners(world: &mut World, spawners: Vec<crate::game::wild::SpawnerDefinition>) {
+pub fn replace_area_spawners(
+    world: &mut World,
+    spawners: Vec<crate::game::wild::SpawnerDefinition>,
+) {
     if let Some(mut consumed) = world.get_resource_mut::<crate::game::wild::ConsumedSpawners>() {
         consumed.clear();
+    }
+    if let Some(mut safety) = world.get_resource_mut::<crate::game::wild::EncounterSafety>() {
+        safety.request_arrival();
     }
     let Some(mut active) = world.get_resource_mut::<ActiveAreaSpawners>() else {
         return;
@@ -1207,11 +1254,16 @@ mod tests {
         assert!(active.spawned_entities.is_empty());
         assert_eq!(active.spawners.len(), 1);
         assert_eq!(active.spawners[0].spawner_id, "new");
-        assert!(world.get_entity(creature).is_err(), "old creature despawned");
+        assert!(
+            world.get_entity(creature).is_err(),
+            "old creature despawned"
+        );
         assert!(world.get_entity(model).is_err(), "its model child too");
         assert!(world.get_entity(unrelated).is_ok());
         assert!(
-            !world.resource::<crate::game::wild::ConsumedSpawners>().is_consumed("new", 1.0),
+            !world
+                .resource::<crate::game::wild::ConsumedSpawners>()
+                .is_consumed("new", 1.0),
             "spawner ids repeat across areas: the consumed set is reset"
         );
     }
@@ -1664,13 +1716,19 @@ mod tests {
         use bevy::state::app::StatesPlugin;
 
         let links = sheet();
-        let door = links.by_name("DOOR_AREA00_S01_1_TO_AREA00").unwrap().clone();
+        let door = links
+            .by_name("DOOR_AREA00_S01_1_TO_AREA00")
+            .unwrap()
+            .clone();
         let sheet_path = find_data_file("warp_links.tsv").unwrap();
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, StatesPlugin));
         app.init_state::<GameState>();
         app.insert_resource(ButtonInput::<KeyCode>::default());
-        app.add_plugins(ZonePlugin { links_path: Some(sheet_path), debug_links: true });
+        app.add_plugins(ZonePlugin {
+            links_path: Some(sheet_path),
+            debug_links: true,
+        });
         app.insert_resource(ActiveZoneInfo {
             area: "ha_area00".into(),
             name: zone_display_name("ha_area00"),
@@ -1683,14 +1741,21 @@ mod tests {
         assert_eq!(app.world().resource::<ZoneLinks>().len(), 134);
         assert!(app.world().resource::<ZoneLoading>().is_idle());
 
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyE);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyE);
         app.update();
         assert_eq!(
             app.world().resource::<ZoneLoading>().phase,
             ZonePhase::FadingOut,
             "door interact started the change"
         );
-        let target = app.world().resource::<ZoneLoading>().pending.as_ref().unwrap();
+        let target = app
+            .world()
+            .resource::<ZoneLoading>()
+            .pending
+            .as_ref()
+            .unwrap();
         assert_eq!(target.zone, door.to_area);
         assert_eq!(target.source, ZoneChangeSource::Door);
 

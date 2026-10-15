@@ -4,10 +4,10 @@
 stand, which way they face, which "costume recipe" they wear, and under which story or time-of-day condition that
 row is active. All of that is now decoded into sheets. A generic villager is built like a doll from three pieces
 (a shared body skeleton, a dress and a head) and the game's recipe table says which pieces; the named characters
-(guards, wardens, the Pearl/Diamond clan leaders...) are one ready-made model each. Three NPCs were assembled with the
-existing player pipeline and rendered offscreen: shapes, faces and walk poses are right; generic villagers come out
-with too-light clothes, white hair and pale skin because their colours are chosen at runtime and that rule is not in
-the files found. NPCs do not walk along stored routes: the only path data belongs to wild Pokémon.
+(guards, wardens, the Pearl/Diamond clan leaders...) are one ready-made model each. The exporter now has fresh
+evidence for 166 successful selected IDs; shapes, faces and walk poses are not pixel-checked, and clothing, hair,
+skin and eye palettes remain **ASSUMED**. NPCs do not walk along stored routes: the only path data belongs to wild
+Pokémon.
 
 Out of scope and not decoded: dialogue, text, story/quest scripts. Story gates are kept as raw flag names and values.
 
@@ -21,7 +21,30 @@ Out of scope and not decoded: dialogue, text, story/quest scripts. Story gates a
 
 Tools: `.tools/npc_decode.py` (needs `.tools/gfdump`, numpy for the id search), `crates/pla/examples/npc_report.rs`
 (headless counts + ground check), `crates/pla/examples/npc_export.rs` (glTF assembly), `.tools/npc_render_sheet.py`
-(one-process Blender contact sheet). Nothing here was run in the viewer; no game code was traced.
+(one-process Blender contact sheet). Runtime and visual evidence are recorded separately below; no claim is made that
+the port matches the original game's pixels or palette rules.
+
+### Export evidence and cache
+
+- The prior selected export evidence covers **151 IDs: 142 `ok` and 9 originally `blocked`**. The original 9
+  failures were repaired by a fresh rerun; no blocked IDs remain.
+- The interrupted follow-up is recorded separately as **15/15 `ok`**: 12 unresolved placement hashes plus
+  `tr0009_00_ninja1_m_item`, `tr0036_00_senpai_m` and `tr0037_00_senpai_f`.
+- These logs therefore establish **166 successful fresh export results**, matching the **166 current glTF
+  directories** in the local cache (**166/166 successful current cache exports**). All **36/36 named `tr` recipes**
+  now have `npc.gltf` files in the cache.
+- Runtime lookup is `work/cache/npc/<id>/npc.gltf`. A missing, unreadable or failed model uses the caller's capsule;
+  `PLA_NPC_MODELS=0` also forces that fallback. This cache is local and git-ignored.
+
+### Runtime visual and performance evidence
+
+- The final windowless GPU run used 1920×1080 in `ha_area00` and `ha_area02`. The four PNGs in
+  `/home/nico/work/capturas_npc/` show cached NPC and trainer models without a T-pose, black face materials or a
+  duplicate trainer marker. The trainer model is grounded; the close NPC frame is too tightly cropped to prove its
+  feet. Palette and pixel fidelity remain **ASSUMED**.
+- A 300-frame `ha_area00` measurement with roughly the village NPC population recorded **24.48 ms mean / 26.12 ms
+  p95** with capsules and **21.78 ms mean / 21.12 ms p95** with cached models. This is a port-side comparison, not
+  a measurement of the original game; the runs used the same area and automation path.
 
 ## 1. Placement (`npc`, `npc_pokemon` placement kinds)
 
@@ -101,18 +124,19 @@ dress (`rig offset 137+`) carry extension skeletons exactly like the player's pa
 `bu` child, `cf`/`cm` old, `df`/`dm` adult. **Distinct looks:** 54 dress x face combinations among the cc recipes
 (52 placed), 37 dress models, 36 face models; plus 33 tr packs (36 tr ids). 164 distinct characters are placed.
 Colours: the cc materials, like the player's, have white `BaseColorLayer*` and grey hair tiles; no per-NPC colour
-field was found in the recipe (unknown: runtime palette or the unexplained recipe field f9 / f2).
+field was found in the recipe (unknown: runtime palette or the unexplained recipe field f9 / f2). Any palette
+interpretation remains **ASSUMED**.
 
 ### Samples assembled (`npc_export`, offscreen Blender sheet looked at)
 
 | Id | Parts | Primitives | Clips | Height | Look (honest) |
 |---|---|--:|---|--:|---|
-| `cc0058_00_vi_young_m_c` (adult villager, 36 placements) | base + `dm_dress0002_00` + `dm_face0002_00` | 15 | idle, walk, run | 1.72 m | shape, sandals, belt, face and walk pose right; tunic/trousers almost white and hair white-grey: colours not applied (runtime) |
-| `cc0016_00_pr_young_f` (Pearl-clan woman, 36) | base + `df_dress0002_03` + `df_face0002_00` | 15 | idle, walk (the controller borrows `cb0005_01_kmn_f` walk) | 1.71 m | green kimono and apron coloured correctly, hair white-grey, skin pale |
-| `tr0023_00_guard_lower_m` (guard, 59) | own pack | 22 | idle, walk (no run in its controller) | 1.81 m | red uniform, hat, mask and boots coloured; looks right |
+| `cc0058_00_vi_young_m_c` (adult villager, 36 placements) | base + `dm_dress0002_00` + `dm_face0002_00` | 15 | idle, walk, run | 1.72 m | shape, sandals, belt, face and walk pose right; tunic/trousers and hair palette are **ASSUMED** |
+| `cc0016_00_pr_young_f` (Pearl-clan woman, 36) | base + `df_dress0002_03` + `df_face0002_00` | 15 | idle, walk (the controller borrows `cb0005_01_kmn_f` walk) | 1.71 m | kimono/apron textures, hair and skin are present; their palette is **ASSUMED** |
+| `tr0023_00_guard_lower_m` (guard, 59) | own pack | 22 | idle, walk (no run in its controller) | 1.81 m | uniform, hat, mask and boots textures are present; colour/pixel correctness is **ASSUMED** |
 
 Not applied: body-type scalers (female uses the male-proportioned base skeleton; heights look plausible anyway),
-hair/skin/eye colours, held item, hide-mesh rule, face animation, IK, spring bones. Output (git-ignored):
+runtime hair/skin/eye palette (**ASSUMED**), held item, hide-mesh rule, face animation, IK, spring bones. Output (git-ignored):
 `work/cache/npc/<id>/npc.gltf`, sheet `work/cache/npc/_sheet/npc_sheet.png`.
 
 ## 3. Behaviour and animation
@@ -144,30 +168,39 @@ Hook points read in `crates/pla/src/game/` (read-only): `world_objects.rs` (dist
    Variant choice per record: drop (0,0,0) variants; prefer `time_zone*` variants matching the clock (0..3 ASSUMED
    morning/day/evening/night), else `default`, else the first story variant with a configured story level
    (`WPHA_STORY` value, e.g. post-game); keep it switchable because story semantics are not decoded.
-2. **Models**: `game/npc.rs` requests existing `work/cache/npc/<id>/npc.gltf` exports through the same
-   Bevy glTF scene and animation asset path used by the player. Missing exports use a neutral capsule only;
-   clothing, hair and skin colours remain **SUPPOSED** and are not fabricated.
-3. **Spawn** is distance-instanced like `world_objects` (200 m load / 230 m unload hysteresis), selected for
-   the active area and time slot, and ground-snapped with `navigation.height_at` when |dy| > 0.5 m. Trainer
-   red capsule markers remain owned by `trainer_encounter.rs` and are not replaced.
-4. **Idle** selects a stable `wait*_loop` candidate from the decoded controller list and plays the exported
-   `idle` clip. NPC routes remain **UNKNOWN**: `npc_paths.tsv` is wild-Pokémon path data and is not used.
+2. **Models**: `game/npc.rs` requests `work/cache/npc/<id>/npc.gltf` through the Bevy glTF scene path. The
+   `NpcModelCache` memoises each id, the asset server reuses one handle per asset path, and `npc_model.rs`
+   shares one idle animation graph per glTF across instances. Missing, unreadable or failed exports use a
+    capsule fallback; `PLA_NPC_MODELS=0` forces it. Clothing, hair, skin and eye colours remain **ASSUMED**;
+   no pixel correctness is claimed.
+3. **Spawn and grounding** are distance-instanced like `world_objects` (200 m load / 230 m unload hysteresis),
+   selected for the active area and time slot, and snapped to navmesh/terrain height when it is within 3 m of
+   the sheet Y. The glTF position bounds then place the lowest vertex on the ground. A failed NPC model uses
+   the neutral capsule; a trainer uses a red capsule when its model pack is not cached.
+4. **Idle** selects a stable `wait*_loop` candidate from the decoded controller list, exports it as `idle` when
+   available, and plays that clip through the shared graph. NPC routes remain **UNKNOWN**: `npc_paths.tsv` is
+   wild-Pokémon path data and is not used.
 5. **Look-at player** uses only bounded root yaw (forward reaction range/angle, close range, 60°/s and 135°
    behind from `npc_config`). Head/torso bones are not guessed because the existing player/model API exposes
    no stable NPC rig contract. Pure tests cover clamping and determinism.
-6. **Interaction prompt/dialogue** remains out of scope; talk ids, text and story gates are still UNKNOWN.
+6. **Trainer models** use the same cache, handles, grounding and idle systems. A cached trainer renders its real
+   model; otherwise the marker is a red capsule. After defeat, a model's scene materials receive the grey
+   defeated tint once loaded, while a capsule turns grey immediately. The NPC-to-trainer link remains
+    **ASSUMED** and defeated state is session-only.
+7. **Interaction prompt/dialogue** remains out of scope; talk ids, text and story gates are still UNKNOWN.
 
-Headless coverage for this runtime is in `game::npc` unit tests; no viewer/window/audio run is required for
-the implementation evidence.
+Headless coverage for this runtime is in `game::npc` unit tests. The separate GPU smoke run above is visual evidence,
+not a replacement for the deterministic tests and does not establish original-game parity.
 
 ## Verified / Assumed / Unknown
 
 * **Verified:** placement file locations and record structure; positions on the ground (95 % main areas, 96 % of
   interiors except the Galaxy building); character id hashes -> recipe table (all except `senpai`); recipe part
   paths, skeleton layout, clip directories; condition operator and time-zone names; NPC-Pokémon species table;
-  three NPCs assemble on the shared skeleton and look right in shape (offscreen render, not the game viewer).
+  166 selected exports have successful log rows, matching 166 current cache glTF files; all 36 named `tr` recipes
+  have cached glTF files.
 * **Assumed:** rotation in degrees about Y; absent scale = 1; (0,0,0) variant = absent; condition-kind roles;
   `senpai` resolution; behaviour f5 = idle-pose index; body-type scalers; config semantics.
-* **Unknown:** talk id (rec f3) meaning, behaviour scalars, which facial slot is talk vs idle, recipe f2/f9, NPC
-  colours (hair/skin/clothes palette), `.tracs` state machine, the Galaxy-building upper floor ground, story value
-  semantics (deliberately not decoded).
+* **Unknown:** talk id (rec f3) meaning, behaviour scalars, which facial slot is talk vs idle, recipe f2/f9, `.tracs`
+  state machine, the Galaxy-building upper floor ground, story value semantics (deliberately not decoded). NPC
+  hair/skin/clothing/eye palette is **ASSUMED** and has no pixel-correctness evidence.

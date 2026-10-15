@@ -84,6 +84,8 @@ pub struct PlayerProgress {
     pub time_minutes: u16,
     /// Ids of collected field-item spawns (`data/field_item_spawns.tsv`, save format v7, Brief 12).
     pub picked: BTreeSet<u64>,
+    /// Ids of the beaten trainers (save format v8). Filled by [`apply_outcome`] on the first win.
+    pub defeated_trainers: BTreeSet<String>,
 }
 
 impl PlayerProgress {
@@ -104,6 +106,7 @@ impl PlayerProgress {
             rng_seed: if s.rng_seed == 0 { 0x5ca1_e001 } else { s.rng_seed },
             time_minutes: s.time_minutes,
             picked: s.picked.clone(),
+            defeated_trainers: s.defeated_trainers.clone(),
         }
     }
 
@@ -125,6 +128,7 @@ impl PlayerProgress {
             caught_count: self.caught_count,
             rng_seed: self.rng_seed,
             picked: self.picked.clone(),
+            defeated_trainers: self.defeated_trainers.clone(),
             ..PlayerSave::default()
         }
     }
@@ -258,6 +262,16 @@ pub struct StartupState {
     pub play_seconds: u64,
     pub loaded: bool,
     pub message: String,
+}
+
+impl StartupState {
+    /// The saved position, only when the save belongs to `area_idx`. A save made in another
+    /// zone (e.g. Jubilife `ha_area00`) must not place the player at those coordinates inside
+    /// the area chosen with `--area` (play-test 2026-10-14: an area-00 position was reused in
+    /// area 01).
+    pub fn position_in_area(&self, area_idx: u8) -> Option<[f32; 3]> {
+        (self.area == Some(area_idx)).then_some(self.position).flatten()
+    }
 }
 
 /// Load the save unless `--new-game`. `SaveGame::message` becomes the HUD text.
@@ -449,6 +463,9 @@ pub struct BattleOutcome {
     /// `trainer_battle::trainer_prize_assumed`); `Some(0)` when the trainer stores no prize.
     /// `None` in wild battles, which pay [`victory_reward`].
     pub trainer_prize: Option<u32>,
+    /// Trainer battles: the id of the opponent (`giratina01`, `noble:<setting>`); `None` in wild
+    /// battles. A won battle against an id already in `defeated_trainers` pays no prize.
+    pub trainer_id: Option<String>,
 }
 
 /// Snapshot the session. Form and experience come from `sess.member_meta` (they change with
@@ -478,6 +495,7 @@ pub fn snapshot(sess: &ActiveBattleSession, roster: &[usize], bag_ids: &[u16]) -
         caught: wild.caught.then(|| PartyMember::from_combatant(wild)),
         rng: sess.rng.0,
         trainer_prize: sess.trainer.as_ref().map(|t| t.prize.unwrap_or(0)),
+        trainer_id: sess.trainer.as_ref().map(|t| t.id.clone()),
     }
 }
 
@@ -532,7 +550,15 @@ pub fn apply_outcome(progress: &mut PlayerProgress, out: &BattleOutcome) {
         }
     } else if out.won {
         progress.defeated = progress.defeated.saturating_add(1);
-        progress.add_money(out.trainer_prize.unwrap_or_else(|| victory_reward(out.wild_level)));
+        // A trainer pays once: a rematch of an already-beaten trainer (possible through
+        // `--trainer`) pays nothing. Wild battles always pay.
+        let first_win = match &out.trainer_id {
+            Some(id) => progress.defeated_trainers.insert(id.clone()),
+            None => true,
+        };
+        if first_win {
+            progress.add_money(out.trainer_prize.unwrap_or_else(|| victory_reward(out.wild_level)));
+        }
     }
 }
 
@@ -641,6 +667,23 @@ impl SaveToast {
 #[derive(Resource, Debug, Default)]
 pub struct SaveRequested(pub bool);
 
+/// Set to `true` by the pause menu's Load row; [`load_action`] reads the save file (the same
+/// one `Save`/F5 writes) and applies it to the running session.
+#[derive(Resource, Debug, Default)]
+pub struct LoadRequested(pub bool);
+
+/// The zone change that puts the player back where `save` was made. Going through the zone
+/// machine (fade, terrain, navmesh, spawners, lighting) also covers a save from another area.
+pub fn load_zone_request(save: &PlayerSave) -> super::zone::ZoneChangeRequest {
+    super::zone::ZoneChangeRequest {
+        zone: save.zone.clone(),
+        spawn: Vec3::from(save.position),
+        yaw_deg: save.yaw.to_degrees(),
+        source: super::zone::ZoneChangeSource::LoadGame,
+        link: None,
+    }
+}
+
 /// Set to `true` by the pause menu's Rest row; [`rest_action`] heals the party and clears it.
 #[derive(Resource, Debug, Default)]
 pub struct RestRequested(pub bool);
@@ -666,15 +709,18 @@ impl SaveWirePlugin {
             .init_resource::<BattleTracker>()
             .init_resource::<SaveToast>()
             .init_resource::<SaveRequested>()
+            .init_resource::<LoadRequested>()
             .init_resource::<RestRequested>()
+            // Also registered by `ZonePlugin`; the load writes one.
+            .add_message::<super::zone::ZoneChangeRequest>()
             // Seeded by `PlayTimePlugin` at start-up; the default keeps this plugin usable alone.
             .init_resource::<PlayTime>();
         app.add_systems(Startup, (seed_defaults, spawn_toast))
             .add_systems(PostStartup, apply_loaded_yaw)
             .add_systems(PreUpdate, battle_wire)
             .add_systems(Update, (save_hotkey, zone_autosave, toast_tick).chain())
-            // Runs even while paused (that is when the menu is open).
-            .add_systems(Update, rest_action);
+            // Run even while paused (that is when the menu is open).
+            .add_systems(Update, (rest_action, load_action));
     }
 }
 
@@ -822,6 +868,45 @@ fn rest_action(
     toast.show(report.message());
 }
 
+/// Load the save when the pause menu asked for it: party, bag, money, Pokédex, picked items,
+/// play time and clock are restored at once; position and zone through a zone change. Refused
+/// during a battle; a missing or unreadable file only shows a toast.
+#[allow(clippy::too_many_arguments)]
+pub fn load_action(
+    mut requested: ResMut<LoadRequested>,
+    mut game: ResMut<SaveGame>,
+    mut progress: ResMut<PlayerProgress>,
+    mut play: ResMut<PlayTime>,
+    clock: Option<ResMut<super::clock::GameClock>>,
+    session: Option<Res<ActiveBattleSession>>,
+    mut toast: ResMut<SaveToast>,
+    mut zone_out: MessageWriter<super::zone::ZoneChangeRequest>,
+) {
+    if !std::mem::take(&mut requested.0) {
+        return;
+    }
+    if session.is_some() {
+        toast.show("Can't load during a battle.");
+        return;
+    }
+    let Some(save) = game.load() else {
+        let why = game.message.clone().unwrap_or_default();
+        toast.show(if why.starts_with("No saved game") {
+            "No saved game to load (save first with F5 or the Save row).".to_string()
+        } else {
+            why
+        });
+        return;
+    };
+    *progress = PlayerProgress::from_save(&save);
+    *play = PlayTime::from_seconds(save.play_seconds);
+    if let Some(mut clock) = clock {
+        clock.t_hours = f32::from(save.time_minutes) / 60.0;
+    }
+    zone_out.write(load_zone_request(&save));
+    toast.show(game.message.clone().unwrap_or_else(|| "Game loaded.".into()));
+}
+
 #[allow(clippy::too_many_arguments)]
 fn save_hotkey(
     keys: Res<ButtonInput<KeyCode>>,
@@ -947,6 +1032,24 @@ mod tests {
         d
     }
 
+    #[test]
+    fn saved_position_is_used_only_in_its_own_area() {
+        let s = StartupState {
+            progress: PlayerProgress::new_game(),
+            area: Some(0),
+            position: Some([520.0, 69.4, 417.7]),
+            yaw: 0.0,
+            time_minutes: None,
+            play_seconds: 0,
+            loaded: true,
+            message: String::new(),
+        };
+        assert_eq!(s.position_in_area(0), Some([520.0, 69.4, 417.7]));
+        assert_eq!(s.position_in_area(1), None);
+        let unknown = StartupState { area: None, ..s };
+        assert_eq!(unknown.position_in_area(1), None);
+    }
+
     fn member(species: u16, hp: u32, pp: u8) -> PartyMember {
         PartyMember {
             species,
@@ -982,6 +1085,7 @@ mod tests {
             caught: None,
             rng: 77,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.party[0].hp, 12);
@@ -1015,10 +1119,43 @@ mod tests {
             caught: None,
             rng: 0,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.bag, BTreeMap::from([(10, 4)]));
         assert_eq!(p.rng_seed, 0x5ca1_e001, "zero rng does not overwrite the seed");
+    }
+
+    /// A trainer pays once: the first win records the id and pays, a rematch pays nothing; a
+    /// different trainer pays again; wild wins always pay.
+    #[test]
+    fn trainer_prize_is_paid_only_on_the_first_win() {
+        let mut p = progress2();
+        let money0 = p.money;
+        let win = |id: &str| BattleOutcome {
+            party: vec![],
+            bag: BTreeMap::new(),
+            wild_dex: 1,
+            wild_level: 10,
+            won: true,
+            caught: None,
+            rng: 1,
+            trainer_prize: Some(500),
+            trainer_id: Some(id.into()),
+        };
+        apply_outcome(&mut p, &win("giratina01"));
+        assert_eq!(p.money, money0 + 500);
+        assert!(p.defeated_trainers.contains("giratina01"));
+        apply_outcome(&mut p, &win("giratina01"));
+        assert_eq!(p.money, money0 + 500, "the rematch pays nothing");
+        apply_outcome(&mut p, &win("trainer04_01"));
+        assert_eq!(p.money, money0 + 1000, "another trainer pays");
+        let wild = BattleOutcome { trainer_prize: None, trainer_id: None, ..win("x") };
+        apply_outcome(&mut p, &wild);
+        assert_eq!(p.money, money0 + 1000 + victory_reward(10));
+        // The set survives to_save / from_save.
+        let back = PlayerProgress::from_save(&p.to_save("ha_area01", [0.0; 3], 0.0));
+        assert_eq!(back.defeated_trainers, p.defeated_trainers);
     }
 
     #[test]
@@ -1035,6 +1172,7 @@ mod tests {
             caught: None,
             rng: 1,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &base);
         assert_eq!((p.defeated, p.caught_count), (1, 0));
@@ -1073,6 +1211,7 @@ mod tests {
             caught: None,
             rng: 1,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &out);
         assert_eq!(p.money, u32::MAX, "the prize saturates instead of overflowing");
@@ -1123,6 +1262,7 @@ mod tests {
             caught: Some(member(396, 9, 5)),
             rng: 1,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.party.len(), MAX_PARTY, "party stays full");
@@ -1179,6 +1319,7 @@ mod tests {
             caught: Some(member(396, 9, 5)),
             rng: 1,
             trainer_prize: None,
+            trainer_id: None,
         };
         apply_outcome(&mut p, &catch);
         assert_eq!(p.box_list.len(), MAX_BOX, "the box stays at the limit");
@@ -1445,5 +1586,96 @@ mod tests {
         assert!(app.world().resource::<SaveToast>().text.contains("healed"));
         assert_eq!(app.world().resource::<crate::game::clock::GameClock>().hhmm(), "18:00", "rest advances the clock");
         assert!(app.world().resource::<SaveToast>().text.contains("18:00"), "the toast tells the new time");
+    }
+
+    /// Headless round trip of the pause menu's Load row: save, change the state, load; the
+    /// progress, play time and clock come back and the player is sent to the saved zone/position.
+    #[test]
+    fn load_row_restores_the_saved_session() {
+        use crate::game::zone::{ZoneChangeRequest, ZoneChangeSource};
+        let dir = tmpdir("load-row");
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.insert_resource(ActiveZoneInfo { area: "ha_area01".into(), name: "Obsidian Fieldlands".into() });
+        app.insert_resource(crate::game::clock::GameClock::from_minutes(1.0, 13 * 60));
+        let start = StartupState {
+            progress: progress2(),
+            area: Some(1),
+            position: None,
+            yaw: 0.0,
+            time_minutes: None,
+            play_seconds: 0,
+            loaded: false,
+            message: String::new(),
+        };
+        SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(&dir)), start, &WireCli::default());
+        let player = app
+            .world_mut()
+            .spawn((PlayerAvatar, Transform::from_xyz(511.0, 60.0, 409.0).with_rotation(Quat::from_rotation_y(0.5))))
+            .id();
+        app.update();
+        app.world_mut().resource_mut::<PlayerProgress>().money = 1234;
+        // The clock plugin mirrors the clock into the progress; here it is set by hand.
+        app.world_mut().resource_mut::<PlayerProgress>().time_minutes = 13 * 60;
+        app.world_mut().resource_mut::<PlayTime>().seconds = 777;
+        app.world_mut().resource_mut::<SaveRequested>().0 = true;
+        app.update();
+        assert_eq!(app.world().resource::<SaveToast>().text, "Game saved.");
+
+        // Play on: spend money, lose a party member, walk away, time passes.
+        let saved_party = app.world().resource::<PlayerProgress>().party.clone();
+        {
+            let mut p = app.world_mut().resource_mut::<PlayerProgress>();
+            p.money = 5;
+            p.party.truncate(1);
+        }
+        app.world_mut().resource_mut::<PlayTime>().seconds = 9_000;
+        app.world_mut().resource_mut::<crate::game::clock::GameClock>().t_hours = 22.0;
+        app.world_mut().get_mut::<Transform>(player).unwrap().translation = Vec3::new(100.0, 10.0, 100.0);
+
+        app.world_mut().resource_mut::<LoadRequested>().0 = true;
+        app.update();
+        assert!(!app.world().resource::<LoadRequested>().0, "the request is consumed");
+        let p = app.world().resource::<PlayerProgress>();
+        assert_eq!(p.money, 1234);
+        assert_eq!(p.party, saved_party);
+        assert_eq!(app.world().resource::<PlayTime>().seconds, 777);
+        assert_eq!(app.world().resource::<crate::game::clock::GameClock>().hhmm(), "13:00");
+        assert_eq!(app.world().resource::<SaveToast>().text, "Game loaded.");
+        let msgs = app.world().resource::<Messages<ZoneChangeRequest>>();
+        let req = msgs.iter_current_update_messages().last().expect("a zone change to the saved place").clone();
+        assert_eq!(req.zone, "ha_area01");
+        assert_eq!(req.source, ZoneChangeSource::LoadGame);
+        assert!((req.spawn - Vec3::new(511.0, 60.0, 409.0)).length() < 1e-3, "{:?}", req.spawn);
+        assert!((req.yaw_deg - 0.5f32.to_degrees()).abs() < 0.01);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_row_without_a_save_only_shows_a_toast() {
+        let dir = tmpdir("load-row-missing");
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.insert_resource(ActiveZoneInfo { area: "ha_area01".into(), name: String::new() });
+        let start = StartupState {
+            progress: progress2(),
+            area: None,
+            position: None,
+            yaw: 0.0,
+            time_minutes: None,
+            play_seconds: 0,
+            loaded: false,
+            message: String::new(),
+        };
+        SaveWirePlugin::install(&mut app, SaveGame::new(SaveFile::in_dir(&dir)), start, &WireCli::default());
+        app.update();
+        app.world_mut().resource_mut::<PlayerProgress>().money = 42;
+        app.world_mut().resource_mut::<LoadRequested>().0 = true;
+        app.update();
+        assert!(app.world().resource::<SaveToast>().text.contains("No saved game"));
+        assert_eq!(app.world().resource::<PlayerProgress>().money, 42, "nothing changed");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

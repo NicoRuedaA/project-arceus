@@ -13,7 +13,6 @@
 //! `wild_wander`.
 
 use std::collections::VecDeque;
-use std::path::PathBuf;
 
 use bevy::prelude::*;
 
@@ -43,6 +42,12 @@ pub const TURN_RATE: f32 = 6.0;
 pub const MOVE_ANGLE: f32 = 1.0;
 /// Model root height above the navmesh surface (same offset the wild creatures use).
 pub const GROUND_OFFSET: f32 = 0.45;
+/// The follower never stands closer than this to the player (planar, centre to centre). A
+/// hard floor so the two models never overlap, whatever the player does (reverses, turns).
+pub const MIN_SEPARATION: f32 = 1.4;
+/// The aim point is kept at least this far from the player (so the follower stops at a
+/// comfortable 1.5-2 m instead of pressing against the floor above).
+pub const MIN_TARGET_DISTANCE: f32 = 1.8;
 /// Trail steps shorter than this are not recorded (the player is standing still).
 const TRAIL_MIN_STEP: f32 = 0.02;
 /// Upper bound of recorded trail positions (bounded memory).
@@ -147,16 +152,59 @@ pub struct Follower {
     pub form: u8,
 }
 
+/// Pushes `p` out of the disc of radius `radius` around `player`, along the line from the
+/// player; `fallback` is the direction used when `p` sits exactly on the player.
+fn push_out(p: Vec2, player: Vec2, radius: f32, fallback: Vec2) -> Vec2 {
+    let off = p - player;
+    if off.length() >= radius {
+        return p;
+    }
+    let dir = off.try_normalize().or_else(|| fallback.try_normalize()).unwrap_or(Vec2::NEG_Y);
+    player + dir * radius
+}
+
 /// Advances the follower by `dt` seconds towards the point [`FOLLOW_DISTANCE`] behind
-/// `player` along the recorded path. `walkable` is the navmesh query; a caller without a
-/// navmesh (flat fallback world) passes a predicate that is always true.
+/// `player` along the recorded path, never closer than [`MIN_SEPARATION`] to the player.
+/// `walkable` is the navmesh query; a caller without a navmesh (flat fallback world) passes a
+/// predicate that is always true.
 pub fn step(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32, f32) -> bool) {
     if dt <= 0.0 {
         return;
     }
-    st.trail.push(player);
-    let target = st.trail.point_behind(FOLLOW_DISTANCE).unwrap_or(player);
+    advance(st, player, dt, walkable);
+    // Hard floor, applied after every outcome (also when the follower was still turning or
+    // stopped): when the player walks into it, it is pushed out, never overlapped.
     let here = Vec2::new(st.pos.0, st.pos.1);
+    let trail_back = st.trail.point_behind(FOLLOW_DISTANCE).map_or(Vec2::NEG_Y, |t| t - player);
+    let fixed = push_out(here, player, MIN_SEPARATION, trail_back);
+    if fixed == here {
+        return;
+    }
+    if walkable(fixed.x, fixed.y) || !walkable(here.x, here.y) {
+        st.pos = (fixed.x, fixed.y);
+        return;
+    }
+    // The radial spot is off the navmesh (cliff edge, wall): slide round the player to the
+    // nearest walkable spot on the separation circle instead of staying inside the player.
+    let base = fixed - player;
+    for deg in [30.0_f32, -30.0, 60.0, -60.0, 90.0, -90.0, 120.0, -120.0, 150.0, -150.0, 180.0] {
+        let spot = player + Vec2::from_angle(deg.to_radians()).rotate(base);
+        if walkable(spot.x, spot.y) {
+            st.pos = (spot.x, spot.y);
+            return;
+        }
+    }
+}
+
+fn advance(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32, f32) -> bool) {
+    st.trail.push(player);
+    let here = Vec2::new(st.pos.0, st.pos.1);
+    let mut target = st.trail.point_behind(FOLLOW_DISTANCE).unwrap_or(player);
+    // The recorded path doubles back through the player after a U-turn: keep the aim point
+    // outside the comfort radius, on the side where the follower already is.
+    if target.distance(player) < MIN_TARGET_DISTANCE {
+        target = push_out(target, player, MIN_TARGET_DISTANCE, here - player);
+    }
 
     // Left behind (or the zone changed and the player was repositioned): teleport onto the
     // target, or onto the player when only that spot is walkable.
@@ -212,34 +260,23 @@ pub fn step(st: &mut FollowerState, player: Vec2, dt: f32, walkable: &dyn Fn(f32
 }
 
 /// Asset-server path of the exported batch model for `species`/`form`
-/// (`cache/pokemon_batch/pmXXXX_FF_00/pmXXXX_FF_00_idle.gltf`), or `None` when it was not
-/// exported. Mirrors `resolve_pokemon_gltf_rel` in the viewer (idle + sibling walk pair),
-/// preferring the member's form and falling back to form 0.
+/// (`cache/pokemon_batch/<pack>/<pack>_idle.gltf`, pack from the game's model catalog, see
+/// `game::pokemon_resource`), or `None` when it was not exported. Prefers the member's form
+/// and falls back to form 0.
 fn resolve_batch_idle_rel(species: u16, form: u8) -> Option<String> {
-    let form_stem = format!("pm{species:04}_{form:02}_00");
-    let base_stem = format!("pm{species:04}_00_00");
-    let stems = if form_stem == base_stem {
-        vec![form_stem]
-    } else {
-        vec![form_stem, base_stem]
-    };
-    let roots = [
-        std::env::var("PLA_CACHE_DIR").map(PathBuf::from).ok(),
-        Some(PathBuf::from("work/cache")),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
-    ];
-    for root in roots.into_iter().flatten() {
-        for stem in &stems {
-            let disk = root
-                .join("pokemon_batch")
-                .join(stem)
-                .join(format!("{stem}_idle.gltf"));
-            if disk.exists() {
-                return Some(format!("cache/pokemon_batch/{stem}/{stem}_idle.gltf"));
+    use crate::game::pokemon_resource::{batch_gltf_rel_for_stem, global_table};
+    let table = global_table();
+    let mut stems = Vec::new();
+    for f in [u16::from(form), 0] {
+        if let Some(stem) = table.pack_stem(species, f) {
+            if !stems.contains(&stem) {
+                stems.push(stem);
             }
         }
     }
-    None
+    stems
+        .iter()
+        .find_map(|stem| batch_gltf_rel_for_stem(stem, &["idle"]))
 }
 
 /// Spawns / respawns / despawns the follower entity so it shows the lead party member.
@@ -299,7 +336,8 @@ fn sync_follower(
             form: lead.form,
         },
         state,
-        crate::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &rel),
+        crate::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &rel)
+            .with_root_drop(GROUND_OFFSET),
         Transform::from_xyz(behind.x, y, behind.y).with_rotation(Quat::from_rotation_y(yaw)),
         Visibility::default(),
     ));
@@ -539,6 +577,71 @@ mod tests {
         }
         assert!(st.walked > 40.0);
         assert_eq!(st.teleports, 0);
+    }
+
+    #[test]
+    fn never_overlaps_the_player_when_it_walks_back_through_the_follower() {
+        // Player walks +x for 5 s, then turns around and walks back (toward the camera /
+        // the follower), then circles. The follower must never come closer than the floor and
+        // must settle at 1.5-3 m when the player stands still.
+        let mut st = FollowerState::new((-FOLLOW_DISTANCE, 0.0), std::f32::consts::FRAC_PI_2);
+        st.trail.seed([Vec2::new(-FOLLOW_DISTANCE, 0.0), Vec2::ZERO]);
+        let mut player = Vec2::ZERO;
+        let mut min_d = f32::MAX;
+        let mut check = |st: &FollowerState, player: Vec2, i: i32| {
+            if i > 60 {
+                min_d = min_d.min(dist(st, player));
+            }
+        };
+        let mut i = 0;
+        for _ in 0..300 {
+            player.x += WALK_SPEED * DT;
+            step(&mut st, player, DT, &all);
+            check(&st, player, i);
+            i += 1;
+        }
+        for _ in 0..600 {
+            player.x -= WALK_SPEED * DT; // 180-degree reversal
+            step(&mut st, player, DT, &all);
+            check(&st, player, i);
+            i += 1;
+        }
+        // Diagonal and sprint reversals too.
+        for k in 0..600 {
+            let a = k as f32 * 0.02;
+            player += Vec2::new(a.cos(), a.sin() * 0.3) * (8.0 * DT) * if k % 200 < 100 { 1.0 } else { -1.0 };
+            step(&mut st, player, DT, &all);
+            check(&st, player, i);
+            i += 1;
+        }
+        eprintln!("min separation over reversals: {min_d:.3} m");
+        assert!(min_d >= MIN_SEPARATION - 1e-3, "overlap: {min_d}");
+        for _ in 0..600 {
+            step(&mut st, player, DT, &all);
+        }
+        let d = dist(&st, player);
+        assert!((1.5..=3.0).contains(&d), "resting distance {d}");
+    }
+
+    #[test]
+    fn slides_round_the_player_when_the_radial_spot_is_off_the_navmesh() {
+        // Walkable only for z >= -0.5 (a cliff edge just behind the player).
+        let walk = |_x: f32, z: f32| z >= -0.5;
+        let player = Vec2::new(0.0, 0.0);
+        let mut st = FollowerState::new((0.0, -0.3), 0.0); // behind the player, on the edge
+        st.trail.seed([Vec2::new(0.0, -FOLLOW_DISTANCE), player]);
+        step(&mut st, player, DT, &walk);
+        let d = dist(&st, player);
+        assert!(d >= MIN_SEPARATION - 1e-3, "still overlapping: {d}");
+        assert!(walk(st.pos.0, st.pos.1), "ended off the navmesh: {:?}", st.pos);
+    }
+
+    #[test]
+    fn standing_on_the_follower_pushes_it_out_instead_of_overlapping() {
+        let mut st = FollowerState::new((0.0, 0.0), 0.0);
+        st.trail.seed([Vec2::new(-FOLLOW_DISTANCE, 0.0), Vec2::ZERO]);
+        step(&mut st, Vec2::ZERO, DT, &all);
+        assert!(dist(&st, Vec2::ZERO) >= MIN_SEPARATION - 1e-4, "{:?}", st.pos);
     }
 
     // ---------------------------------------------------------------- headless Bevy

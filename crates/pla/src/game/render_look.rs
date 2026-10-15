@@ -44,6 +44,14 @@ pub struct LookSettings {
     pub ssao_quality: ScreenSpaceAmbientOcclusionQualityLevel,
     /// Bloom (`bevy_post_process` crate, `Bloom` on the 3D camera).
     pub bloom: bool,
+    /// Shadow map size, cascade count and reach (graphics screen "Shadow quality").
+    pub shadow_quality: ShadowQuality,
+    /// Bloom strength in percent of the decoded sheet value (100 = the sheet value).
+    pub bloom_pct: u16,
+    /// Fog / view distance in percent of the decoded fog distance (100 = the sheet value).
+    pub fog_pct: u16,
+    /// Edge anti-aliasing of the 3D camera.
+    pub aa: AntiAliasing,
 }
 
 impl Default for LookSettings {
@@ -54,7 +62,103 @@ impl Default for LookSettings {
             ssao: true,
             ssao_quality: ScreenSpaceAmbientOcclusionQualityLevel::Medium,
             bloom: true,
+            shadow_quality: ShadowQuality::Medium,
+            bloom_pct: 100,
+            fog_pct: 100,
+            aa: AntiAliasing::Auto,
         }
+    }
+}
+
+/// Directional shadow quality. `Medium` is the look used before the graphics options existed
+/// (2048 px per cascade, 4 cascades, 250 m, first cascade 12 m). All values are ASSUMED budgets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ShadowQuality {
+    Low,
+    #[default]
+    Medium,
+    High,
+    Ultra,
+}
+
+/// Map size (px per cascade), cascade count, maximum distance (m) and first cascade bound (m).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShadowBudget {
+    pub map_size: usize,
+    pub cascades: usize,
+    pub max_distance: f32,
+    pub first_cascade: f32,
+}
+
+impl ShadowQuality {
+    pub const ALL: [ShadowQuality; 4] = [Self::Low, Self::Medium, Self::High, Self::Ultra];
+
+    pub fn budget(self) -> ShadowBudget {
+        match self {
+            Self::Low => ShadowBudget { map_size: 1024, cascades: 2, max_distance: 100.0, first_cascade: 10.0 },
+            Self::Medium => ShadowBudget { map_size: 2048, cascades: 4, max_distance: 250.0, first_cascade: 12.0 },
+            Self::High => ShadowBudget { map_size: 4096, cascades: 4, max_distance: 350.0, first_cascade: 16.0 },
+            Self::Ultra => ShadowBudget { map_size: 4096, cascades: 4, max_distance: 400.0, first_cascade: 20.0 },
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "low" => Some(Self::Low),
+            "medium" | "med" => Some(Self::Medium),
+            "high" => Some(Self::High),
+            "ultra" => Some(Self::Ultra),
+            _ => None,
+        }
+    }
+}
+
+/// Edge anti-aliasing of the 3D camera (`bevy_anti_alias` crate for FXAA / SMAA / TAA).
+///
+/// `Auto` is the behaviour from before the graphics options: MSAA 4x when SSAO is off, nothing
+/// when SSAO is on. Bevy's SSAO only runs with `Msaa::Off`, so the MSAA choices fall back to no
+/// anti-aliasing while SSAO is on (the screen says so); FXAA, SMAA and TAA work with SSAO.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AntiAliasing {
+    #[default]
+    Auto,
+    Off,
+    Fxaa,
+    Smaa,
+    Taa,
+    Msaa2,
+    Msaa4,
+}
+
+impl AntiAliasing {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "auto" => Some(Self::Auto),
+            "off" | "none" => Some(Self::Off),
+            "fxaa" => Some(Self::Fxaa),
+            "smaa" => Some(Self::Smaa),
+            "taa" => Some(Self::Taa),
+            "msaa2" | "msaa2x" => Some(Self::Msaa2),
+            "msaa4" | "msaa4x" | "msaa" => Some(Self::Msaa4),
+            _ => None,
+        }
+    }
+
+    /// MSAA sample count actually used with this choice and SSAO on/off (1 = no MSAA).
+    pub fn msaa_samples(self, ssao: bool) -> u32 {
+        if ssao {
+            return 1;
+        }
+        match self {
+            Self::Auto | Self::Msaa4 => 4,
+            Self::Msaa2 => 2,
+            _ => 1,
+        }
+    }
+
+    /// Whether the choice is an MSAA mode that SSAO turns off.
+    pub fn blocked_by_ssao(self, ssao: bool) -> bool {
+        ssao && matches!(self, Self::Msaa2 | Self::Msaa4)
     }
 }
 
@@ -105,6 +209,7 @@ impl LookSettings {
             ssao: post("--ssao", "--no-ssao"),
             ssao_quality,
             bloom: post("--bloom", "--no-bloom"),
+            ..Self::default()
         }
     }
 }
@@ -171,6 +276,36 @@ pub const NIGHT_DIM_MIN_DAYLIGHT: f32 = 0.45;
 pub const NIGHT_LIGHT_FRACTION: f32 = 0.30;
 /// Legibility floor for the vivid ambient brightness (cd/m2) in the darkest slot. ASSUMED.
 pub const NIGHT_AMBIENT_MIN: f32 = 20.0;
+/// Night floor (play-test 2026-10-14): ambient *luminance* (colour luminance x brightness, cd/m2)
+/// the vivid look never goes below, weather included (a heavy storm would otherwise dim the
+/// night fill further). SUPUESTO value. The black night itself came from the colour grade (see
+/// `lighting::vivid_color_grading`). Offscreen check (`look_headless --slots --area 2 --weather 4`,
+/// rain): night frame mean linear luminance 0.044 vs 0.333 by day (13%), ground sRGB 0.22 vs 0.72;
+/// before the fix 0.015 linear and ground sRGB 0.006 (black). The bluish night fill is kept.
+///
+/// Raised 80 -> 150 (play-test 2026-10-14, capture 03_area02_lluvia_noche: still near black).
+/// SUPUESTO; kept clearly darker than day (night/day ambient well under 0.4).
+pub const NIGHT_AMBIENT_LUMA_FLOOR: f32 = 150.0;
+/// Moonlight floor (lux) of the vivid look in deep night, fading out as the slot brightens
+/// (`dayness` 0 -> 1). The sheet's night sun (0.3 x 4200 x 0.3 = ~380 lux) lit the ground to ~1% of
+/// day luminance even with the ambient floor. SUPUESTO; about 15% of the day sun (11.8k lux).
+pub const NIGHT_MOON_LUX_FLOOR: f32 = 1800.0;
+
+/// Directional light (lux) after the night moonlight floor: `sun_lux` raised to
+/// [`NIGHT_MOON_LUX_FLOOR`] x (1 - `dayness`). Day and evening (`dayness` 1) are unchanged.
+pub fn moon_lux(sun_lux: f32, dayness: f32) -> f32 {
+    sun_lux.max(NIGHT_MOON_LUX_FLOOR * (1.0 - dayness.clamp(0.0, 1.0)))
+}
+
+/// Ambient brightness that gives at least `floor` cd/m2 of ambient luminance with `color`.
+pub fn floored_ambient_brightness(brightness: f32, color: [f32; 3], floor: f32) -> f32 {
+    let l = luminance(color);
+    if l > 1e-4 && brightness.is_finite() {
+        brightness.max(floor / l)
+    } else {
+        brightness
+    }
+}
 /// Fraction of the haze/fog colour that survives in deep night. ASSUMED.
 pub const NIGHT_FOG_FRACTION: f32 = 0.35;
 /// White share of the night ambient fill colour (low -> the fill stays blue, not grey). ASSUMED.
@@ -260,7 +395,10 @@ fn mix3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
 
 /// Derive all render settings for `env` under `settings`.
 pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
-    let far = env.fog_far;
+    // Graphics screen "Fog / view distance": scales the decoded fog distance (100% = the sheet).
+    let far = env.fog_far * f32::from(settings.fog_pct.clamp(25, 400)) / 100.0;
+    let bloom_scale = f32::from(settings.bloom_pct.min(400)) / 100.0;
+    let shadow = settings.shadow_quality.budget();
     match settings.look {
         Look::Classic => LookParams {
             sun_lux: env.sun_intensity * LUX_PER_INTENSITY_CLASSIC,
@@ -279,7 +417,7 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
             ssao: settings.ssao,
             ssao_quality: settings.ssao_quality,
             bloom: settings.bloom,
-            bloom_intensity: bloom_intensity(env),
+            bloom_intensity: bloom_intensity(env) * bloom_scale,
             clouds: false,
             cloud_color: [1.0; 3],
             cloud_opacity: 0.0,
@@ -309,24 +447,30 @@ pub fn look_params(env: &ZoneEnv, settings: LookSettings) -> LookParams {
             let lum = (0.12 + 0.88 * day.min(1.0)).clamp(0.0, 1.0);
             LookParams {
                 // Night dimming leaves a faint moon sun; day/evening keep the previous lux mapping.
-                sun_lux: env.sun_intensity * LUX_PER_INTENSITY_VIVID * nscale,
+                sun_lux: moon_lux(env.sun_intensity * LUX_PER_INTENSITY_VIVID * nscale, dayness),
                 ambient_color: amb,
-                ambient_brightness: (AMBIENT_VIVID_DAY * day * nscale).max(NIGHT_AMBIENT_MIN),
+                ambient_brightness: floored_ambient_brightness(
+                    (AMBIENT_VIVID_DAY * day * nscale).max(NIGHT_AMBIENT_MIN),
+                    amb,
+                    NIGHT_AMBIENT_LUMA_FLOOR,
+                ),
                 // Pushed-out falloff: 50% haze only at the decoded far distance (was fully opaque there).
                 fog: FogSpec::ExpSquared { density: exp_squared_density(far) },
                 fog_color: [fc[0], fc[1], fc[2], 1.0],
                 shadows: settings.shadows,
-                cascades: 4,
-                shadow_max_distance: 250.0,
-                shadow_first_cascade: 12.0,
-                shadow_depth_bias: 0.05,
-                shadow_normal_bias: 1.4,
+                cascades: shadow.cascades,
+                shadow_max_distance: shadow.max_distance,
+                shadow_first_cascade: shadow.first_cascade,
+                // Raised from 0.05 / 1.4: the old values left ragged self-shadow patches on the
+                // player's clothes, hair and face (shadow acne). Checked by eye, windowless.
+                shadow_depth_bias: 0.3,
+                shadow_normal_bias: 0.5,
                 post_saturation: 1.15,
                 contrast: 1.12,
                 ssao: settings.ssao,
                 ssao_quality: settings.ssao_quality,
                 bloom: settings.bloom,
-                bloom_intensity: bloom_intensity(env),
+                bloom_intensity: bloom_intensity(env) * bloom_scale,
                 clouds: true,
                 cloud_color: [cc[0] * lum, cc[1] * lum, cc[2] * lum],
                 cloud_opacity: if day > 0.5 { 0.95 } else { 0.4 },
@@ -345,7 +489,10 @@ pub fn apply_weather(p: &LookParams, w: &WeatherVisual) -> LookParams {
     let dim = (0.65 + 0.35 * light).clamp(0.0, 1.0);
     let mut q = p.clone();
     q.sun_lux = p.sun_lux * light;
-    q.ambient_brightness = p.ambient_brightness * light;
+    // Weather never pushes the fill below the night floor (a look that starts below it, the
+    // classic one, is not raised either).
+    let floor = NIGHT_AMBIENT_LUMA_FLOOR.min(ambient_luminance(p));
+    q.ambient_brightness = floored_ambient_brightness(p.ambient_brightness * light, p.ambient_color, floor);
     q.fog = match p.fog {
         FogSpec::Linear { start, end } => {
             let e = (end / fog).max(1.0);
@@ -498,6 +645,39 @@ pub fn cloud_scroll(t: f32) -> Vec2 {
 mod tests {
     use super::*;
 
+    #[test]
+    fn quality_fields_scale_shadows_fog_and_bloom() {
+        let e = env(2.8);
+        let base = look_params(&e, LookSettings::default());
+        assert_eq!((base.cascades, base.shadow_max_distance, base.shadow_first_cascade), (4, 250.0, 12.0));
+        assert_eq!(ShadowQuality::default().budget().map_size, 2048, "medium is the look before the options");
+        let hi = look_params(&e, LookSettings { shadow_quality: ShadowQuality::Ultra, ..Default::default() });
+        assert_eq!((hi.shadow_max_distance, hi.shadow_first_cascade), (400.0, 20.0));
+        let lo = look_params(&e, LookSettings { shadow_quality: ShadowQuality::Low, ..Default::default() });
+        assert_eq!((lo.cascades, lo.shadow_max_distance), (2, 100.0));
+        let FogSpec::ExpSquared { density: d1 } = base.fog else { panic!() };
+        let far = look_params(&e, LookSettings { fog_pct: 200, ..Default::default() });
+        let FogSpec::ExpSquared { density: d2 } = far.fog else { panic!() };
+        assert!((d1 / d2 - 2.0).abs() < 1e-4, "200% fog distance halves the density");
+        let b = look_params(&e, LookSettings { bloom_pct: 50, ..Default::default() });
+        assert!((b.bloom_intensity - base.bloom_intensity * 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn anti_aliasing_modes_and_ssao() {
+        assert_eq!(AntiAliasing::default(), AntiAliasing::Auto);
+        assert_eq!(AntiAliasing::Auto.msaa_samples(false), 4, "auto = MSAA 4x without SSAO, as before");
+        assert_eq!(AntiAliasing::Auto.msaa_samples(true), 1);
+        assert_eq!(AntiAliasing::Msaa2.msaa_samples(false), 2);
+        assert_eq!(AntiAliasing::Msaa4.msaa_samples(true), 1);
+        assert!(AntiAliasing::Msaa2.blocked_by_ssao(true));
+        assert!(!AntiAliasing::Smaa.blocked_by_ssao(true));
+        assert_eq!(AntiAliasing::Smaa.msaa_samples(false), 1);
+        assert_eq!(AntiAliasing::parse("MSAA4x"), Some(AntiAliasing::Msaa4));
+        assert_eq!(ShadowQuality::parse("ULTRA"), Some(ShadowQuality::Ultra));
+        assert_eq!(AntiAliasing::parse("nope"), None);
+    }
+
     fn env(sun: f32) -> ZoneEnv {
         ZoneEnv {
             sun_color: [1.0, 0.9, 0.7],
@@ -574,7 +754,9 @@ mod tests {
         let day = look_params(&env(2.8), LookSettings::default());
         let night = look_params(&env(0.3), LookSettings::default());
         assert!(night.sun_lux < day.sun_lux * 0.2);
-        assert!(night.ambient_brightness < day.ambient_brightness * 0.2);
+        // The night floor works on colour luminance, so the raw brightness of the bluer night
+        // fill can exceed 0.2x day; the perceived fill stays clearly below the day's.
+        assert!(ambient_luminance(&night) < ambient_luminance(&day) * 0.4);
         assert!(night.cloud_color[0] < day.cloud_color[0] * 0.5);
         assert!(night.cloud_opacity < day.cloud_opacity);
     }
@@ -733,6 +915,43 @@ mod tests {
         assert_eq!(apply_weather(&base, &WeatherVisual { light_mult: 1.0, fog_mult: 1.0, ..bad }).sun_lux, base.sun_lux);
     }
 
+    /// Night floor: in every weather the night fill keeps at least the floor luminance, stays
+    /// bluish and stays well below the day; a day slot is unchanged by the floor.
+    #[test]
+    fn moon_floor_lifts_deep_night_only() {
+        let day = look_params(&env(2.8), LookSettings::default());
+        let night = look_params(&env(0.3), LookSettings::default());
+        assert!(night.sun_lux >= NIGHT_MOON_LUX_FLOOR - 0.5, "night sun {}", night.sun_lux);
+        assert!(night.sun_lux < 0.25 * day.sun_lux, "night still clearly darker than day");
+        assert_eq!(moon_lux(5000.0, 0.0), 5000.0, "never lowers a brighter sun");
+        assert_eq!(moon_lux(100.0, 1.0), 100.0, "no moon floor by day");
+        let rain = apply_weather(&night, &WeatherVisual::for_id(4));
+        assert!(rain.sun_lux > 0.5 * NIGHT_MOON_LUX_FLOOR && rain.sun_lux < night.sun_lux);
+    }
+
+    #[test]
+    fn night_floor_holds_in_every_weather() {
+        let day = look_params(&env(2.8), LookSettings::default());
+        let night = look_params(&env(0.3), LookSettings::default());
+        assert!((ambient_luminance(&night) - NIGHT_AMBIENT_LUMA_FLOOR).abs() < 1.0 || ambient_luminance(&night) > NIGHT_AMBIENT_LUMA_FLOOR);
+        assert!(night.ambient_color[2] > night.ambient_color[0], "bluish night fill");
+        for id in 2..=9u8 {
+            let w = WeatherVisual::for_id(id);
+            let n = apply_weather(&night, &w);
+            assert!(n.ambient_brightness > 0.0);
+            assert!(ambient_luminance(&n) >= NIGHT_AMBIENT_LUMA_FLOOR - 0.5, "weather {id} night below the floor");
+            let d = apply_weather(&day, &w);
+            let ratio = ambient_luminance(&n) / ambient_luminance(&d);
+            assert!((0.05..=0.4).contains(&ratio), "weather {id}: night/day ambient ratio {ratio}");
+        }
+        // The day fill is far above the floor: unchanged.
+        assert!(ambient_luminance(&day) > 3.0 * NIGHT_AMBIENT_LUMA_FLOOR);
+        assert_eq!(
+            floored_ambient_brightness(day.ambient_brightness, day.ambient_color, NIGHT_AMBIENT_LUMA_FLOOR),
+            day.ambient_brightness
+        );
+    }
+
     /// Measures ambient/sun/scene luminance for the six real areas x four time slots from the sheet.
     /// Skips (green) when the game-derived sheet is absent, like the other data-dependent tests.
     #[test]
@@ -772,7 +991,11 @@ mod tests {
             // sky colour in area 03, so the colour metric itself can invert day/evening there (data).
             assert!(slots[3].0.ambient < 0.4 * slots[1].0.ambient, "{name} night ambient not <0.4x day");
             assert!(slots[3].0.sun < 0.4 * slots[1].0.sun, "{name} night sun not <0.4x day");
-            assert!(slots[2].1 > slots[3].1 && slots[1].1 >= slots[2].1, "{name} ambient brightness not day>=evening>night");
+            // Evening > night on the perceived ambient luminance: the night floor raises the
+            // brightness of the bluer (lower-luminance) night fill, so the raw brightness of the
+            // night can exceed the evening's (area 05) while its luminance stays lower.
+            assert!(slots[2].0.ambient > slots[3].0.ambient && slots[1].1 >= slots[2].1, "{name} ambient not day>=evening>night");
+            assert!(slots[3].0.ambient >= NIGHT_AMBIENT_LUMA_FLOOR - 0.5, "{name} night below the floor");
             assert!(slots[2].2 > slots[3].2 && slots[1].2 >= slots[2].2, "{name} mapped sun not day>=evening>night");
             measured += 1;
         }

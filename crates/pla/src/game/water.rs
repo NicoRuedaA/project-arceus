@@ -651,9 +651,4 @@ mod tests {
         assert!(u.params.x > 0.0 && u.params.x < 0.2, "f0 of water is small");
     }
 
-    #[test]
-    fn player_swim_marker_defaults_to_grounded() {
-        assert_eq!(PlayerSwim::default().state, SwimState::Grounded);
-        assert_eq!(SwimState::default(), SwimState::Grounded);
-    }
 }

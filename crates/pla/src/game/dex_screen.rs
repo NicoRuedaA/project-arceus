@@ -12,7 +12,9 @@ use std::path::{Path, PathBuf};
 use bevy::prelude::*;
 
 use super::input_map::{Action, ActionState, InputMapPlugin};
+use super::pause_menu::{freeze_for_screen, DexOpenRequested, PauseMenuSuppressed};
 use super::save_wire::PlayerProgress;
+use super::state::Paused;
 
 /// Number of catalog rows shown at once.
 pub const VISIBLE_ROWS: usize = 12;
@@ -204,7 +206,8 @@ pub fn page_entries(catalog: &DexCatalog, page: usize) -> &[DexEntry] {
     &catalog.entries[start..end]
 }
 
-/// Pure screen state. A caller opens it by setting `open`; this plugin does not alter the viewer.
+/// Pure screen state. A caller opens it by setting `open` or, in the viewer, through the pause
+/// menu's `Pokédex` row ([`DexOpenRequested`]), which also freezes the world until it closes.
 #[derive(Resource, Debug, Clone, PartialEq, Eq)]
 pub struct DexUi {
     pub open: bool,
@@ -222,8 +225,9 @@ impl Default for DexUi {
     }
 }
 
+/// Root of the provisional Pokédex (hidden while the original one is shown, `orig_ui`).
 #[derive(Component)]
-struct DexRoot;
+pub struct DexRoot;
 
 #[derive(Component, Clone, Copy)]
 enum DexText {
@@ -283,8 +287,9 @@ impl Plugin for DexScreenPlugin {
         }
         app.insert_resource(catalog.unwrap_or_default())
             .init_resource::<DexUi>()
+            .init_resource::<DexOpenRequested>()
             .add_systems(Startup, spawn_dex_ui)
-            .add_systems(Update, (dex_input, sync_dex_ui).chain());
+            .add_systems(Update, (dex_open_requested, dex_input, sync_dex_ui).chain());
     }
 }
 
@@ -358,11 +363,26 @@ fn spawn_dex_ui(mut commands: Commands) {
         });
 }
 
+fn dex_open_requested(
+    mut request: ResMut<DexOpenRequested>,
+    mut ui: ResMut<DexUi>,
+    mut paused: Option<ResMut<Paused>>,
+    mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
+) {
+    if request.0 {
+        request.0 = false;
+        ui.open = true;
+        freeze_for_screen(&mut paused, &mut suppressed, true);
+    }
+}
+
 fn dex_input(
     mut actions: ResMut<ActionState>,
     catalog: Res<DexCatalog>,
     mut ui: ResMut<DexUi>,
     buttons: Query<(&DexRow, &Interaction), Changed<Interaction>>,
+    mut paused: Option<ResMut<Paused>>,
+    mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
 ) {
     if !ui.open {
         return;
@@ -371,6 +391,7 @@ fn dex_input(
         actions.consume(Action::Cancel);
         actions.consume(Action::Menu);
         ui.open = false;
+        freeze_for_screen(&mut paused, &mut suppressed, false);
         return;
     }
     let mut delta = 0;

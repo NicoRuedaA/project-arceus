@@ -343,7 +343,9 @@ pub enum GrassQuality {
     Off,
     #[default]
     Low,
+    Medium,
     High,
+    Ultra,
 }
 
 impl GrassQuality {
@@ -351,24 +353,30 @@ impl GrassQuality {
         match s.to_ascii_lowercase().as_str() {
             "off" | "0" | "none" => Some(Self::Off),
             "low" | "1" => Some(Self::Low),
+            "medium" | "med" => Some(Self::Medium),
             "high" | "2" => Some(Self::High),
+            "ultra" => Some(Self::Ultra),
             _ => None,
         }
     }
-    /// `--grass off|low|high` from CLI arguments (default low).
+    /// `--grass off|low|medium|high|ultra` from CLI arguments (default low).
     pub fn from_args(args: &[String]) -> Self {
-        args.iter()
-            .position(|a| a == "--grass")
-            .and_then(|i| args.get(i + 1))
-            .and_then(|v| Self::parse(v))
-            .unwrap_or_default()
+        let Some(raw) = crate::game::cli_flags::value_of(args, "--grass") else {
+            return Self::default();
+        };
+        Self::parse(raw).unwrap_or_else(|| {
+            crate::game::cli_flags::report_bad_value("--grass", raw, "off|low|medium|high|ultra", "low");
+            Self::default()
+        })
     }
     /// Target triangles per square metre of masked ground (ASSUMED budget, not game data).
     pub fn tri_budget_per_m2(self) -> f32 {
         match self {
             Self::Off => 0.0,
             Self::Low => 14.0,
+            Self::Medium => 24.0,
             Self::High => 40.0,
+            Self::Ultra => 80.0,
         }
     }
     /// Streaming radius (m) for small cards (grass) and for everything else.
@@ -376,7 +384,9 @@ impl GrassQuality {
         match self {
             Self::Off => (0.0, 0.0),
             Self::Low => (40.0, 64.0),
+            Self::Medium => (55.0, 85.0),
             Self::High => (70.0, 110.0),
+            Self::Ultra => (100.0, 160.0),
         }
     }
     /// Hard cap on instances alive at once.
@@ -384,7 +394,9 @@ impl GrassQuality {
         match self {
             Self::Off => 0,
             Self::Low => 120_000,
+            Self::Medium => 250_000,
             Self::High => 400_000,
+            Self::Ultra => 800_000,
         }
     }
     /// Hard cap on instances generated in one frame (streaming budget).
@@ -392,7 +404,9 @@ impl GrassQuality {
         match self {
             Self::Off => 0,
             Self::Low => 20_000,
+            Self::Medium => 30_000,
             Self::High => 40_000,
+            Self::Ultra => 40_000,
         }
     }
 }
@@ -557,6 +571,19 @@ pub fn substitute_model(wanted: &str, available: &[&str]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn grass_levels_grow_monotonically() {
+        let levels = [GrassQuality::Off, GrassQuality::Low, GrassQuality::Medium, GrassQuality::High, GrassQuality::Ultra];
+        for w in levels.windows(2) {
+            assert!(w[0].tri_budget_per_m2() < w[1].tri_budget_per_m2());
+            assert!(w[0].radii().0 < w[1].radii().0 && w[0].radii().1 < w[1].radii().1);
+            assert!(w[0].max_live_instances() < w[1].max_live_instances());
+        }
+        assert_eq!(GrassQuality::parse("medium"), Some(GrassQuality::Medium));
+        assert_eq!(GrassQuality::parse("ULTRA"), Some(GrassQuality::Ultra));
+        assert_eq!(GrassQuality::default().radii(), (40.0, 64.0), "low stays the default");
+    }
 
     fn synth_mask(w: u32, h: u32, on: impl Fn(u32, u32) -> bool) -> DetailMask {
         let mut rgba = vec![0u8; (w * h * 4) as usize];

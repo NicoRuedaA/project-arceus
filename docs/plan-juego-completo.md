@@ -146,8 +146,8 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 9. Clima y ciclo de día y noche con reloj. **[en proceso]**
 10. Colisiones con edificios y rocas. **[hecho]**
 11. Agua (reflejos, olas) y nadar. **[hecho]**
-12. Objetos del suelo y recursos. **[en proceso]**
-13. Puertas, cuerdas, escaleras, saltos y trepar. **[en proceso]**
+12. Objetos del suelo y recursos. **[terminado en `feat/player-moves`, sin fusionar]** Datos y recolección ya estaban en `main`; esta rama añade el golpe con bola lanzada (volumen SUPUESTO) y que los árboles se sacudan y sigan en pie. Los objetos del suelo siguen sin dar nada (su id de objeto no está en los datos).
+13. Puertas, cuerdas, escaleras, saltos y trepar. **[parte hecha en `feat/player-moves`, sin fusionar]** Saltar, caer por bordes, aterrizar y trepar (parámetros decodificados en `data/player_controller.tsv`); no hay colocaciones de escaleras/cuerdas decodificadas (solo prueba y escalera de depuración). Las puertas y las cuerdas de zona van en el worktree `zone-reload` (8b).
 14. Mochila con pantalla, tiendas y precios. **[en unión]**
 15. Mapa, minimapa y brújula. **[hecho]**
 16. Que te siga tu Pokémon. **[hecho]**
@@ -156,20 +156,20 @@ Documento escrito el 2026-10-12; estado actualizado el 2026-10-13. Está en espa
 19. Modelos bloqueados y Pokémon sin esqueleto. **[pendiente de unir]**
 20. Rendimiento. **[hecho]**
 21. Dinero, tiempo de juego y descanso. **[en unión]**
-22. Habilidades del personaje y expresiones de los Pokémon. **[en proceso]**
+22. Habilidades del personaje y expresiones de los Pokémon. **[parte hecha en `feat/player-moves`, sin fusionar]** Esquivar (voltereta), agacharse y esconderse (agachado + regla de sigilo; no existe clip de esconderse) y parpadeo del jugador; el parpadeo de los Pokémon (`eye01`, 0,35 s, huesos de párpados) está localizado pero no se reproduce todavía.
 23. Discos y objetos clave. **[en cola]**
 24. Temas legales. **[hecho]**
 
 **Nivel 3, grande (semanas)**
 25. Hierba, flores y arbustos. **[hecho]**
 26. Evolución, experiencia, aprendizaje de movimientos y esfuerzo. **[parcial: motor hecho y conectado al visor]**
-27. Comportamiento salvaje completo. **[falta]**
+27. Comportamiento salvaje completo. **[parcial: máquina de reacciones conectada al visor]** Alerta, huida y persecución mueven a los salvajes (`--wild-behavior on|off|passive|timid|aggressive`, por defecto `on`); arquetipo por criatura, velocidades y umbrales de ruido SUPUESTOS; dormir sin ventana horaria decodificada (no se activa); sin mirar a ojo.
 28. Verificar las reglas de combate «probables». **[hecho]**
 29. Estilos ágil y fuerte y turnos propios. **[parcial: motor hecho y conectado al visor]**
 30. Combates contra jefes y entrenadores. **[parcial: hecho en `feat/trainer-battles`, sin fusionar ni mirar a ojo]**
 31. Personajes no jugables. **[en investigación de datos]**
-32. Pantallas de equipo, cajas y Pokédex básico. **[falta]**
-33. Artesanía y materiales. **[falta]**
+32. Pantallas de equipo, cajas y Pokédex básico. **[parcial: hechas y conectadas al menú de pausa]** Esc > Party / Pokémon boxes / Pokédex; equipo de solo lectura; sin mirar a ojo.
+33. Artesanía y materiales. **[parcial: pantalla conectada al menú de pausa]** Esc > Crafting lista las 43 recetas de `data/crafting_recipes.tsv`; toda receta se rechaza porque su condición de desbloqueo es DESCONOCIDA (no hay campo en MakeList).
 34. Música, efectos y gritos. **[hecho]**
 35. Estilo de dibujo del original. **[falta]**
 36. Personalización del protagonista. **[falta]**

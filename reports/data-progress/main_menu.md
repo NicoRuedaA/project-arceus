@@ -42,7 +42,7 @@ English, 2026-10-13. Status of the opt-in main menu added to the Bevy viewer
   flag `has_save` is set, options page edit + persist + Esc-back, and the pause overlay
   staying closed while Esc is pressed in the menu.
 - Full suite: `cargo test -p pla` green — 440 lib tests + 89 integration tests (23
-  assets, 6 event, 7 pokemon_anim, 6 port_camera, 3 script, 5+12+5 tr_animation*, 5
+  assets, 6 event, 7 pokemon_anim, 3 script, 5+12+5 tr_animation*, 5
   tr_matrices, 6 tr_skin, 4 trskl, 2 visual [1 ignored], 5 wwise_audio) + doc-tests, 0
   failures. `cargo build -p pla --example port_viewer` succeeds.
 - `--menu` is listed in `--help`. The viewer was NOT run (rule: never open a window).

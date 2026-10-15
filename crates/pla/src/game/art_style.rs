@@ -38,6 +38,7 @@ use bevy::render::render_resource::{
 };
 use bevy::shader::ShaderRef;
 
+use super::npc::NpcInstance;
 use super::player_anim::PlayerAnimState;
 use super::pokemon_anim::PokemonAnimState;
 
@@ -64,25 +65,29 @@ pub const RIM_COLOR_FALLBACK: [f32; 3] = [1.0, 1.0, 0.784_314];
 /// a little gradient is kept so large curved surfaces do not look like flat decals.
 pub const BAND_STRENGTH: f32 = 0.85;
 /// The shadow-map factor is also banded with a smooth step between these values. ASSUMED.
-pub const SHADOW_BAND_LO: f32 = 0.30;
-pub const SHADOW_BAND_HI: f32 = 0.70;
+pub const SHADOW_BAND_LO: f32 = 0.10;
+pub const SHADOW_BAND_HI: f32 = 0.90;
 /// Multiplier applied to the shaded side (linear rgb) for a cool shadow. ASSUMED (the brief asks
 /// for cool sun shadows; the sheet `SubColor` of category 1 is warm in the day slot and its role
 /// is not proven, so it is not used here).
 pub const SHADE_TINT: [f32; 3] = [0.80, 0.87, 1.0];
 /// Strength of [`SHADE_TINT`] on a fully shaded pixel. ASSUMED.
-pub const SHADE_TINT_STRENGTH: f32 = 0.6;
+pub const SHADE_TINT_STRENGTH: f32 = 0.4;
+/// Share of the sun's direct light that the shaded side still receives (a fill so the dark band
+/// of a character stays readable instead of dropping to ambient only). ASSUMED; 0 = pure ramp.
+pub const SHADE_FLOOR: f32 = 0.35;
 /// Rim strength (fraction of the sun's diffuse). ASSUMED.
 pub const RIM_STRENGTH: f32 = 0.35;
 
 /// Outline width in pixels at a 1080-pixel-high viewport (scaled with the height). ASSUMED from
-/// one real-game screenshot where the character outline is about 1-2 px at 1080p.
-pub const OUTLINE_PX_1080: f32 = 1.6;
+/// one real-game screenshot where the character outline is about 1-2 px at 1080p; raised to 2.6 after
+/// the windowless 1080p capture showed 1.6 px as practically invisible at normal camera distance.
+pub const OUTLINE_PX_1080: f32 = 2.6;
 /// Outline colour = base colour x this (linear), then mixed towards [`OUTLINE_INK`]. ASSUMED.
 pub const OUTLINE_DARKEN: f32 = 0.22;
 /// Fixed dark ink colour (linear rgb) and its mix amount. ASSUMED.
 pub const OUTLINE_INK: [f32; 3] = [0.025, 0.022, 0.03];
-pub const OUTLINE_INK_MIX: f32 = 0.35;
+pub const OUTLINE_INK_MIX: f32 = 0.6;
 /// The outline fades out between these camera distances (metres). ASSUMED.
 pub const OUTLINE_FADE_START: f32 = 25.0;
 pub const OUTLINE_FADE_END: f32 = 60.0;
@@ -123,6 +128,7 @@ impl StyleSettings {
             } else if s.eq_ignore_ascii_case("plain") {
                 Some(ArtStyle::Plain)
             } else {
+                super::cli_flags::report_bad_value("--style", s, "original|plain", "plain");
                 None
             }
         });
@@ -159,6 +165,7 @@ pub struct ToonParams {
     pub shadow_band: (f32, f32),
     pub shade_tint: [f32; 3],
     pub shade_strength: f32,
+    pub shade_floor: f32,
     pub rim_color: [f32; 3],
     pub rim_power: f32,
     pub rim_strength: f32,
@@ -173,6 +180,7 @@ impl Default for ToonParams {
             shadow_band: (SHADOW_BAND_LO, SHADOW_BAND_HI),
             shade_tint: SHADE_TINT,
             shade_strength: SHADE_TINT_STRENGTH,
+            shade_floor: SHADE_FLOOR,
             rim_color: RIM_COLOR_FALLBACK,
             rim_power: RIM_POWER,
             rim_strength: RIM_STRENGTH,
@@ -184,8 +192,10 @@ impl Default for ToonParams {
 /// a blend of that factor and the banded ramp times the banded shadow.
 pub fn banded_light(ndl: f32, shadow: f32, p: &ToonParams) -> f32 {
     let lambert = ndl.clamp(0.0, 1.0) * shadow.clamp(0.0, 1.0);
-    let band = toon_ramp(ndl, p.threshold_min, p.threshold_max)
+    let floor = p.shade_floor.clamp(0.0, 1.0);
+    let ramp = toon_ramp(ndl, p.threshold_min, p.threshold_max)
         * smoothstep(p.shadow_band.0, p.shadow_band.1, shadow);
+    let band = floor + (1.0 - floor) * ramp;
     let s = p.band_strength.clamp(0.0, 1.0);
     lambert + (band - lambert) * s
 }
@@ -287,7 +297,7 @@ pub fn toon_params_from_sheet(text: &str, area: &str, slot: usize, category: u8)
 /// GPU uniform of the banded material (keep in sync with `ToonUniform` in `art_style_toon.wgsl`).
 #[derive(ShaderType, Clone, Copy, Debug, PartialEq, Default)]
 pub struct ToonUniform {
-    /// x threshold min, y threshold max, z band strength, w unused.
+    /// x threshold min, y threshold max, z band strength, w shade floor.
     pub band: Vec4,
     /// rgb shade tint, w tint strength.
     pub shade: Vec4,
@@ -300,7 +310,7 @@ pub struct ToonUniform {
 impl From<&ToonParams> for ToonUniform {
     fn from(p: &ToonParams) -> Self {
         Self {
-            band: Vec4::new(p.threshold_min, p.threshold_max, p.band_strength, 0.0),
+            band: Vec4::new(p.threshold_min, p.threshold_max, p.band_strength, p.shade_floor),
             shade: Vec4::new(p.shade_tint[0], p.shade_tint[1], p.shade_tint[2], p.shade_strength),
             rim: Vec4::new(p.rim_color[0], p.rim_color[1], p.rim_color[2], p.rim_power),
             extra: Vec4::new(p.rim_strength, p.shadow_band.0, p.shadow_band.1, 0.0),
@@ -420,6 +430,11 @@ pub struct ArtStyleTarget;
 #[derive(Component, Debug, Clone, Copy)]
 pub struct ArtStyleApplied;
 
+/// The original material of a mesh converted to the toon material, kept so the plain style can be
+/// restored at run time (graphics screen).
+#[derive(Component, Debug, Clone)]
+pub struct OriginalMaterial(pub Handle<StandardMaterial>);
+
 /// Marks an outline shell entity.
 #[derive(Component, Debug, Clone, Copy)]
 pub struct OutlineShell;
@@ -448,7 +463,14 @@ fn apply_art_style(
     roots: Query<
         Entity,
         (
-            Or<(With<PokemonAnimState>, With<PlayerAnimState>, With<ArtStyleTarget>)>,
+            // NPCs (`NpcInstance`, human placements) get the same band shading + outlines as the
+            // player and the Pokémon; the roots are retried until their glTF scene has meshes.
+            Or<(
+                With<PokemonAnimState>,
+                With<PlayerAnimState>,
+                With<ArtStyleTarget>,
+                With<NpcInstance>,
+            )>,
             Without<ArtStyleApplied>,
         ),
     >,
@@ -481,7 +503,10 @@ fn apply_art_style(
                     (toon, outline)
                 })
                 .clone();
-            commands.entity(d).remove::<MeshMaterial3d<StandardMaterial>>().insert(MeshMaterial3d(toon_h));
+            commands
+                .entity(d)
+                .remove::<MeshMaterial3d<StandardMaterial>>()
+                .insert((MeshMaterial3d(toon_h), OriginalMaterial(mat.0.clone())));
             converted += 1;
             if !settings.outlines {
                 continue;
@@ -519,6 +544,43 @@ fn apply_art_style(
     }
 }
 
+fn style_is_original(settings: Res<StyleSettings>) -> bool {
+    settings.style == ArtStyle::Original
+}
+
+/// The style or the outline switch changed at run time: put every converted mesh back to its
+/// original material and remove the outline shells. When the style is still `Original`,
+/// [`apply_art_style`] converts the roots again right after (with the new outline switch).
+fn revert_art_style(
+    mut commands: Commands,
+    settings: Res<StyleSettings>,
+    mut last: Local<Option<StyleSettings>>,
+    converted: Query<(Entity, &OriginalMaterial)>,
+    shells: Query<Entity, With<OutlineShell>>,
+    applied: Query<Entity, With<ArtStyleApplied>>,
+) {
+    let Some(prev) = *last else {
+        *last = Some(*settings);
+        return;
+    };
+    if prev == *settings {
+        return;
+    }
+    *last = Some(*settings);
+    for (e, orig) in &converted {
+        commands
+            .entity(e)
+            .remove::<(MeshMaterial3d<ToonMaterial>, OriginalMaterial)>()
+            .insert(MeshMaterial3d(orig.0.clone()));
+    }
+    for e in &shells {
+        commands.entity(e).despawn();
+    }
+    for e in &applied {
+        commands.entity(e).remove::<ArtStyleApplied>();
+    }
+}
+
 /// Registers the style. With [`ArtStyle::Plain`] it only inserts the settings resource.
 pub struct ArtStylePlugin {
     pub settings: StyleSettings,
@@ -545,13 +607,18 @@ impl ArtStylePlugin {
 impl Plugin for ArtStylePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.settings).insert_resource(self.params);
-        if self.settings.style == ArtStyle::Plain {
+        // The Plain style is registered too when a renderer exists, so the graphics screen can
+        // switch to the original style while playing; its systems do nothing while plain.
+        if self.settings.style == ArtStyle::Plain && !app.is_plugin_added::<bevy::pbr::PbrPlugin>() {
             return;
         }
         embedded_asset!(app, "art_style_toon.wgsl");
         embedded_asset!(app, "art_style_outline.wgsl");
         app.add_plugins((MaterialPlugin::<ToonMaterial>::default(), MaterialPlugin::<OutlineMaterial>::default()))
-            .add_systems(Update, apply_art_style);
+            .add_systems(Update, (revert_art_style, apply_art_style.run_if(style_is_original)).chain());
+        if self.settings.style == ArtStyle::Plain {
+            return;
+        }
         println!(
             "Art style: original (banded shading N.L {}..{}, outlines {}); --style plain to disable.",
             self.params.toon.threshold_min,
@@ -626,9 +693,13 @@ mod tests {
         let grazing = banded_light(0.2, 1.0, &p);
         let facing = banded_light(1.0, 1.0, &p);
         assert!(grazing > 0.85 && (facing - 1.0).abs() < 1e-6, "grazing {grazing}");
-        // Shade side and full shadow are dark.
-        assert!(banded_light(-0.3, 1.0, &p) < 1e-6);
-        assert!(banded_light(1.0, 0.0, &p) < 1e-6);
+        // Shade side and full shadow are darker but keep the fill (readable, not black).
+        let shaded = banded_light(-0.3, 1.0, &p);
+        assert!(shaded < 0.5 && shaded > 0.2, "shaded side {shaded}");
+        assert!(banded_light(1.0, 0.0, &p) < 0.5);
+        // Without the fill the shade side is fully dark.
+        let pure = ToonParams { shade_floor: 0.0, ..p };
+        assert!(banded_light(-0.3, 1.0, &pure) < 1e-6);
         // Strength 0 gives back plain Lambert.
         let lambert = ToonParams { band_strength: 0.0, ..p };
         assert!((banded_light(0.3, 1.0, &lambert) - 0.3).abs() < 1e-6);
@@ -669,7 +740,7 @@ mod tests {
     fn uniforms_carry_the_params() {
         let p = ToonParams::default();
         let u = ToonUniform::from(&p);
-        assert_eq!(u.band, Vec4::new(THRESHOLD_MIN, THRESHOLD_MAX, BAND_STRENGTH, 0.0));
+        assert_eq!(u.band, Vec4::new(THRESHOLD_MIN, THRESHOLD_MAX, BAND_STRENGTH, SHADE_FLOOR));
         assert_eq!(u.rim.w, RIM_POWER);
         assert_eq!(u.extra, Vec4::new(RIM_STRENGTH, SHADOW_BAND_LO, SHADOW_BAND_HI, 0.0));
         let o = OutlineUniform::from(&OutlineParams::default());
@@ -752,5 +823,79 @@ mod tests {
         assert!(rim12 >= 16, "rim power 12 in {rim12} of 17 files");
         let day = toon_params_from_sheet(&text, "ha_area00", 1, CHARACTER_LIGHT_CATEGORY);
         assert_eq!(day.rim_color, RIM_COLOR_FALLBACK);
+    }
+
+    /// The NPC root marker is part of the conversion query: a skinned-model root with
+    /// `NpcInstance` gets the toon material on its meshes and an outline shell, and a root without
+    /// any marker is left alone (headless; no renderer, no window).
+    #[test]
+    fn npc_roots_get_the_toon_material_and_outline() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<Mesh>()
+            .init_asset::<StandardMaterial>()
+            .init_asset::<ToonMaterial>()
+            .init_asset::<OutlineMaterial>();
+        app.insert_resource(StyleSettings { style: ArtStyle::Original, outlines: true });
+        app.insert_resource(ArtStyleParams {
+            toon: ToonParams::default(),
+            outline: OutlineParams::default(),
+        });
+        app.add_systems(Update, (revert_art_style, apply_art_style.run_if(style_is_original)).chain());
+
+        let mesh = app.world_mut().resource_mut::<Assets<Mesh>>().add(Sphere::new(1.0));
+        let std_mat = app
+            .world_mut()
+            .resource_mut::<Assets<StandardMaterial>>()
+            .add(StandardMaterial::default());
+        let root = app
+            .world_mut()
+            .spawn((
+                NpcInstance {
+                    key: "area00_npc_re_leader".into(),
+                    chara_hash: "h".into(),
+                    chara_id: None,
+                    idle_clip: None,
+                    route_confidence: "UNKNOWN",
+                },
+                Transform::default(),
+                Visibility::default(),
+            ))
+            .id();
+        let body = app
+            .world_mut()
+            .spawn((
+                Mesh3d(mesh.clone()),
+                MeshMaterial3d(std_mat.clone()),
+                Name::new("body"),
+                Transform::default(),
+            ))
+            .id();
+        app.world_mut().entity_mut(root).add_child(body);
+        // A root without a styled marker (e.g. a placed scenery object) stays plain.
+        let plain = app
+            .world_mut()
+            .spawn((
+                Mesh3d(mesh),
+                MeshMaterial3d(std_mat),
+                Name::new("prop"),
+                Transform::default(),
+            ))
+            .id();
+
+        app.update();
+
+        assert!(app.world().entity(root).contains::<ArtStyleApplied>());
+        assert!(
+            app.world().entity(body).contains::<MeshMaterial3d<ToonMaterial>>(),
+            "the NPC mesh is converted"
+        );
+        assert!(app.world().entity(body).contains::<OriginalMaterial>());
+        assert!(
+            !app.world().entity(plain).contains::<OriginalMaterial>(),
+            "a root without a marker is not converted"
+        );
+        let mut shells = app.world_mut().query_filtered::<Entity, With<OutlineShell>>();
+        assert_eq!(shells.iter(app.world()).count(), 1, "one outline shell for the NPC mesh");
     }
 }

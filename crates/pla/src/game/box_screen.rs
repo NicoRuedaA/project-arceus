@@ -3,21 +3,23 @@
 //! The screen deliberately owns no species names, icons, or save-schema logic. It renders numeric
 //! species/form ids from the explicit [`BoxScreenData`] provider and sends party/box mutations
 //! through the existing [`PlayerProgress`] operation boundary (`deposit`, `withdraw`, and `swap`).
-//! The `B` key is only a small standalone opener; callers can also set [`BoxScreenState::open`]
-//! directly from another menu.
+//! It opens from the pause menu's `Pokémon boxes` row ([`BoxOpenRequested`]); callers can also
+//! set [`BoxScreenState::open`] directly. There is no world hotkey: the former standalone `B`
+//! opener collided with the Poké Ball selection key (B) and the battle Capture key (C / B).
 
 use bevy::prelude::*;
 
-use super::pause_menu::PauseMenuSuppressed;
+use super::pause_menu::{BoxOpenRequested, PauseMenuSuppressed};
 use super::save_game::{MAX_BOX, MAX_PARTY, PartyMember};
 use super::save_wire::{BoxError, PlayerProgress};
 use super::state::Paused;
 
-/// The documented provisional capacity is 30 boxes of 32 slots.
-pub const SLOTS_PER_BOX: usize = 32;
-/// The readable grid has eight columns and four rows.
-pub const GRID_COLUMNS: usize = 8;
-/// The readable grid has four rows and eight columns.
+/// Slots per box: the game's box grid (`box_top_00` / `inventory_00`) is 6 buttons wide and the
+/// 960-slot storage splits into 32 boxes of 30 (6 x 5). The save stays a flat list.
+pub const SLOTS_PER_BOX: usize = 30;
+/// The grid has six columns (the game's inventory grid width).
+pub const GRID_COLUMNS: usize = 6;
+/// The grid has five rows.
 pub const GRID_ROWS: usize = SLOTS_PER_BOX / GRID_COLUMNS;
 
 const _: () = assert!(GRID_COLUMNS * GRID_ROWS == SLOTS_PER_BOX);
@@ -47,6 +49,8 @@ pub struct BoxScreenState {
     pub selected_party: usize,
     pub focus: BoxFocus,
     pub held: Option<BoxSelection>,
+    /// First X press on a member: the second press releases it.
+    pub pending_release: Option<BoxSelection>,
     pub message: String,
 }
 
@@ -59,6 +63,7 @@ impl Default for BoxScreenState {
             selected_party: 0,
             focus: BoxFocus::Box,
             held: None,
+            pending_release: None,
             message: String::new(),
         }
     }
@@ -183,6 +188,7 @@ impl Plugin for BoxScreenPlugin {
             .init_resource::<PlayerProgress>()
             .init_resource::<Paused>()
             .init_resource::<PauseMenuSuppressed>()
+            .init_resource::<BoxOpenRequested>()
             .add_systems(Startup, spawn_box_screen)
             .add_systems(Update, (box_input, sync_box_data, sync_box_screen).chain());
     }
@@ -236,7 +242,7 @@ fn spawn_box_screen(mut commands: Commands) {
                             flex_wrap: FlexWrap::Wrap,
                             column_gap: Val::Px(4.0),
                             row_gap: Val::Px(4.0),
-                            width: Val::Px(1000.0),
+                            width: Val::Px(760.0),
                             ..default()
                         },
                     ))
@@ -283,7 +289,7 @@ fn spawn_box_screen(mut commands: Commands) {
                 panel.spawn((
                     BoxText::Hint,
                     Text::new(
-                        "Arrows move | PageUp/PageDown change box | Tab changes side | Enter selects/swaps | D stores party | W withdraws | Esc closes | B opens",
+                        "Arrows move | PageUp/PageDown change box | Tab changes side | Enter selects/swaps | D stores party | W withdraws | X X releases | Esc closes",
                     ),
                     TextFont::from_font_size(13.0),
                     TextColor(Color::srgb(0.7, 0.75, 0.8)),
@@ -308,16 +314,18 @@ fn set_freeze(
 #[allow(clippy::too_many_arguments)]
 fn box_input(
     keys: Res<ButtonInput<KeyCode>>,
+    mut request: ResMut<BoxOpenRequested>,
     mut state: ResMut<BoxScreenState>,
     mut progress: ResMut<PlayerProgress>,
     mut paused: Option<ResMut<Paused>>,
     mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
 ) {
-    if keys.just_pressed(KeyCode::KeyB) {
-        state.open = !state.open;
+    if request.0 {
+        request.0 = false;
+        state.open = true;
         state.held = None;
         state.message.clear();
-        set_freeze(&mut paused, &mut suppressed, state.open);
+        set_freeze(&mut paused, &mut suppressed, true);
         return;
     }
     if !state.open {
@@ -401,8 +409,53 @@ fn box_input(
         }
     }
     if keys.just_pressed(KeyCode::Enter) {
+        state.pending_release = None;
         activate_selection(&mut state, &mut progress);
     }
+    if keys.just_pressed(KeyCode::KeyX) {
+        release_selection(&mut state, &mut progress);
+    }
+}
+
+/// X on a member asks once, X again releases it through `party_ops::release` (which refuses to
+/// release the last healthy party member). Any other action clears the question.
+pub fn release_selection(state: &mut BoxScreenState, progress: &mut PlayerProgress) {
+    use super::party_ops::{release, ReleaseTarget};
+    let current = match state.focus {
+        BoxFocus::Box => {
+            let index = state.page * SLOTS_PER_BOX + state.selected_slot;
+            progress.box_list.get(index).map(|_| BoxSelection::Box(index))
+        }
+        BoxFocus::Party => progress
+            .party
+            .get(state.selected_party)
+            .map(|_| BoxSelection::Party(state.selected_party)),
+    };
+    let Some(current) = current else {
+        state.pending_release = None;
+        state.message = "That slot is empty.".into();
+        return;
+    };
+    if state.pending_release != Some(current) {
+        state.pending_release = Some(current);
+        state.message = "Release this Pokemon? Press X again to confirm.".into();
+        return;
+    }
+    state.pending_release = None;
+    let target = match current {
+        BoxSelection::Box(i) => ReleaseTarget::Box(i),
+        BoxSelection::Party(i) => ReleaseTarget::Party(i),
+    };
+    state.message = match release(progress, target) {
+        Ok(_) => {
+            state.held = None;
+            if let BoxSelection::Party(i) = current {
+                state.selected_party = i.min(progress.party.len().saturating_sub(1));
+            }
+            "Released. Bye-bye!".into()
+        }
+        Err(e) => format!("Cannot release: {e}."),
+    };
 }
 
 fn activate_selection(state: &mut BoxScreenState, progress: &mut PlayerProgress) {
@@ -503,7 +556,7 @@ fn sync_box_screen(
                 party_label(*index, data.party.get(*index), selected, held)
             }
             BoxText::Status => state.message.clone(),
-            BoxText::Hint => "Arrows move | PageUp/PageDown change box | Tab changes side | Enter selects/swaps | D stores party | W withdraws | Esc closes | B opens".into(),
+            BoxText::Hint => "Arrows move | PageUp/PageDown change box | Tab changes side | Enter selects/swaps | D stores party | W withdraws | X X releases | Esc closes".into(),
         };
         if text.0 != desired {
             text.0 = desired;
@@ -579,11 +632,11 @@ mod tests {
 
     #[test]
     fn grid_layout_is_deterministic_and_complete() {
-        assert_eq!(page_count(), 30);
+        assert_eq!(page_count(), 32);
         assert_eq!(grid_position(0), (0, 0));
-        assert_eq!(grid_position(7), (0, 7));
-        assert_eq!(grid_position(8), (1, 0));
-        assert_eq!(grid_position(31), (3, 7));
+        assert_eq!(grid_position(5), (0, 5));
+        assert_eq!(grid_position(6), (1, 0));
+        assert_eq!(grid_position(29), (4, 5));
         assert_eq!(
             (0..SLOTS_PER_BOX)
                 .map(grid_position)
@@ -595,10 +648,10 @@ mod tests {
 
     #[test]
     fn selection_moves_and_wraps_without_changing_box_slot_order() {
-        assert_eq!(move_grid_selection(0, GridDirection::Left), 7);
-        assert_eq!(move_grid_selection(7, GridDirection::Right), 0);
+        assert_eq!(move_grid_selection(0, GridDirection::Left), 5);
+        assert_eq!(move_grid_selection(5, GridDirection::Right), 0);
         assert_eq!(move_grid_selection(0, GridDirection::Up), 24);
-        assert_eq!(move_grid_selection(31, GridDirection::Down), 7);
+        assert_eq!(move_grid_selection(29, GridDirection::Down), 5);
         assert_eq!(move_party_selection(0, -1, 3), 2);
         assert_eq!(move_party_selection(2, 1, 3), 0);
 
@@ -673,7 +726,25 @@ mod tests {
             .iter(app.world())
             .map(|text| text.0.clone())
             .collect::<Vec<_>>();
-        assert!(full_text.iter().any(|text| text.contains("stored 32/960")));
-        assert!(full_text.iter().any(|text| text.contains("Species #0032")));
+        assert!(full_text.iter().any(|text| text.contains("stored 30/960")));
+        assert!(full_text.iter().any(|text| text.contains("Species #0030")));
+    }
+
+    #[test]
+    fn release_asks_once_and_keeps_the_last_healthy_member() {
+        let mut p = progress(&[25], &[133, 134]);
+        let mut st = BoxScreenState {
+            open: true,
+            ..default()
+        };
+        release_selection(&mut st, &mut p);
+        assert_eq!(p.box_list.len(), 2, "first X only asks");
+        release_selection(&mut st, &mut p);
+        assert_eq!(p.box_list.iter().map(|m| m.species).collect::<Vec<_>>(), [134]);
+        st.focus = BoxFocus::Party;
+        release_selection(&mut st, &mut p);
+        release_selection(&mut st, &mut p);
+        assert_eq!(p.party.len(), 1, "the last healthy member stays");
+        assert!(st.message.contains("Cannot release"));
     }
 }

@@ -48,9 +48,13 @@ pub fn load_particle(bin_root: &Path, cache_dir: Option<&Path>, path: &str) -> R
     })
 }
 
+fn timeline_file(bin_root: &Path, name: &str) -> PathBuf {
+    bin_root.join("effect/battle/sequence").join(format!("{name}.wbin"))
+}
+
 /// Read a timeline (`name` without extension, under `bin/effect/battle/sequence/`).
 pub fn load_timeline(bin_root: &Path, name: &str) -> Result<EffectTimeline, String> {
-    let full = bin_root.join("effect/battle/sequence").join(format!("{name}.wbin"));
+    let full = timeline_file(bin_root, name);
     let bytes = std::fs::read(&full).map_err(|e| format!("{}: {e}", full.display()))?;
     let seq = EffectSequence::parse(&bytes).map_err(|e| format!("{name}: {e}"))?;
     Ok(EffectTimeline::from_sequence(name, &seq))
@@ -94,6 +98,9 @@ pub struct EffectLibrary {
     particles: HashMap<String, ParticleSlot>,
     images: HashMap<String, Handle<Image>>,
     materials: HashMap<(Option<String>, BlendMode, [u8; 2]), Handle<EffectMaterial>>,
+    /// Timelines whose file does not exist in the extracted data (reported once, in a summary).
+    absent: Vec<String>,
+    absent_reported: usize,
     jobs: Option<Sender<String>>,
     results_tx: Sender<LoadResult>,
     results: Mutex<Receiver<LoadResult>>,
@@ -113,6 +120,8 @@ impl EffectLibrary {
             particles: HashMap::new(),
             images: HashMap::new(),
             materials: HashMap::new(),
+            absent: Vec::new(),
+            absent_reported: 0,
             jobs: None,
             results_tx,
             results: Mutex::new(rx),
@@ -133,12 +142,25 @@ impl EffectLibrary {
             }
             Err(e) => {
                 self.stats.timelines_missing += 1;
-                warn!("effects: no timeline {name} ({e})");
+                if timeline_file(&self.bin_root, name).exists() {
+                    warn!("effects: unreadable timeline {name} ({e})");
+                } else {
+                    // The game data simply has no file for this move: no per-move warning.
+                    self.absent.push(name.to_string());
+                }
                 None
             }
         };
         self.timelines.insert(name.to_string(), t.clone());
         t
+    }
+
+    /// Names of the timelines found absent since the last call (each is returned once), so the
+    /// caller can log one summary line instead of one warning per move.
+    pub fn take_new_absent(&mut self) -> Vec<String> {
+        let new = self.absent[self.absent_reported..].to_vec();
+        self.absent_reported = self.absent.len();
+        new
     }
 
     /// Start loading a particle file if it is not known yet.
@@ -250,6 +272,8 @@ impl EffectLibrary {
         self.images.clear();
         self.materials.clear();
         self.timelines.clear();
+        self.absent.clear();
+        self.absent_reported = 0;
     }
 }
 

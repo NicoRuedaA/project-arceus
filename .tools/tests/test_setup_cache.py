@@ -105,7 +105,7 @@ class PlanTests(unittest.TestCase):
         plan = sc.make_plan(make_ctx(self.work), self.steps)
         self.assertEqual(self.names(plan), [
             "base-sections", "update-sections", "romfs", "main-elf", "terrain-albedo", "terrain-normals",
-            "minimap", "field-models", "pokemon-models", "player-model", "audio"])
+            "minimap", "field-models", "pokemon-models", "player-model", "ui", "audio"])
         self.assertTrue(plan.needs_build)
         order = self.names(plan)
         for step in plan.to_run:
@@ -126,6 +126,35 @@ class PlanTests(unittest.TestCase):
         with self.assertRaisesRegex(sc.InstallError, "unknown step 'nope'"):
             sc.make_plan(make_ctx(self.work, "--only", "nope"), self.steps)
 
+    def test_ui_step_exports_textures_then_decodes_layouts_into_the_cache(self) -> None:
+        ctx = make_ctx(self.work)
+        step = next(s for s in self.steps if s.name == "ui")
+        self.assertEqual(step.needs, ["romfs"])
+        self.assertEqual(step.outputs(ctx), [self.work / "cache" / "ui" / "layouts", self.work / "cache" / "ui" / "png"])
+        export, decode = sc.ui_cmds(ctx, self.work / "staging" / "ui")
+        self.assertTrue(export[0].endswith("ui_export"))
+        self.assertIn("ui_layout_decode.py", decode[1])
+        self.assertIn("--all", decode)
+        self.assertIn("ui_export", sc.build_cmd(ctx))
+
+    def test_ui_data_in_the_legacy_work_ui_folder_count_as_present(self) -> None:
+        """`work/ui` (made by hand, read by the viewer as a fallback) is detected: no re-export, and
+        a complete `<cache>/ui` wins when both exist. An incomplete folder is still missing."""
+        self.fake_romfs()
+        ctx = make_ctx(self.work)
+        step = next(s for s in self.steps if s.name == "ui")
+        self.assertEqual(sc.step_status(ctx, step), "missing")
+        (self.work / "ui" / "layouts").mkdir(parents=True)
+        self.assertEqual(sc.step_status(ctx, step), "missing", "layouts without png is incomplete")
+        (self.work / "ui" / "png").mkdir()
+        self.assertEqual(sc.step_status(ctx, step), "present")
+        self.assertEqual(sc.ui_root(ctx), self.work / "ui")
+        plan = sc.make_plan(ctx, self.steps)
+        self.assertNotIn("ui", self.names(plan))
+        (self.work / "cache" / "ui" / "layouts").mkdir(parents=True)
+        (self.work / "cache" / "ui" / "png").mkdir()
+        self.assertEqual(sc.ui_root(ctx), self.work / "cache" / "ui", "the canonical folder wins")
+
     def test_only_reports_missing_dependency(self) -> None:
         ctx = make_ctx(self.work, "--only", "minimap")
         plan = sc.make_plan(ctx, self.steps)
@@ -144,7 +173,7 @@ class PlanTests(unittest.TestCase):
             (self.work / "pla" / f).write_text("{}")
         plan = sc.make_plan(make_ctx(self.work), self.steps)
         self.assertEqual(self.names(plan), ["terrain-albedo", "terrain-normals", "minimap", "field-models",
-                                            "pokemon-models", "player-model", "audio"])
+                                            "pokemon-models", "player-model", "ui", "audio"])
         statuses = {s.name: st for s, st, _ in plan.rows}
         self.assertEqual(statuses["romfs"], "present")
 
@@ -170,6 +199,22 @@ class PlanTests(unittest.TestCase):
         fp["sources"] = {k: "0" * 64 for k in fp["sources"]}
         stamp.write_text(json.dumps({"fingerprint": fp}))
         self.assertEqual(sc.step_status(ctx, step), "stale")
+
+    def test_player_export_without_roll_and_crouch_clips_is_stale(self) -> None:
+        self.fake_romfs()
+        ctx = make_ctx(self.work)
+        step = next(s for s in self.steps if s.name == "player-model")
+        clips9 = ["idle", "idle2", "walk", "run", "dash", "jump_start", "jump_fall", "land", "swim"]
+        for v in ("p1_default", "p2_default"):
+            f = self.work / "cache" / "player" / v / "player.gltf"
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(json.dumps({"animations": [{"name": n} for n in clips9]}))
+        self.assertEqual(sc.step_status(ctx, step), "stale", "a pre-Brief-22 export (9 clips) is refreshed")
+        for v in ("p1_default", "p2_default"):
+            f = self.work / "cache" / "player" / v / "player.gltf"
+            names = clips9 + ["roll_f", "roll_b", "roll_l", "roll_r", "crouch", "crouch_walk"]
+            f.write_text(json.dumps({"animations": [{"name": n} for n in names]}))
+        self.assertEqual(sc.step_status(ctx, step), "present")
 
     def test_rebuilt_upstream_reruns_stamped_downstream_but_not_hand_made_outputs(self) -> None:
         self.fake_romfs()
@@ -241,7 +286,7 @@ class ModeTests(unittest.TestCase):
         work.mkdir()
         code, out, _ = self.run_main("--check", "--work", str(work))
         self.assertEqual(code, 2)  # inputs are missing
-        self.assertIn("Steps that would run, in order (11):", out)
+        self.assertIn("Steps that would run, in order (12):", out)
         self.assertIn("ncz_extract.py '<your pk1.nsz>'", out)
         self.assertIn("missing --keys", out)
         self.assertEqual(list(work.iterdir()), [])
@@ -257,7 +302,7 @@ class ModeTests(unittest.TestCase):
                 patch.object(sc, "disk_problem", return_value=None):
             code, out, _ = self.run_main("--check", "--work", str(work), "--no-audio")
         self.assertEqual(code, 3)
-        self.assertIn("[1/6] terrain-albedo", out)
+        self.assertIn("[1/7] terrain-albedo", out)
         self.assertNotIn("install-state", [p.name for p in work.iterdir()])
 
     def test_preflight_without_data_gives_the_exact_command(self) -> None:

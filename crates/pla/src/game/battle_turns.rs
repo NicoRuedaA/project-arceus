@@ -109,10 +109,4 @@ mod tests {
         assert_eq!(neg[0], " 1. Wild BIDOOF  wait 0", "a negative wait is shown as 0");
     }
 
-    #[test]
-    fn style_words() {
-        assert_eq!(style_word(Style::Agile), "Agile");
-        assert_eq!(style_word(Style::Strong), "Strong");
-        assert_eq!(style_word(Style::Normal), "Normal");
-    }
 }

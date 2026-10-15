@@ -70,7 +70,8 @@ pub struct ConsumedSpawners {
 impl ConsumedSpawners {
     /// Marks `spawner_id` as consumed at game time `now_s`.
     pub fn consume(&mut self, spawner_id: &str, now_s: f64) {
-        self.respawn_at.insert(spawner_id.to_string(), now_s + RESPAWN_AFTER_S);
+        self.respawn_at
+            .insert(spawner_id.to_string(), now_s + RESPAWN_AFTER_S);
     }
 
     /// True while the spawner must stay empty.
@@ -107,12 +108,16 @@ pub fn flee_cooldown_step(remaining: f32, dt: f32) -> Option<f32> {
     (left > 0.0).then_some(left)
 }
 
-fn tick_flee_cooldown(time: Res<Time>, mut commands: Commands, mut q: Query<(Entity, &mut FleeCooldown)>) {
+fn tick_flee_cooldown(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut q: Query<(Entity, &mut FleeCooldown)>,
+) {
     for (e, mut c) in &mut q {
         match flee_cooldown_step(c.0, time.delta_secs()) {
             Some(left) => c.0 = left,
             None => {
-                commands.entity(e).remove::<FleeCooldown>();
+                commands.entity(e).try_remove::<FleeCooldown>();
             }
         }
     }
@@ -129,8 +134,144 @@ pub struct WildLifecyclePlugin;
 
 impl Plugin for WildLifecyclePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ConsumedSpawners>()
+        app.add_plugins(EncounterSafetyPlugin)
+            .init_resource::<ConsumedSpawners>()
             .add_systems(Update, (tick_flee_cooldown, purge_consumed));
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Encounter safety (SUPUESTO values: the native encounter radii and any arrival grace time are
+// not decoded; these numbers are playtest-driven guesses, not game data).
+// ---------------------------------------------------------------------------------------------
+
+/// SUPUESTO: seconds after spawning, a zone change or a load during which no encounter can start
+/// and no creature chases the player.
+pub const ENCOUNTER_GRACE_S: f32 = 5.0;
+/// SUPUESTO: wild creatures are not spawned within this many metres of the arrival point.
+pub const SPAWN_EXCLUSION_RADIUS_M: f32 = 15.0;
+/// SUPUESTO: an automatic encounter (walking into an aggressive creature) needs this distance.
+pub const AUTO_ENCOUNTER_DISTANCE_M: f32 = 1.5;
+/// SUPUESTO: the manual encounter (E / Enter) reach.
+pub const MANUAL_ENCOUNTER_DISTANCE_M: f32 = 4.0;
+/// A single-frame player displacement above this many metres is a teleport (zone change, load,
+/// "back to safe spawn"): it counts as a new arrival.
+pub const ARRIVAL_JUMP_M: f32 = 30.0;
+
+/// Grace period and arrival point of the player (see the constants above).
+#[derive(Resource, Debug, Clone, Default)]
+pub struct EncounterSafety {
+    /// Seconds of grace left (0 = encounters allowed).
+    pub grace_remaining_s: f32,
+    /// Arrival point (x, z) around which no creature is spawned.
+    pub anchor: Option<Vec2>,
+    last_player: Option<Vec2>,
+}
+
+impl EncounterSafety {
+    /// True while encounters and aggressive chases are suppressed.
+    pub fn grace_active(&self) -> bool {
+        self.grace_remaining_s > 0.0
+    }
+
+    /// Starts a new arrival at `pos`: grace period and spawn exclusion restart.
+    pub fn begin_arrival(&mut self, pos: Vec2) {
+        self.grace_remaining_s = ENCOUNTER_GRACE_S;
+        self.anchor = Some(pos);
+        self.last_player = Some(pos);
+    }
+
+    /// Ends the grace period at `pos` without treating the move as an arrival (test tooling:
+    /// the automation `start_battle nearest` command walks the player up to a creature).
+    pub fn clear_grace_at(&mut self, pos: Vec2) {
+        self.grace_remaining_s = 0.0;
+        self.last_player = Some(pos);
+    }
+
+    /// Forgets the last position so the next [`EncounterSafety::tick`] is treated as an arrival
+    /// (called when a zone is replaced or a save is loaded).
+    pub fn request_arrival(&mut self) {
+        self.last_player = None;
+    }
+
+    /// One frame: detects the first frame and teleports as arrivals, then counts the grace down.
+    pub fn tick(&mut self, dt: f32, player: Vec2) {
+        match self.last_player {
+            None => self.begin_arrival(player),
+            Some(prev) if prev.distance(player) > ARRIVAL_JUMP_M => self.begin_arrival(player),
+            _ => {}
+        }
+        self.last_player = Some(player);
+        self.grace_remaining_s = (self.grace_remaining_s - dt.max(0.0)).max(0.0);
+    }
+
+    /// True when a spawner at `spawn_xz` is too close to the arrival point.
+    pub fn spawn_excluded(&self, spawn_xz: Vec2) -> bool {
+        self.anchor
+            .is_some_and(|a| a.distance(spawn_xz) < SPAWN_EXCLUSION_RADIUS_M)
+    }
+}
+
+/// Whether the viewer may start a battle by itself. `aggressive_engaged` is true when the
+/// creature is in an aggressive Chase/Attack reaction.
+pub fn auto_encounter_allowed(dist: f32, aggressive_engaged: bool, grace_active: bool) -> bool {
+    !grace_active && aggressive_engaged && dist <= AUTO_ENCOUNTER_DISTANCE_M
+}
+
+/// Whether the E / Enter key starts a battle (never during the grace period).
+pub fn manual_encounter_allowed(dist: f32, interact_pressed: bool, grace_active: bool) -> bool {
+    !grace_active && interact_pressed && dist <= MANUAL_ENCOUNTER_DISTANCE_M
+}
+
+fn encounter_safety_system(
+    time: Res<Time>,
+    mut safety: ResMut<EncounterSafety>,
+    player: Query<&Transform, With<crate::game::PlayerAvatar>>,
+) {
+    if let Ok(t) = player.single() {
+        safety.tick(time.delta_secs(), Vec2::new(t.translation.x, t.translation.z));
+    }
+}
+
+/// Registers [`EncounterSafety`] and its per-frame tick (runs before every `Update` system).
+pub struct EncounterSafetyPlugin;
+
+impl Plugin for EncounterSafetyPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<EncounterSafety>()
+            .add_systems(PreUpdate, encounter_safety_system);
+    }
+}
+
+/// Decoded facts of one encounter slot (`data/field_spawn_conditions.tsv`).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SlotFacts {
+    pub form: u16,
+    pub alpha: bool,
+    pub unique_alpha: bool,
+    pub weight: u16,
+}
+
+impl SlotFacts {
+    /// True when `self` should replace `other` as the slot representing a species.
+    pub fn outranks(&self, other: &SlotFacts) -> bool {
+        self.weight > other.weight
+            || (self.weight == other.weight && other.alpha && !self.alpha)
+    }
+}
+
+/// Field scale of an alpha creature (`LL_field`; raw value verified in `pokemon_variants.tsv`).
+pub const ALPHA_FIELD_SCALE: f32 = 2.5;
+
+/// Field scale of a non-alpha creature from a uniform roll.
+/// SUPUESTO: the data holds the category scales (S 0.85, M 1.0, L 1.8) but no
+/// draw probabilities; a third of creatures at 1.8x looked gigantic, so the
+/// port keeps almost all at M and makes S/L uncommon.
+pub fn normal_size_scale(roll: u64) -> f32 {
+    match roll % 100 {
+        0..=9 => 0.85,  // S_field
+        10..=94 => 1.0, // M_field
+        _ => 1.8,       // L_field
     }
 }
 
@@ -139,9 +280,22 @@ impl Plugin for WildLifecyclePlugin {
 pub struct SpawnSpeciesEntry {
     pub species_id: u16,
     pub species_name: String,
+    /// Encounter form from `field_spawn_conditions.tsv`; zero is the explicit
+    /// fallback when the companion evidence row is absent.
+    pub form: u16,
+    /// Alpha flags are decoded slot facts, not probabilities.
+    pub alpha: bool,
+    pub unique_alpha: bool,
     pub min_level: u8,
     pub max_level: u8,
     pub weight: u16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SpawnVariant {
+    pub form: u16,
+    pub alpha: bool,
+    pub size_scale: f32,
 }
 
 /// Raw spawner definition parsed from `data/field_spawn_table.tsv`.
@@ -205,6 +359,46 @@ pub fn load_spawners_for_area(
     let reader = BufReader::new(file);
 
     let target_area = format!("ha_area{area_idx:02}");
+    let condition_path = path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("field_spawn_conditions.tsv");
+    let mut conditions = HashMap::<(String, String, u16), SlotFacts>::new();
+    if let Ok(file) = File::open(&condition_path) {
+        let reader = BufReader::new(file);
+        for line_res in reader.lines().skip(9) {
+            let Ok(line) = line_res else { continue };
+            let fields: Vec<&str> = line.split('\t').collect();
+            if fields.len() < 9 || !fields[0].starts_with(&target_area) {
+                continue;
+            }
+            let Ok(species_id) = fields[4].parse::<u16>() else {
+                continue;
+            };
+            let form = fields[6].parse::<u16>().unwrap_or(0);
+            let alpha = fields[7] == "1";
+            let unique_alpha = fields[8] == "1";
+            let weight = fields.get(9).and_then(|w| w.parse::<u16>().ok()).unwrap_or(0);
+            let incoming = SlotFacts {
+                form,
+                alpha,
+                unique_alpha,
+                weight,
+            };
+            // A species can own several slots in one encounter group (a normal
+            // slot and a gated random-alpha slot). Keep ONE per key: the
+            // heaviest, a normal slot winning ties. Overwriting by file order
+            // made the weight-1 alpha slot win and every creature an alpha.
+            conditions
+                .entry((fields[1].to_owned(), fields[2].to_owned(), species_id))
+                .and_modify(|current| {
+                    if incoming.outranks(current) {
+                        *current = incoming;
+                    }
+                })
+                .or_insert(incoming);
+        }
+    }
     let mut spawner_map: HashMap<String, SpawnerDefinition> = HashMap::new();
 
     for line_res in reader.lines() {
@@ -226,6 +420,7 @@ pub fn load_spawners_for_area(
         }
 
         let spawner_id = parts[1].to_string();
+        let encount_key = parts[8];
         let x: f32 = match parts[2].parse() {
             Ok(v) => v,
             Err(_) => continue,
@@ -248,24 +443,36 @@ pub fn load_spawners_for_area(
         let min_lvl: u8 = parts[12].parse().unwrap_or(5);
         let max_lvl: u8 = parts[13].parse().unwrap_or(min_lvl);
         let weight: u16 = parts[15].parse().unwrap_or(100);
+        let SlotFacts {
+            form,
+            alpha,
+            unique_alpha,
+            ..
+        } = conditions
+            .get(&(spawner_id.clone(), encount_key.to_owned(), species_id))
+            .copied()
+            .unwrap_or_default();
 
         let entry = SpawnSpeciesEntry {
             species_id,
             species_name,
+            form,
+            alpha,
+            unique_alpha,
             min_level: min_lvl,
             max_level: max_lvl,
             weight: weight.max(1),
         };
 
-        let spawner = spawner_map.entry(spawner_id.clone()).or_insert_with(|| {
-            SpawnerDefinition {
+        let spawner = spawner_map
+            .entry(spawner_id.clone())
+            .or_insert_with(|| SpawnerDefinition {
                 spawner_id,
                 area: area_str.to_string(),
                 pos: Vec3::new(x, y, z),
                 radius,
                 entries: Vec::new(),
-            }
-        });
+            });
 
         spawner.entries.push(entry);
     }
@@ -278,6 +485,17 @@ pub fn load_spawners_for_area(
 
 /// Chooses species and level deterministically for a spawner using seed + spawner_id.
 pub fn roll_spawner(spawner: &SpawnerDefinition, base_seed: u64) -> Option<(u16, String, u8)> {
+    roll_spawner_variant(spawner, base_seed).map(|(dex, name, level, _)| (dex, name, level))
+}
+
+/// Selects one encounter and a deterministic port-side appearance variant.
+/// The original alpha draw probability is not present in the local evidence;
+/// alpha therefore follows only an explicit decoded slot flag, while normal
+/// size categories are a stable hash choice over the decoded S/M/L scales.
+pub fn roll_spawner_variant(
+    spawner: &SpawnerDefinition,
+    base_seed: u64,
+) -> Option<(u16, String, u8, SpawnVariant)> {
     if spawner.entries.is_empty() {
         return None;
     }
@@ -311,7 +529,22 @@ pub fn roll_spawner(spawner: &SpawnerDefinition, base_seed: u64) -> Option<(u16,
         min_lvl
     };
 
-    Some((chosen_entry.species_id, chosen_entry.species_name.clone(), lvl))
+    let alpha = chosen_entry.alpha || chosen_entry.unique_alpha;
+    let size_scale = if alpha {
+        ALPHA_FIELD_SCALE
+    } else {
+        normal_size_scale(splitmix64(&mut rng_state))
+    };
+    Some((
+        chosen_entry.species_id,
+        chosen_entry.species_name.clone(),
+        lvl,
+        SpawnVariant {
+            form: chosen_entry.form,
+            alpha,
+            size_scale,
+        },
+    ))
 }
 
 /// Backward compatibility helper for legacy calls.
@@ -351,18 +584,16 @@ pub fn get_wild_spawns_for_area(area: u8, player_spawn: Vec2) -> Vec<WildCreatur
     }
 
     // Default fallback if table missing
-    vec![
-        WildCreature {
-            species_name: "pikachu".into(),
-            national_dex: 25,
-            level: 5,
-            spawn_pos: Vec3::new(player_spawn.x + 6.0, 0.0, player_spawn.y - 5.0),
-            aggro_range: 2.8,
-            in_battle: false,
-            defeated: false,
-            spawner_id: "fallback_pika".into(),
-        },
-    ]
+    vec![WildCreature {
+        species_name: "pikachu".into(),
+        national_dex: 25,
+        level: 5,
+        spawn_pos: Vec3::new(player_spawn.x + 6.0, 0.0, player_spawn.y - 5.0),
+        aggro_range: 2.8,
+        in_battle: false,
+        defeated: false,
+        spawner_id: "fallback_pika".into(),
+    }]
 }
 
 #[cfg(test)]
@@ -404,9 +635,92 @@ mod lifecycle_tests {
     }
 
     #[test]
+    fn first_frame_and_teleports_start_the_grace_period() {
+        let mut s = EncounterSafety::default();
+        assert!(!s.grace_active());
+        s.tick(1.0 / 60.0, Vec2::new(10.0, 10.0));
+        assert!(s.grace_active(), "first frame is an arrival");
+        // 5 s later the grace is over.
+        for _ in 0..(ENCOUNTER_GRACE_S * 60.0) as usize + 2 {
+            s.tick(1.0 / 60.0, Vec2::new(10.0, 10.0));
+        }
+        assert!(!s.grace_active());
+        // Walking normally does not restart it.
+        s.tick(1.0 / 60.0, Vec2::new(10.1, 10.0));
+        assert!(!s.grace_active());
+        // A teleport (zone change, load) does.
+        s.tick(1.0 / 60.0, Vec2::new(500.0, 10.0));
+        assert!(s.grace_active());
+        assert_eq!(s.anchor, Some(Vec2::new(500.0, 10.0)));
+        // An explicit request (zone replaced) does too, even for a short hop.
+        for _ in 0..400 {
+            s.tick(1.0 / 60.0, Vec2::new(500.0, 10.0));
+        }
+        assert!(!s.grace_active());
+        s.request_arrival();
+        s.tick(1.0 / 60.0, Vec2::new(502.0, 10.0));
+        assert!(s.grace_active());
+    }
+
+    #[test]
+    fn grace_blocks_both_automatic_and_manual_encounters() {
+        // Auto: only an engaged aggressive creature, within 1.5 m.
+        assert!(auto_encounter_allowed(1.0, true, false));
+        assert!(!auto_encounter_allowed(2.77, true, false), "the old 2.8 m trigger is gone");
+        assert!(!auto_encounter_allowed(1.0, false, false), "passive creatures never auto-start");
+        assert!(!auto_encounter_allowed(1.0, true, true), "grace period");
+        // Manual: 4 m with E / Enter.
+        assert!(manual_encounter_allowed(3.9, true, false));
+        assert!(!manual_encounter_allowed(4.1, true, false));
+        assert!(!manual_encounter_allowed(1.0, false, false));
+        assert!(!manual_encounter_allowed(1.0, true, true), "grace period");
+        // The reported case: spawn point 2.77 m from a creature, very first frame.
+        let mut s = EncounterSafety::default();
+        s.tick(1.0 / 60.0, Vec2::ZERO);
+        assert!(!auto_encounter_allowed(2.77, true, s.grace_active()));
+    }
+
+    #[test]
+    fn spawn_exclusion_radius_around_the_arrival_point() {
+        let mut s = EncounterSafety::default();
+        assert!(!s.spawn_excluded(Vec2::new(1.0, 1.0)), "no arrival yet: nothing excluded");
+        s.begin_arrival(Vec2::new(100.0, 100.0));
+        assert!(s.spawn_excluded(Vec2::new(102.0, 100.0)));
+        assert!(s.spawn_excluded(Vec2::new(100.0, 100.0 + SPAWN_EXCLUSION_RADIUS_M - 0.1)));
+        assert!(!s.spawn_excluded(Vec2::new(100.0, 100.0 + SPAWN_EXCLUSION_RADIUS_M + 0.1)));
+    }
+
+    /// Real area-01 data: the safe start the viewer picks (496.53, 353.68, read back from the
+    /// automation `state`) had a Zubat/Kricketot spawner 2.75 m away, inside the old 2.8 m
+    /// trigger, so a battle began on the first frame.
+    #[test]
+    fn real_area01_start_has_no_spawner_within_the_exclusion_radius() {
+        let table = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/field_spawn_table.tsv");
+        let spawners = load_spawners_for_area(&table, 1).expect("area 01 spawn table");
+        let start = Vec2::new(496.53, 353.68);
+        let near = |s: &SpawnerDefinition| Vec2::new(s.pos.x, s.pos.z).distance(start);
+        let closest = spawners.iter().map(near).fold(f32::INFINITY, f32::min);
+        assert!(closest < 2.8, "the regression data changed: closest spawner {closest} m");
+        let mut safety = EncounterSafety::default();
+        safety.begin_arrival(start);
+        let kept: Vec<_> = spawners
+            .iter()
+            .filter(|s| !safety.spawn_excluded(Vec2::new(s.pos.x, s.pos.z)))
+            .collect();
+        assert!(kept.len() < spawners.len(), "the near spawner must be excluded");
+        assert!(kept.len() + 5 > spawners.len(), "only the few spawners near the start are dropped");
+        for s in kept {
+            assert!(near(s) >= SPAWN_EXCLUSION_RADIUS_M);
+        }
+    }
+
+    #[test]
     fn flee_cooldown_counts_down_then_ends() {
         assert_eq!(flee_cooldown_step(1.0, 0.25), Some(0.75));
         assert_eq!(flee_cooldown_step(0.2, 0.25), None);
-        assert_eq!(flee_cooldown_step(FLEE_COOLDOWN_S, 0.0), Some(FLEE_COOLDOWN_S));
+        assert_eq!(
+            flee_cooldown_step(FLEE_COOLDOWN_S, 0.0),
+            Some(FLEE_COOLDOWN_S)
+        );
     }
 }

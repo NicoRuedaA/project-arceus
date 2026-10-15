@@ -147,7 +147,9 @@ fn ms(t: Instant) -> f64 {
     t.elapsed().as_secs_f64() * 1000.0
 }
 
-/// `model -> relative exported glTF path under the cache root`, "ok" rows only.
+/// `model -> relative exported glTF path under the cache root`, "ok" rows only. The stored
+/// `output` may be absolute or legacy `work/cache/`-relative; both normalize to the cache-relative
+/// tail this map keys on.
 fn exported_gltf_index() -> HashMap<String, PathBuf> {
     let mut map = HashMap::new();
     let Some(text) = find_data_file("field_model_export_index.tsv")
@@ -158,7 +160,7 @@ fn exported_gltf_index() -> HashMap<String, PathBuf> {
     for line in text.lines().filter(|l| !l.starts_with('#')) {
         let c: Vec<&str> = line.split('\t').collect();
         if c.len() >= 4 && c[3] == "ok" {
-            if let Some(rel) = c[2].strip_prefix("work/cache/") {
+            if let Some(rel) = pla::game::world_objects::cache_relative_export_path(c[2]) {
                 map.insert(c[1].to_string(), PathBuf::from(rel));
             }
         }
@@ -489,6 +491,8 @@ fn run_render(
             bin_root: bin_root.to_path_buf(),
             cache_root: cache_root.to_path_buf(),
             quality: grass,
+            grass_range: 1.0,
+            plants_range: 1.0,
         });
     }
     if area <= 5 {

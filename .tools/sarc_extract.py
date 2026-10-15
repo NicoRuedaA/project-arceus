@@ -92,7 +92,7 @@ def main() -> int:
                 arch_bytes = 0
                 arch_dir = files_dir / f"sarc_{i:x}"
                 for n, (fhash, attrs, ds, de) in enumerate(s["nodes"]):
-                    noff = attrs & 0xFFFFFF
+                    noff = (attrs & 0xFFFFFF) * 4  # SFNT offsets count 4-byte units
                     nend = mm.find(b"\0", s["name_base"] + noff)
                     raw_name = bytes(mm[s["name_base"] + noff:nend]).decode("utf-8", "replace")
                     name = SAFE.sub("_", raw_name).strip("/") or f"file_{n:04d}"

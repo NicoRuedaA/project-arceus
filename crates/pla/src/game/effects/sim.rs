@@ -90,15 +90,32 @@ impl Quality {
     }
 }
 
+/// Particles spawned for an emission of `n` with the quality and an extra multiplier `scale`
+/// (at least 1 when `n > 0`, except `Off` or a zero multiplier).
+pub fn scaled_count_with(quality: Quality, scale: f32, n: u32) -> u32 {
+    if (scale - 1.0).abs() < f32::EPSILON {
+        return quality.scaled_count(n);
+    }
+    if n == 0 || quality == Quality::Off || scale <= 0.0 {
+        return 0;
+    }
+    ((n as f32 * quality.emission_scale() * scale).round() as u32).max(1)
+}
+
+/// A particle cap scaled by the Graphics screen multiplier.
+pub fn scaled_cap(cap: usize, scale: f32) -> usize {
+    (cap as f32 * scale.max(0.0)).round() as usize
+}
+
 /// Quality from the command line (`--effects X` or `--effects=X`), then the
 /// `PLA_EFFECTS` variable, then the `effects=` line of `settings.txt`, else Low.
 pub fn quality_from(args: &[String], env_value: Option<&str>, settings_text: Option<&str>) -> Quality {
-    let from_args = args.iter().enumerate().find_map(|(i, a)| {
-        if a == "--effects" {
-            args.get(i + 1).and_then(|v| Quality::parse(v))
-        } else {
-            a.strip_prefix("--effects=").and_then(Quality::parse)
+    let from_args = crate::game::cli_flags::value_of(args, "--effects").and_then(|v| {
+        let q = Quality::parse(v);
+        if q.is_none() {
+            crate::game::cli_flags::report_bad_value("--effects", v, "off|low|high", "the default");
         }
+        q
     });
     let from_settings = || {
         settings_text?.lines().find_map(|l| {
@@ -140,6 +157,12 @@ pub enum Skip {
     UnknownDisplay(u8),
     /// Zero particles per emission or zero life.
     NoParticles,
+    /// The drawn texture is a normal map (`..._n`): data for the game's lighting shader, not a
+    /// picture. Drawn as a sprite it showed up as an opaque coloured rectangle.
+    NormalMap,
+    /// Base size 0 in both axes: the light sources (`light`, `point_light`) the game uses to
+    /// light the scene. Drawn as a sprite they showed up as a big opaque white disc.
+    Light,
     /// No texture in sampler 0 (e.g. the invisible `cmn_collision_dummy`): not drawn.
     NoTexture,
 }
@@ -152,6 +175,8 @@ impl Skip {
             Skip::Child => "child".into(),
             Skip::UnknownDisplay(v) => format!("display{v}"),
             Skip::NoParticles => "no_particles".into(),
+            Skip::NormalMap => "normal_map".into(),
+            Skip::Light => "light".into(),
             Skip::NoTexture => "no_texture".into(),
         }
     }
@@ -178,6 +203,11 @@ pub fn classify(e: &Emitter) -> Result<DrawShape, Skip> {
     };
     if e.emit_rate < 0.5 || e.life_frames <= 0 {
         return Err(Skip::NoParticles);
+    }
+    // Every emitter in the game data whose base size is 0 on both axes is a light source
+    // (`light` x6, `light_Copy1`, `point_light` x9 of 5987 drawable emitters).
+    if !(e.base_scale[0] > 0.0 || e.base_scale[1] > 0.0) {
+        return Err(Skip::Light);
     }
     if e.texture_ids[0].is_none() {
         return Err(Skip::NoTexture);
@@ -222,6 +252,14 @@ pub fn emitter_blend(e: &Emitter) -> BlendMode {
         BlendMode::Alpha if named_additive(&e.name) => BlendMode::Add,
         b => b,
     }
+}
+
+/// True for a normal-map texture (`upt_ew414_normal_n`, `upt_ew414_lumi_n`): the ground-rock
+/// and pillar emitters use them as lighting data of a mesh, and no picture is stored there. The
+/// 51 emitters of the game data that draw such a texture are skipped (a lit mesh is not
+/// supported yet), instead of an opaque rectangle of the map's purple/orange colours.
+pub fn is_normal_map(texture: &str) -> bool {
+    texture.to_ascii_lowercase().ends_with("_n")
 }
 
 /// A drawable emitter with its derived settings.
@@ -324,6 +362,10 @@ impl EffectDef {
             match classify(e) {
                 Ok(shape) => {
                     let (texture, slot) = drawn_texture(e, file);
+                    if texture.as_deref().is_some_and(is_normal_map) {
+                        def.skipped.push((e.name.clone(), Skip::NormalMap));
+                        continue;
+                    }
                     def.emitters.push(EmitterDef { emitter: e.clone(), shape, blend: emitter_blend(e), texture, slot })
                 }
                 Err(skip) => def.skipped.push((e.name.clone(), skip)),
@@ -382,6 +424,12 @@ pub struct EffectSim {
 impl EffectSim {
     /// `emit_frames`: emission window (the timeline's play length, or [`DEFAULT_EMIT_FRAMES`]).
     pub fn new(def: Arc<EffectDef>, emit_frames: u32, quality: Quality, seed: u64) -> EffectSim {
+        Self::with_scale(def, emit_frames, quality, 1.0, seed)
+    }
+
+    /// [`EffectSim::new`] with the Graphics screen's particle multiplier (`scale`, 1.0 = the
+    /// quality's own count) applied on top of the quality's emission scale.
+    pub fn with_scale(def: Arc<EffectDef>, emit_frames: u32, quality: Quality, scale: f32, seed: u64) -> EffectSim {
         let schedules: Vec<Vec<(u32, u32)>> = def
             .emitters
             .iter()
@@ -389,7 +437,7 @@ impl EffectSim {
                 e.emitter
                     .emission_schedule(emit_frames.max(1))
                     .into_iter()
-                    .map(|(f, n)| (f, quality.scaled_count(n)))
+                    .map(|(f, n)| (f, scaled_count_with(quality, scale, n)))
                     .filter(|(_, n)| *n > 0)
                     .collect()
             })
@@ -608,6 +656,18 @@ pub fn build_emitter_quads(sim: &EffectSim, emitter: usize, place: &Placement, v
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn particle_multiplier_scales_counts_and_caps() {
+        assert_eq!(scaled_count_with(Quality::Low, 1.0, 50), Quality::Low.scaled_count(50));
+        assert_eq!(scaled_count_with(Quality::High, 2.0, 50), 100);
+        assert_eq!(scaled_count_with(Quality::High, 0.5, 50), 25);
+        assert_eq!(scaled_count_with(Quality::High, 0.25, 1), 1, "at least one particle");
+        assert_eq!(scaled_count_with(Quality::High, 0.0, 50), 0);
+        assert_eq!(scaled_count_with(Quality::Off, 2.0, 50), 0);
+        assert_eq!(scaled_cap(1000, 1.5), 1500);
+        assert_eq!(scaled_cap(600, 0.0), 0);
+    }
     use crate::assets::ptcl::{Key, KeyTable};
 
     pub(crate) fn emitter(name: &str) -> Emitter {
@@ -714,6 +774,15 @@ mod tests {
     }
 
     #[test]
+    fn normal_map_textures_are_not_sprites() {
+        assert!(is_normal_map("upt_ew414_normal_n"));
+        assert!(is_normal_map("upt_ew414_lumi_n"));
+        assert!(!is_normal_map("cpt_0_circle0201"));
+        assert!(!is_normal_map("cpt_3_flow0017n"));
+        assert!(!is_normal_map("fxpt_2_line004_m"));
+    }
+
+    #[test]
     fn unsupported_emitters_are_skipped_with_a_reason() {
         let mut mesh = emitter("mesh");
         mesh.primitive_id = Some(3);
@@ -729,13 +798,15 @@ mod tests {
         streak.display = DisplayType::VelocityLook;
         let mut dummy = emitter("Emitter1");
         dummy.texture_ids = [None; 3];
-        let d = def_of(vec![emitter("glow"), mesh, ribbon, child, odd, none, streak, dummy]);
+        let mut light = emitter("point_light");
+        light.base_scale = [0.0, 0.0, 0.0];
+        let d = def_of(vec![emitter("glow"), mesh, ribbon, child, odd, none, streak, light, dummy]);
         assert_eq!(d.emitters.len(), 2);
         assert_eq!(d.emitters[1].shape, DrawShape::Streak);
         let reasons: Vec<Skip> = d.skipped.iter().map(|s| s.1).collect();
         assert_eq!(
             reasons,
-            vec![Skip::Mesh, Skip::Ribbon, Skip::Child, Skip::UnknownDisplay(7), Skip::NoParticles, Skip::NoTexture]
+            vec![Skip::Mesh, Skip::Ribbon, Skip::Child, Skip::UnknownDisplay(7), Skip::NoParticles, Skip::Light, Skip::NoTexture]
         );
     }
 

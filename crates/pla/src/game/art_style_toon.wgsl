@@ -22,7 +22,7 @@
 }
 
 struct ToonUniform {
-    // x threshold min, y threshold max, z band strength, w unused
+    // x threshold min, y threshold max, z band strength, w shade floor
     band: vec4<f32>,
     // rgb shade tint, w tint strength
     shade: vec4<f32>,
@@ -36,6 +36,10 @@ struct ToonUniform {
 
 // Bevy's diffuse BRDF is Burley; 1/pi is its Lambert approximation, close enough for a delta.
 const INV_PI: f32 = 0.318309886;
+// Share of the normal-mapped normal in the normal used for the two-tone threshold (0 = smooth only).
+// Share of the (screen-space and material) ambient occlusion kept on characters.
+const AO_KEPT: f32 = 0.35;
+const RELIEF_IN_BAND: f32 = 0.0;
 
 @fragment
 fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> FragmentOutput {
@@ -48,11 +52,17 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> Fragment
         return out;
     }
 
+    // Screen-space AO is noisy on small skinned models (dark ragged blotches on clothes and hair):
+    // keep only a third of it.
+    pbr_input.diffuse_occlusion = mix(vec3<f32>(1.0), pbr_input.diffuse_occlusion, AO_KEPT);
+    pbr_input.specular_occlusion = mix(1.0, pbr_input.specular_occlusion, AO_KEPT);
     var color = apply_pbr_lighting(pbr_input);
 
     if view_bindings::lights.n_directional_lights > 0u {
         let light = &view_bindings::lights.directional_lights[0];
-        let N = pbr_input.N;
+        // The light/shade threshold uses mostly the smooth surface normal: the normal map's fine
+        // relief crossing a hard threshold paints ragged patches (clothes, scarf, hair).
+        let N = normalize(mix(pbr_input.world_normal, pbr_input.N, RELIEF_IN_BAND));
         let ndl = dot(N, (*light).direction_to_light);
 
         var shadow = 1.0;
@@ -70,7 +80,9 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> Fragment
 
         // banded_light(): blend of Bevy's Lambert factor and the two-tone ramp x banded shadow.
         let lambert = clamp(ndl, 0.0, 1.0) * shadow;
-        let band = smoothstep(toon.band.x, toon.band.y, ndl) * smoothstep(toon.extra.y, toon.extra.z, shadow);
+        let floor = clamp(toon.band.w, 0.0, 1.0);
+        let ramp = smoothstep(toon.band.x, toon.band.y, ndl) * smoothstep(toon.extra.y, toon.extra.z, shadow);
+        let band = floor + (1.0 - floor) * ramp;
         let lit = lambert + (band - lambert) * clamp(toon.band.z, 0.0, 1.0);
 
         let diffuse_color = pbr_input.material.base_color.rgb * (1.0 - pbr_input.material.metallic);

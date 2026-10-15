@@ -12,16 +12,16 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-use bevy::animation::graph::{AnimationGraph, AnimationGraphHandle, AnimationNodeIndex};
-use bevy::animation::transition::AnimationTransitions;
-use bevy::animation::AnimationPlayer;
-use bevy::gltf::Gltf;
 use bevy::prelude::*;
-use bevy::world_serialization::WorldAssetRoot;
 
 use super::clock::GameClock;
 use super::navigation::GameNavmeshResource;
+use super::player_motion::ground_surface_y;
+use super::zone::TerrainResource;
+use super::npc_model::{model_source, spawn_capsule, NpcModelCache, NpcModelPlugin, MODEL_ROOT_ABOVE_GROUND};
+pub use super::npc_model::NpcModelSource;
 use super::state::GameState;
+use super::trainer_encounter::TrainerWorld;
 use super::ui::ActiveZoneInfo;
 use super::world_objects::{
     find_data_file, should_be_alive, DEFAULT_CACHE_ROOT, LOAD_RADIUS, UNLOAD_RADIUS,
@@ -29,7 +29,9 @@ use super::world_objects::{
 use super::PlayerAvatar;
 
 /// The NPC root is placed at the ground point and the exported model is lowered by this amount.
-pub const NPC_ROOT_ABOVE_GROUND: f32 = 0.9;
+pub const NPC_ROOT_ABOVE_GROUND: f32 = MODEL_ROOT_ABOVE_GROUND;
+/// NPC entities created per frame at most (nearest first).
+pub const NPC_SPAWNS_PER_FRAME: usize = 8;
 /// The source sheet has no NPC routes. This is an explicit runtime contract, not an inferred path.
 pub const NPC_ROUTE_CONFIDENCE: &str = "UNKNOWN";
 
@@ -54,6 +56,51 @@ pub struct NpcPlacement {
 impl NpcPlacement {
     pub fn positioned(&self) -> bool {
         self.position.iter().all(|v| v.is_finite()) && self.position != [0.0, 0.0, 0.0]
+    }
+}
+
+/// Player landings never sit inside an NPC (planar metres): a little above the follower's own
+/// [`super::follower::MIN_SEPARATION`] (1.4 m), the existing "two models never overlap" floor.
+pub const MIN_NPC_SEPARATION: f32 = 1.6;
+
+/// Move a landing point out of the nearest NPC spot(s).
+///
+/// `spots` are the NPC placements the streamer can draw (every variant of a key shares one spot).
+/// While the closest spot is nearer than [`MIN_NPC_SEPARATION`], the point moves along the away
+/// vector to exactly that distance; a perfect overlap falls back to +X (a fixed convention, there
+/// is no "away" direction then). At most 4 passes: a spot can push the point into another. `None`
+/// when the landing is already clear. Deterministic: spots are visited in the given order.
+pub fn landing_clear_of_npcs(landing: Vec2, spots: impl IntoIterator<Item = Vec2>) -> Option<Vec2> {
+    let spots: Vec<Vec2> = spots.into_iter().collect();
+    let mut p = landing;
+    let mut moved = false;
+    for _ in 0..4 {
+        let mut nearest: Option<(Vec2, f32)> = None;
+        for spot in &spots {
+            let d = (p - *spot).length();
+            if nearest.is_none_or(|(_, best)| d < best) {
+                nearest = Some((*spot, d));
+            }
+        }
+        let Some((spot, d)) = nearest else { break };
+        if d >= MIN_NPC_SEPARATION {
+            break;
+        }
+        let away = if d > 1e-3 { (p - spot) / d } else { Vec2::X };
+        p = spot + away * MIN_NPC_SEPARATION;
+        moved = true;
+    }
+    moved.then_some(p)
+}
+
+impl NpcWorld {
+    /// The NPC spots of one area (`ha_area00`), every variant: the arrival nudge keeps the player
+    /// out of these. Placements without a position are skipped (the streamer cannot draw them).
+    pub fn spots_in_area<'a>(&'a self, area: &'a str) -> impl Iterator<Item = Vec2> + 'a {
+        self.placements
+            .iter()
+            .filter(move |p| p.area == area && p.positioned())
+            .map(|p| Vec2::new(p.position[0], p.position[2]))
     }
 }
 
@@ -128,26 +175,6 @@ pub struct NpcInstance {
     pub chara_id: Option<String>,
     pub idle_clip: Option<String>,
     pub route_confidence: &'static str,
-}
-
-/// Requested exported NPC scene, analogous to `PlayerModelSource` but kept NPC-specific so the
-/// player query remains unambiguous.
-#[derive(Component, Debug, Clone)]
-pub struct NpcModelSource {
-    pub gltf: Handle<Gltf>,
-}
-
-#[derive(Component, Debug, Clone, Copy)]
-struct NpcSceneSpawned;
-
-#[derive(Component, Debug, Clone, Copy)]
-struct NpcFallbackSpawned;
-
-#[derive(Component, Debug, Clone)]
-#[allow(dead_code)]
-struct NpcAnimState {
-    player: Entity,
-    idle_node: AnimationNodeIndex,
 }
 
 /// The root-yaw look-at state. Head/torso bone rotation is not fabricated because the existing
@@ -228,18 +255,9 @@ impl Plugin for NpcPlugin {
         let Some(world) = self.load_world() else {
             return;
         };
-        app.insert_resource(world).add_systems(
-            Update,
-            (
-                refresh_npc_selection,
-                stream_npcs,
-                spawn_npc_scene,
-                wire_npc_animation,
-                fallback_npc_models,
-                npc_look_at,
-            )
-                .chain(),
-        );
+        app.add_plugins(NpcModelPlugin)
+            .insert_resource(world)
+            .add_systems(Update, (refresh_npc_selection, stream_npcs, npc_look_at).chain());
     }
 }
 
@@ -527,8 +545,19 @@ pub fn step_bounded_look(current_yaw: f32, target_yaw: f32, rate_deg_s: f32, dt:
     }
 }
 
+/// Standing height for a placement: the surface the player walks on (navmesh, then terrain heightmap) when it is
+/// within 3 m of the sheet's Y; otherwise the sheet's Y (interiors, roofs and platforms are not on that surface).
+pub fn snap_ground_y(position: [f32; 3], surface: Option<f32>) -> f32 {
+    surface.filter(|y| y.is_finite() && (y - position[1]).abs() <= 3.0).unwrap_or(position[1])
+}
+
 pub fn should_instance(player_xz: Vec2, npc_xz: Vec2, alive: bool) -> bool {
-    should_be_alive(player_xz, npc_xz, alive, LOAD_RADIUS, UNLOAD_RADIUS)
+    should_instance_scaled(player_xz, npc_xz, alive, 1.0)
+}
+
+/// [`should_instance`] with the Graphics screen "NPC range" multiplier (1.0 = 200 / 230 m).
+pub fn should_instance_scaled(player_xz: Vec2, npc_xz: Vec2, alive: bool, scale: f32) -> bool {
+    should_be_alive(player_xz, npc_xz, alive, LOAD_RADIUS * scale, UNLOAD_RADIUS * scale)
 }
 
 fn active_for_state(state: Option<Res<State<GameState>>>) -> bool {
@@ -541,6 +570,7 @@ fn refresh_npc_selection(
     zone: Option<Res<ActiveZoneInfo>>,
     clock: Option<Res<GameClock>>,
     state: Option<Res<State<GameState>>>,
+    trainers: Option<Res<TrainerWorld>>,
 ) {
     if !active_for_state(state) {
         return;
@@ -559,6 +589,8 @@ fn refresh_npc_selection(
             .placements
             .iter()
             .filter(|row| row.area == zone.area)
+            // A placed trainer is drawn by its marker (trainer_encounter), not twice.
+            .filter(|row| !trainers.as_deref().is_some_and(|t| t.has_enabled_marker_key(&row.key)))
             .cloned()
             .collect::<Vec<_>>(),
         slot,
@@ -579,54 +611,90 @@ fn stream_npcs(
     mut world: ResMut<NpcWorld>,
     player: Query<&Transform, With<PlayerAvatar>>,
     nav: Option<Res<GameNavmeshResource>>,
+    terrain: Option<Res<TerrainResource>>,
+    trainers: Option<Res<TrainerWorld>>,
     asset_server: Option<Res<AssetServer>>,
+    mut models: ResMut<NpcModelCache>,
     mut meshes: Option<ResMut<Assets<Mesh>>>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
+    dist: Option<Res<super::quality::StreamDistances>>,
 ) {
     let Ok(player) = player.single() else { return };
     let player_xz = Vec2::new(player.translation.x, player.translation.z);
+    let k = super::quality::scale_of(dist.as_deref(), |d| d.npcs);
     let active_keys: HashMap<String, ()> =
-        world.active.iter().map(|p| (p.key.clone(), ())).collect();
+        world
+            .active
+            .iter()
+            .filter(|p| !trainers.as_deref().is_some_and(|t| t.has_enabled_marker_key(&p.key)))
+            .map(|p| (p.key.clone(), ()))
+            .collect();
     let to_remove: Vec<(String, Entity)> = world
         .spawned
         .iter()
         .filter(|(key, _)| !active_keys.contains_key(*key))
         .map(|(key, entity)| (key.clone(), *entity))
-        .chain(world.spawned.iter().filter_map(|(key, entity)| {
-            let placement = world.active.iter().find(|p| p.key == *key)?;
-            let alive = should_instance(
-                player_xz,
-                Vec2::new(placement.position[0], placement.position[2]),
-                true,
-            );
-            (!alive).then_some((key.clone(), *entity))
-        }))
+        .chain(
+            world
+                .spawned
+                .iter()
+                .filter(|(key, _)| {
+                    !trainers
+                        .as_deref()
+                        .is_some_and(|t| t.has_enabled_marker_key((*key).as_str()))
+                })
+                .filter_map(|(key, entity)| {
+                    let placement = world.active.iter().find(|p| p.key == *key)?;
+                    let alive = should_instance_scaled(
+                        player_xz,
+                        Vec2::new(placement.position[0], placement.position[2]),
+                        true,
+                        k,
+                    );
+                    (!alive).then_some((key.clone(), *entity))
+                }),
+        )
         .collect();
     for (key, entity) in to_remove {
         commands.entity(entity).despawn();
         world.spawned.remove(&key);
     }
 
-    let to_spawn: Vec<NpcPlacement> = world
+    let mut to_spawn: Vec<NpcPlacement> = world
         .active
         .iter()
         .filter(|placement| !world.spawned.contains_key(&placement.key))
         .filter(|placement| {
-            should_instance(
+            !trainers
+                .as_deref()
+                .is_some_and(|t| t.has_enabled_marker_key(&placement.key))
+        })
+        .filter(|placement| {
+            should_instance_scaled(
                 player_xz,
                 Vec2::new(placement.position[0], placement.position[2]),
                 false,
+                k,
             )
         })
         .cloned()
         .collect();
+    // Nearest first, a few per frame: a crowded square fills in over several frames, no hitch.
+    to_spawn.sort_by(|a, b| {
+        let da = Vec2::new(a.position[0], a.position[2]).distance_squared(player_xz);
+        let db = Vec2::new(b.position[0], b.position[2]).distance_squared(player_xz);
+        da.total_cmp(&db)
+    });
+    to_spawn.truncate(NPC_SPAWNS_PER_FRAME);
     for placement in to_spawn {
         let entity = spawn_npc(
             &mut commands,
             &world,
             &placement,
             nav.as_deref(),
+            terrain.as_deref(),
             asset_server.as_deref(),
+            &mut models,
             meshes.as_deref_mut(),
             materials.as_deref_mut(),
         );
@@ -639,14 +707,13 @@ fn spawn_npc(
     world: &NpcWorld,
     placement: &NpcPlacement,
     nav: Option<&GameNavmeshResource>,
+    terrain: Option<&TerrainResource>,
     asset_server: Option<&AssetServer>,
+    models: &mut NpcModelCache,
     mut meshes: Option<&mut Assets<Mesh>>,
     mut materials: Option<&mut Assets<StandardMaterial>>,
 ) -> Entity {
-    let ground_y = nav
-        .and_then(|nav| nav.height_at(placement.position[0], placement.position[2]))
-        .filter(|height| (height - placement.position[1]).abs() > 0.5)
-        .unwrap_or(placement.position[1]);
+    let ground_y = snap_ground_y(placement.position, ground_surface_y(terrain, nav, placement.position[0], placement.position[2]));
     let base_yaw = placement.yaw_deg.to_radians();
     let appearance = world.appearances.get(&placement.chara_hash);
     let idle_clip = appearance.and_then(|appearance| {
@@ -677,19 +744,11 @@ fn spawn_npc(
         .and_then(|appearance| appearance.name.as_deref())
         .or(placement.chara_id.as_deref())
         .unwrap_or(placement.chara_hash.as_str());
-    let model_file = world.cache_root.join("npc").join(model_id).join("npc.gltf");
-    if let Some(asset_server) = asset_server.filter(|_| model_file.is_file()) {
-        let work_root = PathBuf::from("work")
-            .canonicalize()
-            .unwrap_or_else(|_| PathBuf::from("work"));
-        let rel = super::player_anim::asset_path(&model_file, &work_root);
-        entity.insert(NpcModelSource {
-            gltf: asset_server.load(rel),
-        });
-    } else if let (Some(meshes), Some(materials)) =
-        (meshes.as_deref_mut(), materials.as_deref_mut())
-    {
-        spawn_capsule_fallback(&mut entity, meshes, materials);
+    let info = models.info(&world.cache_root, model_id);
+    if let (Some(asset_server), Some(info)) = (asset_server, info) {
+        entity.insert(model_source(asset_server, &info, 1.0));
+    } else if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
+        spawn_capsule(&mut entity, meshes, materials, Color::srgb(0.35, 0.5, 0.58));
     }
     entity.id()
 }
@@ -700,136 +759,14 @@ fn stable_seed(value: &str) -> u64 {
     })
 }
 
-fn spawn_capsule_fallback(
-    entity: &mut EntityCommands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-) {
-    entity.with_children(|parent| {
-        parent.spawn((
-            Mesh3d(meshes.add(Capsule3d::new(0.3, 1.0))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgb(0.35, 0.5, 0.58),
-                perceptual_roughness: 0.8,
-                ..default()
-            })),
-            Transform::from_xyz(0.0, -NPC_ROOT_ABOVE_GROUND, 0.0),
-        ));
-    });
-}
-
-fn spawn_npc_scene(
-    mut commands: Commands,
-    gltfs: Option<Res<Assets<Gltf>>>,
-    q: Query<(Entity, &NpcModelSource), (With<NpcInstance>, Without<NpcSceneSpawned>)>,
-) {
-    let Some(gltfs) = gltfs else { return };
-    for (entity, source) in &q {
-        let Some(gltf) = gltfs.get(&source.gltf) else {
-            continue;
-        };
-        let Some(scene) = gltf
-            .default_scene
-            .clone()
-            .or_else(|| gltf.scenes.first().cloned())
-        else {
-            continue;
-        };
-        commands
-            .entity(entity)
-            .insert(NpcSceneSpawned)
-            .with_children(|parent| {
-                parent.spawn((
-                    WorldAssetRoot(scene),
-                    Transform::from_xyz(0.0, -NPC_ROOT_ABOVE_GROUND, 0.0),
-                    Visibility::default(),
-                ));
-            });
-    }
-}
-
-fn wire_npc_animation(
-    mut commands: Commands,
-    gltfs: Option<Res<Assets<Gltf>>>,
-    graphs: Option<ResMut<Assets<AnimationGraph>>>,
-    q: Query<(Entity, &NpcModelSource), (With<NpcSceneSpawned>, Without<NpcAnimState>)>,
-    children: Query<&Children>,
-    mut players: Query<&mut AnimationPlayer>,
-) {
-    let (Some(gltfs), Some(mut graphs)) = (gltfs, graphs) else {
-        return;
-    };
-    for (entity, source) in &q {
-        let Some(gltf) = gltfs.get(&source.gltf) else {
-            continue;
-        };
-        let Some(idle) = gltf.named_animations.get("idle").cloned() else {
-            continue;
-        };
-        let Some(player_entity) = children
-            .iter_descendants(entity)
-            .find(|descendant| players.get(*descendant).is_ok())
-        else {
-            continue;
-        };
-        let (graph, idle_node) = AnimationGraph::from_clip(idle);
-        let graph_handle = graphs.add(graph);
-        if let Ok(mut player) = players.get_mut(player_entity) {
-            let mut transitions = AnimationTransitions::new();
-            transitions
-                .play(&mut player, idle_node, std::time::Duration::ZERO)
-                .repeat();
-            commands
-                .entity(player_entity)
-                .insert((AnimationGraphHandle(graph_handle), transitions));
-            commands.entity(entity).insert(NpcAnimState {
-                player: player_entity,
-                idle_node,
-            });
-        }
-    }
-}
-
-fn fallback_npc_models(
-    mut commands: Commands,
-    asset_server: Option<Res<AssetServer>>,
-    meshes: Option<ResMut<Assets<Mesh>>>,
-    materials: Option<ResMut<Assets<StandardMaterial>>>,
-    q: Query<
-        (Entity, &NpcModelSource),
-        (
-            With<NpcInstance>,
-            Without<NpcSceneSpawned>,
-            Without<NpcFallbackSpawned>,
-        ),
-    >,
-) {
-    let (Some(asset_server), Some(mut meshes), Some(mut materials)) =
-        (asset_server, meshes, materials)
-    else {
-        return;
-    };
-    for (entity, source) in &q {
-        if !matches!(
-            asset_server.load_state(&source.gltf),
-            bevy::asset::LoadState::Failed(_)
-        ) {
-            continue;
-        }
-        commands
-            .entity(entity)
-            .remove::<NpcModelSource>()
-            .insert(NpcFallbackSpawned);
-        let mut entity_commands = commands.entity(entity);
-        spawn_capsule_fallback(&mut entity_commands, &mut meshes, &mut materials);
-    }
-}
-
 fn npc_look_at(
     time: Res<Time>,
     tuning: Option<Res<NpcWorld>>,
     player: Query<&Transform, With<PlayerAvatar>>,
-    mut npcs: Query<(&mut Transform, &mut NpcLookState), With<NpcInstance>>,
+    mut npcs: Query<
+        (&mut Transform, &mut NpcLookState),
+        (With<NpcInstance>, Without<PlayerAvatar>),
+    >,
     state: Option<Res<State<GameState>>>,
 ) {
     if !active_for_state(state) {
@@ -922,6 +859,36 @@ mod tests {
             select_idle_clip(&without_primary, 0)
         );
         assert_ne!(select_idle_clip(&without_primary, 0), None);
+    }
+
+    #[test]
+    fn landing_never_stays_inside_an_npc() {
+        // The capture case: the player landed 0.05 m from `area00_npc_re_leader`, with the senior
+        // (0.7 m) and the doctor (1.3 m) around it (data/npc_placements.tsv, ha_area00).
+        let leader = Vec2::new(485.748, 449.004);
+        let senior = Vec2::new(485.102, 448.897);
+        let doctor = Vec2::new(484.518, 448.799);
+        let landing = Vec2::new(485.8, 449.0);
+        let clear = landing_clear_of_npcs(landing, [leader, senior, doctor]).expect("moved");
+        for spot in [leader, senior, doctor] {
+            assert!(
+                clear.distance(spot) >= MIN_NPC_SEPARATION - 1e-4,
+                "{clear:?} is still inside the NPC at {spot:?}"
+            );
+        }
+        // Far away (or no spots): nothing moves.
+        assert!(landing_clear_of_npcs(Vec2::ZERO, [Vec2::new(5.0, 0.0)]).is_none());
+        assert!(landing_clear_of_npcs(Vec2::ZERO, []).is_none());
+        // Exactly on the spot: the fixed +X convention has no away direction to use.
+        assert_eq!(
+            landing_clear_of_npcs(Vec2::ZERO, [Vec2::ZERO]),
+            Some(Vec2::new(MIN_NPC_SEPARATION, 0.0))
+        );
+        // Deterministic for the same input.
+        assert_eq!(
+            landing_clear_of_npcs(landing, [leader, senior, doctor]),
+            Some(clear)
+        );
     }
 
     #[test]

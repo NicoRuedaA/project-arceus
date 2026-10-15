@@ -11,22 +11,28 @@
 //! Walk up to a marker (3 m) and press V to battle it. `--trainer <id>` (or `PLA_TRAINER`)
 //! lets V start that trainer anywhere (`noble:<setting>` starts a Noble's turn-based phase).
 //! `--no-trainers` (or `PLA_TRAINERS=0`) turns the markers off. Defeated trainers are kept for
-//! the session only (the save format has no field for them yet).
+//! the save (format v8, `PlayerProgress.defeated_trainers`): after a restart their markers are grey,
+//! V near one only shows "already defeated" (no battle) and the prize is paid on the first win only.
+//! `--trainer <id>` still lets V replay that trainer anywhere (a debug rematch pays nothing).
 //!
 //! Markers are plain capsules (NPC models are Brief 31). Coordinates are used as stored, like
 //! `world_objects` does with the object placements (same frame: PROBABLE).
 
-use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use bevy::prelude::*;
 
 use super::battle_controller::{ActiveBattleSession, BattleAssets};
-use super::save_wire::SaveToast;
+use super::save_wire::{PlayerProgress, SaveToast};
 use super::state::{not_paused, GameState};
 use super::trainer_data::{NobleCatalog, TrainerCatalog};
 use super::ui::ActiveZoneInfo;
-use super::world_objects::find_data_file;
+use super::navigation::GameNavmeshResource;
+use super::npc::{snap_ground_y, NpcWorld};
+use super::player_motion::ground_surface_y;
+use super::zone::TerrainResource;
+use super::npc_model::{model_source, NpcModelCache, NpcModelPlugin, NpcModelSource, NpcSceneSpawned};
+use super::world_objects::{find_data_file, DEFAULT_CACHE_ROOT};
 use super::PlayerAvatar;
 
 /// Distance (m) at which a trainer marker can be challenged.
@@ -111,11 +117,16 @@ impl TrainerWorld {
     pub fn in_area<'a>(&'a self, area: &'a str) -> impl Iterator<Item = &'a PlacedTrainer> + 'a {
         self.placements.iter().filter(move |p| p.area == area)
     }
+
+    /// Whether an enabled world marker owns this placement key.
+    pub fn has_enabled_marker_key(&self, key: &str) -> bool {
+        self.markers && self.placements.iter().any(|p| p.key == key)
+    }
 }
 
-/// Trainers beaten in this session (not saved yet).
-#[derive(Resource, Debug, Clone, Default)]
-pub struct DefeatedTrainers(pub BTreeSet<String>);
+/// Marker colour of a trainer that has not been beaten / has been beaten.
+const FRESH_COLOR: Color = Color::srgb(0.85, 0.2, 0.25);
+const BEATEN_COLOR: Color = Color::srgb(0.45, 0.45, 0.5);
 
 /// A trainer marker in the world.
 #[derive(Component, Debug, Clone)]
@@ -169,18 +180,46 @@ impl TrainerEncounterPlugin {
 impl Plugin for TrainerEncounterPlugin {
     fn build(&self, app: &mut App) {
         let Some(world) = self.load_world() else { return };
-        app.insert_resource(world)
-            .init_resource::<DefeatedTrainers>()
+        app.add_plugins(NpcModelPlugin)
+            .insert_resource(world)
             .add_systems(
                 Update,
                 (
                     spawn_zone_trainers,
+                    grey_defeated_markers.after(spawn_zone_trainers),
                     trainer_challenge.run_if(in_state(GameState::World)).run_if(not_paused),
-                    record_trainer_result,
+                    mark_beaten_models.after(spawn_zone_trainers),
+                    grey_beaten_models.after(mark_beaten_models),
                 ),
             )
+            .add_systems(PostStartup, announce_forced_trainer)
             .add_systems(OnEnter(GameState::Battle), hide_markers_in_battle)
             .add_systems(OnExit(GameState::Battle), show_markers_after_battle);
+    }
+}
+
+/// Text shown at start-up for `--trainer <id>` (so the V key is discoverable), or why the id
+/// will not work.
+pub fn forced_trainer_notice(world: &TrainerWorld) -> Option<String> {
+    let id = world.forced.as_deref()?;
+    let known = match id.strip_prefix("noble:") {
+        Some(n) => world.nobles.get(n).is_some(),
+        None => world.catalog.get(id).is_some(),
+    };
+    Some(if known {
+        format!("Press V anywhere to fight {id} (--trainer).")
+    } else {
+        format!("--trainer {id}: unknown trainer id; V will not start a battle.")
+    })
+}
+
+/// Start-up toast (and log line) for `--trainer`, appended to any start-up message.
+fn announce_forced_trainer(world: Res<TrainerWorld>, mut toast: Option<ResMut<SaveToast>>) {
+    let Some(msg) = forced_trainer_notice(&world) else { return };
+    println!("[trainers] {msg}");
+    if let Some(t) = toast.as_deref_mut() {
+        let text = if t.text.is_empty() { msg } else { format!("{}  |  {msg}", t.text) };
+        t.show(text);
     }
 }
 
@@ -191,20 +230,84 @@ fn hide_markers_in_battle(mut q: Query<&mut Visibility, With<TrainerNpc>>) {
     }
 }
 
-/// Show the markers again; a beaten trainer's marker turns grey.
-fn show_markers_after_battle(
-    defeated: Res<DefeatedTrainers>,
-    mut q: Query<(&TrainerNpc, &mut Visibility, Option<&MeshMaterial3d<StandardMaterial>>)>,
+/// Show the markers again after the battle (the grey of a beaten one is `grey_defeated_markers`).
+fn show_markers_after_battle(mut q: Query<&mut Visibility, With<TrainerNpc>>) {
+    for mut v in &mut q {
+        *v = Visibility::Inherited;
+    }
+}
+
+/// Paint every marker by the saved progress: beaten trainers grey, the others red. Runs when the
+/// progress changes (a win is applied after the battle, a load replaces it) and when markers spawn.
+fn grey_defeated_markers(
+    progress: Option<Res<PlayerProgress>>,
+    q: Query<(&TrainerNpc, Option<&MeshMaterial3d<StandardMaterial>>), Or<(Added<TrainerNpc>, Added<MeshMaterial3d<StandardMaterial>>)>>,
+    all: Query<(&TrainerNpc, Option<&MeshMaterial3d<StandardMaterial>>)>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
 ) {
-    for (npc, mut v, mat) in &mut q {
-        *v = Visibility::Inherited;
-        if defeated.0.contains(&npc.trainer_id) {
-            if let (Some(mat), Some(materials)) = (mat, materials.as_deref_mut()) {
+    let (Some(progress), Some(materials)) = (progress, materials.as_deref_mut()) else { return };
+    let new = !q.is_empty();
+    if !progress.is_changed() && !new {
+        return;
+    }
+    for (npc, mat) in &all {
+        let Some(mat) = mat else { continue };
+        let want = if progress.defeated_trainers.contains(&npc.trainer_id) { BEATEN_COLOR } else { FRESH_COLOR };
+        if let Some(m) = materials.get(&mat.0) {
+            if m.base_color != want {
                 if let Some(mut m) = materials.get_mut(&mat.0) {
-                    m.base_color = Color::srgb(0.45, 0.45, 0.5);
+                    m.base_color = want;
                 }
             }
+        }
+    }
+}
+
+/// A beaten trainer whose model still has to be greyed (the capsule is greyed directly).
+#[derive(Component, Debug, Clone, Copy)]
+pub struct TrainerBeaten;
+
+#[derive(Component, Debug, Clone, Copy)]
+struct TrainerGreyed;
+
+/// Grey tint applied to a beaten trainer model without mutating the shared source material.
+const BEATEN_GREY: Color = Color::srgb(0.45, 0.45, 0.5);
+
+/// Mark cached trainer scenes after the persistent defeat state changes.
+fn mark_beaten_models(
+    mut commands: Commands,
+    progress: Option<Res<PlayerProgress>>,
+    q: Query<(Entity, &TrainerNpc, Has<NpcModelSource>, Has<TrainerGreyed>)>,
+) {
+    let Some(progress) = progress else { return };
+    for (entity, npc, has_model, greyed) in &q {
+        if has_model && !greyed && progress.defeated_trainers.contains(&npc.trainer_id) {
+            commands.entity(entity).insert(TrainerBeaten);
+        }
+    }
+}
+
+/// Beaten trainers with a model get instance-local grey materials once their scene exists.
+fn grey_beaten_models(
+    mut commands: Commands,
+    q: Query<Entity, (With<TrainerBeaten>, With<NpcSceneSpawned>, Without<TrainerGreyed>)>,
+    children: Query<&Children>,
+    mut meshes: Query<&mut MeshMaterial3d<StandardMaterial>>,
+    materials: Option<ResMut<Assets<StandardMaterial>>>,
+) {
+    let Some(mut materials) = materials else { return };
+    for root in &q {
+        let mut done = 0;
+        for d in children.iter_descendants(root) {
+            if let Ok(mut m) = meshes.get_mut(d) {
+                if let Some(original) = materials.get(&m.0).cloned() {
+                    m.0 = materials.add(StandardMaterial { base_color: BEATEN_GREY, ..original });
+                    done += 1;
+                }
+            }
+        }
+        if done > 0 {
+            commands.entity(root).insert(TrainerGreyed);
         }
     }
 }
@@ -215,12 +318,18 @@ pub fn spawn_zone_trainers(
     mut commands: Commands,
     world: Res<TrainerWorld>,
     zone: Option<Res<ActiveZoneInfo>>,
-    defeated: Res<DefeatedTrainers>,
     existing: Query<Entity, With<TrainerNpc>>,
     mut last_area: Local<Option<String>>,
     mut meshes: Option<ResMut<Assets<Mesh>>>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
+    asset_server: Option<Res<AssetServer>>,
+    models: Option<ResMut<NpcModelCache>>,
+    npc_world: Option<Res<NpcWorld>>,
+    progress: Option<Res<PlayerProgress>>,
+    terrain: Option<Res<TerrainResource>>,
+    nav: Option<Res<GameNavmeshResource>>,
 ) {
+    let mut models = models;
     if !world.markers {
         return;
     }
@@ -234,8 +343,9 @@ pub fn spawn_zone_trainers(
     }
     let mut n = 0;
     for p in world.in_area(&zone.area) {
-        let beaten = defeated.0.contains(&p.trainer_id);
-        let xf = Transform::from_translation(Vec3::from(p.position) + Vec3::Y * 0.9)
+        let beaten = progress.as_deref().is_some_and(|progress| progress.defeated_trainers.contains(&p.trainer_id));
+        let ground = snap_ground_y(p.position, ground_surface_y(terrain.as_deref(), nav.as_deref(), p.position[0], p.position[2]));
+        let xf = Transform::from_translation(Vec3::new(p.position[0], ground + 0.9, p.position[2]))
             .with_rotation(Quat::from_rotation_y(p.yaw_deg.to_radians()));
         let mut e = commands.spawn((
             TrainerNpc { key: p.key.clone(), trainer_id: p.trainer_id.clone() },
@@ -243,8 +353,16 @@ pub fn spawn_zone_trainers(
             Visibility::Inherited,
             Name::new(format!("trainer {}", p.key)),
         ));
-        if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
-            let color = if beaten { Color::srgb(0.45, 0.45, 0.5) } else { Color::srgb(0.85, 0.2, 0.25) };
+        // Real model when the NPC export of this character exists (same cache as npc.rs); else the capsule marker.
+        let cache_root = npc_world.as_ref().map_or_else(|| PathBuf::from(DEFAULT_CACHE_ROOT), |w| w.cache_root.clone());
+        let info = models.as_mut().and_then(|m| m.info(&cache_root, &p.model_pack));
+        if let (Some(asset_server), Some(info)) = (asset_server.as_deref(), info) {
+            e.insert(model_source(asset_server, &info, 1.0));
+            if beaten {
+                e.insert(TrainerBeaten);
+            }
+        } else if let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) {
+            let color = if beaten { BEATEN_GREY } else { Color::srgb(0.85, 0.2, 0.25) };
             e.insert((
                 Mesh3d(meshes.add(Capsule3d::new(0.35, 1.1))),
                 MeshMaterial3d(materials.add(StandardMaterial { base_color: color, ..default() })),
@@ -275,7 +393,7 @@ pub fn trainer_challenge(
     keys: Option<Res<ButtonInput<KeyCode>>>,
     world: Res<TrainerWorld>,
     assets: Option<Res<BattleAssets>>,
-    defeated: Res<DefeatedTrainers>,
+    progress: Option<Res<PlayerProgress>>,
     session: Option<Res<ActiveBattleSession>>,
     player: Query<&Transform, With<PlayerAvatar>>,
     markers: Query<(Entity, &Transform, &TrainerNpc)>,
@@ -297,7 +415,11 @@ pub fn trainer_challenge(
         *near_last = near_entity;
         if let (Some((_, _, n)), Some(t)) = (near, toast.as_deref_mut()) {
             let label = world.catalog.get(&n.trainer_id).map(|d| d.display_label()).unwrap_or_default();
-            t.show(format!("V: battle {label} ({}, ASSUMED link)", n.trainer_id));
+            if progress.as_deref().is_some_and(|p| p.defeated_trainers.contains(&n.trainer_id)) {
+                t.show(format!("{label} ({}) was already defeated.", n.trainer_id));
+            } else {
+                t.show(format!("V: battle {label} ({}, ASSUMED link)", n.trainer_id));
+            }
         }
     }
     if !keys.is_some_and(|k| k.just_pressed(KeyCode::KeyV)) {
@@ -309,7 +431,7 @@ pub fn trainer_challenge(
         (None, Some(f)) => (f.clone(), Entity::PLACEHOLDER),
         (None, None) => return,
     };
-    if defeated.0.contains(&id) && world.forced.as_deref() != Some(id.as_str()) {
+    if progress.as_deref().is_some_and(|p| p.defeated_trainers.contains(&id)) && world.forced.as_deref() != Some(id.as_str()) {
         if let Some(t) = toast.as_deref_mut() {
             t.show(format!("{id} was already defeated."));
         }
@@ -325,18 +447,9 @@ pub fn trainer_challenge(
     }
 }
 
-/// Remember the trainers the player beat (session only).
-pub fn record_trainer_result(session: Option<Res<ActiveBattleSession>>, mut defeated: ResMut<DefeatedTrainers>) {
-    let Some(s) = session else { return };
-    if let Some(t) = &s.trainer {
-        if t.finished && s.battle.winner_side() == Some(Some(0)) && !defeated.0.contains(&t.id) {
-            defeated.0.insert(t.id.clone());
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::path::Path;
     use std::time::Duration;
 
@@ -354,6 +467,19 @@ mod tests {
     }
 
     #[test]
+    fn forced_trainer_notice_tells_the_key_or_the_bad_id() {
+        let plugin = TrainerEncounterPlugin { markers: true, forced: None, data_dir: Some(data_root()) };
+        let Some(mut w) = plugin.load_world() else { return };
+        assert_eq!(forced_trainer_notice(&w), None);
+        w.forced = Some("giratina01".into());
+        assert_eq!(forced_trainer_notice(&w).unwrap(), "Press V anywhere to fight giratina01 (--trainer).");
+        w.forced = Some("noble:nsi_ex_01".into());
+        assert!(forced_trainer_notice(&w).unwrap().starts_with("Press V"));
+        w.forced = Some("giratina99".into());
+        assert!(forced_trainer_notice(&w).unwrap().contains("unknown trainer id"));
+    }
+
+    #[test]
     fn placements_join_trainer_model_packs() {
         let Ok(c) = TrainerCatalog::load(data_root()) else { return };
         let Ok(text) = std::fs::read_to_string(data_root().join("npc_placements.tsv")) else { return };
@@ -366,6 +492,28 @@ mod tests {
         assert_eq!(placed_trainers(&text, &c), p);
     }
 
+    #[test]
+    fn marker_key_filter_only_matches_enabled_trainer_markers() {
+        let mut world = TrainerWorld { markers: true, ..default() };
+        world.placements.push(PlacedTrainer {
+            area: "ha_area02".into(),
+            key: "area02_npc_guard_009".into(),
+            model_pack: "tr_guard".into(),
+            position: [0.0; 3],
+            yaw_deg: 0.0,
+            trainer_id: "guard".into(),
+        });
+
+        assert!(world.has_enabled_marker_key("area02_npc_guard_009"));
+        assert!(!world.has_enabled_marker_key("other_npc"));
+        world.markers = false;
+        assert!(!world.has_enabled_marker_key("area02_npc_guard_009"));
+    }
+
+    fn app_new(dir: &Path) -> Option<App> {
+        app(dir)
+    }
+
     fn app(dir: &Path) -> Option<App> {
         let assets = BattleAssets::load(data_root()).ok()?;
         let plugin = TrainerEncounterPlugin { markers: true, forced: None, data_dir: Some(data_root()) };
@@ -373,6 +521,9 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, StatesPlugin));
         app.init_state::<GameState>();
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        app.init_asset::<Mesh>();
+        app.init_asset::<StandardMaterial>();
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
         app.insert_resource(assets.clone());
         app.init_resource::<ActionState>();
@@ -460,6 +611,7 @@ mod tests {
             app.update();
             *app.world_mut().resource_mut::<ActionState>() = ActionState::default();
         }
+        app.update(); // Let Update systems record the finished trainer result.
         let (prize, log) = {
             let s = app.world().resource::<ActiveBattleSession>();
             assert!(s.battle.ended, "{:?}", s.log_lines);
@@ -467,7 +619,6 @@ mod tests {
             (s.trainer.as_ref().unwrap().prize, s.log_lines.join("\n"))
         };
         assert!(log.contains("You defeated"), "{log}");
-        assert!(app.world().resource::<DefeatedTrainers>().0.contains(&id));
         // Leave the battle (it closes on Confirm once the after-battle steps are done).
         for _ in 0..40 {
             if app.world().get_resource::<ActiveBattleSession>().is_none() {
@@ -490,7 +641,136 @@ mod tests {
         let money = app.world().resource::<PlayerProgress>().money;
         assert_eq!(money - money_before, prize.unwrap_or(0), "the trainer prize is paid, not the wild one");
         assert!(prize.is_some_and(|p| p > 0), "guards store a prize base");
+        assert!(app.world().resource::<PlayerProgress>().defeated_trainers.contains(&id), "the win is remembered");
         let _ = std::fs::remove_dir_all(&dir);
         let _ = BattleInput::Confirm;
+    }
+
+    fn marker_colors(app: &mut App) -> Vec<Color> {
+        let handles: Vec<Handle<StandardMaterial>> =
+            app.world_mut().query::<&MeshMaterial3d<StandardMaterial>>().iter(app.world()).map(|m| m.0.clone()).collect();
+        let mats = app.world().resource::<Assets<StandardMaterial>>();
+        handles.iter().map(|h| mats.get(h).unwrap().base_color).collect()
+    }
+
+    fn press_v(app: &mut App) {
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyV);
+        app.update();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyV);
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().clear();
+        app.update();
+        app.update();
+    }
+
+    /// Fight the running trainer battle to a certain win and leave it.
+    fn win_and_leave(app: &mut App) {
+        for _ in 0..200 {
+            if app.world().resource::<ActiveBattleSession>().battle.ended {
+                break;
+            }
+            {
+                let mut s = app.world_mut().resource_mut::<ActiveBattleSession>();
+                for p in s.battle.sides[0].clone() {
+                    s.battle.combatants[p].max_hp = 100_000;
+                    s.battle.combatants[p].hp = 100_000;
+                }
+                let o = s.opponent();
+                s.battle.combatants[o].hp = s.battle.combatants[o].hp.min(1);
+            }
+            let slot = {
+                let s = app.world().resource::<ActiveBattleSession>();
+                s.battle.best_damage_action(s.active_player()).map_or(0, |a| a.move_slot)
+            };
+            *app.world_mut().resource_mut::<ActionState>() = actions(&RawInput { key_pressed: vec![Action::Slot(slot as u8)], ..default() });
+            app.update();
+            *app.world_mut().resource_mut::<ActionState>() = ActionState::default();
+        }
+        for _ in 0..40 {
+            if app.world().get_resource::<ActiveBattleSession>().is_none() {
+                break;
+            }
+            *app.world_mut().resource_mut::<ActionState>() = actions(&RawInput { key_pressed: vec![Action::Cancel], ..default() });
+            app.update();
+            *app.world_mut().resource_mut::<ActionState>() = actions(&RawInput { key_pressed: vec![Action::Confirm], ..default() });
+            app.update();
+            *app.world_mut().resource_mut::<ActionState>() = ActionState::default();
+        }
+        app.update();
+        app.update();
+    }
+
+    /// Save v8: win a trainer battle (autosave), then (a) load in-process after forgetting it and
+    /// (b) "restart" with a fresh app on the same save directory. Both times the trainer is still
+    /// beaten: its marker is grey, V next to it starts no battle (toast "already defeated") and no
+    /// prize is paid again.
+    #[test]
+    fn defeated_trainer_survives_save_and_load() {
+        use crate::game::save_wire::LoadRequested;
+        let dir = std::env::temp_dir().join(format!("pla-trainer-save-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let Some(mut app) = app(&dir) else { return };
+        app.update();
+        app.update();
+        let fresh_colors = marker_colors(&mut app);
+        assert!(fresh_colors.iter().all(|c| *c == FRESH_COLOR), "nobody is beaten yet");
+        let (pos, id) = app
+            .world_mut()
+            .query::<(&Transform, &TrainerNpc)>()
+            .iter(app.world())
+            .map(|(t, n)| (t.translation, n.trainer_id.clone()))
+            .next()
+            .unwrap();
+        app.world_mut().spawn((PlayerAvatar, Transform::from_translation(pos + Vec3::X)));
+        app.update();
+        press_v(&mut app);
+        assert!(app.world().get_resource::<ActiveBattleSession>().is_some(), "battle started");
+        let money_before = app.world().resource::<PlayerProgress>().money;
+        win_and_leave(&mut app);
+        assert!(app.world().get_resource::<ActiveBattleSession>().is_none());
+        let paid = app.world().resource::<PlayerProgress>().money - money_before;
+        assert!(paid > 0, "the first win pays the prize");
+        assert!(app.world().resource::<PlayerProgress>().defeated_trainers.contains(&id));
+        let n_grey = marker_colors(&mut app).iter().filter(|c| **c == BEATEN_COLOR).count();
+        let cached_models = app.world_mut().query::<(&TrainerNpc, Has<NpcModelSource>)>().iter(app.world()).filter(|(_, model)| *model).count();
+        assert!(n_grey >= 1 || cached_models >= 1, "the beaten trainer has a grey fallback or cached model");
+        let money_after_win = app.world().resource::<PlayerProgress>().money;
+
+        // The battle ended with an autosave: the file has the trainer.
+        let on_disk = SaveFile::in_dir(&dir).read().unwrap();
+        assert!(on_disk.defeated_trainers.contains(&id), "{:?}", on_disk.defeated_trainers);
+        assert_eq!(on_disk.version, crate::game::save_game::CURRENT_VERSION);
+
+        // (a) in-process: forget it, then the Load row restores it and the marker is grey again.
+        app.world_mut().resource_mut::<PlayerProgress>().defeated_trainers.clear();
+        app.update();
+        assert!(marker_colors(&mut app).iter().all(|c| *c == FRESH_COLOR), "forgotten: red again");
+        app.world_mut().resource_mut::<LoadRequested>().0 = true;
+        app.update();
+        app.update();
+        assert!(app.world().resource::<PlayerProgress>().defeated_trainers.contains(&id));
+        assert_eq!(marker_colors(&mut app).iter().filter(|c| **c == BEATEN_COLOR).count(), n_grey);
+        press_v(&mut app);
+        assert!(app.world().get_resource::<ActiveBattleSession>().is_none(), "V does not start the fight");
+        assert!(app.world().resource::<SaveToast>().text.contains("already defeated"));
+        assert_eq!(app.world().resource::<PlayerProgress>().money, money_after_win, "no prize again");
+        drop(app);
+
+        // (b) restart: a brand-new app (new game in memory) on the same save dir, then Load.
+        let Some(mut app2) = app_new(&dir) else { return };
+        app2.update();
+        assert!(app2.world().resource::<PlayerProgress>().defeated_trainers.is_empty(), "new game starts clean");
+        app2.world_mut().spawn((PlayerAvatar, Transform::from_translation(pos + Vec3::X)));
+        app2.world_mut().resource_mut::<LoadRequested>().0 = true;
+        app2.update();
+        app2.update();
+        app2.update();
+        assert!(app2.world().resource::<PlayerProgress>().defeated_trainers.contains(&id));
+        assert_eq!(app2.world().resource::<PlayerProgress>().money, money_after_win);
+        assert_eq!(marker_colors(&mut app2).iter().filter(|c| **c == BEATEN_COLOR).count(), n_grey);
+        press_v(&mut app2);
+        assert!(app2.world().get_resource::<ActiveBattleSession>().is_none(), "V does not start the fight after a restart");
+        assert_eq!(app2.world().resource::<PlayerProgress>().money, money_after_win, "prize not paid twice");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

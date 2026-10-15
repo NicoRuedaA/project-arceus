@@ -61,7 +61,7 @@ fn main() {
         )
         .add_plugins(ScheduleRunnerPlugin::run_loop(Duration::from_millis(16)))
         .add_plugins(ZoneLightingPlugin { area, slot: 1 })
-        .add_plugins(VegetationPlugin { area, bin_root: bin_root.clone(), cache_root: cache.clone(), quality })
+        .add_plugins(VegetationPlugin { area, bin_root: bin_root.clone(), cache_root: cache.clone(), quality, grass_range: 1.0, plants_range: 1.0 })
         .insert_resource(Cfg {
             out: arg(&args, "--out").unwrap_or_else(|| "work/veg/headless.png".into()),
             area,

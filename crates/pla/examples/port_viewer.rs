@@ -12,6 +12,9 @@
 //! 4. HUD telemetry in window title & console logs.
 //! 5. Optional automated headless capture (`--screenshot <path>` / `--ticks <N>`).
 
+// The start-up guard at the end builds this file as a test, where `main` is unused.
+#![cfg_attr(test, allow(dead_code, unused_imports))]
+
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -25,18 +28,12 @@ use bevy::render::view::screenshot::{save_to_disk, Screenshot};
 use bevy::window::WindowResolution;
 
 use pla::assets::navmesh::AreaNavigation;
-use pla::assets::terrain::{
-    build_mesh_chunks, TerrainArea, TerrainScaleOverride,
-};
+use pla::assets::terrain::{build_mesh_chunks, TerrainArea, TerrainScaleOverride};
 use pla::battle::BattleData;
-use pla::game::{
-    battle_input_system, load_spawners_for_area, roll_spawner, setup_game_ui,
-    sync_ui_visibility, update_battle_ui_system, update_world_hud_system, ActiveAreaSpawners,
-    ActiveBattleSession, BattleAssets, GameNavmeshResource, GameState, PlayerAvatar,
-    WildCreature,
+use pla::game::ball_lifecycle::{
+    step_ball, BallBody, BallEvent, BallLifecycleState,
 };
 use pla::battle_engine::{CaptureModifiers, XorShift32};
-use pla::game::ball_lifecycle::{step_ball, BallBody, BallEvent, BallLifecycleState};
 use pla::game::capture_world::{
     bait_in_range, bait_multiplier, build_caught_member, is_backstrike, roll_capture, spawn_bait,
     store_caught, suitable_range, BaitObject, BaitTable, CatchStorage, WorldCaptureInput,
@@ -54,8 +51,13 @@ use pla::game::main_menu::MainMenuPlugin;
 use pla::game::pause_menu::PauseMenuPlugin;
 use pla::game::settings::UserSettings;
 use pla::game::state::{not_paused, Paused};
-use pla::game::zone::{TerrainChunkMarker, TerrainResource};
 use pla::game::water::{PlayerSwim, SwimState, WaterBodies, SWIM_ENTER_DEPTH, SWIM_SPEED};
+use pla::game::zone::{TerrainChunkMarker, TerrainResource};
+use pla::game::{
+    battle_input_system, load_spawners_for_area, roll_spawner_variant, setup_game_ui,
+    sync_ui_visibility, update_battle_ui_system, update_world_hud_system, ActiveAreaSpawners,
+    ActiveBattleSession, BattleAssets, GameNavmeshResource, GameState, PlayerAvatar, WildCreature,
+};
 use pla::pml::{calculate_hp, PmlDatabase};
 
 #[derive(Resource, Clone)]
@@ -74,29 +76,22 @@ struct TrinsTreeInstance;
 
 #[derive(Resource)]
 struct PokemonCatalogResource {
-    handles: HashMap<u16, Handle<Gltf>>,
+    handles: HashMap<PokemonAssetKey, Handle<Gltf>>,
     spawned: HashSet<Entity>,
 }
 
-/// Resolves relative asset path for a Pokémon's glTF model (checking both _idle.gltf and _static.gltf).
-fn resolve_pokemon_gltf_rel(dex: u16) -> Option<String> {
-    let variants = ["idle", "static"];
-    let roots = [
-        std::env::var("PLA_CACHE_DIR").map(PathBuf::from).ok(),
-        Some(PathBuf::from("work/cache")),
-        Some(PathBuf::from("/home/nico/work/decompilacion/work/cache")),
-    ];
-    for root in roots.into_iter().flatten() {
-        for v in &variants {
-            let rel = format!("cache/pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_{v}.gltf");
-            let disk_candidate = root.join(format!("pokemon_batch/pm{dex:04}_00_00/pm{dex:04}_00_00_{v}.gltf"));
-            let rel_candidate = PathBuf::from("work").join(&rel);
-            if disk_candidate.exists() || rel_candidate.exists() {
-                return Some(rel);
-            }
-        }
-    }
-    None
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct PokemonAssetKey {
+    dex: u16,
+    form: u16,
+    rare: bool,
+}
+
+/// Resolves a model path without silently substituting another form or palette. The pack
+/// name comes from the game's model catalog (`game::pokemon_resource`), never from the dex
+/// number. Spawn evidence currently falls back to form 0 and rare=false when absent.
+fn resolve_pokemon_gltf_rel(dex: u16, form: u16, rare: bool) -> Option<String> {
+    pla::game::pokemon_resource::resolve_batch_gltf_rel(dex, form, rare)
 }
 
 #[derive(Resource)]
@@ -111,12 +106,29 @@ struct DirectionIndicator;
 
 #[derive(Component)]
 struct PokemonSpawn {
-    #[allow(dead_code)]
     national_dex: u16,
+    form: u16,
+    rare: bool,
+    /// Retained for the spawn record even though alpha does not select a palette.
+    #[allow(dead_code)]
+    alpha: bool,
+    /// The applied transform scale is kept here for inspection/debug tooling.
+    #[allow(dead_code)]
+    size_scale: f32,
 }
 
 #[derive(Component)]
 struct BattleArenaMarker;
+
+/// Where an arena creature stands before the opponent-size spacing is applied.
+#[derive(Component, Clone, Copy)]
+struct ArenaBase(Vec3);
+
+/// Measured model size of the creature in each arena slot (zero until its model is loaded).
+#[derive(Resource, Default)]
+struct ArenaExtents {
+    size: [pla::game::battle_camera::ModelSize; 2],
+}
 
 #[derive(Component)]
 struct Reticle;
@@ -194,6 +206,9 @@ struct AutomationOptions {
 }
 
 fn main() -> ExitCode {
+    // `--automation`: windowless, socket-driven run (crates/pla/src/game/automation.rs).
+    let automation_cfg =
+        pla::game::automation::AutomationConfig::from_args(&std::env::args().collect::<Vec<_>>());
     let mut args = std::env::args().skip(1);
     let mut bin_root = std::env::var_os("PLA_BIN_ROOT")
         .map(PathBuf::from)
@@ -236,7 +251,10 @@ fn main() -> ExitCode {
                 if let Some(pos_str) = args.next() {
                     let parts: Vec<&str> = pos_str.split(',').collect();
                     if parts.len() == 2 {
-                        if let (Ok(x), Ok(z)) = (parts[0].trim().parse::<f32>(), parts[1].trim().parse::<f32>()) {
+                        if let (Ok(x), Ok(z)) = (
+                            parts[0].trim().parse::<f32>(),
+                            parts[1].trim().parse::<f32>(),
+                        ) {
                             initial_player_pos = Some(Vec2::new(x, z));
                         }
                     }
@@ -273,7 +291,8 @@ fn main() -> ExitCode {
                 // Hidden-window demo: world, pause menu open, aim mode with reticle (3 PNGs).
                 headless = true;
                 controls_demo_dir = Some(PathBuf::from(
-                    args.next().unwrap_or_else(|| "work/cache/controls_demo".into()),
+                    args.next()
+                        .unwrap_or_else(|| "work/cache/controls_demo".into()),
                 ));
             }
             "--verify-views" => {
@@ -329,9 +348,13 @@ fn main() -> ExitCode {
                 println!("  --player-pos <X,Z>    Initial player spawn coordinates (default: 445.0,650.0 for area 0)");
                 println!("  --cell-size <N>       Override horizontal cell scale (metres)");
                 println!("  --vertical-scale <N>  Override vertical height scale (metres)");
-                println!("  --headless            Run offscreen with hidden window (no display window)");
+                println!(
+                    "  --headless            Run offscreen with hidden window (no display window)"
+                );
                 println!("  --auto-demo           Run deterministic game loop test offscreen (Walk -> Battle -> Return)");
-                println!("  --script <DIR>        Run deterministic test and write screenshots to DIR");
+                println!(
+                    "  --script <DIR>        Run deterministic test and write screenshots to DIR"
+                );
                 println!("  --script-controls <DIR>  Hidden-window demo: world / pause menu / aim reticle PNGs in DIR");
                 println!("  --verify-views        Verify 3 distinct viewpoints offscreen in a single process");
                 println!("  --verify-views-dir D  Verify 3 viewpoints and save screenshots to directory D");
@@ -345,8 +368,13 @@ fn main() -> ExitCode {
                 println!("  --new-game            Ignore the existing save and start fresh");
                 println!("  --menu                Start in the main menu (Continue / New game / Options / Exit)");
                 println!("  --save-dir <PATH>     Save directory (sets PLA_SAVE_DIR); F5 saves");
-                println!("  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)");
+                println!(
+                    "  --no-audio            No sound and no audio device (same as PLA_NO_AUDIO=1)"
+                );
                 println!("  --effects <off|low|high>  Battle move effects (default low; PLA_EFFECTS, settings effects=)");
+                println!("  --force-alpha [N|all] Debug: make the N nearest (default 1) or all wild creatures alpha (red aura, 2.5x)");
+                println!("  --ui <debug|original>  The game's own layouts from the local UI cache (default; PLA_UI, --ui-root) or the provisional UI (debug); missing data falls back to the provisional UI");
+                println!("  --automation          No window: offscreen render + JSON control socket (docs/AUTOMATION.md)");
                 println!("  --story <N> --event-time-scale <F> --distortion-now --outbreak <ID|off> --no-world-events  World events (Brief 39)");
                 return ExitCode::SUCCESS;
             }
@@ -355,14 +383,18 @@ fn main() -> ExitCode {
     }
 
     // Player save: --new-game / --save-dir; a loaded save supplies zone and position unless given.
-    let cli_args: Vec<String> = std::env::args().collect();
+    let mut cli_args: Vec<String> = std::env::args().collect();
+    if let Some(cfg) = &automation_cfg {
+        cli_args = pla::game::automation::effective_args(cli_args, cfg);
+    }
     let wire_cli = pla::game::save_wire::WireCli::from_args(&cli_args);
     wire_cli.apply_env();
     let mut save_game = pla::game::save_game::SaveGame::from_env();
     let mut wire_start = pla::game::save_wire::load_startup(&mut save_game, &wire_cli);
     if wire_cli.has_time_slot {
-        wire_start.progress.time_minutes =
-            pla::game::clock::slot_centre_minutes(pla::game::lighting::time_slot_from_args(&cli_args));
+        wire_start.progress.time_minutes = pla::game::clock::slot_centre_minutes(
+            pla::game::lighting::time_slot_from_args(&cli_args),
+        );
     }
     // Scripted runs have no save to shop with: stock the demo bag so --throw and the
     // controls demo still exercise the real bag counters (Brief 18).
@@ -381,7 +413,11 @@ fn main() -> ExitCode {
     }
     let pos_from_cli = wire_cli.has_player_pos || initial_player_pos.is_some();
     if !wire_cli.has_player_pos && initial_player_pos.is_none() {
-        initial_player_pos = wire_start.position.map(|p| Vec2::new(p[0], p[2]));
+        // Only a position saved in this same area (a save from another zone keeps its
+        // coordinates out of the area picked with --area).
+        initial_player_pos = wire_start
+            .position_in_area(area_idx)
+            .map(|p| Vec2::new(p[0], p[2]));
     }
 
     if auto_demo {
@@ -404,8 +440,145 @@ fn main() -> ExitCode {
     };
     let player_spawn_pos = initial_player_pos.unwrap_or(default_spawn);
 
-    // Attempt loading real terrain from game pack
-    let terrain_res = match TerrainArea::load(&bin_root, area_idx) {
+    // Graphics screen "Terrain texture" (restart option): the baked ground is reduced at load.
+    {
+        let dir = automation_cfg.as_ref().map_or_else(UserSettings::default_dir, |c| c.settings_dir());
+        let gfx = pla::game::graphics_screen::GraphicsStartup::resolve(&dir, &cli_args);
+        pla::game::quality::set_terrain_texture_max(gfx.settings.terrain_texture_max());
+    }
+    let terrain_res = load_terrain(&bin_root, area_idx, overrides);
+
+    // Locate PML and Battle data directory.
+    let (data_dir, pml_db, battle_db, battle_assets) = load_game_data();
+
+    let work_root = PathBuf::from("work");
+    let work_abs = work_root.canonicalize().unwrap_or(work_root);
+
+    let navmesh_res = load_navmesh(&bin_root, area_idx);
+
+    // Safe start (largest walkable island, gentle slope, clearance; see game/spawn_point.rs):
+    // `--player-pos` is honoured, a valid saved position too, otherwise the safe start is used.
+    let (player_spawn_pos, safe_spawn_xz, spawn_notice) = choose_player_spawn(
+        navmesh_res.as_ref(),
+        area_idx,
+        initial_player_pos,
+        pos_from_cli,
+        player_spawn_pos,
+    );
+
+    let mut app = App::new();
+    // Safety net for the player's session only: a deferred command on an entity that was
+    // despawned earlier in the frame logs a warning instead of closing the game. The start-up
+    // guard tests keep Bevy's panicking default so such bugs still fail there.
+    app.set_error_handler(bevy::ecs::error::warn);
+    // Automation never creates a window: its own DefaultPlugins set (no winit, no gamepad).
+    let remote = automation_cfg.map(|cfg| pla::game::automation::AutomationPlugin {
+        gpu: pla::game::automation::add_default_plugins(&mut app, work_abs.to_string_lossy().to_string(), &cfg),
+        config: cfg,
+    });
+    if remote.is_none() { app.add_plugins(
+        DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Pokémon Legends: Arceus — Bevy Port Interactive Viewer".into(),
+                    resolution: WindowResolution::new(1280, 720),
+                    visible: !headless,
+                    ..default()
+                }),
+                ..default()
+            })
+            .set(AssetPlugin {
+                file_path: work_abs.to_string_lossy().to_string(),
+                unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+                ..default()
+            }),
+    ); }
+
+    // Real player model from the exporter cache; capsule avatar if the file is missing.
+    let cache_root = std::env::var_os("PLA_CACHE_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
+    let player_model_file =
+        pla::game::player_anim::resolve_player_model(&cache_root, &player_variant)
+            .map(|f| f.canonicalize().unwrap_or(f));
+    match &player_model_file {
+        Some(f) => println!("Player model: {}", f.display()),
+        None => println!(
+            "Player model '{player_variant}' not found under {}/player; using the capsule avatar",
+            cache_root.display()
+        ),
+    }
+    let settings_dir =
+        remote.as_ref().map_or_else(UserSettings::default_dir, |r| r.config.settings_dir());
+    configure_viewer(
+        &mut app,
+        ViewerSetup {
+            area_idx,
+            bin_root: bin_root.clone(),
+            cache_root,
+            main_menu,
+            player_model: PlayerModelConfig {
+                asset_rel: player_model_file
+                    .map(|f| pla::game::player_anim::asset_path(&f, &work_abs)),
+            },
+            initial_mode,
+            user_settings: UserSettings::load_from_dir(&settings_dir),
+            settings_dir,
+            initial_dex,
+            data_dir,
+            pml_db,
+            battle_db,
+            battle_assets,
+            player_spawn_pos,
+            terrain_res,
+            navmesh_res,
+            safe_spawn_xz,
+            spawn_notice,
+            static_wild: auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some(),
+            debug_zone_links,
+            automation: AutomationOptions {
+                screenshot_path,
+                max_ticks,
+                current_ticks: 0,
+                auto_throw_tick,
+                verify_views_dir,
+                verify_step: 0,
+                verify_step_tick: 0,
+                auto_demo,
+                demo_output_dir,
+                demo_step: 0,
+                demo_step_tick: 0,
+                controls_demo_dir,
+            },
+            save_game,
+            wire_start,
+            wire_cli,
+            art_style: pla::game::art_style::ArtStylePlugin::from_env_and_args(),
+            trainers: pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args(),
+            audio: match remote {
+                // Automation is always silent: no audio device is opened.
+                Some(_) => pla::game::audio::GameAudioPlugin::with_mode(pla::game::audio::AudioMode::Null),
+                None => pla::game::audio::GameAudioPlugin::from_env_and_args(),
+            },
+            effects: pla::game::effects::EffectsPlugin::from_env_and_args(),
+            bag: pla::game::bag_screen::BagScreenPlugin::from_env_and_args(),
+            minimap: pla::game::minimap::MinimapPlugin::from_env_and_args(bin_root.clone()),
+            remote,
+            cli_args,
+        },
+    );
+
+    app.run();
+    ExitCode::SUCCESS
+}
+
+/// Real terrain of `area_idx` from the game pack (`None`: fallback ground plane).
+fn load_terrain(
+    bin_root: &std::path::Path,
+    area_idx: u8,
+    overrides: TerrainScaleOverride,
+) -> Option<TerrainResource> {
+    match TerrainArea::load(&bin_root, area_idx) {
         Ok(area_data) => {
             println!(
                 "Loaded real terrain ha_area{:02}.gfpak: extent=({:.1}, {:.1}), H={:.1}m, {} instances",
@@ -418,8 +591,13 @@ fn main() -> ExitCode {
             match area_data.mesh_settings(overrides, 64) {
                 Ok(settings) => match build_mesh_chunks(&area_data.heightmap, settings) {
                     Ok(chunks) => {
-                        println!("Built {} terrain mesh chunks (cell size {:.3}m)", chunks.len(), settings.horizontal_cell_size);
-                        let blended_albedo = pla::game::zone::resolve_terrain_albedo(area_idx, &area_data);
+                        println!(
+                            "Built {} terrain mesh chunks (cell size {:.3}m)",
+                            chunks.len(),
+                            settings.horizontal_cell_size
+                        );
+                        let blended_albedo =
+                            pla::game::zone::resolve_terrain_albedo(area_idx, &area_data);
                         Some(TerrainResource {
                             area: Arc::new(area_data),
                             chunks,
@@ -439,12 +617,22 @@ fn main() -> ExitCode {
             }
         }
         Err(e) => {
-            println!("Terrain pack not loaded from {}: {e}. Running with fallback ground plane.", bin_root.display());
+            println!(
+                "Terrain pack not loaded from {}: {e}. Running with fallback ground plane.",
+                bin_root.display()
+            );
             None
         }
-    };
+    }
+}
 
-    // Locate PML and Battle data directory.
+/// The decoded data sheets directory (`data/`), PML database, battle data and battle assets.
+fn load_game_data() -> (
+    Option<PathBuf>,
+    Option<PmlDatabase>,
+    Option<BattleData>,
+    Option<BattleAssets>,
+) {
     let data_dir = [
         PathBuf::from("data"),
         PathBuf::from("../../data"),
@@ -453,21 +641,25 @@ fn main() -> ExitCode {
     .into_iter()
     .find(|p| p.join("pml_personal.tsv").exists());
 
-    let pml_db = data_dir.as_ref().and_then(|dir| PmlDatabase::load_from_dir(dir).ok());
+    let pml_db = data_dir
+        .as_ref()
+        .and_then(|dir| PmlDatabase::load_from_dir(dir).ok());
     let battle_db = data_dir.as_ref().and_then(|dir| BattleData::load(dir).ok());
-    let battle_assets = data_dir.as_ref().and_then(|dir| match BattleAssets::load(dir) {
-        Ok(a) => Some(a),
-        Err(e) => {
-            eprintln!("Battle assets (move effects / items / catch rates) not loaded: {e}");
-            None
-        }
-    });
+    let battle_assets = data_dir
+        .as_ref()
+        .and_then(|dir| match BattleAssets::load(dir) {
+            Ok(a) => Some(a),
+            Err(e) => {
+                eprintln!("Battle assets (move effects / items / catch rates) not loaded: {e}");
+                None
+            }
+        });
+    (data_dir, pml_db, battle_db, battle_assets)
+}
 
-    let work_root = PathBuf::from("work");
-    let work_abs = work_root.canonicalize().unwrap_or(work_root);
-
-    // Attempt loading real navmesh from terrain pack
-    let navmesh_res = match AreaNavigation::load(&bin_root, area_idx) {
+/// Real navmesh of `area_idx` from the terrain pack.
+fn load_navmesh(bin_root: &std::path::Path, area_idx: u8) -> Option<GameNavmeshResource> {
+    match AreaNavigation::load(&bin_root, area_idx) {
         Ok(nav) => {
             println!(
                 "Loaded real navmesh ha_area{:02}.gfpak: {} faces, {} edges, {} vertices",
@@ -476,35 +668,52 @@ fn main() -> ExitCode {
                 nav.primary().edges.len(),
                 nav.primary().vertices.len()
             );
-            Some(GameNavmeshResource {
-                nav: Arc::new(nav),
-            })
+            Some(GameNavmeshResource { nav: Arc::new(nav) })
         }
         Err(e) => {
             println!("Navmesh not loaded from {}: {e}", bin_root.display());
             None
         }
-    };
+    }
+}
 
-    // Safe start (largest walkable island, gentle slope, clearance; see game/spawn_point.rs):
-    // `--player-pos` is honoured, a valid saved position too, otherwise the safe start is used.
+/// Start position: `--player-pos` is honoured, a valid saved position too, otherwise the safe
+/// start. Returns the position, the safe start (if any) and a notice for the player.
+fn choose_player_spawn(
+    navmesh_res: Option<&GameNavmeshResource>,
+    area_idx: u8,
+    initial_player_pos: Option<Vec2>,
+    pos_from_cli: bool,
+    player_spawn_pos: Vec2,
+) -> (Vec2, Option<Vec2>, Option<&'static str>) {
     use pla::game::spawn_point as sp;
     let mut safe_spawn_xz: Option<Vec2> = None;
     let mut spawn_notice: Option<&str> = None;
-    let player_spawn_pos = if let Some(ref nr) = navmesh_res {
+    let player_spawn_pos = if let Some(nr) = navmesh_res {
         let nav = nr.nav.primary();
         let comps = sp::components(nav);
         let rd = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
-        let marks = sp::landmarks_for_area(area_idx, &rd("data/field_spawn_table.tsv"), &rd("data/field_object_placements.tsv"));
+        let marks = sp::landmarks_for_area(
+            area_idx,
+            &rd("data/field_spawn_table.tsv"),
+            &rd("data/field_object_placements.tsv"),
+        );
         let safe = sp::choose_safe_spawn(nav, &comps, &marks, &sp::SpawnConfig::default());
         safe_spawn_xz = safe.map(|s| s.xz);
-        let (explicit, saved) = if pos_from_cli { (initial_player_pos, None) } else { (None, initial_player_pos) };
+        let (explicit, saved) = if pos_from_cli {
+            (initial_player_pos, None)
+        } else {
+            (None, initial_player_pos)
+        };
         let snap = |p: Vec2| {
             if nav.is_walkable(p.x, p.y) {
                 p
             } else if let Some(hit) = nav.nearest(p.x, p.y, 400.0) {
                 let c = sp::face_centroid(nav, hit.face);
-                println!("Adjusted initial spawn position to walkable navmesh face: ({:.1}, {:.1})", c[0], c[2]);
+                println!(
+                    "Adjusted initial spawn position to walkable navmesh face: ({:.1}, {:.1})",
+                    c[0], c[2]
+                );
                 Vec2::new(c[0], c[2])
             } else {
                 p
@@ -514,7 +723,9 @@ fn main() -> ExitCode {
             sp::StartChoice::Explicit(p) | sp::StartChoice::Saved(p) => snap(p),
             sp::StartChoice::Safe(p) => p,
             sp::StartChoice::SafeReplacingSaved(p) => {
-                spawn_notice = Some("Saved position was not on the main walkable area: moved to the safe start.");
+                spawn_notice = Some(
+                    "Saved position was not on the main walkable area: moved to the safe start.",
+                );
                 p
             }
             sp::StartChoice::NoSafe => snap(player_spawn_pos),
@@ -522,25 +733,110 @@ fn main() -> ExitCode {
     } else {
         player_spawn_pos
     };
+    (player_spawn_pos, safe_spawn_xz, spawn_notice)
+}
 
-    let mut app = App::new();
-    app.add_plugins(
-        DefaultPlugins
-            .set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Pokémon Legends: Arceus — Bevy Port Interactive Viewer".into(),
-                    resolution: WindowResolution::new(1280, 720),
-                    visible: !headless,
-                    ..default()
-                }),
-                ..default()
-            })
-            .set(AssetPlugin {
-                file_path: work_abs.to_string_lossy().to_string(),
-                unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
-                ..default()
-            }),
-    );
+/// Everything `main` resolves from the command line, the environment and the game files before
+/// the app is built. [`configure_viewer`] turns it into states, resources, plugins and systems;
+/// the start-up schedule guard at the end of this file builds the same app headless from a setup
+/// made in the test, so the viewer's registrations exist only once.
+struct ViewerSetup {
+    /// The full process arguments (`std::env::args()`), read by the `from_args` plugin builders.
+    cli_args: Vec<String>,
+    area_idx: u8,
+    bin_root: PathBuf,
+    /// Exporter cache (`$PLA_CACHE_ROOT`, else the default cache).
+    cache_root: PathBuf,
+    /// `--menu`: start in the main menu instead of the world.
+    main_menu: bool,
+    player_model: PlayerModelConfig,
+    initial_mode: CameraMode,
+    user_settings: UserSettings,
+    settings_dir: PathBuf,
+    initial_dex: Option<u16>,
+    data_dir: Option<PathBuf>,
+    pml_db: Option<PmlDatabase>,
+    battle_db: Option<BattleData>,
+    battle_assets: Option<BattleAssets>,
+    player_spawn_pos: Vec2,
+    terrain_res: Option<TerrainResource>,
+    navmesh_res: Option<GameNavmeshResource>,
+    safe_spawn_xz: Option<Vec2>,
+    spawn_notice: Option<&'static str>,
+    /// Scripted / automated runs need static wild positions (deterministic frames).
+    static_wild: bool,
+    debug_zone_links: bool,
+    automation: AutomationOptions,
+    save_game: pla::game::save_game::SaveGame,
+    wire_start: pla::game::save_wire::StartupState,
+    wire_cli: pla::game::save_wire::WireCli,
+    art_style: pla::game::art_style::ArtStylePlugin,
+    trainers: pla::game::trainer_encounter::TrainerEncounterPlugin,
+    audio: pla::game::audio::GameAudioPlugin,
+    effects: pla::game::effects::EffectsPlugin,
+    bag: pla::game::bag_screen::BagScreenPlugin,
+    minimap: pla::game::minimap::MinimapPlugin,
+    /// `--automation`: socket-driven, windowless runner (added last).
+    remote: Option<pla::game::automation::AutomationPlugin>,
+}
+
+/// Everything the viewer registers after `DefaultPlugins`: states, resources, game plugins and
+/// the viewer's own systems. Shared by `main` and the start-up schedule guard.
+fn configure_viewer(app: &mut App, setup: ViewerSetup) {
+    let ViewerSetup {
+        cli_args,
+        area_idx,
+        bin_root,
+        cache_root,
+        main_menu,
+        player_model,
+        initial_mode,
+        user_settings,
+        settings_dir,
+        initial_dex,
+        data_dir,
+        pml_db,
+        battle_db,
+        battle_assets,
+        player_spawn_pos,
+        terrain_res,
+        navmesh_res,
+        safe_spawn_xz,
+        spawn_notice,
+        static_wild,
+        debug_zone_links,
+        automation,
+        save_game,
+        wire_start,
+        wire_cli,
+        art_style,
+        trainers,
+        audio,
+        effects,
+        bag,
+        minimap,
+        remote,
+    } = setup;
+    use pla::game::spawn_point as sp;
+
+    // Graphics: graphics.toml first, then command-line flags override (announced once). The
+    // clock and weather plugins read arguments, so a saved choice becomes `--time-slot` /
+    // `--weather` unless the command line already gave one.
+    let gfx = pla::game::graphics_screen::GraphicsStartup::resolve(&settings_dir, &cli_args);
+    app.insert_resource(gfx.settings.look_settings(pla::game::render_look::LookSettings::default()));
+    // Quality machinery (game::quality): textures, render scale, frame pacing. With the default
+    // settings none of it touches an image, a camera or the window.
+    app.add_plugins((
+        pla::game::quality::TextureQualityPlugin { settings: gfx.settings.texture_quality() },
+        pla::game::quality::RenderScalePlugin { scale: gfx.settings.render_scale() },
+        pla::game::quality::FramePacingPlugin { pacing: gfx.settings.frame_pacing() },
+    ));
+    let cli_args = gfx.settings.startup_args(&cli_args);
+    let mut art_style = art_style;
+    art_style.settings = gfx.settings.style_settings();
+    let mut effects = effects;
+    effects.quality = Some(gfx.settings.effects_quality());
+
     app.init_state::<GameState>();
     // The main menu is opt-in (`--menu`) so the direct start and the automated runs
     // (`--auto-demo`, `--script`, ...) keep booting into GameState::World.
@@ -548,26 +844,13 @@ fn main() -> ExitCode {
         app.insert_state(GameState::MainMenu);
     }
 
-    // Real player model from the exporter cache; capsule avatar if the file is missing.
-    let player_cache_root = std::env::var_os("PLA_CACHE_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
-    let player_model_file = pla::game::player_anim::resolve_player_model(&player_cache_root, &player_variant)
-        .map(|f| f.canonicalize().unwrap_or(f));
-    match &player_model_file {
-        Some(f) => println!("Player model: {}", f.display()),
-        None => println!(
-            "Player model '{player_variant}' not found under {}/player; using the capsule avatar",
-            player_cache_root.display()
-        ),
-    }
-    app.insert_resource(PlayerModelConfig {
-        asset_rel: player_model_file.map(|f| pla::game::player_anim::asset_path(&f, &work_abs)),
-    });
+    let has_player_model = player_model.asset_rel.is_some();
+    app.insert_resource(player_model);
 
     let mut camera_ctrl = CameraController::default();
-    if app.world().resource::<PlayerModelConfig>().asset_rel.is_some() {
-        let (focal, shoulder) = pla::game::player_anim::camera_offsets(pla::game::player_anim::MODEL_HEIGHT);
+    if has_player_model {
+        let (focal, shoulder) =
+            pla::game::player_anim::camera_offsets(pla::game::player_anim::MODEL_HEIGHT);
         camera_ctrl.focal_offset_y = focal;
         camera_ctrl.shoulder_y = shoulder;
     }
@@ -577,8 +860,7 @@ fn main() -> ExitCode {
         camera_ctrl.target_distance = 2.2;
     }
     app.insert_resource(camera_ctrl);
-    let settings_dir = UserSettings::default_dir();
-    PauseMenuPlugin::install(&mut app, UserSettings::load_from_dir(&settings_dir), settings_dir.clone());
+    PauseMenuPlugin::install(app, user_settings, settings_dir.clone());
 
     let mut dex_list = vec![25, 501, 722, 155, 448]; // Pikachu, Oshawott, Rowlet, Cyndaquil, Lucario
     let mut current_index = 0;
@@ -654,76 +936,92 @@ fn main() -> ExitCode {
 
     // Placed scenery objects + decoded zone lighting (crates/pla/src/game/{world_objects,lighting}.rs)
     {
-        let cli: Vec<String> = std::env::args().collect();
         let tree_models: HashSet<String> = terrain_res
             .as_ref()
-            .map(|t| t.area.instances.iter().map(|i| i.model_name.clone()).collect())
+            .map(|t| {
+                t.area
+                    .instances
+                    .iter()
+                    .map(|i| i.model_name.clone())
+                    .collect()
+            })
             .unwrap_or_default();
-        let cache_root = std::env::var_os("PLA_CACHE_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT));
         app.add_plugins(pla::game::vegetation::VegetationPlugin {
             area: area_idx,
             bin_root: bin_root.clone(),
             cache_root: cache_root.clone(),
-            quality: pla::assets::vegetation::GrassQuality::from_args(&cli),
+            quality: gfx.settings.grass_quality(),
+            grass_range: gfx.settings.grass_ranges().0,
+            plants_range: gfx.settings.grass_ranges().1,
         });
         app.add_plugins((
             pla::game::pickups::PickupsPlugin { area: area_idx },
             pla::game::world_objects::WorldObjectsPlugin {
                 area: area_idx,
-                cache_root,
+                cache_root: cache_root.clone(),
                 exclude_models: tree_models,
-                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
+                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli_args),
             },
             pla::game::world_collision::WorldCollisionPlugin {
                 area: area_idx,
                 bin_root: bin_root.clone(),
-                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli),
+                cache_root: cache_root.clone(),
+                rot_mode: pla::game::world_objects::rot_mode_from_args(&cli_args),
             },
             pla::game::lighting::ZoneLightingPlugin {
                 area: area_idx,
                 slot: match wire_start.time_minutes {
                     Some(m) if !wire_cli.has_time_slot => pla::game::clock::slot_of_minutes(m),
-                    _ => pla::game::lighting::time_slot_from_args(&cli),
+                    _ => pla::game::lighting::time_slot_from_args(&cli_args),
                 },
             },
             // Weather lottery + rain/snow particles (game::weather): follows the game clock.
-            pla::game::weather::WeatherPlugin::from_args(area_idx, &cli),
+            pla::game::weather::WeatherPlugin::from_args(area_idx, &cli_args),
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
     app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);
-    app.add_plugins(pla::game::art_style::ArtStylePlugin::from_env_and_args());
+    app.add_plugins(art_style);
+    app.add_plugins(pla::game::alpha_aura::AlphaAuraPlugin::from_args(&cli_args));
+    app.add_plugins(pla::game::normal_fix::NormalMapFixPlugin);
     app.add_plugins(pla::game::water::WaterPlugin);
+    app.add_plugins(pla::game::terrain_splat::TerrainSplatPlugin::from_args(&cli_args));
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
-    app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(&cli_args));
+    app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(
+        &cli_args,
+    ));
     app.add_plugins(pla::game::wild_wander::WildWanderPlugin);
+    // Wild reactions (alert / flee / chase from data/wild_behavior.tsv policy); `--wild-behavior
+    // off` keeps the plain wander loop.
+    app.insert_resource(pla::game::wild_wander::WildBehaviorSettings::from_args(&cli_args));
     app.add_plugins(pla::game::follower::FollowerPlugin);
     app.add_plugins(pla::game::capture_world::CaptureWorldPlugin);
-    app.add_plugins(pla::game::trainer_encounter::TrainerEncounterPlugin::from_env_and_args());
+    app.add_plugins(trainers);
+    // Original game UI (`--ui original`, default `debug`), read from the local UI cache.
+    app.add_plugins(pla::game::orig_ui::OrigUiPlugin::from_args(&cli_args, &cache_root));
     app.add_plugins(pla::game::npc::NpcPlugin {
         data_dir: None,
-        cache_root: std::env::var_os("PLA_CACHE_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(pla::game::world_objects::DEFAULT_CACHE_ROOT)),
+        cache_root,
     });
     app.add_plugins(pla::game::battle_visibility::BattleVisibilityPlugin);
-    app.add_plugins(pla::game::audio::GameAudioPlugin::from_env_and_args());
-    app.add_plugins(pla::game::effects::EffectsPlugin::from_env_and_args());
+    app.add_plugins(audio);
+    app.add_plugins(effects);
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
+    app.add_plugins(pla::game::player_motion::PlayerMotionPlugin);
+    app.add_plugins(pla::game::player_skills::PlayerSkillsPlugin);
+    app.add_plugins(pla::game::blink::BlinkPlugin);
+    app.add_plugins(pla::game::interact::InteractPlugin);
     // Installed after InputMapPlugin: MainMenuPlugin adds that plugin itself when it is
     // missing, and Bevy panics when the same plugin is added twice.
     if main_menu {
         // Continue is enabled only when a valid save was loaded at start-up.
-        MainMenuPlugin::install(&mut app, wire_start.loaded, settings_dir);
+        MainMenuPlugin::install(app, wire_start.loaded, settings_dir);
     }
-    app.add_plugins(pla::game::bag_screen::BagScreenPlugin::from_env_and_args());
-    // Scripted / automated runs need static wild positions (deterministic frames).
-    if auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some() {
+    app.add_plugins(bag);
+    if static_wild {
         app.insert_resource(pla::game::wild_wander::WanderConfig { enabled: false });
     }
     if let Some(tr) = terrain_res {
@@ -737,57 +1035,94 @@ fn main() -> ExitCode {
     }
     app.insert_resource(BinRootResource(bin_root.clone()));
     // Zone switching (Brief 8): decoded door / fast-travel links, fade and scene swap.
-    app.insert_resource(pla::game::zone::ZoneBinRoot(bin_root.clone()));
+    app.insert_resource(pla::game::zone::ZoneBinRoot(bin_root));
     app.add_plugins(pla::game::zone::ZonePlugin {
         links_path: None,
         debug_links: debug_zone_links,
     });
     app.add_plugins(pla::game::door_pairs::DoorPairsPlugin); // door hint (Brief 13)
     // Minimap, compass and full-screen map (Brief 15); `--no-minimap` / `--game-map`.
-    app.add_plugins(pla::game::minimap::MinimapPlugin::from_env_and_args(bin_root.clone()));
-    app.insert_resource(AutomationOptions {
-        screenshot_path,
-        max_ticks,
-        current_ticks: 0,
-        auto_throw_tick,
-        verify_views_dir,
-        verify_step: 0,
-        verify_step_tick: 0,
-        auto_demo,
-        demo_output_dir,
-        demo_step: 0,
-        demo_step_tick: 0,
-        controls_demo_dir,
-    });
+    app.add_plugins(minimap);
+    app.insert_resource(automation);
 
-    pla::game::play_time::PlayTimePlugin::install(&mut app, wire_start.play_seconds);
+    pla::game::play_time::PlayTimePlugin::install(app, wire_start.play_seconds);
     // Day/night clock: --time-slot pins it, --time-scale speeds it, the save supplies the start.
-    pla::game::clock::GameClockPlugin::install(&mut app, &cli_args, wire_start.time_minutes);
-    pla::game::save_wire::SaveWirePlugin::install(&mut app, save_game, wire_start, &wire_cli);
+    pla::game::clock::GameClockPlugin::install(app, &cli_args, wire_start.time_minutes);
+    pla::game::save_wire::SaveWirePlugin::install(app, save_game, wire_start, &wire_cli);
+    // Fullscreen screens opened from the pause menu (Esc): party, boxes, Pokédex and crafting.
+    // Installed after SaveWirePlugin so they read the live `PlayerProgress`.
+    app.add_plugins((
+        pla::game::party_screen::PartyScreenPlugin,
+        pla::game::summary_screen::SummaryScreenPlugin,
+        pla::game::box_screen::BoxScreenPlugin,
+        pla::game::dex_screen::DexScreenPlugin::default(),
+        crafting_plugin(),
+        pla::game::graphics_screen::GraphicsScreenPlugin { startup: gfx.clone() },
+    ));
+    pla::game::graphics_screen::apply_startup(app.world_mut(), &gfx.settings);
     if let Some(p) = safe_spawn_xz {
         app.insert_resource(sp::SafeSpawnPoint(p));
     }
     if let Some(msg) = spawn_notice {
-        app.world_mut().resource_mut::<pla::game::save_wire::SaveToast>().show(msg);
+        app.world_mut()
+            .resource_mut::<pla::game::save_wire::SaveToast>()
+            .show(msg);
     }
+    add_viewer_systems(app);
+    if let Some(remote) = remote {
+        app.add_plugins(remote);
+    }
+}
+
+/// Malformed command-line values (game::cli_flags) also go to the start-up toast, once.
+fn show_flag_warnings(mut toast: ResMut<pla::game::save_wire::SaveToast>) {
+    let w = pla::game::cli_flags::warnings();
+    if w.is_empty() {
+        return;
+    }
+    let joined = w.join("  |  ");
+    let text = if toast.text.is_empty() { joined } else { format!("{}  |  {joined}", toast.text) };
+    toast.show(text);
+    toast.timer = 10.0;
+}
+
+/// The viewer's own systems (the game plugins are added by [`configure_viewer`]).
+fn add_viewer_systems(app: &mut App) {
     app.add_systems(Update, apply_safe_spawn_request);
+    app.add_systems(PostStartup, show_flag_warnings);
     app.add_systems(Startup, (setup_scene, setup_game_ui, spawn_aim_hint));
     app.add_systems(
         Update,
         (
             spawn_tree_instances,
-            stream_wild_spawners.run_if(in_state(GameState::World)).run_if(not_paused),
+            stream_wild_spawners
+                .run_if(in_state(GameState::World))
+                .run_if(not_paused),
             spawn_pokemon_models,
-            player_locomotion.run_if(in_state(GameState::World)).run_if(not_paused),
+            player_locomotion
+                .run_if(in_state(GameState::World))
+                .run_if(not_paused),
             player_model_fallback,
-            creature_encounter_system.run_if(in_state(GameState::World)).run_if(not_paused),
-            battle_input_system.run_if(in_state(GameState::Battle)).run_if(not_paused),
+            creature_encounter_system
+                .run_if(in_state(GameState::World))
+                .run_if(not_paused),
+            battle_input_system
+                .run_if(in_state(GameState::Battle))
+                .run_if(not_paused),
             camera_controls,
             update_camera_transform,
-            ball_selection_controls.run_if(in_state(GameState::World)).run_if(not_paused),
-            ball_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
-            ball_ballistics_and_physics.run_if(in_state(GameState::World)).run_if(not_paused),
-            pokemon_selection_controls.run_if(in_state(GameState::World)).run_if(not_paused),
+            ball_selection_controls
+                .run_if(in_state(GameState::World))
+                .run_if(not_paused),
+            ball_throw_input
+                .run_if(in_state(GameState::World))
+                .run_if(not_paused),
+            ball_ballistics_and_physics
+                .run_if(in_state(GameState::World))
+                .run_if(not_paused),
+            pokemon_selection_controls
+                .run_if(in_state(GameState::World))
+                .run_if(not_paused),
             update_aim_hud,
             sync_ui_visibility,
             update_world_hud_system.run_if(in_state(GameState::World)),
@@ -796,21 +1131,31 @@ fn main() -> ExitCode {
             automated_tick_driver,
             controls_demo_driver,
         )
-            .chain(),
+            .chain()
+            // Crouch/dodge state is final before the movement reads it; jump/fall/climb
+            // integrate after the horizontal locomotion of the frame.
+            .after(pla::game::player_skills::PlayerSkillsSet)
+            .before(pla::game::player_motion::PlayerMotionSet),
     );
     // Separate registration: the world tuple is already at Bevy's 20-system limit.
     app.add_systems(
         Update,
         bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
     );
+    app.init_resource::<ArenaExtents>();
     app.add_systems(OnEnter(GameState::Battle), setup_battle_arena);
     app.add_systems(OnExit(GameState::Battle), cleanup_battle_arena);
-    app.add_systems(Update, sync_arena_player_model.run_if(in_state(GameState::Battle)));
-
-    app.run();
-    ExitCode::SUCCESS
+    app.add_systems(
+        Update,
+        (measure_arena_models, publish_foe_height)
+            .chain()
+            .run_if(in_state(GameState::Battle)),
+    );
+    app.add_systems(
+        Update,
+        sync_arena_player_model.run_if(in_state(GameState::Battle)),
+    );
 }
-
 
 /// Capsule stand-in for the player (also the fallback when the glTF is missing or fails to load).
 fn spawn_capsule_avatar(
@@ -845,7 +1190,8 @@ fn spawn_capsule_avatar(
             base_color: Color::srgb(0.95, 0.85, 0.2),
             ..default()
         })),
-        Transform::from_xyz(0.0, 0.75, -0.3).with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+        Transform::from_xyz(0.0, 0.75, -0.3)
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
     ));
 }
 
@@ -856,12 +1202,23 @@ fn player_model_fallback(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut camera_ctrl: ResMut<CameraController>,
-    q: Query<(Entity, &pla::game::player_anim::PlayerModelSource), (With<PlayerAvatar>, Without<pla::game::player_anim::PlayerSceneSpawned>)>,
+    q: Query<
+        (Entity, &pla::game::player_anim::PlayerModelSource),
+        (
+            With<PlayerAvatar>,
+            Without<pla::game::player_anim::PlayerSceneSpawned>,
+        ),
+    >,
 ) {
     for (e, src) in &q {
-        if matches!(asset_server.load_state(&src.gltf), bevy::asset::LoadState::Failed(_)) {
+        if matches!(
+            asset_server.load_state(&src.gltf),
+            bevy::asset::LoadState::Failed(_)
+        ) {
             eprintln!("Player model failed to load; using the capsule avatar");
-            commands.entity(e).remove::<pla::game::player_anim::PlayerModelSource>();
+            commands
+                .entity(e)
+                .remove::<pla::game::player_anim::PlayerModelSource>();
             commands.entity(e).with_children(|parent| {
                 spawn_capsule_avatar(parent, &mut meshes, &mut materials);
             });
@@ -882,11 +1239,29 @@ fn setup_scene(
     spawn_cfg: Res<PlayerSpawnConfig>,
     player_model: Res<PlayerModelConfig>,
     terrain_res: Option<Res<TerrainResource>>,
+    npc_world: Option<Res<pla::game::npc::NpcWorld>>,
+    zone_info: Option<Res<pla::game::ActiveZoneInfo>>,
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
 ) {
-    let spawn_x = spawn_cfg.pos.x;
-    let spawn_z = spawn_cfg.pos.y;
+    let mut spawn_x = spawn_cfg.pos.x;
+    let mut spawn_z = spawn_cfg.pos.y;
+    // The chosen start (explicit, saved or safe) can land on an NPC placement: the capture showed
+    // the player fused into the area 00 elder at (485.8, 449.0). Nudge out of the nearest spot
+    // before the terrain height is sampled, so the feet stay on the ground.
+    if let (Some(npcs), Some(info)) = (npc_world.as_deref(), zone_info.as_deref()) {
+        if let Some(clear) = pla::game::npc::landing_clear_of_npcs(
+            Vec2::new(spawn_x, spawn_z),
+            npcs.spots_in_area(&info.area),
+        ) {
+            println!(
+                "Arrival: spawn ({:.1}, {:.1}) moved to ({:.1}, {:.1}) to clear an NPC",
+                spawn_x, spawn_z, clear.x, clear.y
+            );
+            spawn_x = clear.x;
+            spawn_z = clear.y;
+        }
+    }
     let surface_y = terrain_res
         .as_ref()
         .and_then(|t| t.area.sample_world_height(spawn_x, spawn_z))
@@ -895,9 +1270,14 @@ fn setup_scene(
 
     // Register all known batch Pokemon glTF models for asynchronous loading
     for dex in [25, 41, 74, 155, 396, 397, 399, 401, 403, 448, 501, 722] {
-        if let Some(rel_path) = resolve_pokemon_gltf_rel(dex) {
+        let key = PokemonAssetKey {
+            dex,
+            form: 0,
+            rare: false,
+        };
+        if let Some(rel_path) = resolve_pokemon_gltf_rel(dex, key.form, key.rare) {
             let handle: Handle<Gltf> = asset_server.load(rel_path);
-            pokemon_catalog.handles.insert(dex, handle);
+            pokemon_catalog.handles.insert(key, handle);
         }
     }
 
@@ -923,7 +1303,11 @@ fn setup_scene(
                 Color::srgb(0.28, 0.42, 0.22)
             },
             base_color_texture: albedo,
-            normal_map_texture: pla::game::zone::resolve_terrain_normal_handle(terrain.area.area, &terrain.area, &mut images),
+            normal_map_texture: pla::game::zone::resolve_terrain_normal_handle(
+                terrain.area.area,
+                &terrain.area,
+                &mut images,
+            ),
             perceptual_roughness: 0.95,
             ..default()
         });
@@ -942,7 +1326,9 @@ fn setup_scene(
         // Fallback: ground plane and field markers
         let ground_size = 40.0;
         commands.spawn((
-            Mesh3d(meshes.add(Mesh::from(Plane3d::default().mesh().size(ground_size, ground_size)))),
+            Mesh3d(meshes.add(Mesh::from(
+                Plane3d::default().mesh().size(ground_size, ground_size),
+            ))),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color: Color::srgb(0.28, 0.42, 0.22),
                 perceptual_roughness: 0.9,
@@ -979,9 +1365,11 @@ fn setup_scene(
         .id();
     match &player_model.asset_rel {
         Some(rel) => {
-            commands.entity(player_body).insert(pla::game::player_anim::PlayerModelSource {
-                gltf: asset_server.load(rel.clone()),
-            });
+            commands
+                .entity(player_body)
+                .insert(pla::game::player_anim::PlayerModelSource {
+                    gltf: asset_server.load(rel.clone()),
+                });
         }
         None => {
             commands.entity(player_body).with_children(|parent| {
@@ -1067,13 +1455,31 @@ fn setup_scene(
     println!("  Mouse Wheel   : Zoom camera distance");
     println!("  Z / Tab       : Toggle Orbit Mode 0 <-> Aim Mode 2 (ZL)");
     println!("  1 - 5         : Select active Pokémon (Pikachu, Starters)");
+    println!("  Esc           : Pause menu (Bag, Party, Pokémon boxes, Pokédex, Crafting, Shop, ...)");
     println!("============================================================");
 
     if let Some(db) = &pml.0 {
-        println!("PML Database loaded successfully: {} species registered.", db.personal.len());
+        println!(
+            "PML Database loaded successfully: {} species registered.",
+            db.personal.len()
+        );
     } else {
         println!("Note: PML Database not found at data/ (running with fallback species).");
     }
+}
+
+/// Crafting screen fed by the tracked `data/crafting_recipes.tsv` (empty when it is missing).
+fn crafting_plugin() -> pla::game::crafting_ui::CraftingPlugin {
+    use pla::game::crafting::{Bag, TsvRecipeProvider};
+    let provider = pla::game::bag_screen::find_item_data_dir()
+        .ok_or_else(|| "data directory not found".to_string())
+        .and_then(TsvRecipeProvider::load)
+        .unwrap_or_else(|e| {
+            eprintln!("[crafting] recipe sheet unavailable ({e}); the screen lists no recipes");
+            TsvRecipeProvider::default()
+        });
+    println!("[crafting] {} recipes loaded", provider.0.len());
+    pla::game::crafting_ui::CraftingPlugin::with_provider(&provider, Bag::default())
 }
 
 /// Registers the `.trins` models of `terrain`'s area for asynchronous glTF loading (the models
@@ -1144,7 +1550,8 @@ fn spawn_tree_instances(
         return;
     }
 
-    let mut model_prims: HashMap<String, Vec<(Handle<Mesh>, Handle<StandardMaterial>)>> = HashMap::new();
+    let mut model_prims: HashMap<String, Vec<(Handle<Mesh>, Handle<StandardMaterial>)>> =
+        HashMap::new();
     for (name, handle) in &catalog.handles {
         if let Some(gltf) = gltf_assets.get(handle) {
             let mut prims = Vec::new();
@@ -1189,10 +1596,22 @@ fn spawn_tree_instances(
     for inst in &terrain.area.instances {
         if let Some(prims) = model_prims.get(&inst.model_name) {
             let flat: [f32; 16] = [
-                inst.matrix[0][0], inst.matrix[0][1], inst.matrix[0][2], inst.matrix[0][3],
-                inst.matrix[1][0], inst.matrix[1][1], inst.matrix[1][2], inst.matrix[1][3],
-                inst.matrix[2][0], inst.matrix[2][1], inst.matrix[2][2], inst.matrix[2][3],
-                inst.matrix[3][0], inst.matrix[3][1], inst.matrix[3][2], inst.matrix[3][3],
+                inst.matrix[0][0],
+                inst.matrix[0][1],
+                inst.matrix[0][2],
+                inst.matrix[0][3],
+                inst.matrix[1][0],
+                inst.matrix[1][1],
+                inst.matrix[1][2],
+                inst.matrix[1][3],
+                inst.matrix[2][0],
+                inst.matrix[2][1],
+                inst.matrix[2][2],
+                inst.matrix[2][3],
+                inst.matrix[3][0],
+                inst.matrix[3][1],
+                inst.matrix[3][2],
+                inst.matrix[3][3],
             ];
             let transform = Transform::from_matrix(Mat4::from_cols_array(&flat));
             for (mesh_h, mat_h) in prims {
@@ -1225,7 +1644,9 @@ fn stream_wild_spawners(
     mut pokemon_catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
     consumed: Res<pla::game::wild::ConsumedSpawners>,
+    safety: Res<pla::game::wild::EncounterSafety>,
     time: Res<Time>,
+    dist: Option<Res<pla::game::quality::StreamDistances>>,
 ) {
     let Ok(p_xf) = player_query.single() else {
         return;
@@ -1233,14 +1654,20 @@ fn stream_wild_spawners(
     let now_s = time.elapsed_secs_f64();
 
     let p_pos = Vec2::new(p_xf.translation.x, p_xf.translation.z);
-    let radius = active_spawners.streaming_radius;
+    // Graphics screen "Wild Pokémon range" multiplier (1.0 = 120 m).
+    let radius = active_spawners.streaming_radius
+        * pla::game::quality::scale_of(dist.as_deref(), |d| d.wild);
     let radius_sq = radius * radius;
     let unload_radius_sq = (radius + 25.0) * (radius + 25.0);
 
     // 1. Unload entities that moved out of radius
     let mut to_despawn = Vec::new();
     for (spawner_id, entity) in &active_spawners.spawned_entities {
-        if let Some(spawner) = active_spawners.spawners.iter().find(|s| &s.spawner_id == spawner_id) {
+        if let Some(spawner) = active_spawners
+            .spawners
+            .iter()
+            .find(|s| &s.spawner_id == spawner_id)
+        {
             let dist_sq = (spawner.pos.x - p_pos.x).powi(2) + (spawner.pos.z - p_pos.y).powi(2);
             if dist_sq > unload_radius_sq {
                 to_despawn.push((spawner_id.clone(), *entity));
@@ -1259,23 +1686,30 @@ fn stream_wild_spawners(
     let mut to_spawn = Vec::new();
 
     for spawner in &active_spawners.spawners {
-        if active_spawners.spawned_entities.contains_key(&spawner.spawner_id) {
+        if active_spawners
+            .spawned_entities
+            .contains_key(&spawner.spawner_id)
+        {
             continue;
         }
         // Defeated / captured creature: keep the spawner empty until its respawn time.
         if consumed.is_consumed(&spawner.spawner_id, now_s) {
             continue;
         }
+        // Never spawn a creature next to where the player arrived (SUPUESTO radius).
+        if safety.spawn_excluded(Vec2::new(spawner.pos.x, spawner.pos.z)) {
+            continue;
+        }
 
         let dist_sq = (spawner.pos.x - p_pos.x).powi(2) + (spawner.pos.z - p_pos.y).powi(2);
         if dist_sq <= radius_sq {
-            if let Some((dex, name, lvl)) = roll_spawner(spawner, seed) {
-                to_spawn.push((spawner.clone(), dex, name, lvl));
+            if let Some((dex, name, lvl, variant)) = roll_spawner_variant(spawner, seed) {
+                to_spawn.push((spawner.clone(), dex, name, lvl, variant));
             }
         }
     }
 
-    for (spawner, dex, name, lvl) in to_spawn {
+    for (spawner, dex, name, lvl, variant) in to_spawn {
         let spawn_x = spawner.pos.x;
         let spawn_z = spawner.pos.z;
         let surface_y = terrain_res
@@ -1285,10 +1719,15 @@ fn stream_wild_spawners(
         let spawn_y = surface_y + 0.45;
 
         // Ensure glTF is loading
-        if !pokemon_catalog.handles.contains_key(&dex) {
-            if let Some(rel_path) = resolve_pokemon_gltf_rel(dex) {
+        let asset_key = PokemonAssetKey {
+            dex,
+            form: variant.form,
+            rare: false,
+        };
+        if !pokemon_catalog.handles.contains_key(&asset_key) {
+            if let Some(rel_path) = resolve_pokemon_gltf_rel(dex, asset_key.form, asset_key.rare) {
                 let handle: Handle<Gltf> = asset_server.load(rel_path);
-                pokemon_catalog.handles.insert(dex, handle);
+                pokemon_catalog.handles.insert(asset_key, handle);
             }
         }
 
@@ -1306,8 +1745,16 @@ fn stream_wild_spawners(
         let entity = commands
             .spawn((
                 wild,
-                PokemonSpawn { national_dex: dex },
-                Transform::from_xyz(spawn_x, spawn_y, spawn_z),
+                PokemonSpawn {
+                    national_dex: dex,
+                    form: variant.form,
+                    // No native shiny probability is decoded; alpha does not imply rare palette.
+                    rare: false,
+                    alpha: variant.alpha,
+                    size_scale: variant.size_scale,
+                },
+                Transform::from_xyz(spawn_x, spawn_y, spawn_z)
+                    .with_scale(Vec3::splat(variant.size_scale)),
                 Visibility::default(),
             ))
             .with_children(|parent| {
@@ -1321,8 +1768,14 @@ fn stream_wild_spawners(
                 ));
             })
             .id();
+        // Alpha slot: the aura (glow, smoke, light) goes on the creature root (game::alpha_aura).
+        if variant.alpha {
+            commands.entity(entity).insert(pla::game::alpha_aura::AlphaAura::default());
+        }
 
-        active_spawners.spawned_entities.insert(spawner.spawner_id.clone(), entity);
+        active_spawners
+            .spawned_entities
+            .insert(spawner.spawner_id.clone(), entity);
     }
 }
 
@@ -1333,14 +1786,24 @@ fn spawn_pokemon_models(
     gltf_meshes: Res<Assets<GltfMesh>>,
     gltf_materials: Res<Assets<GltfMaterial>>,
     meshes: Res<Assets<Mesh>>,
-    pkmn_query: Query<(Entity, &PokemonSpawn, &Children, Option<&pla::game::pokemon_anim::PokemonBattleSlot>)>,
+    pkmn_query: Query<(
+        Entity,
+        &PokemonSpawn,
+        &Children,
+        Option<&pla::game::pokemon_anim::PokemonBattleSlot>,
+    )>,
     asset_server: Res<AssetServer>,
 ) {
     for (entity, pkmn_spawn, children, battle_slot) in &pkmn_query {
         if catalog.spawned.contains(&entity) {
             continue;
         }
-        let Some(handle) = catalog.handles.get(&pkmn_spawn.national_dex) else {
+        let key = PokemonAssetKey {
+            dex: pkmn_spawn.national_dex,
+            form: pkmn_spawn.form,
+            rare: pkmn_spawn.rare,
+        };
+        let Some(handle) = catalog.handles.get(&key) else {
             continue;
         };
         let Some(gltf) = gltf_assets.get(handle) else {
@@ -1352,7 +1815,10 @@ fn spawn_pokemon_models(
             if let Some(gm) = gltf_meshes.get(mesh_h) {
                 gm.primitives.iter().all(|prim| {
                     meshes.contains(&prim.mesh)
-                        && prim.material.as_ref().map_or(true, |mat_h| gltf_materials.contains(mat_h))
+                        && prim
+                            .material
+                            .as_ref()
+                            .map_or(true, |mat_h| gltf_materials.contains(mat_h))
                 })
             } else {
                 false
@@ -1364,18 +1830,28 @@ fn spawn_pokemon_models(
 
         // glTF ready: despawn placeholder geometric children
         for child in children.iter() {
-            commands.entity(child).despawn();
+            commands.entity(child).try_despawn();
         }
 
         // Real glTF scene with skeleton + idle/walk clips (see game::pokemon_anim).
-        if let Some(idle_rel) = handle.path().map(|pth| pth.path().to_string_lossy().into_owned()) {
+        if let Some(idle_rel) = handle
+            .path()
+            .map(|pth| pth.path().to_string_lossy().into_owned())
+        {
             // Arena creatures also load the battle clips (attack / hit / faint).
             let source = if battle_slot.is_some() {
-                pla::game::pokemon_anim::PokemonAnimSource::from_idle_path_with_battle(&asset_server, &idle_rel)
+                pla::game::pokemon_anim::PokemonAnimSource::from_idle_path_with_battle(
+                    &asset_server,
+                    &idle_rel,
+                )
             } else {
+                // Overworld root sits 0.45 m above the ground (placeholder sphere height): lower
+                // the real model by that so its feet touch the ground and its shadow.
                 pla::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &idle_rel)
+                    .with_root_drop(pla::game::pokemon_anim::CREATURE_ROOT_ABOVE_GROUND)
             };
-            commands.entity(entity).insert(source);
+            // try_: the arena swap or the wild streamer may despawn it in this same frame.
+            commands.entity(entity).try_insert(source);
         }
 
         catalog.spawned.insert(entity);
@@ -1397,10 +1873,18 @@ fn setup_battle_arena(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut extents: ResMut<ArenaExtents>,
+    alpha_wild: Query<&pla::game::alpha_aura::AlphaAura>,
 ) {
     let Ok(player_xf) = player_query.single() else {
         return;
     };
+    *extents = ArenaExtents::default();
+    // The opponent is alpha when the overworld creature that started the battle is.
+    let wild_alpha = battle_session
+        .as_ref()
+        .and_then(|s| alpha_wild.get(s.wild_entity).ok())
+        .copied();
     for mut vis in &mut player_vis_query {
         *vis = Visibility::Hidden;
     }
@@ -1422,10 +1906,15 @@ fn setup_battle_arena(
 
     // Ensure glTF models are requested
     for dex in [player_dex, wild_dex] {
-        if !pokemon_catalog.handles.contains_key(&dex) {
-            if let Some(rel) = resolve_pokemon_gltf_rel(dex) {
+        let key = PokemonAssetKey {
+            dex,
+            form: 0,
+            rare: false,
+        };
+        if !pokemon_catalog.handles.contains_key(&key) {
+            if let Some(rel) = resolve_pokemon_gltf_rel(dex, key.form, key.rare) {
                 let handle: Handle<Gltf> = asset_server.load(rel);
-                pokemon_catalog.handles.insert(dex, handle);
+                pokemon_catalog.handles.insert(key, handle);
             }
         }
     }
@@ -1449,8 +1938,15 @@ fn setup_battle_arena(
     let _p_entity = commands
         .spawn((
             BattleArenaMarker,
-            PokemonSpawn { national_dex: player_dex },
+            PokemonSpawn {
+                national_dex: player_dex,
+                form: 0,
+                rare: false,
+                alpha: false,
+                size_scale: 1.0,
+            },
             pla::game::pokemon_anim::PokemonBattleSlot(0),
+            ArenaBase(Vec3::new(p_pkmn_x, p_pkmn_y, p_pkmn_z)),
             Transform::from_xyz(p_pkmn_x, p_pkmn_y, p_pkmn_z).with_rotation(p_rot),
             Visibility::default(),
         ))
@@ -1466,11 +1962,18 @@ fn setup_battle_arena(
         .id();
 
     // Spawn Wild Pokemon entity
-    let _w_entity = commands
+    let w_entity = commands
         .spawn((
             BattleArenaMarker,
-            PokemonSpawn { national_dex: wild_dex },
+            PokemonSpawn {
+                national_dex: wild_dex,
+                form: 0,
+                rare: false,
+                alpha: wild_alpha.is_some(),
+                size_scale: 1.0,
+            },
             pla::game::pokemon_anim::PokemonBattleSlot(1),
+            ArenaBase(Vec3::new(w_pkmn_x, w_pkmn_y, w_pkmn_z)),
             Transform::from_xyz(w_pkmn_x, w_pkmn_y, w_pkmn_z).with_rotation(w_rot),
             Visibility::default(),
         ))
@@ -1484,6 +1987,9 @@ fn setup_battle_arena(
             ));
         })
         .id();
+    if let Some(aura) = wild_alpha {
+        commands.entity(w_entity).insert(aura);
+    }
 
     println!(
         "Spawned Battle Arena 3D combatants: Player #{player_dex} at ({p_pkmn_x:.1}, {p_pkmn_y:.1}, {p_pkmn_z:.1}) vs Wild #{wild_dex} at ({w_pkmn_x:.1}, {w_pkmn_y:.1}, {w_pkmn_z:.1})",
@@ -1496,7 +2002,9 @@ fn cleanup_battle_arena(
     arena_query: Query<Entity, With<BattleArenaMarker>>,
     mut catalog: ResMut<PokemonCatalogResource>,
     mut player_vis_query: Query<&mut Visibility, With<PlayerAvatar>>,
+    mut extents: ResMut<ArenaExtents>,
 ) {
+    *extents = ArenaExtents::default();
     for entity in &arena_query {
         catalog.spawned.remove(&entity);
         commands.entity(entity).despawn();
@@ -1508,7 +2016,7 @@ fn cleanup_battle_arena(
 
 fn get_species_color(dex: u16) -> Color {
     match dex {
-        25 => Color::srgb(0.95, 0.85, 0.15),  // Pikachu (Electric Yellow)
+        25 => Color::srgb(0.95, 0.85, 0.15), // Pikachu (Electric Yellow)
         399 => Color::srgb(0.65, 0.42, 0.22), // Bidoof (Normal Brown)
         396 => Color::srgb(0.55, 0.50, 0.45), // Starly (Flying Slate)
         403 => Color::srgb(0.25, 0.55, 0.85), // Shinx (Electric Blue)
@@ -1537,7 +2045,10 @@ fn apply_safe_spawn_request(
     };
     t.translation.x = safe.0.x;
     t.translation.z = safe.0.y;
-    if let Some(y) = navmesh_res.as_ref().and_then(|n| n.height_at(safe.0.x, safe.0.y)) {
+    if let Some(y) = navmesh_res
+        .as_ref()
+        .and_then(|n| n.height_at(safe.0.x, safe.0.y))
+    {
         t.translation.y = y + 0.9;
     }
     toast.show("Back at the safe spawn.");
@@ -1557,10 +2068,14 @@ fn player_locomotion(
     water_bodies: Option<Res<WaterBodies>>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut stuck: Local<pla::game::spawn_point::StuckTracker>,
+    mut ledge_drop: Local<Option<pla::game::ledge::LedgeDrop>>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
+    motion_query: Query<&pla::game::player_motion::PlayerMotionState, With<PlayerAvatar>>,
+    mut skills_query: Query<&mut pla::game::player_skills::PlayerSkillState, With<PlayerAvatar>>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
     mut swim_query: Query<&mut PlayerSwim, With<PlayerAvatar>>,
 ) {
+    use pla::game::player_motion::MotionMode;
     let Ok(mut transform) = player_query.single_mut() else {
         return;
     };
@@ -1569,11 +2084,40 @@ fn player_locomotion(
         .single()
         .map(|s| s.state == SwimState::Swimming)
         .unwrap_or(false);
+    let motion_mode = motion_query.single().map(|m| m.mode).unwrap_or_default();
 
     let dt = time.delta_secs();
     let input_dir = input.move_axis();
 
-    if input_dir.length_squared() > 0.0 {
+    // Camera yaw defines the forward direction on the XZ plane.
+    let yaw = camera_ctrl.yaw;
+    let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
+    let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
+
+    // Dodge roll (game::player_skills): starts on a press (or a press buffered while airborne),
+    // towards the held direction or the facing; the skills module keeps the timer and the state.
+    if let Ok(mut sk) = skills_query.single_mut() {
+        if (input.just_pressed(Action::Dodge) || sk.dodge_buffer > 0.0) && !sk.dodging() {
+            let n = if input_dir.length() > 1.0 { input_dir.normalize() } else { input_dir };
+            let want = forward * n.y + right * n.x;
+            let facing3 = transform.rotation * Vec3::Z;
+            let can_roll = motion_mode == MotionMode::Grounded && !was_swimming;
+            let started = sk.begin_dodge(
+                can_roll,
+                Vec2::new(want.x, want.z),
+                Vec2::new(facing3.x, facing3.z),
+            );
+            if started == Some(pla::game::player_skills::DodgeDir::Forward) {
+                if let Some(d) = sk.dodge {
+                    transform.rotation = Quat::from_rotation_y(d.world_dir.x.atan2(d.world_dir.y));
+                }
+            }
+        }
+    }
+    let dodge = skills_query.single().ok().and_then(|s| s.dodge);
+    let crouching = skills_query.single().is_ok_and(|s| s.crouching());
+
+    if input_dir.length_squared() > 0.0 || dodge.is_some() {
         // Keyboard is digital (normalising a diagonal keeps full speed); the stick stays analog.
         let input_norm = if input_dir.length() > 1.0 {
             input_dir.normalize()
@@ -1581,22 +2125,33 @@ fn player_locomotion(
             input_dir
         };
         let is_sprinting = input.pressed(Action::Sprint);
-        // Sprinting is not allowed in water; swimming is slower than walking.
-        let speed = if was_swimming {
-            SWIM_SPEED
-        } else if is_sprinting {
-            8.0
+        // Sprinting is not allowed in water; swimming is slower than walking. In the air the
+        // ground speed is scaled by the decoded control_airMoveRate (game::player_motion);
+        // while climbing the vertical system holds the avatar in place horizontally.
+        let ground_speed = if is_sprinting { 8.0 } else { 4.5 };
+        let ground_speed = if crouching {
+            pla::game::player_skills::crouch_speed(ground_speed)
         } else {
-            4.5
+            ground_speed
+        };
+        let speed = if dodge.is_some() {
+            pla::game::player_skills::roll_speed()
+        } else if was_swimming {
+            SWIM_SPEED
+        } else if motion_mode == MotionMode::Airborne {
+            pla::game::player_motion::air_speed(ground_speed)
+        } else if motion_mode == MotionMode::Climbing {
+            0.0
+        } else {
+            ground_speed
         };
 
-        // Camera yaw defines the forward direction on the XZ plane.
-        let yaw = camera_ctrl.yaw;
-        let forward = Vec3::new(-yaw.sin(), 0.0, -yaw.cos());
-        let right = Vec3::new(yaw.cos(), 0.0, -yaw.sin());
-
-        // Orthonormal basis: the vector magnitude is the input deflection (1 for keys).
-        let move_vec = forward * input_norm.y + right * input_norm.x;
+        // Orthonormal basis: the vector magnitude is the input deflection (1 for keys). A dodge
+        // roll ignores the stick and travels along its own direction.
+        let move_vec = match dodge {
+            Some(d) => Vec3::new(d.world_dir.x, 0.0, d.world_dir.y),
+            None => forward * input_norm.y + right * input_norm.x,
+        };
         let delta_xz = Vec2::new(move_vec.x * speed * dt, move_vec.z * speed * dt);
         let current_xz = Vec2::new(transform.translation.x, transform.translation.z);
         let target_xz = current_xz + delta_xz;
@@ -1606,19 +2161,76 @@ fn player_locomotion(
         // game's own rule for entering water is not decoded). The surface must sit on the ground
         // (see water::SWIM_MAX_GROUND_OFFSET): the placed water planes are flat sheets and some
         // float far above the terrain.
-        let water_entry = water_bodies.as_ref().and_then(|w| w.level_near(target_xz, 0.5)).is_some_and(|level| {
-            terrain_res
-                .as_ref()
-                .and_then(|t| t.area.sample_world_height(target_xz.x, target_xz.y))
-                .is_some_and(|ground| {
-                    (level - ground).abs() <= pla::game::water::SWIM_MAX_GROUND_OFFSET
-                        && level - ground > SWIM_ENTER_DEPTH
+        let water_entry = water_bodies
+            .as_ref()
+            .and_then(|w| w.level_near(target_xz, 0.5))
+            .is_some_and(|level| {
+                terrain_res
+                    .as_ref()
+                    .and_then(|t| t.area.sample_world_height(target_xz.x, target_xz.y))
+                    .is_some_and(|ground| {
+                        (level - ground).abs() <= pla::game::water::SWIM_MAX_GROUND_OFFSET
+                            && level - ground > SWIM_ENTER_DEPTH
+                    })
+            });
+
+        // Walking off a ledge (game::ledge): a drop already in progress keeps the player in
+        // its corridor until it stands on the navmesh again; a new move off the walkable edge
+        // starts one when the ground below is a legal drop (1 step .. 6 m, no wall, no water).
+        if let (Some(d), Some(nav)) = (ledge_drop.as_mut(), navmesh_res.as_ref()) {
+            d.elapsed += dt;
+            let back_on_mesh = motion_mode == MotionMode::Grounded
+                && nav.is_walkable(current_xz.x, current_xz.y);
+            if back_on_mesh || d.elapsed > pla::game::ledge::DROP_TIMEOUT {
+                *ledge_drop = None;
+            }
+        }
+        let ledge_start = match (&navmesh_res, *ledge_drop) {
+            (Some(nav), None)
+                if !water_entry
+                    && dodge.is_none()
+                    && motion_mode == MotionMode::Grounded
+                    && !nav.is_walkable(target_xz.x, target_xz.y) =>
+            {
+                nav.height_at(current_xz.x, current_xz.y).and_then(|start_y| {
+                    pla::game::ledge::find_ledge_drop(
+                        current_xz,
+                        start_y,
+                        delta_xz,
+                        |p| nav.height_at(p.x, p.y),
+                        |p| terrain_res.as_ref().and_then(|t| t.area.sample_world_height(p.x, p.y)),
+                        |p| {
+                            let ground = terrain_res
+                                .as_ref()
+                                .and_then(|t| t.area.sample_world_height(p.x, p.y));
+                            water_bodies
+                                .as_ref()
+                                .and_then(|w| w.level_near(p, 0.5))
+                                .zip(ground)
+                                .is_some_and(|(level, g)| level - g > SWIM_ENTER_DEPTH)
+                        },
+                    )
                 })
-        });
+            }
+            _ => None,
+        };
+        if let Some(d) = ledge_start {
+            println!(
+                "Ledge drop: {:.1} m from ({:.1}, {:.1}) toward ({:.1}, {:.1})",
+                d.drop_height(),
+                d.start.x,
+                d.start.y,
+                d.landing.x,
+                d.landing.y
+            );
+            *ledge_drop = Some(d);
+        }
 
         // Apply navmesh collision sliding if real navmesh is loaded
         let final_xz = if water_entry {
             target_xz
+        } else if let (Some(d), Some(nav)) = (ledge_drop.as_ref(), navmesh_res.as_ref()) {
+            pla::game::ledge::drop_move(d, current_xz, target_xz, |p| nav.is_walkable(p.x, p.y))
         } else if let Some(ref nav) = navmesh_res {
             use pla::game::spawn_point as sp;
             let walk = |p: Vec2| nav.is_walkable(p.x, p.y);
@@ -1649,9 +2261,15 @@ fn player_locomotion(
         transform.translation.x = final_xz.x;
         transform.translation.z = final_xz.y;
 
-        // Smoothly orient player avatar towards movement direction.
-        transform.rotation =
-            pla::game::player_anim::step_facing(transform.rotation, Vec2::new(move_vec.x, move_vec.z), dt);
+        // Smoothly orient player avatar towards movement direction (a side or back roll keeps
+        // the facing, the roll clip supplies the sidestep).
+        if dodge.is_none_or(|d| d.dir == pla::game::player_skills::DodgeDir::Forward) {
+            transform.rotation = pla::game::player_anim::step_facing(
+                transform.rotation,
+                Vec2::new(move_vec.x, move_vec.z),
+                dt,
+            );
+        }
     } else {
         stuck.blocked_secs = 0.0;
     }
@@ -1660,36 +2278,45 @@ fn player_locomotion(
     let nav_h = navmesh_res
         .as_ref()
         .and_then(|n| n.height_at(transform.translation.x, transform.translation.z));
-    let terrain_h = terrain_res
-        .as_ref()
-        .and_then(|t| t.area.sample_world_height(transform.translation.x, transform.translation.z));
+    let terrain_h = terrain_res.as_ref().and_then(|t| {
+        t.area
+            .sample_world_height(transform.translation.x, transform.translation.z)
+    });
 
-    if let Some(surface_y) = nav_h.or(terrain_h) {
-        // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
-        let level = water_bodies.as_ref().and_then(|w| {
-            pla::game::water::grounded_level_at(
-                w,
-                Vec2::new(transform.translation.x, transform.translation.z),
+    // Ground snapping (and the water probe) only run while grounded: in the air or on a
+    // climbable the vertical system (game::player_motion) owns Y, and a jump over water
+    // must not snap the avatar down to the surface mid-flight.
+    if motion_mode == MotionMode::Grounded {
+        if let Some(surface_y) = nav_h.or(terrain_h) {
+            // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
+            let level = water_bodies.as_ref().and_then(|w| {
+                pla::game::water::grounded_level_at(
+                    w,
+                    Vec2::new(transform.translation.x, transform.translation.z),
+                    surface_y,
+                    pla::game::water::SWIM_MAX_GROUND_OFFSET,
+                )
+            });
+            let state = pla::game::water::step_swim(
+                swim_query.single().map(|s| s.state).unwrap_or_default(),
+                level,
                 surface_y,
-                pla::game::water::SWIM_MAX_GROUND_OFFSET,
-            )
-        });
-        let state = pla::game::water::step_swim(
-            swim_query.single().map(|s| s.state).unwrap_or_default(),
-            level,
-            surface_y,
-        );
-        if let Ok(mut swim) = swim_query.single_mut() {
-            swim.state = state;
+            );
+            if let Ok(mut swim) = swim_query.single_mut() {
+                swim.state = state;
+            }
+            transform.translation.y = if state == SwimState::Swimming {
+                pla::game::water::swim_root_y(level.unwrap_or(surface_y))
+            } else if pla::game::player_motion::is_ledge_drop(transform.translation.y, surface_y + 0.9)
+            {
+                // A drop longer than a step is a ledge: game::player_motion makes the avatar fall.
+                transform.translation.y
+            } else {
+                surface_y + 0.9
+            };
         }
-        transform.translation.y = if state == SwimState::Swimming {
-            pla::game::water::swim_root_y(level.unwrap_or(surface_y))
-        } else {
-            surface_y + 0.9
-        };
     }
 }
-
 
 /// Camera input and state updates (implements PLA dec319 kinematics).
 /// While paused it only drains the mouse events, so nothing accumulates behind the menu.
@@ -1750,7 +2377,8 @@ fn camera_controls(
     // Zoom axis: +1 closer (R), −1 farther (F).
     let zoom = input.zoom();
     if zoom != 0.0 {
-        camera_ctrl.target_distance = (camera_ctrl.target_distance - zoom * 4.0 * dt).clamp(1.5, 12.0);
+        camera_ctrl.target_distance =
+            (camera_ctrl.target_distance - zoom * 4.0 * dt).clamp(1.5, 12.0);
     }
 
     // In Aim mode, camera distance contracts and reticle becomes visible.
@@ -1772,7 +2400,11 @@ fn update_aim_hud(
     let show = camera_ctrl.mode == CameraMode::AimOverShoulder
         && !paused.0
         && *game_state.get() == GameState::World;
-    let want = if show { Visibility::Visible } else { Visibility::Hidden };
+    let want = if show {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
     for mut v in reticle_query.iter_mut().chain(hint_query.iter_mut()) {
         if *v != want {
             *v = want;
@@ -1812,7 +2444,15 @@ fn update_camera_transform(
     game_state: Res<State<GameState>>,
     camera_ctrl: Res<CameraController>,
     player_query: Query<&Transform, (With<PlayerAvatar>, Without<Camera3d>)>,
-    arena_query: Query<(&PokemonSpawn, &Transform), (With<BattleArenaMarker>, Without<Camera3d>, Without<PlayerAvatar>)>,
+    arena_query: Query<
+        (&pla::game::pokemon_anim::PokemonBattleSlot, &Transform),
+        (
+            With<BattleArenaMarker>,
+            Without<Camera3d>,
+            Without<PlayerAvatar>,
+        ),
+    >,
+    extents: Option<Res<ArenaExtents>>,
     mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
 ) {
     let Ok(player_xf) = player_query.single() else {
@@ -1826,19 +2466,19 @@ fn update_camera_transform(
     if *game_state.get() == GameState::Battle {
         let mut p_pos = None;
         let mut w_pos = None;
-        for (spawn, xf) in &arena_query {
-            if spawn.national_dex == 25 {
+        // By arena slot (0 = the player's Pokemon, 1 = the opponent), never by species: keying
+        // on Pikachu lost the battle camera for every other party member.
+        for (slot, xf) in &arena_query {
+            if slot.0 == 0 {
                 p_pos = Some(xf.translation);
             } else {
                 w_pos = Some(xf.translation);
             }
         }
         if let (Some(p), Some(w)) = (p_pos, w_pos) {
-            let to_wild = (w - p).normalize();
-            let right_side = Vec3::new(to_wild.z, 0.0, -to_wild.x).normalize();
-            // Camera placed 2.3m behind Pikachu, offset 1.0m to the side, elevated 1.35m
-            let cam_pos = p - to_wild * 2.3 - right_side * 1.0 + Vec3::new(0.0, 1.35, 0.0);
-            let look_target = (p + w) * 0.5 + Vec3::new(0.0, 0.35, 0.0) + right_side * 0.2;
+            // Frame the whole opponent: a giant (Giratina) needs the camera further back/up.
+            let foe = extents.as_ref().map(|e| e.size[1]).unwrap_or_default();
+            let (cam_pos, look_target) = pla::game::battle_camera::pose(p, w, foe);
             cam_xf.translation = cam_pos;
             cam_xf.look_at(look_target, Vec3::Y);
             return;
@@ -1860,7 +2500,12 @@ fn update_camera_transform(
     let delta_x = dist * pitch.cos() * yaw.sin();
     let delta_y = dist * pitch.sin();
     let delta_z = dist * pitch.cos() * yaw.cos();
-    let forward_dir = Vec3::new(-pitch.cos() * yaw.sin(), -pitch.sin(), -pitch.cos() * yaw.cos()).normalize();
+    let forward_dir = Vec3::new(
+        -pitch.cos() * yaw.sin(),
+        -pitch.sin(),
+        -pitch.cos() * yaw.cos(),
+    )
+    .normalize();
 
     let (eye_pos, look_target) = match camera_ctrl.mode {
         CameraMode::OrbitDefault => {
@@ -1868,7 +2513,8 @@ fn update_camera_transform(
             (eye, focal_target)
         }
         CameraMode::AimOverShoulder => {
-            let shoulder_pos = player_xf.translation + right * 0.45 + Vec3::new(0.0, camera_ctrl.shoulder_y, 0.0);
+            let shoulder_pos =
+                player_xf.translation + right * 0.45 + Vec3::new(0.0, camera_ctrl.shoulder_y, 0.0);
             let eye = shoulder_pos + Vec3::new(delta_x, delta_y, delta_z);
             let target = eye + forward_dir * 10.0;
             (eye, target)
@@ -1940,13 +2586,16 @@ fn ball_throw_input(
     throwables: Res<ThrowableTable>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
     camera_query: Query<&Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
-    pokemon_query: Query<&Transform, (With<PokemonSpawn>, Without<PlayerAvatar>, Without<Camera3d>)>,
+    pokemon_query: Query<
+        &Transform,
+        (With<PokemonSpawn>, Without<PlayerAvatar>, Without<Camera3d>),
+    >,
     camera_ctrl: Res<CameraController>,
     automation: Res<AutomationOptions>,
 ) {
     let aiming = camera_ctrl.mode == CameraMode::AimOverShoulder;
-    let mut should_throw =
-        aiming && (mouse_buttons.just_pressed(MouseButton::Left) || keys.just_pressed(KeyCode::Space));
+    let mut should_throw = aiming
+        && (mouse_buttons.just_pressed(MouseButton::Left) || keys.just_pressed(KeyCode::Space));
 
     if let Some(throw_tick) = automation.auto_throw_tick {
         if automation.current_ticks == throw_tick {
@@ -2105,7 +2754,10 @@ fn ball_ballistics_and_physics(
     mut inventory: ResMut<BallInventory>,
 ) {
     let dt = time.delta_secs();
-    let player_pos = player_query.single().map(|t| t.translation).unwrap_or(Vec3::ZERO);
+    let player_pos = player_query
+        .single()
+        .map(|t| t.translation)
+        .unwrap_or(Vec3::ZERO);
 
     for (ball_entity, mut ball_xf, mut body, mut ball) in &mut ball_query {
         let was_in_flight = body.0.in_flight();
@@ -2115,7 +2767,15 @@ fn ball_ballistics_and_physics(
             .and_then(|t| t.area.sample_world_height(prev_pos.x, prev_pos.z))
             .unwrap_or(0.0);
 
-        let out = step_ball(&mut commands, ball_entity, &mut ball_xf, &mut body, dt, ground_y, player_pos);
+        let out = step_ball(
+            &mut commands,
+            ball_entity,
+            &mut ball_xf,
+            &mut body,
+            dt,
+            ground_y,
+            player_pos,
+        );
 
         if let Some(reason) = out.despawn {
             println!("Ball despawned: {reason:?}");
@@ -2145,7 +2805,11 @@ fn ball_ballistics_and_physics(
                     })
                     .clone();
                 commands.entity(ball_entity).with_children(|p| {
-                    p.spawn((Mesh3d(mesh), MeshMaterial3d(mat), Transform::from_xyz(0.0, 0.35, 0.0)));
+                    p.spawn((
+                        Mesh3d(mesh),
+                        MeshMaterial3d(mat),
+                        Transform::from_xyz(0.0, 0.35, 0.0),
+                    ));
                 });
                 // Record the catch (party -> box -> recorded only) and empty the spawner.
                 if let Some(target) = ball.target.take() {
@@ -2225,7 +2889,10 @@ fn ball_ballistics_and_physics(
             if hit_dist >= 0.95 {
                 continue;
             }
-            println!("Target Hit! Poke Ball connected with Pokemon (CCD dist: {:.2}m)", hit_dist);
+            println!(
+                "Target Hit! Poke Ball connected with Pokemon (CCD dist: {:.2}m)",
+                hit_dist
+            );
 
             // Contain Pokémon inside ball
             *pkmn_vis = Visibility::Hidden;
@@ -2304,7 +2971,19 @@ fn creature_encounter_system(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
-    mut wild_query: Query<(Entity, &Transform, &mut WildCreature), (Without<PlayerAvatar>, Without<pla::game::wild::FleeCooldown>)>,
+    safety: Res<pla::game::wild::EncounterSafety>,
+    mut wild_query: Query<
+        (
+            Entity,
+            &Transform,
+            &mut WildCreature,
+            Option<&pla::game::wild_behavior::WildBehavior>,
+        ),
+        (
+            Without<PlayerAvatar>,
+            Without<pla::game::wild::FleeCooldown>,
+        ),
+    >,
     mut next_state: ResMut<NextState<GameState>>,
     battle_db: Res<LoadedBattle>,
     pkmn_state: Res<ActivePokemonState>,
@@ -2319,13 +2998,25 @@ fn creature_encounter_system(
 
     let interact_pressed = keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Enter);
 
-    for (entity, wild_xf, mut wild) in &mut wild_query {
+    let grace = safety.grace_active();
+    for (entity, wild_xf, mut wild, behavior) in &mut wild_query {
         if wild.defeated || wild.in_battle {
             continue;
         }
 
         let dist = player_xf.translation.distance(wild_xf.translation);
-        if dist <= wild.aggro_range || (dist <= 4.0 && interact_pressed) {
+        // Automatic: only an aggressive creature already chasing/attacking, very close (SUPUESTO).
+        // Manual (E / Enter): up to 4 m. Neither during the arrival grace period.
+        let aggressive_engaged = behavior.is_some_and(|b| {
+            b.params.archetype == pla::game::wild_behavior::Archetype::Aggressive
+                && matches!(
+                    b.machine.state,
+                    pla::game::wild_behavior::State::Chase | pla::game::wild_behavior::State::Attack
+                )
+        });
+        if pla::game::wild::auto_encounter_allowed(dist, aggressive_engaged, grace)
+            || pla::game::wild::manual_encounter_allowed(dist, interact_pressed, grace)
+        {
             println!(
                 "*** WILD ENCOUNTER TRIGGERED! Approached #{} {} (dist: {:.2}m) ***",
                 wild.national_dex, wild.species_name, dist
@@ -2359,7 +3050,10 @@ fn creature_encounter_system(
             };
             match started {
                 Ok(session) => {
-                    println!("Initialized ActiveBattleSession (Player Lv{} {} vs Wild Lv{} {})", pkmn_state.level, player_species, wild.level, wild.species_name);
+                    println!(
+                        "Initialized ActiveBattleSession (Player Lv{} {} vs Wild Lv{} {})",
+                        pkmn_state.level, player_species, wild.level, wild.species_name
+                    );
                     commands.insert_resource(session);
                     next_state.set(GameState::Battle);
                     break;
@@ -2440,14 +3134,11 @@ fn update_hud_and_telemetry(
     let pml_info = if let Some(db) = &pml.0 {
         if let Some(entry) = db.personal.iter().find(|p| p.national_dex == dex) {
             let base_hp = entry.base_stats[0];
-            let hp = calculate_hp(base_hp, pkmn_state.level, pkmn_state.ganba, Some(false))
-                .unwrap_or(0);
+            let hp =
+                calculate_hp(base_hp, pkmn_state.level, pkmn_state.ganba, Some(false)).unwrap_or(0);
             format!(
                 "#{} {} [HP@Lv{}: {}]",
-                entry.national_dex,
-                entry.species_name,
-                pkmn_state.level,
-                hp
+                entry.national_dex, entry.species_name, pkmn_state.level, hp
             )
         } else {
             format!("#{}", dex)
@@ -2476,10 +3167,7 @@ fn update_hud_and_telemetry(
             sess.current_turn, p_hp, p_max, w_name, w_hp, w_max, sess.battle_summary
         );
     } else {
-        let capture_tag = inventory
-            .last_capture_status
-            .as_deref()
-            .unwrap_or("Ready");
+        let capture_tag = inventory.last_capture_status.as_deref().unwrap_or("Ready");
 
         window.title = format!(
             "[{state_str}] PLA Port | Mode: {} | Pos: ({:.1}, {:.1}) | Ball: {} | Status: {} | Target: {}",
@@ -2573,7 +3261,9 @@ fn automated_tick_driver(
             0 => {
                 // Step 0: Initial World exploration locomotion towards real wild Pokemon
                 if automation.demo_step_tick == 1 {
-                    write_demo_log("Step 0: Player exploring World with active World HUD and real spawns.");
+                    write_demo_log(
+                        "Step 0: Player exploring World with active World HUD and real spawns.",
+                    );
                     camera_ctrl.yaw = 0.0;
                     camera_ctrl.pitch = 0.22;
                     camera_ctrl.distance = 5.2;
@@ -2583,15 +3273,23 @@ fn automated_tick_driver(
                     p_xf.translation.x += 0.08;
                     p_xf.translation.z -= 0.04;
                     if let Some(ref terrain) = terrain_res {
-                        if let Some(sy) = terrain.area.sample_world_height(p_xf.translation.x, p_xf.translation.z) {
+                        if let Some(sy) = terrain
+                            .area
+                            .sample_world_height(p_xf.translation.x, p_xf.translation.z)
+                        {
                             p_xf.translation.y = sy + 0.9;
                         }
                     }
                 }
                 if automation.demo_step_tick == 15 {
                     let shot = demo_dir.join("00_world_exploration.png");
-                    write_demo_log(&format!("Capturing 00_world_exploration.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                    write_demo_log(&format!(
+                        "Capturing 00_world_exploration.png to {}",
+                        shot.display()
+                    ));
+                    commands
+                        .spawn(Screenshot::primary_window())
+                        .observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
                     // Transition to Battle state with real wild spawner species and level
@@ -2644,8 +3342,13 @@ fn automated_tick_driver(
                 }
                 if automation.demo_step_tick == 20 {
                     let shot = demo_dir.join("01_battle_encounter.png");
-                    write_demo_log(&format!("Capturing 01_battle_encounter.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                    write_demo_log(&format!(
+                        "Capturing 01_battle_encounter.png to {}",
+                        shot.display()
+                    ));
+                    commands
+                        .spawn(Screenshot::primary_window())
+                        .observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
                     automation.demo_step = 2;
@@ -2666,7 +3369,9 @@ fn automated_tick_driver(
                 if automation.demo_step_tick == 15 {
                     let shot = demo_dir.join(beat.frame);
                     write_demo_log(&format!("Capturing {} to {}", beat.frame, shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                    commands
+                        .spawn(Screenshot::primary_window())
+                        .observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
                     if step == 5 {
@@ -2695,7 +3400,10 @@ fn automated_tick_driver(
                     p_xf.translation.x += 0.08;
                     p_xf.translation.z -= 0.04;
                     if let Some(ref terrain) = terrain_res {
-                        if let Some(sy) = terrain.area.sample_world_height(p_xf.translation.x, p_xf.translation.z) {
+                        if let Some(sy) = terrain
+                            .area
+                            .sample_world_height(p_xf.translation.x, p_xf.translation.z)
+                        {
                             p_xf.translation.y = sy + 0.9;
                         }
                     }
@@ -2709,14 +3417,35 @@ fn automated_tick_driver(
                 // Step 7: Area 00 (Jubilife Village) verification (gravel streets, sand coast, grass)
                 if automation.demo_step_tick == 1 {
                     write_demo_log("Step 7: Switching to Area 00 (Jubilife Village) for terrain albedo verification.");
-                    let bin_root = bin_root_res.as_ref().map(|b| b.0.clone()).unwrap_or_else(|| {
-                        PathBuf::from("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
-                    });
-                    if let (Some(ref mut tr), Some(ref mut zi)) = (terrain_res.as_mut(), zone_info.as_mut()) {
-                        switch_terrain_area(0, &bin_root, &mut commands, tr, &chunk_query, &mut meshes, &mut materials, &mut images, zi);
+                    let bin_root =
+                        bin_root_res
+                            .as_ref()
+                            .map(|b| b.0.clone())
+                            .unwrap_or_else(|| {
+                                PathBuf::from(
+                                    "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin",
+                                )
+                            });
+                    if let (Some(ref mut tr), Some(ref mut zi)) =
+                        (terrain_res.as_mut(), zone_info.as_mut())
+                    {
+                        switch_terrain_area(
+                            0,
+                            &bin_root,
+                            &mut commands,
+                            tr,
+                            &chunk_query,
+                            &mut meshes,
+                            &mut materials,
+                            &mut images,
+                            zi,
+                        );
                     }
                     if let Ok(mut p_xf) = player_query.single_mut() {
-                        let sy = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(445.0, 650.0)).unwrap_or(60.8);
+                        let sy = terrain_res
+                            .as_ref()
+                            .and_then(|t| t.area.sample_world_height(445.0, 650.0))
+                            .unwrap_or(60.8);
                         p_xf.translation = Vec3::new(445.0, sy + 0.9, 650.0);
                     }
                     camera_ctrl.yaw = 0.85;
@@ -2726,13 +3455,21 @@ fn automated_tick_driver(
                 }
                 if automation.demo_step_tick == 8 {
                     let shot = demo_dir.join("06_area00_gravel_streets.png");
-                    write_demo_log(&format!("Capturing 06_area00_gravel_streets.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                    write_demo_log(&format!(
+                        "Capturing 06_area00_gravel_streets.png to {}",
+                        shot.display()
+                    ));
+                    commands
+                        .spawn(Screenshot::primary_window())
+                        .observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick == 9 {
                     // Reposition to Area 00 sandy coast / shore
                     if let Ok(mut p_xf) = player_query.single_mut() {
-                        let sy = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(320.0, 780.0)).unwrap_or(10.0);
+                        let sy = terrain_res
+                            .as_ref()
+                            .and_then(|t| t.area.sample_world_height(320.0, 780.0))
+                            .unwrap_or(10.0);
                         p_xf.translation = Vec3::new(320.0, sy + 0.9, 780.0);
                     }
                     camera_ctrl.yaw = 2.3;
@@ -2741,13 +3478,21 @@ fn automated_tick_driver(
                 }
                 if automation.demo_step_tick == 16 {
                     let shot = demo_dir.join("07_area00_sand_coast.png");
-                    write_demo_log(&format!("Capturing 07_area00_sand_coast.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                    write_demo_log(&format!(
+                        "Capturing 07_area00_sand_coast.png to {}",
+                        shot.display()
+                    ));
+                    commands
+                        .spawn(Screenshot::primary_window())
+                        .observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick == 17 {
                     // Reposition to Area 00 green meadows / grass
                     if let Ok(mut p_xf) = player_query.single_mut() {
-                        let sy = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(550.0, 520.0)).unwrap_or(30.0);
+                        let sy = terrain_res
+                            .as_ref()
+                            .and_then(|t| t.area.sample_world_height(550.0, 520.0))
+                            .unwrap_or(30.0);
                         p_xf.translation = Vec3::new(550.0, sy + 0.9, 520.0);
                     }
                     camera_ctrl.yaw = 0.40;
@@ -2756,8 +3501,13 @@ fn automated_tick_driver(
                 }
                 if automation.demo_step_tick == 24 {
                     let shot = demo_dir.join("08_area00_grass.png");
-                    write_demo_log(&format!("Capturing 08_area00_grass.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                    write_demo_log(&format!(
+                        "Capturing 08_area00_grass.png to {}",
+                        shot.display()
+                    ));
+                    commands
+                        .spawn(Screenshot::primary_window())
+                        .observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 25 {
                     automation.demo_step = 8;
@@ -2768,14 +3518,35 @@ fn automated_tick_driver(
                 // Step 8: Area 05 (Alabaster Icelands) verification (snow and ice)
                 if automation.demo_step_tick == 1 {
                     write_demo_log("Step 8: Switching to Area 05 (Alabaster Icelands) for snow albedo verification.");
-                    let bin_root = bin_root_res.as_ref().map(|b| b.0.clone()).unwrap_or_else(|| {
-                        PathBuf::from("/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin")
-                    });
-                    if let (Some(ref mut tr), Some(ref mut zi)) = (terrain_res.as_mut(), zone_info.as_mut()) {
-                        switch_terrain_area(5, &bin_root, &mut commands, tr, &chunk_query, &mut meshes, &mut materials, &mut images, zi);
+                    let bin_root =
+                        bin_root_res
+                            .as_ref()
+                            .map(|b| b.0.clone())
+                            .unwrap_or_else(|| {
+                                PathBuf::from(
+                                    "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin",
+                                )
+                            });
+                    if let (Some(ref mut tr), Some(ref mut zi)) =
+                        (terrain_res.as_mut(), zone_info.as_mut())
+                    {
+                        switch_terrain_area(
+                            5,
+                            &bin_root,
+                            &mut commands,
+                            tr,
+                            &chunk_query,
+                            &mut meshes,
+                            &mut materials,
+                            &mut images,
+                            zi,
+                        );
                     }
                     if let Ok(mut p_xf) = player_query.single_mut() {
-                        let sy = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(512.0, 512.0)).unwrap_or(50.0);
+                        let sy = terrain_res
+                            .as_ref()
+                            .and_then(|t| t.area.sample_world_height(512.0, 512.0))
+                            .unwrap_or(50.0);
                         p_xf.translation = Vec3::new(512.0, sy + 0.9, 512.0);
                     }
                     camera_ctrl.yaw = 1.10;
@@ -2785,8 +3556,13 @@ fn automated_tick_driver(
                 }
                 if automation.demo_step_tick == 10 {
                     let shot = demo_dir.join("09_area05_snow.png");
-                    write_demo_log(&format!("Capturing 09_area05_snow.png to {}", shot.display()));
-                    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(shot));
+                    write_demo_log(&format!(
+                        "Capturing 09_area05_snow.png to {}",
+                        shot.display()
+                    ));
+                    commands
+                        .spawn(Screenshot::primary_window())
+                        .observe(save_to_disk(shot));
                 }
                 if automation.demo_step_tick >= 15 {
                     write_demo_log("Auto-demo playthrough and multi-area terrain verification finished successfully!");
@@ -2848,7 +3624,11 @@ fn automated_tick_driver(
             // Capture after 22 frames so geometry and gltf models settle
             if automation.verify_step_tick == 22 {
                 let shot_path = dir.join(format!("{}.png", label));
-                println!("  Capturing screenshot for '{}' to: {}", label, shot_path.display());
+                println!(
+                    "  Capturing screenshot for '{}' to: {}",
+                    label,
+                    shot_path.display()
+                );
                 if let Some(parent) = shot_path.parent() {
                     let _ = std::fs::create_dir_all(parent);
                 }
@@ -2863,7 +3643,10 @@ fn automated_tick_driver(
                 automation.verify_step_tick = 0;
             }
         } else {
-            println!("All {} viewpoints verified and captured cleanly in a single process. Exiting.", views.len());
+            println!(
+                "All {} viewpoints verified and captured cleanly in a single process. Exiting.",
+                views.len()
+            );
             exit.write(AppExit::Success);
         }
         return;
@@ -2878,7 +3661,11 @@ fn automated_tick_driver(
 
     if automation.current_ticks == shot_tick {
         if let Some(shot_path) = &automation.screenshot_path {
-            println!("Triggered screenshot request at tick {} to: {}", shot_tick, shot_path.display());
+            println!(
+                "Triggered screenshot request at tick {} to: {}",
+                shot_tick,
+                shot_path.display()
+            );
             commands
                 .spawn(Screenshot::primary_window())
                 .observe(save_to_disk(shot_path.clone()));
@@ -2887,12 +3674,14 @@ fn automated_tick_driver(
 
     if let Some(max) = automation.max_ticks {
         if automation.current_ticks >= max {
-            println!("Automated execution reached tick target ({}). Exiting cleanly.", max);
+            println!(
+                "Automated execution reached tick target ({}). Exiting cleanly.",
+                max
+            );
             exit.write(AppExit::Success);
         }
     }
 }
-
 
 /// `--script-controls <DIR>`: world, pause menu open and aim mode with reticle, in one process.
 /// Combine with `--throw` to also prove that the thrown ball is frozen by the pause and gone
@@ -2914,12 +3703,17 @@ fn controls_demo_driver(
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join(name);
         println!("[CONTROLS-DEMO] tick {t}: capturing {}", path.display());
-        commands.spawn(Screenshot::primary_window()).observe(save_to_disk(path));
+        commands
+            .spawn(Screenshot::primary_window())
+            .observe(save_to_disk(path));
     };
     match t {
         25 => shot(&mut commands, "00_world.png"),
         30 => {
-            println!("[CONTROLS-DEMO] tick 30: Esc -> paused, balls in world: {}", balls.iter().count());
+            println!(
+                "[CONTROLS-DEMO] tick 30: Esc -> paused, balls in world: {}",
+                balls.iter().count()
+            );
             paused.0 = true;
             *frozen_at = balls.iter().next().map(|b| b.translation);
         }
@@ -2937,10 +3731,16 @@ fn controls_demo_driver(
         _ => {}
     }
     if t > 70 && t % 30 == 0 {
-        println!("[CONTROLS-DEMO] tick {t}: balls in world: {}", balls.iter().count());
+        println!(
+            "[CONTROLS-DEMO] tick {t}: balls in world: {}",
+            balls.iter().count()
+        );
     }
     if t >= 100 && balls.iter().count() == 0 || t >= 1800 {
-        println!("[CONTROLS-DEMO] done at tick {t}: balls in world: {}", balls.iter().count());
+        println!(
+            "[CONTROLS-DEMO] done at tick {t}: balls in world: {}",
+            balls.iter().count()
+        );
         exit.write(AppExit::Success);
     }
 }
@@ -2952,25 +3752,46 @@ fn controls_demo_driver(
 fn sync_arena_player_model(
     mut commands: Commands,
     session: Option<Res<ActiveBattleSession>>,
-    slots: Query<(Entity, &PokemonSpawn, &Transform, &pla::game::pokemon_anim::PokemonBattleSlot), With<BattleArenaMarker>>,
+    slots: Query<
+        (
+            Entity,
+            &PokemonSpawn,
+            &Transform,
+            &pla::game::pokemon_anim::PokemonBattleSlot,
+            &ArenaBase,
+        ),
+        With<BattleArenaMarker>,
+    >,
     mut catalog: ResMut<PokemonCatalogResource>,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut extents: ResMut<ArenaExtents>,
 ) {
     let Some(sess) = session else { return };
-    for (entity, spawn, xf, slot) in &slots {
+    for (entity, spawn, xf, slot, base) in &slots {
         // slot 0: the player's active Pokemon; slot 1: the opponent's (a trainer switches).
-        let who = if slot.0 == 0 { sess.active_player() } else { sess.opponent() };
-        let Some(c) = sess.battle.combatants.get(who) else { continue };
+        let who = if slot.0 == 0 {
+            sess.active_player()
+        } else {
+            sess.opponent()
+        };
+        let Some(c) = sess.battle.combatants.get(who) else {
+            continue;
+        };
         let want = c.species.dex;
         if slot.0 > 1 || spawn.national_dex == want {
             continue;
         }
-        if !catalog.handles.contains_key(&want) {
-            if let Some(rel) = resolve_pokemon_gltf_rel(want) {
+        let key = PokemonAssetKey {
+            dex: want,
+            form: 0,
+            rare: false,
+        };
+        if !catalog.handles.contains_key(&key) {
+            if let Some(rel) = resolve_pokemon_gltf_rel(want, key.form, key.rare) {
                 let handle: Handle<Gltf> = asset_server.load(rel);
-                catalog.handles.insert(want, handle);
+                catalog.handles.insert(key, handle);
             }
         }
         catalog.spawned.remove(&entity);
@@ -2978,8 +3799,15 @@ fn sync_arena_player_model(
         commands
             .spawn((
                 BattleArenaMarker,
-                PokemonSpawn { national_dex: want },
+                PokemonSpawn {
+                    national_dex: want,
+                    form: 0,
+                    rare: false,
+                    alpha: false,
+                    size_scale: 1.0,
+                },
                 pla::game::pokemon_anim::PokemonBattleSlot(slot.0),
+                *base,
                 Transform::from_translation(xf.translation).with_rotation(xf.rotation),
                 Visibility::default(),
             ))
@@ -2992,6 +3820,704 @@ fn sync_arena_player_model(
                     })),
                 ));
             });
+        // The old model's size no longer applies; the new one is measured once it is loaded.
+        extents.size[slot.0] = pla::game::battle_camera::ModelSize::default();
         println!("Arena slot {} now shows #{want}", slot.0);
+    }
+}
+
+/// Hands the opponent's measured model height to the original UI (its plate floats above it).
+fn publish_foe_height(
+    extents: Res<ArenaExtents>,
+    foe: Option<ResMut<pla::game::orig_ui::battle::BattleFoeHeight>>,
+) {
+    let Some(mut foe) = foe else { return };
+    let h = extents.size[1].height;
+    if foe.0 != h {
+        foe.0 = h;
+    }
+}
+
+/// Measures the loaded model of each arena slot (world-space bounds of its meshes, relative to
+/// its feet) and spaces a big opponent away from the player's creature, so a giant such as
+/// Giratina neither overlaps the player's creature nor leaves the camera at its knees.
+fn measure_arena_models(
+    mut frame: Local<u32>,
+    mut extents: ResMut<ArenaExtents>,
+    terrain_res: Option<Res<TerrainResource>>,
+    mut slots: Query<
+        (Entity, &pla::game::pokemon_anim::PokemonBattleSlot, &mut Transform, &GlobalTransform, &ArenaBase),
+        With<BattleArenaMarker>,
+    >,
+    meshes: Query<(Entity, &bevy::camera::primitives::Aabb, &GlobalTransform), Without<BattleArenaMarker>>,
+    parents: Query<&ChildOf>,
+) {
+    *frame += 1;
+    // Every frame until the opponent's model has been measured (the first frames of a battle),
+    // then every 6th.
+    if extents.size[1].height > 0.0 && *frame % 6 != 1 {
+        return;
+    }
+    let owner: HashMap<Entity, usize> = slots.iter().map(|(e, s, ..)| (e, s.0.min(1))).collect();
+    let feet: [Option<Vec3>; 2] = {
+        let mut f = [None; 2];
+        for (_, s, _, g, _) in &slots {
+            f[s.0.min(1)] = Some(g.translation());
+        }
+        f
+    };
+    let mut found = [pla::game::battle_camera::ModelSize::default(); 2];
+    for (entity, aabb, gt) in &meshes {
+        // Walk up to the arena slot this mesh belongs to.
+        let mut cur = entity;
+        let mut slot = None;
+        for _ in 0..24 {
+            let Ok(parent) = parents.get(cur) else { break };
+            cur = parent.parent();
+            if let Some(&s) = owner.get(&cur) {
+                slot = Some(s);
+                break;
+            }
+        }
+        let Some(slot) = slot else { continue };
+        let Some(feet) = feet[slot] else { continue };
+        let c = Vec3::from(aabb.center);
+        let h = Vec3::from(aabb.half_extents);
+        for sx in [-1.0, 1.0] {
+            for sy in [-1.0, 1.0] {
+                for sz in [-1.0, 1.0] {
+                    let p = gt.transform_point(c + h * Vec3::new(sx, sy, sz));
+                    if !p.is_finite() {
+                        continue;
+                    }
+                    let f = &mut found[slot];
+                    f.height = f.height.max(p.y - feet.y);
+                    f.radius = f.radius.max(Vec2::new(p.x - feet.x, p.z - feet.z).length());
+                }
+            }
+        }
+    }
+    for (slot, size) in found.iter().enumerate() {
+        // Only replace a size that was measured from a real mesh.
+        if size.height > 0.0 && extents.size[slot] != *size {
+            extents.size[slot] = *size;
+        }
+    }
+    // Space the opponent: push it away from the player's creature along the arena axis.
+    let foe = extents.size[1];
+    let push = pla::game::battle_camera::extra_spacing(foe);
+    let mut player_base = None;
+    for (_, s, _, _, base) in &slots {
+        if s.0 == 0 {
+            player_base = Some(base.0);
+        }
+    }
+    let Some(pb) = player_base else { return };
+    for (_, s, mut xf, _, base) in &mut slots {
+        if s.0 != 1 {
+            continue;
+        }
+        let axis = Vec3::new(base.0.x - pb.x, 0.0, base.0.z - pb.z).normalize_or(Vec3::NEG_Z);
+        let mut want = base.0 + axis * push;
+        if push > 0.0 {
+            if let Some(y) = terrain_res.as_ref().and_then(|t| t.area.sample_world_height(want.x, want.z)) {
+                want.y = y;
+            }
+        }
+        if xf.translation.distance(want) > 0.01 {
+            xf.translation = want;
+        }
+    }
+}
+
+
+/// Arena framing tests that need no models or GPU.
+#[cfg(test)]
+mod battle_arena_framing {
+    use super::*;
+    use bevy::state::app::StatesPlugin;
+    use pla::game::battle_camera::{in_view, ModelSize};
+    use pla::game::pokemon_anim::PokemonBattleSlot;
+
+    fn arena_app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.init_state::<GameState>();
+        app.init_resource::<CameraController>();
+        app.init_resource::<ArenaExtents>();
+        app.add_systems(Update, (measure_arena_models, update_camera_transform).chain().run_if(in_state(GameState::Battle)));
+        app.world_mut().spawn((PlayerAvatar, Transform::from_xyz(0.0, 0.9, 0.0)));
+        app.world_mut().spawn((Camera3d::default(), Transform::default()));
+        app.update();
+        app
+    }
+
+    fn spawn_slot(app: &mut App, slot: usize, dex: u16, pos: Vec3) -> Entity {
+        app.world_mut()
+            .spawn((
+                BattleArenaMarker,
+                PokemonSpawn { national_dex: dex, form: 0, rare: false, alpha: false, size_scale: 1.0 },
+                PokemonBattleSlot(slot),
+                ArenaBase(pos),
+                Transform::from_translation(pos),
+                GlobalTransform::from_translation(pos),
+            ))
+            .id()
+    }
+
+    fn enter_battle(app: &mut App) {
+        app.world_mut().resource_mut::<NextState<GameState>>().set(GameState::Battle);
+        for _ in 0..3 {
+            app.update();
+        }
+    }
+
+    fn camera(app: &mut App) -> Transform {
+        *app.world_mut().query_filtered::<&Transform, With<Camera3d>>().single(app.world()).unwrap()
+    }
+
+    /// Regression: the battle camera was only used when the player's creature was Pikachu
+    /// (`national_dex == 25`); with any other party member it fell back to the world camera.
+    #[test]
+    fn battle_camera_does_not_depend_on_the_species_out() {
+        let mut app = arena_app();
+        let p = Vec3::new(-0.7, 0.0, -1.8);
+        let w = Vec3::new(0.9, 0.0, -4.4);
+        spawn_slot(&mut app, 0, 399, p); // Bidoof, not Pikachu
+        spawn_slot(&mut app, 1, 487, w); // Giratina
+        enter_battle(&mut app);
+        let cam = camera(&mut app);
+        let (want, _) = pla::game::battle_camera::pose(p, w, ModelSize::default());
+        assert!(cam.translation.distance(want) < 0.05, "camera {:?} is not the battle framing {want:?}", cam.translation);
+        let to_foe = (w - cam.translation).normalize();
+        assert!(cam.forward().as_vec3().dot(to_foe) > 0.8, "camera does not look at the opponent");
+    }
+
+    /// A giant opponent (meshes taller than the arena spacing) is measured, pushed away from the
+    /// player's creature and framed completely by the camera.
+    #[test]
+    fn giant_opponent_is_measured_spaced_and_fully_in_view() {
+        let mut app = arena_app();
+        let p = Vec3::new(-0.7, 0.0, -1.8);
+        let w = Vec3::new(0.9, 0.0, -4.4);
+        spawn_slot(&mut app, 0, 25, p);
+        let foe = spawn_slot(&mut app, 1, 487, w);
+        // A Giratina-sized body: 6 m long, 5 m tall, mesh centred 1.5 m in front of the feet.
+        let body = app
+            .world_mut()
+            .spawn((
+                bevy::camera::primitives::Aabb { center: Vec3::new(0.0, 2.5, 1.5).into(), half_extents: Vec3::new(1.5, 2.5, 3.0).into() },
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                GlobalTransform::from_translation(w),
+            ))
+            .id();
+        app.world_mut().entity_mut(foe).add_child(body);
+        enter_battle(&mut app);
+        for _ in 0..8 {
+            app.update();
+        }
+        let size = app.world().resource::<ArenaExtents>().size[1];
+        assert!(size.height > 4.5 && size.radius > 3.0, "foe not measured: {size:?}");
+        let foe_pos = app.world().get::<Transform>(foe).unwrap().translation;
+        assert!(foe_pos.distance(w) > 1.0, "opponent was not spaced away from the player ({foe_pos:?})");
+        let cam = camera(&mut app);
+        let look = cam.translation + cam.forward().as_vec3();
+        for dy in [0.0, 2.5, 5.0] {
+            assert!(
+                in_view(cam.translation, look, 16.0 / 9.0, foe_pos + Vec3::Y * dy),
+                "opponent point +{dy} m is outside the camera view"
+            );
+        }
+    }
+}
+
+// Automation mode (`--automation`) tests: no window, socket session.
+#[cfg(test)]
+#[path = "port_viewer_tests/automation.rs"]
+mod automation_tests;
+
+/// Start-up guard (`cargo test -p pla --example port_viewer`, also part of `cargo test -p pla`).
+///
+/// Builds the viewer's app through the same [`configure_viewer`] as `main`, but with no window,
+/// no GPU, no gamepad and no audio device, then:
+///
+/// 1. initialises every system and run condition of every schedule (Startup, Update, PostUpdate,
+///    FixedUpdate, OnEnter/OnExit of every state, ...) — where Bevy rejects conflicting system
+///    parameters (B0001 / B0002), the panics that otherwise only show on the viewer's first frame;
+/// 2. runs a few frames, so a system that panics on its first run (for example a required
+///    resource nobody inserts) fails here too.
+///
+/// Known gaps: the render sub-app is not created (no GPU), so Bevy's own render-world systems are
+/// not checked; `bevy_audio` (device mode), winit and gilrs are not added; the run starts a new
+/// game in a scratch save directory instead of the player's save; and anything that only happens
+/// later (state changes such as entering a battle, input, streaming far away) is initialised in
+/// step 1 but never run.
+#[cfg(test)]
+mod startup_schedule_guard {
+    use super::*;
+    use bevy::render::settings::WgpuSettings;
+    use bevy::render::RenderPlugin;
+    use bevy::winit::WinitPlugin;
+
+    /// Frames run after the initialisation check (Startup + OnEnter run in the first one).
+    const FRAMES: usize = 5;
+
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    /// The setup `main` would resolve for `args`, without touching the player's save or settings.
+    pub(super) fn setup_for(args: &[&str], scratch: &std::path::Path) -> ViewerSetup {
+        let cli_args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+        let has = |f: &str| cli_args.iter().any(|a| a == f);
+        let area_idx: u8 = cli_args
+            .iter()
+            .position(|a| a == "--area")
+            .and_then(|i| cli_args.get(i + 1))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
+        let bin_root = std::env::var_os("PLA_BIN_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| repo_root().join("work/pla/pk2/romfs_patched/bin"));
+        let cache_root = pla::game::audio::default_cache_root();
+        let (data_dir, pml_db, battle_db, battle_assets) = load_game_data();
+        let terrain_res = load_terrain(&bin_root, area_idx, TerrainScaleOverride::default());
+        let navmesh_res = load_navmesh(&bin_root, area_idx);
+        let fallback = if area_idx == 0 { Vec2::new(448.0, 652.0) } else { Vec2::new(512.5, 512.5) };
+        let (player_spawn_pos, safe_spawn_xz, spawn_notice) =
+            choose_player_spawn(navmesh_res.as_ref(), area_idx, None, false, fallback);
+
+        // Always a new game in a scratch directory: the player's save is never read or written.
+        let mut wire_cli = pla::game::save_wire::WireCli::from_args(&cli_args);
+        wire_cli.new_game = true;
+        wire_cli.save_dir = Some(scratch.to_path_buf());
+        let mut save_game =
+            pla::game::save_game::SaveGame::new(pla::game::save_game::SaveFile::in_dir(scratch));
+        let wire_start = pla::game::save_wire::load_startup(&mut save_game, &wire_cli);
+
+        let mut art_style = pla::game::art_style::ArtStylePlugin::from_env_and_args();
+        art_style.settings = pla::game::art_style::StyleSettings::from_args(&cli_args);
+        ViewerSetup {
+            area_idx,
+            bin_root: bin_root.clone(),
+            cache_root,
+            main_menu: has("--menu"),
+            player_model: PlayerModelConfig { asset_rel: None },
+            initial_mode: CameraMode::OrbitDefault,
+            user_settings: UserSettings::default(),
+            settings_dir: scratch.to_path_buf(),
+            initial_dex: None,
+            data_dir,
+            pml_db,
+            battle_db,
+            battle_assets,
+            player_spawn_pos,
+            terrain_res,
+            navmesh_res,
+            safe_spawn_xz,
+            spawn_notice,
+            static_wild: false,
+            debug_zone_links: has("--debug-zone-links"),
+            automation: AutomationOptions {
+                screenshot_path: None,
+                max_ticks: None,
+                current_ticks: 0,
+                auto_throw_tick: None,
+                verify_views_dir: None,
+                verify_step: 0,
+                verify_step_tick: 0,
+                auto_demo: false,
+                demo_output_dir: None,
+                demo_step: 0,
+                demo_step_tick: 0,
+                controls_demo_dir: None,
+            },
+            save_game,
+            wire_start,
+            wire_cli,
+            art_style,
+            trainers: pla::game::trainer_encounter::TrainerEncounterPlugin {
+                markers: !has("--no-trainers"),
+                forced: cli_args
+                    .iter()
+                    .position(|a| a == "--trainer")
+                    .and_then(|i| cli_args.get(i + 1).cloned()),
+                data_dir: None,
+            },
+            // Null: the whole game audio pipeline is registered but no device is opened.
+            audio: pla::game::audio::GameAudioPlugin::with_mode(pla::game::audio::AudioMode::Null),
+            effects: pla::game::effects::EffectsPlugin::default(),
+            bag: pla::game::bag_screen::BagScreenPlugin { debug_shop: has("--debug-shop"), data_dir: None },
+            minimap: pla::game::minimap::MinimapPlugin {
+                enabled: !has("--no-minimap"),
+                bin_root: Some(bin_root),
+                game_map: has("--game-map"),
+                size: pla::game::minimap::DEFAULT_MAP_SIZE,
+            },
+            remote: None,
+            cli_args,
+        }
+    }
+
+    /// `DefaultPlugins` as in `main`, minus everything that touches the user's machine: no
+    /// window, no event loop, no GPU, no gamepad.
+    fn headless_app() -> App {
+        let mut app = App::new();
+        app.add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: None,
+                    exit_condition: bevy::window::ExitCondition::DontExit,
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    file_path: repo_root().join("work").to_string_lossy().to_string(),
+                    unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+                    ..default()
+                })
+                .set(RenderPlugin {
+                    render_creation: WgpuSettings { backends: None, ..default() }.into(),
+                    ..default()
+                })
+                .disable::<WinitPlugin>()
+                .disable::<bevy::gilrs::GilrsPlugin>(),
+        );
+        // Stub: without a GPU the render plugin skips its entity-sync bookkeeping, whose
+        // resource the component hooks of renderable components still need. With no render
+        // world nothing drains it, which is harmless for a few frames.
+        if !app.is_plugin_added::<bevy::render::sync_world::SyncWorldPlugin>() {
+            app.add_plugins(bevy::render::sync_world::SyncWorldPlugin);
+        }
+        app
+    }
+
+    /// One key press and release through the real input pipeline (keyboard messages, so the
+    /// `ButtonInput<KeyCode>` the systems read sees `just_pressed` in the next `Update`).
+    fn tap_key(app: &mut App, key: KeyCode) {
+        use bevy::input::keyboard::{Key, KeyboardInput};
+        use bevy::input::ButtonState;
+        for state in [ButtonState::Pressed, ButtonState::Released] {
+            app.world_mut().write_message(KeyboardInput {
+                key_code: key,
+                logical_key: Key::Unidentified(bevy::input::keyboard::NativeKey::Unidentified),
+                state,
+                text: None,
+                repeat: false,
+                window: Entity::PLACEHOLDER,
+            });
+            app.update();
+        }
+    }
+
+    fn built_app(name: &str, args: &[&str]) -> (App, PathBuf) {
+        let scratch =
+            std::env::temp_dir().join(format!("pla-viewer-schedule-guard-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&scratch).expect("scratch dir");
+        let mut app = headless_app();
+        configure_viewer(&mut app, setup_for(args, &scratch));
+        app.finish();
+        app.cleanup();
+        (app, scratch)
+    }
+
+    /// `--trainer <id>` + V anywhere: the battle starts and keeps running (play-test crash,
+    /// 2026-10-14). Runs the battle-start path: state change, arena, battle UI, models, effects.
+    fn check_forced_trainer_battle(name: &str, trainer: &str) {
+        let (mut app, scratch) = built_app(name, &["port_viewer", "--area", "1", "--trainer", trainer]);
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        tap_key(&mut app, KeyCode::KeyV);
+        for _ in 0..30 {
+            app.update();
+        }
+        let state = app.world().resource::<State<GameState>>().get().clone();
+        assert_eq!(state, GameState::Battle, "[{name}] V did not start the battle");
+        {
+            let sess = app
+                .world()
+                .get_resource::<ActiveBattleSession>()
+                .unwrap_or_else(|| panic!("[{name}] no battle session"));
+            println!(
+                "[{name}] after V, no input yet: player #{} opponent #{}; log:\n{}",
+                sess.battle.combatants[sess.active_player()].species.dex,
+                sess.battle.combatants[sess.opponent()].species.dex,
+                sess.log_lines.join("\n")
+            );
+        }
+        // A few battle inputs (fight menu, first move) through the same path the keys use.
+        for key in [KeyCode::Enter, KeyCode::Digit1, KeyCode::Enter, KeyCode::Escape] {
+            tap_key(&mut app, key);
+            for _ in 0..10 {
+                app.update();
+            }
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    #[test]
+    fn forced_trainer_giratina_v_starts_battle() {
+        check_forced_trainer_battle("trainer-giratina", "giratina01");
+    }
+
+    /// Giratina (#487, level 70, several metres tall) must be on screen and framed completely:
+    /// the opponent's arena model exists, is a visible entity, and once its glTF is measured the
+    /// battle camera sees its whole body. Needs the extracted game data (like the other
+    /// forced-battle tests); when the model never loads in the test's time budget the framing
+    /// part is reported and skipped, never silently passed.
+    #[test]
+    fn forced_trainer_giratina_is_visible_and_framed() {
+        let (mut app, scratch) = built_app("giratina-visible", &["port_viewer", "--area", "1", "--trainer", "giratina01"]);
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        tap_key(&mut app, KeyCode::KeyV);
+        for _ in 0..30 {
+            app.update();
+        }
+        assert_eq!(*app.world().resource::<State<GameState>>().get(), GameState::Battle);
+        let foe_dex = |app: &mut App| {
+            app.world_mut()
+                .query_filtered::<(&PokemonSpawn, &pla::game::pokemon_anim::PokemonBattleSlot, &Visibility), With<BattleArenaMarker>>()
+                .iter(app.world())
+                .find(|(_, slot, _)| slot.0 == 1)
+                .map(|(spawn, _, vis)| (spawn.national_dex, *vis))
+        };
+        let (dex, vis) = foe_dex(&mut app).expect("the opponent has no arena model entity");
+        assert_eq!(dex, 487, "the opponent slot shows #{dex}, not Giratina");
+        assert_ne!(vis, Visibility::Hidden, "the opponent is hidden");
+        let mut measured = false;
+        for _ in 0..1500 {
+            app.update();
+            if app.world().resource::<ArenaExtents>().size[1].height > 2.0 {
+                measured = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        // Still the same Giratina, still visible, after every model swap.
+        let (dex, vis) = foe_dex(&mut app).expect("the opponent entity disappeared");
+        assert_eq!(dex, 487);
+        assert_ne!(vis, Visibility::Hidden);
+        if measured {
+            for _ in 0..10 {
+                app.update();
+            }
+            let size = app.world().resource::<ArenaExtents>().size[1];
+            let foe_pos = app
+                .world_mut()
+                .query_filtered::<(&pla::game::pokemon_anim::PokemonBattleSlot, &Transform), With<BattleArenaMarker>>()
+                .iter(app.world())
+                .find(|(s, _)| s.0 == 1)
+                .map(|(_, t)| t.translation)
+                .unwrap();
+            let cam = *app.world_mut().query_filtered::<&Transform, With<Camera3d>>().single(app.world()).unwrap();
+            let look = cam.translation + cam.forward().as_vec3();
+            for dy in [0.0, size.height * 0.5, size.height] {
+                assert!(
+                    pla::game::battle_camera::in_view(cam.translation, look, 16.0 / 9.0, foe_pos + Vec3::Y * dy),
+                    "Giratina ({size:?}) point +{dy:.1} m is outside the battle camera view"
+                );
+            }
+        } else {
+            println!("[giratina-visible] model not loaded within the budget; framing check skipped");
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    #[test]
+    fn forced_noble_v_starts_battle() {
+        check_forced_trainer_battle("trainer-noble", "noble:nsi_ex_01");
+    }
+
+    fn check_viewer_start(name: &str, args: &[&str]) {
+        let scratch =
+            std::env::temp_dir().join(format!("pla-viewer-schedule-guard-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&scratch).expect("scratch dir");
+        let mut app = headless_app();
+        configure_viewer(&mut app, setup_for(args, &scratch));
+        app.finish();
+        app.cleanup();
+        let counts = pla::game::schedule_check::system_counts(&app);
+        for (label, n) in &counts {
+            println!("[{name}] schedule {label}: {n} systems");
+        }
+        let update = counts.iter().find(|(l, _)| l == "Update").map_or(0, |(_, n)| *n);
+        assert!(update > 50, "[{name}] only {update} Update systems: the viewer was not built");
+
+        let problems = pla::game::schedule_check::initialize_all_schedules(&mut app);
+        assert!(
+            problems.is_empty(),
+            "[{name}] {} start-up schedule problem(s):\n{}",
+            problems.len(),
+            problems.join("\n")
+        );
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    /// Exactly what `./play.sh --area 1` asks for (direct start into the world).
+    #[test]
+    fn play_sh_area_1_starts() {
+        check_viewer_start("play-area-1", &["port_viewer", "--area", "1"]);
+    }
+
+    /// Every quality preset builds and runs (the textures, render-scale and frame-pacing plugins,
+    /// every live applier's resources), plus the heaviest single flags.
+    #[test]
+    fn quality_presets_start() {
+        for preset in ["low", "ultra"] {
+            check_viewer_start(&format!("quality-{preset}"), &["port_viewer", "--area", "1", "--quality", preset]);
+        }
+        check_viewer_start(
+            "quality-flags",
+            &[
+                "port_viewer", "--area", "1", "--aa", "taa", "--render-scale", "200", "--no-vsync", "--fps-cap", "240",
+                 "--mipmaps", "on", "--anisotropy", "16", "--texture-quality", "quarter", "--terrain-texture", "1024",
+                 "--grass", "ultra", "--objects-range", "300",
+             ],
+         );
+     }
+
+    /// `--force-alpha all` (debug) with the original style: the alpha-aura systems and the shell
+    /// material initialise with the whole viewer.
+    #[test]
+    fn force_alpha_starts() {
+        check_viewer_start(
+            "force-alpha",
+            &["port_viewer", "--area", "1", "--force-alpha", "all", "--style", "original"],
+        );
+    }
+
+    /// The original UI asked for with a UI root that does not exist: the viewer must start and
+    /// keep the provisional UI (no crash).
+    #[test]
+    fn default_ui_starts_without_data() {
+        check_viewer_start(
+            "default-ui-nodata",
+            &["port_viewer", "--area", "1", "--ui-root", "/nonexistent/ui-root"],
+        );
+    }
+
+    /// `--ui debug` forces the provisional UI.
+    #[test]
+    fn debug_ui_starts() {
+        check_viewer_start("debug-ui", &["port_viewer", "--area", "1", "--ui", "debug"]);
+    }
+
+    /// `--ui original` and the battle path: the original battle screens bind to a running battle.
+    #[test]
+    fn original_ui_trainer_battle_runs() {
+        let (mut app, scratch) =
+            built_app("original-ui-battle", &["port_viewer", "--area", "1", "--ui", "original", "--trainer", "giratina01"]);
+        for _ in 0..FRAMES {
+            app.update();
+        }
+        tap_key(&mut app, KeyCode::KeyV);
+        for _ in 0..30 {
+            app.update();
+        }
+        assert_eq!(*app.world().resource::<State<GameState>>().get(), GameState::Battle);
+        let enabled = app.world().resource::<pla::game::orig_ui::OrigUiConfig>().enabled();
+        let world = app.world_mut();
+        let shown: Vec<_> = world
+            .query::<&pla::game::orig_ui::OrigScreen>()
+            .iter(world)
+            .filter(|s| s.shown)
+            .map(|s| s.id)
+            .collect();
+        if enabled {
+            assert!(shown.contains(&pla::game::orig_ui::ScreenId::BattleHud), "{shown:?}");
+        } else {
+            println!("[skip] no local UI data: original battle screens not checked");
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
+
+    /// `--terrain bake` (the baked single-image ground) and the cheapest splat options start too.
+    #[test]
+    fn terrain_modes_start() {
+        check_viewer_start("terrain-bake", &["port_viewer", "--area", "1", "--terrain", "bake"]);
+        check_viewer_start(
+            "terrain-splat-low",
+            &["port_viewer", "--area", "1", "--terrain-layers", "4", "--terrain-triplanar", "off", "--terrain-normals", "baked"],
+        );
+    }
+
+    /// Every optional registration on: main menu, original art style, debug zone links and shop.
+    #[test]
+    fn menu_and_debug_options_start() {
+        check_viewer_start(
+            "menu-debug",
+            &[
+                "port_viewer",
+                "--area",
+                "1",
+                "--menu",
+                "--style",
+                "original",
+                "--debug-zone-links",
+                "--debug-shop",
+            ],
+        );
+    }
+}
+
+/// Which overworld creatures get the alpha aura (no model, no GPU).
+#[cfg(test)]
+mod alpha_spawn {
+    use super::*;
+    use pla::game::alpha_aura::AlphaAura;
+    use pla::game::wild::{SpawnSpeciesEntry, SpawnerDefinition};
+
+    fn spawner(id: &str, x: f32, alpha: bool) -> SpawnerDefinition {
+        SpawnerDefinition {
+            spawner_id: id.into(),
+            area: "ha_area01".into(),
+            pos: Vec3::new(x, 0.0, 0.0),
+            radius: 5.0,
+            entries: vec![SpawnSpeciesEntry {
+                species_id: 399,
+                species_name: "bidoof".into(),
+                form: 0,
+                alpha,
+                unique_alpha: false,
+                min_level: 5,
+                max_level: 5,
+                weight: 100,
+            }],
+        }
+    }
+
+    #[test]
+    fn an_alpha_slot_gets_the_aura_and_a_normal_one_does_not() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<Mesh>().init_asset::<StandardMaterial>().init_asset::<Gltf>();
+        app.insert_resource(PokemonCatalogResource { handles: HashMap::new(), spawned: HashSet::new() });
+        app.init_resource::<ConsumedSpawners>();
+        app.init_resource::<pla::game::wild::EncounterSafety>();
+        app.insert_resource(ActiveAreaSpawners {
+            spawners: vec![spawner("normal", 3.0, false), spawner("alpha", -3.0, true)],
+            ..Default::default()
+        });
+        app.world_mut().spawn((PlayerAvatar, Transform::from_xyz(0.0, 0.9, 0.0)));
+        app.add_systems(Update, stream_wild_spawners);
+        app.update();
+        app.update();
+
+        let mut q = app
+            .world_mut()
+            .query::<(&pla::game::WildCreature, &Transform, Option<&AlphaAura>)>();
+        let found: Vec<_> = q.iter(app.world()).map(|(w, t, a)| (w.spawner_id.clone(), t.scale.x, a.is_some())).collect();
+        assert_eq!(found.len(), 2, "both spawners loaded: {found:?}");
+        let alpha = found.iter().find(|f| f.0 == "alpha").unwrap();
+        let normal = found.iter().find(|f| f.0 == "normal").unwrap();
+        assert!(alpha.2, "the alpha slot has the aura");
+        assert_eq!(alpha.1, pla::game::wild::ALPHA_FIELD_SCALE, "and the decoded 2.5x scale");
+        assert!(!normal.2, "a normal creature has none");
+        assert!(normal.1 < pla::game::wild::ALPHA_FIELD_SCALE);
     }
 }
