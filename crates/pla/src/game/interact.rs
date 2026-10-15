@@ -1,13 +1,11 @@
 //! World interactables: climbable surfaces (ladders, ropes, vines, cliffs) for Brief 13.
 //!
-//! Placement state: **no real climbable placements are decoded**. The `bg_event` placement
-//! files exist per area (`bin/field/param/placement/<area>/bg_event/bg_event.bin`, 13-40
-//! records per main area) but their record semantics (event type, model hash) are not
-//! decoded, and no `gimmick_*` model in `data/field_model_export_index.tsv` is a ladder,
-//! rope, vine or climb surface (the 55 exported gimmick models are rocks, trees, boxes,
-//! balloons, crystals, snow and `gimmick_yachi01`). The mechanic is therefore exercised
-//! by the tests here plus an optional debug prop (`PLA_DEBUG_CLIMB=1`, see
-//! [`spawn_debug_climbable`]) that the maintainer can look at in the viewer.
+//! Placement state: the original has **no ladder or rope objects**; climbing is the ride-Sneasler
+//! wall climb, and the real climbable surfaces are the terrain cliffs. They are derived from the
+//! decoded heightmaps with the decoded climb-angle rule in `data/field_climb_surfaces.tsv` and
+//! spawned by [`super::climb_surfaces`] (see `reports/data-progress/climb_surfaces.md` and
+//! `reports/data-progress/ropes_ladders_unknown.md`). The debug ladder (`PLA_DEBUG_CLIMB=1`,
+//! [`spawn_debug_climbable`]) stays for eyeballing the mechanic without any data.
 //!
 //! Doors are NOT handled here: the decoded door/fast-travel table (`data/warp_links.tsv`)
 //! and its trigger flow live in `game::zone` (Brief 8, [`game::zone::door_trigger_system`]),
@@ -33,7 +31,9 @@ pub enum ClimbKind {
 /// A vertical surface the avatar can climb, from `bottom` to `top` (world space, ground frame).
 ///
 /// The avatar root (feet + [`AVATAR_ROOT_ABOVE_GROUND`]) climbs between `bottom.y + root`
-/// and `top.y + root`; the horizontal position is held at `bottom.xz` while climbing.
+/// and `top.y + root`; the horizontal position is held at `bottom.xz` while climbing, and the
+/// top step-off lands on `top.xz` (for the derived cliff sheet that is the crest of the face,
+/// elsewhere than the base; the debug ladder keeps `top.xz == bottom.xz`).
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct Climbable {
     pub kind: ClimbKind,
