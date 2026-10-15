@@ -34,6 +34,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::assets::bntx::{Bntx, FloatTextureData, TextureData};
+use crate::assets::navmesh::NavMesh;
 use crate::assets::terrain::{sample_height, TerrainArea};
 use crate::assets::terrain_albedo::{load_baked_albedo, BakeOutcome};
 use crate::game::state::{not_paused, GameState};
@@ -44,6 +45,10 @@ pub const MINIMAP_VERSION: u32 = 2;
 
 /// Default map texture size (square, texels).
 pub const DEFAULT_MAP_SIZE: u32 = 1024;
+
+/// Side of the interior (sub-area) map texture. Interiors are small scenes, so half the
+/// main-area size keeps the raster cheap while staying legible.
+pub const INTERIOR_MAP_SIZE: u32 = 512;
 
 /// Side of the on-screen minimap frame, logical pixels.
 pub const FRAME_PX: f32 = 200.0;
@@ -69,22 +74,24 @@ pub const DEFAULT_CACHE_ROOT: &str = "/home/nico/work/decompilacion/work/cache";
 
 // ------------------------------------------------------------------ world <-> map
 
-/// World `(x, z)` metres to texture `(u, v)` in `0..=1` (u = x column, v = z row).
-pub fn world_to_uv(x: f32, z: f32, extent: Vec2) -> Vec2 {
-    Vec2::new(x / extent.x, z / extent.y)
+/// World `(x, z)` metres to texture `(u, v)` in `0..=1` (u = x column, v = z row). `origin` is
+/// the world `(x, z)` of the map's `(0, 0)` corner (zero for main areas, the interior navmesh
+/// box minimum for sub-areas).
+pub fn world_to_uv(x: f32, z: f32, origin: Vec2, extent: Vec2) -> Vec2 {
+    Vec2::new((x - origin.x) / extent.x, (z - origin.y) / extent.y)
 }
 
 /// Inverse of [`world_to_uv`].
-pub fn uv_to_world(uv: Vec2, extent: Vec2) -> Vec2 {
-    Vec2::new(uv.x * extent.x, uv.y * extent.y)
+pub fn uv_to_world(uv: Vec2, origin: Vec2, extent: Vec2) -> Vec2 {
+    Vec2::new(uv.x * extent.x + origin.x, uv.y * extent.y + origin.y)
 }
 
 /// Texel-centre position of world `(x, z)` in a `map_px`-square map of `extent` metres:
 /// texel `i` covers `[i, i+1) * extent / map_px`.
-pub fn texel_of_world(x: f32, z: f32, extent: Vec2, map_px: u32) -> Vec2 {
+pub fn texel_of_world(x: f32, z: f32, origin: Vec2, extent: Vec2, map_px: u32) -> Vec2 {
     Vec2::new(
-        x / extent.x * map_px as f32 - 0.5,
-        z / extent.y * map_px as f32 - 0.5,
+        (x - origin.x) / extent.x * map_px as f32 - 0.5,
+        (z - origin.y) / extent.y * map_px as f32 - 0.5,
     )
 }
 
@@ -407,6 +414,87 @@ pub fn build_area_map(
     )
 }
 
+// ------------------------------------------------------------------ interior maps
+
+/// Colour of the walkable surface on an interior map.
+pub const INTERIOR_FLOOR_RGB: [u8; 3] = [196, 192, 180];
+
+/// Colour outside the walkable surface on an interior map (the void around the room).
+pub const INTERIOR_VOID_RGB: [u8; 3] = [14, 16, 20];
+
+/// Rasterise a sub-area navmesh top-down as its interior map.
+///
+/// Sub-areas ship no heightmap the main map generator could use (their `own_terrain` packs are
+/// not loaded), but every one of them has a decoded navmesh: the walkable surface of the room.
+/// Faces are painted with the same `x` columns / `z` rows convention as the main-area maps.
+/// The returned `origin`/`extent` are the navmesh vertex box, so [`world_to_uv`] maps interior
+/// coordinates directly. Returns `(image, origin, extent)`.
+pub fn build_navmesh_map(mesh: &NavMesh, size: u32) -> Result<(TextureData, Vec2, Vec2), String> {
+    let (lo, hi) = mesh.bounds().ok_or("navmesh has no vertices")?;
+    if !lo.iter().all(|v| v.is_finite()) || !hi.iter().all(|v| v.is_finite()) {
+        return Err("navmesh bounds are not finite".into());
+    }
+    let size = size.clamp(16, 4096);
+    let extent = Vec2::new((hi[0] - lo[0]).max(1.0), (hi[2] - lo[2]).max(1.0));
+    let origin = Vec2::new(lo[0], lo[2]);
+    let side = size as f32;
+    let mut rgba = vec![0u8; (size * size * 4) as usize];
+    for px in rgba.chunks_exact_mut(4) {
+        px.copy_from_slice(&[INTERIOR_VOID_RGB[0], INTERIOR_VOID_RGB[1], INTERIOR_VOID_RGB[2], 255]);
+    }
+    // Top-left world corner maps to texel (0, 0); +x grows with the column, +z with the row.
+    let to_px = |x: f32, z: f32| Vec2::new((x - origin.x) / extent.x * side, (z - origin.y) / extent.y * side);
+    for face in 0..mesh.faces.len() {
+        let vs = mesh.face_vertices(face as u32);
+        if vs.len() < 3 {
+            continue;
+        }
+        let a = to_px(vs[0][0], vs[0][2]);
+        for i in 1..vs.len() - 1 {
+            let b = to_px(vs[i][0], vs[i][2]);
+            let c = to_px(vs[i + 1][0], vs[i + 1][2]);
+            paint_triangle(&mut rgba, size, a, b, c, INTERIOR_FLOOR_RGB);
+        }
+    }
+    Ok((TextureData { width: size, height: size, rgba }, origin, extent))
+}
+
+/// Fill the pixels whose centre lies inside the triangle `abc` (pixel-space, `u`/`v` axes).
+fn paint_triangle(rgba: &mut [u8], size: u32, a: Vec2, b: Vec2, c: Vec2, rgb: [u8; 3]) {
+    let side = size as i64;
+    let min_x = a.x.min(b.x).min(c.x).floor().max(0.0) as i64;
+    let max_x = a.x.max(b.x).max(c.x).ceil().min(size as f32) as i64;
+    let min_y = a.y.min(b.y).min(c.y).floor().max(0.0) as i64;
+    let max_y = a.y.max(b.y).max(c.y).ceil().min(size as f32) as i64;
+    let edge = |p: Vec2, q: Vec2, x: f32, y: f32| (q.x - p.x) * (y - p.y) - (q.y - p.y) * (x - p.x);
+    // Orientation-independent inside test: same sign on all three edges (zeros count as inside).
+    let area = edge(a, b, c.x, c.y);
+    let positive = area >= 0.0;
+    let inside = |x: f32, y: f32| {
+        let e0 = edge(a, b, x, y);
+        let e1 = edge(b, c, x, y);
+        let e2 = edge(c, a, x, y);
+        if positive {
+            e0 >= 0.0 && e1 >= 0.0 && e2 >= 0.0
+        } else {
+            e0 <= 0.0 && e1 <= 0.0 && e2 <= 0.0
+        }
+    };
+    for py in min_y..max_y {
+        for px in min_x..max_x {
+            let (cx, cy) = (px as f32 + 0.5, py as f32 + 0.5);
+            if !inside(cx, cy) {
+                continue;
+            }
+            let at = ((py * side + px) * 4) as usize;
+            rgba[at] = rgb[0];
+            rgba[at + 1] = rgb[1];
+            rgba[at + 2] = rgb[2];
+            rgba[at + 3] = 255;
+        }
+    }
+}
+
 // ------------------------------------------------------------------ game map images
 
 /// Path of the game's own single-tile map image for `area`, when it exists.
@@ -679,8 +767,12 @@ pub struct FullMapMarker;
 /// What the minimap currently shows.
 #[derive(Resource, Debug, Default)]
 pub struct MinimapState {
-    /// Main-area index the current map belongs to.
+    /// Main-area index the current map belongs to (`None` inside an interior).
     pub area: Option<u8>,
+    /// Sub-area zone id of the current map (`None` in a main area).
+    pub interior: Option<String>,
+    /// World `(x, z)` of the map's `(0, 0)` corner (zero for main areas).
+    pub origin: Vec2,
     /// World extent of the current area (metres).
     pub extent: Vec2,
     /// Texture side of the current map (texels).
@@ -927,24 +1019,38 @@ pub fn setup_minimap_ui(mut commands: Commands, hud: Query<Entity, With<WorldHud
         });
 }
 
-/// Regenerate the map when the active main area changes (and once at start).
+/// Regenerate the map when the active main area changes (and once at start). Inside an interior
+/// the map is rasterised from the sub-area navmesh; when the scene has no map data at all the
+/// frame hides instead of keeping a stale main-area map.
+#[allow(clippy::too_many_arguments)]
 pub fn rebuild_minimap_on_zone_change(
     mut state: ResMut<MinimapState>,
     config: Res<MinimapConfig>,
     zone: Option<Res<crate::game::ui::ActiveZoneInfo>>,
     terrain: Option<Res<crate::game::zone::TerrainResource>>,
+    navmesh: Option<Res<crate::game::navigation::GameNavmeshResource>>,
     images: Option<ResMut<Assets<Image>>>,
     mut minimap_q: Query<&mut ImageNode, With<MinimapImage>>,
     mut full_q: Query<&mut ImageNode, (With<FullMapImage>, Without<MinimapImage>)>,
+    mut root_q: Query<&mut Visibility, With<MinimapRoot>>,
 ) {
     let Some(mut images) = images else {
         return; // headless app without an image store: nothing to show
     };
     let Some(zone) = zone else { return };
     let Some(area_idx) = zone.area_idx() else {
+        rebuild_interior_map(
+            &mut state,
+            &zone.area,
+            navmesh.as_deref(),
+            &mut images,
+            &mut minimap_q,
+            &mut full_q,
+            &mut root_q,
+        );
         return;
     };
-    if state.area == Some(area_idx) && state.map_px == config.size {
+    if state.area == Some(area_idx) && state.interior.is_none() && state.map_px == config.size {
         return;
     }
     let Some(terrain) = terrain else { return };
@@ -989,9 +1095,90 @@ pub fn rebuild_minimap_on_zone_change(
         node.image = handle.clone();
     }
     state.area = Some(area_idx);
+    state.interior = None;
+    state.origin = Vec2::ZERO;
     state.extent = Vec2::new(terrain.area.world_extent[0], terrain.area.world_extent[1]);
     state.map_px = resolved.image.width;
     state.image = Some(handle);
+    show_minimap_frame(&mut root_q, true);
+}
+
+/// Interior branch: rasterise the sub-area navmesh, or hide the frame when there is nothing to
+/// draw. Waits (frame by frame, without hiding) for the interior navmesh the zone change
+/// installs, so the map never mixes two frames.
+#[allow(clippy::too_many_arguments)]
+fn rebuild_interior_map(
+    state: &mut MinimapState,
+    zone: &str,
+    navmesh: Option<&crate::game::navigation::GameNavmeshResource>,
+    images: &mut Assets<Image>,
+    minimap_q: &mut Query<&mut ImageNode, With<MinimapImage>>,
+    full_q: &mut Query<&mut ImageNode, (With<FullMapImage>, Without<MinimapImage>)>,
+    root_q: &mut Query<&mut Visibility, With<MinimapRoot>>,
+) {
+    if state.interior.as_deref() == Some(zone) {
+        return;
+    }
+    let Some(navmesh) = navmesh else {
+        // No navmesh yet: keep waiting without hiding (the scene is still loading).
+        return;
+    };
+    if navmesh.nav.area != crate::game::interior::INTERIOR_TERRAIN_AREA {
+        // The resource still holds the previous main-area navmesh: the zone change has not
+        // swapped it yet.
+        return;
+    }
+    match build_navmesh_map(navmesh.nav.primary(), INTERIOR_MAP_SIZE) {
+        Ok((image, origin, extent)) => {
+            let (w, h) = (image.width.max(1), image.height.max(1));
+            let handle = images.add(Image::new(
+                Extent3d {
+                    width: w,
+                    height: h,
+                    depth_or_array_layers: 1,
+                },
+                TextureDimension::D2,
+                image.rgba,
+                TextureFormat::Rgba8UnormSrgb,
+                RenderAssetUsages::default(),
+            ));
+            println!("Minimap: interior {zone} map {w}x{h} from the sub-area navmesh");
+            for mut node in minimap_q.iter_mut() {
+                node.image = handle.clone();
+            }
+            for mut node in full_q.iter_mut() {
+                node.image = handle.clone();
+            }
+            state.area = None;
+            state.interior = Some(zone.to_string());
+            state.origin = origin;
+            state.extent = extent;
+            state.map_px = image.width;
+            state.image = Some(handle);
+            show_minimap_frame(root_q, true);
+        }
+        Err(e) => {
+            // No drawable data: hide the frame cleanly instead of leaving the main-area map up.
+            eprintln!("Minimap: interior {zone} has no map data: {e}");
+            state.area = None;
+            state.interior = Some(zone.to_string());
+            state.image = None;
+            state.extent = Vec2::ZERO;
+            state.map_px = 0;
+            show_minimap_frame(root_q, false);
+        }
+    }
+}
+
+/// Show or hide the minimap frame. Uses `Inherited` (never `Visible`) to restore it, so the
+/// hidden world HUD root keeps hiding it in battle and menus.
+fn show_minimap_frame(root_q: &mut Query<&mut Visibility, With<MinimapRoot>>, show: bool) {
+    let wanted = if show { Visibility::Inherited } else { Visibility::Hidden };
+    for mut visibility in root_q.iter_mut() {
+        if *visibility != wanted {
+            *visibility = wanted;
+        }
+    }
 }
 
 /// Crop the map around the player and rotate the marker; update the compass strip.
@@ -1001,7 +1188,7 @@ pub fn update_minimap_hud(
     player: Query<&Transform, With<crate::game::PlayerAvatar>>,
     mut minimap_q: Query<&mut ImageNode, With<MinimapImage>>,
     mut marker_q: Query<(&mut Node, &mut UiTransform), With<MinimapPlayerMarker>>,
-    mut full_marker_q: Query<&mut UiTransform, (With<FullMapMarker>, Without<MinimapPlayerMarker>)>,
+    mut full_marker_q: Query<(&mut Node, &mut UiTransform), (With<FullMapMarker>, Without<MinimapPlayerMarker>)>,
     mut compass_q: Query<&mut Text, With<CompassText>>,
 ) {
     if state.image.is_none() || state.map_px == 0 {
@@ -1011,7 +1198,7 @@ pub fn update_minimap_hud(
         return;
     };
     let (x, z) = (transform.translation.x, transform.translation.z);
-    let player_texel = texel_of_world(x, z, state.extent, state.map_px);
+    let player_texel = texel_of_world(x, z, state.origin, state.extent, state.map_px);
     let view_texels = VIEW_METRES * state.map_px as f32 / state.extent.x.max(1e-3);
     let (window_center, rect) = crop_window(player_texel, view_texels, state.map_px);
     let offset = marker_offset_px(player_texel, window_center, view_texels, FRAME_PX);
@@ -1027,7 +1214,12 @@ pub fn update_minimap_hud(
         node.top = Val::Px(FRAME_PX * 0.5 - 7.0 + offset.y);
         *ui = UiTransform::from_rotation(rotation);
     }
-    for mut ui in &mut full_marker_q {
+    // The port's own dot on the full-screen map: place it with the current map's origin and
+    // spin it with the facing (the original-UI path hides it and draws its own arrow instead).
+    let uv = full_map_marker_uv(x, z, state.origin, state.extent);
+    for (mut node, mut ui) in &mut full_marker_q {
+        node.left = Val::Percent(uv.x * 100.0);
+        node.top = Val::Percent(uv.y * 100.0);
         *ui = UiTransform::from_rotation(rotation);
     }
     let dir = compass_dir(facing.x, facing.y);
@@ -1058,8 +1250,8 @@ pub fn toggle_full_map(
     }
 }
 
-/// The overlay is only visible while open in the world state (cheap enough to set every frame;
-/// the change-detection gate proved fragile across state transitions).
+/// The overlay is only visible while open in the world state and a map exists (cheap enough to
+/// set every frame; the change-detection gate proved fragile across state transitions).
 pub fn full_map_visibility_system(
     state: Res<MinimapState>,
     game_state: Option<Res<State<GameState>>>,
@@ -1068,7 +1260,7 @@ pub fn full_map_visibility_system(
     let in_world = game_state
         .as_ref()
         .is_none_or(|s| matches!(s.get(), GameState::World));
-    let wanted = if state.open && in_world {
+    let wanted = if state.open && in_world && state.image.is_some() {
         Visibility::Visible
     } else {
         Visibility::Hidden
@@ -1081,8 +1273,8 @@ pub fn full_map_visibility_system(
 }
 
 /// The full-screen player dot position as a fraction of the map (`u`, `v` in `0..=1`).
-pub fn full_map_marker_uv(x: f32, z: f32, extent: Vec2) -> Vec2 {
-    world_to_uv(x, z, extent).clamp(Vec2::ZERO, Vec2::ONE)
+pub fn full_map_marker_uv(x: f32, z: f32, origin: Vec2, extent: Vec2) -> Vec2 {
+    world_to_uv(x, z, origin, extent).clamp(Vec2::ZERO, Vec2::ONE)
 }
 
 #[cfg(test)]
@@ -1117,21 +1309,101 @@ mod tests {
     #[test]
     fn world_uv_and_texels_round_trip_at_the_corners() {
         let extent = Vec2::new(1025.0, 1025.0);
-        assert_eq!(world_to_uv(0.0, 0.0, extent), Vec2::ZERO);
-        assert_eq!(world_to_uv(1025.0, 1025.0, extent), Vec2::ONE);
+        let zero = Vec2::ZERO;
+        assert_eq!(world_to_uv(0.0, 0.0, zero, extent), Vec2::ZERO);
+        assert_eq!(world_to_uv(1025.0, 1025.0, zero, extent), Vec2::ONE);
         assert!(
-            (uv_to_world(world_to_uv(512.3, 100.7, extent), extent) - Vec2::new(512.3, 100.7))
-                .length()
+            (uv_to_world(world_to_uv(512.3, 100.7, zero, extent), zero, extent)
+                - Vec2::new(512.3, 100.7))
+            .length()
                 < 1e-3
         );
         // Texel centres: the world point of texel centre `(i + 0.5, j + 0.5)` maps back to `(i, j)`.
-        let centre = uv_to_world(Vec2::new(511.5, 255.5) / 1024.0, extent);
-        let t = texel_of_world(centre.x, centre.y, extent, 1024);
+        let centre = uv_to_world(Vec2::new(511.5, 255.5) / 1024.0, zero, extent);
+        let t = texel_of_world(centre.x, centre.y, zero, extent, 1024);
         assert!(
             (t - Vec2::new(511.0, 255.0)).length() < 1e-3,
             "texel centres line up: {t:?}"
         );
-        assert!((texel_of_world(0.5, 0.5, extent, 1024) - Vec2::splat(0.0)).length() < 0.01);
+        assert!((texel_of_world(0.5, 0.5, zero, extent, 1024) - Vec2::splat(0.0)).length() < 0.01);
+    }
+
+    #[test]
+    fn interior_origin_shifts_the_mapping() {
+        // An interior's map covers the navmesh box, not the world origin: a room at
+        // x 428..532, z 420..607 maps its corner to uv (0, 0) and its far corner to (1, 1).
+        let origin = Vec2::new(428.0, 420.0);
+        let extent = Vec2::new(104.0, 187.0);
+        assert_eq!(world_to_uv(428.0, 420.0, origin, extent), Vec2::ZERO);
+        assert!(
+            (world_to_uv(532.0, 607.0, origin, extent) - Vec2::ONE).length() < 1e-5
+        );
+        let back = uv_to_world(Vec2::new(0.25, 0.75), origin, extent);
+        assert!((back - Vec2::new(428.0 + 26.0, 420.0 + 140.25)).length() < 1e-3);
+        // The texel of the room centre sits in the middle of the map.
+        let t = texel_of_world(480.0, 513.5, origin, extent, 512);
+        assert!((t - Vec2::splat(255.5)).length() < 0.5, "{t:?}");
+        // The full-map marker uv is clamped into the map.
+        let uv = full_map_marker_uv(400.0, 500.0, origin, extent);
+        assert!(uv.x == 0.0 && (uv.y - 80.0 / 187.0).abs() < 1e-5, "{uv:?}");
+    }
+
+    #[test]
+    fn navmesh_map_paints_the_walkable_face() {
+        use crate::assets::navmesh::{NavEdge, NavFace, NavMesh};
+        // One square face 0..10 m in x and z, at y = 2.
+        let vertices = vec![
+            [0.0, 2.0, 0.0],
+            [10.0, 2.0, 0.0],
+            [10.0, 2.0, 10.0],
+            [0.0, 2.0, 10.0],
+        ];
+        let edges = vec![
+            NavEdge { a: 0, b: 1, opposite_edge: u32::MAX, opposite_face: u32::MAX, flags: 0 },
+            NavEdge { a: 1, b: 2, opposite_edge: u32::MAX, opposite_face: u32::MAX, flags: 0 },
+            NavEdge { a: 2, b: 3, opposite_edge: u32::MAX, opposite_face: u32::MAX, flags: 0 },
+            NavEdge { a: 3, b: 0, opposite_edge: u32::MAX, opposite_face: u32::MAX, flags: 0 },
+        ];
+        let faces = vec![NavFace { start_edge: 0, num_edges: 4 }];
+        let mesh = NavMesh::from_parts(vertices, faces.clone(), edges.clone()).expect("synthetic navmesh");
+        let (image, origin, extent) = build_navmesh_map(&mesh, 64).expect("raster");
+        assert_eq!((image.width, image.height), (64, 64));
+        assert_eq!(origin, Vec2::ZERO);
+        assert_eq!(extent, Vec2::splat(10.0));
+        let pixel = |x: u32, y: u32| {
+            let at = ((y * 64 + x) * 4) as usize;
+            [image.rgba[at], image.rgba[at + 1], image.rgba[at + 2]]
+        };
+        // Centre of the face is walkable floor colour; the corners are too (the face spans it).
+        assert_eq!(pixel(32, 32), INTERIOR_FLOOR_RGB);
+        assert_eq!(pixel(1, 1), INTERIOR_FLOOR_RGB);
+        assert_eq!(pixel(62, 62), INTERIOR_FLOOR_RGB);
+
+        // Orientation: a face covering only the low quadrant of the box (an unreferenced far
+        // vertex sets the bounds) paints the low columns/rows only: +x grows with the column
+        // and +z with the row, exactly like the main-area generated maps.
+        let quad_vertices = vec![
+            [0.0, 2.0, 0.0],
+            [5.0, 2.0, 0.0],
+            [5.0, 2.0, 5.0],
+            [0.0, 2.0, 5.0],
+            [10.0, 2.0, 10.0],
+        ];
+        let quad = NavMesh::from_parts(quad_vertices, faces.clone(), edges.clone()).expect("quad");
+        let (image, origin, extent) = build_navmesh_map(&quad, 64).expect("raster");
+        assert_eq!(origin, Vec2::ZERO);
+        assert_eq!(extent, Vec2::splat(10.0));
+        let pixel = |x: u32, y: u32| {
+            let at = ((y * 64 + x) * 4) as usize;
+            [image.rgba[at], image.rgba[at + 1], image.rgba[at + 2]]
+        };
+        assert_eq!(pixel(10, 10), INTERIOR_FLOOR_RGB, "low x, low z: inside");
+        assert_eq!(pixel(50, 10), INTERIOR_VOID_RGB, "+x grows with the column");
+        assert_eq!(pixel(10, 50), INTERIOR_VOID_RGB, "+z grows with the row");
+        // A navmesh with no vertices fails cleanly.
+        if let Ok(empty) = NavMesh::from_parts(Vec::new(), Vec::new(), Vec::new()) {
+            assert!(build_navmesh_map(&empty, 64).is_err());
+        }
     }
 
     #[test]
@@ -1540,6 +1812,107 @@ mod tests {
             state.image.clone().unwrap().id(),
             first.id(),
             "new map texture"
+        );
+    }
+
+    /// A navmesh resource with one 10x10 m quad face at `y = 2` (or empty for the no-data case).
+    fn synthetic_navmesh_resource(area: u8, empty: bool) -> crate::game::navigation::GameNavmeshResource {
+        use crate::assets::navmesh::{AreaNavigation, NavEdge, NavFace, NavMesh};
+        let mesh = if empty {
+            NavMesh::from_parts(Vec::new(), Vec::new(), Vec::new()).unwrap()
+        } else {
+            let vertices = vec![
+                [0.0, 2.0, 0.0],
+                [10.0, 2.0, 0.0],
+                [10.0, 2.0, 10.0],
+                [0.0, 2.0, 10.0],
+            ];
+            let edge = |a, b| NavEdge { a, b, opposite_edge: u32::MAX, opposite_face: u32::MAX, flags: 0 };
+            let edges = vec![edge(0, 1), edge(1, 2), edge(2, 3), edge(3, 0)];
+            let faces = vec![NavFace { start_edge: 0, num_edges: 4 }];
+            NavMesh::from_parts(vertices, faces, edges).unwrap()
+        };
+        crate::game::navigation::GameNavmeshResource {
+            nav: std::sync::Arc::new(AreaNavigation { area, meshes: vec![mesh] }),
+        }
+    }
+
+    fn minimap_root_visibility(app: &mut App) -> Visibility {
+        let mut query = app
+            .world_mut()
+            .query_filtered::<&Visibility, With<MinimapRoot>>();
+        *query.iter(app.world()).next().expect("minimap root")
+    }
+
+    #[test]
+    fn interior_zone_change_shows_the_room_map_and_leaving_restores() {
+        let mut app = minimap_test_app(0);
+        let main_image = app.world().resource::<MinimapState>().image.clone().unwrap();
+        assert_eq!(minimap_root_visibility(&mut app), Visibility::Inherited);
+
+        // Enter an interior: the sub-area navmesh (its `area` pin is the interior sentinel)
+        // replaces the main-area one and the placeholder terrain is installed.
+        app.insert_resource(crate::game::interior::placeholder_terrain());
+        app.insert_resource(synthetic_navmesh_resource(
+            crate::game::interior::INTERIOR_TERRAIN_AREA,
+            false,
+        ));
+        app.insert_resource(crate::game::ui::ActiveZoneInfo {
+            area: "ha_area00_s03_a".into(),
+            name: "Interior".into(),
+        });
+        app.update();
+        let state = app.world().resource::<MinimapState>();
+        assert_eq!(state.area, None, "the main-area map is not claimed inside");
+        assert_eq!(state.interior.as_deref(), Some("ha_area00_s03_a"));
+        assert_eq!(state.origin, Vec2::ZERO, "the synthetic quad starts at the origin");
+        assert_eq!(state.extent, Vec2::splat(10.0));
+        assert_eq!(state.map_px, INTERIOR_MAP_SIZE);
+        let interior_image = state.image.clone().expect("interior map wired");
+        assert_ne!(interior_image.id(), main_image.id(), "the room map replaced it");
+        assert_eq!(minimap_root_visibility(&mut app), Visibility::Inherited);
+
+        // Leaving back to a main area restores the generated area map.
+        app.insert_resource(synthetic_terrain(1, 1025.0, 300.0));
+        app.insert_resource(synthetic_navmesh_resource(1, false));
+        app.insert_resource(crate::game::ui::ActiveZoneInfo {
+            area: "ha_area01".into(),
+            name: "Area 01".into(),
+        });
+        app.update();
+        let state = app.world().resource::<MinimapState>();
+        assert_eq!(state.area, Some(1), "back on a main area");
+        assert_eq!(state.interior, None);
+        assert_eq!(state.origin, Vec2::ZERO);
+        assert_eq!(state.map_px, 64, "back to the configured main map size");
+        assert_ne!(
+            state.image.clone().unwrap().id(),
+            interior_image.id(),
+            "the interior map is not left on screen"
+        );
+        assert_eq!(minimap_root_visibility(&mut app), Visibility::Inherited);
+    }
+
+    #[test]
+    fn interior_without_map_data_hides_the_frame_cleanly() {
+        let mut app = minimap_test_app(0);
+        app.insert_resource(crate::game::interior::placeholder_terrain());
+        app.insert_resource(synthetic_navmesh_resource(
+            crate::game::interior::INTERIOR_TERRAIN_AREA,
+            true,
+        ));
+        app.insert_resource(crate::game::ui::ActiveZoneInfo {
+            area: "ha_area05_s02".into(),
+            name: "Interior".into(),
+        });
+        app.update();
+        let state = app.world().resource::<MinimapState>();
+        assert_eq!(state.interior.as_deref(), Some("ha_area05_s02"));
+        assert!(state.image.is_none(), "no data -> no map image");
+        assert_eq!(
+            minimap_root_visibility(&mut app),
+            Visibility::Hidden,
+            "no data -> the frame hides instead of keeping the previous map"
         );
     }
 

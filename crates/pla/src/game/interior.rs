@@ -34,6 +34,10 @@ use crate::game::zone::TerrainResource;
 /// Decoded sub-zone index (one row per area record: 8 main + 55 sub-areas).
 pub const SUBZONE_INDEX_SHEET: &str = "subzone_index.tsv";
 
+/// Generated shell-coverage sheet (`data/subzone_shells.tsv`, `.tools/subzone_shells.py`):
+/// per sub-area, whether the exported placed geometry covers its navmesh.
+pub const SUBZONE_SHELLS_SHEET: &str = "subzone_shells.tsv";
+
 /// Sentinel `TerrainArea::area` of the empty terrain installed while an interior is active: it
 /// makes the `.trins` tree spawner drop the previous area's trees (its step reacts to the change)
 /// and gives the height fallbacks nothing to sample, without removing the resource other systems
@@ -90,6 +94,75 @@ pub fn load_subzone_index() -> Vec<SubAreaRow> {
         .unwrap_or_default()
 }
 
+/// Shell coverage of one sub-area (row of [`SUBZONE_SHELLS_SHEET`]).
+///
+/// `covered` means the union of the placed exported geometry covers the sub-area navmesh box
+/// (>= 95 % of each horizontal axis and reaching the navmesh's y band within 0.5 m), so the
+/// scene has real walls/floor and needs no placeholder. `partial` = some geometry exists but it
+/// does not cover the navmesh. `none` = no placed geometry at all. PROBABLE (box test; `rot_y`
+/// is LIKELY sheet data), see `.tools/subzone_shells.py`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShellStatus {
+    Covered,
+    Partial,
+    None,
+}
+
+/// One parsed shell-coverage row.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShellRow {
+    pub area: String,
+    pub models_ok: u16,
+    pub coverage_x: f32,
+    pub coverage_z: f32,
+    pub shell: ShellStatus,
+}
+
+/// Parse `subzone_shells.tsv` (header comments skipped; unknown `shell` values are dropped).
+pub fn parse_subzone_shells(text: &str) -> HashMap<String, ShellRow> {
+    let mut cols: HashMap<&str, usize> = HashMap::new();
+    let mut out = HashMap::new();
+    for line in text.lines().filter(|l| !l.starts_with('#')) {
+        let c: Vec<&str> = line.split('\t').collect();
+        if cols.is_empty() {
+            for (i, h) in c.iter().enumerate() {
+                cols.insert(h.split(':').next().unwrap_or(h), i);
+            }
+            continue;
+        }
+        let get = |n: &str| cols.get(n).and_then(|&i| c.get(i)).copied().unwrap_or("");
+        let area = get("area");
+        if area.is_empty() {
+            continue;
+        }
+        let shell = match get("shell") {
+            "covered" => ShellStatus::Covered,
+            "partial" => ShellStatus::Partial,
+            "none" => ShellStatus::None,
+            _ => continue,
+        };
+        out.insert(
+            area.to_string(),
+            ShellRow {
+                area: area.to_string(),
+                models_ok: get("models_ok").parse().unwrap_or(0),
+                coverage_x: get("coverage_x").parse().unwrap_or(0.0),
+                coverage_z: get("coverage_z").parse().unwrap_or(0.0),
+                shell,
+            },
+        );
+    }
+    out
+}
+
+/// Read and parse the real shell-coverage sheet. Empty without the sheet.
+pub fn load_subzone_shells() -> HashMap<String, ShellRow> {
+    find_data_file(SUBZONE_SHELLS_SHEET)
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|t| parse_subzone_shells(&t))
+        .unwrap_or_default()
+}
+
 /// Export cache root (`$PLA_CACHE_ROOT`, else the main checkout's `work/cache`).
 pub fn cache_root() -> PathBuf {
     std::env::var_os("PLA_CACHE_ROOT")
@@ -121,7 +194,10 @@ pub struct InteriorPlan {
     pub navmesh_pack: Option<PathBuf>,
     /// Placement models of this sub-area with an exported glTF on disk (rooms and props).
     pub geometry_models: Vec<String>,
-    /// True when at least one streamable model is a room shell (`room_*`).
+    /// True when the scene has a real shell: the shell sheet marks it `covered`, or a
+    /// streamable model is a `room_*` shell (the rule the sheet cannot replace for scenes whose
+    /// room sits inside a bigger navmesh, e.g. the tents). False only when the visible SUPUESTO
+    /// fallback is needed.
     pub has_room: bool,
     pub own_terrain: bool,
     /// Why the visible fallback room is needed (`None` = real geometry available).
@@ -131,12 +207,15 @@ pub struct InteriorPlan {
 }
 
 /// Build the plan from the sheets (pure; the caller reads the files). `cache_root` resolves the
-/// export-index paths, `bin_root` locates the navmesh pack. `None` without a matching index row.
+/// export-index paths, `bin_root` locates the navmesh pack, `shells` is the parsed
+/// [`SUBZONE_SHELLS_SHEET`] (empty map = sheet unavailable, falls back to the `room_*` rule).
+/// `None` without a matching index row.
 pub fn interior_plan_from_sheets(
     zone: &str,
     rows: &[SubAreaRow],
     placements_text: &str,
     export_index_text: &str,
+    shells: &HashMap<String, ShellRow>,
     cache_root: &Path,
     bin_root: &Path,
 ) -> Option<InteriorPlan> {
@@ -157,12 +236,26 @@ pub fn interior_plan_from_sheets(
     let mut geometry_models: Vec<String> = placements.iter().map(|p| p.model.clone()).collect();
     geometry_models.sort();
     geometry_models.dedup();
-    let has_room = geometry_models.iter().any(|m| m.starts_with("room_"));
-    let fallback = (!has_room)
-        .then(|| "no streamable room shell for this sub-area (6 of 55 lack one)".to_string());
-    let notice = row
-        .own_terrain
-        .then(|| "sub-area carries its own terrain; its pack naming is not decoded (UNKNOWN)".to_string());
+    let has_room_prefix = geometry_models.iter().any(|m| m.starts_with("room_"));
+    let shell = shells.get(zone).map(|s| s.shell);
+    let has_room = has_room_prefix || shell == Some(ShellStatus::Covered);
+    let fallback = (!has_room).then(|| {
+        match shell {
+            Some(ShellStatus::None) | None => {
+                "no placed geometry for this sub-area (its own terrain is the scene)".to_string()
+            }
+            Some(ShellStatus::Partial) if !geometry_models.is_empty() => {
+                "streamable geometry does not cover the sub-area navmesh".to_string()
+            }
+            Some(ShellStatus::Partial) => "no streamable room shell for this sub-area".to_string(),
+            Some(ShellStatus::Covered) => unreachable!("covered implies has_room"),
+        }
+    });
+    let notice = row.own_terrain.then(|| {
+        "sub-area carries its own terrain; the port loads its placed models, not the terrain \
+         (tile naming decoded, loader not wired)"
+            .to_string()
+    });
     Some(InteriorPlan {
         zone: zone.to_string(),
         parent: row.parent.clone(),
@@ -190,7 +283,16 @@ pub fn interior_plan(zone: &str, cache_root: &Path, bin_root: &Path) -> Option<I
         .and_then(|p| std::fs::read_to_string(p).ok())
         .unwrap_or_default();
     let export_index_text = read_export_index().unwrap_or_default();
-    interior_plan_from_sheets(zone, &rows, &placements_text, &export_index_text, cache_root, bin_root)
+    let shells = load_subzone_shells();
+    interior_plan_from_sheets(
+        zone,
+        &rows,
+        &placements_text,
+        &export_index_text,
+        &shells,
+        cache_root,
+        bin_root,
+    )
 }
 
 /// Empty terrain installed while an interior is active (see [`INTERIOR_TERRAIN_AREA`]).
@@ -357,7 +459,8 @@ mod tests {
         // s02 of area 00 has its own terrain but rooms are exported (notice only, no placeholder);
         // s02 of area 03 places a room model exported from the main area pack (room streams);
         // s02 of area 05 has no placements at all (empty-scene fallback);
-        // s02 of area 04 has ground/props but no room shell (floor-only fallback).
+        // s02 of area 04 is a cave whose exported shell (`ground_area04_cave03`) covers the
+        // navmesh, so the shell sheet marks it `covered` and no placeholder is drawn.
         let own = interior_plan("ha_area00_s02", &cache_root, &bin_root).expect("plan s02");
         assert!(own.own_terrain);
         assert!(own.has_room, "s02 exports its rooms");
@@ -376,10 +479,53 @@ mod tests {
         assert!(empty.fallback.is_some(), "no geometry => empty-scene fallback");
         assert!(empty.navmesh_pack.is_some(), "the navmesh still loads");
 
-        let props = interior_plan("ha_area04_s02", &cache_root, &bin_root).expect("plan a04_s02");
-        assert!(!props.has_room);
-        assert!(!props.geometry_models.is_empty(), "cave ground and props stream");
-        assert!(props.fallback.is_some(), "no room shell => floor-only fallback");
+        let cave = interior_plan("ha_area04_s02", &cache_root, &bin_root).expect("plan a04_s02");
+        assert!(!cave.geometry_models.is_empty(), "the cave shell and props stream");
+        assert!(cave.has_room, "the exported cave shell covers the navmesh");
+        assert!(cave.fallback.is_none(), "covered shell => no floor placeholder");
+    }
+
+    #[test]
+    fn parse_shell_rows_and_pick_the_status() {
+        let text = "# sheet: x\narea:string*\tparent:string\tmodels_ok:u16\tcoverage_x:f32\tcoverage_z:f32\ty_overlap:f32\tshell:enum\tconfidence:enum\n\
+                    ha_area00_s03_a\tha_area00\t2\t1\t1\t1\tcovered\tPROBABLE\n\
+                    ha_area04_s01\tha_area04\t1\t0.5\t0.5\t1\tpartial\tPROBABLE\n\
+                    ha_area05_s02\tha_area05\t0\t\t\t\tnone\tVERIFIED\n\
+                    ha_bogus\tx\t0\t\t\t\tweird\tASSUMED\n";
+        let shells = parse_subzone_shells(text);
+        assert_eq!(shells.len(), 3, "the unknown status is dropped");
+        assert_eq!(shells["ha_area00_s03_a"].shell, ShellStatus::Covered);
+        assert_eq!(shells["ha_area04_s01"].shell, ShellStatus::Partial);
+        assert_eq!(shells["ha_area05_s02"].shell, ShellStatus::None);
+        assert_eq!(shells["ha_area00_s03_a"].models_ok, 2);
+        assert!((shells["ha_area04_s01"].coverage_x - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn real_shells_sheet_covers_the_six_fallback_interiors() {
+        let text = find_data_file(SUBZONE_SHELLS_SHEET)
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .expect("data/subzone_shells.tsv");
+        let shells = parse_subzone_shells(&text);
+        assert_eq!(shells.len(), 55, "one row per sub-area");
+        // The five interiors whose shell was wrongly reported missing: their exported
+        // geometry covers the navmesh (see reports/data-progress/subzone_shells.md).
+        for zone in [
+            "ha_area04_s01",
+            "ha_area04_s02",
+            "ha_area04_s03",
+            "ha_area04_s04",
+            "ha_area05_s01",
+        ] {
+            assert_eq!(
+                shells[zone].shell,
+                ShellStatus::Covered,
+                "{zone} has a real exported shell"
+            );
+        }
+        // The one sub-area the game ships empty of placed geometry: its own terrain is the scene.
+        assert_eq!(shells["ha_area05_s02"].shell, ShellStatus::None);
+        assert_eq!(shells["ha_area05_s02"].models_ok, 0);
     }
 
     #[test]

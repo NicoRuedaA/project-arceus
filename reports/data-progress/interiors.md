@@ -44,6 +44,16 @@ main-area terrain, objects, spawners and trees reload.
 
 ### Missing room shells -> visible SUPUESTO fallback
 
+> **Correction (2026-10-15, follow-up in this branch):** the "6 of 55 lack a room shell" claim
+> was wrong for five of them. The shell test only accepted `room_*` names, and the 14 shell
+> models `subzones.md` listed as `blocked` were re-exported later: `objects_area04_stairs01`,
+> `ground_area04_cave03/07`, `objects_area04_building01_b` and the 15
+> `*_area05_ktemple_*` models are `ok` with a glTF on disk, and their placed boxes cover
+> their sub-area navmeshes (97-100 % of each horizontal axis; `.tools/subzone_shells.py`,
+> `data/subzone_shells.tsv`, `reports/data-progress/subzone_shells.md`). The runtime now
+> keeps the placeholder only where the game places no geometry: `ha_area05_s02` alone,
+> whose scene is its own (now decoded) terrain pack. Details in the report above.
+
 6 of the 55 sub-areas cannot stream any room shell (`ha_area04_s01..s04`, `ha_area05_s01`,
 `ha_area05_s02`). Instead of an empty scene they get a **provisional room**: a floor slab sized to
 the sub-area navmesh bounds (plus three walls when the scene is small), clear grey-green, marked
@@ -100,18 +110,24 @@ Load row works as before).
 
 ### SUPUESTO / limits (labelled, never hidden)
 
-- Fallback room geometry and the `[SUPUESTO]` notice: port scaffolding.
+- Fallback room geometry and the `[SUPUESTO]` notice: port scaffolding, **now only for
+  `ha_area05_s02`** (the one sub-area with no placed geometry; see the correction above).
 - Base reach 0.75 m and the `+0.1` slack: port margins for the missing thresholds.
-- Minimap inside an interior: `zone.area_idx()` is `None` for sub-areas, so the last main-area map
-  stays on screen (not wrong data, but not the interior either). PENDING.
-- `own_terrain` sub-areas (a00_s02, a04_s04, a05_s02): their terrain pack naming is UNKNOWN; rooms
-  where exported, a labelled fallback otherwise.
+- Minimap inside an interior: fixed in this follow-up — the minimap rasterises the sub-area
+  navmesh (the room footprint) with the sub-area's own world box, and hides cleanly when there
+  is no drawable data; see `reports/data-progress/minimap.md`.
+- `own_terrain` sub-areas (a00_s02, a04_s04, a05_s02): their terrain tile naming is now
+  **decoded** (`bin/field/terrain/<zone>/terrain/<tile>_{heightmap,normalmap,splat_alpha}.bntx`,
+  tiles `terrain_1_1` and `terrain_area01_demo`, verified by entry hashes); loading that
+  terrain into the engine is still open, so their scenes show the game's placed models (or,
+  for a05_s02, the labelled fallback).
 - Interior NPC behaviour: placements stream, but routes/dialogue are story territory (out of
   scope as always).
 
 ### UNKNOWN
 
-- The three `own_terrain` packs' internal naming; door gate flags (story, ignored as before);
+- How far the `own_terrain` packs' terrain is used by the original game before the models load
+  (the tile naming itself is decoded now); door gate flags (story, ignored as before);
   whether the original game settles the player slightly differently at each threshold.
 
 ## Reproduction

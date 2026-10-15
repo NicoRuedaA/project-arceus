@@ -1403,8 +1403,8 @@ const MAP_ARROW: &str = "png/gfpak_map/arc/map_app_icon_00/map_icon_location_arr
 const MAP_POINT: &str = "png/gfpak_map/arc/map_app_icon_00/map_icon_spmap_00^q.png";
 
 /// Percent position of world `(x, z)` on the port's full area map.
-pub fn map_percent(x: f32, z: f32, extent: Vec2) -> Vec2 {
-    let uv = crate::game::minimap::world_to_uv(x, z, extent);
+pub fn map_percent(x: f32, z: f32, origin: Vec2, extent: Vec2) -> Vec2 {
+    let uv = crate::game::minimap::world_to_uv(x, z, origin, extent);
     (uv * 100.0).clamp(Vec2::ZERO, Vec2::splat(100.0))
 }
 
@@ -1501,9 +1501,9 @@ pub fn sync_map_markers(
     let rot = crate::game::minimap::marker_rotation_deg(facing.x, facing.y);
     for (_, which, mut node, mut ui, mut vis) in &mut markers {
         let (pos, angle) = match which.0 {
-            None => (map_percent(t.translation.x, t.translation.z, minimap.extent), rot),
+            None => (map_percent(t.translation.x, t.translation.z, minimap.origin, minimap.extent), rot),
             Some(i) => match points.get(i) {
-                Some(p) => (map_percent(p.x, p.y, minimap.extent), 0.0),
+                Some(p) => (map_percent(p.x, p.y, minimap.origin, minimap.extent), 0.0),
                 None => continue,
             },
         };
