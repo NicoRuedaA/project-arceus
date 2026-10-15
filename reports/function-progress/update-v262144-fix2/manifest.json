@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 266,
+    "file_count": 267,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -677,11 +677,15 @@
       },
       {
         "path": "crates/pla/src/game/crafting.rs",
-        "sha256": "dd71779f7fc68c57401cdca463f753bebcddf2b661384f24dd51f3bf46e368b9"
+        "sha256": "e0a29e0a38619a16059d6a4e6735aeb980968463e5df3d317df3bdbf575d44ad"
+      },
+      {
+        "path": "crates/pla/src/game/crafting_routes.rs",
+        "sha256": "6aa92f0cb9f80f5cdc14453951b371cf3344d0e664d48dd862b0c48809c19924"
       },
       {
         "path": "crates/pla/src/game/crafting_ui.rs",
-        "sha256": "fa21cfcfa901243a03c4382170a44c6d28058e4bd43a1700f9b56d98e953afa5"
+        "sha256": "102ec4d35d5cbb86d6eb0ef4ca58376d5af3175f8138f645c18e1d79294e6856"
       },
       {
         "path": "crates/pla/src/game/customize_screen.rs",
@@ -781,7 +785,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "f58ef46ada66b07ee96ea84adae79ae158daabe2f95cd1014dbbb6fd1afc6060"
+        "sha256": "54021d4de1d23151a4d00a59ba0ada703e1eff0e9c6524945ae5b1563e707f9e"
       },
       {
         "path": "crates/pla/src/game/move_teaching.rs",
@@ -985,11 +989,11 @@
       },
       {
         "path": "crates/pla/src/game/wild_behavior.rs",
-        "sha256": "698193c274969de9b8b3e41c647e06088179477839dbd46938049df0e93cbd84"
+        "sha256": "23eab5b8ebc59cf4dd6806e7f229b829d12dcbd5264e02ec5d16ca93d6f25505"
       },
       {
         "path": "crates/pla/src/game/wild_wander.rs",
-        "sha256": "6554ccf1c7ad075a3bc910eb9d2aa2b8b621a86b8a15fd916ebb9f6650dbcaad"
+        "sha256": "4ff39d91a3e263e56417f8cacb6b68dd57c33ad6849d8915f77e19244f78d740"
       },
       {
         "path": "crates/pla/src/game/world_collision.rs",
@@ -1141,7 +1145,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "d2d32b49a24491c67d880045d3b1cc63726b3934c2247b2fc419eec55d410c26"
+    "sha256": "668ea7d474dff2b0866340d7c35bf53f26302df707353e94f356404b9d75c119"
   },
   "state_partitions": {
     "analysis_documentation_status": {
