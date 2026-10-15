@@ -204,3 +204,31 @@ not a replacement for the deterministic tests and does not establish original-ga
 * **Unknown:** talk id (rec f3) meaning, behaviour scalars, which facial slot is talk vs idle, recipe f2/f9, `.tracs`
   state machine, the Galaxy-building upper floor ground, story value semantics (deliberately not decoded). NPC
   hair/skin/clothing/eye palette is **ASSUMED** and has no pixel-correctness evidence.
+
+## Head / torso look-at (2026-10-15, branch `feat/mundo-vivo`)
+
+`game/npc.rs` now turns the head and torso bones towards a nearby player, on top of the bounded
+root yaw:
+
+* **Bone names VERIFIED on the exported skeletons:** every one of the 166 current
+  `work/cache/npc/*/npc.gltf` carries `head` and `spine_03` (checked with a script; the rig also
+  has `neck`, `spine_01..03`, `waist`, `hips`, `chara_root` and a `look` helper node that drives
+  nothing by itself). The rest pose maps world-up to the bone-local +X, so the offsets rotate
+  about `Vec3::X`; the idle/walk/run clips animate head/neck/spine channels every frame, and the
+  offsets are applied **after** `AnimationSystems`, so they add to the clip pose instead of
+  fighting it.
+* **Decoded speeds** (`data/npc_config.tsv`, `character_look_at_config`): start 140 deg/s easing
+  into 60 deg/s over 0.5 s while looking; 80 deg/s while returning; root clamp 135 deg
+  (`look_behind_angle_deg`). SUPUESTO: torso share 0.5 of the residual, torso at half the head
+  speed, head clamp 70 deg, torso clamp 30 deg, linear ease (the ease function id 5 is not
+  decoded). A clip that does not animate a bone keeps its stored base rotation, so offsets never
+  compound.
+* **Probe (real viewer, `--automation --automation-no-gpu`, area 00, `area00_npc_farm_001`
+  with a real model):** player 0.81 m behind-close -> root yaw -116.0 deg (the 135-deg clamp from
+  its 19-deg base), residual gaze -42.3 deg split into head -21.1 deg and torso -21.1 deg; player
+  10.84 m away -> head 0, torso 0. Raw numbers in
+  `~/work/capturas_mundo_vivo/npc_look_20261015.json`.
+* Trainers (`TrainerNpc`) carry the same state, so trainer markers look at the player too.
+  Capsule fallbacks (no model) keep the old root-only behaviour.
+* Tests: `game::npc` look-bone split/speed/wiring tests (headless Bevy: only the two named bones
+  are wired and the offsets do not compound).
