@@ -2442,9 +2442,11 @@ fn spawn_aim_hint(mut commands: Commands) {
     ));
 }
 
-/// Cache of the battle camera placement: trail hit rays against placed objects are expensive, so
-/// a placement is kept while the two creatures and the opponent size do not change, and recomputed
-/// at least every `BATTLE_CAM_TTL` frames (the object streaming can still add a blocker late).
+/// Cache of the battle camera placement: hit rays against placed objects are expensive, so a
+/// placement is kept while the two creatures and the opponent size stay put, and recomputed at
+/// least every `BATTLE_CAM_TTL` frames (the object streaming can still add a blocker late).
+/// Positions are snapped to a grid because the idle animation moves the creature roots a few
+/// centimetres every frame and must not invalidate the cache.
 #[derive(Default)]
 struct BattleCameraCache {
     key: Option<(Vec3, Vec3, pla::game::battle_camera::ModelSize)>,
@@ -2452,19 +2454,23 @@ struct BattleCameraCache {
     age: u32,
 }
 
-const BATTLE_CAM_TTL: u32 = 60;
+const BATTLE_CAM_TTL: u32 = 90;
+const BATTLE_CAM_SNAP_M: f32 = 0.25;
+
+/// Round to the cache grid (see `BATTLE_CAM_SNAP_M`).
+fn battle_cam_snap(v: Vec3) -> Vec3 {
+    (v / BATTLE_CAM_SNAP_M).round() * BATTLE_CAM_SNAP_M
+}
 
 impl BattleCameraCache {
     fn matches(&self, p: Vec3, w: Vec3, foe: pla::game::battle_camera::ModelSize) -> bool {
         self.age < BATTLE_CAM_TTL
-            && self
-                .key
-                .is_some_and(|(cp, cw, cf)| {
-                    cp.distance_squared(p) < 1e-4
-                        && cw.distance_squared(w) < 1e-4
-                        && (cf.height - foe.height).abs() < 1e-3
-                        && (cf.radius - foe.radius).abs() < 1e-3
-                })
+            && self.key.is_some_and(|(cp, cw, cf)| {
+                cp == battle_cam_snap(p)
+                    && cw == battle_cam_snap(w)
+                    && (cf.height - foe.height).abs() < 0.1
+                    && (cf.radius - foe.radius).abs() < 0.1
+            })
     }
 }
 
@@ -2533,7 +2539,7 @@ fn update_camera_transform(
                     }
                     None => pla::game::battle_camera::pose(p, w, foe),
                 };
-                battle_cam_cache.key = Some((p, w, foe));
+                battle_cam_cache.key = Some((battle_cam_snap(p), battle_cam_snap(w), foe));
                 battle_cam_cache.pose = pose;
                 battle_cam_cache.age = 0;
                 pose
@@ -2619,10 +2625,8 @@ fn hide_battle_occluders(
     }
     let (Some(p), Some(w)) = (p, w) else { return };
     let eye = cam.translation;
-    let fresh = cache.age < BATTLE_CAM_TTL
-        && cache
-            .key
-            .is_some_and(|(c, cp, cw)| c.distance_squared(eye) < 1e-4 && cp.distance_squared(p) < 1e-4 && cw.distance_squared(w) < 1e-4);
+    let key = (battle_cam_snap(eye), battle_cam_snap(p), battle_cam_snap(w));
+    let fresh = cache.age < BATTLE_CAM_TTL && cache.key == Some(key);
     if fresh {
         cache.age += 1;
     } else {
@@ -2634,7 +2638,7 @@ fn hide_battle_occluders(
                 }
             }
         }
-        cache.key = Some((eye, p, w));
+        cache.key = Some(key);
         cache.blocked = blocked;
         cache.age = 0;
     }
@@ -4131,15 +4135,17 @@ mod battle_arena_framing {
         let (p, w) = (Vec3::new(-0.7, 0.0, -1.8), Vec3::new(0.9, 0.0, -4.4));
         let foe = ModelSize { height: 2.0, radius: 1.0 };
         assert!(!cache.matches(p, w, foe), "an empty cache never matches");
-        cache.key = Some((p, w, foe));
+        cache.key = Some((battle_cam_snap(p), battle_cam_snap(w), foe));
         cache.pose = (Vec3::X, Vec3::ZERO);
         cache.age = 0;
         assert!(cache.matches(p, w, foe));
         cache.age = BATTLE_CAM_TTL;
         assert!(!cache.matches(p, w, foe), "the TTL expires");
         cache.age = 0;
-        assert!(!cache.matches(p, w + Vec3::X * 0.1, foe), "a moved creature invalidates the cache");
+        assert!(!cache.matches(p, w + Vec3::X * 0.4, foe), "a moved creature invalidates the cache");
         assert!(!cache.matches(p, w, ModelSize { height: 3.0, radius: 1.0 }), "a re-measured opponent invalidates the cache");
+        // The idle animation jitter (a few cm) stays inside the snap grid: still cached.
+        assert!(cache.matches(p + Vec3::Y * 0.05, w - Vec3::Y * 0.08, foe), "small jitter stays cached");
     }
 
     /// A giant opponent (meshes taller than the arena spacing) is measured, pushed away from the
