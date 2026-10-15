@@ -35,6 +35,7 @@ pub mod npc_model;
 pub mod render_look;
 pub mod input_map;
 pub mod interact;
+pub mod interior;
 pub mod battle_camera;
 pub mod battle_visibility;
 pub mod blink;

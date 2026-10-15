@@ -254,6 +254,10 @@ pub fn default_bag(items: &ItemTable) -> BTreeMap<u16, u16> {
 pub struct StartupState {
     pub progress: PlayerProgress,
     pub area: Option<u8>,
+    /// Full saved zone id (`ha_area00`, `ha_area00_s03_a`). A sub-area id has `area: None`, so
+    /// the viewer rebuilds the world around the parent main area and then asks for the interior
+    /// through a `StartupZoneRequest` (Brief 37, `game::zone`).
+    pub zone: Option<String>,
     pub position: Option<[f32; 3]>,
     pub yaw: f32,
     /// Minute of day stored in the save (None for a new game or a file without one).
@@ -282,6 +286,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
         return StartupState {
             progress: PlayerProgress::new_game(),
             area: None,
+            zone: None,
             position: None,
             yaw: 0.0,
             time_minutes: None,
@@ -293,6 +298,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
     match game.load() {
         Some(s) => StartupState {
             area: parse_zone(&s.zone),
+            zone: Some(s.zone.clone()),
             position: Some(s.position),
             yaw: s.yaw,
             time_minutes: Some(s.time_minutes),
@@ -304,6 +310,7 @@ pub fn load_startup(game: &mut SaveGame, cli: &WireCli) -> StartupState {
         None => StartupState {
             progress: PlayerProgress::new_game(),
             area: None,
+            zone: None,
             position: None,
             yaw: 0.0,
             time_minutes: None,
@@ -1037,6 +1044,7 @@ mod tests {
         let s = StartupState {
             progress: PlayerProgress::new_game(),
             area: Some(0),
+            zone: Some("ha_area00".into()),
             position: Some([520.0, 69.4, 417.7]),
             yaw: 0.0,
             time_minutes: None,
@@ -1048,6 +1056,22 @@ mod tests {
         assert_eq!(s.position_in_area(1), None);
         let unknown = StartupState { area: None, ..s };
         assert_eq!(unknown.position_in_area(1), None);
+    }
+
+    #[test]
+    fn a_save_inside_an_interior_keeps_its_zone_string() {
+        let dir = tmpdir("interior-zone");
+        let mut game = SaveGame::new(SaveFile::in_dir(&dir));
+        let mut save = PlayerSave::default();
+        save.zone = "ha_area00_s03_a".into();
+        save.position = [10.0, 2.0, 10.0];
+        assert!(game.save(save));
+        let mut game = SaveGame::new(SaveFile::in_dir(&dir));
+        let start = load_startup(&mut game, &WireCli::default());
+        assert!(start.loaded);
+        assert_eq!(start.zone.as_deref(), Some("ha_area00_s03_a"));
+        assert_eq!(start.area, None, "a sub-area has no main-area index");
+        assert_eq!(start.position, Some([10.0, 2.0, 10.0]));
     }
 
     fn member(species: u16, hp: u32, pp: u8) -> PartyMember {
@@ -1602,6 +1626,7 @@ mod tests {
         let start = StartupState {
             progress: progress2(),
             area: Some(1),
+            zone: Some("ha_area01".into()),
             position: None,
             yaw: 0.0,
             time_minutes: None,
@@ -1662,6 +1687,7 @@ mod tests {
         let start = StartupState {
             progress: progress2(),
             area: None,
+            zone: None,
             position: None,
             yaw: 0.0,
             time_minutes: None,

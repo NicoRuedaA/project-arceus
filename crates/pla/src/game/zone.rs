@@ -54,8 +54,65 @@ use crate::game::PlayerAvatar;
 /// Sheet with the decoded door and fast-travel links.
 pub const WARP_LINKS_SHEET: &str = "data/warp_links.tsv";
 
-/// Extra margin (metres, player radius) of the door trigger box.
-pub const DOOR_TRIGGER_PAD: f32 = 0.35;
+/// Extra margin (metres) of the door trigger box: the port's base interaction reach.
+///
+/// The sheet box (`trigger_w x trigger_d`) is the door record's own box; this base margin covers
+/// the player capsule and the common threshold gap. The decoded navmesh excludes the door
+/// openings (indoor and outdoor surfaces are separate islands in the original data), so some
+/// doors keep their walkable island farther away: [`DoorReachIndex`] extends the reach per door
+/// with the measured distance to the nearest walkable point, so every door works from the closest
+/// spot a player can stand (2026-10-15: found while the Jubilife houses were unreachable on foot
+/// with the earlier fixed 0.35 margin).
+pub const DOOR_TRIGGER_PAD: f32 = 0.75;
+
+/// Per-door interaction reach of the active area (see [`DOOR_TRIGGER_PAD`]).
+///
+/// Built once per area change from the area's navmesh: for each door, the reach is the base pad or
+/// the distance from the door centre to the closest walkable point plus 0.1 m, whichever is
+/// larger. Doors whose centre sits on the navmesh keep the tight base reach.
+#[derive(Resource, Debug, Default, Clone)]
+pub struct DoorReachIndex {
+    pub area: String,
+    reach: HashMap<String, f32>,
+}
+
+impl DoorReachIndex {
+    /// Measure every door of `area` against the area's `navmesh`.
+    pub fn build(area: &str, links: &ZoneLinks, navmesh: &crate::assets::navmesh::NavMesh) -> Self {
+        let mut reach = HashMap::new();
+        for l in links.doors_in(area) {
+            let d = navmesh
+                .nearest(l.pos.x, l.pos.z, 400.0)
+                .map(|hit| hit.distance)
+                .unwrap_or(0.0);
+            reach.insert(l.name.clone(), DOOR_TRIGGER_PAD.max(d + 0.1));
+        }
+        Self { area: area.to_string(), reach }
+    }
+
+    /// Interaction reach of one door (base pad for doors outside the measured area or an unbuilt
+    /// index).
+    pub fn of(&self, link: &ZoneLink) -> f32 {
+        self.reach.get(&link.name).copied().unwrap_or(DOOR_TRIGGER_PAD)
+    }
+}
+
+/// (Re)build [`DoorReachIndex`] when the active area's navmesh changes (start-up and every zone
+/// change). Cheap: one nearest-face query per door of the area, once.
+pub fn refresh_door_reach_system(
+    links: Res<ZoneLinks>,
+    zone: Option<Res<ActiveZoneInfo>>,
+    nav: Option<Res<GameNavmeshResource>>,
+    mut reach: ResMut<DoorReachIndex>,
+) {
+    let (Some(zone), Some(nav)) = (zone, nav) else {
+        return;
+    };
+    if reach.area == zone.area {
+        return;
+    }
+    *reach = DoorReachIndex::build(&zone.area, &links, nav.nav.primary());
+}
 
 /// One fade half (out and in) of a zone change, seconds.
 pub const ZONE_FADE_SECONDS: f32 = 0.5;
@@ -273,6 +330,24 @@ impl ZoneLinks {
             })
     }
 
+    /// [`Self::door_at`] with the per-door reach of [`DoorReachIndex`]: the sheet box plus the
+    /// port margin of each door (wider where the decoded navmesh keeps the walkable island away).
+    pub fn door_at_with_reach(
+        &self,
+        area: &str,
+        x: f32,
+        z: f32,
+        reach: &DoorReachIndex,
+    ) -> Option<&ZoneLink> {
+        self.doors_in(area)
+            .filter(|l| in_trigger(l, x, z, reach.of(l)))
+            .min_by(|a, b| {
+                let da = (a.pos.x - x).powi(2) + (a.pos.z - z).powi(2);
+                let db = (b.pos.x - x).powi(2) + (b.pos.z - z).powi(2);
+                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
+
     /// Main areas that have at least one fast-travel point (sorted, e.g. `ha_area00..06`).
     pub fn main_areas_with_travel(&self) -> Vec<String> {
         let mut areas: Vec<String> = self
@@ -382,11 +457,11 @@ pub fn display_name_for_index(area_idx: u8) -> String {
     }
 }
 
-/// Display name of any zone id; sub-area ids are shown raw until Brief 37 names them.
+/// Display name of any zone id; interior sub-areas are labelled as interiors (Brief 37).
 pub fn zone_display_name(zone: &str) -> String {
     match main_area_index(zone) {
         Some(idx) => display_name_for_index(idx),
-        None => zone.to_string(),
+        None => format!("Interior {zone}"),
     }
 }
 
@@ -796,12 +871,38 @@ pub fn spawn_fade_overlay(mut commands: Commands) {
     ));
 }
 
+/// Zone the viewer must load right after start-up (Brief 37): a save made inside an interior has
+/// a zone id that is not the `--area`/default main area, so the world is built around the parent
+/// main area and the viewer asks for the interior through the normal zone-change flow (fade and
+/// all) as soon as the first world frame runs. Removed after it fires once.
+#[derive(Resource, Debug, Clone)]
+pub struct StartupZoneRequest(pub ZoneChangeRequest);
+
+/// Fires the pending [`StartupZoneRequest`] once, before `begin_zone_change_system` (see the
+/// [`ZonePlugin`] chain).
+pub fn startup_zone_request_system(
+    startup: Option<Res<StartupZoneRequest>>,
+    loading: Res<ZoneLoading>,
+    mut commands: Commands,
+    mut out: MessageWriter<ZoneChangeRequest>,
+) {
+    let Some(startup) = startup else {
+        return;
+    };
+    if !loading.is_idle() {
+        return;
+    }
+    out.write(startup.0.clone());
+    commands.remove_resource::<StartupZoneRequest>();
+}
+
 /// Door trigger: player inside a door box of the current area presses interact (E / Enter).
 pub fn door_trigger_system(
     keys: Res<ButtonInput<KeyCode>>,
     links: Res<ZoneLinks>,
     zone: Option<Res<ActiveZoneInfo>>,
     loading: Res<ZoneLoading>,
+    reach: Res<DoorReachIndex>,
     player: Query<&Transform, With<PlayerAvatar>>,
     mut out: MessageWriter<ZoneChangeRequest>,
 ) {
@@ -812,14 +913,14 @@ pub fn door_trigger_system(
     let Ok(transform) = player.single() else {
         return;
     };
+    let (x, z) = (transform.translation.x, transform.translation.z);
+    let Some(link) = links.door_at_with_reach(&zone.area, x, z, &reach) else {
+        return;
+    };
     let interact = keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Enter);
     if !interact {
         return;
     }
-    let (x, z) = (transform.translation.x, transform.translation.z);
-    let Some(link) = links.door_at(&zone.area, x, z, DOOR_TRIGGER_PAD) else {
-        return;
-    };
     println!(
         "Zone door: {} -> {} at ({:.1}, {:.1}, {:.1})",
         link.name, link.to_area, link.arrival.x, link.arrival.y, link.arrival.z
@@ -905,23 +1006,28 @@ pub fn zone_change_driver(world: &mut World) {
 /// Load `request.zone`: terrain, navmesh, placed-object walls, spawners, zone info; returns the
 /// safe landing point.
 ///
-/// Main areas (`ha_areaNN`) load today. Sub-area ids are refused with a notice: the request and
-/// the decoded arrival are correct, but an interior scene is Brief 37, and loading the parent's
-/// terrain instead would be wrong (sub-areas have their own origin).
+/// Main areas (`ha_areaNN`) load the terrain pack of the area. Interior sub-areas
+/// (`ha_areaNN_sXX[_y]`, Brief 37) load their own navmesh pack, their placement rows (room shells
+/// and props) and the lighting rows of their `env_set`; the previous terrain chunks are removed
+/// and a non-samplable placeholder terrain keeps the `.trins` tree spawner from leaving the old
+/// area's trees behind. Sub-areas without an exported room shell get a visible SUPUESTO fallback
+/// room (see [`crate::game::interior`]). Unknown zone ids are refused with a notice.
 pub fn apply_zone_change(
     world: &mut World,
     request: &ZoneChangeRequest,
 ) -> Result<(Vec2, f32), String> {
-    let Some(area_idx) = main_area_index(&request.zone) else {
-        return Err(format!(
-            "'{}' is an independent interior scene; interior loading is Brief 37 (the decoded door link and arrival are correct)",
-            request.zone
-        ));
-    };
     let bin_root = world
         .get_resource::<ZoneBinRoot>()
         .map(|r| r.0.clone())
         .ok_or_else(|| "no game bin root registered (ZoneBinRoot)".to_string())?;
+    // A fallback room of a previous interior never survives a change.
+    despawn_interior_fallbacks(world);
+    if crate::game::interior::is_sub_area(&request.zone) {
+        return apply_interior_change(world, request, &bin_root);
+    }
+    let Some(area_idx) = main_area_index(&request.zone) else {
+        return Err(format!("'{}' is not a known area or interior id", request.zone));
+    };
     if !switch_terrain_area_world(world, area_idx, &bin_root) {
         return Err(format!("terrain ha_area{area_idx:02} could not be loaded"));
     }
@@ -998,6 +1104,100 @@ pub fn apply_zone_change(
         }
     }
     Ok((xz, y))
+}
+
+/// Interior sub-area scene load (Brief 37).
+///
+/// The sub-area is an independent local scene: its own navmesh pack, its own placement rows
+/// (room shells and props) and the decoded lighting rows of its `env_set`. The previous main
+/// area's terrain chunks are despawned and replaced by the non-samplable placeholder terrain, so
+/// no height fallback (player motion, teleports) and no `.trins` tree spawner keeps using the old
+/// area's ground and trees. Missing room shells get a visible SUPUESTO fallback room.
+fn apply_interior_change(
+    world: &mut World,
+    request: &ZoneChangeRequest,
+    bin_root: &Path,
+) -> Result<(Vec2, f32), String> {
+    let cache_root = crate::game::interior::cache_root();
+    let plan = crate::game::interior::interior_plan(&request.zone, &cache_root, bin_root)
+        .ok_or_else(|| format!("'{}' has no sub-zone index row", request.zone))?;
+    let chunks: Vec<Entity> = world
+        .query_filtered::<Entity, With<TerrainChunkMarker>>()
+        .iter(world)
+        .collect();
+    for chunk in chunks {
+        world.despawn(chunk);
+    }
+    world.insert_resource(crate::game::interior::placeholder_terrain());
+    let nav = crate::assets::navmesh::AreaNavigation::load_named(
+        bin_root,
+        &request.zone,
+        crate::game::interior::INTERIOR_TERRAIN_AREA,
+    )
+    .map_err(|e| format!("interior navmesh for {}: {e}", request.zone))?;
+    world.insert_resource(GameNavmeshResource { nav: Arc::new(nav) });
+    if let Some(mut walls) =
+        world.get_resource_mut::<crate::game::world_collision::WorldCollision>()
+    {
+        if let Err(e) = walls.switch_zone(&request.zone) {
+            eprintln!("zone: no placed-object walls in {}: {e}", request.zone);
+        }
+    }
+    crate::game::world_objects::reload_world_objects_zone(world, &request.zone, &HashSet::new());
+    // Lighting: the sub-area's own decoded rows when the sheet has any, else its `env_set`.
+    if !crate::game::lighting::reload_zone_environment(world, &request.zone) {
+        crate::game::lighting::reload_zone_environment(world, &plan.env_zone);
+    }
+    // No wild creature table is decoded for sub-areas: the interior loads empty, never with the
+    // previous area's spawners (they live in another frame).
+    replace_area_spawners(world, Vec::new());
+    if let Some(mut info) = world.get_resource_mut::<ActiveZoneInfo>() {
+        info.area = request.zone.clone();
+        info.name = zone_display_name(&request.zone);
+    }
+    let wanted = Vec2::new(request.spawn.x, request.spawn.z);
+    let landing = world.get_resource::<GameNavmeshResource>().and_then(|nav| {
+        let mesh = nav.nav.primary();
+        let comps = sp::components(mesh);
+        // The main-area safe start is in another frame: off-mesh arrivals take the nearest face.
+        landing_point(mesh, &comps, wanted, None)
+    });
+    let (xz, y) = landing.unwrap_or((wanted, request.spawn.y));
+    if let Some(reason) = &plan.notice {
+        notice(world, format!("[SUPUESTO] {reason}: only the placed models are shown."));
+    }
+    if let Some(reason) = &plan.fallback {
+        let kind = if plan.geometry_models.is_empty() {
+            crate::game::interior::FallbackKind::EmptyScene
+        } else {
+            crate::game::interior::FallbackKind::NoRoomShell
+        };
+        let bounds = world
+            .get_resource::<GameNavmeshResource>()
+            .and_then(|nav| nav.nav.primary().bounds());
+        match bounds {
+            Some(bounds) => {
+                crate::game::interior::spawn_fallback_room(world, bounds, kind);
+                notice(
+                    world,
+                    format!("[SUPUESTO] {reason}: visible provisional room, not game data."),
+                );
+            }
+            None => notice(world, format!("[SUPUESTO] {reason}: no navmesh bounds; empty scene.")),
+        }
+    }
+    Ok((xz, y))
+}
+
+/// Remove the visible fallback room of a previous interior (no-op outside one).
+fn despawn_interior_fallbacks(world: &mut World) {
+    let fallbacks: Vec<Entity> = world
+        .query_filtered::<Entity, With<crate::game::interior::InteriorFallback>>()
+        .iter(world)
+        .collect();
+    for entity in fallbacks {
+        world.despawn(entity);
+    }
 }
 
 /// Despawn every creature streamed from the previous area's spawners (with its model children)
@@ -1153,11 +1353,17 @@ impl Plugin for ZonePlugin {
         };
         app.insert_resource(links);
         app.init_resource::<ZoneLoading>();
+        app.init_resource::<DoorReachIndex>();
         app.add_message::<ZoneChangeRequest>();
         app.add_systems(Startup, spawn_fade_overlay);
         app.add_systems(
             Update,
-            (door_trigger_system, begin_zone_change_system)
+            (
+                refresh_door_reach_system,
+                startup_zone_request_system,
+                door_trigger_system,
+                begin_zone_change_system,
+            )
                 .chain()
                 .run_if(not_paused)
                 .run_if(in_state(GameState::World)),
@@ -1418,7 +1624,7 @@ mod tests {
             zone_display_name("ha_area01"),
             "Obsidian Fieldlands (ha_area01)"
         );
-        assert_eq!(zone_display_name("ha_area00_s03_a"), "ha_area00_s03_a");
+        assert_eq!(zone_display_name("ha_area00_s03_a"), "Interior ha_area00_s03_a");
     }
 
     #[test]
@@ -1504,6 +1710,47 @@ mod tests {
     }
 
     #[test]
+    fn door_reach_covers_the_empirical_walk_points() {
+        if game_bin_root().is_none() {
+            eprintln!("[skip] game bin root not found (set PLA_BIN_ROOT)");
+            return;
+        }
+        let bin_root = game_bin_root().unwrap();
+        let links = sheet();
+        // Outside the s12_a house: the automation teleport snapped here and the player pressed E.
+        let nav = crate::assets::navmesh::AreaNavigation::load(&bin_root, 0).expect("area 00 navmesh");
+        let reach = DoorReachIndex::build("ha_area00", &links, nav.primary());
+        let s12 = links
+            .door_at_with_reach("ha_area00", 505.74, 522.46, &reach)
+            .expect("s12_a door reachable from its snap point");
+        assert_eq!(s12.name, "DOOR_AREA00_S12_A_TO_AREA00");
+        // Outside s03_a the player walked to (514.79, 451.74) and the entry fired.
+        let s03 = links
+            .door_at_with_reach("ha_area00", 514.79, 451.74, &reach)
+            .expect("s03_a door reachable where the walker stopped");
+        assert_eq!(s03.name, "DOOR_AREA00_S03_A_TO_AREA00");
+        // The S09 hall door keeps its walkable island ~2 m away; the measured reach must cover it.
+        let s09 = links.by_name("DOOR_AREA00_S09_TO_AREA00").unwrap();
+        assert!(
+            reach.of(s09) >= 1.8,
+            "s09 needs the measured wide reach, got {:.2}",
+            reach.of(s09)
+        );
+        // Inside s03_a the player walked to (10.12, 10.32) and could leave.
+        let nav = crate::assets::navmesh::AreaNavigation::load_named(&bin_root, "ha_area00_s03_a", 255)
+            .expect("s03_a navmesh");
+        let reach = DoorReachIndex::build("ha_area00_s03_a", &links, nav.primary());
+        let exit = links
+            .by_name("DOOR_AREA00_TO_AREA00_S03_A")
+            .expect("exit row");
+        assert!(
+            in_trigger(exit, 10.12, 10.32, reach.of(exit)),
+            "the exit door of s03_a fires from the walked-to point (reach {:.2})",
+            reach.of(exit)
+        );
+    }
+
+    #[test]
     fn door_trigger_emits_a_request_inside_the_box_only() {
         let links = sheet();
         let door = links
@@ -1515,6 +1762,7 @@ mod tests {
         world.insert_resource(Messages::<ZoneChangeRequest>::default());
         world.insert_resource(ButtonInput::<KeyCode>::default());
         world.insert_resource(ZoneLoading::default());
+        world.insert_resource(DoorReachIndex::default());
         world.insert_resource(ActiveZoneInfo {
             area: "ha_area00".into(),
             name: zone_display_name("ha_area00"),
@@ -1562,10 +1810,11 @@ mod tests {
     }
 
     #[test]
-    fn zone_change_to_a_sub_area_is_refused_with_a_notice() {
+    fn zone_change_to_an_unknown_scene_is_refused_with_a_notice() {
         let mut world = World::new();
         world.insert_resource(Time::<()>::default());
         world.insert_resource(ZoneLoading::default());
+        world.insert_resource(ZoneBinRoot(PathBuf::from("/nonexistent")));
         world.insert_resource(ActiveZoneInfo {
             area: "ha_area00".into(),
             name: zone_display_name("ha_area00"),
@@ -1575,11 +1824,11 @@ mod tests {
         world
             .resource_mut::<Messages<ZoneChangeRequest>>()
             .write(ZoneChangeRequest {
-                zone: "ha_area00_s03_a".into(),
-                spawn: Vec3::new(10.05, 1.974, 12.7),
+                zone: "ha_area99_s99".into(),
+                spawn: Vec3::new(1.0, 0.0, 1.0),
                 yaw_deg: 0.0,
                 source: ZoneChangeSource::Door,
-                link: Some("DOOR_AREA00_TO_AREA00_S03_A".into()),
+                link: Some("DOOR_TEST".into()),
             });
         world.run_system_once(begin_zone_change_system).unwrap();
         assert_eq!(world.resource::<ZoneLoading>().phase, ZonePhase::FadingOut);
@@ -1601,6 +1850,270 @@ mod tests {
         );
         let xf = world.entity(player).get::<Transform>().unwrap();
         assert_eq!(xf.translation, Vec3::ZERO, "player did not move");
+    }
+
+    /// Brief 37: entering a house loads the independent sub-area scene (own navmesh, placement
+    /// rows and environment) and its exit door brings the main area back.
+    #[test]
+    fn zone_change_flow_loads_an_interior_and_returns() {
+        if game_bin_root().is_none() {
+            eprintln!("[skip] game bin root not found (set PLA_BIN_ROOT)");
+            return;
+        }
+        use crate::game::world_objects::{installed_placement_count, RotMode, WorldObjects};
+
+        let bin_root = game_bin_root().unwrap();
+        let links = sheet();
+        let into_house = links
+            .all()
+            .iter()
+            .find(|l| l.from_area == "ha_area00" && l.to_area == "ha_area00_s03_a")
+            .expect("the house door")
+            .clone();
+        let out_of_house = links
+            .all()
+            .iter()
+            .find(|l| l.from_area == "ha_area00_s03_a" && l.to_area == "ha_area00")
+            .expect("the exit door")
+            .clone();
+        let cache_root = std::env::var_os("PLA_CACHE_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(crate::game::world_objects::DEFAULT_CACHE_ROOT));
+        if crate::game::interior::interior_plan("ha_area00_s03_a", &cache_root, &bin_root)
+            .is_none()
+        {
+            eprintln!("[skip] sub-zone index not found");
+            return;
+        }
+
+        let mut world = World::new();
+        world.insert_resource(Time::<()>::default());
+        world.insert_resource(links.clone());
+        world.insert_resource(ZoneLoading::default());
+        world.insert_resource(ZoneBinRoot(bin_root.clone()));
+        world.insert_resource(ActiveZoneInfo {
+            area: "ha_area00".into(),
+            name: zone_display_name("ha_area00"),
+        });
+        world.insert_resource(ActiveAreaSpawners::default());
+        world.insert_resource(Assets::<Mesh>::default());
+        world.insert_resource(Assets::<StandardMaterial>::default());
+        world.insert_resource(Assets::<Image>::default());
+        world.insert_resource(WorldObjects::for_tests_with_cache(
+            Vec::new(),
+            RotMode::YawY,
+            cache_root,
+        ));
+        let initial = TerrainArea::load(&bin_root, 0).expect("area 00 terrain");
+        let settings = initial
+            .mesh_settings(TerrainScaleOverride::default(), 64)
+            .expect("mesh settings");
+        let chunks = build_mesh_chunks(&initial.heightmap, settings).expect("chunks");
+        world.insert_resource(TerrainResource {
+            area: Arc::new(initial),
+            chunks,
+            blended_albedo: None,
+            settings,
+        });
+        let player = world.spawn((PlayerAvatar, Transform::default())).id();
+        let stale_chunk = world.spawn(TerrainChunkMarker).id();
+        world.insert_resource(Messages::<ZoneChangeRequest>::default());
+
+        // Enter the house through its decoded door.
+        world
+            .resource_mut::<Messages<ZoneChangeRequest>>()
+            .write(ZoneChangeRequest {
+                zone: into_house.to_area.clone(),
+                spawn: into_house.arrival,
+                yaw_deg: into_house.exit_yaw_deg,
+                source: ZoneChangeSource::Door,
+                link: Some(into_house.name.clone()),
+            });
+        world.run_system_once(begin_zone_change_system).unwrap();
+        for _ in 0..4 {
+            world
+                .resource_mut::<Time>()
+                .advance_by(Duration::from_secs_f32(ZONE_FADE_SECONDS));
+            zone_change_driver(&mut world);
+        }
+        assert_eq!(world.resource::<ZoneLoading>().phase, ZonePhase::Idle);
+
+        let info = world.resource::<ActiveZoneInfo>();
+        assert_eq!(info.area, "ha_area00_s03_a");
+        assert_eq!(info.name, "Interior ha_area00_s03_a");
+        {
+            let terrain = world.resource::<TerrainResource>();
+            assert_eq!(
+                terrain.area.area,
+                crate::game::interior::INTERIOR_TERRAIN_AREA,
+                "the old area's ground is parked in the placeholder"
+            );
+            assert!(terrain.chunks.is_empty());
+            assert!(terrain.area.instances.is_empty(), "no trees of the old area");
+        }
+        assert!(world.get_entity(stale_chunk).is_err(), "old chunks despawned");
+        assert_eq!(
+            world
+                .query_filtered::<Entity, With<TerrainChunkMarker>>()
+                .query(&world)
+                .count(),
+            0
+        );
+        let nav = world.resource::<GameNavmeshResource>();
+        let bounds = nav.nav.primary().bounds().expect("interior navmesh bounds");
+        assert!(
+            bounds.1[0] < 30.0 && bounds.1[2] < 40.0,
+            "the interior navmesh is the small local one: {bounds:?}"
+        );
+        assert!(world.resource::<ActiveAreaSpawners>().spawners.is_empty());
+        let placements = installed_placement_count(&world).expect("world objects installed");
+        assert!(
+            placements > 0,
+            "the house room shells stream in ({placements} placements)"
+        );
+        let xf = *world.entity(player).get::<Transform>().unwrap();
+        let landing = Vec2::new(xf.translation.x, xf.translation.z);
+        let mesh = nav.nav.primary();
+        let comps = sp::components(mesh);
+        assert!(
+            sp::in_main_component(mesh, &comps, landing.x, landing.y),
+            "player landed on the house floor at {landing:?}"
+        );
+
+        // Leave through the exit door: the main area's terrain comes back.
+        world
+            .resource_mut::<Messages<ZoneChangeRequest>>()
+            .write(ZoneChangeRequest {
+                zone: out_of_house.to_area.clone(),
+                spawn: out_of_house.arrival,
+                yaw_deg: out_of_house.exit_yaw_deg,
+                source: ZoneChangeSource::Door,
+                link: Some(out_of_house.name.clone()),
+            });
+        world.run_system_once(begin_zone_change_system).unwrap();
+        for _ in 0..4 {
+            world
+                .resource_mut::<Time>()
+                .advance_by(Duration::from_secs_f32(ZONE_FADE_SECONDS));
+            zone_change_driver(&mut world);
+        }
+        assert_eq!(world.resource::<ActiveZoneInfo>().area, "ha_area00");
+        let chunk_count = {
+            let terrain = world.resource::<TerrainResource>();
+            assert_eq!(terrain.area.area, 0, "area 00 terrain is back");
+            assert!(!terrain.chunks.is_empty());
+            terrain.chunks.len()
+        };
+        let chunk_entities = world
+            .query_filtered::<Entity, With<TerrainChunkMarker>>()
+            .query(&world)
+            .count();
+        assert_eq!(chunk_entities, chunk_count);
+    }
+
+    /// Brief 37: a sub-area without an exported room shell loads its navmesh and gets the visible
+    /// SUPUESTO fallback room, which never survives the next change.
+    #[test]
+    fn roomless_interior_gets_a_labelled_fallback_room() {
+        if game_bin_root().is_none() {
+            eprintln!("[skip] game bin root not found (set PLA_BIN_ROOT)");
+            return;
+        }
+        use crate::game::interior::{InteriorFallback, INTERIOR_TERRAIN_AREA};
+
+        let bin_root = game_bin_root().unwrap();
+        let cache_root = std::env::var_os("PLA_CACHE_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(crate::game::world_objects::DEFAULT_CACHE_ROOT));
+        if crate::game::interior::interior_plan("ha_area05_s02", &cache_root, &bin_root).is_none()
+            || !bin_root
+                .join("archive/field/terrain/ha_area05_s02.gfpak")
+                .is_file()
+        {
+            eprintln!("[skip] sub-zone data not found");
+            return;
+        }
+
+        let mut world = World::new();
+        world.insert_resource(Time::<()>::default());
+        world.insert_resource(ZoneLoading::default());
+        world.insert_resource(ZoneBinRoot(bin_root.clone()));
+        world.insert_resource(ActiveZoneInfo {
+            area: "ha_area05".into(),
+            name: zone_display_name("ha_area05"),
+        });
+        world.insert_resource(ActiveAreaSpawners::default());
+        world.insert_resource(Assets::<Mesh>::default());
+        world.insert_resource(Assets::<StandardMaterial>::default());
+        world.insert_resource(Assets::<Image>::default());
+        let player = world.spawn((PlayerAvatar, Transform::default())).id();
+        world.insert_resource(Messages::<ZoneChangeRequest>::default());
+        world
+            .resource_mut::<Messages<ZoneChangeRequest>>()
+            .write(ZoneChangeRequest {
+                zone: "ha_area05_s02".into(),
+                spawn: Vec3::new(20.0, 2.5, 20.0),
+                yaw_deg: 0.0,
+                source: ZoneChangeSource::Debug,
+                link: None,
+            });
+        world.run_system_once(begin_zone_change_system).unwrap();
+        for _ in 0..4 {
+            world
+                .resource_mut::<Time>()
+                .advance_by(Duration::from_secs_f32(ZONE_FADE_SECONDS));
+            zone_change_driver(&mut world);
+        }
+        assert_eq!(world.resource::<ActiveZoneInfo>().area, "ha_area05_s02");
+        assert_eq!(
+            world.resource::<TerrainResource>().area.area,
+            INTERIOR_TERRAIN_AREA
+        );
+        let fallbacks = world
+            .query_filtered::<Entity, With<InteriorFallback>>()
+            .query(&world)
+            .count();
+        assert_eq!(
+            fallbacks, 1,
+            "the empty scene gets a floor slab (no walls on a whole-field navmesh)"
+        );
+        let xf = world.entity(player).get::<Transform>().unwrap();
+        let nav = world.resource::<GameNavmeshResource>();
+        let mesh = nav.nav.primary();
+        let comps = sp::components(mesh);
+        assert!(sp::in_main_component(
+            mesh,
+            &comps,
+            xf.translation.x,
+            xf.translation.z
+        ));
+
+        // Any later change removes the fallback room.
+        world
+            .resource_mut::<Messages<ZoneChangeRequest>>()
+            .write(ZoneChangeRequest {
+                zone: "ha_area05".into(),
+                spawn: Vec3::new(680.0, 118.0, 74.0),
+                yaw_deg: 0.0,
+                source: ZoneChangeSource::Debug,
+                link: None,
+            });
+        world.run_system_once(begin_zone_change_system).unwrap();
+        for _ in 0..4 {
+            world
+                .resource_mut::<Time>()
+                .advance_by(Duration::from_secs_f32(ZONE_FADE_SECONDS));
+            zone_change_driver(&mut world);
+        }
+        assert_eq!(world.resource::<ActiveZoneInfo>().area, "ha_area05");
+        assert_eq!(
+            world
+                .query_filtered::<Entity, With<InteriorFallback>>()
+                .query(&world)
+                .count(),
+            0,
+            "the fallback room is gone after the change"
+        );
     }
 
     #[test]

@@ -9,6 +9,10 @@
 //! - [`DoorPrompt`] + [`DoorPairsPlugin`]: a small "[E] <door> -> <destination>" hint shown while
 //!   the player stands in a door box, so the player knows a door is there and whether it works.
 //!
+//! Since Brief 37 both kinds of destination load: main areas through the terrain path and
+//! interior sub-areas through the interior scene path (`game::interior`), so the hint no longer
+//! distinguishes them.
+//!
 //! Not built (no data): ropes and ladders. No `gimmick_*` model name denotes one (see
 //! `reports/data-progress/door_pairs.md`), so [`climbable_gimmick_candidates`] is empty by
 //! construction and nothing is hooked up. Jump / fall / climb states belong to the movement module.
@@ -20,17 +24,18 @@ use bevy::prelude::*;
 use crate::game::state::{not_paused, GameState};
 use crate::game::ui::ActiveZoneInfo;
 use crate::game::zone::{
-    in_trigger, main_area_index, LinkKind, ZoneLink, ZoneLoading, ZoneLinks, DOOR_TRIGGER_PAD,
+    in_trigger, main_area_index, DoorReachIndex, LinkKind, ZoneLink, ZoneLoading, ZoneLinks,
+    DOOR_TRIGGER_PAD,
 };
 use crate::game::PlayerAvatar;
 
 /// What kind of scene a door leads to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DestKind {
-    /// A main area (`ha_areaNN`): loadable today.
+    /// A main area (`ha_areaNN`).
     MainArea,
-    /// A sub-area (house, tent, cave, temple): the decoded request is right but the interior
-    /// scene is Brief 37, so the change is refused with a notice.
+    /// An interior sub-area (house, tent, cave, temple): loadable since Brief 37 through the
+    /// interior scene path of `game::interior`.
     SubArea,
 }
 
@@ -140,13 +145,11 @@ pub fn climbable_gimmick_candidates(model_names: &[&str]) -> Vec<String> {
         .collect()
 }
 
-/// Text of the prompt for a door seen from its own area.
+/// Text of the prompt for a door seen from its own area. Both main areas and interior sub-areas
+/// load since Brief 37, so the hint is the same for both.
 pub fn prompt_text(link: &ZoneLink) -> String {
     let dest = crate::game::zone::zone_display_name(&link.to_area);
-    match dest_kind(&link.to_area) {
-        DestKind::MainArea => format!("[E] Enter {dest}"),
-        DestKind::SubArea => format!("[E] Enter {dest} (interiors are not loadable yet)"),
-    }
+    format!("[E] Enter {dest}")
 }
 
 /// The door the player stands in front of, with the hint text; empty when none.
@@ -175,11 +178,14 @@ fn spawn_prompt_text(mut commands: Commands) {
     ));
 }
 
-/// Updates [`DoorPrompt`] from the player position (hidden during a zone change).
+/// Updates [`DoorPrompt`] from the player position (hidden during a zone change). The interaction
+/// reach is the per-door one ([`DoorReachIndex`], `game::zone`), so the hint appears exactly when
+/// the E press will work.
 pub fn door_prompt_system(
     links: Res<ZoneLinks>,
     zone: Option<Res<ActiveZoneInfo>>,
     loading: Res<ZoneLoading>,
+    reach: Res<DoorReachIndex>,
     player: Query<&Transform, With<PlayerAvatar>>,
     mut prompt: ResMut<DoorPrompt>,
 ) {
@@ -189,7 +195,7 @@ pub fn door_prompt_system(
         }
         let zone = zone?;
         let t = player.single().ok()?;
-        links.door_at(&zone.area, t.translation.x, t.translation.z, DOOR_TRIGGER_PAD)
+        links.door_at_with_reach(&zone.area, t.translation.x, t.translation.z, &reach)
     })();
     let next = DoorPrompt {
         door: found.map(|l| l.name.clone()),
@@ -258,6 +264,10 @@ mod tests {
         assert_eq!(s.exit_in_destination, s.doors, "every exit door sits in the destination area");
         assert_eq!(s.to_main_area + s.to_sub_area, s.doors);
         assert!(s.to_sub_area > 0 && s.to_main_area > 0);
+        // At the 0.75 m base reach the arrivals stay outside their exit door's box: arriving never
+        // lets an immediate E press reuse the exit door with the base reach. The runtime reach is
+        // per door (`DoorReachIndex`, `game::zone`), measured against the area navmesh.
+        assert_eq!(s.arrival_in_exit_box, 0, "{s:?}");
         println!("{s:?}");
     }
 
@@ -299,6 +309,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(links);
         app.init_resource::<ZoneLoading>();
+        app.init_resource::<DoorReachIndex>();
         app.init_resource::<DoorPrompt>();
         app.insert_resource(ActiveZoneInfo { area: "ha_area00".into(), name: "x".into() });
         let player = app

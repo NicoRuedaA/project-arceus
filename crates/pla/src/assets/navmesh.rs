@@ -338,6 +338,18 @@ impl AreaNavigation {
         Ok(Self { area, meshes })
     }
 
+    /// [`Self::load`] for an independently named scene (`ha_areaNN_sXX[_y]`, the sub-area packs
+    /// of Brief 37). The `area` field keeps the numeric id only for main areas; a sub-area scene
+    /// is identified by its id string, so the numeric pin is only used by the legacy callers.
+    pub fn load_named(bin_root: impl AsRef<Path>, zone: &str, area_pin: u8) -> Result<Self, String> {
+        let path = bin_root.as_ref().join("archive/field/terrain").join(format!("{zone}.gfpak"));
+        let meshes = load_pack_navmeshes(path)?;
+        if meshes.is_empty() {
+            return Err(format!("{zone}: no navmesh found"));
+        }
+        Ok(Self { area: area_pin, meshes })
+    }
+
     pub fn primary(&self) -> &NavMesh {
         &self.meshes[0]
     }

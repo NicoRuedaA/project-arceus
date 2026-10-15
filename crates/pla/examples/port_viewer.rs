@@ -411,6 +411,31 @@ fn main() -> ExitCode {
             area_idx = a;
         }
     }
+    // A save made inside an interior (zone id `ha_areaNN_sXX[_y]`, Brief 37) rebuilds the world
+    // around the parent main area and asks the zone machine for the interior on the first world
+    // frame, through the same fade the doors use. An explicit `--area` keeps the area the user
+    // asked for; the pause-menu Load row still reaches the interior on demand.
+    let mut startup_zone: Option<pla::game::zone::ZoneChangeRequest> = None;
+    if !wire_cli.has_area {
+        if let Some(zone) = wire_start.zone.clone().filter(|z| pla::game::interior::is_sub_area(z)) {
+            if let Some(parent) =
+                pla::game::zone::main_area_index(pla::game::zone::main_area_of(&zone))
+            {
+                area_idx = parent;
+            }
+            let spawn = wire_start
+                .position
+                .map(Vec3::from_array)
+                .unwrap_or(Vec3::ZERO);
+            startup_zone = Some(pla::game::zone::ZoneChangeRequest {
+                zone,
+                spawn,
+                yaw_deg: wire_start.yaw,
+                source: pla::game::zone::ZoneChangeSource::LoadGame,
+                link: None,
+            });
+        }
+    }
     let pos_from_cli = wire_cli.has_player_pos || initial_player_pos.is_some();
     if !wire_cli.has_player_pos && initial_player_pos.is_none() {
         // Only a position saved in this same area (a save from another zone keeps its
@@ -534,6 +559,7 @@ fn main() -> ExitCode {
             navmesh_res,
             safe_spawn_xz,
             spawn_notice,
+            startup_zone,
             static_wild: auto_demo || controls_demo_dir.is_some() || verify_views_dir.is_some(),
             debug_zone_links,
             automation: AutomationOptions {
@@ -763,6 +789,8 @@ struct ViewerSetup {
     navmesh_res: Option<GameNavmeshResource>,
     safe_spawn_xz: Option<Vec2>,
     spawn_notice: Option<&'static str>,
+    /// Interior zone to load right after start-up (save made inside a house, Brief 37).
+    startup_zone: Option<pla::game::zone::ZoneChangeRequest>,
     /// Scripted / automated runs need static wild positions (deterministic frames).
     static_wild: bool,
     debug_zone_links: bool,
@@ -803,6 +831,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         navmesh_res,
         safe_spawn_xz,
         spawn_notice,
+        startup_zone,
         static_wild,
         debug_zone_links,
         automation,
@@ -902,6 +931,9 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         area: format!("ha_area{area_idx:02}"),
         name: pla::game::zone::display_name_for_index(area_idx),
     });
+    if let Some(request) = startup_zone {
+        app.insert_resource(pla::game::zone::StartupZoneRequest(request));
+    }
     app.insert_resource(TreeCatalogResource {
         handles: HashMap::new(),
         spawned_area: None,
@@ -4116,6 +4148,7 @@ mod startup_schedule_guard {
             navmesh_res,
             safe_spawn_xz,
             spawn_notice,
+            startup_zone: None,
             static_wild: false,
             debug_zone_links: has("--debug-zone-links"),
             automation: AutomationOptions {

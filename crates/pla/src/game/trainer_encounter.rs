@@ -535,6 +535,7 @@ mod tests {
         let start = StartupState {
             progress,
             area: Some(1),
+            zone: Some("ha_area01".into()),
             position: None,
             yaw: 0.0,
             time_minutes: None,

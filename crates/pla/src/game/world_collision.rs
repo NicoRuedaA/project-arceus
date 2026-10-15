@@ -629,6 +629,9 @@ pub struct WorldCollision {
     /// Export-index table of the spawnable models (see [`model_paths`]): zone changes filter the
     /// new area's rows with it, exactly like the visual objects do.
     paths: HashMap<String, (PathBuf, String)>,
+    /// Export-index cache root; a zone change re-resolves the paths per zone pack (the interior
+    /// scenes of Brief 37 each have their own exported folder).
+    cache_root: PathBuf,
     /// Per-model parsed mesh (`None` = the model has no collision entry).
     models: HashMap<String, Option<Arc<CollisionMesh>>>,
     alive: Vec<bool>,
@@ -747,14 +750,26 @@ impl WorldCollision {
             self.replace_placements(Vec::new());
             return Err(format!("ha_area{area:02} has no placed-object collision"));
         }
+        self.switch_zone(&format!("ha_area{area:02}"))
+    }
+
+    /// [`Self::switch_area`] for any zone id (main area or interior sub-area, Brief 37): the
+    /// streamable-table filter is re-resolved against the zone's own export pack first, so the
+    /// room shells of an interior keep their walls.
+    pub fn switch_zone(&mut self, zone: &str) -> Result<(), String> {
         let Some(text) = find_data_file("field_object_placements.tsv")
             .and_then(|p| std::fs::read_to_string(p).ok())
         else {
             self.replace_placements(Vec::new());
             return Err("data/field_object_placements.tsv not found".into());
         };
-        let placements =
-            Self::streamable_placements(&text, &format!("ha_area{area:02}"), &self.paths);
+        let paths = if self.cache_root.as_os_str().is_empty() {
+            self.paths.clone()
+        } else {
+            super::world_objects::paths_for_zone(zone, &self.cache_root)
+        };
+        let placements = Self::streamable_placements(&text, zone, &paths);
+        self.paths = paths;
         self.replace_placements(placements);
         Ok(())
     }
@@ -804,6 +819,7 @@ impl WorldCollision {
             packs,
             placements,
             paths,
+            cache_root: cache_root.as_ref().to_path_buf(),
             models: HashMap::new(),
             alive: vec![false; placements_total],
             rot_mode,
@@ -952,6 +968,7 @@ mod tests {
             packs: CollisionPacks { packs: Vec::new() },
             placements: Vec::new(),
             paths: HashMap::new(),
+            cache_root: PathBuf::new(),
             models: HashMap::new(),
             alive: Vec::new(),
             rot_mode: RotMode::YawY,
