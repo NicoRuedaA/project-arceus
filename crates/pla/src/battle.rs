@@ -331,6 +331,13 @@ impl BattleData {
     pub fn score_rule_count(&self) -> usize {
         self.score_rules.rows.len()
     }
+
+    /// Observed random-gate percentage of a score rule, when the sheet has one. The caller
+    /// draws its own gate and passes the outcome in [`AiFacts::probability_gate_passed`].
+    pub fn rule_chance_pct(&self, id: &str) -> Option<u8> {
+        let row = self.score_rules.row("rule_id:string*", id)?;
+        Table::value(row, "chance_pct:u8?").ok()?.parse().ok()
+    }
     pub fn expert_sequence_count(&self) -> usize {
         self.expert_sequences.rows.len()
     }
@@ -411,6 +418,13 @@ impl BattleData {
                 gated(chance()?)?
             }
             "strong_high_affinity_bonus" => RuleOutcome::NotTriggered,
+            "expert_lock_on_bonus"
+                if facts.attacker_lock_on
+                    && !EXPERT_LOCK_ON_EXCLUDED_MOVES.contains(&facts.move_id) =>
+            {
+                gated(chance()?)?
+            }
+            "expert_lock_on_bonus" => RuleOutcome::NotTriggered,
             "allowance_cat_tease" if facts.can_neko_damasi => RuleOutcome::Applied(delta()?),
             "allowance_cat_tease" => RuleOutcome::NotTriggered,
             "allowance_hp_under_20"
@@ -568,10 +582,21 @@ pub struct AiFacts {
     pub basic_affinity_exception: bool,
     pub target_hp_percent: Option<u8>,
     pub can_neko_damasi: bool,
+    /// Candidate move id (`wazano` in the script), input of `expert_lock_on_bonus`.
+    pub move_id: u16,
+    /// Whether the attacker carries the lock-on state (`IsPokeLockOn`). The port engine does
+    /// not model that state, so callers currently always pass `false`: the rule is fully
+    /// mapped and stays dormant until the status exists (UNKNOWN).
+    pub attacker_lock_on: bool,
     /// The caller supplies the outcome of the game's percentage gate; this
     /// module does not claim to reproduce the game's PRNG.
     pub probability_gate_passed: Option<bool>,
 }
+
+/// Move ids excluded from `expert_lock_on_bonus` (read from `battle.lua`, the
+/// `IsPokeLockOn` branch: 192, 223, 517, 47, 48, 320, 95, 59, 87, 123, 411, 542).
+pub const EXPERT_LOCK_ON_EXCLUDED_MOVES: [u16; 12] =
+    [192, 223, 517, 47, 48, 320, 95, 59, 87, 123, 411, 542];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuleOutcome {
@@ -723,6 +748,93 @@ mod tests {
             )
             .unwrap();
         assert!(matches!(partial, RuleOutcome::Unsupported(_)));
+    }
+
+    #[test]
+    fn expert_lock_on_bonus_matches_the_script_excluded_set() {
+        let data = data();
+        assert_eq!(data.rule_chance_pct("expert_lock_on_bonus"), Some(78));
+        // not locked on: never
+        let idle = data
+            .evaluate_rule(
+                "expert_lock_on_bonus",
+                &AiFacts {
+                    move_id: 85,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert!(matches!(idle, RuleOutcome::NotTriggered));
+        // locked on, excluded move id: never
+        let excluded = data
+            .evaluate_rule(
+                "expert_lock_on_bonus",
+                &AiFacts {
+                    attacker_lock_on: true,
+                    move_id: 192,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert!(matches!(excluded, RuleOutcome::NotTriggered));
+        // locked on, any other move: +2 on the 78 % gate, nothing otherwise
+        let base = AiFacts {
+            attacker_lock_on: true,
+            move_id: 85,
+            ..Default::default()
+        };
+        assert_eq!(
+            data.evaluate_rule(
+                "expert_lock_on_bonus",
+                &AiFacts {
+                    probability_gate_passed: Some(true),
+                    ..base
+                }
+            )
+            .unwrap(),
+            RuleOutcome::Applied(2)
+        );
+        assert_eq!(
+            data.evaluate_rule(
+                "expert_lock_on_bonus",
+                &AiFacts {
+                    probability_gate_passed: Some(false),
+                    ..base
+                }
+            )
+            .unwrap(),
+            RuleOutcome::NotTriggered
+        );
+        // Every excluded id and a couple outside the set.
+        for id in EXPERT_LOCK_ON_EXCLUDED_MOVES {
+            let out = data
+                .evaluate_rule(
+                    "expert_lock_on_bonus",
+                    &AiFacts {
+                        attacker_lock_on: true,
+                        move_id: id,
+                        probability_gate_passed: Some(true),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+            assert!(matches!(out, RuleOutcome::NotTriggered), "move {id}");
+        }
+        // Allowance tiers keep their decoded chances.
+        assert_eq!(data.rule_chance_pct("allowance_hp_under_20"), Some(88));
+        assert_eq!(data.rule_chance_pct("allowance_hp_under_40"), Some(59));
+        let hp10 = data
+            .evaluate_rule(
+                "allowance_hp_under_20",
+                &AiFacts {
+                    damaging_move: true,
+                    target_hp_percent: Some(10),
+                    probability_gate_passed: Some(true),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(hp10, RuleOutcome::Applied(-1));
     }
 
     #[test]

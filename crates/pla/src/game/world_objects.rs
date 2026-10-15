@@ -416,9 +416,11 @@ fn static_placed_mesh(meshes: &mut Assets<Mesh>, handle: &Handle<Mesh>) -> Optio
     Some(meshes.add(stripped))
 }
 
+/// A live placed object; `0` indexes the area's placement set (the same order the collision
+/// grid uses, see `WorldCollision::segment_blocked_placements`). The battle camera hides the
+/// objects that block its view through this index.
 #[derive(Component)]
-#[allow(dead_code)]
-struct PlacedObject(usize);
+pub struct PlacedObject(pub usize);
 
 #[allow(clippy::too_many_arguments)]
 fn stream_objects(

@@ -1,0 +1,17 @@
+# sheet: data/dex_ranks
+# version: 1
+# generator: .tools/dex_research_probe.py
+# target: Pokemon Legends: Arceus update v262144 pokedex_rank_table.bin
+# semantics: rank id -> research points needed; both fields are PROBABLE
+# confidence: the nine rows repeat a monotone (rank, points) record shape;
+#   rank 1 has no readable threshold (a candidate 500 exists but its layout is UNKNOWN).
+rank:u8	points:u32	confidence:string	source_file:string	source_offset:u32
+2	1800	PROBABLE	pokedex_rank_table.bin	164
+3	3500	PROBABLE	pokedex_rank_table.bin	152
+4	6000	PROBABLE	pokedex_rank_table.bin	140
+5	8500	PROBABLE	pokedex_rank_table.bin	128
+6	11000	PROBABLE	pokedex_rank_table.bin	116
+7	15000	PROBABLE	pokedex_rank_table.bin	104
+8	20000	PROBABLE	pokedex_rank_table.bin	92
+9	30000	PROBABLE	pokedex_rank_table.bin	80
+10	60000	PROBABLE	pokedex_rank_table.bin	68

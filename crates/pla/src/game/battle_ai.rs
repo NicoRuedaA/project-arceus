@@ -1,11 +1,12 @@
 //! Opponent move choice built on the engine's recovered AI score rules.
 //!
 //! Only the rules whose predicate is fully mapped in `BattleData::evaluate_rule` are used
-//! (`basic_affinity_ineffective`, `strong_non_max_damage`, and for trainers with the Strong
-//! module also the 70 %-gated `strong_high_affinity_bonus`). The rest of the game's AI (Expert
-//! sequence handlers, whose per-score predicates are only partly mapped) is not reproduced
-//! (UNKNOWN). Picking randomly among equal best scores and skipping most status moves is a
-//! local simplification, not recovered behaviour.
+//! (`basic_affinity_ineffective`, `strong_non_max_damage`, the gated `strong_high_affinity_bonus`,
+//! the Allowance HP tiers, `expert_friendly_fire` and the gated `expert_lock_on_bonus` whose
+//! predicate is read from `battle.lua`). The Expert sequence handlers (per-`aiSeqNo` score
+//! suites) are still not reproduced: the move table carries no `aiSeqNo` and their per-score
+//! predicates are only partly mapped (UNKNOWN). Picking randomly among equal best scores and
+//! skipping most status moves is a local simplification, not recovered behaviour.
 
 use crate::battle::{AiFacts, BattleData};
 use crate::battle_engine::{type_effectiveness, Action, Battle, BattleRng};
@@ -13,9 +14,9 @@ use crate::battle_engine::{type_effectiveness, Action, Battle, BattleRng};
 /// Rules evaluated for every candidate move of a wild Pokemon.
 pub const AI_RULES: [&str; 2] = ["basic_affinity_ineffective", "strong_non_max_damage"];
 
-/// The one gated rule used here and its observed chance (`data/ai/score_rules.tsv`).
+/// The gated Strong rule used by trainer AI (its observed 70 % chance is read from
+/// `data/ai/score_rules.tsv`; see [`BattleData::rule_chance_pct`]).
 pub const HIGH_AFFINITY_RULE: &str = "strong_high_affinity_bonus";
-pub const HIGH_AFFINITY_CHANCE_PCT: u32 = 70;
 
 /// Native affinity value of a type multiplier.
 ///
@@ -39,11 +40,11 @@ pub fn score_moves(
     actor: usize,
     target: usize,
 ) -> Vec<Option<i32>> {
-    score_with(battle, data, actor, target, &AI_RULES, &mut || None)
+    score_with(battle, data, actor, target, &AI_RULES, &mut |_| None)
 }
 
-/// Score with an explicit rule list (trainer AI modules). When `rules` contains the gated
-/// [`HIGH_AFFINITY_RULE`], one 70 % roll per move decides its gate.
+/// Score with an explicit rule list (trainer AI modules). Each gated rule gets its own
+/// observed roll, with that rule's sheet percentage ([`BattleData::rule_chance_pct`]).
 pub fn score_moves_rules<R: BattleRng>(
     battle: &Battle,
     data: &BattleData,
@@ -52,9 +53,8 @@ pub fn score_moves_rules<R: BattleRng>(
     rules: &[&str],
     rng: &mut R,
 ) -> Vec<Option<i32>> {
-    let gated = rules.contains(&HIGH_AFFINITY_RULE);
-    score_with(battle, data, actor, target, rules, &mut || {
-        gated.then(|| rng.below(100) < HIGH_AFFINITY_CHANCE_PCT)
+    score_with(battle, data, actor, target, rules, &mut |id| {
+        data.rule_chance_pct(id).map(|pct| rng.below(100) < u32::from(pct))
     })
 }
 
@@ -64,7 +64,7 @@ fn score_with(
     actor: usize,
     target: usize,
     rules: &[&str],
-    gate: &mut dyn FnMut() -> Option<bool>,
+    gate: &mut dyn FnMut(&str) -> Option<bool>,
 ) -> Vec<Option<i32>> {
     let best = battle.best_damage_action(actor).map(|a| a.move_slot);
     let me = &battle.combatants[actor];
@@ -80,15 +80,28 @@ fn score_with(
             let affinity = damaging.then(|| {
                 affinity_level(type_effectiveness(data.type_chart(), &m.data.move_type, &foe.species.types))
             });
-            let facts = AiFacts {
-                damaging_move: damaging,
-                candidate_is_max_damage: best == Some(slot),
-                affinity,
-                target_hp_percent: Some((foe.hp * 100 / foe.max_hp.max(1)).min(100) as u8),
-                probability_gate_passed: gate(),
-                ..AiFacts::default()
-            };
-            Some(data.score_rules(rules, &facts).unwrap_or(0))
+            // One rule at a time: gated rules roll separately, exactly like the script's
+            // per-check IfRand.
+            let total = rules.iter().fold(0_i32, |acc, id| {
+                let facts = AiFacts {
+                    damaging_move: damaging,
+                    candidate_is_max_damage: best == Some(slot),
+                    affinity,
+                    target_hp_percent: Some((foe.hp * 100 / foe.max_hp.max(1)).min(100) as u8),
+                    move_id: m.data.id,
+                    // The port does not model the lock-on state (UNKNOWN): the expert rule
+                    // stays dormant instead of being guessed.
+                    attacker_lock_on: false,
+                    probability_gate_passed: gate(id),
+                    ..AiFacts::default()
+                };
+                match data.evaluate_rule(id, &facts) {
+                    Ok(crate::battle::RuleOutcome::Applied(delta)) => acc.saturating_add(delta),
+                    Ok(_) => acc,
+                    Err(_) => acc,
+                }
+            });
+            Some(total)
         })
         .collect()
 }

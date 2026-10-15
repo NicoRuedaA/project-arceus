@@ -38,6 +38,21 @@ visible comes from them yet. There is no other generic hit effect in the move ma
 added. Status: `es001` drowsy, `es002` poison, `es003` burn, `es004` frostbite, `es005`
 paralysis (names LIKELY) each play one particle file on the Pokémon that received the status.
 
+### Moves with no effect file (nothing plays, same as the game)
+
+The viewer log reported four missing timelines: `ew045`, `ew036`, `ew017`, `ew028`. They are
+**Growl (45), Take Down (36), Wing Attack (17) and Sand Attack (28)**, moves whose waza record
+has `style_flag = 0` in `data/pml_move_effects.tsv`: they survive in the learnsets as move-tutor
+leftovers, but they are **not usable in this game** (the 177 `ewNNN.wbin` files match the 177
+`style_flag = 1` moves one to one, and `bin/effect/battle/sequence` has no file for them,
+VERIFIED). The original has no timeline to load for them and therefore plays nothing; the port
+skipped them the same way. What was off was where the names came from: the viewer's demo
+movesets (`game::battle_controller::moveset` / `wild_moveset`) picked those tutor moves.
+They now only pick usable moves from each species' real learnset (rollout, crunch, gust,
+aerial-ace, thunder-shock, ...). The effect driver splits any absent timeline name into a
+`warn!` for names the game *does* use (a real gap in the extracted data; previously the message
+for every name) and a `debug!` for not-usable moves (normal: no effect, like the original).
+
 ## How it plays (code: `crates/pla/src/game/effects.rs` and `game/effects/`)
 
 1. **Battle hook.** `EffectsPlugin` reads the new events of `ActiveBattleSession` (the same

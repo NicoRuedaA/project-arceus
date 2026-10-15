@@ -269,6 +269,34 @@ fn anchor_pos(a: EffectAnchor, slots: &Query<(&GlobalTransform, &PokemonBattleSl
     }
 }
 
+/// Split the timelines found absent into:
+/// * the ones the game ships a file for (move map or the shared battle marks): their absence is
+///   a real gap in the extracted data and deserves a warning;
+/// * the ones belonging to moves not usable in this game (`style_flag = 0`, tutor leftovers):
+///   the game has no file for them either, so playing nothing is the original behaviour.
+///
+/// Without the move table every absent name counts as a data gap (it cannot be classified).
+fn classify_absent_timelines(
+    absent: Vec<String>,
+    timing: Option<&MoveTimingTable>,
+) -> (Vec<String>, Vec<String>) {
+    let Some(t) = timing else {
+        return (absent, Vec::new());
+    };
+    absent
+        .into_iter()
+        .partition(|n| t.by_sequence.contains_key(n) || is_shared_sequence(n))
+}
+
+/// Shared battle timelines preloaded for every battle (not tied to one move).
+fn is_shared_sequence(name: &str) -> bool {
+    [timeline::CRITICAL_SEQUENCE, timeline::SUPER_EFFECTIVE_SEQUENCE, timeline::NOT_VERY_EFFECTIVE_SEQUENCE]
+        .contains(&name)
+        || [MajorStatus::Drowsy, MajorStatus::Poison, MajorStatus::Burn, MajorStatus::Frostbite, MajorStatus::Paralysis]
+            .iter()
+            .any(|s| timeline::status_sequence(*s) == name)
+}
+
 /// Battle hook: timelines for the new events of the battle session.
 #[allow(clippy::too_many_arguments)]
 fn drive_battle_effects(
@@ -321,11 +349,23 @@ fn drive_battle_effects(
             }
         }
         let absent = library.take_new_absent();
-        if !absent.is_empty() {
-            info!(
-                "effects: {} move timeline file(s) do not exist in the game data and are skipped: {}",
-                absent.len(),
-                absent.join(", ")
+        let (missing, unusable) = classify_absent_timelines(absent, timings.as_deref());
+        if !missing.is_empty() {
+            // The game ships a timeline for these (move map or shared marks): the extracted data
+            // is incomplete, so their effects silently play as nothing.
+            warn!(
+                "effects: {} timeline file(s) the game uses are missing from the extracted data (no effect will play for them): {}",
+                missing.len(),
+                missing.join(", ")
+            );
+        }
+        if !unusable.is_empty() {
+            // Normal case: moves with `style_flag = 0` (tutor leftovers) are never used by the
+            // game and have no sequence file at all, so the original plays nothing either.
+            debug!(
+                "effects: {} timeline file(s) belong to moves that are not usable in this game (style_flag = 0), so they play no effect, like the original: {}",
+                unusable.len(),
+                unusable.join(", ")
             );
         }
     }
@@ -668,6 +708,24 @@ mod tests {
         assert_eq!(lib.take_new_absent(), vec!["ew045".to_string(), "ew036".to_string()]);
         assert!(lib.take_new_absent().is_empty(), "each name is returned once");
         assert_eq!(lib.stats.timelines_missing, 2);
+    }
+
+    /// ew045/ew036 are Growl/Take Down: `style_flag = 0`, never used by the game, no file in
+    /// its data. The move map (`ew085`) and the shared marks (`es002`) do have files, so their
+    /// absence is a real data gap.
+    #[test]
+    fn absent_timelines_are_split_into_missing_files_and_not_usable_moves() {
+        let mut table = MoveTimingTable::default();
+        table.by_sequence.insert("ew085".into(), MoveTiming::default());
+        let (missing, unusable) = classify_absent_timelines(
+            vec!["ew085".into(), "cmn_critical".into(), "es002".into(), "ew045".into(), "ew036".into()],
+            Some(&table),
+        );
+        assert_eq!(missing, vec!["ew085".to_string(), "cmn_critical".to_string(), "es002".to_string()]);
+        assert_eq!(unusable, vec!["ew045".to_string(), "ew036".to_string()]);
+        let (missing, unusable) = classify_absent_timelines(vec!["ew045".into()], None);
+        assert_eq!(missing, vec!["ew045".to_string()], "without the table nothing can be classified");
+        assert!(unusable.is_empty());
     }
 
     /// Real data: the `point_light` emitters were drawn as a big opaque white disc and the

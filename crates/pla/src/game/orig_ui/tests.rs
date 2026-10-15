@@ -54,6 +54,15 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "L_item_00",
         ],
         ScreenId::PauseMenu => &["T_title_00", "L_menu_00", "L_menu_03"],
+        ScreenId::Options => &[
+            "L_settings_list_00",
+            "L_settings_list_13",
+            "L_scrollbar_00",
+            "T_heading_00",
+            "T_option_heading_00",
+            "N_switch_slider_00",
+            "T_slider_current_param",
+        ],
         _ => &[],
     }
 }
@@ -548,6 +557,146 @@ fn map_highlights_the_current_area() {
     assert!(tint(0).black.z > tint(2).black.z, "the current area is lighter");
 }
 
+/// Opening the party operations submenu draws the port's popup over the party layout (the game's
+/// own list keeps its rows) and the hint switches to the submenu keys.
+#[test]
+fn party_operations_popup_shows_on_the_party_screen() {
+    let Some(root) = local_root() else { return };
+    use crate::game::party_screen::{PartyOpsState, OPS};
+    use crate::game::save_game::PartyMember;
+    use crate::game::save_wire::PlayerProgress;
+    let (app, e) = screen_app(&root, ScreenId::Party, |app| {
+        let mut p = PlayerProgress::new_game();
+        p.party = vec![PartyMember {
+            species: 25,
+            level: 9,
+            hp: 20,
+            ..Default::default()
+        }];
+        app.insert_resource(p);
+        app.insert_resource(crate::game::party_screen::PartyScreenState { open: true });
+        app.insert_resource(PartyOpsState {
+            open: true,
+            selected: 4,
+            pending_release: false,
+            message: "Release #0025? Choose Release again to confirm.".into(),
+        });
+        app.add_systems(Update, (menus::bind_party_screen, render_screens).chain());
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
+    assert!(free.iter().any(|t| t.starts_with("Actions:")), "{free:?}");
+    for op in OPS {
+        assert!(free.iter().any(|t| t.contains(op)), "{op} missing: {free:?}");
+    }
+    assert!(
+        free.iter().any(|t| t.contains("confirm")),
+        "the release question shows: {free:?}"
+    );
+    assert_eq!(s.free_quads().len(), 1, "one popup panel");
+    assert!(
+        free.contains(&"Enter: choose   Esc: back"),
+        "the submenu hint shows at the bottom: {free:?}"
+    );
+}
+
+/// The Graphics screen in the game's own list: the current page's rows are filled with the port's
+/// options, the Interface (UI) row keeps its restart marker and the cursor row carries the game's
+/// selection state. The window scrolls within a long page (Distances has eleven rows).
+#[test]
+fn options_screen_fills_the_settings_list_and_marks_restart() {
+    let Some(root) = local_root() else { return };
+    use crate::game::graphics_screen::{
+        self, GraphicsRuntime, GraphicsScreenState, GraphicsSettings,
+    };
+    let (mut app, e) = screen_app(&root, ScreenId::Options, |app| {
+        let mut settings = GraphicsSettings::default();
+        settings.set(graphics_screen::id::UI, 1);
+        let startup = GraphicsSettings::default();
+        app.insert_resource(settings.clone());
+        app.insert_resource(GraphicsRuntime {
+            saved: settings,
+            startup,
+            overridden: Vec::new(),
+            dir: PathBuf::new(),
+        });
+        app.insert_resource(GraphicsScreenState {
+            open: true,
+            selected: 0,
+            page: 0,
+            scroll: 0,
+        });
+        app.add_systems(Update, (menus::bind_options_screen, render_screens).chain());
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(s.shown, "open screen must show");
+    let f = s.last.clone().expect("evaluated");
+    let visible: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    for want in ["Page", "< Look >  (1/5)", "Look", "vivid", "Interface (UI)"] {
+        assert!(visible.contains(&want), "{want} missing: {visible:?}");
+    }
+    assert!(
+        visible.iter().any(|t| t.contains("debug (restart)")),
+        "the UI row keeps its restart marker: {visible:?}"
+    );
+    assert!(
+        visible.contains(&"Reset to defaults"),
+        "the Look page (nine rows) fits the window: {visible:?}"
+    );
+    // Row 0 (the cursor) carries the game's selection state, row 1 does not.
+    let row = |k: usize| s.scene.part_instance(&format!("L_settings_list_{k:02}")).unwrap();
+    let track = |inst: usize, anim: &str| {
+        s.anim
+            .tracks
+            .iter()
+            .any(|t| t.instance == inst && t.anim == format!("option_settings_button_00_{anim}"))
+    };
+    assert!(track(row(0), "select_state"));
+    assert!(!track(row(0), "unselect_state"));
+    assert!(track(row(1), "unselect_state"));
+
+    // The Distances page has eleven rows: only the first nine are placed, the rest waits in the
+    // window and the step beyond it scrolls.
+    {
+        let mut state = app.world_mut().resource_mut::<GraphicsScreenState>();
+        state.page = crate::game::graphics_screen::visible_pages()
+            .iter()
+            .position(|p| *p == crate::game::graphics_screen::Page::Distances)
+            .unwrap();
+        state.selected = 10;
+    }
+    app.update();
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    let f = s.last.clone().expect("evaluated");
+    let visible: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    assert!(visible.contains(&"Reset to defaults"), "scrolled to the last row: {visible:?}");
+    assert!(!visible.contains(&"Page"), "the top row scrolled away: {visible:?}");
+    let hidden_tail = s.scene.find("L_settings_list_13").unwrap();
+    assert!(!f.geoms[hidden_tail].visible, "off-window parts stay hidden");
+}
+
+/// A UI root whose `option` layout is missing keeps the provisional Graphics screen: the
+/// original screen is absent and nothing is drawn for it (the library warns once).
+#[test]
+fn options_screen_falls_back_when_the_layout_is_missing() {
+    let dir = std::env::temp_dir().join(format!("pla-ui-no-option-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("layouts")).unwrap();
+    let mut lib = OrigUiLibrary::new(Some(dir.clone()));
+    assert!(lib.scene("option", "option_settings_00").is_none());
+    assert!(lib.doc("option").is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// Arbitrary font paths are rejected; only the pre-verified free-font candidates are eligible.
 #[test]
 fn ui_font_lookup_prefers_the_env_path_and_skips_missing_files() {
@@ -566,4 +715,63 @@ fn ui_font_lookup_prefers_the_env_path_and_skips_missing_files() {
     assert!(system_font_from_bytes(vec![0, 1, 0, 0]).is_err());
     assert_eq!(fold_for_default_font("Pokédex Pokémon"), "Pokedex Pokemon");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The Particles slider (0..200 %, default 100 %) drives the game's own gauge: half the bar and
+/// the knob at the middle for the default, full at the maximum, and the numeric value beside it.
+#[test]
+fn options_slider_rows_drive_the_game_gauge() {
+    let Some(root) = local_root() else { return };
+    use crate::game::graphics_screen::{
+        self, GraphicsRuntime, GraphicsScreenState, GraphicsSettings,
+    };
+    let (mut app, e) = screen_app(&root, ScreenId::Options, |app| {
+        let settings = GraphicsSettings::default();
+        app.insert_resource(settings.clone());
+        app.insert_resource(GraphicsRuntime {
+            saved: settings,
+            startup: GraphicsSettings::default(),
+            overridden: Vec::new(),
+            dir: PathBuf::new(),
+        });
+        app.insert_resource(GraphicsScreenState {
+            open: true,
+            selected: 0,
+            page: 1, // Quality: Particles is the seventh row (part 06)
+            scroll: 0,
+        });
+        app.add_systems(Update, (menus::bind_options_screen, render_screens).chain());
+    });
+    let bar = |app: &mut App, e: Entity, v: i32| {
+        app.world_mut()
+            .resource_mut::<GraphicsSettings>()
+            .set(graphics_screen::id::PARTICLES, v);
+        app.update();
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        let f = s.last.clone().expect("evaluated");
+        let part = s.scene.part_instance("L_settings_list_06").unwrap();
+        let node = s.scene.find_in(part, "L_option_slider_00").unwrap();
+        let slider = s.scene.instance_of_node(node).unwrap();
+        let geom = |name: &str| {
+            let n = s.scene.find_in(slider, name).unwrap();
+            (f.geoms[n].center.x, f.geoms[n].size.x)
+        };
+        let text = f
+            .texts
+            .iter()
+            .find(|t| t.visible && t.text.contains('%'))
+            .map(|t| t.text.clone());
+        (geom("W_slider_gauge_back_00"), geom("W_slider_gauge_00"), geom("N_slider_knob_00"), text)
+    };
+    let (back, half, knob, text) = bar(&mut app, e, 100);
+    assert_eq!(back, (1107.0, 620.0), "the track keeps its size");
+    assert!((half.1 / back.1 - 0.5).abs() < 0.06, "half the bar for 100 %: {half:?}");
+    let middle = back.0;
+    assert!((knob.0 - middle).abs() < 40.0, "knob near the middle: {knob:?}");
+    assert_eq!(text.as_deref(), Some("100%"));
+    let (_, full, knob_full, _) = bar(&mut app, e, 200);
+    assert_eq!(full.1, back.1, "the bar fills at the maximum");
+    assert!(knob_full.0 > back.0 + 200.0, "the knob moves to the right end");
+    let (_, empty, _, _) = bar(&mut app, e, 0);
+    assert!(empty.1 < 0.3 * back.1, "the bar shrinks towards the minimum: {empty:?}");
 }
