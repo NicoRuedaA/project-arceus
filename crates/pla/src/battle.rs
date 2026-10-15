@@ -9,13 +9,13 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Table {
+pub(crate) struct Table {
     headers: Vec<String>,
-    rows: Vec<BTreeMap<String, String>>,
+    pub(crate) rows: Vec<BTreeMap<String, String>>,
 }
 
 impl Table {
-    fn load(path: &Path, key_column: Option<&str>) -> Result<Self, String> {
+    pub(crate) fn load(path: &Path, key_column: Option<&str>) -> Result<Self, String> {
         let text =
             fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
         let mut lines = text
@@ -67,7 +67,7 @@ impl Table {
             .find(|row| row.get(column).is_some_and(|v| v == value))
     }
 
-    fn value<'a>(row: &'a BTreeMap<String, String>, key: &str) -> Result<&'a str, String> {
+    pub(crate) fn value<'a>(row: &'a BTreeMap<String, String>, key: &str) -> Result<&'a str, String> {
         row.get(key)
             .map(String::as_str)
             .ok_or_else(|| format!("missing field {key}"))
@@ -88,6 +88,9 @@ pub struct BattleData {
     throwable_parameters: Table,
     move_data: Table,
     personal_data: Table,
+    /// Ability slots (fields 5-7); `None` when `data/pml_personal_abilities.tsv` is missing,
+    /// in which case every species gets ability slots of zero and nothing changes.
+    personal_abilities: Option<Table>,
     type_chart: TypeChart,
 }
 
@@ -200,6 +203,7 @@ impl BattleData {
             // and resolve battle moves by their canonical names instead.
             move_data: Table::load(&root.join("pml_moves.tsv"), None)?,
             personal_data: Table::load(&root.join("pml_personal.tsv"), None)?,
+            personal_abilities: Table::load(&root.join("pml_personal_abilities.tsv"), None).ok(),
             type_chart: TypeChart::load(&root.join("type_chart.tsv"))?,
         })
     }
@@ -217,7 +221,7 @@ impl BattleData {
         }) else {
             return Ok(None);
         };
-        Self::species_from_row(row, name).map(Some)
+        self.species_from_row(row, name).map(Some)
     }
 
     /// Active species row for a national dex number and form. When that exact form is not an
@@ -238,13 +242,14 @@ impl BattleData {
         match row {
             Some(row) => {
                 let name = Table::value(row, "species_name:string")?.to_owned();
-                Self::species_from_row(row, &name).map(Some)
+                self.species_from_row(row, &name).map(Some)
             }
             None => Ok(None),
         }
     }
 
     fn species_from_row(
+        &self,
         row: &std::collections::BTreeMap<String, String>,
         name: &str,
     ) -> Result<BattleSpecies, String> {
@@ -253,8 +258,13 @@ impl BattleData {
                 .parse()
                 .map_err(|_| format!("invalid {field} for {name}"))
         };
+        let dex = number("dex_index_national:u16")?;
+        let form = row
+            .get("form:u8")
+            .and_then(|v| v.parse::<u8>().ok())
+            .unwrap_or(0);
         Ok(BattleSpecies {
-            dex: number("dex_index_national:u16")?,
+            dex,
             name: name.to_owned(),
             hp: number("stat_hp:u8")?,
             attack: number("stat_atk:u8")?,
@@ -266,7 +276,36 @@ impl BattleData {
                 Table::value(row, "type_1:string")?.to_owned(),
                 Table::value(row, "type_2:string")?.to_owned(),
             ],
+            abilities: self.ability_slots(dex, form),
         })
+    }
+
+    /// Ability slots (1, 2, hidden) for one species form, from
+    /// `data/pml_personal_abilities.tsv`. Fallback: the form 0 row of the same dex, then
+    /// zeroes when the sheet or the row is missing.
+    fn ability_slots(&self, dex: u16, form: u8) -> [u16; 3] {
+        let Some(table) = &self.personal_abilities else {
+            return [0; 3];
+        };
+        let (want_dex, want_form) = (dex.to_string(), form.to_string());
+        let matches = |row: &&std::collections::BTreeMap<String, String>| {
+            row.get("dex_index_national:u16").is_some_and(|v| *v == want_dex)
+        };
+        let row = table
+            .rows
+            .iter()
+            .filter(matches)
+            .find(|row| row.get("form:u8").is_some_and(|v| *v == want_form))
+            .or_else(|| table.rows.iter().find(matches));
+        let Some(row) = row else { return [0; 3] };
+        let slot = |field: &str| -> u16 {
+            row.get(field).and_then(|v| v.parse().ok()).unwrap_or(0)
+        };
+        [
+            slot("ability_1:u8"),
+            slot("ability_2:u8"),
+            slot("ability_hidden:u8"),
+        ]
     }
 
     /// Find an active base-form species by national dex number (used to rebuild a saved party).
@@ -558,6 +597,10 @@ pub struct BattleSpecies {
     pub special_defense: u16,
     pub speed: u16,
     pub types: [String; 2],
+    /// Ability slots 1, 2 and hidden from `data/pml_personal_abilities.tsv` (fields 5, 6, 7).
+    /// `[0; 3]` when that sheet is missing. Only ids 112 (Slow Start) and 122 (Flower Gift)
+    /// have an effect in this game, and only with `Battle::set_abilities`.
+    pub abilities: [u16; 3],
 }
 
 /// Move power, type, accuracy and PP recovered from `data/pml_moves.tsv`.

@@ -4,6 +4,7 @@
 Decodes raw FlatBuffers and structured binary tables from RomFS:
   - bin/pml/personal/personal_data_total.perbin -> data/pml_personal.tsv
   - bin/pml/personal/personal_data_total.perbin (field 17) -> data/pml_personal_extra.tsv
+  - bin/pml/personal/personal_data_total.perbin (fields 5, 6, 7) -> data/pml_personal_abilities.tsv
   - bin/pml/grow_table/grow_*.bin              -> data/pml_grow_table.tsv
   - bin/pml/evolution/evolution_data_total.evobin -> data/pml_evolution.tsv
   - bin/pml/waza/waza*.wazabin                 -> data/pml_moves.tsv
@@ -278,6 +279,35 @@ def decode_personal_extra(species_names: dict[int, str]) -> List[dict[str, Any]]
     return records
 
 
+def decode_personal_abilities(species_names: dict[int, str]) -> List[dict[str, Any]]:
+    """Personal-table ability slots: fields 5, 6 and 7 (u16) are ability 1, ability 2 and the
+    hidden ability. VERIFIED with franchise anchors: Pikachu 9/9/31, Bidoof 86/109/141,
+    Lucario 80/39/154, Arceus 121/121/121. All 318 rows present in the game (field 2 == 1)
+    carry non-zero slots; only two abilities have an effect in this game's battle code
+    (112 Slow Start, 122 Flower Gift); the rest are inert."""
+    path = ROMFS_BIN_PML / "personal" / "personal_data_total.perbin"
+    data = path.read_bytes()
+    vec_pos, vec_len = get_root_vector(data)
+    records: List[dict[str, Any]] = []
+    for i in range(vec_len):
+        elem_offset_pos = vec_pos + 4 + i * 4
+        elem_pos = elem_offset_pos + struct.unpack_from("<I", data, elem_offset_pos)[0]
+        table_size, field_offsets = parse_vtable(data, elem_pos)
+        species_id = get_field_u16(data, elem_pos, field_offsets, 0, table_size, default=0)
+        form_id = get_field_u16(data, elem_pos, field_offsets, 1, table_size, default=0)
+        present = get_field_u8(data, elem_pos, field_offsets, 2, default=0)
+        records.append({
+            "dex_index_national": species_id,
+            "form": form_id,
+            "species_name": species_names.get(species_id, f"species_{species_id}"),
+            "is_active": present,
+            "ability_1": get_field_u16(data, elem_pos, field_offsets, 5, table_size, default=0),
+            "ability_2": get_field_u16(data, elem_pos, field_offsets, 6, table_size, default=0),
+            "ability_hidden": get_field_u16(data, elem_pos, field_offsets, 7, table_size, default=0),
+        })
+    return records
+
+
 # -----------------------------------------------------------------------------
 # 2. Grow Table Decoder
 # -----------------------------------------------------------------------------
@@ -533,6 +563,7 @@ def main() -> int:
     personal_records = decode_personal_table(species_names)
     write_tsv(OUTPUT_DIR / "pml_personal.tsv", personal_records)
     write_tsv(OUTPUT_DIR / "pml_personal_extra.tsv", decode_personal_extra(species_names))
+    write_tsv(OUTPUT_DIR / "pml_personal_abilities.tsv", decode_personal_abilities(species_names))
 
     print("\n2. Decoding Grow Tables...")
     grow_records = decode_grow_tables()

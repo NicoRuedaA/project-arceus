@@ -650,7 +650,12 @@ impl Battle {
 
     fn queue_agility(&self, combatant: usize) -> u32 {
         // The queue reads the VERIFIED agility without the reversal.
-        agility(&self.combatants[combatant], self.weather, false)
+        agility(
+            &self.combatants[combatant],
+            self.weather,
+            false,
+            self.slow_start_active(combatant),
+        )
     }
 
     fn sync_queue(&mut self) {

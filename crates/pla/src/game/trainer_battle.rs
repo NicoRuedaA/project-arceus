@@ -26,7 +26,7 @@
 
 use bevy::prelude::Entity;
 
-use super::battle_ai::{affinity_level, choose_ai_action_rules, HIGH_AFFINITY_RULE};
+use super::battle_ai::{affinity_level, choose_ai_action_rules, ItemUseTable, HIGH_AFFINITY_RULE};
 use super::battle_controller::{ActiveBattleSession, BattleAssets, BattleMenuState, MemberMeta, WILD};
 use super::trainer_data::{NobleDef, TrainerAi, TrainerDef};
 use crate::battle::BattleData;
@@ -40,13 +40,6 @@ const PLACEHOLDER_OPPONENT: &str = "bidoof";
 pub const GIRATINA_RELIVE_HP_PCT: u8 = 100;
 /// The trainer file of the Giratina boss battle.
 pub const GIRATINA_TRAINER: &str = "giratina01";
-
-/// Item AI gates (`itemAI_001`, trainers.md §3): HP under 20 % and under 40 %. The thresholds
-/// are LIKELY; turning the two observed random gates of each tier into one chance is ASSUMED.
-pub const ITEM_LOW_HP_PCT: u32 = 20;
-pub const ITEM_MID_HP_PCT: u32 = 40;
-pub const ITEM_LOW_HP_CHANCE: u32 = 66;
-pub const ITEM_MID_HP_CHANCE: u32 = 27;
 
 /// Switch AI gates from `data/ai/score_rules.tsv` (observed chances).
 pub const SWITCH_BREAK_SE_CHANCE: u32 = 78;
@@ -188,6 +181,7 @@ pub(crate) fn rebuild_battle(
         b.set_item_table(t);
     }
     b.set_status_rules(old.status_rules());
+    b.set_abilities(old.ability_rules());
     if let Some(t) = old.move_styles().cloned() {
         b.set_move_styles(t);
     }
@@ -197,27 +191,28 @@ pub(crate) fn rebuild_battle(
     Ok(b)
 }
 
-fn hp_pct(c: &Combatant) -> u32 {
-    c.hp * 100 / c.max_hp.max(1)
-}
-
-/// Item AI (`ItemUseAI`, only with the Item bit): the first remaining item when the active
-/// Pokemon is under 20 % HP (66 % chance) or under 40 % HP (27 % chance); never otherwise.
-pub fn choose_item(battle: &Battle, actor: usize, items: &[u16], rng: &mut impl BattleRng) -> Option<u16> {
-    let item = *items.first()?;
+/// Item AI (`ItemUseAI`, only with the Item bit), now with the decoded rules read from
+/// `battle.lua` (`data/ai/item_use_rules.tsv`): the trainer's remaining items are tried in
+/// order and the first one whose rule scores positive is used. The game compares that score
+/// against the move candidates; only part of the move scoring is decoded in this port, so the
+/// sign decides here. Items with no decoded rule (the aux-power items 1615-1619 and
+/// 1756-1758) can never fire (UNKNOWN).
+pub fn choose_item(
+    battle: &Battle,
+    actor: usize,
+    items: &[u16],
+    rules: Option<&ItemUseTable>,
+    rng: &mut impl BattleRng,
+) -> Option<u16> {
+    let rules = rules?;
     let c = battle.combatants.get(actor)?;
     if !c.is_alive() {
         return None;
     }
-    let pct = hp_pct(c);
-    let chance = if pct < ITEM_LOW_HP_PCT {
-        ITEM_LOW_HP_CHANCE
-    } else if pct < ITEM_MID_HP_PCT {
-        ITEM_MID_HP_CHANCE
-    } else {
-        return None;
-    };
-    (rng.below(100) < chance).then_some(item)
+    items
+        .iter()
+        .copied()
+        .find(|item| rules.score_item(battle, actor, *item, rng).is_some_and(|score| score > 0))
 }
 
 /// Affinities of `actor`'s usable damaging moves against `target`.
@@ -492,7 +487,8 @@ impl ActiveBattleSession {
             return OpponentChoice::Move(super::battle_ai::choose_ai_action(&self.battle, &data, actor, target, &mut self.rng));
         };
         if state.ai.item {
-            if let Some(item) = choose_item(&self.battle, actor, &state.items, &mut self.rng) {
+            let rules = self.item_rules.clone();
+            if let Some(item) = choose_item(&self.battle, actor, &state.items, rules.as_deref(), &mut self.rng) {
                 return OpponentChoice::Item(item);
             }
         }
@@ -719,6 +715,57 @@ mod tests {
             assert_eq!(rules.is_empty(), !t.ai.basic && !t.ai.strong && !t.ai.expert && !t.ai.allowance);
         }
         assert!(expert_count > 100, "expert trainers: {expert_count}");
+    }
+
+    /// D6: a real trainer with a Hyper Potion (trainer32_01 stores item 25, Item bit on) uses
+    /// it on its badly hurt active Pokemon through the decoded `itemAI_001` branches; the
+    /// item is spent and the log shows the healing.
+    #[test]
+    fn trainer_uses_its_item_through_the_decoded_rule() {
+        let Some((a, c)) = fixtures() else { return };
+        let t = c.get("trainer32_01").unwrap();
+        assert_eq!(t.items, vec![25], "the sheet stores the trainer's Hyper Potion");
+        assert!(t.ai.item, "the Item AI bit is set");
+        let mut s = ActiveBattleSession::start_trainer(&a, "pikachu", 25, t, Entity::PLACEHOLDER).unwrap();
+        let opp = s.opponent();
+        s.battle.combatants[opp].hp = (s.battle.combatants[opp].max_hp * 10) / 100;
+        let hp_before = s.battle.combatants[opp].hp;
+        let mut used = false;
+        for seed in 1..40 {
+            s.rng = XorShift32(seed);
+            let choice = s.opponent_choice(0);
+            if choice == OpponentChoice::Item(25) {
+                let lines = s.perform_opponent_special(choice);
+                assert!(s.battle.combatants[opp].hp > hp_before, "the potion healed");
+                assert!(
+                    lines.iter().any(|l| l.contains("+") && l.contains("HP")),
+                    "the log reports the healing: {lines:?}"
+                );
+                assert!(s.trainer.as_ref().unwrap().items.is_empty(), "the item is spent");
+                used = true;
+                break;
+            }
+        }
+        assert!(used, "some seed must use the potion at 10 % HP");
+    }
+
+    /// The Item bit is what gates the behaviour: without it the trainer keeps its items even
+    /// at 1 HP.
+    #[test]
+    fn trainer_without_the_item_bit_never_uses_an_item() {
+        let Some((a, c)) = fixtures() else { return };
+        let mut t = c.get("trainer32_01").unwrap().clone();
+        t.ai.item = false;
+        let mut s = ActiveBattleSession::start_trainer(&a, "pikachu", 25, &t, Entity::PLACEHOLDER).unwrap();
+        assert!(s.trainer.as_ref().unwrap().items.is_empty(), "the Item bit clears the list");
+        let opp = s.opponent();
+        s.battle.combatants[opp].hp = 1;
+        for seed in 1..20 {
+            s.battle.turn = 0;
+            s.battle.ended = false;
+            s.rng = XorShift32(seed);
+            assert!(matches!(s.opponent_choice(0), OpponentChoice::Move(_) | OpponentChoice::Switch(_)));
+        }
     }
 
     #[test]

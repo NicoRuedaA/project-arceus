@@ -798,6 +798,7 @@ mod tests {
             special_defense: 50,
             speed: 90,
             types: ["Electric".into(), "Electric".into()],
+            abilities: [0; 3],
         };
         let mut c = Combatant::from_base(sp.clone(), 5, vec![]);
         c.hp -= 3;

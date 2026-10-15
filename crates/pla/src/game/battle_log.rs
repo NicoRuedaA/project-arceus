@@ -286,6 +286,30 @@ pub fn insert_style_lines(lines: &mut Vec<String>, name: &dyn Fn(usize) -> Strin
     }
 }
 
+/// Lines for the two live abilities (`Battle::take_ability_events`). Display text only: the
+/// game's own message strings are not decoded. Slow Start and Cherrim's Flower Gift.
+pub fn ability_lines(
+    name: &dyn Fn(usize) -> String,
+    events: &[crate::battle_engine::abilities::AbilityEvent],
+) -> Vec<String> {
+    use crate::battle_engine::abilities::AbilityEvent;
+    events
+        .iter()
+        .map(|e| match e {
+            AbilityEvent::SlowStartEnded { combatant } => {
+                format!("{}'s Slow Start wore off!", name(*combatant))
+            }
+            AbilityEvent::FormChangeRequested { combatant, form } => {
+                if *form == 1 {
+                    format!("{}'s Flower Gift bloomed in the sunlight!", name(*combatant))
+                } else {
+                    format!("{}'s Flower Gift closed with the weather.", name(*combatant))
+                }
+            }
+        })
+        .collect()
+}
+
 /// Keep only the newest `LOG_VISIBLE_LINES` lines for the on-screen box.
 pub fn tail(lines: &[String]) -> String {
     let start = lines.len().saturating_sub(LOG_VISIBLE_LINES);

@@ -78,6 +78,7 @@ _add("data/field/spawner_config_values", PLA, "spawner app-config values (meanin
 # --- pml (decode_pml_tables.py) ---------------------------------------------------------
 _add("data/pml_personal", PML, "personal data (species stats, types, abilities)", requires="bin/pml/personal/personal_data_total.perbin")
 _add("data/pml_personal_extra", PML, "personal data extra fields (capture/catch rate)", requires="bin/pml/personal/personal_data_total.perbin")
+_add("data/pml_personal_abilities", PML, "personal data ability slots (fields 5, 6, 7)", requires="bin/pml/personal/personal_data_total.perbin")
 _add("data/pml_grow_table", PML, "experience growth tables", requires="bin/pml/grow_table/grow_*.bin")
 _add("data/pml_evolution", PML, "evolution data", requires="bin/pml/evolution/evolution_data_total.evobin")
 _add("data/pml_moves", PML, "move (waza) data", requires="bin/pml/waza/waza*.wazabin")
@@ -89,6 +90,9 @@ _add("data/shop_stock", ".tools/decode_shop_data.py",
      "shop stock rows (Field_00 hash, slot, Field_01 hash, item id; hash meaning unknown)",
      requires="bin/appli/shop/bin/ha_shop_data.bin")
 _add("data/pml_learnsets", PML, "level-up and tutor learnsets", requires="bin/pml/waza_oboe/waza_oboe_total.wazaoboe")
+_add("data/poke_drop_items", ".tools/decode_drop_items.py",
+     "Pokémon drop items (field per-key table + battle grit bracket table)",
+     requires="bin/pokemon/data/poke_drop_item.bin; bin/pokemon/data/poke_drop_item_battle.bin")
 
 # --- schemas / trace (hand curated) -----------------------------------------------------
 for _stem in (
