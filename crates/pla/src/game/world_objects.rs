@@ -576,13 +576,17 @@ fn stream_objects(
                 }
             }
         }
+        let cliff = super::terrain_splat::is_cliff_model(&p.model);
         let e = commands
             .spawn((PlacedObject(i), transform, Visibility::default()))
             .with_children(|c| {
                 for (m, mat) in prims {
                     match mat {
                         PrimMaterial::Standard(mat) => {
-                            c.spawn((Mesh3d(m), MeshMaterial3d(mat), Transform::IDENTITY));
+                            let mut child = c.spawn((Mesh3d(m), MeshMaterial3d(mat), Transform::IDENTITY));
+                            if cliff {
+                                child.insert(super::terrain_splat::CliffSurface);
+                            }
                         }
                         PrimMaterial::Water(mat) => {
                             c.spawn((Mesh3d(m), MeshMaterial3d(mat), Transform::IDENTITY));

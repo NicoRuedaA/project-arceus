@@ -798,6 +798,9 @@ pub struct TerrainSplatExt {
     /// Kept so live setting changes can rebuild the uniform (not uploaded).
     #[reflect(ignore)]
     pub build: Option<Arc<SplatBuildInfo>>,
+    /// Cliff / rock objects: every face takes the cliff layers (not uploaded, see [`cliff_params`]).
+    #[reflect(ignore)]
+    pub force_cliff: bool,
 }
 
 /// The per-slot part of a [`SplatBuild`] (no pixel data), kept on the material.
@@ -910,9 +913,34 @@ pub fn splat_material(
                 slots: build.slots.clone(),
                 has_normals: build.normals.is_some(),
             })),
+            force_cliff: false,
         },
     }
 }
+
+/// Uniform of a cliff / rock object: the steep-face thresholds are pushed below zero so the
+/// "steep" factor is 1 on every face and the cliff layers draw the whole object (its own baked
+/// 256 px texture, stretched over 15 m of rock, is only the far-distance macro colour).
+pub fn cliff_params(mut p: TerrainSplatUniform) -> TerrainSplatUniform {
+    p.blend.z = -1.0;
+    p.blend.w = -0.5;
+    p
+}
+
+/// A placed model that is a cliff face or a rock (`ground_*cliff*`, `ground_*rock*`, mountains).
+/// Water, waterfalls and rock bridges keep their own material.
+pub fn is_cliff_model(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n.starts_with("ground_")
+        && (n.contains("cliff") || n.contains("rock") || n.contains("mountain"))
+        && !n.contains("water")
+        && !n.contains("bridge")
+}
+
+/// Marks the mesh entity of a placed cliff / rock model; the splat plugin gives it the terrain
+/// material with the cliff layers projected in world space (no UV stretching).
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct CliffSurface;
 
 // --- Runtime -------------------------------------------------------------------------------------
 
@@ -929,6 +957,8 @@ type BuildTask = Task<Result<SplatBuild, String>>;
 #[derive(Resource, Default)]
 pub struct TerrainSplatCache {
     ready: HashMap<AssetId<StandardMaterial>, Handle<TerrainSplatMaterial>>,
+    /// Cliff-object materials, keyed by the object's own baked material.
+    cliff_ready: HashMap<AssetId<StandardMaterial>, Handle<TerrainSplatMaterial>>,
     failed: HashSet<AssetId<StandardMaterial>>,
     pending: Vec<(AssetId<StandardMaterial>, BuildTask)>,
     built_with: (u32, u16),
@@ -1012,6 +1042,7 @@ fn finish_builds(
                 cache.log.push(line);
                 let h = splat_materials.add(mat);
                 cache.ready.insert(id, h);
+                cache.cliff_ready.clear();
             }
             (Err(e), _) => {
                 let line = format!("Terrain: splat material unavailable ({e}); keeping the baked ground");
@@ -1056,6 +1087,44 @@ fn apply_splat(
     }
 }
 
+/// Placed cliff / rock models get the terrain material (cliff layers, world-space triplanar) as
+/// soon as the area's layers are built; their own baked texture stays as the far macro colour.
+#[allow(clippy::type_complexity)]
+fn apply_cliffs(
+    mut commands: Commands,
+    settings: Res<TerrainSplatSettings>,
+    mut cache: ResMut<TerrainSplatCache>,
+    std_materials: Res<Assets<StandardMaterial>>,
+    mut splat_materials: ResMut<Assets<TerrainSplatMaterial>>,
+    objects: Query<(Entity, &MeshMaterial3d<StandardMaterial>), (With<CliffSurface>, Without<TerrainSplatApplied>)>,
+) {
+    if settings.mode != TerrainMode::Splat || objects.is_empty() {
+        return;
+    }
+    let Some(template) = cache.ready.values().next().and_then(|h| splat_materials.get(h)).map(|m| m.extension.clone()) else {
+        return;
+    };
+    for (e, mat) in &objects {
+        let id = mat.0.id();
+        let handle = match cache.cliff_ready.get(&id) {
+            Some(h) => h.clone(),
+            None => {
+                let Some(base) = std_materials.get(id).cloned() else { continue };
+                let mut extension = template.clone();
+                extension.force_cliff = true;
+                extension.params = cliff_params(extension.params);
+                let h = splat_materials.add(TerrainSplatMaterial { base, extension });
+                cache.cliff_ready.insert(id, h.clone());
+                h
+            }
+        };
+        commands
+            .entity(e)
+            .remove::<MeshMaterial3d<StandardMaterial>>()
+            .insert((MeshMaterial3d(handle), TerrainSplatApplied { base: mat.0.clone() }));
+    }
+}
+
 /// `--terrain bake` (live) or a rebuild: give every splat chunk its baked material back.
 fn revert_to_bake(commands: &mut Commands, applied: &Query<(Entity, &TerrainSplatApplied)>) {
     for (e, a) in applied.iter() {
@@ -1081,6 +1150,7 @@ fn apply_settings(
     if cache.built_with != settings.build_key() || settings.mode == TerrainMode::Bake {
         if cache.built_with != settings.build_key() {
             cache.ready.clear();
+            cache.cliff_ready.clear();
             cache.failed.clear();
             cache.pending.clear();
             cache.built_with = settings.build_key();
@@ -1091,6 +1161,9 @@ fn apply_settings(
     for (_, mat) in materials.iter_mut() {
         if let Some(info) = mat.extension.build.clone() {
             mat.extension.params = splat_uniform(&info.as_build(), &settings);
+            if mat.extension.force_cliff {
+                mat.extension.params = cliff_params(mat.extension.params);
+            }
         }
     }
 }
@@ -1106,7 +1179,7 @@ impl Plugin for TerrainSplatLogicPlugin {
         app.insert_resource(self.settings)
             .insert_resource(TerrainOverrideDir(self.override_dir.clone()))
             .insert_resource(TerrainSplatCache { built_with: self.settings.build_key(), ..default() })
-            .add_systems(Update, (apply_settings, queue_builds, finish_builds, apply_splat).chain());
+            .add_systems(Update, (apply_settings, queue_builds, finish_builds, apply_splat, apply_cliffs).chain());
     }
 }
 
@@ -1493,5 +1566,22 @@ mod tests {
         if dir.is_some() && improved > 0 {
             assert_eq!(b.albedo.size, 1024);
         }
+    }
+
+    #[test]
+    fn cliff_and_rock_models_are_recognised_and_water_is_not() {
+        for yes in ["ground_area01_cliff01", "ground_cliff09", "ground_rock04_gray", "ground_area01_comrock01", "ground_mountain01_tengan"] {
+            assert!(is_cliff_model(yes), "{yes}");
+        }
+        for no in ["ground_cliff01_waterfall", "ground_area01_water01", "ground_rockbridge01", "objects_stonewall01", "plants_area01_tree01", "ground_stones02"] {
+            assert!(!is_cliff_model(no), "{no}");
+        }
+    }
+
+    #[test]
+    fn cliff_params_make_every_face_steep() {
+        let p = cliff_params(TerrainSplatUniform { blend: Vec4::new(0.25, 0.35, STEEP_START, STEEP_END), ..default() });
+        assert!(p.blend.z < 0.0 && p.blend.w < p.blend.z.max(0.0) && p.blend.w < 0.0);
+        assert_eq!((p.blend.x, p.blend.y), (0.25, 0.35), "the height blend is untouched");
     }
 }
