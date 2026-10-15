@@ -673,7 +673,7 @@
       },
       {
         "path": "crates/pla/src/game/clock.rs",
-        "sha256": "3d59f6aff0d8d67eb24d0751dea685d6d0dd191b0b472df3414e254409add095"
+        "sha256": "9a5ae5c0e7957ca6f6234d7df041d15a0d3a833253c0df6a8a81f6c74b2b00b4"
       },
       {
         "path": "crates/pla/src/game/crafting.rs",
@@ -693,11 +693,11 @@
       },
       {
         "path": "crates/pla/src/game/dex.rs",
-        "sha256": "19b42b9097ef9151004bf061dd79f8a6c80326b9f926b016acfd56ee77d21313"
+        "sha256": "3b5c3cf9189f8140a47128214f64111c0ab14ff4529b0af01f0acfdcf33b5255"
       },
       {
         "path": "crates/pla/src/game/dex_screen.rs",
-        "sha256": "a1eac921f7dfe1cfab24624afc46d2e12926a1ba4c0ab782342a3b7a86ff8fac"
+        "sha256": "8072c8942ad8d9ff36add5be58cb446330ca111d60e855b3d962b6bc3902200f"
       },
       {
         "path": "crates/pla/src/game/distortion.rs",
@@ -769,7 +769,7 @@
       },
       {
         "path": "crates/pla/src/game/lighting.rs",
-        "sha256": "0271b72396276c31c29fedd66ce8dc05eae6af6d6a8b4dd9d10ca72d4f6123f3"
+        "sha256": "557320ea2279f607de7f3ac7cf294cf2fe7f4f51dc010742f9360919121bf347"
       },
       {
         "path": "crates/pla/src/game/main_menu.rs",
@@ -913,7 +913,7 @@
       },
       {
         "path": "crates/pla/src/game/save_game.rs",
-        "sha256": "b55e3f0291719307e10b2902607a362b6945d957ea9d21c578157442c53949cb"
+        "sha256": "3c4adf783b0713ad00f398d77c3ed0e5d7855f5f4e180b6fa36959e72a97840b"
       },
       {
         "path": "crates/pla/src/game/save_wire.rs",
@@ -1141,7 +1141,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "d2d32b49a24491c67d880045d3b1cc63726b3934c2247b2fc419eec55d410c26"
+    "sha256": "e37b4163b2b99b124bb9e8b2f27ea5f6c7e03d1858a34465b8fb99def36a320c"
   },
   "state_partitions": {
     "analysis_documentation_status": {
