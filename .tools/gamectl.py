@@ -171,7 +171,7 @@ def start(adir: Path, args: argparse.Namespace) -> int:
     viewer_args = list(args.viewer_args)
     if viewer_args and viewer_args[0] == "--":
         viewer_args = viewer_args[1:]
-    cmd = [str(exe), "--automation"] + viewer_args
+    cmd = [str(exe), "--automation", "--automation-dir", str(adir)] + viewer_args
     if args.no_gpu:
         cmd.append("--automation-no-gpu")
     if args.size:

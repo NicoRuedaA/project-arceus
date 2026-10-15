@@ -568,6 +568,7 @@ f00_raw_u32:u32*\tf05_raw_u32:u32\tf06_f32:f32?\tf07_string:string\tf08_string:s
             effect_kind: if category.is_some() { 0 } else { 1 },
             pocket_code: if category.is_some() { 2 } else { 0 },
             ball_category: category.map(str::to_owned),
+            storage_class: 0,
             hp_heal: HpHeal::None,
             cures: vec![],
             cures_confusion: false,

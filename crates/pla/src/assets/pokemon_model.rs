@@ -23,6 +23,11 @@ use std::{
 
 const TRMBF_VERTEX_OFFSET: usize = 0x44;
 
+/// Export-time bind/rest tolerance for skinned Pokémon glTF. Authored records
+/// that agree with the reference rest pose within this residual are preserved;
+/// the player skeleton lane uses the same bound (`player_model::BIND_EPSILON`).
+pub const POKEMON_BIND_EPSILON: f64 = 1.0e-3;
+
 #[derive(Debug, Clone)]
 pub struct PokemonTexture {
     pub entry_index: usize,
@@ -685,6 +690,50 @@ pub fn write_static_lod_level_baked_variant(
     export.write(gltf_path)
 }
 
+/// Inverse binds for a skinned export.
+///
+/// Authored records are preserved when the rest-pose product check accepts them
+/// (`|global · bind|` and `|bind · global|` within `epsilon` of the identity).
+/// A record that contradicts the rest pose beyond `epsilon` is rebuilt as the
+/// inverse of the reference rest pose, so the exported skeleton deforms by the
+/// identity at rest. Observed causes of rejected records: records serialised as
+/// the inverse of the node's *local* transform (fingers/legs/feelers of
+/// pm0315 and pm1003), Euler-singularity residuals (pm0094 teeth, pm0356) and
+/// binds matching neither product (pm0081 foot, pm0397 eyelids, pm0628 feeler).
+/// The authored pack is never modified; the rebuild count is returned so the
+/// batch exporter can record it in the index.
+pub fn export_bind_records(
+    model: &PokemonModel,
+    epsilon: f64,
+) -> Result<(Vec<tr::TrSklBindRecord>, usize), String> {
+    let skeleton = model
+        .skeleton
+        .as_ref()
+        .ok_or("pack has no supported parsed skeleton")?;
+    if skeleton.bind_count == 0 || model.bind_records.is_empty() {
+        return Err("skinned export requires authored bind records".into());
+    }
+    let residuals = skeleton.bind_rest_residuals(&model.bind_records)?;
+    let mut records = model.bind_records.clone();
+    let mut rebuilt = 0;
+    let mut pose: Option<tr::TrSklReferencePose> = None;
+    for residual in &residuals {
+        let error = residual
+            .global_times_bind_error
+            .max(residual.bind_times_global_error);
+        if error <= epsilon {
+            continue;
+        }
+        if pose.is_none() {
+            pose = Some(skeleton.reference_pose()?);
+        }
+        let pose = pose.as_ref().expect("reference pose just computed");
+        records[residual.rig_index].matrix = pose.global[residual.node_index].invert()?;
+        rebuilt += 1;
+    }
+    Ok((records, rebuilt))
+}
+
 /// Export a mesh with one decoded skeletal clip when authored bind records are
 /// present and the existing TR adapters accept them. Reference transforms are
 /// never substituted for absent inverse binds.
@@ -753,7 +802,9 @@ pub fn write_skinned_lod(
     } else {
         None
     };
-    let (nodes, skin) = gltf_export::skeleton_from_tr(skeleton, &model.bind_records, 0, 0)?;
+    let (records, _rebuilt) = export_bind_records(model, POKEMON_BIND_EPSILON)?;
+    let (nodes, skin) =
+        gltf_export::skeleton_from_tr_with_epsilon(skeleton, &records, 0, 0, POKEMON_BIND_EPSILON)?;
     export.nodes = nodes;
     export.skins.push(skin);
     export.primitives.push(gltf_export::primitive_from_tr(
@@ -886,7 +937,9 @@ pub fn write_skinned_lod_level_clips_variant(
     if primitive_count == 0 {
         return Err(format!("LOD {lod} has no parsed shapes"));
     }
-    let (nodes, skin) = gltf_export::skeleton_from_tr(skeleton, &model.bind_records, 0, 0)?;
+    let (records, _rebuilt) = export_bind_records(model, POKEMON_BIND_EPSILON)?;
+    let (nodes, skin) =
+        gltf_export::skeleton_from_tr_with_epsilon(skeleton, &records, 0, 0, POKEMON_BIND_EPSILON)?;
     export.nodes = nodes;
     export.skins.push(skin);
     let written = animations.iter().map(|(n, _)| n.clone()).collect();
@@ -1951,5 +2004,142 @@ mod tests {
             named_vector4_values(&bytes, "BaseColorLayer1"),
             Some(vec![[0.25, 0.0, 0.0, 1.0], [0.75, 0.0, 0.0, 1.0]])
         );
+    }
+
+    fn synthetic_two_bone_record(matrix: tr::TrSklMatrix) -> tr::TrSklBindRecord {
+        tr::TrSklBindRecord {
+            flags: [1, 1],
+            matrix,
+        }
+    }
+
+    /// Parent (rig 0) rotated 0.5 rad around Z and offset; child (rig 1) a
+    /// quarter turn around Z and offset on X. Pivots are zero, matching the
+    /// observed lane; the rotated parent keeps global and local distinct.
+    fn synthetic_two_bone_model(
+        root_bind: tr::TrSklMatrix,
+        child_bind: tr::TrSklMatrix,
+    ) -> PokemonModel {
+        use tr::TrSklTransform;
+        let root_local = TrSklTransform {
+            scale: [1.0; 3],
+            rotation: [0.0, 0.0, 0.5],
+            translation: [0.1, 0.2, 0.0],
+        };
+        let child_local = TrSklTransform {
+            scale: [1.0; 3],
+            rotation: [0.0, 0.0, std::f32::consts::FRAC_PI_2],
+            translation: [0.25, 0.0, 0.0],
+        };
+        PokemonModel {
+            pack_path: PathBuf::from("synthetic.gfpak"),
+            entry_count: 0,
+            meshes: Vec::new(),
+            skeleton: Some(tr::TrSkl {
+                bones: vec!["root".into(), "child".into()],
+                offsets: vec![0, 0],
+                nodes: vec![
+                    tr::TrSklNode {
+                        name: "root".into(),
+                        locator: None,
+                        local: root_local,
+                        scale_pivot: [0.0; 3],
+                        rotate_pivot: [0.0; 3],
+                        parent: None,
+                        rig_index: Some(0),
+                    },
+                    tr::TrSklNode {
+                        name: "child".into(),
+                        locator: None,
+                        local: child_local,
+                        scale_pivot: [0.0; 3],
+                        rotate_pivot: [0.0; 3],
+                        parent: Some(0),
+                        rig_index: Some(1),
+                    },
+                ],
+                bind_count: 2,
+                root_flag: 0,
+            }),
+            skeleton_entry_index: None,
+            skeleton_parse_error: None,
+            skeleton_node_count: None,
+            skeleton_node_type_counts: BTreeMap::new(),
+            bind_record_count: None,
+            bind_records: vec![
+                synthetic_two_bone_record(root_bind),
+                synthetic_two_bone_record(child_bind),
+            ],
+            bind_record_error: None,
+            materials: Vec::new(),
+            textures: Vec::new(),
+            clips: Vec::new(),
+            diagnostics: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn export_bind_records_keeps_consistent_authored_records() {
+        let model = synthetic_two_bone_model(
+            tr::TrSklMatrix::IDENTITY,
+            tr::TrSklMatrix::IDENTITY, // placeholder, replaced below
+        );
+        let skeleton = model.skeleton.as_ref().unwrap();
+        let pose = skeleton.reference_pose().unwrap();
+        let authored = [
+            pose.global[0].invert().unwrap(),
+            pose.global[1].invert().unwrap(),
+        ];
+        let model = synthetic_two_bone_model(authored[0].clone(), authored[1].clone());
+        let (records, rebuilt) = export_bind_records(&model, POKEMON_BIND_EPSILON).unwrap();
+        assert_eq!(rebuilt, 0);
+        assert_eq!(records[0].matrix, authored[0]);
+        assert_eq!(records[1].matrix, authored[1]);
+    }
+
+    #[test]
+    fn export_bind_records_rebuilds_records_that_contradict_the_rest_pose() {
+        // The child record here is the inverse of the node's *local* transform,
+        // the observed pm0315/pm1003 shape; it must be rebuilt from the pose.
+        let model = synthetic_two_bone_model(tr::TrSklMatrix::IDENTITY, tr::TrSklMatrix::IDENTITY);
+        let skeleton = model.skeleton.as_ref().unwrap();
+        let pose = skeleton.reference_pose().unwrap();
+        let local_child = {
+            let node = &skeleton.nodes[1];
+            node.local.reference_matrix().unwrap()
+        };
+        let model = synthetic_two_bone_model(
+            pose.global[0].invert().unwrap(),
+            local_child.invert().unwrap(),
+        );
+        let (records, rebuilt) = export_bind_records(&model, POKEMON_BIND_EPSILON).unwrap();
+        assert_eq!(rebuilt, 1);
+        // Every record now validates against the rest pose.
+        skeleton
+            .validate_bind_rest_pose(&records, 1.0e-9)
+            .expect("rebuilt records agree with the rest pose");
+        let expected = pose.global[1].invert().unwrap();
+        assert!(
+            records[1]
+                .matrix
+                .max_abs_difference(&expected)
+                .unwrap()
+                < 1.0e-12
+        );
+    }
+
+    #[test]
+    fn export_bind_records_keeps_authored_records_within_tolerance() {
+        let model = synthetic_two_bone_model(tr::TrSklMatrix::IDENTITY, tr::TrSklMatrix::IDENTITY);
+        let skeleton = model.skeleton.as_ref().unwrap();
+        let pose = skeleton.reference_pose().unwrap();
+        let mut child = pose.global[1].invert().unwrap();
+        child.rows[0][3] += 5.0e-4; // 5e-4 residual: noise, not a contradiction
+        let model = synthetic_two_bone_model(pose.global[0].invert().unwrap(), child);
+        let (records, rebuilt) = export_bind_records(&model, POKEMON_BIND_EPSILON).unwrap();
+        assert_eq!(rebuilt, 0);
+        skeleton
+            .validate_bind_rest_pose(&records, POKEMON_BIND_EPSILON)
+            .expect("within-tolerance record stays accepted");
     }
 }

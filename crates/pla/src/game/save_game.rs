@@ -4,7 +4,7 @@
 //! Format: strict line-based text, no extra dependencies.
 //!
 //! ```text
-//! PLASAVE 8
+//! PLASAVE 9
 //! CHECKSUM 0123456789abcdef      <- FNV-1a 64 over every byte after this line
 //! key=value
 //! ...
@@ -21,7 +21,8 @@
 //! v1-v5 file's `time_slot=N` becomes the centre minute of that slot (ASSUMED slot hours), and a
 //! v1-v6 file an empty picked set. v8 adds `defeated_trainers`, the ids of the beaten trainers
 //! (`data/trainer_index.tsv` ids such as `giratina01`, or `noble:<setting>`); a v1-v7 file loads with
-//! an empty set. The next bump is v9.
+//! an empty set. v9 adds `research`, the per-species Pokédex research counters
+//! (`species:kind:target:count`, Brief 43); a v1-v8 file loads with an empty map.
 //!
 //! Everything here is pure logic (no Bevy systems); [`SaveGame`] is the small Bevy resource.
 
@@ -39,7 +40,7 @@ use crate::battle_engine::items::{ItemBag, ItemTable};
 use crate::battle_engine::{Combatant, MajorStatus};
 
 /// Version written by this build.
-pub const CURRENT_VERSION: u32 = 8;
+pub const CURRENT_VERSION: u32 = 9;
 /// Maximum party size.
 pub const MAX_PARTY: usize = 6;
 /// Maximum moves per party member.
@@ -247,6 +248,10 @@ pub struct PlayerSave {
     /// again from their marker and their prize is paid only once. Ids contain no whitespace,
     /// comma or `=`.
     pub defeated_trainers: BTreeSet<String>,
+    /// Pokédex research counters (format v9, Brief 43): `(species, kind, target) -> count`, keyed
+    /// exactly like the decoded task catalog (`game::dex::DexTask::counter_target`). Zero entries
+    /// are dropped, like `bag`. A v1-v8 file loads with the map empty.
+    pub research: BTreeMap<(u16, u8, u16), u32>,
 }
 
 impl Default for PlayerSave {
@@ -269,6 +274,7 @@ impl Default for PlayerSave {
             play_seconds: 0,
             picked: BTreeSet::new(),
             defeated_trainers: BTreeSet::new(),
+            research: BTreeMap::new(),
         }
     }
 }
@@ -291,6 +297,14 @@ impl PlayerSave {
         }
         if let Some(id) = self.defeated_trainers.iter().find(|id| !valid_trainer_id(id)) {
             return bad(format!("defeated trainer id {id:?} must be non-empty without whitespace, comma or `=`"));
+        }
+        for (&(species, kind, target), &count) in &self.research {
+            if count == 0 {
+                return bad(format!("research counter ({species},{kind},{target}) must be positive"));
+            }
+            if species == 0 || species > 905 || kind > 27 {
+                return bad(format!("research counter ({species},{kind},{target}) is outside the decoded task domain"));
+            }
         }
         if u32::from(self.time_minutes) >= MINUTES_PER_DAY {
             return bad(format!("time_minutes {} is not a minute of day (< {MINUTES_PER_DAY})", self.time_minutes));
@@ -351,6 +365,15 @@ impl PlayerSave {
         kv("caught", join_set(&self.caught));
         kv("picked", join_set_u64(&self.picked));
         kv("defeated_trainers", self.defeated_trainers.iter().cloned().collect::<Vec<_>>().join(","));
+        kv(
+            "research",
+            self.research
+                .iter()
+                .filter(|(_, n)| **n > 0)
+                .map(|((s, k, t), n)| format!("{s}:{k}:{t}:{n}"))
+                .collect::<Vec<_>>()
+                .join(","),
+        );
         kv(
             "bag",
             self.bag
@@ -417,6 +440,7 @@ fn migrate(from: u32, mut lines: Vec<String>) -> Result<Vec<String>, SaveError> 
             5 => migrate_v5_to_v6(lines)?,
             6 => migrate_v6_to_v7(lines),
             7 => migrate_v7_to_v8(lines),
+            8 => migrate_v8_to_v9(lines),
             other => return Err(SaveError::UnknownVersion(other)),
         };
         v += 1;
@@ -502,6 +526,13 @@ fn migrate_v7_to_v8(lines: Vec<String>) -> Vec<String> {
     lines
 }
 
+/// v8 -> v9 is this task (Brief 43): v9 adds `research` (per-species Pokédex research counters).
+/// The key defaults to an empty map when missing, so no line has to change; this arm documents
+/// the step and is the only version bump Brief 43 owns.
+fn migrate_v8_to_v9(lines: Vec<String>) -> Vec<String> {
+    lines
+}
+
 // ---------------------------------------------------------------- parsing
 
 fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
@@ -536,6 +567,21 @@ fn parse_body(lines: &[String]) -> Result<PlayerSave, SaveError> {
                     return Err(err("bad defeated_trainers list"));
                 }
                 s.defeated_trainers = ids;
+            }
+            "research" => {
+                for e in v.split(',').filter(|e| !e.is_empty()) {
+                    let f: Vec<&str> = e.split(':').collect();
+                    if f.len() != 4 {
+                        return Err(err("research entry needs species:kind:target:count"));
+                    }
+                    let species = f[0].parse().map_err(|_| err("bad research species"))?;
+                    let kind = f[1].parse().map_err(|_| err("bad research kind"))?;
+                    let target = f[2].parse().map_err(|_| err("bad research target"))?;
+                    let count: u32 = f[3].parse().map_err(|_| err("bad research count"))?;
+                    if count == 0 || s.research.insert((species, kind, target), count).is_some() {
+                        return Err(err("duplicate research counter or zero count"));
+                    }
+                }
             }
             "bag" => {
                 for e in v.split(',').filter(|e| !e.is_empty()) {
@@ -902,6 +948,7 @@ mod tests {
             play_seconds: 12_345,
             picked: BTreeSet::from([0xbe63_6c89_f1de_0b4c, 0x0000_0000_0000_0001]),
             defeated_trainers: BTreeSet::from(["noble:nsi_ex_01".to_string(), "giratina01".to_string()]),
+            research: BTreeMap::from([((25, 0, 0), 10), ((25, 1, 84), 12), ((722, 1, 33), 3)]),
             ..PlayerSave::default()
         }
     }
@@ -1165,7 +1212,7 @@ mod tests {
     fn defeated_trainers_round_trip_and_v7_migration() {
         let s = sample();
         let text = s.encode().unwrap();
-        assert!(text.starts_with("PLASAVE 8\n"));
+        assert!(text.starts_with("PLASAVE 9\n"));
         assert!(text.contains("\ndefeated_trainers=giratina01,noble:nsi_ex_01\n"), "{text}");
         assert_eq!(PlayerSave::decode(&text).unwrap().defeated_trainers, s.defeated_trainers);
         let body = "zone=ha_area01\npos=1,2,3\nyaw=0\ntime_minutes=900\nmoney=10\nrng_seed=2\n\
@@ -1182,6 +1229,37 @@ mod tests {
         let mut s = sample();
         s.defeated_trainers.insert("a,b".into());
         assert!(s.encode().is_err());
+    }
+
+    /// v9: `research` round-trips sorted; a literal v8 body loads with an empty map and re-saves
+    /// as v9; zero counts and out-of-domain keys are refused.
+    #[test]
+    fn research_counters_round_trip_and_v8_migration() {
+        let s = sample();
+        let text = s.encode().unwrap();
+        assert!(text.starts_with("PLASAVE 9\n"));
+        assert!(
+            text.contains("\nresearch=25:0:0:10,25:1:84:12,722:1:33:3\n"),
+            "{text}"
+        );
+        assert_eq!(PlayerSave::decode(&text).unwrap().research, s.research);
+        let body = "zone=ha_area01\npos=1,2,3\nyaw=0\ntime_minutes=900\nmoney=10\nrng_seed=2\n\
+                    play_seconds=5\ndefeated_trainers=giratina01\nEND\n";
+        let v8 = format!("PLASAVE 8\nCHECKSUM {:016x}\n{body}", fnv1a64(body.as_bytes()));
+        let m = PlayerSave::decode(&v8).unwrap();
+        assert_eq!(m.version, CURRENT_VERSION);
+        assert!(m.research.is_empty(), "a v8 save has no research counters");
+        assert_eq!(m.defeated_trainers.len(), 1, "v8 data is kept");
+        assert!(m.encode().unwrap().contains("\nresearch=\n"));
+        let bad_count = "zone=z\npos=0,0,0\nyaw=0\ntime_minutes=0\nmoney=0\nrng_seed=1\nresearch=25:0:0:0\nEND\n";
+        let t = format!("PLASAVE 9\nCHECKSUM {:016x}\n{bad_count}", fnv1a64(bad_count.as_bytes()));
+        assert!(PlayerSave::decode(&t).is_err(), "a zero count is refused");
+        let bad_domain = "zone=z\npos=0,0,0\nyaw=0\ntime_minutes=0\nmoney=0\nrng_seed=1\nresearch=906:0:0:1\nEND\n";
+        let t = format!("PLASAVE 9\nCHECKSUM {:016x}\n{bad_domain}", fnv1a64(bad_domain.as_bytes()));
+        assert!(PlayerSave::decode(&t).is_err(), "a species outside the task domain is refused");
+        let mut s = sample();
+        s.research.insert((25, 0, 0), 0);
+        assert!(s.encode().is_err(), "a zero count cannot be written");
     }
 
     /// `time_minutes` round-trips and is validated to be a real minute of day.

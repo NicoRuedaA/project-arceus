@@ -39,11 +39,11 @@ pm0075_00_00.gfpak	00_00	ok		10	5	available
 pm0076_00_00.gfpak	00_00	ok		10	7	available
 pm0077_00_00.gfpak	00_00	ok		10	8	available
 pm0078_00_00.gfpak	00_00	ok		10	11	available
-pm0081_00_00.gfpak	00_00	ok	static only; idle: bind rig 7 node 9 disagrees with reference rest pose: residual 1.5000000462292622 > 0.0001 | walk: bind rig 7 node 9 disagrees with reference rest pose: residual 1.5000000462292622 > 0.0001	0	4	available
+pm0081_00_00.gfpak	00_00	ok	bind: 1/8 records rebuilt from the reference rest pose	10	4	available
 pm0082_00_00.gfpak	00_00	ok		10	6	available
 pm0092_00_00.gfpak	00_00	ok		10	5	available
 pm0093_00_00.gfpak	00_00	ok		10	5	available
-pm0094_00_00.gfpak	00_00	ok	static only; idle: bind rig 11 node 13 disagrees with reference rest pose: residual 0.00040423036501352483 > 0.0001 | walk: bind rig 11 node 13 disagrees with reference rest pose: residual 0.00040423036501352483 > 0.0001	0	5	available
+pm0094_00_00.gfpak	00_00	ok		10	5	available
 pm0095_00_00.gfpak	00_00	ok		10	7	available
 pm0100_00_41.gfpak	00_41	ok		10	4	available
 pm0101_00_41.gfpak	00_41	ok		10	4	available
@@ -156,12 +156,12 @@ pm0280_00_00.gfpak	00_00	ok		10	4	available
 pm0281_00_00.gfpak	00_00	ok		10	4	available
 pm0282_00_00.gfpak	00_00	ok		10	7	available
 pm0299_00_00.gfpak	00_00	ok		10	2	available
-pm0315_00_00.gfpak	00_00	ok	static only; idle: bind rig 33 node 35 disagrees with reference rest pose: residual 1.9999999786527036 > 0.0001 | walk: bind rig 33 node 35 disagrees with reference rest pose: residual 1.9999999786527036 > 0.0001	0	7	available
-pm0315_01_00.gfpak	01_00	ok	static only; idle: bind rig 33 node 35 disagrees with reference rest pose: residual 1.9999999786527036 > 0.0001 | walk: bind rig 33 node 35 disagrees with reference rest pose: residual 1.9999999786527036 > 0.0001	0	6	available
+pm0315_00_00.gfpak	00_00	ok	bind: 12/48 records rebuilt from the reference rest pose	10	7	available
+pm0315_01_00.gfpak	01_00	ok	bind: 12/48 records rebuilt from the reference rest pose	10	6	available
 pm0339_00_00.gfpak	00_00	ok		10	5	available
 pm0340_00_00.gfpak	00_00	ok		10	7	available
 pm0355_00_00.gfpak	00_00	ok		10	3	available
-pm0356_00_00.gfpak	00_00	ok	static only; idle: bind rig 8 node 10 disagrees with reference rest pose: residual 0.00042432445275919495 > 0.0001 | walk: bind rig 8 node 10 disagrees with reference rest pose: residual 0.00042432445275919495 > 0.0001	0	6	available
+pm0356_00_00.gfpak	00_00	ok		10	6	available
 pm0358_00_00.gfpak	00_00	ok		10	7	available
 pm0361_00_00.gfpak	00_00	ok		10	7	available
 pm0362_00_00.gfpak	00_00	ok		10	7	available
@@ -179,8 +179,8 @@ pm0394_00_00.gfpak	00_00	ok		10	5	available
 pm0395_00_00.gfpak	00_00	ok		10	5	available
 pm0396_00_00.gfpak	00_00	ok		10	7	available
 pm0396_01_00.gfpak	01_00	ok		10	7	available
-pm0397_00_00.gfpak	00_00	ok	static only; idle: bind rig 5 node 7 disagrees with reference rest pose: residual 0.06884352263702775 > 0.0001 | walk: bind rig 5 node 7 disagrees with reference rest pose: residual 0.06884352263702775 > 0.0001	0	8	available
-pm0397_01_00.gfpak	01_00	ok	static only; idle: bind rig 5 node 7 disagrees with reference rest pose: residual 0.06884352263702775 > 0.0001 | walk: bind rig 5 node 7 disagrees with reference rest pose: residual 0.06884352263702775 > 0.0001	0	9	available
+pm0397_00_00.gfpak	00_00	ok	bind: 2/63 records rebuilt from the reference rest pose	10	8	available
+pm0397_01_00.gfpak	01_00	ok	bind: 2/63 records rebuilt from the reference rest pose	10	9	available
 pm0398_00_00.gfpak	00_00	ok		10	7	available
 pm0398_01_00.gfpak	01_00	ok		10	8	available
 pm0399_00_00.gfpak	00_00	ok		10	7	available
@@ -332,7 +332,7 @@ pm0550_13_41.gfpak	13_41	ok		10	5	available
 pm0570_00_41.gfpak	00_41	ok		10	8	available
 pm0571_00_41.gfpak	00_41	ok		10	9	available
 pm0627_00_00.gfpak	00_00	ok		10	7	available
-pm0628_00_41.gfpak	00_41	ok	static only; idle: bind rig 23 node 25 disagrees with reference rest pose: residual 0.03469176059974605 > 0.0001 | walk: bind rig 23 node 25 disagrees with reference rest pose: residual 0.03469176059974605 > 0.0001	0	6	available
+pm0628_00_41.gfpak	00_41	ok	bind: 1/68 records rebuilt from the reference rest pose	10	6	available
 pm0641_11_00.gfpak	11_00	ok		10	7	available
 pm0641_12_00.gfpak	12_00	ok		10	8	available
 pm0642_11_00.gfpak	11_00	ok		10	7	available
@@ -352,7 +352,7 @@ pm0843_00_41.gfpak	00_41	ok		10	8	available
 pm1001_00_00.gfpak	00_00	ok		10	5	available
 pm1002_00_00.gfpak	00_00	ok		10	7	available
 pm1002_71_00.gfpak	71_00	ok		10	7	unavailable
-pm1003_00_41.gfpak	00_41	ok	static only; idle: bind rig 51 node 53 disagrees with reference rest pose: residual 1.0000000002064373 > 0.0001 | walk: bind rig 51 node 53 disagrees with reference rest pose: residual 1.0000000002064373 > 0.0001	0	7	available
+pm1003_00_41.gfpak	00_41	ok	bind: 2/54 records rebuilt from the reference rest pose	10	7	available
 pm1004_11_00.gfpak	11_00	ok		10	8	available
 pm1004_12_00.gfpak	12_00	ok		10	9	available
 pm1005_00_41.gfpak	00_41	ok		10	4	available
