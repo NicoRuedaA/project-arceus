@@ -1,7 +1,11 @@
 //! Pure crafting data and atomic inventory operations.
 //!
-//! Recipe rows deliberately contain ids and quantities only. Names and unlock conditions are
-//! data concerns owned by the recipe provider; this module never invents game recipes.
+//! Recipe rows contain ids and quantities only; display names stay a data concern owned by the
+//! provider (this module never invents game recipes). The unlock condition is decoded: in
+//! *Pokémon Legends: Arceus* each recipe is an ordinary bag item ("Poké Ball Recipe", item 1640
+//! for recipe 1) that the player finds, is given or buys; the decoded sheet spells that
+//! condition as `own_item:<id>` and [`RecipeCondition::OwnItem`] requires the item to be held.
+//! The recipe item is not a material and is never consumed by crafting.
 
 use std::collections::BTreeMap;
 
@@ -29,21 +33,25 @@ impl RecipeName {
 
 /// Unlock/availability condition from a recipe row.
 ///
-/// `Known` means that a condition label was found, not that its game semantics are implemented.
-/// Both non-`None` variants are therefore rejected by crafting until a condition evaluator exists.
+/// `OwnItem` is the decoded game condition: the recipe is available while the recipe item (an
+/// ordinary bag item such as "Poké Ball Recipe") is held. It is checked by [`plan`] and the item
+/// is never consumed. `Known` means that a condition label was found, not that its game
+/// semantics are implemented; it stays rejected by crafting.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecipeCondition {
     None,
+    OwnItem(ItemId),
     Known(String),
     Unknown,
 }
 
 impl RecipeCondition {
-    pub fn display(&self) -> &str {
+    pub fn display(&self) -> String {
         match self {
-            Self::None => "No condition",
-            Self::Known(condition) if !condition.trim().is_empty() => condition,
-            Self::Known(_) | Self::Unknown => "Unknown condition",
+            Self::None => "No condition".to_string(),
+            Self::OwnItem(item_id) => format!("Requires held item {item_id}"),
+            Self::Known(condition) if !condition.trim().is_empty() => condition.clone(),
+            Self::Known(_) | Self::Unknown => "Unknown condition".to_string(),
         }
     }
 }
@@ -92,8 +100,8 @@ impl RecipeCatalog {
 ///
 /// Only columns of the sheet are used: `recipe_id`, `result_item_id`, `result_quantity`, the
 /// `materials` list (`item:qty,item:qty`) and `condition`. The sheet has no recipe name column, so
-/// every name is [`RecipeName::Unknown`]; its `condition` is `UNKNOWN` for every row (MakeList has
-/// no unlock-condition field), which [`craft`] refuses by design.
+/// every name is [`RecipeName::Unknown`]; its `condition` is `own_item:<id>` for every row (the
+/// held recipe item that unlocks the recipe, decoded from the game's own item text and scripts).
 #[derive(Debug, Clone, Default)]
 pub struct TsvRecipeProvider(pub Vec<Recipe>);
 
@@ -155,6 +163,11 @@ impl TsvRecipeProvider {
             let condition = match values[condition_c].trim() {
                 "" | "NONE" => RecipeCondition::None,
                 "UNKNOWN" => RecipeCondition::Unknown,
+                own if own.starts_with("own_item:") => RecipeCondition::OwnItem(
+                    own["own_item:".len()..].parse().map_err(|_| {
+                        format!("crafting_recipes row {row}: invalid own_item condition")
+                    })?,
+                ),
                 known => RecipeCondition::Known(known.to_string()),
             };
             recipes.push(Recipe {
@@ -189,6 +202,9 @@ pub enum CraftError {
     InvalidRecipe,
     UnknownCondition,
     UnsupportedCondition(String),
+    RecipeItemMissing {
+        item_id: ItemId,
+    },
     MissingMaterial {
         item_id: ItemId,
         required: u16,
@@ -207,6 +223,13 @@ fn plan(bag: &Bag, recipe: &Recipe) -> Result<Bag, CraftError> {
     }
     match &recipe.condition {
         RecipeCondition::None => {}
+        RecipeCondition::OwnItem(recipe_item) => {
+            if bag.get(recipe_item).copied().unwrap_or(0) == 0 {
+                return Err(CraftError::RecipeItemMissing {
+                    item_id: *recipe_item,
+                });
+            }
+        }
         RecipeCondition::Unknown => return Err(CraftError::UnknownCondition),
         RecipeCondition::Known(condition) => {
             return Err(CraftError::UnsupportedCondition(condition.clone()))
@@ -377,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn tracked_recipe_sheet_loads_every_row_with_unknown_names_and_conditions() {
+    fn tracked_recipe_sheet_loads_every_row_with_recipe_item_conditions() {
         let text = include_str!("../../../../data/crafting_recipes.tsv");
         let rows = TsvRecipeProvider::parse(text).unwrap().0;
         assert_eq!(rows.len(), 43);
@@ -390,11 +413,43 @@ mod tests {
                 MaterialCost { item_id: 1628, quantity: 1 }
             ]
         );
+        assert_eq!(rows[0].condition, RecipeCondition::OwnItem(1640));
         assert!(rows.iter().all(|r| r.name == RecipeName::Unknown));
-        assert!(rows.iter().all(|r| r.condition == RecipeCondition::Unknown));
-        // The sheet's unknown unlock condition keeps every recipe refused, even with materials.
+        assert!(rows
+            .iter()
+            .all(|r| matches!(r.condition, RecipeCondition::OwnItem(_))));
+
+        // Without the held recipe item the recipe stays locked even with every material.
         let mut bag = Bag::from([(1613, 9), (1628, 9)]);
-        assert_eq!(craft(&mut bag, &rows[0]), Err(CraftError::UnknownCondition));
+        assert_eq!(
+            craft(&mut bag, &rows[0]),
+            Err(CraftError::RecipeItemMissing { item_id: 1640 })
+        );
+
+        // Holding the recipe item unlocks it; the item survives the craft.
+        bag.insert(1640, 1);
+        craft(&mut bag, &rows[0]).unwrap();
+        assert_eq!(bag.get(&1613), Some(&8));
+        assert_eq!(bag.get(&1628), Some(&8));
+        assert_eq!(bag.get(&1710), Some(&1));
+        assert_eq!(bag.get(&1640), Some(&1));
+    }
+
+    #[test]
+    fn own_item_condition_requires_and_keeps_the_recipe_item() {
+        let mut bag = Bag::from([(10, 1)]);
+        let mut owned = recipe(20, 1, &[(10, 1)]);
+        owned.condition = RecipeCondition::OwnItem(99);
+        assert!(!can_craft(&bag, &owned));
+        assert_eq!(
+            craft(&mut bag, &owned),
+            Err(CraftError::RecipeItemMissing { item_id: 99 })
+        );
+        bag.insert(99, 1);
+        assert!(can_craft(&bag, &owned));
+        craft(&mut bag, &owned).unwrap();
+        assert_eq!(bag, Bag::from([(99, 1), (20, 1)]));
+        assert_eq!(owned.condition.display(), "Requires held item 99");
     }
 
     #[test]

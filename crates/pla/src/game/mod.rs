@@ -48,6 +48,7 @@ pub mod catch_rate;
 pub mod cli_flags;
 pub mod clock;
 pub mod crafting;
+pub mod crafting_routes;
 pub mod crafting_ui;
 pub mod customize_screen;
 pub mod dex;
