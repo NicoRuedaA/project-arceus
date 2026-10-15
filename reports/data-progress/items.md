@@ -34,3 +34,31 @@ Additive: new module, one optional field on `Battle`; `use_healing_item` and `at
 python3 .tools/decode_item_effects.py && python3 .tools/check_item_effects.py
 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=$PWD/target cargo test --offline -p pla items
 ```
+
+## Brief 23 — discs (move teaching) and key items
+
+**No item teaches a move.** Pokemon Legends: Arceus has no TM/disc item: the item record has no
+move-id parameter, no item name matches a move name in the shipped name tables (checked locally;
+the single exact match, `metronome`, is the held item) and `.tools/decode_wazashop.py` writes the
+negative result to `data/item_teach_moves.tsv` (zero rows, method in the header). The game teaches
+moves through two other paths, both now decoded and modeled:
+
+- **Move shop** (`bin/appli/wazaremember/bin/wazashop_table.bin` → `data/move_shop.tsv`, 61 rows,
+  PROBABLE): entry → move id → price in money (200..4000). Decoder `.tools/decode_wazashop.py`
+  (pinned sha256 `1c286bf025f05984ebc0afe4bef0cb0d5e1b8e8dec0620fd0691177f762f5a05`).
+- **Move reminder** over the learnsets: `data/pml_learnsets.tsv` has 19,283 `move_tutor` rows
+  (plus 6,877 `level_up`); the union is 19,654 distinct `(species, form, move)` the dojo can teach.
+
+Rules: `crates/pla/src/game/move_teaching.rs` (`TutorTables::can_learn` / `shop_price` /
+`price_to_teach`, `teach_move` with refusal on not-learnable, duplicate, no slot and unaffordable;
+shop moves cost their decoded price, reminder moves are free because the fee is UNKNOWN). Unit
+tests use real rows (Pikachu 84/85/86/87/98/231, Vulpix 52).
+
+**Key items (Brief 23).** `storage_class` (low nibble of the record's `+0x11` byte) is the
+key-item class: all **85** records with `storage_class == 1` are key items by name (Plates,
+Old Verses 1..20, Red Chain, Azure Flute, Gracidea, Shiny Charm, Odd Keystone, quest items), none
+of them is a ball/medicine/berry, and **none appears in `data/shop_stock.tsv`**. `ItemEffect` now
+carries `storage_class` + `is_key_item()`, and `Shop::sell` refuses key items (they are neither
+sold nor buyable back); the port does not model discard actions yet. Confidence: PROBABLE — the
+class rests on the name cross-check and the shop intersection; `storage_class == 2` (45 unnamed
+ids) stays UNKNOWN.

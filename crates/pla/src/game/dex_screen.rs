@@ -11,6 +11,9 @@ use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
 
+use super::dex::{
+    rank_for_points, rank_points, species_level, species_points, DexTasks, ResearchCounters,
+};
 use super::input_map::{Action, ActionState, InputMapPlugin};
 use super::pause_menu::{freeze_for_screen, DexOpenRequested, PauseMenuSuppressed};
 use super::save_wire::PlayerProgress;
@@ -18,6 +21,9 @@ use super::state::Paused;
 
 /// Number of catalog rows shown at once.
 pub const VISIBLE_ROWS: usize = 12;
+
+/// Lines of the selected species' research-task panel.
+pub const TASK_LINES: usize = 3;
 
 /// One distinct species in the Pokédex catalog.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -158,6 +164,96 @@ pub fn row_label(entry: &DexEntry, state: DexVisibility) -> String {
     }
 }
 
+/// Research suffix of a row: the species' research level and points, only once the species is
+/// registered (caught at least once). Empty for every other entry.
+pub fn research_suffix(tasks: &DexTasks, counters: &ResearchCounters, species: u16) -> String {
+    if !super::dex::is_registered(counters, species) {
+        return String::new();
+    }
+    let points = species_points(&tasks.entries, counters, species);
+    format!("  ·  lv{} {}p", species_level(points), points)
+}
+
+/// Status line: page, player rank (from the research counters and the decoded task catalog) and
+/// the seen/caught counts. At the top rank the next threshold is omitted.
+pub fn rank_line(tasks: &DexTasks, counters: &ResearchCounters) -> String {
+    let points = rank_points(tasks, counters);
+    let rank = rank_for_points(points);
+    match super::dex::next_rank_at(points) {
+        Some((_, needed)) => format!("Rank {rank}  |  {points} pts  |  next rank at {needed}"),
+        None => format!("Rank {rank}  |  {points} pts  |  MAX"),
+    }
+}
+
+/// Lines of the selected species' research tasks (one per task, capped at `max_lines`): kind,
+/// progress against the task's last threshold, level and points. The first line names the
+/// species' general state; an unregistered species (never caught) shows a single placeholder.
+pub fn task_lines(
+    tasks: &DexTasks,
+    counters: &ResearchCounters,
+    species: u16,
+    max_lines: usize,
+) -> Vec<String> {
+    if !super::dex::is_registered(counters, species) {
+        return vec!["Research: not registered (catch it first)".to_string()];
+    }
+    let points = species_points(&tasks.entries, counters, species);
+    let head = format!(
+        "Research: lv{}  |  {} pts{}",
+        species_level(points),
+        points,
+        if super::dex::species_perfect(&tasks.entries, counters, species) {
+            "  |  PERFECT"
+        } else {
+            ""
+        }
+    );
+    let mut lines = vec![head];
+    // Tasks with progress show first (they are the ones the player is working on), then the rest
+    // in slot order.
+    let mut ordered: Vec<(&crate::game::dex::DexTask, u32)> = tasks
+        .tasks_for(species)
+        .map(|task| {
+            let count = counters
+                .get(&(task.species, task.kind, task.counter_target()))
+                .copied()
+                .unwrap_or(0);
+            (task, count)
+        })
+        .collect();
+    ordered.sort_by_key(|(task, count)| (*count == 0, task.slot));
+    let mut listed = 0;
+    for (task, count) in &ordered {
+        if listed + 1 >= max_lines {
+            break;
+        }
+        let last = task
+            .thresholds
+            .iter()
+            .take(usize::from(task.steps))
+            .next_back()
+            .copied()
+            .unwrap_or(0);
+        let label = if task.kind == super::dex::KIND_USED_MOVE {
+            format!("kind {} (move {})", task.kind, task.move_target)
+        } else {
+            format!("kind {}", task.kind)
+        };
+        lines.push(format!(
+            "  {label}: {count}/{last}  lv{}  {}p",
+            task.level(*count),
+            task.points(*count)
+        ));
+        listed += 1;
+    }
+    let rest = ordered.len().saturating_sub(listed);
+    if rest > 0 {
+        lines.push(format!("  +{rest} more task(s)"));
+    }
+    lines.truncate(max_lines);
+    lines
+}
+
 fn numeric_id(id: u16) -> String {
     format!("#{id:04}")
 }
@@ -233,6 +329,8 @@ pub struct DexRoot;
 enum DexText {
     Status,
     Row(usize),
+    /// One line of the selected species' research-task panel.
+    Task(usize),
     Hint,
 }
 
@@ -279,13 +377,22 @@ impl Plugin for DexScreenPlugin {
                 .map_err(|error| eprintln!("[dex] personal table unavailable ({error})"))
                 .ok()
         });
+        let tasks = data_dir.as_ref().and_then(|path| {
+            DexTasks::load(path)
+                .map_err(|error| eprintln!("[dex] task table unavailable ({error})"))
+                .ok()
+        });
         if let Some(catalog) = &catalog {
             println!(
                 "[dex] catalog: {} distinct active species",
                 catalog.distinct_species_count()
             );
         }
+        if let Some(tasks) = &tasks {
+            println!("[dex] research tasks: {} rows", tasks.entries.len());
+        }
         app.insert_resource(catalog.unwrap_or_default())
+            .insert_resource(tasks.unwrap_or_default())
             .init_resource::<DexUi>()
             .init_resource::<DexOpenRequested>()
             .add_systems(Startup, spawn_dex_ui)
@@ -359,6 +466,19 @@ fn spawn_dex_ui(mut commands: Commands) {
                     TextFont::from_font_size(14.0),
                     TextColor(Color::srgb(0.7, 0.75, 0.8)),
                 ));
+                panel.spawn((
+                    Text::new("RESEARCH (selected)"),
+                    TextFont::from_font_size(15.0),
+                    TextColor(Color::srgb(0.95, 0.9, 0.6)),
+                ));
+                for index in 0..TASK_LINES {
+                    panel.spawn((
+                        DexText::Task(index),
+                        Text::new(""),
+                        TextFont::from_font_size(14.0),
+                        TextColor(Color::srgb(0.8, 0.9, 0.85)),
+                    ));
+                }
             });
         });
 }
@@ -421,6 +541,7 @@ fn dex_input(
 
 fn sync_dex_ui(
     catalog: Res<DexCatalog>,
+    tasks: Res<DexTasks>,
     progress: Option<Res<PlayerProgress>>,
     mut ui: ResMut<DexUi>,
     mut root: Query<&mut Visibility, With<DexRoot>>,
@@ -435,8 +556,12 @@ fn sync_dex_ui(
     };
     ui.page = page_for_selection(ui.selected, len);
     let empty = BTreeSet::new();
+    let empty_counters = ResearchCounters::new();
     let seen = progress.as_ref().map_or(&empty, |save| &save.seen);
     let caught = progress.as_ref().map_or(&empty, |save| &save.caught);
+    let counters = progress
+        .as_ref()
+        .map_or(&empty_counters, |save| &save.research);
     let seen_count = catalog
         .entries
         .iter()
@@ -458,7 +583,8 @@ fn sync_dex_ui(
     for (text, mut value) in &mut texts {
         let next = match *text {
             DexText::Status => format!(
-                "Page {}/{}  |  seen {seen_count}  |  caught {caught_count}  |  total {len}",
+                "{}  |  Page {}/{}  |  seen {seen_count}  |  caught {caught_count}  |  total {len}",
+                rank_line(&tasks, counters),
                 ui.page + 1,
                 page_count(len).max(1),
             ),
@@ -466,8 +592,21 @@ fn sync_dex_ui(
             DexText::Row(index) => page_entries(&catalog, ui.page)
                 .get(index)
                 .map_or_else(String::new, |entry| {
-                    row_label(entry, visibility(entry.id, seen, caught))
+                    format!(
+                        "{}{}",
+                        row_label(entry, visibility(entry.id, seen, caught)),
+                        research_suffix(&tasks, counters, entry.id)
+                    )
                 }),
+            DexText::Task(index) => page_entries(&catalog, ui.page)
+                .get(ui.selected % VISIBLE_ROWS)
+                .map(|entry| {
+                    task_lines(&tasks, counters, entry.id, TASK_LINES)
+                        .get(index)
+                        .cloned()
+                        .unwrap_or_default()
+                })
+                .unwrap_or_default(),
         };
         if value.0 != next {
             value.0 = next;
@@ -588,5 +727,81 @@ dex_index_national:u16\tspecies_name:string\tform:u8\tis_active:bool\n\
             "dex_index_national:u16\tspecies_name:string\tform:u8\tis_active:bool\n1\na\t0\tmaybe\n"
         )
         .is_err());
+    }
+
+    /// The research suffix (level + points) appears only for registered species, and the status
+    /// line reports the rank the counters reach.
+    #[test]
+    fn research_suffix_and_rank_line_follow_the_counters() {
+        use super::super::dex::{DexTask, KIND_CAUGHT};
+
+        let tasks = DexTasks {
+            entries: vec![DexTask {
+                species: 25,
+                slot: 0,
+                kind: KIND_CAUGHT,
+                move_target: 0,
+                type_byte: 0,
+                param5: 0,
+                thresholds: [1, 2, 4, 6, 10],
+                steps: 5,
+            }],
+        };
+        let mut counters = ResearchCounters::new();
+        assert_eq!(research_suffix(&tasks, &counters, 25), "", "unregistered: no suffix");
+        assert_eq!(rank_line(&tasks, &counters), "Rank 1  |  0 pts  |  next rank at 1800");
+        counters.insert((25, KIND_CAUGHT, 0), 4);
+        assert_eq!(research_suffix(&tasks, &counters, 25), "  ·  lv4 30p");
+        assert_eq!(rank_line(&tasks, &counters), "Rank 1  |  30 pts  |  next rank at 1800");
+    }
+
+    /// The task panel lists the selected species' tasks with their counters and thresholds; an
+    /// unregistered species shows the placeholder and the line count respects the cap.
+    #[test]
+    fn task_lines_show_counters_and_respect_the_cap() {
+        use super::super::dex::{DexTask, KIND_CAUGHT, KIND_USED_MOVE};
+
+        let tasks = DexTasks {
+            entries: vec![
+                DexTask {
+                    species: 25,
+                    slot: 0,
+                    kind: KIND_CAUGHT,
+                    move_target: 0,
+                    type_byte: 0,
+                    param5: 0,
+                    thresholds: [1, 2, 4, 6, 10],
+                    steps: 5,
+                },
+                DexTask {
+                    species: 25,
+                    slot: 1,
+                    kind: KIND_USED_MOVE,
+                    move_target: 84,
+                    type_byte: 0,
+                    param5: 0,
+                    thresholds: [3, 6, 12, 25, 0],
+                    steps: 4,
+                },
+            ],
+        };
+        let mut counters = ResearchCounters::new();
+        assert_eq!(
+            task_lines(&tasks, &counters, 25, TASK_LINES),
+            vec!["Research: not registered (catch it first)"]
+        );
+        counters.insert((25, KIND_CAUGHT, 0), 4);
+        counters.insert((25, KIND_USED_MOVE, 84), 6);
+        let lines = task_lines(&tasks, &counters, 25, TASK_LINES);
+        assert_eq!(lines[0], "Research: lv6  |  50 pts", "{lines:?}");
+        assert_eq!(lines[1], "  kind 0: 4/10  lv4  30p");
+        assert_eq!(lines[2], "  kind 1 (move 84): 6/25  lv3  20p");
+        assert_eq!(task_lines(&tasks, &counters, 25, 1).len(), 1, "the cap holds");
+        // Tasks with progress show before untouched ones.
+        counters.remove(&(25, KIND_USED_MOVE, 84));
+        counters.insert((25, KIND_CAUGHT, 0), 1);
+        let lines = task_lines(&tasks, &counters, 25, TASK_LINES);
+        assert_eq!(lines[1], "  kind 0: 1/10  lv2  10p");
+        assert_eq!(lines[2], "  kind 1 (move 84): 0/25  lv1  0p");
     }
 }
