@@ -937,7 +937,7 @@
       },
       {
         "path": "crates/pla/src/game/world_collision.rs",
-        "sha256": "f99299799cb175dd37fb747b04145b2bf042af78f611c9e17ae3be0cbdb925e1"
+        "sha256": "3337f244ba53a1dd4a9dac51ab23ee5f2d973f371da533aa771c31462784a10a"
       },
       {
         "path": "crates/pla/src/game/world_events.rs",
@@ -1085,7 +1085,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "b6edaae747463256e0e095b8ebb5d5a4a84ec022657577052fc42f5274f1564c"
+    "sha256": "8f2e284914d86396d4713ee27758dc3db6d68c00173b525e2cc78040fa7bfcdd"
   },
   "state_partitions": {
     "analysis_documentation_status": {
