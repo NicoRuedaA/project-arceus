@@ -16,8 +16,11 @@
 //!   `data/ai/score_rules.tsv` and `reports/data-progress/trainers.md` §3 with an ASSUMED
 //!   affinity scale (`battle_ai::affinity_level`) and ASSUMED simplifications (documented on
 //!   each function). Each bag item is ASSUMED usable once (the count is not stored).
-//! - Prize money: UNKNOWN formula. [`trainer_prize_assumed`] (`prize_base x level of the last
-//!   Pokemon`, the franchise formula on root slot 11) is a SUPUESTO / ASSUMED placeholder.
+//! - Prize money: **trainers pay none** (experience only). The game keeps a per-trainer field
+//!   (root slot 11, exported as `prize_base`) but no reader of it was found, and the external
+//!   note plus public sources say PLA trainer battles give no money (see
+//!   `reports/data-progress/trainer_money.md`). The port pays nothing and keeps the field only
+//!   as data.
 //! - Giratina (`giratina01`): `grtnPowerCoef` 1.5 (VERIFIED value, same as Alphas) and
 //!   `grtnReliveHpPer` 100 read as "rises again once at 100 % HP" (LIKELY): a second phase.
 //! - Nobles: only their turn-based part is modelled (one Pokemon from `boss_battles.tsv`,
@@ -68,7 +71,8 @@ pub struct TrainerBattleState {
     pub ai: TrainerAi,
     /// Bag items still available to the opponent (each ASSUMED single-use).
     pub items: Vec<u16>,
-    /// Root slot 11 (ASSUMED prize base).
+    /// Root slot 11, exported raw; no reader was found in the game code and nothing is paid
+    /// for it (see `reports/data-progress/trainer_money.md`).
     pub prize_base: Option<u32>,
     /// Revive once at this HP percent (Giratina).
     pub revive_pct: Option<u8>,
@@ -77,8 +81,6 @@ pub struct TrainerBattleState {
     pub bgm: String,
     /// Type of the player's last damaging move (input of the switch AI).
     pub last_incoming_type: Option<String>,
-    /// Money paid for the win (SUPUESTO formula); set once when the battle ends.
-    pub prize: Option<u32>,
     /// The end lines were written.
     pub finished: bool,
 }
@@ -97,7 +99,6 @@ impl TrainerBattleState {
             revived: false,
             bgm: def.bgm.clone(),
             last_incoming_type: None,
-            prize: None,
             finished: false,
         }
     }
@@ -116,7 +117,6 @@ impl TrainerBattleState {
             revived: false,
             bgm: def.bgm.clone(),
             last_incoming_type: None,
-            prize: None,
             finished: false,
         }
     }
@@ -130,12 +130,6 @@ pub enum OpponentChoice {
     Switch(usize),
     /// Use this bag item on the active Pokemon.
     Item(u16),
-}
-
-/// SUPUESTO / ASSUMED prize: `prize_base x level of the last opponent Pokemon` (the franchise
-/// formula applied to root slot 11). The game's formula and reader are UNKNOWN.
-pub fn trainer_prize_assumed(prize_base: u32, last_level: u8) -> u32 {
-    prize_base.saturating_mul(u32::from(last_level))
 }
 
 /// Score rules of a trainer's AI modules (only fully mapped rules; see `battle_ai`).
@@ -584,44 +578,24 @@ impl ActiveBattleSession {
         }
     }
 
-    /// End lines of a trainer battle (once): the win with the SUPUESTO prize, or the loss.
+    /// End lines of a trainer battle (once): the win (no money: trainers give experience only,
+    /// see `reports/data-progress/trainer_money.md`) or the loss.
     pub(crate) fn trainer_battle_end(&mut self) {
         let Some(t) = self.trainer.as_ref() else { return };
         if t.finished || !self.battle.ended {
             return;
         }
-        let (label, base, kind) = (t.label.clone(), t.prize_base, t.kind);
-        // "Last opponent Pokemon" is the last member of the trainer's whole team (its stored
-        // order), not whichever member happens to be active at the end: the switch AI can leave
-        // another member out when the battle closes.
-        let last_level = self
-            .battle
-            .sides
-            .get(1)
-            .and_then(|side| side.last())
-            .and_then(|&i| self.battle.combatants.get(i))
-            .map(|c| c.level)
-            .unwrap_or_else(|| self.battle.combatants[self.opponent()].level);
-        let mut lines = Vec::new();
-        let mut prize = None;
-        match self.battle.winner_side() {
-            Some(Some(0)) => {
-                lines.push(match kind {
-                    OpponentKind::Trainer => format!("You defeated {label}!"),
-                    OpponentKind::Noble => format!("The {label} was calmed!"),
-                });
-                if let Some(base) = base {
-                    let p = trainer_prize_assumed(base, last_level);
-                    prize = Some(p);
-                    lines.push(format!("You got {p} money for winning! (ASSUMED formula: {base} x Lv{last_level})"));
-                }
-            }
-            Some(Some(_)) => lines.push(format!("You lost to {label}...")),
-            _ => {}
-        }
+        let (label, kind) = (t.label.clone(), t.kind);
+        let lines = match self.battle.winner_side() {
+            Some(Some(0)) => vec![match kind {
+                OpponentKind::Trainer => format!("You defeated {label}!"),
+                OpponentKind::Noble => format!("The {label} was calmed!"),
+            }],
+            Some(Some(_)) => vec![format!("You lost to {label}...")],
+            _ => Vec::new(),
+        };
         if let Some(t) = self.trainer.as_mut() {
             t.finished = true;
-            t.prize = prize;
         }
         self.push_lines(lines);
         self.menu_state = BattleMenuState::MainMenu;
@@ -669,11 +643,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn prize_placeholder_is_base_times_level() {
-        assert_eq!(trainer_prize_assumed(20, 30), 600);
-        assert_eq!(trainer_prize_assumed(u32::MAX, 100), u32::MAX);
-    }
 
     #[test]
     fn ai_module_bits_pick_the_mapped_rules() {
@@ -874,7 +843,10 @@ mod tests {
                 match w1 {
                     Some(Some(0)) => {
                         assert!(log1.iter().any(|l| l.starts_with("You defeated")), "{log1:?}");
-                        assert_eq!(st.prize, t.prize_base.map(|b| trainer_prize_assumed(b, t.party.last().unwrap().level)));
+                        assert!(
+                            !log1.iter().any(|l| l.contains("money")),
+                            "trainers pay no money: {log1:?}"
+                        );
                         // every opponent member fainted and the next one was announced
                         assert!(log1.iter().filter(|l| l.contains("sent out")).count() >= 3, "{log1:?}");
                     }
@@ -995,7 +967,6 @@ mod tests {
         assert!(log.contains("rose again"), "{log}");
         assert!(s.battle.ended, "{log}");
         assert_eq!(log.matches("Battle over: you won!").count(), 1, "{log}");
-        assert_eq!(s.trainer.as_ref().unwrap().prize, None, "giratina01 stores no prize base");
     }
 
     #[test]

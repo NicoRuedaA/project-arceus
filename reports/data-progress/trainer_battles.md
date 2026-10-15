@@ -32,7 +32,7 @@ The one draw (`single_180`, Rapidash with Double-Edge) is both sides fainting on
 | Expert module | not used | per-score predicates of the 49 `ExpertAI_Seq_*` handlers are only partly mapped: **UNKNOWN** |
 | Item AI (Item bit; items 23/24/25): under 20 % HP 66 % chance, under 40 % HP 27 % chance, never above | `choose_item` | thresholds LIKELY; merging the two observed gates of each tier into one chance **ASSUMED**; each item usable once **ASSUMED** (count not stored) |
 | Switch AI (Change bit): "0x break" (78 % / 50 %) and "make better" (90 % stay, 4+ stages stay, 50 % immune / 33 % resist to the player's last move type) | `choose_switch` | gates VERIFIED values (`score_rules.tsv`); bench choice by `power x effectiveness x STAB` and the rank-up reading **ASSUMED** |
-| Prize money on a win: `prize_base x level of the last opponent Pokémon` | `trainer_prize_assumed`; paid through `save_wire::apply_outcome` instead of the wild prize | **SUPUESTO / ASSUMED**: the game's formula and the reader of root slot 11 are UNKNOWN |
+| Trainer battles pay **no money** (experience only); the root slot 11 field has no reader and stays raw data. Wild battles keep the provisional wild prize | `save_wire::apply_outcome` (trainer wins record the id only) | **PROBABLE** (no reader of the field: VERIFIED by reading; external note + public sources agree — see [trainer_money.md](trainer_money.md)) |
 | Experience: every fainted opponent member gives `exp_yield(..., trainer = true)` to the active Pokémon at the end | `battle_progress::process_battle_end` | trainer bonus from the existing progression code; "active Pokémon is the only participant" **ASSUMED** |
 | Giratina (`giratina01`): power x1.5 on Atk/Def/SpA/SpD/Spe and a second phase (rises again once at 100 % HP) | `TrainerBattleState::for_trainer`, `trainer_after_turn` | `grtnPowerCoef` 1.5 and `grtnReliveHpPer` 100 VERIFIED values; that they apply to this trainer and mean "revive once" **LIKELY** |
 | Noble turn-based phase (one Pokémon from `boss_battles.tsv`; no capture, no running; `nsPowerCoef` = 1) | `ActiveBattleSession::start_noble` | Noble AI profile **ASSUMED** Basic + Strong; field phase (frenzy gauge, balms, field attacks) **not implemented** (balm damage and attack numbers UNKNOWN) |
@@ -55,12 +55,12 @@ cargo run -p pla --example battle_demo -- --trainer noble:nsi_ex_01_r       # a 
 All of them are windowless. In the viewer: walk to a cached trainer model, or its red capsule fallback, and press **V**; alternatively start with `--trainer trainer04_01` and press V anywhere.
 
 ## Defeated trainers (save v8)
-Beaten trainers are saved (`PlayerProgress.defeated_trainers`, save format v8, see [save_game.md](save_game.md)). Decision: after a restart or Load the marker of a beaten trainer is grey, V next to it starts no battle and only shows the toast "<label> (<id>) was already defeated."; the prize is paid on the first win only. `--trainer <id>` (debug) still allows V to replay that trainer anywhere, but the rematch pays no prize. Headless test: `defeated_trainer_survives_save_and_load`.
+Beaten trainers are saved (`PlayerProgress.defeated_trainers`, save format v8, see [save_game.md](save_game.md)). Decision: after a restart or Load the marker of a beaten trainer is grey, V next to it starts no battle and only shows the toast "<label> (<id>) was already defeated."; trainer battles pay no money at all (see [trainer_money.md](trainer_money.md)). `--trainer <id>` (debug) still allows V to replay that trainer anywhere. Headless test: `defeated_trainer_survives_save_and_load`.
 
 ## Not done / unknown
 
 - Which event starts which trainer battle (story scripts, out of scope); trainer model visual/pixel fidelity and palette (**ASSUMED**); trainer intro/defeat texts (game texts out of scope; labels only).
-- Money formula and the reader of slot 11; money lost on defeat (none is taken).
+- The real meaning of root slot 11 (exported raw, no reader found); money lost on defeat (none is taken); the Miss Fortune Sisters' Nuggets (game reward on their random rematches, not modelled — see [trainer_money.md](trainer_money.md)).
 - Expert AI sequences; style choice of trainers beyond the shared selector.
 - Noble field phase: gauge, balm hits, stagger windows, field attacks (`boss_field_attacks.tsv` is loaded nowhere yet).
 - Send-out order, item counts, double battles (none found in the data).
