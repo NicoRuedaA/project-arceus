@@ -1,11 +1,14 @@
 # sheet: data/dex_ranks
-# version: 1
+# version: 2
 # generator: .tools/dex_research_probe.py
 # target: Pokemon Legends: Arceus update v262144 pokedex_rank_table.bin
-# semantics: rank id -> research points needed; both fields are PROBABLE
-# confidence: the nine rows repeat a monotone (rank, points) record shape;
-#   rank 1 has no readable threshold (a candidate 500 exists but its layout is UNKNOWN).
+# semantics: rank id -> research points needed (rank 0 = no threshold); PROBABLE
+# confidence: eleven FlatBuffer records read through their own vtables: records 1..10
+#   carry (rank id = index, points) and form a monotone ladder; record 0 is the empty
+#   table (rank 0, no threshold). Version 1 missed rank 1 = 500 (shape filter `2..=10`).
 rank:u8	points:u32	confidence:string	source_file:string	source_offset:u32
+0	0	PROBABLE	pokedex_rank_table.bin	200
+1	500	PROBABLE	pokedex_rank_table.bin	184
 2	1800	PROBABLE	pokedex_rank_table.bin	164
 3	3500	PROBABLE	pokedex_rank_table.bin	152
 4	6000	PROBABLE	pokedex_rank_table.bin	140
