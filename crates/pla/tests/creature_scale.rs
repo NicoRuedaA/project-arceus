@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use pla::game::wild::{load_spawners_for_area, normal_size_scale, roll_spawner_variant, SlotFacts};
+use pla::game::wild::{load_spawners_for_area, normal_size_scale, roll_spawner_variant};
 
 fn work_dir() -> Option<PathBuf> {
     let mut c = vec![PathBuf::from("work"), PathBuf::from("../../work")];
@@ -142,37 +142,88 @@ fn normal_creatures_are_mostly_medium() {
 
 #[test]
 fn gated_alpha_slot_does_not_override_the_normal_slot() {
-    let normal = SlotFacts { weight: 100, ..Default::default() };
-    let alpha = SlotFacts { alpha: true, weight: 1, ..Default::default() };
-    assert!(!alpha.outranks(&normal));
-    assert!(normal.outranks(&alpha));
-    let unique = SlotFacts { alpha: true, unique_alpha: true, weight: 100, ..Default::default() };
-    assert!(normal.outranks(&unique), "a normal slot wins ties");
+    // The collapse bug (fixed 2026-10-14, slots redesigned 2026-10-15): the weight-1 gated
+    // random-alpha row replaced the weight-100 normal row of the same species by file order,
+    // so most wild creatures spawned as 2.5x alphas. Since the redesign both rows survive and
+    // the weighted roll (`roll_spawner_variant`) decides: a spawner owning a normal row and a
+    // random-alpha row of the same species rolls the alpha rarely, never most of the time.
+    let spawners = load_spawners_for_area(spawn_table(), 1).expect("spawn table");
+    let mut checked = 0;
+    for s in &spawners {
+        // Fixed alphas legitimately own their spawner at weight 100: skip those.
+        if s.entries.iter().any(|e| e.unique_alpha) {
+            continue;
+        }
+        let owns_pair = s
+            .entries
+            .iter()
+            .filter(|e| e.alpha && !e.unique_alpha)
+            .any(|a| s.entries.iter().any(|n| !n.alpha && n.species_id == a.species_id));
+        if !owns_pair {
+            continue;
+        }
+        let rolls = 200u64;
+        let alpha = (0..rolls)
+            .filter(|seed| {
+                roll_spawner_variant(s, *seed).is_some_and(|(_, _, _, v)| v.alpha)
+            })
+            .count();
+        // The decoded random-alpha weights are 1-2 next to 100-weight normals (~1 %-2 %).
+        assert!(
+            alpha * 10 <= rolls as usize,
+            "spawner {}: {alpha}/{rolls} alphas (the gated slot overrides the normal one)",
+            s.spawner_id
+        );
+        checked += 1;
+    }
+    assert!(checked >= 10, "only {checked} spawners with a normal+random-alpha pair");
 }
 
 #[test]
 fn real_spawn_data_is_not_mostly_alpha() {
+    // Since the 2026-10-15 redesign the loader keeps one row per slot (normal and light alpha
+    // coexist), so raw row counts overstate alpha; the weighted roll is what the player sees.
+    // Roll a few seeds per spawner and count outcomes. Fixed alphas (unique_alpha, weight 100)
+    // are rare and roll alpha by design; they sit inside the bounds below.
     for area in 1..=5u8 {
         let spawners = load_spawners_for_area(spawn_table(), area).expect("spawn table");
-        let entries: Vec<_> = spawners.iter().flat_map(|s| &s.entries).collect();
-        assert!(!entries.is_empty(), "area {area}");
-        let alpha = entries.iter().filter(|e| e.alpha || e.unique_alpha).count();
-        assert!(
-            alpha * 10 <= entries.len(),
-            "area {area}: {alpha}/{} entries alpha",
-            entries.len()
-        );
+        let mut rolls = 0usize;
+        let mut alpha = 0usize;
+        for s in &spawners {
+            for seed in 0..4u64 {
+                if let Some((_, _, _, v)) = roll_spawner_variant(s, seed) {
+                    rolls += 1;
+                    alpha += usize::from(v.alpha);
+                }
+            }
+        }
+        assert!(rolls > 100, "area {area}: only {rolls} rolls");
+        assert!(alpha * 10 <= rolls, "area {area}: {alpha}/{rolls} rolled alphas");
     }
-    // Area 05 Haunter spawners: the encounter shown in the playtest capture.
+    // Area 05 Haunter spawners: the encounter shown in the playtest capture. Its decoded
+    // random-alpha slot (weight 1 next to 100-weight normals) keeps its light weight, so a
+    // Haunter roll is almost always a normal-size creature; an alpha roll is the 2.5x one.
     let spawners = load_spawners_for_area(spawn_table(), 5).unwrap();
     let mut seen = 0;
+    let mut alphas = 0;
     for s in spawners.iter().filter(|s| s.entries.iter().any(|e| e.species_id == 93)) {
         for seed in 0..20u64 {
             if let Some((93, _, _, v)) = roll_spawner_variant(s, seed) {
                 seen += 1;
-                assert!(v.size_scale <= 1.8 && !v.alpha, "Haunter {} {:?}", s.spawner_id, v);
+                alphas += usize::from(v.alpha);
+                if v.alpha {
+                    assert!(
+                        (v.size_scale - 2.5).abs() < 1e-6,
+                        "alpha Haunter must be 2.5x: {} {:?}",
+                        s.spawner_id,
+                        v
+                    );
+                } else {
+                    assert!(v.size_scale <= 1.8, "Haunter {} {:?}", s.spawner_id, v);
+                }
             }
         }
     }
     assert!(seen > 0);
+    assert!(alphas * 10 <= seen, "Haunter alphas {alphas}/{seen}");
 }
