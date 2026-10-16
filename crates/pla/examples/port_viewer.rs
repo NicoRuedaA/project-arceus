@@ -2421,29 +2421,32 @@ fn player_locomotion(
         let current_xz = Vec2::new(transform.translation.x, transform.translation.z);
         let target_xz = current_xz + delta_xz;
 
-        // Stepping into water deep enough to swim bypasses the navmesh: the river edge is not a
-        // walkable face, so a walker could otherwise never reach the water at all (ASSUMED: the
-        // game's own rule for entering water is not decoded). The surface must sit on the ground
-        // (see water::SWIM_MAX_GROUND_OFFSET): the placed water planes are flat sheets and some
-        // float far above the terrain. A bank lip (measured 2026-10-16 at a Mirelands shore:
-        // surface 1.4 m below the feet, ground at the target still above the surface) is the
-        // second entry: the water sits below the avatar within one step-cap, so walking off the
-        // lip enters the body (the original drops you in from any low bank).
+        // Stepping into a water body bypasses the navmesh (the water edges are not walkable
+        // faces): the original game crosses shallow rivers and marsh freely and only swims when
+        // deep (chest rule, water::step_swim). Three readings, in order:
+        // * the surface sits on the ground under the target (|level - ground| <= 3 m, the
+        //   floating-sheet filter of water::SWIM_MAX_GROUND_OFFSET): the avatar wades/walks the
+        //   bed and swims once the bed drops below SWIM_ENTER_DEPTH;
+        // * walking off a low bank (measured 2026-10-16 at a Mirelands shore: surface 0.5 m below
+        //   the feet): the surface sits below the avatar within the step cap;
+        // * the navmesh blocks but the water level near the target is coherent with the feet.
         let near_level = water_bodies
             .as_ref()
             .and_then(|w| w.level_near(target_xz, 0.5));
         let stand_y = transform.translation.y - 0.9;
         let water_entry = near_level.is_some_and(|level| {
-            let on_ground = terrain_res
+            let ground = terrain_res
                 .as_ref()
-                .and_then(|t| t.area.sample_world_height(target_xz.x, target_xz.y))
-                .is_some_and(|ground| {
-                    (level - ground).abs() <= pla::game::water::SWIM_MAX_GROUND_OFFSET
-                        && level - ground > SWIM_ENTER_DEPTH
-                });
-            let step_off = stand_y - level > SWIM_ENTER_DEPTH
+                .and_then(|t| t.area.sample_world_height(target_xz.x, target_xz.y));
+            // Surface sits on the ground under the target (floating-sheet filter).
+            let under = ground
+                .is_some_and(|ground| (level - ground).abs() <= pla::game::water::SWIM_MAX_GROUND_OFFSET);
+            // No terrain data at the target (measured at a Mirelands shore edge): the surface is
+            // level with the feet or below within the step cap. A surface above the feet by more
+            // than a wade is refused (a decorative sheet over missing terrain).
+            let feet = stand_y - level > -0.3
                 && stand_y - level <= pla::game::water::SWIM_MAX_GROUND_OFFSET;
-            on_ground || step_off
+            under || feet
         });
         // An avatar already swimming keeps the free-water rule: deep water has no navmesh faces,
         // so pushing the swimmer through `try_move_with_slide` pinned it in place (the mount
