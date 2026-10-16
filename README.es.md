@@ -16,7 +16,7 @@ Rust/Bevy desde un libro de hojas versionado haciendo uso de **The Spreadsheet M
 
 ## Situación del proyecto
 
-Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El detalle fase a fase está en la [Tabla de cierre](#tabla-de-cierre). Última actualización: 2026-10-15.
+Cifras sobre el `main` del update v262144 (153.476 funciones localizadas). El detalle fase a fase está en la [Tabla de cierre](#tabla-de-cierre). Última actualización: 2026-10-16.
 
 ### 📊 Avance por fase
 

@@ -16,7 +16,7 @@ from a versioned sheet book.
 
 ## Where the project stands
 
-Figures refer to the update v262144 `main` (153,476 located functions). The phase-by-phase detail is in the [Completion plan](#completion-plan). Last updated: 2026-10-15.
+Figures refer to the update v262144 `main` (153,476 located functions). The phase-by-phase detail is in the [Completion plan](#completion-plan). Last updated: 2026-10-16.
 
 ### 📊 Progress by phase
 
