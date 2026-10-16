@@ -93,14 +93,40 @@ distinto de la base (`game::player_motion::tests::headless_cliff_steps_off_on_th
 | `crates/pla/src/game/zone.rs` | Recarga al cambiar de zona; los interiores quedan sin superficies |
 | `crates/pla/src/game/player_motion.rs` | Al coronar, el pie pasa a `top.xz` (cima real) |
 
+## Arreglo tras la prueba del usuario (2026-10-15, tarea trepar2)
+
+El usuario jugó con ventana y **no consiguió trepar**: no sabía qué tecla usar y el juego no se lo
+decía. Reproducido con la misma vía de entrada (visor `--automation` + teclas reales por
+`gamectl.py`, sin teletransportes): la tabla de riscos **sí** carga en el visor normal (log
+`Climb surfaces ha_area01: 1468 derived cliff surfaces`, sin variables), pero (1) la trepada solo
+escuchaba la tecla de interactuar `Confirm` (Enter/Espacio), que la guía no documentaba; (2) no
+existía **ningún aviso en pantalla**; (3) en laderas de 50-61° el personaje sube andando
+(navmesh + muestreo del terreno), así que avanzar «contra la pared» no hacía nada especial.
+
+Arreglado: el agarre también dispara **al avanzar contra la pared** (alcance 4 m, dirección hacia
+la base; `game::interact::approach_climbable`), hay un **aviso contextual** en pantalla abajo
+(«TREPAR: Enter/Espacio (o camina contra la pared)», «TREPAR: W/S subir y bajar | K soltar») y la
+guía (`docs/GUIA-DE-PRUEBAS.md`, prueba 12) documenta la tecla. Montado en Sneasler la trepada usa
+su velocidad descodificada 4,8 m/s (`SNEASLER_CLIMB_SPEED`); a pie sigue ASSUMED 1,5 m/s.
+
+Verificado con teclas reales (capturas en `/home/nico/work/capturas_trepar2/`): andar `W` hasta la
+base → agarre automático → subir a la cima y bajar con `S` hasta soltarse; `Enter` como alternativa;
+montado, la misma subida medida en mitad del risco a **4,8 m/s exactos** (0,96 m en 12 fotogramas;
+parche 914, de 7,8 m) frente a 1,5 m/s a pie (0,30 m en 12 fotogramas). Pasada final del
+2026-10-16 sobre el código a fusionar (misma vía de teclas, sin teletransportes): capturas
+`61_aviso_alcance_final2`/`62_subiendo_auto_final2`/`63_bajado_s_final2` (aviso, auto-agarre,
+bajada), `64_montura_toast_final2` (toast de montura + aviso de Sneasler), `65_sneasler_4.8_final2`
+y `67_a_pie_subiendo_final2` (4,8 vs 1,5 medidos), `68_cima_final2` (cima).
+
 ## Límites (honestos)
 
-- El port trepa **a pie** (mecánica del Brief 13); la montura de Sneasler no existe todavía
-  (Brief 38). Los números son los de Sneasler: la velocidad de subida del port es ASSUMED 1,5 m/s
-  (`CLIMB_SPEED`), no un valor descodificado.
+- El port trepa **a pie** (mecánica del Brief 13) y montado en Sneasler (4,8 m/s descodificados,
+  2026-10-15); la velocidad a pie es ASSUMED 1,5 m/s (`CLIMB_SPEED`).
 - Un parche cortado por el presupuesto de celdas puede dejar la cima a media pared; desde esa cima
   se puede volver a agarrar el parche siguiente si queda dentro del radio.
 - Agarres cerca del pie pueden quedar a hasta 6 m del punto al que te pegas (radio); es la
   aproximación del port, no geometría exacta del original.
 - Reglas por material (¿qué superficies NO sube Sneasler?) DESCONOCIDAS.
-- Nadie lo ha visto en una ventana normal; las capturas son del visor sin ventana.
+- El usuario lo probó en ventana el 2026-10-15 y falló (sin tecla ni aviso); tras el arreglo está
+  reproducido y verificado con la vía de teclado real (visor `--automation`), capturas del visor sin
+  ventana en `/home/nico/work/capturas_trepar2/`. Falta que el usuario lo rejuegue con ventana.

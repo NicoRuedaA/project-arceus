@@ -138,7 +138,8 @@ valor por defecto.
 | W A S D o flechas | Andar |
 | Shift | Correr |
 | Q / E | Girar la cámara (E además hace otras cosas, ver abajo) |
-| K | Saltar (también aterrizar y trepar). Mando: ver 2.2. Para **bajar una cornisa** de hasta 6 m no hace falta saltar: anda hacia el borde |
+| K | Saltar. Mando: ver 2.2. Para **bajar una cornisa** de hasta 6 m no hace falta saltar: anda hacia el borde |
+| **Enter, Espacio** (mando: **A**) | **Trepar un risco**: al acercarte a una pared trepable sale abajo el aviso «TREPAR: …» (ver 2.2, prueba 12). También se agarra **solo** si andas contra la pared. Agarrado: **W/S** subir y bajar, **K** te sueltas |
 | H | Voltereta de esquiva |
 | Ctrl izquierdo | Agacharse |
 | R / F | Acercar / alejar la cámara |
@@ -146,7 +147,8 @@ valor por defecto.
 | Z o Tab | Cambiar entre cámara normal y cámara de apuntar |
 | Clic izquierdo o Espacio (solo apuntando) | Lanzar la bola elegida |
 | B / G / U / F / N / J / L / T | Elegir bola: Poké / Gran / Ultra / Pluma / Ala / Jet / Plomo / Gigatón |
-| V | Cambiar de cebo. **También** empieza un combate de entrenador si hay una cápsula roja cerca (o si usas `--trainer`) |
+| V | **Montura: subir o bajarse** de la montura elegida (al montar sale una línea con sus teclas). Sin montar, además cambia el cebo, y también empieza un combate de entrenador si hay una cápsula roja cerca (o si usas `--trainer`) |
+| G | **Cambiar de montura** (Wyrdeer → Ursaluna → Basculegion → Sneasler → Braviary). Ojo: **G comparte tecla con la Gran Ball** (también la elige) |
 | X (apuntando) | Lanzar el cebo elegido |
 | E o Enter | Entrar en una puerta; acercarte a un Pokémon salvaje y retarlo si estás a menos de 4 m; abrir una tienda cercana |
 | Espacio o Enter | Recoger un objeto del suelo cercano |
@@ -158,8 +160,9 @@ valor por defecto.
 | P (con `--debug-zone-links`) | Escribe en la terminal las puertas cercanas |
 | T (con `--debug-zone-links`) | Viaje rápido a la siguiente zona principal |
 
-Nota: **F** sirve a la vez para alejar la cámara y para elegir la Bola Pluma, y **V** para el cebo
-y para el entrenador. Si algo sale «raro» al pulsarlas, apúntalo (ver sección 5).
+Nota: **F** sirve a la vez para alejar la cámara y para elegir la Bola Pluma, **V** para la montura,
+el cebo y el entrenador, y **G** para cambiar de montura y para la Gran Ball. Si algo sale «raro»
+al pulsarlas, apúntalo (ver sección 5).
 
 **En un combate**
 
@@ -234,8 +237,25 @@ Cada punto: **qué hacer**, **qué deberías ver** y **qué sería un fallo**. M
     **Bajar cornisas** (arreglado el 2026-10-14): anda hacia el borde de un desnivel de hasta 6 m
     (por ejemplo la loma de tierra junto al inicio de la zona 1): caes y aterrizas abajo. Los
     acantilados más altos, las paredes, el agua y el borde del mapa siguen bloqueados. El límite
-    de 6 m es SUPUESTO (justo por debajo de los 7 m donde el juego empieza a contar daño por caída). Cuerdas, escaleras y superficies de trepar
-    reales **no existen** (datos desconocidos), así que solo trepa donde el código lo permite.
+    de 6 m es SUPUESTO (justo por debajo de los 7 m donde el juego empieza a contar daño por caída).
+
+    **Trepar riscos** (añadido el 2026-10-15; teclas en 1.4). Las paredes trepables
+    son las laderas de roca con inclinación de 50° a 150° del mapa real (las 8.538 superficies de
+    `data/field_climb_surfaces.tsv`; en la zona 1 hay 1.468). Cómo probarlo:
+    1. Busca una pared de roca (por ejemplo los riscos del norte de la zona 1: mira el recuadro
+       «POS» de la esquina superior izquierda y camina hacia X≈716, Z≈607).
+    2. Acércate andando: al estar **a menos de 6 m** de la base aparece abajo el aviso
+       **«TREPAR: Enter/Espacio (o camina contra la pared)»**.
+    3. Agárrate **andando contra la pared** (agarra solo a menos de 4 m de la base) o pulsando
+       **Enter** o **Espacio** (estos valen hasta 6 m).
+    4. Sube con **W**, baja con **S**; al llegar arriba el personaje se queda de pie en la cima;
+       si bajas hasta abajo del todo, se suelta solo. **K** te suelta en cualquier momento.
+    Ves: el personaje pegado a la pared, subiendo/bajando a 1,5 m/s (a pie) o **4,8 m/s montado en
+    Sneasler** (su velocidad real descodificada). Fallo: no aparece el aviso, no agarra al andar
+    contra la pared, sube a tirones o se cae de la cima.
+    Límites honestos: no hay animación de trepar en las animaciones del jugador que trae el juego
+    (usa la de andar), las cuerdas y escaleras no existen en los datos, y las paredes muy
+    verticales (más de 150°) no se pueden trepar (el terreno real no llega ahí).
 
 ### 2.3 Pokémon y comportamiento salvaje  [EN MAIN]
 
@@ -663,7 +683,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
 **No existe todavía**
 - **Cuerdas y escaleras:** no hay datos que digan cuáles son; ninguna de las 55 piezas de escenario
   examinadas lo es. DESCONOCIDO.
-- **Cuerdas, escaleras y superficies de trepar reales:** DESCONOCIDAS (saltar, caer, trepar e interactuar ya están en `main`).
+- **Cuerdas y escaleras** no existen en los datos del juego. Las **superficies de trepar reales** ya están en `main` desde el 2026-10-15: son los riscos por inclinación (ver prueba 12); falta la animación de trepar (el juego no trae clip para el personaje).
 - **Minimapa dentro de interiores:** sigue mostrando el último mapa del exterior; no hay mapa de interiores. PENDIENTE.
 - **Entrenadores derrotados:** ya se guardan (guardado v8, prueba 71). Los entrenadores de depuración `--trainer` se pueden repetir sin cobrar.
 - **IA experta** de entrenadores; **fase de campo de los Nobles** (medidor, bálsamos, ataques de campo);
@@ -672,7 +692,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
 - **Alfa, formas alternativas, brillantes y tamaños:** datos en `main`, pero reparto y probabilidad
   DESCONOCIDOS y sin reexportación completa de modelos.
 - **Bayas y hierba que oculta de verdad:** no hechas. Agacharse y una regla básica de sigilo sí existen (Ctrl izquierdo), con volúmenes de sigilo reales sin decodificar.
-- **Monturas:** no empezadas.
+- **Monturas:** las cinco (Wyrdeer, Ursaluna, Basculegion, Sneasler, Braviary) se montan con **V** y se cambian con **G**; sus velocidades son las reales del juego. Sneasler trepa paredes (4,8 m/s). No hay tecla de «habilidad»: nadar, planear y trepar son automáticos; el estado de montura no se guarda al cerrar el juego.
 - **Personalizar al protagonista** (ropa, pelo, cara, piel): no.
 - **Pokédex con investigación, tareas y rangos:** no.
 - **Habilidades de Pokémon y objetos equipados:** en este juego casi no tienen efecto en combate
