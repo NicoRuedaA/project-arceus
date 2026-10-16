@@ -1800,7 +1800,11 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
             "stamina": round2(r.stamina),
             "transition": round2(r.transition),
             "camera_bonus": round2(r.camera_bonus()),
+            "dig_timer": round2(r.dig_timer),
         })
+    });
+    let hints = world.get_resource::<super::ride_hints::RideHints>().map(|h| {
+        json!({ "controls": h.controls, "climb": h.climb_visible })
     });
     json!({
         "game_state": game_state,
@@ -1810,6 +1814,7 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
         "zone": zone,
         "player": player,
         "ride": ride,
+        "hints": hints,
         "clock": clock,
         "weather": weather,
         "progress": progress,

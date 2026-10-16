@@ -69,6 +69,10 @@ pub enum Action {
     Ride,
     /// Cycle the selected ride Pokémon (Brief 38); keyboard-only dev key `G`.
     RideCycle,
+    /// Ride Pokémon ability (Brief 38 follow-up, `game::ride`): Ursaluna digs. Keyboard `H`
+    /// (the same key as the on-foot dodge roll, which is disabled while mounted; a gamepad
+    /// binding is not assigned yet).
+    RideAbility,
     Aim,
     Throw,
     Prev,
@@ -232,8 +236,11 @@ impl RawInput {
             key_pressed.push(Action::Aim);
         }
         // H / Left Ctrl: free keys (Brief 22); the original bindings are not known.
+        // H is also the ride ability (Brief 38 follow-up): mounted, H digs with Ursaluna; the
+        // consumers are state gated (the dodge only runs on foot).
         if keys.just_pressed(KeyCode::KeyH) {
             key_pressed.push(Action::Dodge);
+            key_pressed.push(Action::RideAbility);
         }
         if keys.just_pressed(KeyCode::ControlLeft) {
             key_pressed.push(Action::Crouch);
