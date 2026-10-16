@@ -137,6 +137,11 @@ struct Reticle;
 #[derive(Component)]
 struct AimHint;
 
+/// Contextual climb prompt (bottom-centre, own node like `AimHint`, so both `--ui` modes
+/// show it): visible while a climbable is in reach or while climbing (task trepar2).
+#[derive(Component)]
+struct ClimbHint;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CameraMode {
     OrbitDefault = 0,
@@ -1216,7 +1221,10 @@ fn show_flag_warnings(mut toast: ResMut<pla::game::save_wire::SaveToast>) {
 fn add_viewer_systems(app: &mut App) {
     app.add_systems(Update, apply_safe_spawn_request);
     app.add_systems(PostStartup, show_flag_warnings);
-    app.add_systems(Startup, (setup_scene, setup_game_ui, spawn_aim_hint));
+    app.add_systems(
+        Startup,
+        (setup_scene, setup_game_ui, spawn_aim_hint, spawn_climb_hint),
+    );
     app.add_systems(
         Update,
         (
@@ -1268,6 +1276,8 @@ fn add_viewer_systems(app: &mut App) {
         Update,
         bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
     );
+    // The climb prompt manages its own visibility (world + not paused), like `update_aim_hud`.
+    app.add_systems(Update, update_climb_hint);
     // The customize camera override also needs its own registration (20-system limit) but must
     // land between the camera input and the transform update of the chain above.
     app.add_systems(
@@ -2699,6 +2709,82 @@ fn spawn_aim_hint(mut commands: Commands) {
             TextColor(Color::srgb(1.0, 0.9, 0.5)),
         )],
     ));
+}
+
+/// The contextual climb prompt node: same bar style as the aim hint, above it.
+fn spawn_climb_hint(mut commands: Commands) {
+    commands.spawn((
+        ClimbHint,
+        Text::new(""),
+        TextFont::from_font_size(18.0),
+        TextColor(Color::srgb(1.0, 0.9, 0.5)),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Percent(50.0),
+            bottom: Val::Px(140.0),
+            margin: UiRect::left(Val::Px(-260.0)),
+            width: Val::Px(520.0),
+            padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.05, 0.08, 0.12, 0.8)),
+        Visibility::Hidden,
+    ));
+}
+
+/// Shows the climb prompt while a climbable is in reach (or while climbing) in the overworld.
+///
+/// The line itself is `game::interact::climb_hint_line`, so the prompt names exactly the keys
+/// the mechanic reads (user-report fix 2026-10-15: the climb existed but was undiscoverable).
+fn update_climb_hint(
+    paused: Res<Paused>,
+    game_state: Res<State<GameState>>,
+    player: Query<
+        (
+            &Transform,
+            Option<&pla::game::player_motion::PlayerMotionState>,
+        ),
+        With<PlayerAvatar>,
+    >,
+    climbables: Query<&pla::game::interact::Climbable>,
+    ride: Option<Res<pla::game::ride::RideState>>,
+    mut hint: Query<(&mut Text, &mut Visibility), With<ClimbHint>>,
+) {
+    use pla::game::interact::{climb_hint_line, nearest_climbable};
+    let Ok((mut text, mut vis)) = hint.single_mut() else {
+        return;
+    };
+    let line = if paused.0 || *game_state.get() != GameState::World {
+        None
+    } else {
+        player.single().ok().and_then(|(tf, motion)| {
+            let climbing = motion.is_some_and(|m| m.climbing());
+            let grounded = motion.is_none_or(|m| {
+                m.mode == pla::game::player_motion::MotionMode::Grounded
+            });
+            let in_reach = grounded
+                && nearest_climbable(
+                    climbables.iter(),
+                    tf.translation,
+                    pla::game::player_motion::GROUND_MARGIN,
+                )
+                .is_some();
+            let sneasler = ride.as_ref().is_some_and(|r| {
+                r.mounted == Some(pla::game::ride::RideKind::Sneasler)
+            });
+            climb_hint_line(climbing, in_reach, sneasler)
+        })
+    };
+    match line {
+        Some(l) => {
+            if text.0 != l {
+                text.0 = l.to_string();
+            }
+            *vis = Visibility::Visible;
+        }
+        None => *vis = Visibility::Hidden,
+    }
 }
 
 /// Cache of the battle camera placement: hit rays against placed objects are expensive, so a

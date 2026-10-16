@@ -144,6 +144,12 @@ Con el visor por automatización (área 01, `--automation`), 2026-10-15:
   modelo, `pm1006_11_41`, no del código de monturas; la forma es correcta).
 - Pruebas: 17 en `game/ride` + 1 de planeo en `game/player_motion`, todas verdes; la
   guardia de arranque del visor (`schedule_check`) pasa con el plugin registrado.
+- **Trepada de Sneasler conectada (2026-10-15, tarea trepar2):** correr contra una pared
+  trepable agarra (o pulsar Enter/Espacio) y la subida usa los 4,8 m/s descodificados
+  (`SNEASLER_CLIMB_SPEED`); medido con teclas reales: 2,08 m en 25 fotogramas = 5,0 m/s
+  frente a 1,56 m/s a pie. Al montar sale una línea con las teclas del port
+  (`mount_controls_line`; `V` desmonta). Las «habilidades» de las demás monturas siguen
+  sin tecla propia: nadar/planear son automáticos.
 - **No se guarda nada**: montura seleccionada, montura activa y estamina son solo de
   sesión; no se toca el formato de guardado (queda pendiente para un cambio de guardado
   futuro).
