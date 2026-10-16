@@ -168,6 +168,20 @@ impl BattleData {
         let root = data_root.as_ref();
         let ai = root.join("ai");
         let capture = root.join("capture");
+        let mut move_data = Table::load(&root.join("pml_moves.tsv"), None)?;
+        // Generation-9 moves (ids 851..920, external sheet, engine class `a` only) are appended
+        // with the same columns as the PLA rows; the PLA ids never overlap them.
+        for mv in crate::battle_engine::gen9::load(root)? {
+            let mut row = BTreeMap::new();
+            row.insert("move:u16".to_owned(), mv.id.to_string());
+            row.insert("move_name:string".to_owned(), mv.name);
+            row.insert("type_name:string".to_owned(), mv.move_type);
+            row.insert("category_name:string".to_owned(), mv.category);
+            row.insert("power:u8".to_owned(), mv.power.to_string());
+            row.insert("accuracy:u8".to_owned(), mv.accuracy.to_string());
+            row.insert("pp:u8".to_owned(), mv.pp.to_string());
+            move_data.rows.push(row);
+        }
         Ok(Self {
             score_rules: Table::load(&ai.join("score_rules.tsv"), Some("rule_id:string*"))?,
             expert_sequences: Table::load(
@@ -201,7 +215,7 @@ impl BattleData {
             )?,
             // This source has a known duplicate move ID (ID 1); keep all rows
             // and resolve battle moves by their canonical names instead.
-            move_data: Table::load(&root.join("pml_moves.tsv"), None)?,
+            move_data,
             personal_data: Table::load(&root.join("pml_personal.tsv"), None)?,
             personal_abilities: Table::load(&root.join("pml_personal_abilities.tsv"), None).ok(),
             type_chart: TypeChart::load(&root.join("type_chart.tsv"))?,

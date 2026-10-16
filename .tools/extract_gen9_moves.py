@@ -88,6 +88,20 @@ def is_callback(key: str, value: str) -> bool:
     return value.lstrip().startswith("(") or key.startswith("on") or key.endswith("Callback") or key == "condition"
 
 
+def pop_block(text: str, key: str) -> tuple[str, str]:
+    """Remove the brace-matched `key: { ... }` block from `text`; return (block, rest)."""
+    m = re.search(rf"(?<![\w.]){key}:\s*\{{", text)
+    if not m:
+        return "", text
+    depth, i = 0, m.end() - 1
+    while i < len(text):
+        depth += (text[i] == "{") - (text[i] == "}")
+        i += 1
+        if depth == 0:
+            break
+    return text[m.start():i], text[:m.start()] + text[i:]
+
+
 def parse_obj(value: str) -> dict[str, str]:
     """Shallow `key: scalar` pairs plus `boosts` / callbacks of an object value."""
     out: dict[str, str] = {}
@@ -124,15 +138,15 @@ def parse_move(num: int, ident: str, body: str) -> dict[str, str]:
     flags = re.findall(r"(\w+):\s*1", p["flags"])
     row["flags"] = ";".join(sorted(flags))
 
-    sec = parse_obj(p["secondary"]) if "secondary" in p else {}
+    sec_self_block, sec_text = pop_block(p.get("secondary", ""), "self")
+    sec = parse_obj(sec_text) if "secondary" in p else {}
     row["sec_chance"] = sec.get("chance", "")
     row["sec_status"] = sec.get("status", "")
     row["sec_volatile"] = sec.get("volatileStatus", "")
     row["sec_boosts"] = sec.get("boosts", "")
     selfo = parse_obj(p["self"]) if "self" in p else {}
-    sec_self = re.search(r"self:\s*\{[^}]*boosts:\s*\{([^}]*)\}", p.get("secondary", ""))
-    if sec_self:
-        row["sec_self_boosts"] = ",".join(f"{k}:{v}" for k, v in re.findall(r"(\w+):\s*(-?\d+)", sec_self.group(1)))
+    sb = re.search(r"boosts:\s*\{([^}]*)\}", sec_self_block)
+    row["sec_self_boosts"] = ",".join(f"{k}:{v}" for k, v in re.findall(r"(\w+):\s*(-?\d+)", sb.group(1))) if sb else ""
     row["self_boosts"] = selfo.get("boosts", "")
     row["self_other"] = ",".join(f"{k}={v}" for k, v in selfo.items() if k not in ("boosts", "callbacks"))
     row["boosts"] = ",".join(f"{k}:{v}" for k, v in re.findall(r"(\w+):\s*(-?\d+)", p.get("boosts", "")))
@@ -178,6 +192,13 @@ def classify(row: dict[str, str]) -> tuple[str, str]:
         reasons.append("self:" + row["self_other"])
     if row["recoil_pct"] != "0":
         reasons.append("recoil (engine expresses it as negative drain_pct only)")
+    user_side = row["self_boosts"] or row["sec_self_boosts"] or (row["boosts"] if row["target"] == "self" else "")
+    target_side = row["sec_boosts"] or (row["boosts"] if row["target"] != "self" else "")
+    if user_side and target_side:
+        reasons.append("stat changes on both user and target (engine has one receiver per move)")
+    n_stats = len(re.findall(r"\w+:-?\d+", ",".join([row["boosts"], row["self_boosts"], row["sec_boosts"], row["sec_self_boosts"]])))
+    if n_stats > 3:
+        reasons.append("more than 3 stat changes (engine reads 3 slots)")
     for col in ("boosts", "self_boosts", "sec_boosts", "sec_self_boosts"):
         if any(k not in STAT_KEYS for k, _ in re.findall(r"(\w+):(-?\d+)", row.get(col, ""))):
             reasons.append(f"{col}: unknown stat")
