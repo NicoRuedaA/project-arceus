@@ -197,7 +197,7 @@
       },
       {
         "path": "crates/pla/examples/npc_export.rs",
-        "sha256": "77d2825eec52e4b2bcffa232fa84d4096f590c97612e8bef91b3e7e51085af7e"
+        "sha256": "69ac39f7ec21d53bdb80839b3b284c25a6c09f56093ff4c3661ffb67b9dc1471"
       },
       {
         "path": "crates/pla/examples/npc_report.rs",
@@ -249,7 +249,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "d6366ef41d915f2376bd215ffae870be40125c4de62760bee32d05bccc75f92e"
+        "sha256": "528e0abf89f7375a844e7972a3b64c4724ca5e5bdd740f6b06c7b8365146df27"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -761,7 +761,7 @@
       },
       {
         "path": "crates/pla/src/game/interact.rs",
-        "sha256": "b494d7ade0036bc74e0ab242d5b0810f4372875940994259ce9b1d3273d3350a"
+        "sha256": "54b8104b202a29a3329b53af5c7559989bcccc05284db12358493cba9b7ae016"
       },
       {
         "path": "crates/pla/src/game/interior.rs",
@@ -889,7 +889,7 @@
       },
       {
         "path": "crates/pla/src/game/player_motion.rs",
-        "sha256": "f19386e4cd7e9fc83015b75300c54e56a6e190c626ac75c9d70b7c36868d593e"
+        "sha256": "5f13955e6cbfba94fd4999469e68b20934317e60fce453927e86d1fbdd9cf51b"
       },
       {
         "path": "crates/pla/src/game/player_skills.rs",
@@ -917,7 +917,7 @@
       },
       {
         "path": "crates/pla/src/game/ride.rs",
-        "sha256": "e77061049b7986e1207f403fb41a70c4c75aa94d09da038f136ae958132a8463"
+        "sha256": "6af70c7fcab69243026a6fa7af21ea6de738fbf110ae34af69d1968647b27a44"
       },
       {
         "path": "crates/pla/src/game/save_game.rs",
@@ -1073,7 +1073,7 @@
       },
       {
         "path": "crates/pla/tests/creature_scale.rs",
-        "sha256": "75d5f8378dba4f73f893ca5783497407fdeee325a41e7ea79fbce2957dc13126"
+        "sha256": "9e692d978b0782ae1cad51a9d9c7106cd36233b2d5557356ecea77bdb0affdf6"
       },
       {
         "path": "crates/pla/tests/event.rs",
@@ -1149,7 +1149,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "6f47949acd0e0c760eeafa7f3f268e7c947b45dd04558d0a9632983162989b44"
+    "sha256": "147f7b983d10eef7fa5846b77941fd773308544ae2b53622553c54849b11764e"
   },
   "state_partitions": {
     "analysis_documentation_status": {
