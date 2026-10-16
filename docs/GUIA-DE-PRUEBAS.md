@@ -136,11 +136,11 @@ valor por defecto.
 | Tecla | Qué hace |
 |---|---|
 | W A S D o flechas | Andar |
-| Shift | Correr |
+| Shift | Correr (montado en Braviary **en el aire**: picado, baja en picada a 16 m/s) |
 | Q / E | Girar la cámara (E además hace otras cosas, ver abajo) |
-| K | Saltar. Mando: ver 2.2. Para **bajar una cornisa** de hasta 6 m no hace falta saltar: anda hacia el borde |
+| K | Saltar (montado, salta con la potencia de su montura; **Braviary: en el aire, K da un aletazo**). Mando: ver 2.2. Para **bajar una cornisa** de hasta 6 m no hace falta saltar: anda hacia el borde |
 | **Enter, Espacio** (mando: **A**) | **Trepar un risco**: al acercarte a una pared trepable sale abajo el aviso «TREPAR: …» (ver 2.2, prueba 12). También se agarra **solo** si andas contra la pared. Agarrado: **W/S** subir y bajar, **K** te sueltas |
-| H | Voltereta de esquiva |
+| H | **Voltereta de esquiva**; montado en **Ursaluna**: **buscar/cavar** (habilidad; cava ~1 s y avisa del resultado abajo) |
 | Ctrl izquierdo | Agacharse |
 | R / F | Acercar / alejar la cámara |
 | Ratón (botón derecho o izquierdo arrastrando) | Orbitar la cámara |
@@ -635,6 +635,28 @@ paridad visual nativa ni binary matching.
      otro Pokémon u objeto, la selección marcada no coincide con la que mueves, una fila se sale
      por abajo en 720p/1080p/1440p o las letras acentuadas muestran un cuadro.
 
+### 2.17 Monturas  [EN MAIN]
+
+76. **Monturas: montar, correr y habilidades.** Pulsa **V** para montar: sale **una línea abajo**
+con las teclas de la montura («Wyrdeer - Correr: Shift | Cambiar montura: G | Desmontar: V»),
+12 s (arreglo 2026-10-16: las teclas no se sabían). Con **G** cambias de montura y la línea se actualiza al momento (Ursaluna
+añade «Buscar/cavar: H», Braviary «Salta con K: puedes planear | Picado: Shift en el aire»,
+Sneasler «Trepar: camina contra una pared»). **V** otra vez desmonta. Ves: el **jinete sentado**
+sobre cada una de las cinco monturas (posturas reales del juego), no de pie.
+
+**Correr y galopar:** con Wyrdeer mantén **W** (8 m/s, medido) y **W+Shift** (11 m/s, galope).
+Fallo: en vez de pararse contra un muro la montura tiembla clavada (arreglado el 2026-10-16:
+antes vibraba ±14 cm a 60 Hz contra los bordes; ahora se para limpia y, en diagonal, resbala).
+
+**Habilidades:** con **Ursaluna** pulsa **H**: cava ~1 s («cava buscando algo bajo tierra…» y
+luego «no encuentra nada»; los tesoros enterrados no están en los datos del juego). Con
+**Braviary**, pulsa **K** (salta), **K otra vez en el aire** (aletea hacia arriba) y **W** para
+planear; **Shift+W en el aire** es el picado (16 m/s medidos). Con **Basculegion**, métete en el
+agua (la zona 2 vale): cruza el agua a su velocidad (medido: 45 m de marisma a 8 m/s). Con
+**Sneasler**, anda contra una pared trepable: trepa a 4,8 m/s (prueba 12).
+
+Capturas de referencia: `/home/nico/work/capturas_monturas2/`.
+
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 
 | Qué | Qué hicimos | Por qué es una suposición |
@@ -692,7 +714,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
 - **Alfa, formas alternativas, brillantes y tamaños:** datos en `main`, pero reparto y probabilidad
   DESCONOCIDOS y sin reexportación completa de modelos.
 - **Bayas y hierba que oculta de verdad:** no hechas. Agacharse y una regla básica de sigilo sí existen (Ctrl izquierdo), con volúmenes de sigilo reales sin decodificar.
-- **Monturas:** las cinco (Wyrdeer, Ursaluna, Basculegion, Sneasler, Braviary) se montan con **V** y se cambian con **G**; sus velocidades son las reales del juego. Sneasler trepa paredes (4,8 m/s). No hay tecla de «habilidad»: nadar, planear y trepar son automáticos; el estado de montura no se guarda al cerrar el juego.
+- **Monturas:** las cinco (Wyrdeer, Ursaluna, Basculegion, Sneasler, Braviary) se montan con **V** y se cambian con **G**; al montar sale abajo una **línea con las teclas** de la montura (12 s). Sus velocidades son las reales del juego y el **jinete va sentado** con las posturas del propio juego (clips de jinete). Habilidades: **Ursaluna cava con H** (avisa del resultado; los objetos enterrados no están decodificados, así que siempre «no encuentra nada»), **Braviary** vuela (salta y pulsa **K** en el aire; **Shift** en el aire es un picado a 16 m/s), **Basculegion** cruza el agua (nada o vadea según el fondo; entra desde orillas bajas), **Wyrdeer** corre y galopa (8/11 m/s) y **Sneasler** trepa paredes (4,8 m/s). El estado de montura no se guarda al cerrar el juego. Ver la prueba 76.
 - **Personalizar al protagonista** (ropa, pelo, cara, piel): no.
 - **Pokédex con investigación, tareas y rangos:** no.
 - **Habilidades de Pokémon y objetos equipados:** en este juego casi no tienen efecto en combate

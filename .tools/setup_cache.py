@@ -733,7 +733,8 @@ def player_cmd(ctx: Context, stage: Path) -> list[str]:
 
 # Clips the viewer needs from the player glTF (game::player_anim). Exports made before Brief 22
 # have only 9 clips: the dodge roll fell back to the dash clip and crouching showed nothing.
-PLAYER_REQUIRED_CLIPS = ("roll_f", "crouch", "crouch_walk")
+# Exports before the ride follow-up lack the mounted-rider clips (the rider stood on the mount).
+PLAYER_REQUIRED_CLIPS = ("roll_f", "crouch", "crouch_walk", "ride_wyrdeer_idle")
 
 
 def player_outputs_ok(ctx: Context) -> bool:
