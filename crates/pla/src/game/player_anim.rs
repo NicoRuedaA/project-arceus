@@ -77,6 +77,20 @@ pub enum PlayerClip {
     CrouchStart,
     /// Crouched to standing (`sqwait01_l_end`).
     CrouchEnd,
+    // Brief 38 follow-up: the mounted-rider pose per ride Pokémon (seated, hands on the
+    // mount's back), exported as `ride_<mount>_idle` / `ride_<mount>_move`. These are the
+    // game's OWN rider clips from `pc.gfpak`, found by name in the animation controller
+    // (see `player_export::CLIPS`). Old exports do not carry them: the selection falls
+    // back to `Idle` exactly like the skill clips.
+    RideWyrdeerIdle,
+    RideWyrdeerMove,
+    RideUrsalunaIdle,
+    RideUrsalunaMove,
+    RideBasculegionIdle,
+    RideBasculegionMove,
+    RideSneaslerIdle,
+    RideBraviaryIdle,
+    RideBraviaryMove,
 }
 
 /// Every clip with its own slot, in slot order (`clip as usize`).
@@ -97,6 +111,15 @@ pub const ALL_CLIPS: [PlayerClip; CLIP_SLOTS] = [
     PlayerClip::CrouchWalk,
     PlayerClip::CrouchStart,
     PlayerClip::CrouchEnd,
+    PlayerClip::RideWyrdeerIdle,
+    PlayerClip::RideWyrdeerMove,
+    PlayerClip::RideUrsalunaIdle,
+    PlayerClip::RideUrsalunaMove,
+    PlayerClip::RideBasculegionIdle,
+    PlayerClip::RideBasculegionMove,
+    PlayerClip::RideSneaslerIdle,
+    PlayerClip::RideBraviaryIdle,
+    PlayerClip::RideBraviaryMove,
 ];
 
 impl PlayerClip {
@@ -119,7 +142,33 @@ impl PlayerClip {
             Self::CrouchWalk => "crouch_walk",
             Self::CrouchStart => "crouch_start",
             Self::CrouchEnd => "crouch_end",
+            Self::RideWyrdeerIdle => "ride_wyrdeer_idle",
+            Self::RideWyrdeerMove => "ride_wyrdeer_move",
+            Self::RideUrsalunaIdle => "ride_ursaluna_idle",
+            Self::RideUrsalunaMove => "ride_ursaluna_move",
+            Self::RideBasculegionIdle => "ride_basculegion_idle",
+            Self::RideBasculegionMove => "ride_basculegion_move",
+            Self::RideSneaslerIdle => "ride_sneasler_idle",
+            Self::RideBraviaryIdle => "ride_braviary_idle",
+            Self::RideBraviaryMove => "ride_braviary_move",
         }
+    }
+}
+
+/// The rider clip pair `(idle, move)` of a mount: the game's own mounted pose for that ride
+/// Pokémon. `move` is `None` for a mount whose set has no gait loop (Sneasler): the rider
+/// keeps the seated `idle`. Callers fall back along [`fallback_clip`] when the export does
+/// not carry the clip yet.
+pub fn rider_clips(kind: super::ride::RideKind) -> (PlayerClip, Option<PlayerClip>) {
+    use super::ride::RideKind;
+    match kind {
+        RideKind::Wyrdeer => (PlayerClip::RideWyrdeerIdle, Some(PlayerClip::RideWyrdeerMove)),
+        RideKind::Ursaluna => (PlayerClip::RideUrsalunaIdle, Some(PlayerClip::RideUrsalunaMove)),
+        RideKind::Basculegion => {
+            (PlayerClip::RideBasculegionIdle, Some(PlayerClip::RideBasculegionMove))
+        }
+        RideKind::Sneasler => (PlayerClip::RideSneaslerIdle, None),
+        RideKind::Braviary => (PlayerClip::RideBraviaryIdle, Some(PlayerClip::RideBraviaryMove)),
     }
 }
 
@@ -233,6 +282,11 @@ pub fn fallback_clip(c: PlayerClip) -> PlayerClip {
         RollF => Dash,
         CrouchWalk => Crouch,
         Crouch | CrouchStart | CrouchEnd => Idle,
+        // Rider move clips fall back to the mount's seated idle, then to the plain idle.
+        RideWyrdeerMove => RideWyrdeerIdle,
+        RideUrsalunaMove => RideUrsalunaIdle,
+        RideBasculegionMove => RideBasculegionIdle,
+        RideBraviaryMove => RideBraviaryIdle,
         _ => Idle,
     }
 }
@@ -324,8 +378,9 @@ pub struct PlayerMotion {
     pub speed: f32,
 }
 
-/// Number of clip slots ([`PlayerClip`] covers all 17 exported clips except `idle2`).
-pub const CLIP_SLOTS: usize = 16;
+/// Number of clip slots ([`PlayerClip`] covers every exported clip except `idle2`). Kept as a
+/// literal because `ALL_CLIPS` is declared with this length; a test keeps them in sync.
+pub const CLIP_SLOTS: usize = 25;
 
 /// One wired scene of the player model: its `AnimationPlayer` and the graph node of every clip
 /// it carries (indices are per graph, so each scene keeps its own table).
@@ -460,10 +515,13 @@ fn wire_player(
         if scenes.first().is_some() {
             if let Some(r) = refs.iter().next() {
                 if let Some(gltf) = gltfs.get(&r.gltf) {
-                    let missing = missing_skill_clips(|n| gltf.named_animations.contains_key(n));
+                    let mut missing = missing_skill_clips(|n| gltf.named_animations.contains_key(n));
+                    if !gltf.named_animations.contains_key(PlayerClip::RideWyrdeerIdle.gltf_name()) {
+                        missing.push("ride_wyrdeer_idle");
+                    }
                     if !missing.is_empty() {
                         let msg = format!(
-                            "Player model export is outdated (no {} clip): dodge and crouch cannot animate. Run ./install.sh to refresh it.",
+                            "Player model export is outdated (no {} clip): dodge, crouch and the mounted-rider pose cannot animate. Run ./install.sh to refresh it.",
                             missing.join("/")
                         );
                         eprintln!("warning: {msg}");
@@ -509,18 +567,27 @@ type ClipInputs = (
     Option<&'static PlayerSkillState>,
 );
 
+/// Minimum measured speed (m/s) at which the mounted rider switches to the mount's gait clip
+/// (`ride_*_move`). The mounts move at 5-11 m/s, so a low threshold only rejects numeric noise.
+pub const RIDE_MOVE_SPEED: f32 = 1.0;
+
 fn switch_clips(
     mut q: Query<ClipInputs>,
     mut players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
     ride: Option<Res<super::ride::RideState>>,
 ) {
-    // No ride clips exist in the exported player glTF (`dressup_motion.gfpak`, which would
-    // carry them, is not exported), so a mounted player keeps the idle clip (Brief 38).
-    let mounted = ride.as_ref().is_some_and(|r| r.is_mounted());
+    // While a mount is ridden the player plays the game's own rider pose for that mount
+    // (`ride_<mount>_idle` / `ride_<mount>_move`, Brief 38 follow-up); exports without the
+    // clips fall back to `Idle` through the normal missing-clip chain.
+    let mounted = ride.as_ref().and_then(|r| r.mounted);
     for (mut st, motion, swim, air, skills) in &mut q {
         let swimming = swim.is_some_and(|s| s.state == SwimState::Swimming);
-        let mut want = if mounted {
-            PlayerClip::Idle
+        let mut want = if let Some(kind) = mounted {
+            let (idle, moving) = rider_clips(kind);
+            match moving {
+                Some(m) if motion.speed > RIDE_MOVE_SPEED => m,
+                _ => idle,
+            }
         } else {
             select_clip_motion(st.current, motion.speed, swimming, air, skills)
         };
@@ -826,6 +893,25 @@ mod tests {
         assert!((focal + AVATAR_ROOT_ABOVE_GROUND - 1.2).abs() < 1e-5);
         assert!((shoulder + AVATAR_ROOT_ABOVE_GROUND - 1.275).abs() < 1e-5);
         assert!(focal < 1.2, "lower than the capsule focus");
+    }
+
+    #[test]
+    fn clip_slots_cover_every_clip_and_the_gltf_names_are_unique() {
+        assert_eq!(CLIP_SLOTS, ALL_CLIPS.len(), "slot table out of sync");
+        let mut names: Vec<&str> = ALL_CLIPS.iter().map(|c| c.gltf_name()).collect();
+        names.sort_unstable();
+        let before = names.len();
+        names.dedup();
+        assert_eq!(names.len(), before, "duplicate glTF clip name");
+        // Every ride clip pair resolves and its move falls back to its idle, then to Idle.
+        for kind in super::super::ride::RideKind::ALL {
+            let (idle, moving) = rider_clips(kind);
+            assert!(idle.gltf_name().starts_with("ride_"));
+            if let Some(m) = moving {
+                assert_eq!(fallback_clip(m), idle, "{kind:?}");
+            }
+            assert_eq!(fallback_clip(idle), PlayerClip::Idle, "{kind:?}");
+        }
     }
 
     #[test]
