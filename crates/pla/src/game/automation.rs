@@ -1804,7 +1804,7 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
         })
     });
     let hints = world.get_resource::<super::ride_hints::RideHints>().map(|h| {
-        json!({ "controls": h.controls, "climb": h.climb_visible })
+        json!({ "controls": h.controls })
     });
     json!({
         "game_state": game_state,

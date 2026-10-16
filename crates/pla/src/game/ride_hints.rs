@@ -1,79 +1,42 @@
-//! On-screen control hints for riding (Brief 38 follow-up) and for climbable cliffs.
+//! On-screen control hints for riding (Brief 38 follow-up).
 //!
 //! The user feedback that opened this work: the ride keys were impossible to discover (the
-//! guideless player pressed nothing, because nothing told them what to press). Two Bevy-UI
-//! lines follow the port's existing bottom-anchored prompt pattern (`game::door_pairs`):
+//! guideless player pressed nothing, because nothing told them what to press). One Bevy-UI
+//! line follows the port's existing bottom-anchored prompt pattern (`game::door_pairs`):
 //!
 //! * **Ride controls** — appears when a mount is summoned (and again on every mount change)
 //!   and stays [`CONTROLS_HINT_TIME`] seconds: the port's keys for that mount, including its
-//!   ability. The original's own ride bindings are not decoded (`reports/data-progress/
+//!   ability. The text itself is `game::ride::mount_controls_line` (single source, tested
+//!   there); the original's own ride bindings are not decoded (`reports/data-progress/
 //!   gamepad_input.md`), so this line IS the documentation of the port's mapping.
-//! * **Climb** — shown while an on-foot avatar stands in reach of a [`Climbable`] cliff
-//!   (the same reach the climb grab uses). Climbing itself is Brief 13's / the trepar
-//!   workstream's; this module only surfaces the key.
+//!
+//! Climbing has its own contextual prompt (`game::interact::climb_hint_line`, rendered by the
+//! viewer): this module does not duplicate it.
 
 use bevy::prelude::*;
 
-use super::interact::{nearest_climbable, Climbable};
-use super::player_motion::GROUND_MARGIN;
 use super::ride::{RideKind, RideState};
 use super::state::{not_paused, GameState};
-use super::PlayerAvatar;
 
 /// Seconds the ride controls line stays visible after mounting / switching mounts.
 pub const CONTROLS_HINT_TIME: f32 = 12.0;
 
-/// Label of each mount on the controls line (Spanish, the user-facing game language of the
-/// project guides; the species names are the game's own).
-pub fn mount_label(kind: RideKind) -> &'static str {
-    match kind {
-        RideKind::Wyrdeer => "Wyrdeer",
-        RideKind::Ursaluna => "Ursaluna",
-        RideKind::Basculegion => "Basculegion",
-        RideKind::Sneasler => "Sneasler",
-        RideKind::Braviary => "Braviary",
-    }
-}
-
-/// Ability fragment of the controls line for `kind` (empty when the port has no extra key:
-/// Wyrdeer's and Basculegion's abilities ride along the normal movement keys). Separators stay
-/// ASCII: the game's own font has no middle dot / em dash glyphs (they render as boxes).
-pub fn ability_text(kind: RideKind) -> &'static str {
-    match kind {
-        RideKind::Wyrdeer => "",
-        RideKind::Ursaluna => " | Buscar/cavar: H",
-        RideKind::Basculegion => " | Nada rapido en el agua",
-        RideKind::Sneasler => "",
-        RideKind::Braviary => " | Volar: salta y pulsa K en el aire | Picado: Shift",
-    }
-}
-
-/// Complete controls line for a mount.
+/// Complete controls line for a mount: the single source lives in `game::ride`
+/// ([`super::ride::mount_controls_line`]) so the keys and their tests stay in one place.
 pub fn controls_text(kind: RideKind) -> String {
-    format!(
-        "{} - Correr: Shift | Saltar: K{} | Cambiar montura: G | Desmontar: V",
-        mount_label(kind),
-        ability_text(kind),
-    )
+    super::ride::mount_controls_line(kind)
 }
-
-/// Text of the climb hint: the grab is the `Confirm` action (Enter / Space, Brief 13).
-pub const CLIMB_HINT_TEXT: &str = "Trepar: Espacio";
 
 /// What the ride line shows and for how long; `last_mounted` detects the summon / mount change.
 #[derive(Resource, Debug, Default, PartialEq)]
 pub struct RideHints {
     pub controls: String,
     pub controls_timer: f32,
-    pub climb_visible: bool,
     pub last_mounted: Option<RideKind>,
 }
 
 #[derive(Component)]
 struct RideControlsText;
-
-#[derive(Component)]
-struct ClimbHintText;
 
 fn spawn_hint_text(mut commands: Commands) {
     commands.spawn((
@@ -89,31 +52,10 @@ fn spawn_hint_text(mut commands: Commands) {
         },
         Visibility::Hidden,
     ));
-    commands.spawn((
-        ClimbHintText,
-        Text::new(""),
-        TextFont::from_font_size(16.0),
-        TextColor(Color::srgb(0.95, 0.95, 0.80)),
-        // Above the minimap corner and clear of the ride line below (both hide behind it
-        // otherwise: measured with the minimap occupying the bottom-left ~230x210 px).
-        Node {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(120.0),
-            left: Val::Percent(30.0),
-            ..default()
-        },
-        Visibility::Hidden,
-    ));
 }
 
-/// Updates the hint state from the ride state and the nearby climbables.
-fn update_hints(
-    time: Res<Time>,
-    ride: Res<RideState>,
-    avatar: Query<&Transform, With<PlayerAvatar>>,
-    climbables: Query<&Climbable>,
-    mut hints: ResMut<RideHints>,
-) {
+/// Updates the hint state from the ride state.
+fn update_hints(time: Res<Time>, ride: Res<RideState>, mut hints: ResMut<RideHints>) {
     let dt = time.delta_secs();
     // Summon / dismount / mount change: (re)show the controls line.
     if ride.mounted != hints.last_mounted {
@@ -134,21 +76,11 @@ fn update_hints(
             hints.controls.clear();
         }
     }
-    // Climb hint: on foot, within the grab reach of a climbable surface.
-    let climb = ride.mounted.is_none()
-        && avatar
-            .single()
-            .ok()
-            .is_some_and(|tf| nearest_climbable(climbables.iter(), tf.translation, GROUND_MARGIN).is_some());
-    if hints.climb_visible != climb {
-        hints.climb_visible = climb;
-    }
 }
 
 fn show_hints(
     hints: Res<RideHints>,
-    mut controls: Query<(&mut Text, &mut Visibility), (With<RideControlsText>, Without<ClimbHintText>)>,
-    mut climb: Query<(&mut Text, &mut Visibility), (With<ClimbHintText>, Without<RideControlsText>)>,
+    mut controls: Query<(&mut Text, &mut Visibility), With<RideControlsText>>,
 ) {
     if !hints.is_changed() {
         return;
@@ -158,15 +90,6 @@ fn show_hints(
             text.0 = hints.controls.clone();
         }
         let want = if hints.controls.is_empty() { Visibility::Hidden } else { Visibility::Visible };
-        if *vis != want {
-            *vis = want;
-        }
-    }
-    for (mut text, mut vis) in &mut climb {
-        if text.0 != CLIMB_HINT_TEXT {
-            text.0 = CLIMB_HINT_TEXT.to_string();
-        }
-        let want = if hints.climb_visible { Visibility::Visible } else { Visibility::Hidden };
         if *vis != want {
             *vis = want;
         }
@@ -201,7 +124,7 @@ mod tests {
             let text = controls_text(kind);
             assert!(text.contains("Shift"), "{kind:?}: {text}");
             assert!(text.contains("Desmontar: V"), "{kind:?}: {text}");
-            assert!(text.contains(mount_label(kind)), "{kind:?}: {text}");
+            assert!(text.contains(&format!("{kind:?}")), "{kind:?}: {text}");
         }
         assert!(controls_text(RideKind::Ursaluna).contains("H"));
         assert!(controls_text(RideKind::Braviary).contains("aire"));
@@ -222,7 +145,7 @@ mod tests {
         )));
         app.init_state::<GameState>();
         app.add_plugins((RidePlugin, RideHintsPlugin));
-        app.world_mut().spawn((PlayerAvatar, Transform::default()));
+        app.world_mut().spawn((crate::game::PlayerAvatar, Transform::default()));
 
         // Mount with a real V edge.
         let mut keys = ButtonInput::<KeyCode>::default();
