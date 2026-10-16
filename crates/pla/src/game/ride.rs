@@ -486,6 +486,29 @@ pub fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
+/// Seconds the mount controls line stays on screen after mounting (user-report fix
+/// 2026-10-15: the keys of a mount must be discoverable, so they are shown on mounting).
+pub const MOUNT_TOAST_SECONDS: f32 = 8.0;
+
+/// Controls line shown when a mount is taken, so its keys are discoverable in play.
+///
+/// Separators are `|`, not the middle dot or em dash: the default UI font has no glyph for
+/// those and they render as boxes (seen in the automation captures).
+pub fn mount_controls_line(kind: RideKind) -> String {
+    match kind {
+        RideKind::Sneasler => {
+            "Sneasler - Correr: Shift | Trepar: camina contra una pared | Desmontar: V".to_string()
+        }
+        RideKind::Braviary => {
+            "Braviary - Salta con K para planear | Correr: Shift | Desmontar: V".to_string()
+        }
+        RideKind::Basculegion => {
+            "Basculegion - Nada sola en el agua | Correr: Shift | Desmontar: V".to_string()
+        }
+        _ => "Montura - Correr: Shift | Saltar: K | Desmontar: V".to_string(),
+    }
+}
+
 /// Reads the ride keys, toggling / cycling the mount, advancing the transition and draining
 /// stamina from the speed the avatar really moved at this frame.
 fn ride_input(
@@ -493,10 +516,17 @@ fn ride_input(
     input: Res<ActionState>,
     avatar: Query<&Transform, With<PlayerAvatar>>,
     mut ride: ResMut<RideState>,
+    mut toast: Option<ResMut<super::save_wire::SaveToast>>,
     mut last_position: Local<Option<Vec3>>,
 ) {
     if input.just_pressed(Action::Ride) {
         ride.toggle();
+        if let Some(kind) = ride.mounted {
+            if let Some(t) = toast.as_deref_mut() {
+                t.show(mount_controls_line(kind));
+                t.timer = MOUNT_TOAST_SECONDS;
+            }
+        }
     }
     if input.just_pressed(Action::RideCycle) {
         ride.cycle();
@@ -825,6 +855,22 @@ mod tests {
             (seat_y + AVATAR_ROOT_ABOVE_GROUND).abs() < 1e-3,
             "seat {seat_y}"
         );
+    }
+
+    #[test]
+    fn mount_controls_line_names_the_keys_of_each_mount() {
+        // Sneasler: the climb is the ability (user-report fix 2026-10-15).
+        let sneasler = mount_controls_line(RideKind::Sneasler);
+        assert!(sneasler.contains("Sneasler"), "{sneasler}");
+        assert!(sneasler.contains("Trepar"), "{sneasler}");
+        assert!(sneasler.contains("V"), "{sneasler}");
+        // Braviary: the glide is the ability.
+        let braviary = mount_controls_line(RideKind::Braviary);
+        assert!(braviary.contains("planear"), "{braviary}");
+        // Ground mounts keep the generic run/jump/dismount line.
+        assert!(mount_controls_line(RideKind::Wyrdeer).contains("Shift"));
+        assert!(mount_controls_line(RideKind::Ursaluna).contains("Desmontar: V"));
+        assert!(MOUNT_TOAST_SECONDS >= 4.0);
     }
 
     #[test]

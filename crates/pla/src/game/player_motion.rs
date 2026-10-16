@@ -7,9 +7,15 @@
 //! ```text
 //! Grounded --Jump--> Airborne --ground contact--> Grounded (land clip timer)
 //! Grounded --Confirm at a Climbable--> Climbing --top/bottom--> Grounded
+//! Grounded --walk into a Climbable in reach--> Climbing (approach grab)
 //! Airborne or Climbing --Jump--> Airborne
 //! Swimming (game::water) always forces Grounded; the viewer writes the swim height
 //! ```
+//!
+//! The approach grab is a port reading of the original ride-Sneasler wall grab (there you run
+//! into the wall and it climbs); the climb keys are a port choice, so both exist and the HUD
+//! tells them (`game::interact::climb_hint_line`). Mounted on Sneasler the climb uses the
+//! decoded `climb_move_speed_max` (4.8 m/s); on foot it stays ASSUMED.
 //!
 //! # Values
 //!
@@ -28,7 +34,7 @@
 use bevy::prelude::*;
 
 use super::input_map::{Action, ActionState};
-use super::interact::{climb_step, nearest_climbable, ClimbBoundary, Climbable};
+use super::interact::{approach_climbable, climb_step, nearest_climbable, ClimbBoundary, Climbable};
 use super::player_anim::AVATAR_ROOT_ABOVE_GROUND;
 use super::ride::GlideMount;
 use super::state::{GameState, Paused};
@@ -71,8 +77,29 @@ pub const AIR_HORIZONTAL_SPEED_MAX: f32 = 11.0;
 /// [ASSUMED] Seconds the `land` clip gets after touchdown (clip length was not measured).
 pub const LAND_TIME: f32 = 0.35;
 
-/// [ASSUMED] Climb speed (m/s): no decoded ladder/rope parameter exists.
+/// [ASSUMED] On-foot climb speed (m/s): no decoded ladder/rope/on-foot parameter exists.
 pub const CLIMB_SPEED: f32 = 1.5;
+
+/// Climb speed (m/s) while mounted on Sneasler: decoded `climb_move_speed_max` = 4.8 in
+/// `ride_nyuura_controller_config` (`data/ride_params.tsv`, value VERIFIED, unit PROBABLE).
+pub const SNEASLER_CLIMB_SPEED: f32 = 4.8;
+
+/// Climb speed for the current mount (see [`CLIMB_SPEED`] and [`SNEASLER_CLIMB_SPEED`]).
+pub fn climb_speed(mount: Option<super::ride::RideKind>) -> f32 {
+    match mount {
+        Some(super::ride::RideKind::Sneasler) => SNEASLER_CLIMB_SPEED,
+        _ => CLIMB_SPEED,
+    }
+}
+
+/// Horizontal reach (m) of the approach grab: walking at a surface base from this close
+/// attaches.
+///
+/// The base is the lowest 1 m *scan* cell of the patch, not the outer foot of the visible
+/// slope, and the walkable navmesh can stop a few metres downhill of it (measured on foot:
+/// the nearest walkable point to area-01 patch 1180 is ~3 m from its base), so the reach is
+/// kept at 4 m — still under the surface's own 2..6 m interact radius, which the key keeps.
+pub const APPROACH_GRAB_REACH: f32 = 4.0;
 
 /// Horizontal move longer than this is a teleport (battle arena, save load, zone change),
 /// not locomotion: the motion state resets instead of carrying the fall into the new place.
@@ -280,11 +307,13 @@ type VerticalInputs<'w, 's> = Query<
 
 /// Jump / fall / land / climb. Runs after the viewer's horizontal locomotion, before the
 /// camera and HUD systems read the final transform of the frame.
+#[allow(clippy::too_many_arguments)]
 pub fn apply_vertical_motion(
     time: Res<Time>,
     input: Res<ActionState>,
     mut q: VerticalInputs,
     climbables: Query<&Climbable>,
+    ride: Option<Res<super::ride::RideState>>,
     terrain: Option<Res<TerrainResource>>,
     navmesh: Option<Res<GameNavmeshResource>>,
     mut last_position: Local<Option<Vec3>>,
@@ -293,6 +322,13 @@ pub fn apply_vertical_motion(
     let Ok((mut tf, mut state, swim, glide)) = q.single_mut() else {
         return;
     };
+
+    // This frame's planar locomotion move (the viewer's walk runs before this system); it
+    // drives the approach grab, so it is read before `last_position` is advanced.
+    let prev_position = *last_position;
+    let moved_xz = prev_position
+        .map(|last| Vec2::new(tf.translation.x - last.x, tf.translation.z - last.z))
+        .unwrap_or(Vec2::ZERO);
 
     // A teleport (arena, save load, zone change) resets the vertical state instead of
     // carrying the fall distance into the new place.
@@ -351,10 +387,22 @@ pub fn apply_vertical_motion(
         }
         if input.just_pressed(Action::Jump) {
             state.begin_jump();
-        } else if input.just_pressed(Action::Confirm) {
-            // Grab the nearest climbable in reach of the avatar root.
-            let c = nearest_climbable(climbables.iter(), tf.translation, GROUND_MARGIN).copied();
-            if let Some(c) = c {
+        } else {
+            // Grab the nearest climbable in reach of the avatar root: the interact key
+            // (full radius), or walking into the surface (approach grab, short reach).
+            let grabbed = if input.just_pressed(Action::Confirm) {
+                nearest_climbable(climbables.iter(), tf.translation, GROUND_MARGIN).copied()
+            } else {
+                approach_climbable(
+                    climbables.iter(),
+                    tf.translation,
+                    moved_xz,
+                    GROUND_MARGIN,
+                    APPROACH_GRAB_REACH,
+                )
+                .copied()
+            };
+            if let Some(c) = grabbed {
                 state.begin_climb(c);
                 tf.translation.x = c.bottom.x;
                 tf.translation.z = c.bottom.z;
@@ -390,7 +438,8 @@ pub fn apply_vertical_motion(
             return;
         }
         let up = input.move_axis().y;
-        let (y, boundary) = climb_step(&c, tf.translation.y, up, CLIMB_SPEED, dt);
+        let speed = climb_speed(ride.as_deref().and_then(|r| r.mounted));
+        let (y, boundary) = climb_step(&c, tf.translation.y, up, speed, dt);
         tf.translation.y = y;
         tf.translation.x = c.bottom.x;
         tf.translation.z = c.bottom.z;
@@ -741,6 +790,163 @@ mod tests {
         let state = *app.world().get::<PlayerMotionState>(e).unwrap();
         assert_eq!(state.mode, MotionMode::Airborne);
         assert!(state.climb.is_none());
+    }
+
+    #[test]
+    fn climb_speed_uses_the_sneasler_parameter_only_while_mounted() {
+        use super::super::ride::RideKind;
+        assert_eq!(climb_speed(None), CLIMB_SPEED);
+        assert_eq!(climb_speed(Some(RideKind::Sneasler)), SNEASLER_CLIMB_SPEED);
+        assert_eq!(climb_speed(Some(RideKind::Wyrdeer)), CLIMB_SPEED);
+        assert!((SNEASLER_CLIMB_SPEED - 4.8).abs() < 1e-6, "decoded value");
+    }
+
+    #[test]
+    fn headless_approach_grab_attaches_when_walking_into_the_surface() {
+        let mut app = motion_app();
+        let e = avatar(&mut app);
+        app.world_mut().get_mut::<Transform>(e).unwrap().translation =
+            Vec3::new(0.0, 0.0, 2.0);
+        let mut ladder = ladder_at(Vec3::ZERO);
+        ladder.radius = 3.0;
+        app.world_mut().spawn(ladder);
+        app.update();
+        app.update();
+        assert_eq!(
+            app.world().get::<PlayerMotionState>(e).unwrap().mode,
+            MotionMode::Grounded
+        );
+
+        // The viewer's locomotion moved the avatar 0.4 m towards the base this frame.
+        app.world_mut()
+            .get_mut::<Transform>(e)
+            .unwrap()
+            .translation = Vec3::new(0.0, 0.0, 1.6);
+        app.update();
+        let state = *app.world().get::<PlayerMotionState>(e).unwrap();
+        assert_eq!(
+            state.mode,
+            MotionMode::Climbing,
+            "walking into the surface grabs it without a key"
+        );
+        let tf = app.world().get::<Transform>(e).unwrap().translation;
+        assert!(
+            tf.x.abs() < 1e-4 && tf.z.abs() < 1e-4,
+            "held at the base: {tf}"
+        );
+    }
+
+    #[test]
+    fn headless_approach_grab_ignores_walking_away_or_past() {
+        let mut app = motion_app();
+        let e = avatar(&mut app);
+        app.world_mut().get_mut::<Transform>(e).unwrap().translation =
+            Vec3::new(0.0, 0.0, 1.6);
+        let mut ladder = ladder_at(Vec3::ZERO);
+        ladder.radius = 3.0;
+        app.world_mut().spawn(ladder);
+        app.update();
+        app.update();
+        assert_eq!(
+            app.world().get::<PlayerMotionState>(e).unwrap().mode,
+            MotionMode::Grounded
+        );
+
+        // Walking away from the base (still inside the reach afterwards).
+        app.world_mut()
+            .get_mut::<Transform>(e)
+            .unwrap()
+            .translation = Vec3::new(0.0, 0.0, 2.4);
+        app.update();
+        assert_eq!(
+            app.world().get::<PlayerMotionState>(e).unwrap().mode,
+            MotionMode::Grounded
+        );
+
+        // Crossing beside it (diagonal move that does not head for the base).
+        app.world_mut()
+            .get_mut::<Transform>(e)
+            .unwrap()
+            .translation = Vec3::new(1.0, 0.0, 2.0);
+        app.update();
+        assert_eq!(
+            app.world().get::<PlayerMotionState>(e).unwrap().mode,
+            MotionMode::Grounded
+        );
+    }
+
+    #[test]
+    fn headless_jump_beats_the_approach_grab() {
+        let mut app = motion_app();
+        let e = avatar(&mut app);
+        app.world_mut().get_mut::<Transform>(e).unwrap().translation =
+            Vec3::new(0.0, 0.0, 2.0);
+        let mut ladder = ladder_at(Vec3::ZERO);
+        ladder.radius = 3.0;
+        app.world_mut().spawn(ladder);
+        app.update();
+        app.update();
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyK);
+        app.world_mut()
+            .get_mut::<Transform>(e)
+            .unwrap()
+            .translation = Vec3::new(0.0, 0.0, 1.6);
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::KeyK);
+        assert_eq!(
+            app.world().get::<PlayerMotionState>(e).unwrap().mode,
+            MotionMode::Airborne,
+            "the jump still wins over the approach grab"
+        );
+    }
+
+    #[test]
+    fn headless_sneasler_climbs_at_the_decoded_speed() {
+        use super::super::ride::{RideKind, RideState};
+        let mut app = motion_app();
+        app.insert_resource(RideState {
+            mounted: Some(RideKind::Sneasler),
+            ..default()
+        });
+        let e = avatar(&mut app);
+        let mut ladder = ladder_at(Vec3::ZERO);
+        ladder.top = Vec3::new(0.0, 10.0, 0.0);
+        ladder.radius = 3.0;
+        app.world_mut().spawn(ladder);
+        app.update();
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Enter);
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::Enter);
+        assert_eq!(
+            app.world().get::<PlayerMotionState>(e).unwrap().mode,
+            MotionMode::Climbing
+        );
+        let y0 = app.world().get::<Transform>(e).unwrap().translation.y;
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyW);
+        for _ in 0..30 {
+            app.update();
+        }
+        let y1 = app.world().get::<Transform>(e).unwrap().translation.y;
+        // 30 frames at 16 ms: 4.8 m/s decoded Sneasler climb.
+        let expected = 30.0 * 0.016 * SNEASLER_CLIMB_SPEED;
+        assert!(
+            (y1 - y0 - expected).abs() < 0.05,
+            "climbed {} m, expected {expected}",
+            y1 - y0
+        );
     }
 
     #[test]
