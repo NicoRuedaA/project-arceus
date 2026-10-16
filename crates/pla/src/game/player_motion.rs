@@ -196,8 +196,14 @@ impl PlayerMotionState {
 
     /// Start a jump (take-off speed of the decoded first jump power; no double jump).
     pub fn begin_jump(&mut self) {
+        self.begin_jump_with(JUMP_SPEED);
+    }
+
+    /// Start a jump with an explicit take-off speed: while mounted, `game::ride` supplies the
+    /// mount's decoded `control_firstJumpPower` (Wyrdeer 9 m/s and so on).
+    pub fn begin_jump_with(&mut self, speed: f32) {
         self.mode = MotionMode::Airborne;
-        self.vertical_speed = JUMP_SPEED;
+        self.vertical_speed = speed;
         self.fall_distance = 0.0;
         self.climb = None;
     }
@@ -283,6 +289,7 @@ type VerticalInputs<'w, 's> = Query<
 pub fn apply_vertical_motion(
     time: Res<Time>,
     input: Res<ActionState>,
+    ride: Option<Res<super::ride::RideState>>,
     mut q: VerticalInputs,
     climbables: Query<&Climbable>,
     terrain: Option<Res<TerrainResource>>,
@@ -350,7 +357,12 @@ pub fn apply_vertical_motion(
             state.supported = true;
         }
         if input.just_pressed(Action::Jump) {
-            state.begin_jump();
+            // While mounted the take-off speed is the mount's decoded jump power (Brief 38).
+            let speed = ride
+                .as_ref()
+                .and_then(|r| r.mounted)
+                .map_or(JUMP_SPEED, |k| k.jump_speed());
+            state.begin_jump_with(speed);
         } else if input.just_pressed(Action::Confirm) {
             // Grab the nearest climbable in reach of the avatar root.
             let c = nearest_climbable(climbables.iter(), tf.translation, GROUND_MARGIN).copied();
@@ -362,6 +374,12 @@ pub fn apply_vertical_motion(
         }
     }
     if state.mode == MotionMode::Airborne {
+        // A flying mount (Braviary) flaps: the jump key pressed in the air lifts it again.
+        if input.just_pressed(Action::Jump) {
+            if let Some(up) = ride.as_ref().and_then(|r| r.mounted).and_then(|k| k.flap_speed()) {
+                state.vertical_speed = up;
+            }
+        }
         // A glide mount (Braviary, Brief 38) caps the fall speed with its own value.
         let cap = glide.map_or(MAX_FALL_SPEED, |g| g.fall_cap);
         let (speed, dy) = air_step_capped(state.vertical_speed, dt, cap);
