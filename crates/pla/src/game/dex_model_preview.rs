@@ -330,13 +330,18 @@ fn create_preview(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         });
 }
 
-/// Toggles the preview camera and box while the national Pokédex mode is open.
+/// Toggles the preview camera and box while the national Pokédex mode is open (also in the
+/// Hisui list when the F6 debug override is on, so every row shows its model).
 fn sync_preview_visibility(
     ui: Res<DexUi>,
+    debug: Option<Res<super::debug_visual::DebugViewState>>,
     mut camera: Query<&mut Camera, With<DexPreviewCamera>>,
     mut root: Query<&mut Visibility, With<DexPreviewRoot>>,
 ) {
-    let show = ui.open && ui.mode == DexMode::National;
+    let all = debug
+        .as_ref()
+        .is_some_and(|state| state.pokedex_all_active());
+    let show = ui.open && (ui.mode == DexMode::National || all);
     for mut cam in &mut camera {
         if cam.is_active != show {
             cam.is_active = show;
@@ -356,18 +361,22 @@ fn rebuild_preview_model(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     ui: Res<DexUi>,
+    debug: Option<Res<super::debug_visual::DebugViewState>>,
     catalog: Option<Res<DexCatalog>>,
     existing: Query<(Entity, &DexPreviewModel)>,
     mut caption: Query<&mut Text, (With<DexPreviewCaption>, Without<DexPreviewModel>)>,
     mut spin: ResMut<DexPreviewSpin>,
 ) {
-    if !ui.open || ui.mode != DexMode::National {
+    let all = debug
+        .as_ref()
+        .is_some_and(|state| state.pokedex_all_active());
+    if !ui.open || (ui.mode != DexMode::National && !all) {
         return;
     }
     let Some(catalog) = catalog else {
         return;
     };
-    let entries = active_entries(&catalog, DexMode::National);
+    let entries = active_entries(&catalog, ui.mode);
     let Some(entry) = entries.get(ui.selected) else {
         return;
     };

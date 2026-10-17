@@ -90,7 +90,7 @@ pub fn option_icon(o: MenuOption) -> &'static str {
 
 /// PNG of texture `name` of the screen's archive, as an override image (`None` for a missing or
 /// placeholder texture).
-fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
+pub(super) fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
     let info = s.scene.archive().textures.get(name)?;
     if info.width <= 2 || info.height <= 2 {
         return None; // placeholder texture
@@ -100,6 +100,30 @@ fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
         png,
         uv: [0.0, 0.0, 1.0, 1.0],
     })
+}
+
+/// Label of an item id: the decoded effect text, or `Item #id` for ids outside the table.
+pub(super) fn item_label(table: Option<&crate::battle_engine::items::ItemTable>, id: u16) -> String {
+    match table.and_then(|t| t.get(id)) {
+        Some(item) => label(item),
+        None => format!("Item #{id}"),
+    }
+}
+
+/// Button label: the effect text without the trailing ` #<id>` (the grid cells are narrower than
+/// the full label; the info panels keep the id). The generic `Item #id` label keeps its id:
+/// without it the name says nothing.
+pub(super) fn short_label(full: &str) -> &str {
+    if let Some((head, tail)) = full.rsplit_once(" #") {
+        if head != "Item"
+            && !head.is_empty()
+            && !tail.is_empty()
+            && tail.chars().all(|c| c.is_ascii_digit())
+        {
+            return head;
+        }
+    }
+    full
 }
 
 const TABS: usize = 4;
@@ -714,7 +738,7 @@ pub fn slot_centres(s: &OrigScreen, prefix: &str, n: usize) -> Option<Vec<Vec2>>
 /// (layout pixels, the grid's own placement is run-time data), show `content` (icon, label) or
 /// an empty slot, and the game's select / unselect state.
 #[allow(clippy::too_many_arguments)]
-fn fill_cell(
+pub(super) fn fill_cell(
     s: &mut OrigScreen,
     grid: usize,
     k: usize,
@@ -1076,6 +1100,7 @@ pub fn bind_dex_screen(
     ui: Option<Res<DexUi>>,
     catalog: Option<Res<DexCatalog>>,
     progress: Option<Res<PlayerProgress>>,
+    debug: Option<Res<crate::game::debug_visual::DebugViewState>>,
     assets: Option<Res<BattleAssets>>,
     icons: Res<IconIndex>,
     mut names: Local<crate::game::orig_ui::field::NameCache>,
@@ -1094,7 +1119,24 @@ pub fn bind_dex_screen(
     };
     let assets = assets.as_deref();
     let national = ui.mode == DexMode::National;
+    // F6 (`game::debug_visual`): every entry reads as caught for the display; the save keeps the
+    // player's real seen/caught sets (the flag does not write anything).
+    let all = debug
+        .as_ref()
+        .is_some_and(|state| state.pokedex_all_active());
+    let state_of = |id: u16| {
+        if all {
+            DexVisibility::Caught
+        } else {
+            visibility(id, &progress.seen, &progress.caught)
+        }
+    };
     let entries = active_entries(&catalog, ui.mode);
+    let (seen_total, caught_total) = if all {
+        (entries.len(), entries.len())
+    } else {
+        (progress.seen.len(), progress.caught.len())
+    };
     let sel = ui.selected.min(entries.len().saturating_sub(1));
     let start = sel
         .saturating_sub(DEX_PLATES / 2)
@@ -1109,7 +1151,7 @@ pub fn bind_dex_screen(
             continue;
         };
         s.set_visible(&part, true);
-        let state = visibility(e.id, &progress.seen, &progress.caught);
+        let state = state_of(e.id);
         // National mode is a data listing: names are always shown and no game art is used (the
         // undiscovered placeholder stands in for every icon).
         let name = if national {
@@ -1153,7 +1195,7 @@ pub fn bind_dex_screen(
     }
     // Notebook page of the selected species (main layout instance 0).
     if let Some(e) = entries.get(sel) {
-        let state = visibility(e.id, &progress.seen, &progress.caught);
+        let state = state_of(e.id);
         let name = if national {
             entry_display_name(e).to_string()
         } else {
@@ -1163,13 +1205,18 @@ pub fn bind_dex_screen(
             }
         };
         let status = if national {
-            "National listing (external data, no research yet; Y: Hisui list)"
+            "National listing (external data, no research yet; Y: Hisui list)".to_string()
         } else {
             match state {
-                DexVisibility::Caught => "Caught  (Y: national list)",
-                DexVisibility::SeenSilhouette => "Seen, not caught yet  (Y: national list)",
-                DexVisibility::Hidden => "Not seen yet  (Y: national list)",
+                DexVisibility::Caught => "Caught  (Y: national list)".to_string(),
+                DexVisibility::SeenSilhouette => "Seen, not caught yet  (Y: national list)".to_string(),
+                DexVisibility::Hidden => "Not seen yet  (Y: national list)".to_string(),
             }
+        };
+        let status = if all {
+            format!("{status}  [F6 debug: todas]")
+        } else {
+            status
         };
         let set0 = |s: &mut OrigScreen, pane: &str, text: Option<String>| {
             if let Some(n) = s.node_in_instance(0, pane) {
@@ -1182,9 +1229,7 @@ pub fn bind_dex_screen(
             &mut s,
             "T_description_00",
             Some(format!(
-                "{status}.  Seen {}, caught {} of {} species.",
-                progress.seen.len(),
-                progress.caught.len(),
+                "{status}.  Seen {seen_total}, caught {caught_total} of {} species.",
                 entries.len()
             )),
         );
@@ -1278,8 +1323,9 @@ pub fn bind_dex_screen(
         }
     }
     // Counters at the top: seen, caught and completed entries (the port has no research
-    // levels, so "completed" is 0) drawn with the game's own digit textures.
-    let counts = [progress.seen.len(), progress.caught.len(), 0];
+    // levels, so "completed" is 0) drawn with the game's own digit textures. Under F6 the two
+    // counters read the whole list (the display only; the save keeps the real sets).
+    let counts = [seen_total, caught_total, 0];
     for (part, value) in ["L_p_ur_00", "L_p_ur_01", "L_p_cmp_00"].iter().zip(counts) {
         let Some(inst) = s.scene.part_instance(part) else {
             continue;
