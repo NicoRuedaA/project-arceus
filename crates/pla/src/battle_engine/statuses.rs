@@ -39,7 +39,7 @@
 //! * Speed stages: the game's agility does not read rank states (VERIFIED), so the switch no
 //!   longer changes turn order; the speed rank group drives accuracy/evasion instead.
 
-use super::effects::MoveEffects;
+use super::effects::{MoveEffects, ResidualVolatile, Stat};
 use super::rules;
 use super::{Battle, BattleRng, BattleWeather, Event, MajorStatus};
 
@@ -91,6 +91,14 @@ pub enum StatusEvent {
     ProtectedFrom { target: usize, attacker: usize, move_name: String },
     /// The move is disabled this turn because it was used on the previous turn.
     MoveLocked { actor: usize, move_name: String },
+    /// Salt Cure's residual condition started.
+    SaltCure { target: usize },
+    /// Salt Cure's end-of-turn damage.
+    HurtBySaltCure { target: usize, damage: u32 },
+    /// Syrup Bomb's residual condition started (three Speed drops).
+    SyrupBomb { target: usize },
+    /// Syrup Bomb's last Speed drop happened.
+    SyrupBombEnded { target: usize },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -108,6 +116,10 @@ pub(super) struct Volatile {
     protecting: bool,
     protect_used_now: bool,
     protect_chain: u8,
+    /// Salt Cure lasts until the target leaves the field.
+    salt_cure: bool,
+    /// Syrup Bomb: remaining end-of-turn Speed drops (three).
+    syrup_bomb: u8,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -366,7 +378,8 @@ impl Battle {
     /// How PLA delays the user after Hyper Beam-like moves is UNKNOWN (action-order system).
     pub(super) fn status_post_hit(&mut self, _actor: usize, _move_name: &str) {}
 
-    /// Confusion (ailment 8) and trapping (ailment 10) from a move that connected.
+    /// Confusion (ailment 8), trapping (ailment 10) and the external generation-9 residual
+    /// volatiles (Salt Cure, Syrup Bomb) from a move that connected.
     pub(super) fn status_post_effects(
         &mut self,
         actor: usize,
@@ -375,10 +388,11 @@ impl Battle {
         damaging: bool,
         rng: &mut impl BattleRng,
     ) {
-        if !self.status.rules.volatile_statuses
-            || !matches!(fx.ailment_id, 8 | 10)
-            || !self.combatants[target].is_alive()
-        {
+        if !self.status.rules.volatile_statuses || !self.combatants[target].is_alive() {
+            return;
+        }
+        let applies = fx.ailment_id != 0 || fx.residual_volatile != ResidualVolatile::None;
+        if !applies {
             return;
         }
         let chance = if fx.ailment_chance == 0 && !damaging {
@@ -397,7 +411,7 @@ impl Battle {
                     .events
                     .push(StatusEvent::Confused { target });
             }
-        } else if !self.is_trapped(target) {
+        } else if fx.ailment_id == 10 && !self.is_trapped(target) {
             let (lo, hi) = data_turns(fx, (5, 6));
             self.vol(target).trap = Some(Trap {
                 by: actor,
@@ -407,9 +421,26 @@ impl Battle {
                 .events
                 .push(StatusEvent::Trapped { target, by: actor });
         }
+        match fx.residual_volatile {
+            ResidualVolatile::SaltCure => {
+                if !self.vol(target).salt_cure {
+                    self.vol(target).salt_cure = true;
+                    self.status.events.push(StatusEvent::SaltCure { target });
+                }
+            }
+            ResidualVolatile::SyrupBomb => {
+                if self.vol(target).syrup_bomb == 0 {
+                    // Three end-of-turn Speed drops (SV description; PROBABLE count).
+                    self.vol(target).syrup_bomb = 3;
+                    self.status.events.push(StatusEvent::SyrupBomb { target });
+                }
+            }
+            ResidualVolatile::None => {}
+        }
     }
 
-    /// End-of-round: trap damage, Protect bookkeeping, cleanup of fainted combatants.
+    /// End-of-round: trap damage, Salt Cure/Syrup Bomb residuals, Protect bookkeeping,
+    /// cleanup of fainted combatants.
     pub(super) fn status_end_of_turn(&mut self, events: &mut Vec<Event>) {
         if !self.status.rules.volatile_statuses {
             return;
@@ -422,30 +453,66 @@ impl Battle {
                 }
                 continue;
             }
-            let Some(trap) = self.vol_ref(i).and_then(|v| v.trap) else {
-                continue;
-            };
-            if !self.is_trapped(i) {
-                self.vol(i).trap = None;
-                self.status.events.push(StatusEvent::TrapEnded { target: i });
-                continue;
+            let (trap, salt_cure, syrup_bomb) = self
+                .vol_ref(i)
+                .map_or((None, false, 0), |v| (v.trap, v.salt_cure, v.syrup_bomb));
+            if let Some(trap) = trap {
+                if !self.is_trapped(i) {
+                    self.vol(i).trap = None;
+                    self.status.events.push(StatusEvent::TrapEnded { target: i });
+                } else {
+                    let damage =
+                        rules::ceil_fraction(self.combatants[i].max_hp, rules::TRAP_SLIP_DENOM)
+                            .min(self.combatants[i].hp);
+                    self.combatants[i].hp -= damage;
+                    self.status
+                        .events
+                        .push(StatusEvent::HurtByTrap { target: i, damage });
+                    if self.combatants[i].hp == 0 {
+                        events.push(Event::KnockedOut(i));
+                        knocked_out.push(i);
+                    }
+                    let left = trap.turns.saturating_sub(1);
+                    if left == 0 {
+                        self.vol(i).trap = None;
+                        self.status.events.push(StatusEvent::TrapEnded { target: i });
+                    } else if let Some(t) = &mut self.vol(i).trap {
+                        t.turns = left;
+                    }
+                }
             }
-            let damage = rules::ceil_fraction(self.combatants[i].max_hp, rules::TRAP_SLIP_DENOM)
-                .min(self.combatants[i].hp);
-            self.combatants[i].hp -= damage;
-            self.status
-                .events
-                .push(StatusEvent::HurtByTrap { target: i, damage });
             if self.combatants[i].hp == 0 {
-                events.push(Event::KnockedOut(i));
-                knocked_out.push(i);
+                continue;
             }
-            let left = trap.turns.saturating_sub(1);
-            if left == 0 {
-                self.vol(i).trap = None;
-                self.status.events.push(StatusEvent::TrapEnded { target: i });
-            } else if let Some(t) = &mut self.vol(i).trap {
-                t.turns = left;
+            if salt_cure {
+                let types = &self.combatants[i].species.types;
+                let denom = if types.iter().any(|t| t == "Water" || t == "Steel") {
+                    4
+                } else {
+                    8
+                };
+                let damage = (self.combatants[i].max_hp / denom)
+                    .max(1)
+                    .min(self.combatants[i].hp);
+                self.combatants[i].hp -= damage;
+                self.status
+                    .events
+                    .push(StatusEvent::HurtBySaltCure { target: i, damage });
+                if self.combatants[i].hp == 0 {
+                    events.push(Event::KnockedOut(i));
+                    knocked_out.push(i);
+                    continue;
+                }
+            }
+            if syrup_bomb > 0 {
+                self.change_stat(i, Stat::Speed, -1);
+                let left = syrup_bomb.saturating_sub(1);
+                self.vol(i).syrup_bomb = left;
+                if left == 0 {
+                    self.status
+                        .events
+                        .push(StatusEvent::SyrupBombEnded { target: i });
+                }
             }
         }
         for v in &mut self.status.vol {

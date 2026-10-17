@@ -78,6 +78,18 @@ pub enum PowerRule {
     FickleBeam,
 }
 
+/// Residual volatile conditions of the external generation-9 sheet (DERIVED from Showdown's
+/// `condition`/`secondary.volatileStatus`). PLA rows use `None`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ResidualVolatile {
+    #[default]
+    None,
+    /// End-of-turn damage: 1/8 max HP, 1/4 against Water/Steel (Salt Cure).
+    SaltCure,
+    /// Speed -1 at the end of each turn for three turns (Syrup Bomb).
+    SyrupBomb,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MoveEffects {
     pub name: String,
@@ -111,6 +123,8 @@ pub struct MoveEffects {
     pub power_rule: PowerRule,
     /// Percent of the user's max HP lost when the move misses (crash damage); 0 = none.
     pub crash_damage_pct: u8,
+    /// External generation-9 residual volatile; `None` for every PLA row.
+    pub residual_volatile: ResidualVolatile,
 }
 
 impl MoveEffects {
@@ -247,6 +261,7 @@ impl MoveEffectsTable {
                 repeat_lock: false,
                 power_rule: PowerRule::None,
                 crash_damage_pct: 0,
+                residual_volatile: ResidualVolatile::None,
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);
