@@ -21,6 +21,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use bevy::asset::RenderAssetUsages;
+use bevy::camera::RenderTarget;
 use bevy::gltf::{Gltf, GltfMaterial, GltfMesh};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
@@ -2945,7 +2946,14 @@ fn update_camera_transform(
     extents: Option<Res<ArenaExtents>>,
     world_collision: Option<Res<pla::game::world_collision::WorldCollision>>,
     mut battle_cam_cache: Local<BattleCameraCache>,
-    mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
+    mut camera_query: Query<
+        &mut Transform,
+        (
+            With<Camera3d>,
+            Without<PlayerAvatar>,
+            Without<pla::game::dex_model_preview::DexPreviewCamera>,
+        ),
+    >,
 ) {
     let Ok(player_xf) = player_query.single() else {
         return;
@@ -3059,7 +3067,15 @@ fn hide_battle_occluders(
         (&pla::game::pokemon_anim::PokemonBattleSlot, &Transform),
         (With<BattleArenaMarker>, Without<Camera3d>, Without<PlayerAvatar>),
     >,
-    camera_query: Query<&Transform, (With<Camera3d>, Without<BattleArenaMarker>, Without<PlayerAvatar>)>,
+    camera_query: Query<
+        &Transform,
+        (
+            With<Camera3d>,
+            Without<BattleArenaMarker>,
+            Without<PlayerAvatar>,
+            Without<pla::game::dex_model_preview::DexPreviewCamera>,
+        ),
+    >,
     mut objects: Query<(&pla::game::world_objects::PlacedObject, &mut Visibility)>,
     mut cache: Local<BattleOccluderCache>,
 ) {
@@ -3170,7 +3186,14 @@ fn ball_throw_input(
     assets: Option<Res<BattleAssets>>,
     throwables: Res<ThrowableTable>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
-    camera_query: Query<&Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
+    camera_query: Query<
+        &Transform,
+        (
+            With<Camera3d>,
+            Without<PlayerAvatar>,
+            Without<pla::game::dex_model_preview::DexPreviewCamera>,
+        ),
+    >,
     pokemon_query: Query<
         &Transform,
         (With<PokemonSpawn>, Without<PlayerAvatar>, Without<Camera3d>),
@@ -3261,7 +3284,14 @@ fn bait_throw_input(
     baits: Res<BaitTable>,
     throwables: Res<ThrowableTable>,
     player_query: Query<&Transform, With<PlayerAvatar>>,
-    camera_query: Query<&Transform, (With<Camera3d>, Without<PlayerAvatar>)>,
+    camera_query: Query<
+        &Transform,
+        (
+            With<Camera3d>,
+            Without<PlayerAvatar>,
+            Without<pla::game::dex_model_preview::DexPreviewCamera>,
+        ),
+    >,
     pokemon_query: Query<&Transform, (With<PokemonSpawn>, Without<PlayerAvatar>, Without<Camera3d>)>,
     camera_ctrl: Res<CameraController>,
 ) {
@@ -4574,7 +4604,10 @@ mod battle_arena_framing {
     }
 
     fn camera(app: &mut App) -> Transform {
-        *app.world_mut().query_filtered::<&Transform, With<Camera3d>>().single(app.world()).unwrap()
+        *app.world_mut()
+            .query_filtered::<&Transform, (With<Camera3d>, Without<pla::game::dex_model_preview::DexPreviewCamera>)>()
+            .single(app.world())
+            .unwrap()
     }
 
     /// Regression: the battle camera was only used when the player's creature was Pikachu
@@ -4940,7 +4973,13 @@ mod startup_schedule_guard {
                 .find(|(s, _)| s.0 == 1)
                 .map(|(_, t)| t.translation)
                 .unwrap();
-            let cam = *app.world_mut().query_filtered::<&Transform, With<Camera3d>>().single(app.world()).unwrap();
+            // The viewer has the world camera plus the offscreen Pokédex preview camera.
+            let cam = app
+                .world_mut()
+                .query_filtered::<&Transform, (With<Camera3d>, Without<pla::game::dex_model_preview::DexPreviewCamera>)>()
+                .single(app.world())
+                .copied()
+                .expect("world camera");
             let look = cam.translation + cam.forward().as_vec3();
             for dy in [0.0, size.height * 0.5, size.height] {
                 assert!(

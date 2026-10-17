@@ -24,8 +24,10 @@ const PREVIEW_ORIGIN: Vec3 = Vec3::new(0.0, -500.0, 0.0);
 #[derive(Resource, Debug, Clone)]
 pub struct DexPreviewTarget(pub Handle<Image>);
 
-#[derive(Component)]
-struct DexPreviewCamera;
+/// Marker of the offscreen preview camera (all callers that look for "the world camera" must
+/// exclude it).
+#[derive(Component, Debug, Clone, Copy)]
+pub struct DexPreviewCamera;
 
 /// The previewed creature; the key is `species * 100 + form` so one swap per selection.
 #[derive(Component)]
