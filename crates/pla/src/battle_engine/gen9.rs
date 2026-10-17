@@ -3,14 +3,15 @@
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
 //! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
-//! the sheet classifies `engine_class = a` are loaded (33 moves): moves whose whole behaviour
+//! the sheet classifies `engine_class = a` are loaded (35 moves): moves whose whole behaviour
 //! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
 //! rank, hits, drain/heal, one paralysis/burn/poison/confusion roll, stat stages on a single
 //! receiver). Rows classified `b` need new engine logic and are skipped, never approximated.
 //! Gigaton Hammer and Blood Moon load because the engine now honours their `cantusetwice` flag
 //! through `MoveEffects::repeat_lock`; Last Respects, Rage Fist, Hard Press, Collision Course,
 //! Electro Drift and Fickle Beam load through the derived `PowerRule` callbacks; Axe Kick and
-//! Supercell Slam load through `crash_damage_pct`.
+//! Supercell Slam load through `crash_damage_pct`; Salt Cure and Syrup Bomb load through
+//! `ResidualVolatile`.
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -27,7 +28,7 @@
 use std::fs;
 use std::path::Path;
 
-use super::effects::{ailment_status, MoveEffects, PowerRule, Stat, StatChange};
+use super::effects::{ailment_status, MoveEffects, PowerRule, ResidualVolatile, Stat, StatChange};
 
 /// One loadable generation-9 move: the base row and its effects.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -234,6 +235,11 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
         } else {
             0
         };
+        let residual_volatile = match v[c_sec_vol] {
+            "saltcure" => ResidualVolatile::SaltCure,
+            "syrupbomb" => ResidualVolatile::SyrupBomb,
+            _ => ResidualVolatile::None,
+        };
         let crit = num(c_crit)?;
         let meta_category = match (damaging, !changes.is_empty(), ailment_id != 0) {
             (true, true, _) if to_user => 7,
@@ -254,7 +260,11 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             heal_pct: num(c_heal)? as i8,
             ailment: ailment_status(ailment_id),
             ailment_id,
-            ailment_chance: if ailment_id != 0 { secondary_chance } else { 0 },
+            ailment_chance: if ailment_id != 0 || residual_volatile != ResidualVolatile::None {
+                secondary_chance
+            } else {
+                0
+            },
             ailment_turns: None,
             meta_category,
             target_raw: if self_target { 7 } else { 0 },
@@ -267,6 +277,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             repeat_lock: flags.contains(&"cantusetwice"),
             power_rule: power_rule(&name),
             crash_damage_pct: num(c_crash)? as u8,
+            residual_volatile,
         };
         out.push(Gen9Move {
             id: num(c_move)? as u16,
@@ -286,7 +297,9 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
 mod tests {
     use super::*;
     use crate::battle::BattleData;
-    use crate::battle_engine::effects::{EffectEvent, MoveEffectsTable, PowerRule};
+    use crate::battle_engine::effects::{
+        EffectEvent, MoveEffectsTable, PowerRule, ResidualVolatile,
+    };
     use crate::battle_engine::statuses::{StatusEvent, StatusRules};
     use crate::battle_engine::{Action, Battle, BattleRng, Combatant, Event, MajorStatus};
     use std::path::PathBuf;
@@ -327,7 +340,7 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        assert_eq!(moves.len(), 33);
+        assert_eq!(moves.len(), 35);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -335,7 +348,7 @@ mod tests {
             "psychic-noise",
             "revival-blessing",
             "temper-flare",
-            "salt-cure",
+            "ice-spinner",
         ] {
             assert!(
                 moves.iter().all(|m| m.name != skipped),
@@ -390,6 +403,15 @@ mod tests {
         // Crash damage: half the user's max HP on a miss.
         assert_eq!(find(&moves, "axe-kick").effects.crash_damage_pct, 50);
         assert_eq!(find(&moves, "supercell-slam").effects.crash_damage_pct, 50);
+        // Residual volatiles: Salt Cure (until switching) and Syrup Bomb (three drops).
+        assert_eq!(
+            find(&moves, "salt-cure").effects.residual_volatile,
+            ResidualVolatile::SaltCure
+        );
+        assert_eq!(
+            find(&moves, "syrup-bomb").effects.residual_volatile,
+            ResidualVolatile::SyrupBomb
+        );
     }
 
     #[test]
@@ -693,6 +715,74 @@ mod tests {
         });
         b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 29, 0]));
         assert!(b.is_confused(1));
+    }
+
+    #[test]
+    fn residual_volatiles_tick_at_end_of_turn() {
+        // Salt Cure: 1/8 max HP per turn, persists until the target leaves the field.
+        let mut b = duel(
+            ("pikachu", &["salt-cure"], 60),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.set_status_rules(StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        });
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        let max = b.combatants[1].max_hp;
+        let events = b.take_status_events();
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, StatusEvent::SaltCure { target: 1 })));
+        assert!(events.iter().any(
+            |e| matches!(e, StatusEvent::HurtBySaltCure { target: 1, damage } if *damage == max / 8)
+        ));
+        b.play_turn(&[], &mut Fixed(vec![]));
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::HurtBySaltCure { target: 1, .. })));
+
+        // Against Water or Steel the tick is 1/4.
+        let mut b = duel(
+            ("pikachu", &["salt-cure"], 80),
+            ("magikarp", &["tackle"], 50),
+        );
+        b.set_status_rules(StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        });
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        let max = b.combatants[1].max_hp;
+        assert!(b.take_status_events().iter().any(
+            |e| matches!(e, StatusEvent::HurtBySaltCure { target: 1, damage } if *damage == max / 4)
+        ));
+
+        // Syrup Bomb: one Speed drop at the end of each of three turns.
+        let mut b = duel(
+            ("pikachu", &["syrup-bomb"], 60),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.set_status_rules(StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        });
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::SyrupBomb { target: 1 })));
+        assert_eq!(b.stages(1).speed, -1);
+        b.play_turn(&[], &mut Fixed(vec![]));
+        let events = b.take_status_events();
+        assert!(!events
+            .iter()
+            .any(|e| matches!(e, StatusEvent::SyrupBombEnded { .. })));
+        b.play_turn(&[], &mut Fixed(vec![]));
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::SyrupBombEnded { target: 1 })));
     }
 
     #[test]

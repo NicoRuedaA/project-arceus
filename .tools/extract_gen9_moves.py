@@ -190,7 +190,8 @@ def classify(row: dict[str, str]) -> tuple[str, str]:
         callbacks = set(row["callbacks"].split(";"))
         power_rule = int(row["move"]) in POWER_RULE_MOVES and callbacks <= POWER_RULE_CALLBACKS
         crash = row["crash_damage_pct"] != "0" and callbacks <= {"onMoveFail"}
-        if not (power_rule or crash):
+        residual = row["sec_volatile"] in ("saltcure", "syrupbomb") and callbacks <= {"condition"}
+        if not (power_rule or crash or residual):
             reasons.append("callback:" + row["callbacks"])
     if row["other_props"]:
         reasons.append("prop:" + row["other_props"])
@@ -200,7 +201,7 @@ def classify(row: dict[str, str]) -> tuple[str, str]:
         reasons.append("status:" + row["status"])
     if row["sec_status"] and row["sec_status"] not in STAGE_STATUS:
         reasons.append("secondary.status:" + row["sec_status"])
-    if row["sec_volatile"] and row["sec_volatile"] not in ("flinch", "confusion"):
+    if row["sec_volatile"] and row["sec_volatile"] not in ("flinch", "confusion", "saltcure", "syrupbomb"):
         reasons.append("secondary.volatileStatus:" + row["sec_volatile"])
     if row["self_other"]:
         reasons.append("self:" + row["self_other"])
