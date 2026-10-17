@@ -35,6 +35,18 @@ pub const BURN_FROSTBITE_DAMAGE_PERCENT: u32 = 50;
 pub const POISON_SLIP_DENOM: u32 = 6;
 pub const BURN_SLIP_DENOM: u32 = 12;
 pub const FROSTBITE_SLIP_DENOM: u32 = 12;
+/// VERIFIED: badly poisoned (the game's poison record 5 with the 0xf01 mark): end-of-turn
+/// damage `ceil(max_hp / 16) x counter`; the counter grows +1 per end of turn, capped at 15,
+/// and the state never expires (`FUN_02850cf0` case 5, `FUN_02851d74`). The counter is
+/// incremented before the damage of the same end of turn is computed.
+pub const TOXIC_SLIP_DENOM: u32 = 16;
+pub const TOXIC_COUNTER_CAP: u8 = 15;
+/// PROBABLE: the badly-poisoned counter resets when the combatant leaves the field. Series
+/// convention; the game's switch flow was not located (report `sleep_toxic.md`, UNKNOWN).
+pub const TOXIC_COUNTER_RESETS_ON_SWITCH: bool = true;
+/// VERIFIED: real sleep (record id 2) rolls its duration when applied: `2 + uniform{0,1,2}` in
+/// the game, i.e. `2..=4`; the PLA sleep rows carry the same range in their fields.
+pub const SLEEP_DEFAULT_TURNS: (u8, u8) = (2, 4);
 /// VERIFIED: partial-trap damage denominator per end of turn, rounded up.
 pub const TRAP_SLIP_DENOM: u32 = 8;
 /// VERIFIED: confusion self-hit chance (hard-coded, not a config value).
@@ -173,6 +185,58 @@ impl Battle {
         ceil_fraction(max_hp, denom)
     }
 
+    /// Estimated damage of the badly-poisoned state at this moment, without touching the
+    /// counter (the counter starts at 0, so a fresh state already deals one step).
+    pub fn toxic_damage_estimate(&self, i: usize) -> u32 {
+        let max_hp = self.combatants[i].max_hp;
+        if !self.status_rules().notes_rates {
+            return (max_hp / 8).max(1);
+        }
+        let counter = self.toxic_counter.get(i).copied().unwrap_or(0).max(1);
+        ceil_fraction(max_hp, TOXIC_SLIP_DENOM) * u32::from(counter)
+    }
+
+    /// VERIFIED end-of-turn badly-poisoned update: the counter grows +1 (capped at 15) and the
+    /// same end of turn deals `ceil(max_hp / 16) x counter` with the updated value.
+    pub(super) fn toxic_slip_damage(&mut self, i: usize) -> u32 {
+        if self.toxic_counter.len() <= i {
+            self.toxic_counter.resize(i + 1, 0);
+        }
+        if self.toxic_counter[i] < TOXIC_COUNTER_CAP {
+            self.toxic_counter[i] += 1;
+        }
+        self.toxic_damage_estimate(i)
+    }
+
+    /// Counter of the badly-poisoned state (0 = absent or just reset).
+    pub fn toxic_counter(&self, i: usize) -> u8 {
+        self.toxic_counter.get(i).copied().unwrap_or(0)
+    }
+
+    /// Start the real sleep state (record id 2): the duration is rolled from the move's fields
+    /// on apply and the attempts-to-act counter starts at 0 (VERIFIED; see `sleep_toxic.md`).
+    pub(super) fn start_sleep(
+        &mut self,
+        target: usize,
+        fx: &MoveEffects,
+        rng: &mut impl BattleRng,
+    ) {
+        let (lo, hi) = match fx.ailment_turns {
+            Some((_, lo, hi)) if hi.max(lo) > 0 => (lo, hi),
+            _ => SLEEP_DEFAULT_TURNS,
+        };
+        let duration = roll_turns(lo, hi, rng);
+        if self.sleep.len() <= target {
+            self.sleep.resize(target + 1, None);
+        }
+        self.sleep[target] = Some((duration, 0));
+    }
+
+    /// Remaining real-sleep state of a combatant: `(duration, attempts to act)`.
+    pub fn sleep_state(&self, i: usize) -> Option<(u8, u8)> {
+        self.sleep.get(i).copied().flatten()
+    }
+
     /// Record the data-driven duration of a freshly applied major status (move columns
     /// `raw_f13` kind, `raw_f14` min, `raw_f15` max; kinds 2 and 4 are turn-limited).
     pub(super) fn start_status_turns(
@@ -183,6 +247,12 @@ impl Battle {
     ) {
         if self.status_turns.len() <= target {
             self.status_turns.resize(target + 1, None);
+        }
+        // Real sleep never expires at the end of a turn (VERIFIED): its counter is advanced by
+        // the attempts to act, not by end-of-turn ticks.
+        if self.combatants[target].status == Some(MajorStatus::Sleep) {
+            self.status_turns[target] = None;
+            return;
         }
         self.status_turns[target] = match fx.ailment_turns {
             Some((kind, min, max)) if matches!(kind, 2 | 4) && max.max(min) > 0 => {
@@ -393,6 +463,7 @@ mod tests {
                 true,
                 true,
                 false,
+                false,
                 &mut Fixed(vec![1, 15]),
             )
             .0
@@ -407,6 +478,16 @@ mod tests {
             assert_eq!(hit(&b, (0, 1), false), 58); // 88 * 0.66 = 58.08
             assert_eq!(hit(&b, (1, 1), false), 88); // equal states cancel
             assert_eq!(hit(&b, (0, 0), true), 117); // 88 * 133 / 100 = 117.04
+        }
+
+        /// Real sleep (record id 2) has NO damage bonus: the x1.33 is drowsiness only
+        /// (VERIFIED, `sleep_toxic.md`).
+        #[test]
+        fn real_sleep_has_no_damage_bonus() {
+            let mut b = duel(&["tackle"], &["tackle"]);
+            let plain = hit(&b, (0, 0), false);
+            b.combatants[1].status = Some(MajorStatus::Sleep);
+            assert_eq!(hit(&b, (0, 0), false), plain);
         }
 
         #[test]
@@ -481,6 +562,91 @@ mod tests {
                     status: MajorStatus::Paralysis
                 }]
             );
+        }
+
+        /// VERIFIED badly-poisoned formula and order: the counter grows first (+1, capped at
+        /// 15) and the same end of turn deals ceil(max_hp / 16) x counter; the state never
+        /// expires and the counter restarts when the combatant leaves the field (PROBABLE).
+        #[test]
+        fn badly_poisoned_counter_grows_caps_and_resets_on_switch() {
+            let d = BattleData::load(root()).unwrap();
+            let mon = |species: &str, moves: &[&str]| {
+                let sp = d.species_row(species).unwrap().unwrap();
+                let mv = moves
+                    .iter()
+                    .map(|n| d.move_row(n).unwrap().unwrap())
+                    .collect();
+                Combatant::from_base(sp, 30, mv)
+            };
+            let mut b = Battle::new(
+                vec![
+                    mon("bidoof", &["tackle"]),
+                    mon("pikachu", &["toxic"]),
+                    mon("bidoof", &["tackle"]),
+                ],
+                vec![vec![0, 2], vec![1]],
+                d.type_chart().clone(),
+            )
+            .unwrap();
+            b.set_move_effects(MoveEffectsTable::load(root()).unwrap());
+            b.set_status_rules(StatusRules {
+                notes_rates: true,
+                ..StatusRules::default()
+            });
+            for c in &mut b.combatants {
+                c.max_hp = 1600;
+                c.hp = 1600;
+            }
+            // Toxic lands (accuracy 90, roll 0) and starts the counter at 0; the same end of
+            // turn grows it to 1 and deals ceil(1600/16) = 100.
+            b.play_turn(
+                &[Action {
+                    actor: 1,
+                    move_slot: 0,
+                }],
+                &mut Fixed(vec![0]),
+            );
+            assert_eq!(b.combatants[0].status, Some(MajorStatus::BadlyPoisoned));
+            assert_eq!(b.toxic_counter(0), 1);
+            assert_eq!(b.combatants[0].hp, 1500);
+            // Next turn: 2 x 100.
+            b.play_turn(&[], &mut Fixed(vec![]));
+            assert_eq!(b.toxic_counter(0), 2);
+            assert_eq!(b.combatants[0].hp, 1300);
+            // Never expires: no rule event after more turns.
+            for _ in 0..3 {
+                b.play_turn(&[], &mut Fixed(vec![]));
+            }
+            assert_eq!(b.combatants[0].status, Some(MajorStatus::BadlyPoisoned));
+            assert_eq!(b.toxic_counter(0), 5);
+            assert!(b.take_rule_events().is_empty());
+            // Switching restarts the counter (PROBABLE constant).
+            b.combatants[0].hp = 1600;
+            b.switch(0, 2).unwrap();
+            assert_eq!(b.toxic_counter(0), 0);
+            b.switch(0, 0).unwrap();
+            b.play_turn(&[], &mut Fixed(vec![]));
+            assert_eq!(b.toxic_counter(0), 1);
+        }
+
+        #[test]
+        fn badly_poisoned_formula_caps_the_counter_at_fifteen() {
+            let mut b = duel(&["tackle"], &["tackle"]);
+            b.set_status_rules(StatusRules {
+                notes_rates: true,
+                ..StatusRules::default()
+            });
+            b.combatants[1].max_hp = 160;
+            b.combatants[1].hp = 160;
+            // ceil(160/16) = 10; the counter grows before each damage step.
+            assert_eq!(b.toxic_slip_damage(1), 10);
+            assert_eq!(b.toxic_counter(1), 1);
+            assert_eq!(b.toxic_slip_damage(1), 20);
+            for _ in 0..20 {
+                b.toxic_slip_damage(1);
+            }
+            assert_eq!(b.toxic_counter(1), 15, "capped at the duration field (15)");
+            assert_eq!(b.toxic_damage_estimate(1), 150);
         }
 
         #[test]

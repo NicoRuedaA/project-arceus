@@ -76,6 +76,11 @@ pub enum PowerRule {
     SuperEffectiveBoost,
     /// 30 % chance to double the power (Fickle Beam).
     FickleBeam,
+    /// x2 while the user's previous move failed (Temper Flare). The engine keeps one
+    /// `last_move_failed` flag per combatant that follows Showdown's
+    /// `moveLastTurnResult === false` (see `battle_engine.rs`); it is cleared at the start of
+    /// the battle and when the combatant changes.
+    TemperFlare,
 }
 
 /// Residual volatile conditions of the external generation-9 sheet (DERIVED from Showdown's
@@ -88,6 +93,50 @@ pub enum ResidualVolatile {
     SaltCure,
     /// Speed -1 at the end of each turn for three turns (Syrup Bomb).
     SyrupBomb,
+}
+
+/// Behaviour hooks of the external generation-9 rows (DERIVED from Showdown's callbacks in
+/// `gen9.rs::hooks`, not from game-data columns). Every hook is off for PLA rows, so a battle
+/// without the external sheet behaves exactly as before.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MoveHooks {
+    /// Flower Trick: the hit always criticals (`willCrit`); `gen9.rs` maps it to the engine's
+    /// guaranteed critical rank (6).
+    pub always_crit: bool,
+    /// Mortal Spin: after the hit, the user is freed from a partial trap.
+    pub clear_user_trap: bool,
+    /// Fillet Away: the user loses half its max HP when the move resolves (the engine refuses
+    /// the use at or below half HP first).
+    pub half_hp_cost: bool,
+    /// Ruination: fixed damage, floor(target current HP / 2), minimum 1.
+    pub half_current_hp_damage: bool,
+    /// Comeuppance: fixed damage, 3/2 of the last hit the user took this turn; the use is
+    /// refused when the user took no damage yet.
+    pub return_last_damage: bool,
+    /// Upper Hand: refused unless the target's chosen action uses a move with priority > 0.
+    pub require_target_priority: bool,
+    /// Thunderclap: refused unless the target's chosen action is an attack (category != Status).
+    pub require_target_attack: bool,
+    /// Alluring Voice: the hit confuses a target that raised any stat this turn.
+    pub confuse_if_target_raised: bool,
+    /// Double Shock: refused unless the user has the move's own type.
+    pub fail_unless_user_has_move_type: bool,
+    /// Double Shock: the hit removes the move's own type from the user.
+    pub remove_user_type_after_hit: bool,
+    /// Electro Shot: the charge turn raises the user's Sp. Atk one rank.
+    pub charge_boost_spa: bool,
+    /// Electro Shot: rain skips the charge turn (and its boost).
+    pub charge_skip_in_rain: bool,
+    /// Nihil Light: the accuracy check drops the target's evasion ranks (Showdown
+    /// `ignoreEvasion`). In Hisui accuracy and evasion share one rank state, so only the
+    /// target's contribution to that shared state is dropped (see `battle_engine.rs`).
+    pub ignore_evasion: bool,
+    /// Nihil Light: the damage step drops the target's Def/SpD ranks (Showdown
+    /// `ignoreDefensive`).
+    pub ignore_defensive: bool,
+    /// Nihil Light: the 0x type-chart immunity of the move's own type counts as neutral
+    /// damage (Showdown `ignoreImmunity = {'<move type>': true}`; Dragon vs Fairy here).
+    pub ignore_immunity_move_type: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,6 +178,8 @@ pub struct MoveEffects {
     pub thaws_target: bool,
     /// Every hit of a multi-hit move rolls accuracy again (Population Bomb).
     pub multi_accuracy: bool,
+    /// Behaviour hooks of the external generation-9 rows; all off for PLA rows.
+    pub hooks: MoveHooks,
 }
 
 impl MoveEffects {
@@ -218,6 +269,19 @@ impl MoveEffectsTable {
                     .map_err(|_| format!("move effects row {}: bad number {:?}", n + 2, v[i]))
             };
             let ailment_id = num(c_aid)? as u16;
+            let ailment_turns = match turn_cols {
+                (Some(k), Some(lo), Some(hi)) => {
+                    Some((num(k)? as u8, num(lo)? as u8, num(hi)? as u8))
+                }
+                _ => None,
+            };
+            // The game's badly-poisoned mark (0xf01): poison record 5 with kind 1 and duration 15.
+            let ailment = match ailment_turns {
+                Some((kind, lo, hi)) if is_toxic_mark(ailment_id, kind, lo, hi) => {
+                    Some(MajorStatus::BadlyPoisoned)
+                }
+                _ => ailment_status(ailment_id),
+            };
             let mut stat_changes = Vec::new();
             let opt = |c: Option<usize>| -> Result<u8, String> {
                 c.map_or(Ok(0), |i| num(i).map(|x| x as u8))
@@ -244,15 +308,10 @@ impl MoveEffectsTable {
                 max_hits: num(c_maxh)? as u8,
                 drain_pct: num(c_drain)? as i8,
                 heal_pct: num(c_heal)? as i8,
-                ailment: ailment_status(ailment_id),
+                ailment,
                 ailment_id,
                 ailment_chance: num(c_ach)? as u8,
-                ailment_turns: match turn_cols {
-                    (Some(k), Some(lo), Some(hi)) => {
-                        Some((num(k)? as u8, num(lo)? as u8, num(hi)? as u8))
-                    }
-                    _ => None,
-                },
+                ailment_turns,
                 meta_category: num(c_meta)? as u8,
                 target_raw: num(c_tgt)? as u8,
                 stat_changes,
@@ -268,6 +327,7 @@ impl MoveEffectsTable {
                 residual_volatile: ResidualVolatile::None,
                 thaws_target: false,
                 multi_accuracy: false,
+                hooks: MoveHooks::default(),
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);
@@ -298,17 +358,33 @@ impl MoveEffectsTable {
     }
 }
 
-/// Ailment ids 2 and 6 are both sleep-like in the data (distinct meaning UNKNOWN);
-/// 3 (freeze-like), 8 (confusion), 9, 10 and 65535 are not modeled.
+/// Ailment ids as in the game's status records: 1 paralysis, 2 real sleep (VERIFIED, distinct
+/// from 6 drowsiness), 4 burn, 5 poison, 6 drowsiness, 7 frostbite. Id 15 is a SYNTHETIC
+/// engine id for the external generation-9 sheet's `tox` secondary (the game has no separate
+/// toxic id: badly poisoned is record 5 with the `0xf01` mark). 3 (freeze-like), 8 (confusion),
+/// 9 and 10 are handled elsewhere or not modeled.
+/// PLA rows with id 2 (Sing 47, Lovely Kiss 142, Grass Whistle 320, Relic Song 547) used to
+/// load as drowsiness; they now load as real sleep. Id 6 rows (Sleep Powder, Hypnosis, Spore,
+/// Dark Void) keep the drowsy state.
 pub fn ailment_status(id: u16) -> Option<MajorStatus> {
     match id {
         1 => Some(MajorStatus::Paralysis),
-        2 | 6 => Some(MajorStatus::Drowsy),
+        2 => Some(MajorStatus::Sleep),
         4 => Some(MajorStatus::Burn),
         5 => Some(MajorStatus::Poison),
+        6 => Some(MajorStatus::Drowsy),
         7 => Some(MajorStatus::Frostbite),
+        15 => Some(MajorStatus::BadlyPoisoned),
         _ => None,
     }
+}
+
+/// VERIFIED mark of the game's badly-poisoned state: poison record 5 applied with kind 1 and
+/// duration 15, i.e. the packed value `0xf01` (`FUN_02850c34` / `FUN_02850cf0`). In the move
+/// sheet that is `ailment_id` 5 with `raw_f13` 1 and `raw_f14`/`raw_f15` 15 (Toxic 92 and
+/// Poison Fang 305 are the only rows that carry it).
+fn is_toxic_mark(ailment_id: u16, kind: u8, lo: u8, hi: u8) -> bool {
+    ailment_id == 5 && kind == 1 && lo == 15 && hi == 15
 }
 
 /// PLA stat ranks have only three states per group (VERIFIED): -1 down, 0 neutral, +1 up.
@@ -437,6 +513,10 @@ impl Battle {
             self.effect_events
                 .push(EffectEvent::StageAlreadyAtLimit { target, stat });
         } else {
+            // Turn memory for Alluring Voice: any raise this turn is remembered.
+            if new > old && target < self.turn_raised_stats.len() {
+                self.turn_raised_stats[target] = true;
+            }
             self.effect_events.push(EffectEvent::StagesChanged {
                 target,
                 stat,
@@ -463,6 +543,43 @@ impl Battle {
             u32::from(lo)
         } else {
             u32::from(lo) + rng.below(u32::from(hi - lo) + 1)
+        }
+    }
+
+    /// Hooks of the external generation-9 rows that run once the move resolves (after PP and
+    /// accuracy). `damage_dealt` is the HP the hit actually removed (0 when it did not land or
+    /// the move has no power). See [`MoveHooks`] for each hook's source.
+    pub(super) fn apply_use_hooks(
+        &mut self,
+        actor: usize,
+        move_type: &str,
+        fx: &MoveEffects,
+        damage_dealt: u32,
+    ) {
+        // Fillet Away: half the user's max HP, after the generic effects applied the boosts.
+        // `/2` truncates (Showdown `directDamage(source.maxhp / 2)`), never below 0.
+        if fx.hooks.half_hp_cost {
+            let c = &mut self.combatants[actor];
+            let lost = (c.max_hp / 2).min(c.hp);
+            c.hp -= lost;
+            self.effect_events.push(EffectEvent::HpCost {
+                actor,
+                amount: lost,
+            });
+        }
+        // Mortal Spin: the hit frees the user from a partial trap.
+        if fx.hooks.clear_user_trap && damage_dealt > 0 {
+            self.clear_own_trap(actor);
+        }
+        // Double Shock: the hit removes the move's own type from the user (`self.onHit`).
+        if fx.hooks.remove_user_type_after_hit
+            && damage_dealt > 0
+            && self.combatants[actor].remove_type(move_type)
+        {
+            self.note_status_event(super::statuses::StatusEvent::LostType {
+                actor,
+                type_name: move_type.to_owned(),
+            });
         }
     }
 
@@ -546,6 +663,18 @@ impl Battle {
                 && Self::chance_passes(fx.ailment_chance, !damaging, rng)
             {
                 self.combatants[target].status = Some(status);
+                if status == MajorStatus::BadlyPoisoned {
+                    // VERIFIED: the counter is set to 0 when the state is applied.
+                    if self.toxic_counter.len() <= target {
+                        self.toxic_counter.resize(target + 1, 0);
+                    }
+                    self.toxic_counter[target] = 0;
+                }
+                if status == MajorStatus::Sleep {
+                    // VERIFIED: the real-sleep duration is rolled on apply (2..=4 from the
+                    // move's fields) and the attempts-to-act counter starts at 0.
+                    self.start_sleep(target, fx, rng);
+                }
                 self.start_status_turns(target, fx, rng);
                 self.pending_status.push((target, status));
             }
@@ -626,6 +755,51 @@ mod tests {
         assert_eq!(t.get("double-edge").unwrap().drain_pct, -33);
         assert_eq!(t.get("fury-swipes").unwrap().max_hits, 5);
         assert_eq!(t.get("growl").unwrap().stat_changes[0].stage, -1);
+    }
+
+    /// Ailment id 2 (real sleep) is distinct from id 6 (drowsiness): the four PLA sleep moves
+    /// load the real state and the drowsy rows keep theirs.
+    #[test]
+    fn sleep_rows_load_the_real_sleep_state() {
+        let t = MoveEffectsTable::load(root()).unwrap();
+        for name in ["sing", "lovely-kiss", "grass-whistle", "relic-song"] {
+            assert_eq!(
+                t.get(name).unwrap().ailment,
+                Some(MajorStatus::Sleep),
+                "{name}"
+            );
+        }
+        for drowsy in ["sleep-powder", "hypnosis", "spore", "dark-void"] {
+            assert_eq!(
+                t.get(drowsy).unwrap().ailment,
+                Some(MajorStatus::Drowsy),
+                "{drowsy}"
+            );
+        }
+        // The duration comes from the move's own fields (2..=4 for the sleep moves).
+        assert_eq!(t.get("sing").unwrap().ailment_turns, Some((2, 2, 4)));
+    }
+
+    /// The game's `0xf01` mark (record 5 + kind 1 + duration 15) is only on Toxic and Poison
+    /// Fang; every other poison row keeps the normal state.
+    #[test]
+    fn toxic_and_poison_fang_load_the_badly_poisoned_state() {
+        let t = MoveEffectsTable::load(root()).unwrap();
+        assert_eq!(
+            t.get("toxic").unwrap().ailment,
+            Some(MajorStatus::BadlyPoisoned)
+        );
+        assert_eq!(
+            t.get("poison-fang").unwrap().ailment,
+            Some(MajorStatus::BadlyPoisoned)
+        );
+        for plain in ["poison-powder", "sludge-bomb", "poison-jab", "sludge", "twineedle"] {
+            assert_eq!(
+                t.get(plain).unwrap().ailment,
+                Some(MajorStatus::Poison),
+                "{plain} must stay plain poison"
+            );
+        }
     }
 
     #[test]

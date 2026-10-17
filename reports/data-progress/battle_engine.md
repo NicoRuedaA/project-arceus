@@ -113,6 +113,104 @@ non-windowed example (`cargo test -p pla statuses battle_log battle_controller`;
 
 Opt-in (brief 29, [styles report](battle_styles.md)). VERIFIED by static reading: style 1 = strong, 2 = agile; power, accuracy and action points per style; consecutive agile uses weakened by 3^min(n,4); the action-order queue (wait `ceil(16 - agility^0.4)`, lowest wait acts, ties: not the last actor, higher agility, lower position; 6-turn list). `Battle::play_turn_styled` equals `play_turn` when no style, table or queue is used. UNKNOWN: extra PP for a style (1 PP assumed), the cause of Fixated (x1.5/x1.33 opt-in via `set_fixated`). Alpha stats x1.5 via `apply_alpha_power` (truncation ASSUMED). Not wired into the game screens yet.
 
+## Generation-9 moves: implemented families (2026-10-17)
+
+The external sheet `data/gen9_moves.tsv` (70 rows, EXTERNAL/PROBABLE, never checked against the
+game) now loads **55 rows** into `BattleData` and the effects table: the 38 whose behaviour fits
+the classic effect columns (see the `gen9.rs` module doc) plus the 7 of **family A**, the 6 of
+**family B**, the 2 of **family E**, Malignant Chain and Wicked Torque, implemented as power
+rules or named hooks derived from the same pinned Showdown source (`gen9.rs::power_rule` and
+`gen9.rs::hooks`, plus the sheet's `other_props` → `MoveHooks` in `effects.rs`). Nothing here is
+game-derived; the PLA rows always win by name.
+
+| Move | Behaviour | Source | Confidence |
+|---|---|---|---|
+| Flower Trick (870) | the hit is always critical (`willCrit=true`), mapped to the engine's guaranteed critical rank | Showdown `willCrit` | EXTERNAL/PROBABLE |
+| Ice Spinner (861) | plain damage; the `onAfterHit` terrain clear is omitted | Hisui has no terrain | EXTERNAL/PROBABLE |
+| Mortal Spin (866) | damage + 100 % poison + the hit frees the user from a partial trap (`clear_user_trap`); the trap engine is the recovered one | Showdown `onAfterHit` | EXTERNAL/PROBABLE (trap mechanics VERIFIED, see the status table) |
+| Psyblade (875) | plain damage; the Electric-Terrain `onBasePower` x1.5 is omitted | Hisui has no terrain | EXTERNAL/PROBABLE |
+| Tidy Up (882) | the user's Attack and Speed rise one rank state each; the hazards/Substitute part is not modelled | Showdown `onHit` boosts | EXTERNAL/PROBABLE |
+| Fillet Away (868) | fails at or below half HP; otherwise the user loses half its max HP and gets Atk/SpA/Spe +2. PLA has three rank states and Atk/SpA share one group, so the +2 lands at +1 per group (documented consequence) | Showdown `onTry/onHit` | EXTERNAL/PROBABLE (rank groups VERIFIED) |
+| Ruination (877) | fixed damage `floor(target current HP / 2)`, minimum 1, typeless, no damage roll; the 90 % accuracy still applies | Showdown `damageCallback` | EXTERNAL/PROBABLE |
+
+**Family B (turn memory)** adds the moves that read what happened earlier in the same turn:
+
+| Move | Behaviour | Source | Confidence |
+|---|---|---|---|
+| Comeuppance (894) | fixed damage, 3/2 of the last hit the user took this turn (rounded down), returned to whoever landed it; refused without a hit | Showdown `damageCallback`/`onTry` | EXTERNAL/PROBABLE |
+| Alluring Voice (914) | the hit confuses a target that raised any of its stats this turn | Showdown `secondary.onHit` | EXTERNAL/PROBABLE |
+| Double Shock (892) | refused unless the user has the move's own type; the hit then removes that type (a typeless user is neutral to everything, no STAB, for the rest of the battle) | Showdown `onTryMove`/`self.onHit` | EXTERNAL/PROBABLE |
+| Upper Hand (918) | +3 priority and 100 % flinch from the sheet, but refused unless the target's chosen action this turn uses a priority move | Showdown `onTry` (`willMove`) | EXTERNAL/PROBABLE |
+| Thunderclap (909) | +1 priority from the sheet, but refused unless the target's chosen action is an attack (`category != Status`) | Showdown `onTry` (`willMove`) | EXTERNAL/PROBABLE |
+| Electro Shot (905) | two-turn charge that raises the user's Sp. Atk one rank; rain skips the charge (and its boost); PP is spent once | Showdown `onTryMove` + the sheet's `charge` flag | EXTERNAL/PROBABLE |
+
+Upper Hand and Thunderclap read the actions declared for the turn. A classic round carries both
+sides' actions, so the rule works there; a PLA queue turn resolves one action at a time and the
+engine does not know the rival's next move (the AI picks it when its turn comes), so the two
+moves are refused in that flow — the table notes it. A target that already spent its action also
+makes them fail (`willMove` semantics). The sleep counter of the game's real sleep and other
+turn-memory details are documented in [sleep_toxic.md](sleep_toxic.md).
+
+**Family E (previous-move memory and ignore properties, external)** adds the two rows that need
+state the engine did not keep:
+
+| Move | Behaviour | Source | Confidence |
+|---|---|---|---|
+| Temper Flare (915) | Physical Fire 75 whose power doubles (150) while the user's previous move failed. The engine keeps one `last_move_failed` flag per combatant (Showdown's `moveLastTurnResult === false`), cleaned at battle start and whenever the active combatant changes. A failed move is: an accuracy miss, a hit with no effect (type immunity), a refused use condition, a lost Protect chain roll (the user's own Protect failed to activate), and — per Showdown's `BeforeMove` handlers, which `return false` — a turn lost to full paralysis, real sleep, drowsiness, confusion self-hit or flinch (Bulbapedia states the miss, no-effect and paralysis cases for Stomping Tantrum). The charge and recharge turns return `null` in Showdown and do NOT count, and neither does a hit blocked by the target's Protect (Protect's `onTryHit` returns `NOT_FAIL`, so `moveThisTurnResult` stays `null`; Bulbapedia says the same); a move that is merely skipped (disabled by `cantusetwice`, no PP, no target) leaves the memory untouched. | Showdown `basePowerCallback` + `sim/battle-actions.ts` / `data/conditions.ts` + Bulbapedia (Stomping Tantrum) | EXTERNAL/PROBABLE |
+| Nihil Light (920) | Dragon special (`allAdjacentFoes`; 1v1 here) that ignores the target's evasion ranks (`ignoreEvasion`), the target's Def/SpD ranks (`ignoreDefensive`) and the type-chart immunity of its own type (`ignoreImmunity = {'Dragon': true}`: Fairy takes neutral damage instead of zero, while every other defender type keeps its multiplier). Hisui shares one rank state between accuracy and evasion, so the engine drops the target's contribution to that shared state and keeps the user's accuracy rank. Power stays 100 (Showdown; WikiDex says 200 without a footnote and the move is absent from SV, so the sheet value stays PROBABLE). | Showdown `ignoreEvasion` / `ignoreDefensive` / `ignoreImmunity` | EXTERNAL/PROBABLE |
+
+The failure memory lives next to the turn memory in `battle_engine.rs` but is not turn-scoped:
+`turn_last_damage` and `turn_raised_stats` reset every turn, `last_move_failed` survives turns
+and resets in `Battle::new`, in `Battle::switch` (both combatants) and in `advance_active_for`
+(the incoming combatant after a knockout). Nihil Light's three ignores are read where they
+apply: evasion in the accuracy check, the defensive ranks in the damage ranks and the immunity
+in the effectiveness lookup (`type_effectiveness_ignoring_immunity`). Each move has its own
+headless rules test in `battle_engine/gen9.rs` (a miss and a flinched turn double Temper Flare,
+a landed move and a switch reset the memory, a Protect block does not set it; Nihil Light
+passes a 75 roll against +1 evasion, keeps the damage against +1 Def/SpD and hits a Fairy for
+normal damage).
+
+**Family C (badly poisoned, game-derived)** turns the static reading of
+[sleep_toxic.md](sleep_toxic.md) into engine rules. The state is the game's poison record (id 5)
+with the `0xf01` mark (kind 1 + duration 15); VERIFIED: the counter starts at 0 when applied,
+grows +1 per end of turn (capped at 15) BEFORE that turn's damage, damage is
+`ceil(max_hp / 16) x counter`, and the state never expires. The counter restarting when the
+combatant leaves the field is PROBABLE (series rule; the switch flow was not located — constant
+`TOXIC_COUNTER_RESETS_ON_SWITCH`). The move sheet already carries the mark: `effects.rs` maps
+poison record 5 + kind 1 + duration 15 to `MajorStatus::BadlyPoisoned`, so **Toxic (92)** and
+**Poison Fang (305)** now badly poison (they gave plain poison before) and every other poison row
+(poison-powder, sludge-bomb, poison-jab, twineedle, ...) stays plain. Malignant Chain (919)
+badly poisons 50 % of the time through the external sheet (synthetic engine ailment id 15).
+Badly poisoned saves as plain poison: the port's save format is untouched, and Antidote and the
+full heal clear it like poison. Log text is distinct (`badly poisoned`, tag `TOX`); the poison
+sound and the `es002` poison effect are reused. Capture keeps the Poison factor (same game
+record).
+
+**Family D (real sleep, game-derived)** adds `MajorStatus::Sleep`, the game's record id 2,
+distinct from drowsiness (id 6). VERIFIED from [sleep_toxic.md](sleep_toxic.md): the duration is
+rolled on apply (2 + uniform{0,1,2}, i.e. `roll_turns(2, 4)`; the PLA sleep rows carry 2..=4 in
+their fields — `rules::SLEEP_DEFAULT_TURNS` is the fallback when absent); every attempt to act
+advances a counter and the combatant wakes, acting that same turn, when the counter reaches the
+duration; while asleep it does not act (`UnableToAct`); no wake roll per turn, no wake on damage,
+no damage bonus and no snow interaction (all of those belong to drowsiness). The counter only
+advances on the field; it survives a switch (PROBABLE: the game's switch flow is UNKNOWN, like
+toxic's). The known `+2` counter sub-condition (`move 0x30`) is UNKNOWN and ignored. The
+mechanics sit behind `StatusRules::real_sleep` (`game_rules()` enables it). The four PLA moves
+with ailment id 2 — **Sing (47), Lovely Kiss (142), Grass Whistle (320), Relic Song (547)** —
+now apply real sleep (they used to load as drowsiness); the id 6 rows (Sleep Powder, Hypnosis,
+Spore, Dark Void) stay drowsy. **Wicked Torque (897)** loads with its 10 % `slp` secondary.
+Awakening cures both sleep-like states; capture reuses the existing "Drowsiness / Sleep" factor
+(no new capture values); the save format is untouched (sleep saves as drowsy).
+
+Mechanics: `Battle::apply_use_hooks` (HP cost, trap clear, type removal) and
+`Battle::gen9_use_refused` (use conditions) run inside the normal turn; the turn-scoped memory
+(`turn_last_damage`, `turn_raised_stats`) resets every turn, while the failure memory
+(`last_move_failed`, Temper Flare) resets only at battle start and on a change of active
+combatant; `StatusEvent::MoveFailed` and `StatusEvent::LostType` carry the new log lines. Each
+move has its own headless rules test in `battle_engine/gen9.rs`. The sheet's `engine_class`
+column is regenerated by `.tools/extract_gen9_moves.py` (a=55, b=15); the 15 remaining rows
+keep their per-row reason.
+
 ## Items
 
 Item data and the additive `pla::battle_engine::items` module (healing, cures, revive, PP restore, ball items) are documented in [items.md](items.md).

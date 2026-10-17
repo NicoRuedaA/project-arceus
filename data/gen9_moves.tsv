@@ -13,8 +13,9 @@
 #   no engine column. source_diff = stat values where
 #   WikiDex disagrees with Showdown (a WikiDex footnote states the pre-Champions value; each row keeps
 #   the Scarlet/Violet value and records how the disagreement was adjudicated, PROBABLE if undecidable).
-# classification (DERIVED, not data): engine_class a = expressible with the existing pml_move_effects
-#   columns (38 moves), b = needs new engine logic (32 moves); engine_reason lists why.
+# classification (DERIVED, not data): engine_class a = the engine implements it (the classic pml_move_effects
+#   columns or a named hook in battle_engine/gen9.rs; 55 moves), b = needs new engine logic
+#   (15 moves); engine_reason lists why (hook notes are DERIVED from the same source).
 # confidence: EXTERNAL/PROBABLE; not verified against the game. Do not mix with pml_moves rows.
 move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:string	power:u8	accuracy:u8	pp:u8	priority:i32	target:string	flags:string	crit_ratio:u8	min_hits:u8	max_hits:u8	drain_pct:i32	recoil_pct:i32	heal_pct:i32	status:string	volatile_status:string	boosts:string	self_boosts:string	self_other:string	sec_chance:u8	sec_status:string	sec_volatile:string	sec_boosts:string	sec_self_boosts:string	callbacks:string	crash_damage_pct:u8	thaws_target:u8	multi_accuracy:u8	other_props:string	is_nonstandard:string	source_diff:string	engine_class:enum	engine_reason:string
 851	terablast	Tera Blast	Teraexplosión	Normal	Special	80	100	10	0	normal	metronome;mirror;mustpressure;protect	0	0	0	0	0	0											basePowerCallback;onPrepareHit;onModifyType;onModifyMove	0	0	0				b	callback:basePowerCallback;onPrepareHit;onModifyType;onModifyMove
@@ -27,28 +28,28 @@ move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:st
 858	spicyextract	Spicy Extract	Extracto Picante	Grass	Status	0	101	15	0	normal	mirror;protect;reflectable	0	0	0	0	0	0			atk:2,def:-2									0	0	0				a	
 859	spinout	Spin Out	Quemarrueda	Steel	Physical	100	100	5	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0				spe:-2								0	0	0				a	
 860	populationbomb	Population Bomb	Proliferación	Normal	Physical	20	90	10	0	normal	contact;mirror;protect;slicing	0	10	10	0	0	0												0	0	1				a	
-861	icespinner	Ice Spinner	Pirueta Helada	Ice	Physical	80	100	15	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0											onAfterHit;onAfterSubDamage	0	0	0			pp: showdown 15 / wikidex 10 (no footnote; SV PP 15 (PokemonDB): WikiDex 10 is post-Champions; showdown kept)	b	callback:onAfterHit;onAfterSubDamage
+861	icespinner	Ice Spinner	Pirueta Helada	Ice	Physical	80	100	15	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0											onAfterHit;onAfterSubDamage	0	0	0			pp: showdown 15 / wikidex 10 (no footnote; SV PP 15 (PokemonDB): WikiDex 10 is post-Champions; showdown kept)	a	hook:none (terrain clear omitted: Hisui has no terrain)
 862	glaiverush	Glaive Rush	Asalto Espadón	Dragon	Physical	120	100	5	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0					volatileStatus=glaiverush						condition	0	0	0				b	callback:condition; self:volatileStatus=glaiverush
 863	revivalblessing	Revival Blessing	Plegaria Vital	Normal	Status	0	101	1	0	self	heal;nosketch	0	0	0	0	0	0											onTryHit;condition	0	0	0	slotCondition=revivalblessing;selfSwitch=true			b	callback:onTryHit;condition; prop:slotCondition=revivalblessing;selfSwitch=true
 864	saltcure	Salt Cure	Salación/Salazón	Rock	Physical	40	100	15	0	normal	mirror;protect	0	0	0	0	0	0						100		saltcure			condition	0	0	0			pp: showdown 15 / wikidex 10 (no footnote; SV PP 15 (PokemonDB): WikiDex 10 is post-Champions; showdown kept)	a	
 865	tripledive	Triple Dive	Triple Inmersión	Water	Physical	30	95	10	0	normal	contact;metronome;mirror;protect	0	3	3	0	0	0												0	0	0			power: showdown 30 / wikidex 35 (wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept)	a	
-866	mortalspin	Mortal Spin	Giro Mortífero	Poison	Physical	30	100	15	0	allAdjacentFoes	contact;metronome;mirror;protect	0	0	0	0	0	0						100	psn				onAfterHit;onAfterSubDamage	0	0	0				b	callback:onAfterHit;onAfterSubDamage
+866	mortalspin	Mortal Spin	Giro Mortífero	Poison	Physical	30	100	15	0	allAdjacentFoes	contact;metronome;mirror;protect	0	0	0	0	0	0						100	psn				onAfterHit;onAfterSubDamage	0	0	0				a	hook:clear_user_trap
 867	doodle	Doodle	Plagio/Decalcomanía	Normal	Status	0	100	10	0	adjacentFoe		0	0	0	0	0	0											onHit	0	0	0				b	callback:onHit
-868	filletaway	Fillet Away	Fileteo/Deslome	Normal	Status	0	101	10	0	self	snatch	0	0	0	0	0	0			atk:2,spa:2,spe:2								onTry;onTryHit;onHit	0	0	0				b	callback:onTry;onTryHit;onHit
+868	filletaway	Fillet Away	Fileteo/Deslome	Normal	Status	0	101	10	0	self	snatch	0	0	0	0	0	0			atk:2,spa:2,spe:2								onTry;onTryHit;onHit	0	0	0				a	hook:half_hp_cost; self boosts +2 collapse to +1 per PLA rank group
 869	kowtowcleave	Kowtow Cleave	Genufendiente	Dark	Physical	85	101	10	0	normal	contact;metronome;mirror;protect;slicing	0	0	0	0	0	0												0	0	0				a	
-870	flowertrick	Flower Trick	Truco Floral	Grass	Physical	70	101	10	0	normal	metronome;mirror;protect	0	0	0	0	0	0												0	0	0	willCrit=true			b	prop:willCrit=true
+870	flowertrick	Flower Trick	Truco Floral	Grass	Physical	70	101	10	0	normal	metronome;mirror;protect	0	0	0	0	0	0												0	0	0	willCrit=true			a	hook:always_crit (willCrit)
 871	torchsong	Torch Song	Canto Ígneo/Canto Ardiente	Fire	Special	80	100	10	0	normal	bypasssub;metronome;mirror;protect;sound	0	0	0	0	0	0						100				spa:1		0	0	0				a	
 872	aquastep	Aqua Step	Danza Acuática	Water	Physical	80	100	10	0	normal	contact;dance;metronome;mirror;protect	0	0	0	0	0	0						100				spe:1		0	0	0				a	
 873	ragingbull	Raging Bull	Furia Taurina	Normal	Physical	90	100	10	0	normal	contact;mirror;protect	0	0	0	0	0	0											onTryHit;onModifyType	0	0	0				b	callback:onTryHit;onModifyType
 874	makeitrain	Make It Rain	Fiebre Dorada	Steel	Special	120	100	5	0	allAdjacentFoes	mirror;protect	0	0	0	0	0	0				spa:-1								0	0	0			accuracy: showdown 100 / wikidex 95 (wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept)	a	
-875	psyblade	Psyblade	Psicohojas	Psychic	Physical	80	100	15	0	normal	contact;metronome;mirror;protect;slicing	0	0	0	0	0	0											onBasePower	0	0	0				b	callback:onBasePower
+875	psyblade	Psyblade	Psicohojas	Psychic	Physical	80	100	15	0	normal	contact;metronome;mirror;protect;slicing	0	0	0	0	0	0											onBasePower	0	0	0				a	hook:none (terrain boost omitted: Hisui has no terrain)
 876	hydrosteam	Hydro Steam	Hidrovapor	Water	Special	80	100	15	0	normal	defrost;metronome;mirror;protect	0	0	0	0	0	0												0	1	0				a	
-877	ruination	Ruination	Calamidad	Dark	Special	0	90	10	0	normal	mirror;protect	0	0	0	0	0	0											damageCallback	0	0	0				b	callback:damageCallback
+877	ruination	Ruination	Calamidad	Dark	Special	0	90	10	0	normal	mirror;protect	0	0	0	0	0	0											damageCallback	0	0	0				a	hook:half_current_hp_damage
 878	collisioncourse	Collision Course	Nitrochoque	Fighting	Physical	100	100	5	0	normal	contact;mirror;protect	0	0	0	0	0	0											onBasePower	0	0	0				a	
 879	electrodrift	Electro Drift	Electroderrape	Electric	Special	100	100	5	0	normal	contact;mirror;protect	0	0	0	0	0	0											onBasePower	0	0	0				a	
 880	shedtail	Shed Tail	Autotomía	Normal	Status	0	101	10	0	self		0	0	0	0	0	0		substitute									onTryHit;onHit;self.onHit	0	0	0	selfSwitch=shedtail			b	callback:onTryHit;onHit;self.onHit; prop:selfSwitch=shedtail; volatileStatus:substitute
 881	chillyreception	Chilly Reception	Respuesta Fría/Fría Acogida	Ice	Status	0	101	10	0	all		0	0	0	0	0	0											priorityChargeCallback;condition	0	0	0	weather=snowscape;selfSwitch=true			b	callback:priorityChargeCallback;condition; prop:weather=snowscape;selfSwitch=true
-882	tidyup	Tidy Up	Limpieza General	Normal	Status	0	101	10	0	self		0	0	0	0	0	0											onHit	0	0	0				b	callback:onHit
+882	tidyup	Tidy Up	Limpieza General	Normal	Status	0	101	10	0	self		0	0	0	0	0	0				atk:1,spe:1							onHit	0	0	0				a	hook:self boosts (hazards/Substitute not modelled)
 883	snowscape	Snowscape	Paisaje Nevado	Ice	Status	0	101	10	0	all		0	0	0	0	0	0												0	0	0	weather=snowscape			b	prop:weather=snowscape
 884	pounce	Pounce	Brinco	Bug	Physical	50	100	20	0	normal	contact;mirror;protect	0	0	0	0	0	0						100			spe:-1			0	0	0				a	
 885	trailblaze	Trailblaze	Abrecaminos	Grass	Physical	50	100	20	0	normal	contact;mirror;protect	0	0	0	0	0	0						100				spe:1		0	0	0				a	
@@ -58,12 +59,12 @@ move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:st
 889	ragefist	Rage Fist	Puño Furia	Ghost	Physical	50	100	10	0	normal	contact;mirror;protect;punch	0	0	0	0	0	0											basePowerCallback	0	0	0				a	
 890	armorcannon	Armor Cannon	Cañón Armadura	Fire	Special	120	100	5	0	normal	mirror;protect	0	0	0	0	0	0				def:-1,spd:-1								0	0	0				a	
 891	bitterblade	Bitter Blade	Espada Lamento	Fire	Physical	90	100	10	0	normal	contact;heal;metronome;mirror;protect;slicing	0	0	0	50	0	0												0	0	0				a	
-892	doubleshock	Double Shock	Electropalmas	Electric	Physical	120	100	5	0	normal	contact;mirror;protect	0	0	0	0	0	0											onTryMove;self.onHit	0	0	0				b	callback:onTryMove;self.onHit
+892	doubleshock	Double Shock	Electropalmas	Electric	Physical	120	100	5	0	normal	contact;mirror;protect	0	0	0	0	0	0											onTryMove;self.onHit	0	0	0				a	hook:fail without the move's own type; the hit removes it
 893	gigatonhammer	Gigaton Hammer	Martillo Colosal	Steel	Physical	160	100	5	0	normal	cantusetwice;metronome;mirror;protect	0	0	0	0	0	0												0	0	0				a	
-894	comeuppance	Comeuppance	Resarcimiento	Dark	Physical	0	100	10	0	scripted	contact;failmefirst;mirror;protect	0	0	0	0	0	0											damageCallback;onTry;onModifyTarget	0	0	0				b	callback:damageCallback;onTry;onModifyTarget
+894	comeuppance	Comeuppance	Resarcimiento	Dark	Physical	0	100	10	0	scripted	contact;failmefirst;mirror;protect	0	0	0	0	0	0											damageCallback;onTry;onModifyTarget	0	0	0				a	hook:return_last_damage (rounds down)
 895	aquacutter	Aqua Cutter	Corte Acuático/Tajo Acuático	Water	Physical	70	100	20	0	normal	metronome;mirror;protect;slicing	2	0	0	0	0	0												0	0	0				a	
 896	blazingtorque	Blazing Torque	Pirochoque	Fire	Physical	80	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	brn					0	0	0		Unobtainable		a	
-897	wickedtorque	Wicked Torque	Ominochoque	Dark	Physical	80	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						10	slp					0	0	0		Unobtainable		b	secondary.status:slp
+897	wickedtorque	Wicked Torque	Ominochoque	Dark	Physical	80	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						10	slp					0	0	0		Unobtainable		a	sec slp -> real sleep (engine id 2)
 898	noxioustorque	Noxious Torque	Ponzochoque	Poison	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	psn					0	0	0		Unobtainable		a	
 899	combattorque	Combat Torque	Pugnachoque	Fighting	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	par					0	0	0		Unobtainable		a	
 900	magicaltorque	Magical Torque	Feerichoque	Fairy	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30		confusion				0	0	0		Unobtainable		a	
@@ -71,19 +72,19 @@ move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:st
 902	matchagotcha	Matcha Gotcha	Cañón Batidor	Grass	Special	80	90	15	0	allAdjacentFoes	defrost;heal;metronome;mirror;protect	0	0	0	50	0	0						20	brn					0	1	0				a	
 903	syrupbomb	Syrup Bomb	Bomba Caramelo	Grass	Special	60	85	10	0	normal	bullet;metronome;mirror;protect	0	0	0	0	0	0						100		syrupbomb			condition	0	0	0			accuracy: showdown 85 / wikidex 90 (wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept)	a	
 904	ivycudgel	Ivy Cudgel	Garrote Liana	Grass	Physical	100	100	10	0	normal	metronome;mirror;protect	2	0	0	0	0	0											onPrepareHit;onModifyType	0	0	0				b	callback:onPrepareHit;onModifyType
-905	electroshot	Electro Shot	Electrorrayo	Electric	Special	130	100	10	0	normal	charge;metronome;mirror;protect	0	0	0	0	0	0											onTryMove	0	0	0				b	callback:onTryMove
+905	electroshot	Electro Shot	Electrorrayo	Electric	Special	130	100	10	0	normal	charge;metronome;mirror;protect	0	0	0	0	0	0											onTryMove	0	0	0				a	charge (flag) + hook:charge_boost_spa; hook:skip charge in rain
 906	terastarstorm	Tera Starstorm	Teraclúster	Normal	Special	120	100	5	0	normal	failcopycat;failmimic;mirror;noassist;nosketch;protect	0	0	0	0	0	0											onModifyType;onModifyMove	0	0	0				b	callback:onModifyType;onModifyMove
 907	ficklebeam	Fickle Beam	Láser Caprichoso/Láser Veleidoso	Dragon	Special	80	100	5	0	normal	metronome;mirror;protect	0	0	0	0	0	0											onBasePower	0	0	0				a	
 908	burningbulwark	Burning Bulwark	Llama Protectora	Fire	Status	0	101	10	4	self	failcopycat;metronome;noassist	0	0	0	0	0	0		burningbulwark									onPrepareHit;onHit;condition	0	0	0	stallingMove=true			b	callback:onPrepareHit;onHit;condition; prop:stallingMove=true; volatileStatus:burningbulwark
-909	thunderclap	Thunderclap	Relámpago Súbito	Electric	Special	70	100	5	1	normal	metronome;mirror;protect	0	0	0	0	0	0											onTry	0	0	0				b	callback:onTry
+909	thunderclap	Thunderclap	Relámpago Súbito	Electric	Special	70	100	5	1	normal	metronome;mirror;protect	0	0	0	0	0	0											onTry	0	0	0				a	hook:require_target_attack (turn action)
 910	mightycleave	Mighty Cleave	Corte Potente/Filo Potente	Rock	Physical	95	100	5	0	normal	contact;metronome;mirror;slicing	0	0	0	0	0	0												0	0	0				a	
 911	tachyoncutter	Tachyon Cutter	Corte Taquión/Tajo Taquión	Steel	Special	50	101	10	0	normal	metronome;mirror;protect;slicing	0	2	2	0	0	0												0	0	0				a	
 912	hardpress	Hard Press	Prensa Metálica	Steel	Physical	0	100	10	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0											basePowerCallback	0	0	0				a	
 913	dragoncheer	Dragon Cheer	Bramido Dragón	Dragon	Status	0	101	15	0	adjacentAlly	allyanim;bypasssub;metronome	0	0	0	0	0	0		dragoncheer									condition	0	0	0				b	callback:condition; volatileStatus:dragoncheer
-914	alluringvoice	Alluring Voice	Canto Encantador	Fairy	Special	80	100	10	0	normal	bypasssub;metronome;mirror;protect;sound	0	0	0	0	0	0						100					secondary.onHit	0	0	0				b	callback:secondary.onHit
-915	temperflare	Temper Flare	Furia Ardiente/Cólera Ardiente	Fire	Physical	75	100	10	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0											basePowerCallback	0	0	0				b	callback:basePowerCallback
+914	alluringvoice	Alluring Voice	Canto Encantador	Fairy	Special	80	100	10	0	normal	bypasssub;metronome;mirror;protect;sound	0	0	0	0	0	0						100					secondary.onHit	0	0	0				a	hook:confuse_if_target_raised
+915	temperflare	Temper Flare	Furia Ardiente/Cólera Ardiente	Fire	Physical	75	100	10	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0											basePowerCallback	0	0	0				a	
 916	supercellslam	Supercell Slam	Golpe Voltaico/Plancha Voltaica	Electric	Physical	100	95	15	0	normal	contact;metronome;minimize;mirror;protect	0	0	0	0	0	0											onMoveFail	50	0	0				a	
 917	psychicnoise	Psychic Noise	Psicorruido	Psychic	Special	75	100	10	0	normal	bypasssub;metronome;mirror;protect;sound	0	0	0	0	0	0						100		healblock				0	0	0				b	secondary.volatileStatus:healblock
-918	upperhand	Upper Hand	Palma Rauda	Fighting	Physical	65	100	15	3	normal	contact;metronome;mirror;protect	0	0	0	0	0	0						100		flinch			onTry	0	0	0				b	callback:onTry
-919	malignantchain	Malignant Chain	Cadena Virulenta	Poison	Special	100	100	5	0	normal	metronome;mirror;protect	0	0	0	0	0	0						50	tox					0	0	0				b	secondary.status:tox
-920	nihillight	Nihil Light	Luz Devastadora	Dragon	Special	100	100	10	0	allAdjacentFoes	metronome;mirror;protect	0	0	0	0	0	0												0	0	0	ignoreEvasion=true;ignoreDefensive=true;ignoreImmunity={ 'Dragon': true }	Future	power: showdown 100 / wikidex 200 (no footnote; absent from SV (Showdown isNonstandard Future); undecidable -> PROBABLE, showdown kept)	b	prop:ignoreEvasion=true;ignoreDefensive=true;ignoreImmunity={ 'Dragon': true }
+918	upperhand	Upper Hand	Palma Rauda	Fighting	Physical	65	100	15	3	normal	contact;metronome;mirror;protect	0	0	0	0	0	0						100		flinch			onTry	0	0	0				a	hook:require_target_priority (turn action)
+919	malignantchain	Malignant Chain	Cadena Virulenta	Poison	Special	100	100	5	0	normal	metronome;mirror;protect	0	0	0	0	0	0						50	tox					0	0	0				a	sec tox -> badly poisoned (engine id 15)
+920	nihillight	Nihil Light	Luz Devastadora	Dragon	Special	100	100	10	0	allAdjacentFoes	metronome;mirror;protect	0	0	0	0	0	0												0	0	0	ignoreEvasion=true;ignoreDefensive=true;ignoreImmunity={ 'Dragon': true }	Future	power: showdown 100 / wikidex 200 (no footnote; absent from SV (Showdown isNonstandard Future); undecidable -> PROBABLE, showdown kept)	a	hook:ignore evasion + defensive ranks and the own-type immunity

@@ -23,6 +23,12 @@
 //! * Drowsy (VERIFIED, `sleep_duration` switch): no forced sleep; each action fails 33 %
 //!   (66 % in snow); it lasts the move's turn count (see `rules.rs`). The franchise model of
 //!   1..=3 skipped actions was REFUTED.
+//! * Real sleep (VERIFIED, `real_sleep` switch; record id 2, distinct from drowsy id 6): the
+//!   duration is rolled on apply (2..=4 from the move's fields, `SLEEP_DEFAULT_TURNS` when
+//!   absent); every attempt to act advances a counter and the combatant wakes — and acts that
+//!   same turn — when the counter reaches the duration. The counter only advances on the field
+//!   and survives a switch (PROBABLE: the game's switch flow is UNKNOWN). No wake-on-damage,
+//!   no damage bonus and no snow interaction (those belong to drowsiness).
 //! * Paralysis action failure 33 % (VERIFIED, `notes_rates`); poison 1/6, burn 1/12, frostbite
 //!   1/12 of max HP per end of turn, rounded up (VERIFIED). Off keeps the old 25 % / 1/8.
 //! * Order of the pre-action checks (VERIFIED): confusion, then paralysis, then drowsiness.
@@ -50,6 +56,10 @@ pub struct StatusRules {
     pub volatile_statuses: bool,
     /// Drowsy follows the game's rule (33 % fail, 66 % in snow) instead of a 50 % coin flip.
     pub sleep_duration: bool,
+    /// Real sleep (record id 2, distinct from drowsiness): a rolled 2-4 duration and a counter
+    /// of attempts to act that wakes the combatant when it reaches the duration (VERIFIED,
+    /// `sleep_toxic.md`). Off by default like the other recovered rules.
+    pub real_sleep: bool,
     /// Game rates: paralysis 33 %, slip damage 1/6, 1/12, 1/12 rounded up, drowsy defender
     /// x1.33 damage taken, and turn-limited major statuses.
     pub notes_rates: bool,
@@ -65,6 +75,7 @@ impl StatusRules {
         Self {
             volatile_statuses: true,
             sleep_duration: true,
+            real_sleep: true,
             notes_rates: true,
             speed_stages: true,
             stage_multipliers: true,
@@ -101,6 +112,12 @@ pub enum StatusEvent {
     SyrupBombEnded { target: usize },
     /// The target's frostbite was removed by a thawing move (Hydro Steam, Matcha Gotcha).
     Thawed { target: usize },
+    /// The move's own use condition failed (external generation-9 rows: Fillet Away at or
+    /// below half HP, Double Shock without the Electric type, Comeuppance without damage
+    /// taken, Upper Hand / Thunderclap against the wrong planned action).
+    MoveFailed { actor: usize, move_name: String },
+    /// The user lost one of its types (Double Shock's `self.onHit`).
+    LostType { actor: usize, type_name: String },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -132,9 +149,27 @@ pub(super) struct StatusState {
 }
 
 pub(super) enum PreAction {
-    Skip,
+    /// The combatant cannot act this turn. `failed` mirrors Showdown's `BeforeMove` result:
+    /// the paralysis, sleep, confusion and drowsiness handlers return `false` (the turn counts
+    /// as a failed move for the external Temper Flare memory), while the recharge turn returns
+    /// `null` and does not count.
+    Skip { failed: bool },
     /// Proceed; `Some(slot)` = release a stored charge using that move slot.
     Act(Option<usize>),
+}
+
+/// Outcome of the charge/Protect gate ([`Battle::status_pre_move`]).
+pub(super) enum PreMove {
+    /// The move proceeds.
+    Continue,
+    /// The action ends with a `null` move result: the charge turn (Showdown's `onTryMove`
+    /// returns `null`) and a move blocked by the target's Protect (Protect's `onTryHit`
+    /// returns `NOT_FAIL`, so `moveThisTurnResult` stays `null` and Temper Flare does NOT
+    /// double; Bulbapedia states the same for Stomping Tantrum), plus a successful Protect.
+    Ended,
+    /// The action ends in a failed move (Showdown `moveThisTurnResult = false`): the user's
+    /// own Protect lost its chain roll (`PrepareHit` failed). Counts for Temper Flare.
+    Failed,
 }
 
 const PROTECT_EFFECT_IDS: [u16; 5] = [111, 355, 361, 383, 441];
@@ -217,8 +252,23 @@ impl Battle {
         true
     }
 
+    /// Mortal Spin (external row hook `clear_user_trap`): free the user from its own trap.
+    pub(super) fn clear_own_trap(&mut self, actor: usize) {
+        if self.status.vol.get(actor).is_some_and(|v| v.trap.is_some()) {
+            self.vol(actor).trap = None;
+            self.status
+                .events
+                .push(StatusEvent::TrapEnded { target: actor });
+        }
+    }
+
     /// Leaving the field drops volatile conditions and any trap involving the combatant.
     pub(super) fn clear_volatile_on_leave(&mut self, i: usize) {
+        // PROBABLE (series rule; the game's switch flow is UNKNOWN): the badly-poisoned
+        // counter restarts when the combatant leaves the field.
+        if rules::TOXIC_COUNTER_RESETS_ON_SWITCH && i < self.toxic_counter.len() {
+            self.toxic_counter[i] = 0;
+        }
         if self.status.vol.is_empty() {
             return;
         }
@@ -242,7 +292,37 @@ impl Battle {
         if rules.volatile_statuses && self.vol(actor).recharge {
             self.vol(actor).recharge = false;
             self.status.events.push(StatusEvent::Recharging { actor });
-            return PreAction::Skip;
+            // Showdown's `mustrecharge` returns null from `BeforeMove`: no failed move.
+            return PreAction::Skip { failed: false };
+        }
+        // VERIFIED real sleep (record id 2): every attempt to act advances the counter; when it
+        // reaches the rolled duration the combatant wakes and acts that same turn. Only the
+        // field counts (this runs for actors); there is no per-turn wake roll, no damage
+        // multiplier and no snow interaction (that is the drowsy state, id 6). The engine
+        // checks it before confusion; the exact interleave is not in the report (ASSUMED).
+        if rules.real_sleep && self.combatants[actor].status == Some(MajorStatus::Sleep) {
+            let (duration, attempts) = self.sleep.get(actor).copied().flatten().unwrap_or((2, 0));
+            let attempts = attempts.saturating_add(1);
+            if attempts >= duration.max(1) {
+                if self.sleep.len() > actor {
+                    self.sleep[actor] = None;
+                }
+                self.combatants[actor].status = None;
+                self.status
+                    .events
+                    .push(StatusEvent::WokeUp { target: actor });
+            } else {
+                if self.sleep.len() <= actor {
+                    self.sleep.resize(actor + 1, None);
+                }
+                self.sleep[actor] = Some((duration, attempts));
+                events.push(Event::UnableToAct {
+                    actor,
+                    status: MajorStatus::Sleep,
+                });
+                // Showdown's sleep handler returns false from `BeforeMove`.
+                return PreAction::Skip { failed: true };
+            }
         }
         if rules.volatile_statuses && self.vol(actor).confusion > 0 {
             self.vol(actor).confusion -= 1;
@@ -262,7 +342,8 @@ impl Battle {
                     events.push(Event::KnockedOut(actor));
                     self.advance_active_for(actor);
                 }
-                return PreAction::Skip;
+                // Showdown's confusion self-hit returns false from `BeforeMove`.
+                return PreAction::Skip { failed: true };
             }
         }
         if rules.notes_rates
@@ -273,7 +354,8 @@ impl Battle {
                 actor,
                 status: MajorStatus::Paralysis,
             });
-            return PreAction::Skip;
+            // Showdown's paralysis handler returns false from `BeforeMove`.
+            return PreAction::Skip { failed: true };
         }
         if rules.sleep_duration && self.combatants[actor].status == Some(MajorStatus::Drowsy) {
             let fail = if self.weather == BattleWeather::Snow {
@@ -286,7 +368,9 @@ impl Battle {
                     actor,
                     status: MajorStatus::Drowsy,
                 });
-                return PreAction::Skip;
+                // Drowsiness is a PLA-only state; its full-turn failure maps to Showdown's
+                // sleep handler (false), so the turn counts as a failed move (PROBABLE).
+                return PreAction::Skip { failed: true };
             }
         }
         if rules.volatile_statuses {
@@ -311,7 +395,9 @@ impl Battle {
         (base * (85 + rng.below(16)) / 100).max(1)
     }
 
-    /// Charge / Protect handling once the move is chosen. Returns true when the action ends here.
+    /// Charge / Protect handling once the move is chosen. `PreMove::Continue` lets the move
+    /// proceed; the other variants end the action and tell the caller whether it was a failed
+    /// move (the external Temper Flare memory reads that).
     pub(super) fn status_pre_move(
         &mut self,
         actor: usize,
@@ -320,20 +406,29 @@ impl Battle {
         move_name: &str,
         releasing: bool,
         rng: &mut impl BattleRng,
-    ) -> bool {
+    ) -> PreMove {
         if !self.status.rules.volatile_statuses {
-            return false;
+            return PreMove::Continue;
         }
         let Some(fx) = self.effects.as_ref().and_then(|t| t.get(move_name)).cloned() else {
-            return false;
+            return PreMove::Continue;
         };
         if self.effects_flag(move_name, Flag::Charge) && !releasing {
+            // Electro Shot (external row): rain skips the charge turn (and its boost).
+            if fx.hooks.charge_skip_in_rain && self.weather == BattleWeather::Rain {
+                return PreMove::Continue;
+            }
             self.vol(actor).charging = Some(slot);
+            // Electro Shot: the charge turn raises the user's Sp. Atk one rank.
+            if fx.hooks.charge_boost_spa {
+                self.change_stat(actor, Stat::SpecialAttack, 1);
+            }
             self.status.events.push(StatusEvent::Charging {
                 actor,
                 move_name: move_name.to_owned(),
             });
-            return true;
+            // The charge turn is Showdown's `null`: the move is preparing, not failing.
+            return PreMove::Ended;
         }
         if is_protect_move(&fx) {
             let chain = self.vol(actor).protect_chain.min(6);
@@ -344,11 +439,13 @@ impl Battle {
                 v.protect_used_now = true;
                 v.protect_chain = chain + 1;
                 self.status.events.push(StatusEvent::ProtectUp { actor });
-            } else {
-                self.vol(actor).protect_chain = 0;
-                self.status.events.push(StatusEvent::ProtectFailed { actor });
+                // The protect move itself succeeded.
+                return PreMove::Ended;
             }
-            return true;
+            self.vol(actor).protect_chain = 0;
+            self.status.events.push(StatusEvent::ProtectFailed { actor });
+            // A lost chain roll fails the move (Showdown's failed `PrepareHit`).
+            return PreMove::Failed;
         }
         let aimed_at_target = !matches!(fx.target_raw, 7 | 10 | 12 | 13);
         if aimed_at_target
@@ -360,9 +457,12 @@ impl Battle {
                 attacker: actor,
                 move_name: move_name.to_owned(),
             });
-            return true;
+            // Blocked by Protect: Showdown's Protect returns NOT_FAIL, so the attacker's
+            // `moveThisTurnResult` stays null. It is NOT a failed move (no Temper Flare
+            // doubling; the journal states the same).
+            return PreMove::Ended;
         }
-        false
+        PreMove::Continue
     }
 
     fn effects_flag(&self, move_name: &str, flag: Flag) -> bool {
@@ -392,6 +492,19 @@ impl Battle {
     ) {
         if !self.status.rules.volatile_statuses || !self.combatants[target].is_alive() {
             return;
+        }
+        // Alluring Voice (external generation-9 row): its `secondary.onHit` confuses a target
+        // that raised any of its stats this turn.
+        if damaging
+            && fx.hooks.confuse_if_target_raised
+            && self.turn_raised_stats.get(target).copied().unwrap_or(false)
+            && self.vol(target).confusion == 0
+        {
+            let (lo, hi) = data_turns(fx, (2, 5));
+            self.vol(target).confusion = rules::roll_turns(lo, hi, rng);
+            self.status
+                .events
+                .push(StatusEvent::Confused { target });
         }
         let applies = fx.ailment_id != 0 || fx.residual_volatile != ResidualVolatile::None;
         if !applies {
@@ -680,6 +793,91 @@ mod tests {
         assert_eq!(b.confusion_damage(1, &mut rng), base);
         let mut rng = Seq(vec![0], 0); // roll 85 %
         assert_eq!(b.confusion_damage(1, &mut rng), (base * 85 / 100).max(1));
+    }
+
+    /// Real sleep (record id 2, VERIFIED): duration rolled on apply, wake by a counter of
+    /// attempts to act, wakes and acts on the turn the counter reaches the duration.
+    #[test]
+    fn real_sleep_last_its_attempt_counter_and_wakes_acting() {
+        let rules = StatusRules {
+            real_sleep: true,
+            notes_rates: true,
+            ..StatusRules::default()
+        };
+        let mut b = duel(&["tackle"], &["sing"], rules);
+        // Sing hits (accuracy roll 0) and rolls duration 2 (2 + 0).
+        b.play_turn(&[act(1)], &mut Seq(vec![0, 0], 0));
+        assert_eq!(b.combatants[0].status, Some(MajorStatus::Sleep));
+        assert_eq!(b.sleep_state(0), Some((2, 0)));
+        // The end of turn neither advances nor expires the sleep (the counter only advances
+        // when the combatant tries to act).
+        assert!(b.take_rule_events().is_empty());
+        assert_eq!(b.sleep_state(0), Some((2, 0)));
+        // First attempt: still asleep, the action fails and the counter is 1.
+        let pp_before = b.combatants[0].moves[0].pp;
+        let ev = b.play_turn(&[act(0)], &mut Seq(vec![], 0));
+        assert!(ev.iter().any(|e| matches!(
+            e,
+            Event::UnableToAct {
+                actor: 0,
+                status: MajorStatus::Sleep
+            }
+        )));
+        assert_eq!(b.sleep_state(0), Some((2, 1)));
+        assert_eq!(b.combatants[0].moves[0].pp, pp_before, "a lost action spends no PP");
+        assert_eq!(b.combatants[0].hp, b.combatants[0].max_hp, "no damage involved");
+        // Second attempt: wakes and acts that same turn (the tackle lands).
+        let hp = b.combatants[1].hp;
+        let ev = b.play_turn(&[act(0)], &mut Seq(vec![0, 1, 0], 0));
+        assert_eq!(b.combatants[0].status, None);
+        assert_eq!(b.sleep_state(0), None);
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::WokeUp { target: 0 })));
+        assert!(b.combatants[1].hp < hp);
+        assert!(ev.iter().any(|e| matches!(e, Event::UsedMove { actor: 0, .. })));
+    }
+
+    /// Real sleep: a four-turn roll keeps failing for three attempts; the counter KEEPS its
+    /// value when the combatant leaves the field and comes back (PROBABLE: the game's switch
+    /// flow is UNKNOWN; the series keeps it).
+    #[test]
+    fn real_sleep_counter_survives_a_switch() {
+        let d = BattleData::load(root()).unwrap();
+        let mon = |s: &str, m: &[&str]| {
+            let sp = d.species_row(s).unwrap().unwrap();
+            let mv = m.iter().map(|n| d.move_row(n).unwrap().unwrap()).collect();
+            Combatant::from_base(sp, 30, mv)
+        };
+        let mut b = Battle::new(
+            vec![
+                mon("bidoof", &["tackle"]),
+                mon("pikachu", &["sing"]),
+                mon("bidoof", &["tackle"]),
+            ],
+            vec![vec![0, 2], vec![1]],
+            d.type_chart().clone(),
+        )
+        .unwrap();
+        b.set_move_effects(MoveEffectsTable::load(root()).unwrap());
+        b.set_status_rules(StatusRules {
+            real_sleep: true,
+            ..StatusRules::default()
+        });
+        // Sing sleeps the lead with duration 4 (roll 2).
+        b.play_turn(&[act(1)], &mut Seq(vec![0, 2], 0));
+        assert_eq!(b.sleep_state(0), Some((4, 0)));
+        b.play_turn(&[act(0)], &mut Seq(vec![], 0));
+        assert_eq!(b.sleep_state(0), Some((4, 1)));
+        // Switch out and back: the counter is kept.
+        b.switch(0, 2).unwrap();
+        b.switch(0, 0).unwrap();
+        assert_eq!(b.sleep_state(0), Some((4, 1)));
+        // Still asleep after the next attempt (2 < 4).
+        b.play_turn(&[act(0)], &mut Seq(vec![], 0));
+        assert_eq!(b.sleep_state(0), Some((4, 2)));
+        assert_eq!(b.combatants[0].status, Some(MajorStatus::Sleep));
     }
 
     #[test]

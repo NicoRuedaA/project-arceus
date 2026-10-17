@@ -1,0 +1,1586 @@
+# sheet: data/national/types
+# version: 1
+# generator: .tools/build_national_dex.py
+# target: types of every national form entry; type2 empty when single-typed
+# source: EXTERNAL/PROBABLE, not from the game files: PokeAPI data/v2/csv (commit 5ee47a9a9c1229632ec4b473a9c1c53026e005dd, fetched 2026-10-17; BSD-3-Clause) + Pokemon Showdown (MIT, commit 7244fe8e28fa8bc4d0809ae30d183c608b62bb2b) for the Legends: Z-A learnsets. For species/forms with active rows in data/pml_personal.tsv the VERIFIED game sheets always win at load time (crates/pla/src/national.rs).
+# semantics: type names use the engine spelling (Fire, Water, ...); inherited=1 rows copy their parent pokemon row.
+pokemon_id:u32	national_number:u16	form_index:u8	type1:string	type2:string	inherited:bool
+1	1	0	Grass	Poison	0
+2	2	0	Grass	Poison	0
+3	3	0	Grass	Poison	0
+10033	3	1	Grass	Poison	0
+10195	3	2	Grass	Poison	0
+4	4	0	Fire		0
+5	5	0	Fire		0
+6	6	0	Fire	Flying	0
+10034	6	1	Fire	Dragon	0
+10035	6	2	Fire	Flying	0
+10196	6	3	Fire	Flying	0
+7	7	0	Water		0
+8	8	0	Water		0
+9	9	0	Water		0
+10036	9	1	Water		0
+10197	9	2	Water		0
+10	10	0	Bug		0
+11	11	0	Bug		0
+12	12	0	Bug	Flying	0
+10198	12	1	Bug	Flying	0
+13	13	0	Bug	Poison	0
+14	14	0	Bug	Poison	0
+15	15	0	Bug	Poison	0
+10090	15	1	Bug	Poison	0
+16	16	0	Normal	Flying	0
+17	17	0	Normal	Flying	0
+18	18	0	Normal	Flying	0
+10073	18	1	Normal	Flying	0
+19	19	0	Normal		0
+10091	19	1	Dark	Normal	0
+20	20	0	Normal		0
+10092	20	1	Dark	Normal	0
+10093	20	2	Dark	Normal	0
+21	21	0	Normal	Flying	0
+22	22	0	Normal	Flying	0
+23	23	0	Poison		0
+24	24	0	Poison		0
+25	25	0	Electric		0
+10080	25	1	Electric		0
+10081	25	2	Electric		0
+10082	25	3	Electric		0
+10083	25	4	Electric		0
+10084	25	5	Electric		0
+10085	25	6	Electric		0
+10094	25	7	Electric		0
+10095	25	8	Electric		0
+10096	25	9	Electric		0
+10097	25	10	Electric		0
+10098	25	11	Electric		0
+10099	25	12	Electric		0
+10148	25	13	Electric		0
+10158	25	14	Electric		0
+10160	25	15	Electric		0
+10199	25	16	Electric		0
+26	26	0	Electric		0
+10100	26	1	Electric	Psychic	0
+10304	26	2	Electric		0
+10305	26	3	Electric		0
+27	27	0	Ground		0
+10101	27	1	Ice	Steel	0
+28	28	0	Ground		0
+10102	28	1	Ice	Steel	0
+29	29	0	Poison		0
+30	30	0	Poison		0
+31	31	0	Poison	Ground	0
+32	32	0	Poison		0
+33	33	0	Poison		0
+34	34	0	Poison	Ground	0
+35	35	0	Fairy		0
+36	36	0	Fairy		0
+10278	36	1	Fairy	Flying	0
+37	37	0	Fire		0
+10103	37	1	Ice		0
+38	38	0	Fire		0
+10104	38	1	Ice	Fairy	0
+39	39	0	Normal	Fairy	0
+40	40	0	Normal	Fairy	0
+41	41	0	Poison	Flying	0
+42	42	0	Poison	Flying	0
+43	43	0	Grass	Poison	0
+44	44	0	Grass	Poison	0
+45	45	0	Grass	Poison	0
+46	46	0	Bug	Grass	0
+47	47	0	Bug	Grass	0
+48	48	0	Bug	Poison	0
+49	49	0	Bug	Poison	0
+50	50	0	Ground		0
+10105	50	1	Ground	Steel	0
+51	51	0	Ground		0
+10106	51	1	Ground	Steel	0
+52	52	0	Normal		0
+10107	52	1	Dark		0
+10161	52	2	Steel		0
+10200	52	3	Normal		0
+53	53	0	Normal		0
+10108	53	1	Dark		0
+54	54	0	Water		0
+55	55	0	Water		0
+56	56	0	Fighting		0
+57	57	0	Fighting		0
+58	58	0	Fire		0
+10229	58	1	Fire	Rock	0
+59	59	0	Fire		0
+10230	59	1	Fire	Rock	0
+60	60	0	Water		0
+61	61	0	Water		0
+62	62	0	Water	Fighting	0
+63	63	0	Psychic		0
+64	64	0	Psychic		0
+65	65	0	Psychic		0
+10037	65	1	Psychic		0
+66	66	0	Fighting		0
+67	67	0	Fighting		0
+68	68	0	Fighting		0
+10201	68	1	Fighting		0
+69	69	0	Grass	Poison	0
+70	70	0	Grass	Poison	0
+71	71	0	Grass	Poison	0
+10279	71	1	Grass	Poison	0
+72	72	0	Water	Poison	0
+73	73	0	Water	Poison	0
+74	74	0	Rock	Ground	0
+10109	74	1	Rock	Electric	0
+75	75	0	Rock	Ground	0
+10110	75	1	Rock	Electric	0
+76	76	0	Rock	Ground	0
+10111	76	1	Rock	Electric	0
+77	77	0	Fire		0
+10162	77	1	Psychic		0
+78	78	0	Fire		0
+10163	78	1	Psychic	Fairy	0
+79	79	0	Water	Psychic	0
+10164	79	1	Psychic		0
+80	80	0	Water	Psychic	0
+10071	80	1	Water	Psychic	0
+10165	80	2	Poison	Psychic	0
+81	81	0	Electric	Steel	0
+82	82	0	Electric	Steel	0
+83	83	0	Normal	Flying	0
+10166	83	1	Fighting		0
+84	84	0	Normal	Flying	0
+85	85	0	Normal	Flying	0
+86	86	0	Water		0
+87	87	0	Water	Ice	0
+88	88	0	Poison		0
+10112	88	1	Poison	Dark	0
+89	89	0	Poison		0
+10113	89	1	Poison	Dark	0
+90	90	0	Water		0
+91	91	0	Water	Ice	0
+92	92	0	Ghost	Poison	0
+93	93	0	Ghost	Poison	0
+94	94	0	Ghost	Poison	0
+10038	94	1	Ghost	Poison	0
+10202	94	2	Ghost	Poison	0
+95	95	0	Rock	Ground	0
+96	96	0	Psychic		0
+97	97	0	Psychic		0
+98	98	0	Water		0
+99	99	0	Water		0
+10203	99	1	Water		0
+100	100	0	Electric		0
+10231	100	1	Electric	Grass	0
+101	101	0	Electric		0
+10232	101	1	Electric	Grass	0
+102	102	0	Grass	Psychic	0
+103	103	0	Grass	Psychic	0
+10114	103	1	Grass	Dragon	0
+104	104	0	Ground		0
+105	105	0	Ground		0
+10115	105	1	Fire	Ghost	0
+10149	105	2	Fire	Ghost	0
+106	106	0	Fighting		0
+107	107	0	Fighting		0
+108	108	0	Normal		0
+109	109	0	Poison		0
+110	110	0	Poison		0
+10167	110	1	Poison	Fairy	0
+111	111	0	Ground	Rock	0
+112	112	0	Ground	Rock	0
+113	113	0	Normal		0
+114	114	0	Grass		0
+115	115	0	Normal		0
+10039	115	1	Normal		0
+116	116	0	Water		0
+117	117	0	Water		0
+118	118	0	Water		0
+119	119	0	Water		0
+120	120	0	Water		0
+121	121	0	Water	Psychic	0
+10280	121	1	Water	Psychic	0
+122	122	0	Psychic	Fairy	0
+10168	122	1	Ice	Psychic	0
+123	123	0	Bug	Flying	0
+124	124	0	Ice	Psychic	0
+125	125	0	Electric		0
+126	126	0	Fire		0
+127	127	0	Bug		0
+10040	127	1	Bug	Flying	0
+128	128	0	Normal		0
+10250	128	1	Fighting		0
+10251	128	2	Fighting	Fire	0
+10252	128	3	Fighting	Water	0
+129	129	0	Water		0
+130	130	0	Water	Flying	0
+10041	130	1	Water	Dark	0
+131	131	0	Water	Ice	0
+10204	131	1	Water	Ice	0
+132	132	0	Normal		0
+133	133	0	Normal		0
+10159	133	1	Normal		0
+10205	133	2	Normal		0
+134	134	0	Water		0
+135	135	0	Electric		0
+136	136	0	Fire		0
+137	137	0	Normal		0
+138	138	0	Rock	Water	0
+139	139	0	Rock	Water	0
+140	140	0	Rock	Water	0
+141	141	0	Rock	Water	0
+142	142	0	Rock	Flying	0
+10042	142	1	Rock	Flying	0
+143	143	0	Normal		0
+10206	143	1	Normal		0
+144	144	0	Ice	Flying	0
+10169	144	1	Psychic	Flying	0
+145	145	0	Electric	Flying	0
+10170	145	1	Fighting	Flying	0
+146	146	0	Fire	Flying	0
+10171	146	1	Dark	Flying	0
+147	147	0	Dragon		0
+148	148	0	Dragon		0
+149	149	0	Dragon	Flying	0
+10281	149	1	Dragon	Flying	0
+150	150	0	Psychic		0
+10043	150	1	Psychic	Fighting	0
+10044	150	2	Psychic		0
+151	151	0	Psychic		0
+152	152	0	Grass		0
+153	153	0	Grass		0
+154	154	0	Grass		0
+10282	154	1	Grass	Fairy	0
+155	155	0	Fire		0
+156	156	0	Fire		0
+157	157	0	Fire		0
+10233	157	1	Fire	Ghost	0
+158	158	0	Water		0
+159	159	0	Water		0
+160	160	0	Water		0
+10283	160	1	Water	Dragon	0
+161	161	0	Normal		0
+162	162	0	Normal		0
+163	163	0	Normal	Flying	0
+164	164	0	Normal	Flying	0
+165	165	0	Bug	Flying	0
+166	166	0	Bug	Flying	0
+167	167	0	Bug	Poison	0
+168	168	0	Bug	Poison	0
+169	169	0	Poison	Flying	0
+170	170	0	Water	Electric	0
+171	171	0	Water	Electric	0
+172	172	0	Electric		0
+172	172	1	Electric		1
+173	173	0	Fairy		0
+174	174	0	Normal	Fairy	0
+175	175	0	Fairy		0
+176	176	0	Fairy	Flying	0
+177	177	0	Psychic	Flying	0
+178	178	0	Psychic	Flying	0
+179	179	0	Electric		0
+180	180	0	Electric		0
+181	181	0	Electric		0
+10045	181	1	Electric	Dragon	0
+182	182	0	Grass		0
+183	183	0	Water	Fairy	0
+184	184	0	Water	Fairy	0
+185	185	0	Rock		0
+186	186	0	Water		0
+187	187	0	Grass	Flying	0
+188	188	0	Grass	Flying	0
+189	189	0	Grass	Flying	0
+190	190	0	Normal		0
+191	191	0	Grass		0
+192	192	0	Grass		0
+193	193	0	Bug	Flying	0
+194	194	0	Water	Ground	0
+10253	194	1	Poison	Ground	0
+195	195	0	Water	Ground	0
+196	196	0	Psychic		0
+197	197	0	Dark		0
+198	198	0	Dark	Flying	0
+199	199	0	Water	Psychic	0
+10172	199	1	Poison	Psychic	0
+200	200	0	Ghost		0
+201	201	0	Psychic		0
+201	201	1	Psychic		1
+201	201	2	Psychic		1
+201	201	3	Psychic		1
+201	201	4	Psychic		1
+201	201	5	Psychic		1
+201	201	6	Psychic		1
+201	201	7	Psychic		1
+201	201	8	Psychic		1
+201	201	9	Psychic		1
+201	201	10	Psychic		1
+201	201	11	Psychic		1
+201	201	12	Psychic		1
+201	201	13	Psychic		1
+201	201	14	Psychic		1
+201	201	15	Psychic		1
+201	201	16	Psychic		1
+201	201	17	Psychic		1
+201	201	18	Psychic		1
+201	201	19	Psychic		1
+201	201	20	Psychic		1
+201	201	21	Psychic		1
+201	201	22	Psychic		1
+201	201	23	Psychic		1
+201	201	24	Psychic		1
+201	201	25	Psychic		1
+201	201	26	Psychic		1
+201	201	27	Psychic		1
+202	202	0	Psychic		0
+203	203	0	Normal	Psychic	0
+204	204	0	Bug		0
+205	205	0	Bug	Steel	0
+206	206	0	Normal		0
+207	207	0	Ground	Flying	0
+208	208	0	Steel	Ground	0
+10072	208	1	Steel	Ground	0
+209	209	0	Fairy		0
+210	210	0	Fairy		0
+211	211	0	Water	Poison	0
+10234	211	1	Dark	Poison	0
+212	212	0	Bug	Steel	0
+10046	212	1	Bug	Steel	0
+213	213	0	Bug	Rock	0
+214	214	0	Bug	Fighting	0
+10047	214	1	Bug	Fighting	0
+215	215	0	Dark	Ice	0
+10235	215	1	Fighting	Poison	0
+216	216	0	Normal		0
+217	217	0	Normal		0
+218	218	0	Fire		0
+219	219	0	Fire	Rock	0
+220	220	0	Ice	Ground	0
+221	221	0	Ice	Ground	0
+222	222	0	Water	Rock	0
+10173	222	1	Ghost		0
+223	223	0	Water		0
+224	224	0	Water		0
+225	225	0	Ice	Flying	0
+226	226	0	Water	Flying	0
+227	227	0	Steel	Flying	0
+10284	227	1	Steel	Flying	0
+228	228	0	Dark	Fire	0
+229	229	0	Dark	Fire	0
+10048	229	1	Dark	Fire	0
+230	230	0	Water	Dragon	0
+231	231	0	Ground		0
+232	232	0	Ground		0
+233	233	0	Normal		0
+234	234	0	Normal		0
+235	235	0	Normal		0
+236	236	0	Fighting		0
+237	237	0	Fighting		0
+238	238	0	Ice	Psychic	0
+239	239	0	Electric		0
+240	240	0	Fire		0
+241	241	0	Normal		0
+242	242	0	Normal		0
+243	243	0	Electric		0
+244	244	0	Fire		0
+245	245	0	Water		0
+246	246	0	Rock	Ground	0
+247	247	0	Rock	Ground	0
+248	248	0	Rock	Dark	0
+10049	248	1	Rock	Dark	0
+249	249	0	Psychic	Flying	0
+250	250	0	Fire	Flying	0
+251	251	0	Psychic	Grass	0
+252	252	0	Grass		0
+253	253	0	Grass		0
+254	254	0	Grass		0
+10065	254	1	Grass	Dragon	0
+255	255	0	Fire		0
+256	256	0	Fire	Fighting	0
+257	257	0	Fire	Fighting	0
+10050	257	1	Fire	Fighting	0
+258	258	0	Water		0
+259	259	0	Water	Ground	0
+260	260	0	Water	Ground	0
+10064	260	1	Water	Ground	0
+261	261	0	Dark		0
+262	262	0	Dark		0
+263	263	0	Normal		0
+10174	263	1	Dark	Normal	0
+264	264	0	Normal		0
+10175	264	1	Dark	Normal	0
+265	265	0	Bug		0
+266	266	0	Bug		0
+267	267	0	Bug	Flying	0
+268	268	0	Bug		0
+269	269	0	Bug	Poison	0
+270	270	0	Water	Grass	0
+271	271	0	Water	Grass	0
+272	272	0	Water	Grass	0
+273	273	0	Grass		0
+274	274	0	Grass	Dark	0
+275	275	0	Grass	Dark	0
+276	276	0	Normal	Flying	0
+277	277	0	Normal	Flying	0
+278	278	0	Water	Flying	0
+279	279	0	Water	Flying	0
+280	280	0	Psychic	Fairy	0
+281	281	0	Psychic	Fairy	0
+282	282	0	Psychic	Fairy	0
+10051	282	1	Psychic	Fairy	0
+283	283	0	Bug	Water	0
+284	284	0	Bug	Flying	0
+285	285	0	Grass		0
+286	286	0	Grass	Fighting	0
+287	287	0	Normal		0
+288	288	0	Normal		0
+289	289	0	Normal		0
+290	290	0	Bug	Ground	0
+291	291	0	Bug	Flying	0
+292	292	0	Bug	Ghost	0
+293	293	0	Normal		0
+294	294	0	Normal		0
+295	295	0	Normal		0
+296	296	0	Fighting		0
+297	297	0	Fighting		0
+298	298	0	Normal	Fairy	0
+299	299	0	Rock		0
+300	300	0	Normal		0
+301	301	0	Normal		0
+302	302	0	Dark	Ghost	0
+10066	302	1	Dark	Ghost	0
+303	303	0	Steel	Fairy	0
+10052	303	1	Steel	Fairy	0
+304	304	0	Steel	Rock	0
+305	305	0	Steel	Rock	0
+306	306	0	Steel	Rock	0
+10053	306	1	Steel		0
+307	307	0	Fighting	Psychic	0
+308	308	0	Fighting	Psychic	0
+10054	308	1	Fighting	Psychic	0
+309	309	0	Electric		0
+310	310	0	Electric		0
+10055	310	1	Electric		0
+311	311	0	Electric		0
+312	312	0	Electric		0
+313	313	0	Bug		0
+314	314	0	Bug		0
+315	315	0	Grass	Poison	0
+316	316	0	Poison		0
+317	317	0	Poison		0
+318	318	0	Water	Dark	0
+319	319	0	Water	Dark	0
+10070	319	1	Water	Dark	0
+320	320	0	Water		0
+321	321	0	Water		0
+322	322	0	Fire	Ground	0
+323	323	0	Fire	Ground	0
+10087	323	1	Fire	Ground	0
+324	324	0	Fire		0
+325	325	0	Psychic		0
+326	326	0	Psychic		0
+327	327	0	Normal		0
+328	328	0	Ground		0
+329	329	0	Ground	Dragon	0
+330	330	0	Ground	Dragon	0
+331	331	0	Grass		0
+332	332	0	Grass	Dark	0
+333	333	0	Normal	Flying	0
+334	334	0	Dragon	Flying	0
+10067	334	1	Dragon	Fairy	0
+335	335	0	Normal		0
+336	336	0	Poison		0
+337	337	0	Rock	Psychic	0
+338	338	0	Rock	Psychic	0
+339	339	0	Water	Ground	0
+340	340	0	Water	Ground	0
+341	341	0	Water		0
+342	342	0	Water	Dark	0
+343	343	0	Ground	Psychic	0
+344	344	0	Ground	Psychic	0
+345	345	0	Rock	Grass	0
+346	346	0	Rock	Grass	0
+347	347	0	Rock	Bug	0
+348	348	0	Rock	Bug	0
+349	349	0	Water		0
+350	350	0	Water		0
+351	351	0	Normal		0
+10013	351	1	Fire		0
+10014	351	2	Water		0
+10015	351	3	Ice		0
+352	352	0	Normal		0
+353	353	0	Ghost		0
+354	354	0	Ghost		0
+10056	354	1	Ghost		0
+355	355	0	Ghost		0
+356	356	0	Ghost		0
+357	357	0	Grass	Flying	0
+358	358	0	Psychic		0
+10306	358	1	Psychic	Steel	0
+359	359	0	Dark		0
+10057	359	1	Dark		0
+10307	359	2	Dark	Ghost	0
+360	360	0	Psychic		0
+361	361	0	Ice		0
+362	362	0	Ice		0
+10074	362	1	Ice		0
+363	363	0	Ice	Water	0
+364	364	0	Ice	Water	0
+365	365	0	Ice	Water	0
+366	366	0	Water		0
+367	367	0	Water		0
+368	368	0	Water		0
+369	369	0	Water	Rock	0
+370	370	0	Water		0
+371	371	0	Dragon		0
+372	372	0	Dragon		0
+373	373	0	Dragon	Flying	0
+10089	373	1	Dragon	Flying	0
+374	374	0	Steel	Psychic	0
+375	375	0	Steel	Psychic	0
+376	376	0	Steel	Psychic	0
+10076	376	1	Steel	Psychic	0
+377	377	0	Rock		0
+378	378	0	Ice		0
+379	379	0	Steel		0
+380	380	0	Dragon	Psychic	0
+10062	380	1	Dragon	Psychic	0
+381	381	0	Dragon	Psychic	0
+10063	381	1	Dragon	Psychic	0
+382	382	0	Water		0
+10077	382	1	Water		0
+383	383	0	Ground		0
+10078	383	1	Ground	Fire	0
+384	384	0	Dragon	Flying	0
+10079	384	1	Dragon	Flying	0
+385	385	0	Steel	Psychic	0
+386	386	0	Psychic		0
+10001	386	1	Psychic		0
+10002	386	2	Psychic		0
+10003	386	3	Psychic		0
+387	387	0	Grass		0
+388	388	0	Grass		0
+389	389	0	Grass	Ground	0
+390	390	0	Fire		0
+391	391	0	Fire	Fighting	0
+392	392	0	Fire	Fighting	0
+393	393	0	Water		0
+394	394	0	Water		0
+395	395	0	Water	Steel	0
+396	396	0	Normal	Flying	0
+397	397	0	Normal	Flying	0
+398	398	0	Normal	Flying	0
+10308	398	1	Fighting	Flying	0
+399	399	0	Normal		0
+400	400	0	Normal	Water	0
+401	401	0	Bug		0
+402	402	0	Bug		0
+403	403	0	Electric		0
+404	404	0	Electric		0
+405	405	0	Electric		0
+406	406	0	Grass	Poison	0
+407	407	0	Grass	Poison	0
+408	408	0	Rock		0
+409	409	0	Rock		0
+410	410	0	Rock	Steel	0
+411	411	0	Rock	Steel	0
+412	412	0	Bug		0
+412	412	1	Bug		1
+412	412	2	Bug		1
+413	413	0	Bug	Grass	0
+10004	413	1	Bug	Ground	0
+10005	413	2	Bug	Steel	0
+414	414	0	Bug	Flying	0
+414	414	1	Bug	Flying	1
+414	414	2	Bug	Flying	1
+415	415	0	Bug	Flying	0
+416	416	0	Bug	Flying	0
+417	417	0	Electric		0
+418	418	0	Water		0
+419	419	0	Water		0
+420	420	0	Grass		0
+421	421	0	Grass		0
+421	421	1	Grass		1
+422	422	0	Water		0
+422	422	1	Water		1
+423	423	0	Water	Ground	0
+423	423	1	Water	Ground	1
+424	424	0	Normal		0
+425	425	0	Ghost	Flying	0
+426	426	0	Ghost	Flying	0
+427	427	0	Normal		0
+428	428	0	Normal		0
+10088	428	1	Normal	Fighting	0
+429	429	0	Ghost		0
+430	430	0	Dark	Flying	0
+431	431	0	Normal		0
+432	432	0	Normal		0
+433	433	0	Psychic		0
+434	434	0	Poison	Dark	0
+435	435	0	Poison	Dark	0
+436	436	0	Steel	Psychic	0
+437	437	0	Steel	Psychic	0
+438	438	0	Rock		0
+439	439	0	Psychic	Fairy	0
+440	440	0	Normal		0
+441	441	0	Normal	Flying	0
+442	442	0	Ghost	Dark	0
+443	443	0	Dragon	Ground	0
+444	444	0	Dragon	Ground	0
+445	445	0	Dragon	Ground	0
+10058	445	1	Dragon	Ground	0
+10309	445	2	Dragon		0
+446	446	0	Normal		0
+447	447	0	Fighting		0
+448	448	0	Fighting	Steel	0
+10059	448	1	Fighting	Steel	0
+10310	448	2	Fighting	Steel	0
+449	449	0	Ground		0
+450	450	0	Ground		0
+451	451	0	Poison	Bug	0
+452	452	0	Poison	Dark	0
+453	453	0	Poison	Fighting	0
+454	454	0	Poison	Fighting	0
+455	455	0	Grass		0
+456	456	0	Water		0
+457	457	0	Water		0
+458	458	0	Water	Flying	0
+459	459	0	Grass	Ice	0
+460	460	0	Grass	Ice	0
+10060	460	1	Grass	Ice	0
+461	461	0	Dark	Ice	0
+462	462	0	Electric	Steel	0
+463	463	0	Normal		0
+464	464	0	Ground	Rock	0
+465	465	0	Grass		0
+466	466	0	Electric		0
+467	467	0	Fire		0
+468	468	0	Fairy	Flying	0
+469	469	0	Bug	Flying	0
+470	470	0	Grass		0
+471	471	0	Ice		0
+472	472	0	Ground	Flying	0
+473	473	0	Ice	Ground	0
+474	474	0	Normal		0
+475	475	0	Psychic	Fighting	0
+10068	475	1	Psychic	Fighting	0
+476	476	0	Rock	Steel	0
+477	477	0	Ghost		0
+478	478	0	Ice	Ghost	0
+10285	478	1	Ice	Ghost	0
+479	479	0	Electric	Ghost	0
+10008	479	1	Electric	Fire	0
+10009	479	2	Electric	Water	0
+10010	479	3	Electric	Ice	0
+10011	479	4	Electric	Flying	0
+10012	479	5	Electric	Grass	0
+480	480	0	Psychic		0
+481	481	0	Psychic		0
+482	482	0	Psychic		0
+483	483	0	Steel	Dragon	0
+10245	483	1	Steel	Dragon	0
+484	484	0	Water	Dragon	0
+10246	484	1	Water	Dragon	0
+485	485	0	Fire	Steel	0
+10311	485	1	Fire	Steel	0
+486	486	0	Normal		0
+487	487	0	Ghost	Dragon	0
+10007	487	1	Ghost	Dragon	0
+488	488	0	Psychic		0
+489	489	0	Water		0
+490	490	0	Water		0
+491	491	0	Dark		0
+10312	491	1	Dark		0
+492	492	0	Grass		0
+10006	492	1	Grass	Flying	0
+493	493	0	Normal		0
+493	493	1	Normal		1
+493	493	2	Normal		1
+493	493	3	Normal		1
+493	493	4	Normal		1
+493	493	5	Normal		1
+493	493	6	Normal		1
+493	493	7	Normal		1
+493	493	8	Normal		1
+493	493	9	Normal		1
+493	493	10	Normal		1
+493	493	11	Normal		1
+493	493	12	Normal		1
+493	493	13	Normal		1
+493	493	14	Normal		1
+493	493	15	Normal		1
+493	493	16	Normal		1
+493	493	17	Normal		1
+493	493	18	Normal		1
+494	494	0	Psychic	Fire	0
+495	495	0	Grass		0
+496	496	0	Grass		0
+497	497	0	Grass		0
+498	498	0	Fire		0
+499	499	0	Fire	Fighting	0
+500	500	0	Fire	Fighting	0
+10286	500	1	Fire	Fighting	0
+501	501	0	Water		0
+502	502	0	Water		0
+503	503	0	Water		0
+10236	503	1	Water	Dark	0
+504	504	0	Normal		0
+505	505	0	Normal		0
+506	506	0	Normal		0
+507	507	0	Normal		0
+508	508	0	Normal		0
+509	509	0	Dark		0
+510	510	0	Dark		0
+511	511	0	Grass		0
+512	512	0	Grass		0
+513	513	0	Fire		0
+514	514	0	Fire		0
+515	515	0	Water		0
+516	516	0	Water		0
+517	517	0	Psychic		0
+518	518	0	Psychic		0
+519	519	0	Normal	Flying	0
+520	520	0	Normal	Flying	0
+521	521	0	Normal	Flying	0
+522	522	0	Electric		0
+523	523	0	Electric		0
+524	524	0	Rock		0
+525	525	0	Rock		0
+526	526	0	Rock		0
+527	527	0	Psychic	Flying	0
+528	528	0	Psychic	Flying	0
+529	529	0	Ground		0
+530	530	0	Ground	Steel	0
+10287	530	1	Ground	Steel	0
+531	531	0	Normal		0
+10069	531	1	Normal	Fairy	0
+532	532	0	Fighting		0
+533	533	0	Fighting		0
+534	534	0	Fighting		0
+535	535	0	Water		0
+536	536	0	Water	Ground	0
+537	537	0	Water	Ground	0
+538	538	0	Fighting		0
+539	539	0	Fighting		0
+540	540	0	Bug	Grass	0
+541	541	0	Bug	Grass	0
+542	542	0	Bug	Grass	0
+543	543	0	Bug	Poison	0
+544	544	0	Bug	Poison	0
+545	545	0	Bug	Poison	0
+10288	545	1	Bug	Poison	0
+546	546	0	Grass	Fairy	0
+547	547	0	Grass	Fairy	0
+548	548	0	Grass		0
+549	549	0	Grass		0
+10237	549	1	Grass	Fighting	0
+550	550	0	Water		0
+10016	550	1	Water		0
+10247	550	2	Water		0
+551	551	0	Ground	Dark	0
+552	552	0	Ground	Dark	0
+553	553	0	Ground	Dark	0
+554	554	0	Fire		0
+10176	554	1	Ice		0
+555	555	0	Fire		0
+10017	555	1	Fire	Psychic	0
+10177	555	2	Ice		0
+10178	555	3	Ice	Fire	0
+556	556	0	Grass		0
+557	557	0	Bug	Rock	0
+558	558	0	Bug	Rock	0
+559	559	0	Dark	Fighting	0
+560	560	0	Dark	Fighting	0
+10289	560	1	Dark	Fighting	0
+561	561	0	Psychic	Flying	0
+562	562	0	Ghost		0
+10179	562	1	Ground	Ghost	0
+563	563	0	Ghost		0
+564	564	0	Water	Rock	0
+565	565	0	Water	Rock	0
+566	566	0	Rock	Flying	0
+567	567	0	Rock	Flying	0
+568	568	0	Poison		0
+569	569	0	Poison		0
+10207	569	1	Poison		0
+570	570	0	Dark		0
+10238	570	1	Normal	Ghost	0
+571	571	0	Dark		0
+10239	571	1	Normal	Ghost	0
+572	572	0	Normal		0
+573	573	0	Normal		0
+574	574	0	Psychic		0
+575	575	0	Psychic		0
+576	576	0	Psychic		0
+577	577	0	Psychic		0
+578	578	0	Psychic		0
+579	579	0	Psychic		0
+580	580	0	Water	Flying	0
+581	581	0	Water	Flying	0
+582	582	0	Ice		0
+583	583	0	Ice		0
+584	584	0	Ice		0
+585	585	0	Normal	Grass	0
+585	585	1	Normal	Grass	1
+585	585	2	Normal	Grass	1
+585	585	3	Normal	Grass	1
+586	586	0	Normal	Grass	0
+586	586	1	Normal	Grass	1
+586	586	2	Normal	Grass	1
+586	586	3	Normal	Grass	1
+587	587	0	Electric	Flying	0
+588	588	0	Bug		0
+589	589	0	Bug	Steel	0
+590	590	0	Grass	Poison	0
+591	591	0	Grass	Poison	0
+592	592	0	Water	Ghost	0
+592	592	1	Water	Ghost	1
+593	593	0	Water	Ghost	0
+593	593	1	Water	Ghost	1
+594	594	0	Water		0
+595	595	0	Bug	Electric	0
+596	596	0	Bug	Electric	0
+597	597	0	Grass	Steel	0
+598	598	0	Grass	Steel	0
+599	599	0	Steel		0
+600	600	0	Steel		0
+601	601	0	Steel		0
+602	602	0	Electric		0
+603	603	0	Electric		0
+604	604	0	Electric		0
+10290	604	1	Electric		0
+605	605	0	Psychic		0
+606	606	0	Psychic		0
+607	607	0	Ghost	Fire	0
+608	608	0	Ghost	Fire	0
+609	609	0	Ghost	Fire	0
+10291	609	1	Ghost	Fire	0
+610	610	0	Dragon		0
+611	611	0	Dragon		0
+612	612	0	Dragon		0
+613	613	0	Ice		0
+614	614	0	Ice		0
+615	615	0	Ice		0
+616	616	0	Bug		0
+617	617	0	Bug		0
+618	618	0	Ground	Electric	0
+10180	618	1	Ground	Steel	0
+619	619	0	Fighting		0
+620	620	0	Fighting		0
+621	621	0	Dragon		0
+622	622	0	Ground	Ghost	0
+623	623	0	Ground	Ghost	0
+10313	623	1	Ground	Ghost	0
+624	624	0	Dark	Steel	0
+625	625	0	Dark	Steel	0
+626	626	0	Normal		0
+627	627	0	Normal	Flying	0
+628	628	0	Normal	Flying	0
+10240	628	1	Psychic	Flying	0
+629	629	0	Dark	Flying	0
+630	630	0	Dark	Flying	0
+631	631	0	Fire		0
+632	632	0	Bug	Steel	0
+633	633	0	Dark	Dragon	0
+634	634	0	Dark	Dragon	0
+635	635	0	Dark	Dragon	0
+636	636	0	Bug	Fire	0
+637	637	0	Bug	Fire	0
+638	638	0	Steel	Fighting	0
+639	639	0	Rock	Fighting	0
+640	640	0	Grass	Fighting	0
+641	641	0	Flying		0
+10019	641	1	Flying		0
+642	642	0	Electric	Flying	0
+10020	642	1	Electric	Flying	0
+643	643	0	Dragon	Fire	0
+644	644	0	Dragon	Electric	0
+645	645	0	Ground	Flying	0
+10021	645	1	Ground	Flying	0
+646	646	0	Dragon	Ice	0
+10022	646	1	Dragon	Ice	0
+10023	646	2	Dragon	Ice	0
+647	647	0	Water	Fighting	0
+10024	647	1	Water	Fighting	0
+648	648	0	Normal	Psychic	0
+10018	648	1	Normal	Fighting	0
+649	649	0	Bug	Steel	0
+649	649	1	Bug	Steel	1
+649	649	2	Bug	Steel	1
+649	649	3	Bug	Steel	1
+649	649	4	Bug	Steel	1
+650	650	0	Grass		0
+651	651	0	Grass		0
+652	652	0	Grass	Fighting	0
+10292	652	1	Grass	Fighting	0
+653	653	0	Fire		0
+654	654	0	Fire		0
+655	655	0	Fire	Psychic	0
+10293	655	1	Fire	Psychic	0
+656	656	0	Water		0
+657	657	0	Water		0
+658	658	0	Water	Dark	0
+10116	658	1	Water	Dark	0
+10117	658	2	Water	Dark	0
+10294	658	3	Water	Dark	0
+659	659	0	Normal		0
+660	660	0	Normal	Ground	0
+661	661	0	Normal	Flying	0
+662	662	0	Fire	Flying	0
+663	663	0	Fire	Flying	0
+664	664	0	Bug		0
+664	664	1	Bug		1
+664	664	2	Bug		1
+664	664	3	Bug		1
+664	664	4	Bug		1
+664	664	5	Bug		1
+664	664	6	Bug		1
+664	664	7	Bug		1
+664	664	8	Bug		1
+664	664	9	Bug		1
+664	664	10	Bug		1
+664	664	11	Bug		1
+664	664	12	Bug		1
+664	664	13	Bug		1
+664	664	14	Bug		1
+664	664	15	Bug		1
+664	664	16	Bug		1
+664	664	17	Bug		1
+664	664	18	Bug		1
+664	664	19	Bug		1
+665	665	0	Bug		0
+665	665	1	Bug		1
+665	665	2	Bug		1
+665	665	3	Bug		1
+665	665	4	Bug		1
+665	665	5	Bug		1
+665	665	6	Bug		1
+665	665	7	Bug		1
+665	665	8	Bug		1
+665	665	9	Bug		1
+665	665	10	Bug		1
+665	665	11	Bug		1
+665	665	12	Bug		1
+665	665	13	Bug		1
+665	665	14	Bug		1
+665	665	15	Bug		1
+665	665	16	Bug		1
+665	665	17	Bug		1
+665	665	18	Bug		1
+665	665	19	Bug		1
+666	666	0	Bug	Flying	0
+666	666	1	Bug	Flying	1
+666	666	2	Bug	Flying	1
+666	666	3	Bug	Flying	1
+666	666	4	Bug	Flying	1
+666	666	5	Bug	Flying	1
+666	666	6	Bug	Flying	1
+666	666	7	Bug	Flying	1
+666	666	8	Bug	Flying	1
+666	666	9	Bug	Flying	1
+666	666	10	Bug	Flying	1
+666	666	11	Bug	Flying	1
+666	666	12	Bug	Flying	1
+666	666	13	Bug	Flying	1
+666	666	14	Bug	Flying	1
+666	666	15	Bug	Flying	1
+666	666	16	Bug	Flying	1
+666	666	17	Bug	Flying	1
+666	666	18	Bug	Flying	1
+666	666	19	Bug	Flying	1
+667	667	0	Fire	Normal	0
+668	668	0	Fire	Normal	0
+10295	668	1	Fire	Normal	0
+668	668	2	Fire	Normal	1
+669	669	0	Fairy		0
+669	669	1	Fairy		1
+669	669	2	Fairy		1
+669	669	3	Fairy		1
+669	669	4	Fairy		1
+670	670	0	Fairy		0
+10061	670	1	Fairy		0
+10296	670	2	Fairy		0
+670	670	3	Fairy		1
+670	670	4	Fairy		1
+670	670	5	Fairy		1
+670	670	6	Fairy		1
+671	671	0	Fairy		0
+671	671	1	Fairy		1
+671	671	2	Fairy		1
+671	671	3	Fairy		1
+671	671	4	Fairy		1
+672	672	0	Grass		0
+673	673	0	Grass		0
+674	674	0	Fighting		0
+675	675	0	Fighting	Dark	0
+676	676	0	Normal		0
+676	676	1	Normal		1
+676	676	2	Normal		1
+676	676	3	Normal		1
+676	676	4	Normal		1
+676	676	5	Normal		1
+676	676	6	Normal		1
+676	676	7	Normal		1
+676	676	8	Normal		1
+676	676	9	Normal		1
+677	677	0	Psychic		0
+678	678	0	Psychic		0
+10025	678	1	Psychic		0
+10314	678	2	Psychic		0
+10326	678	3	Psychic		0
+679	679	0	Steel	Ghost	0
+680	680	0	Steel	Ghost	0
+681	681	0	Steel	Ghost	0
+10026	681	1	Steel	Ghost	0
+682	682	0	Fairy		0
+683	683	0	Fairy		0
+684	684	0	Fairy		0
+685	685	0	Fairy		0
+686	686	0	Dark	Psychic	0
+687	687	0	Dark	Psychic	0
+10297	687	1	Dark	Psychic	0
+688	688	0	Rock	Water	0
+689	689	0	Rock	Water	0
+10298	689	1	Rock	Fighting	0
+690	690	0	Poison	Water	0
+691	691	0	Poison	Dragon	0
+10299	691	1	Poison	Dragon	0
+692	692	0	Water		0
+693	693	0	Water		0
+694	694	0	Electric	Normal	0
+695	695	0	Electric	Normal	0
+696	696	0	Rock	Dragon	0
+697	697	0	Rock	Dragon	0
+698	698	0	Rock	Ice	0
+699	699	0	Rock	Ice	0
+700	700	0	Fairy		0
+701	701	0	Fighting	Flying	0
+10300	701	1	Fighting	Flying	0
+702	702	0	Electric	Fairy	0
+703	703	0	Rock	Fairy	0
+704	704	0	Dragon		0
+705	705	0	Dragon		0
+10241	705	1	Steel	Dragon	0
+706	706	0	Dragon		0
+10242	706	1	Steel	Dragon	0
+707	707	0	Steel	Fairy	0
+708	708	0	Ghost	Grass	0
+709	709	0	Ghost	Grass	0
+710	710	0	Ghost	Grass	0
+10027	710	1	Ghost	Grass	0
+10028	710	2	Ghost	Grass	0
+10029	710	3	Ghost	Grass	0
+711	711	0	Ghost	Grass	0
+10030	711	1	Ghost	Grass	0
+10031	711	2	Ghost	Grass	0
+10032	711	3	Ghost	Grass	0
+712	712	0	Ice		0
+713	713	0	Ice		0
+10243	713	1	Ice	Rock	0
+714	714	0	Flying	Dragon	0
+715	715	0	Flying	Dragon	0
+716	716	0	Fairy		0
+716	716	1	Fairy		1
+717	717	0	Dark	Flying	0
+718	718	0	Dragon	Ground	0
+10118	718	1	Dragon	Ground	0
+10119	718	2	Dragon	Ground	0
+10120	718	3	Dragon	Ground	0
+10181	718	4	Dragon	Ground	0
+10301	718	5	Dragon	Ground	0
+719	719	0	Rock	Fairy	0
+10075	719	1	Rock	Fairy	0
+720	720	0	Psychic	Ghost	0
+10086	720	1	Psychic	Dark	0
+721	721	0	Fire	Water	0
+722	722	0	Grass	Flying	0
+723	723	0	Grass	Flying	0
+724	724	0	Grass	Ghost	0
+10244	724	1	Grass	Fighting	0
+725	725	0	Fire		0
+726	726	0	Fire		0
+727	727	0	Fire	Dark	0
+728	728	0	Water		0
+729	729	0	Water		0
+730	730	0	Water	Fairy	0
+731	731	0	Normal	Flying	0
+732	732	0	Normal	Flying	0
+733	733	0	Normal	Flying	0
+734	734	0	Normal		0
+735	735	0	Normal		0
+10121	735	1	Normal		0
+736	736	0	Bug		0
+737	737	0	Bug	Electric	0
+738	738	0	Bug	Electric	0
+10122	738	1	Bug	Electric	0
+739	739	0	Fighting		0
+740	740	0	Fighting	Ice	0
+10315	740	1	Fighting	Ice	0
+741	741	0	Fire	Flying	0
+10123	741	1	Electric	Flying	0
+10124	741	2	Psychic	Flying	0
+10125	741	3	Ghost	Flying	0
+742	742	0	Bug	Fairy	0
+743	743	0	Bug	Fairy	0
+10150	743	1	Bug	Fairy	0
+744	744	0	Rock		0
+10151	744	1	Rock		0
+745	745	0	Rock		0
+10126	745	1	Rock		0
+10152	745	2	Rock		0
+746	746	0	Water		0
+10127	746	1	Water		0
+747	747	0	Poison	Water	0
+748	748	0	Poison	Water	0
+749	749	0	Ground		0
+750	750	0	Ground		0
+751	751	0	Water	Bug	0
+752	752	0	Water	Bug	0
+10153	752	1	Water	Bug	0
+753	753	0	Grass		0
+754	754	0	Grass		0
+10128	754	1	Grass		0
+755	755	0	Grass	Fairy	0
+756	756	0	Grass	Fairy	0
+757	757	0	Poison	Fire	0
+758	758	0	Poison	Fire	0
+10129	758	1	Poison	Fire	0
+759	759	0	Normal	Fighting	0
+760	760	0	Normal	Fighting	0
+761	761	0	Grass		0
+762	762	0	Grass		0
+763	763	0	Grass		0
+764	764	0	Fairy		0
+765	765	0	Normal	Psychic	0
+766	766	0	Fighting		0
+767	767	0	Bug	Water	0
+768	768	0	Bug	Water	0
+10316	768	1	Bug	Steel	0
+769	769	0	Ghost	Ground	0
+770	770	0	Ghost	Ground	0
+771	771	0	Water		0
+772	772	0	Normal		0
+773	773	0	Normal		0
+773	773	1	Normal		1
+773	773	2	Normal		1
+773	773	3	Normal		1
+773	773	4	Normal		1
+773	773	5	Normal		1
+773	773	6	Normal		1
+773	773	7	Normal		1
+773	773	8	Normal		1
+773	773	9	Normal		1
+773	773	10	Normal		1
+773	773	11	Normal		1
+773	773	12	Normal		1
+773	773	13	Normal		1
+773	773	14	Normal		1
+773	773	15	Normal		1
+773	773	16	Normal		1
+773	773	17	Normal		1
+774	774	0	Rock	Flying	0
+10130	774	1	Rock	Flying	0
+10131	774	2	Rock	Flying	0
+10132	774	3	Rock	Flying	0
+10133	774	4	Rock	Flying	0
+10134	774	5	Rock	Flying	0
+10135	774	6	Rock	Flying	0
+10136	774	7	Rock	Flying	0
+10137	774	8	Rock	Flying	0
+10138	774	9	Rock	Flying	0
+10139	774	10	Rock	Flying	0
+10140	774	11	Rock	Flying	0
+10141	774	12	Rock	Flying	0
+10142	774	13	Rock	Flying	0
+775	775	0	Normal		0
+776	776	0	Fire	Dragon	0
+777	777	0	Electric	Steel	0
+10154	777	1	Electric	Steel	0
+778	778	0	Ghost	Fairy	0
+10143	778	1	Ghost	Fairy	0
+10144	778	2	Ghost	Fairy	0
+10145	778	3	Ghost	Fairy	0
+779	779	0	Water	Psychic	0
+780	780	0	Normal	Dragon	0
+10302	780	1	Normal	Dragon	0
+781	781	0	Ghost	Grass	0
+782	782	0	Dragon		0
+783	783	0	Dragon	Fighting	0
+784	784	0	Dragon	Fighting	0
+10146	784	1	Dragon	Fighting	0
+785	785	0	Electric	Fairy	0
+786	786	0	Psychic	Fairy	0
+787	787	0	Grass	Fairy	0
+788	788	0	Water	Fairy	0
+789	789	0	Psychic		0
+790	790	0	Psychic		0
+791	791	0	Psychic	Steel	0
+792	792	0	Psychic	Ghost	0
+793	793	0	Rock	Poison	0
+794	794	0	Bug	Fighting	0
+795	795	0	Bug	Fighting	0
+796	796	0	Electric		0
+797	797	0	Steel	Flying	0
+798	798	0	Grass	Steel	0
+799	799	0	Dark	Dragon	0
+800	800	0	Psychic		0
+10155	800	1	Psychic	Steel	0
+10156	800	2	Psychic	Ghost	0
+10157	800	3	Psychic	Dragon	0
+801	801	0	Steel	Fairy	0
+10147	801	1	Steel	Fairy	0
+10317	801	2	Steel	Fairy	0
+10318	801	3	Steel	Fairy	0
+802	802	0	Fighting	Ghost	0
+803	803	0	Poison		0
+804	804	0	Poison	Dragon	0
+805	805	0	Rock	Steel	0
+806	806	0	Fire	Ghost	0
+807	807	0	Electric		0
+10319	807	1	Electric		0
+808	808	0	Steel		0
+809	809	0	Steel		0
+10208	809	1	Steel		0
+810	810	0	Grass		0
+811	811	0	Grass		0
+812	812	0	Grass		0
+10209	812	1	Grass		0
+813	813	0	Fire		0
+814	814	0	Fire		0
+815	815	0	Fire		0
+10210	815	1	Fire		0
+816	816	0	Water		0
+817	817	0	Water		0
+818	818	0	Water		0
+10211	818	1	Water		0
+819	819	0	Normal		0
+820	820	0	Normal		0
+821	821	0	Flying		0
+822	822	0	Flying		0
+823	823	0	Flying	Steel	0
+10212	823	1	Flying	Steel	0
+824	824	0	Bug		0
+825	825	0	Bug	Psychic	0
+826	826	0	Bug	Psychic	0
+10213	826	1	Bug	Psychic	0
+827	827	0	Dark		0
+828	828	0	Dark		0
+829	829	0	Grass		0
+830	830	0	Grass		0
+831	831	0	Normal		0
+832	832	0	Normal		0
+833	833	0	Water		0
+834	834	0	Water	Rock	0
+10214	834	1	Water	Rock	0
+835	835	0	Electric		0
+836	836	0	Electric		0
+837	837	0	Rock		0
+838	838	0	Rock	Fire	0
+839	839	0	Rock	Fire	0
+10215	839	1	Rock	Fire	0
+840	840	0	Grass	Dragon	0
+841	841	0	Grass	Dragon	0
+10216	841	1	Grass	Dragon	0
+842	842	0	Grass	Dragon	0
+10217	842	1	Grass	Dragon	0
+843	843	0	Ground		0
+844	844	0	Ground		0
+10218	844	1	Ground		0
+845	845	0	Flying	Water	0
+10182	845	1	Flying	Water	0
+10183	845	2	Flying	Water	0
+846	846	0	Water		0
+847	847	0	Water		0
+848	848	0	Electric	Poison	0
+849	849	0	Electric	Poison	0
+10184	849	1	Electric	Poison	0
+10219	849	2	Electric	Poison	0
+10228	849	3	Electric	Poison	0
+850	850	0	Fire	Bug	0
+851	851	0	Fire	Bug	0
+10220	851	1	Fire	Bug	0
+852	852	0	Fighting		0
+853	853	0	Fighting		0
+854	854	0	Ghost		0
+854	854	1	Ghost		1
+855	855	0	Ghost		0
+855	855	1	Ghost		1
+856	856	0	Psychic		0
+857	857	0	Psychic		0
+858	858	0	Psychic	Fairy	0
+10221	858	1	Psychic	Fairy	0
+859	859	0	Dark	Fairy	0
+860	860	0	Dark	Fairy	0
+861	861	0	Dark	Fairy	0
+10222	861	1	Dark	Fairy	0
+862	862	0	Dark	Normal	0
+863	863	0	Steel		0
+864	864	0	Ghost		0
+865	865	0	Fighting		0
+866	866	0	Ice	Psychic	0
+867	867	0	Ground	Ghost	0
+868	868	0	Fairy		0
+869	869	0	Fairy		0
+10223	869	1	Fairy		0
+869	869	2	Fairy		1
+869	869	3	Fairy		1
+869	869	4	Fairy		1
+869	869	5	Fairy		1
+869	869	6	Fairy		1
+869	869	7	Fairy		1
+869	869	8	Fairy		1
+869	869	9	Fairy		1
+869	869	10	Fairy		1
+869	869	11	Fairy		1
+869	869	12	Fairy		1
+869	869	13	Fairy		1
+869	869	14	Fairy		1
+869	869	15	Fairy		1
+869	869	16	Fairy		1
+869	869	17	Fairy		1
+869	869	18	Fairy		1
+869	869	19	Fairy		1
+869	869	20	Fairy		1
+869	869	21	Fairy		1
+869	869	22	Fairy		1
+869	869	23	Fairy		1
+869	869	24	Fairy		1
+869	869	25	Fairy		1
+869	869	26	Fairy		1
+869	869	27	Fairy		1
+869	869	28	Fairy		1
+869	869	29	Fairy		1
+869	869	30	Fairy		1
+869	869	31	Fairy		1
+869	869	32	Fairy		1
+869	869	33	Fairy		1
+869	869	34	Fairy		1
+869	869	35	Fairy		1
+869	869	36	Fairy		1
+869	869	37	Fairy		1
+869	869	38	Fairy		1
+869	869	39	Fairy		1
+869	869	40	Fairy		1
+869	869	41	Fairy		1
+869	869	42	Fairy		1
+869	869	43	Fairy		1
+869	869	44	Fairy		1
+869	869	45	Fairy		1
+869	869	46	Fairy		1
+869	869	47	Fairy		1
+869	869	48	Fairy		1
+869	869	49	Fairy		1
+869	869	50	Fairy		1
+869	869	51	Fairy		1
+869	869	52	Fairy		1
+869	869	53	Fairy		1
+869	869	54	Fairy		1
+869	869	55	Fairy		1
+869	869	56	Fairy		1
+869	869	57	Fairy		1
+869	869	58	Fairy		1
+869	869	59	Fairy		1
+869	869	60	Fairy		1
+869	869	61	Fairy		1
+869	869	62	Fairy		1
+869	869	63	Fairy		1
+870	870	0	Fighting		0
+10303	870	1	Fighting		0
+871	871	0	Electric		0
+872	872	0	Ice	Bug	0
+873	873	0	Ice	Bug	0
+874	874	0	Rock		0
+875	875	0	Ice		0
+10185	875	1	Ice		0
+876	876	0	Psychic	Normal	0
+10186	876	1	Psychic	Normal	0
+877	877	0	Electric	Dark	0
+10187	877	1	Electric	Dark	0
+878	878	0	Steel		0
+879	879	0	Steel		0
+10224	879	1	Steel		0
+880	880	0	Electric	Dragon	0
+881	881	0	Electric	Ice	0
+882	882	0	Water	Dragon	0
+883	883	0	Water	Ice	0
+884	884	0	Steel	Dragon	0
+10225	884	1	Steel	Dragon	0
+885	885	0	Dragon	Ghost	0
+886	886	0	Dragon	Ghost	0
+887	887	0	Dragon	Ghost	0
+888	888	0	Fairy		0
+10188	888	1	Fairy	Steel	0
+889	889	0	Fighting		0
+10189	889	1	Fighting	Steel	0
+890	890	0	Poison	Dragon	0
+10190	890	1	Poison	Dragon	0
+891	891	0	Fighting		0
+892	892	0	Fighting	Dark	0
+10191	892	1	Fighting	Water	0
+10226	892	2	Fighting	Dark	0
+10227	892	3	Fighting	Water	0
+893	893	0	Dark	Grass	0
+10192	893	1	Dark	Grass	0
+894	894	0	Electric		0
+895	895	0	Dragon		0
+896	896	0	Ice		0
+897	897	0	Ghost		0
+898	898	0	Psychic	Grass	0
+10193	898	1	Psychic	Ice	0
+10194	898	2	Psychic	Ghost	0
+899	899	0	Normal	Psychic	0
+900	900	0	Bug	Rock	0
+901	901	0	Ground	Normal	0
+10272	901	1	Ground	Normal	0
+902	902	0	Water	Ghost	0
+10248	902	1	Water	Ghost	0
+903	903	0	Fighting	Poison	0
+904	904	0	Dark	Poison	0
+905	905	0	Fairy	Flying	0
+10249	905	1	Fairy	Flying	0
+906	906	0	Grass		0
+907	907	0	Grass		0
+908	908	0	Grass	Dark	0
+909	909	0	Fire		0
+910	910	0	Fire		0
+911	911	0	Fire	Ghost	0
+912	912	0	Water		0
+913	913	0	Water		0
+914	914	0	Water	Fighting	0
+915	915	0	Normal		0
+916	916	0	Normal		0
+10254	916	1	Normal		0
+917	917	0	Bug		0
+918	918	0	Bug		0
+919	919	0	Bug		0
+920	920	0	Bug	Dark	0
+921	921	0	Electric		0
+922	922	0	Electric	Fighting	0
+923	923	0	Electric	Fighting	0
+924	924	0	Normal		0
+925	925	0	Normal		0
+10257	925	1	Normal		0
+926	926	0	Fairy		0
+927	927	0	Fairy		0
+928	928	0	Grass	Normal	0
+929	929	0	Grass	Normal	0
+930	930	0	Grass	Normal	0
+931	931	0	Normal	Flying	0
+10260	931	1	Normal	Flying	0
+10261	931	2	Normal	Flying	0
+10262	931	3	Normal	Flying	0
+932	932	0	Rock		0
+933	933	0	Rock		0
+934	934	0	Rock		0
+935	935	0	Fire		0
+936	936	0	Fire	Psychic	0
+937	937	0	Fire	Ghost	0
+938	938	0	Electric		0
+939	939	0	Electric		0
+940	940	0	Electric	Flying	0
+941	941	0	Electric	Flying	0
+942	942	0	Dark		0
+943	943	0	Dark		0
+944	944	0	Poison	Normal	0
+945	945	0	Poison	Normal	0
+946	946	0	Grass	Ghost	0
+947	947	0	Grass	Ghost	0
+948	948	0	Ground	Grass	0
+949	949	0	Ground	Grass	0
+950	950	0	Rock		0
+951	951	0	Grass		0
+952	952	0	Grass	Fire	0
+10320	952	1	Grass	Fire	0
+953	953	0	Bug		0
+954	954	0	Bug	Psychic	0
+955	955	0	Psychic		0
+956	956	0	Psychic		0
+957	957	0	Fairy	Steel	0
+958	958	0	Fairy	Steel	0
+959	959	0	Fairy	Steel	0
+960	960	0	Water		0
+961	961	0	Water		0
+962	962	0	Flying	Dark	0
+963	963	0	Water		0
+964	964	0	Water		0
+10256	964	1	Water		0
+965	965	0	Steel	Poison	0
+966	966	0	Steel	Poison	0
+967	967	0	Dragon	Normal	0
+968	968	0	Steel		0
+969	969	0	Rock	Poison	0
+970	970	0	Rock	Poison	0
+10321	970	1	Rock	Poison	0
+971	971	0	Ghost		0
+972	972	0	Ghost		0
+973	973	0	Flying	Fighting	0
+974	974	0	Ice		0
+975	975	0	Ice		0
+976	976	0	Water	Psychic	0
+977	977	0	Water		0
+978	978	0	Dragon	Water	0
+10258	978	1	Dragon	Water	0
+10259	978	2	Dragon	Water	0
+10322	978	3	Dragon	Water	0
+10323	978	4	Dragon	Water	0
+10324	978	5	Dragon	Water	0
+979	979	0	Fighting	Ghost	0
+980	980	0	Poison	Ground	0
+981	981	0	Normal	Psychic	0
+982	982	0	Normal		0
+10255	982	1	Normal		0
+983	983	0	Dark	Steel	0
+984	984	0	Ground	Fighting	0
+985	985	0	Fairy	Psychic	0
+986	986	0	Grass	Dark	0
+987	987	0	Ghost	Fairy	0
+988	988	0	Bug	Fighting	0
+989	989	0	Electric	Ground	0
+990	990	0	Ground	Steel	0
+991	991	0	Ice	Water	0
+992	992	0	Fighting	Electric	0
+993	993	0	Dark	Flying	0
+994	994	0	Fire	Poison	0
+995	995	0	Rock	Electric	0
+996	996	0	Dragon	Ice	0
+997	997	0	Dragon	Ice	0
+998	998	0	Dragon	Ice	0
+10325	998	1	Dragon	Ice	0
+999	999	0	Ghost		0
+10263	999	1	Ghost		0
+1000	1000	0	Steel	Ghost	0
+1001	1001	0	Dark	Grass	0
+1002	1002	0	Dark	Ice	0
+1003	1003	0	Dark	Ground	0
+1004	1004	0	Dark	Fire	0
+1005	1005	0	Dragon	Dark	0
+1006	1006	0	Fairy	Fighting	0
+1007	1007	0	Fighting	Dragon	0
+10264	1007	1	Fighting	Dragon	0
+10265	1007	2	Fighting	Dragon	0
+10266	1007	3	Fighting	Dragon	0
+10267	1007	4	Fighting	Dragon	0
+1008	1008	0	Electric	Dragon	0
+10268	1008	1	Electric	Dragon	0
+10269	1008	2	Electric	Dragon	0
+10270	1008	3	Electric	Dragon	0
+10271	1008	4	Electric	Dragon	0
+1009	1009	0	Water	Dragon	0
+1010	1010	0	Grass	Psychic	0
+1011	1011	0	Grass	Dragon	0
+1012	1012	0	Grass	Ghost	0
+1012	1012	1	Grass	Ghost	1
+1013	1013	0	Grass	Ghost	0
+1013	1013	1	Grass	Ghost	1
+1014	1014	0	Poison	Fighting	0
+1015	1015	0	Poison	Psychic	0
+1016	1016	0	Poison	Fairy	0
+1017	1017	0	Grass		0
+10273	1017	1	Grass	Water	0
+10274	1017	2	Grass	Fire	0
+10275	1017	3	Grass	Rock	0
+1018	1018	0	Steel	Dragon	0
+1019	1019	0	Grass	Dragon	0
+1020	1020	0	Fire	Dragon	0
+1021	1021	0	Electric	Dragon	0
+1022	1022	0	Rock	Psychic	0
+1023	1023	0	Steel	Psychic	0
+1024	1024	0	Normal		0
+10276	1024	1	Normal		0
+10277	1024	2	Normal		0
+1025	1025	0	Poison	Ghost	0

@@ -28,7 +28,10 @@ use crate::game::battle_items::label;
 use crate::game::box_screen::{
     BoxFocus, BoxScreenRoot, BoxScreenState, BoxSelection, GRID_COLUMNS, SLOTS_PER_BOX,
 };
-use crate::game::dex_screen::{visibility, DexCatalog, DexRoot, DexUi, DexVisibility};
+use crate::game::dex_screen::{
+    active_entries, entry_display_name, visibility, DexCatalog, DexMode, DexRoot, DexUi,
+    DexVisibility,
+};
 use crate::game::graphics_screen::{
     self, GraphicsRuntime, GraphicsScreenState, GraphicsSettings,
 };
@@ -1090,7 +1093,8 @@ pub fn bind_dex_screen(
         return;
     };
     let assets = assets.as_deref();
-    let entries = &catalog.entries;
+    let national = ui.mode == DexMode::National;
+    let entries = active_entries(&catalog, ui.mode);
     let sel = ui.selected.min(entries.len().saturating_sub(1));
     let start = sel
         .saturating_sub(DEX_PLATES / 2)
@@ -1106,14 +1110,20 @@ pub fn bind_dex_screen(
         };
         s.set_visible(&part, true);
         let state = visibility(e.id, &progress.seen, &progress.caught);
-        let name = match state {
-            DexVisibility::Caught => names.get(assets, e.id, 0),
-            _ => "??????".to_string(),
+        // National mode is a data listing: names are always shown and no game art is used (the
+        // undiscovered placeholder stands in for every icon).
+        let name = if national {
+            entry_display_name(e).to_string()
+        } else {
+            match state {
+                DexVisibility::Caught => names.get(assets, e.id, 0),
+                _ => "??????".to_string(),
+            }
         };
-        let icon = (state != DexVisibility::Hidden)
+        let icon = (!national && state != DexVisibility::Hidden)
             .then(|| icons.pokemon(e.id, 0))
             .flatten();
-        let silhouette = state == DexVisibility::SeenSilhouette;
+        let silhouette = !national && state == DexVisibility::SeenSilhouette;
         let num = format!("{:03}", e.id);
         let set = |s: &mut OrigScreen, pane: &str, f: &dyn Fn(&mut NodeOverride)| {
             if let Some(n) = s.node_in_instance(inst, pane) {
@@ -1144,14 +1154,22 @@ pub fn bind_dex_screen(
     // Notebook page of the selected species (main layout instance 0).
     if let Some(e) = entries.get(sel) {
         let state = visibility(e.id, &progress.seen, &progress.caught);
-        let name = match state {
-            DexVisibility::Caught => names.get(assets, e.id, 0),
-            _ => "??????".to_string(),
+        let name = if national {
+            entry_display_name(e).to_string()
+        } else {
+            match state {
+                DexVisibility::Caught => names.get(assets, e.id, 0),
+                _ => "??????".to_string(),
+            }
         };
-        let status = match state {
-            DexVisibility::Caught => "Caught",
-            DexVisibility::SeenSilhouette => "Seen, not caught yet",
-            DexVisibility::Hidden => "Not seen yet",
+        let status = if national {
+            "National listing (external data, no research yet; Y: Hisui list)"
+        } else {
+            match state {
+                DexVisibility::Caught => "Caught  (Y: national list)",
+                DexVisibility::SeenSilhouette => "Seen, not caught yet  (Y: national list)",
+                DexVisibility::Hidden => "Not seen yet  (Y: national list)",
+            }
         };
         let set0 = |s: &mut OrigScreen, pane: &str, text: Option<String>| {
             if let Some(n) = s.node_in_instance(0, pane) {
@@ -1167,14 +1185,15 @@ pub fn bind_dex_screen(
                 "{status}.  Seen {}, caught {} of {} species.",
                 progress.seen.len(),
                 progress.caught.len(),
-                catalog.distinct_species_count()
+                entries.len()
             )),
         );
-        let pic = (state != DexVisibility::Hidden)
+        // The national listing never borrows game art: the undiscovered placeholder stands in.
+        let pic = (!national && state != DexVisibility::Hidden)
             .then(|| icons.pokemon_large(e.id, 0))
             .flatten();
         let has_pic = pic.is_some();
-        let dark = state == DexVisibility::SeenSilhouette;
+        let dark = !national && state == DexVisibility::SeenSilhouette;
         if let Some(n) = s.node_in_instance(0, "P_loader_poke_00") {
             s.set_node(n, |o| {
                 o.visible = Some(has_pic);

@@ -13,7 +13,7 @@ pub mod rules;
 pub mod statuses;
 pub mod styles;
 use abilities::AbilityState;
-use effects::{EffectEvent, MoveEffectsTable, PowerRule, Stages};
+use effects::{EffectEvent, MoveEffects, MoveEffectsTable, PowerRule, Stages};
 use items::ItemTable;
 
 pub trait BattleRng {
@@ -43,6 +43,14 @@ pub enum MajorStatus {
     Poison,
     Burn,
     Frostbite,
+    /// The game's poison record (id 5) with the `0xf01` mark: same id, distinct state.
+    /// End-of-turn damage `ceil(max_hp / 16) x counter`, counter capped at 15, never expires
+    /// (VERIFIED; see `sleep_toxic.md` and `rules::TOXIC_*`).
+    BadlyPoisoned,
+    /// The game's real sleep (record id 2), distinct from [`MajorStatus::Drowsy`] (id 6):
+    /// rolled duration 2-4, wakes through a counter of attempts to act, no extra damage taken
+    /// and no snow interaction (VERIFIED; see `sleep_toxic.md` and [`StatusRules::real_sleep`]).
+    Sleep,
 }
 
 #[derive(Debug, Clone)]
@@ -161,6 +169,22 @@ impl Combatant {
     pub fn is_alive(&self) -> bool {
         self.hp > 0 && !self.caught
     }
+
+    /// Remove a type from this combatant (Double Shock's `self.onHit`); returns whether any
+    /// slot changed. A combatant left with no types is neutral to every attacking type and
+    /// gets no STAB (the chart treats empty names as neutral, and an empty name never equals
+    /// an attack type). The change lasts until the battle object is rebuilt: switching out
+    /// and back in does not restore it in this engine.
+    pub fn remove_type(&mut self, type_name: &str) -> bool {
+        let mut removed = false;
+        for slot in &mut self.species.types {
+            if slot == type_name {
+                slot.clear();
+                removed = true;
+            }
+        }
+        removed
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,6 +293,22 @@ pub struct Battle {
     last_move: Vec<Option<String>>,
     /// Times each combatant has been hit by a damaging move (Rage Fist; persists on switch).
     times_attacked: Vec<u16>,
+    /// Turn memory (external generation-9 rows, reset every turn): the last hit each combatant
+    /// took, with who dealt it and the HP removed (Comeuppance).
+    turn_last_damage: Vec<Option<(usize, u32)>>,
+    /// Turn memory: whether each combatant raised any of its stats this turn (Alluring Voice).
+    turn_raised_stats: Vec<bool>,
+    /// Whether each combatant's last move attempt failed (external generation-9 memory for
+    /// Temper Flare; Showdown's `moveLastTurnResult === false`). It is not a turn memory: it
+    /// survives turns and is cleared at the start of the battle and when the combatant changes
+    /// (switch in/out or a switch after a knockout).
+    last_move_failed: Vec<bool>,
+    /// Badly-poisoned counter (starts at 0, +1 per end of turn, capped at 15; VERIFIED).
+    toxic_counter: Vec<u8>,
+    /// Real sleep (record id 2) per combatant: `(duration, attempts to act)`. The duration is
+    /// rolled on apply (2..=4 from the move's fields); the counter advances only when the
+    /// combatant tries to act and the status clears when `attempts >= duration` (VERIFIED).
+    sleep: Vec<Option<(u8, u8)>>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -334,6 +374,11 @@ impl Battle {
             abilities: AbilityState::default(),
             last_move: vec![None; combatant_count],
             times_attacked: vec![0; combatant_count],
+            turn_last_damage: vec![None; combatant_count],
+            turn_raised_stats: vec![false; combatant_count],
+            last_move_failed: vec![false; combatant_count],
+            toxic_counter: vec![0; combatant_count],
+            sleep: vec![None; combatant_count],
         })
     }
 
@@ -358,6 +403,10 @@ impl Battle {
         if let Some(last) = self.last_move.get_mut(from) {
             *last = None;
         }
+        // The external failure memory is per stay on the field (Temper Flare): both the
+        // combatant leaving and the one entering start with a clean result.
+        self.note_move_result(from, false);
+        self.note_move_result(replacement, false);
         self.active[side] = replacement;
         Ok(Event::Switched {
             side,
@@ -454,6 +503,14 @@ impl Battle {
         }
         self.turn += 1;
         events.push(Event::TurnStarted(self.turn));
+        // Turn memory of the external generation-9 rows (Comeuppance, Alluring Voice): forget
+        // last turn's damage and stat raises.
+        for v in &mut self.turn_last_damage {
+            *v = None;
+        }
+        for v in &mut self.turn_raised_stats {
+            *v = false;
+        }
         self.ability_turn_start();
         let order = actions
             .iter()
@@ -501,6 +558,14 @@ impl Battle {
             .map(|(action, _)| action)
             .collect::<Vec<_>>();
         let mut flinched: Vec<usize> = Vec::new();
+        // The actions chosen for this turn (external generation-9 rows read the target's one:
+        // Upper Hand, Thunderclap). Single-action turns (the PLA queue flow) carry only the
+        // actor's action, so those two moves fail there, as they do in the game when the
+        // target's plan is not the required one (see gen9.rs).
+        let planned: Vec<Action> = order.clone();
+        // Actors that already spent their action this turn: Upper Hand and Thunderclap read the
+        // target's pending action only (Showdown's `willMove`), so they fail once it acted.
+        let mut acted: Vec<usize> = Vec::new();
         if let Some(first) = order.first() {
             events.push(Event::ActedFirst(first.actor));
         }
@@ -511,15 +576,25 @@ impl Battle {
             if !self.combatants[action.actor].is_alive() {
                 continue;
             }
+            acted.push(action.actor);
             if flinched.contains(&action.actor) {
                 self.effect_events.push(EffectEvent::FlinchedAndSkipped {
                     actor: action.actor,
                 });
+                // Showdown's flinch handler fails `BeforeMove` (moveThisTurnResult = false):
+                // the turn counts as a failed move for Temper Flare.
+                self.note_move_result(action.actor, true);
                 continue;
             }
             let mut releasing = false;
             match self.status_pre_action(action.actor, rng, &mut events) {
-                statuses::PreAction::Skip => continue,
+                statuses::PreAction::Skip { failed } => {
+                    // Real sleep, paralysis, drowsiness and confusion self-hits fail
+                    // `BeforeMove` in Showdown (false); the recharge turn returns null and
+                    // does not count.
+                    self.note_move_result(action.actor, failed);
+                    continue;
+                }
                 statuses::PreAction::Act(Some(slot)) => {
                     action.move_slot = slot;
                     releasing = true;
@@ -579,10 +654,12 @@ impl Battle {
                         actor: action.actor,
                         status,
                     });
+                    // The legacy (rules-off) inability models also fail `BeforeMove`.
+                    self.note_move_result(action.actor, true);
                     continue;
                 }
             }
-            if self.status_pre_move(
+            match self.status_pre_move(
                 action.actor,
                 target,
                 action.move_slot,
@@ -590,14 +667,57 @@ impl Battle {
                 releasing,
                 rng,
             ) {
-                continue;
+                statuses::PreMove::Continue => {}
+                statuses::PreMove::Ended => {
+                    // Charge turn, a successful Protect and a move blocked by Protect are all
+                    // Showdown's `null` result: not a failed move. Blocking does NOT set
+                    // Temper Flare's doubling (Protect returns NOT_FAIL; Bulbapedia states the
+                    // same for Stomping Tantrum).
+                    self.note_move_result(action.actor, false);
+                    continue;
+                }
+                statuses::PreMove::Failed => {
+                    // The user's own Protect lost its chain roll (a failed `PrepareHit`).
+                    self.note_move_result(action.actor, true);
+                    continue;
+                }
             }
-            // VERIFIED: accuracy and evasion read the shared Spe/Acc/Eva rank group.
+            let fx = self
+                .effects
+                .as_ref()
+                .and_then(|t| t.get(&move_name))
+                .cloned();
+            // External generation-9 use conditions (`onTry`/`onTryMove`): the move is refused
+            // before it can land.
+            if let Some(fx) = &fx {
+                if self.gen9_use_refused(
+                    action.actor,
+                    target,
+                    &move_name,
+                    &move_type,
+                    fx,
+                    &planned,
+                    &acted,
+                ) {
+                    // Showdown's `onTry`/`onTryMove` failed: the move counts as failed.
+                    self.note_move_result(action.actor, true);
+                    continue;
+                }
+            }
+            // VERIFIED: accuracy and evasion read the shared Spe/Acc/Eva rank group. Nihil
+            // Light (`ignoreEvasion`) drops the target's contribution: in Hisui accuracy and
+            // evasion share one rank state, so the target's evasion cannot be separated from
+            // its accuracy rank; the engine drops the target's share and keeps the user's
+            // accuracy rank.
             let acc_stage = (self.combatants[action.actor].accuracy_stage
                 + self.stages(action.actor).speed)
                 .clamp(-1, 1);
-            let eva_stage =
-                (self.combatants[target].evasion_stage + self.stages(target).speed).clamp(-1, 1);
+            let ignore_evasion = fx.as_ref().is_some_and(|f| f.hooks.ignore_evasion);
+            let eva_stage = if ignore_evasion {
+                0
+            } else {
+                (self.combatants[target].evasion_stage + self.stages(target).speed).clamp(-1, 1)
+            };
             if !accuracy_hits(accuracy, acc_stage, eva_stage, 4096, rng) {
                 events.push(Event::Missed {
                     actor: action.actor,
@@ -623,13 +743,10 @@ impl Battle {
                         self.advance_active_for(actor);
                     }
                 }
+                // An accuracy miss is a failed move (`moveThisTurnResult = false`).
+                self.note_move_result(action.actor, true);
                 continue;
             }
-            let fx = self
-                .effects
-                .as_ref()
-                .and_then(|t| t.get(&move_name))
-                .cloned();
             // External generation-9 base-power callbacks (Last Respects, Rage Fist, Hard
             // Press, Collision Course/Electro Drift, Fickle Beam); no-op for PLA rows.
             if let Some(fx) = &fx {
@@ -644,6 +761,42 @@ impl Battle {
             }
             if power == 0 {
                 if let Some(fx) = &fx {
+                    // Fixed-damage callbacks (Ruination, Comeuppance): the hit ignores the type
+                    // chart, the stats and the damage roll (DERIVED from Showdown's
+                    // damageCallback).
+                    let fixed = if fx.hooks.half_current_hp_damage {
+                        Some((target, (self.combatants[target].hp / 2).max(1)))
+                    } else if fx.hooks.return_last_damage {
+                        // 3/2 of the last hit the user took this turn, back at its author.
+                        self.turn_last_damage
+                            .get(action.actor)
+                            .copied()
+                            .flatten()
+                            .map(|(by, taken)| (by, (taken * 3 / 2).max(1)))
+                    } else {
+                        None
+                    };
+                    if let Some((receiver, damage)) = fixed {
+                        let dealt = damage.min(self.combatants[receiver].hp);
+                        self.combatants[receiver].hp -= dealt;
+                        if receiver < self.turn_last_damage.len() {
+                            self.turn_last_damage[receiver] = Some((action.actor, dealt));
+                        }
+                        events.push(Event::UsedMove {
+                            actor: action.actor,
+                            target: receiver,
+                            name: move_name,
+                            damage: dealt,
+                            critical: false,
+                            effectiveness: "normal".into(),
+                        });
+                        if self.combatants[receiver].hp == 0 {
+                            events.push(Event::KnockedOut(receiver));
+                            self.advance_active_for(receiver);
+                        }
+                        self.note_move_result(action.actor, false);
+                        continue;
+                    }
                     let ko = self.apply_move_effects(
                         action.actor,
                         target,
@@ -654,6 +807,7 @@ impl Battle {
                         rng,
                     );
                     self.status_post_effects(action.actor, target, fx, false, rng);
+                    self.apply_use_hooks(action.actor, &move_type, fx, 0);
                     for (t, status) in std::mem::take(&mut self.pending_status) {
                         events.push(Event::StatusApplied { target: t, status });
                     }
@@ -661,6 +815,7 @@ impl Battle {
                         events.push(Event::KnockedOut(k));
                         self.advance_active_for(k);
                     }
+                    self.note_move_result(action.actor, false);
                     continue;
                 }
                 if let Some(status) = status_move(&move_name) {
@@ -669,18 +824,30 @@ impl Battle {
                         events.push(Event::StatusApplied { target, status });
                     }
                 }
+                self.note_move_result(action.actor, false);
                 continue;
             }
             let hits = fx.as_ref().map_or(1, |f| Self::roll_hits(f, rng));
             // VERIFIED: rank states multiply the base damage (not the stats); see rules.rs.
+            // Nihil Light (`ignoreDefensive`) drops the target's Def/SpD rank.
+            let ignore_defensive = fx.as_ref().is_some_and(|f| f.hooks.ignore_defensive);
             let ranks = if self.stage_multipliers {
                 (
                     self.stages(action.actor).attack,
-                    self.stages(target).defense,
+                    if ignore_defensive {
+                        0
+                    } else {
+                        self.stages(target).defense
+                    },
                 )
             } else {
                 (0, 0)
             };
+            // Nihil Light (`ignoreImmunity = {'Dragon': true}`): the 0x immunity of the
+            // move's own type counts as a neutral matchup instead.
+            let ignore_own_type_immunity = fx
+                .as_ref()
+                .is_some_and(|f| f.hooks.ignore_immunity_move_type);
             let drowsy_bonus = self.status_rules().notes_rates;
             let pla_formula = self.pla_damage;
             let mut damage = 0;
@@ -709,6 +876,7 @@ impl Battle {
                     drowsy_bonus,
                     pla_formula,
                     slow_start,
+                    ignore_own_type_immunity,
                     rng,
                 );
                 // Opt-in Fixated multipliers (no-op unless `set_fixated` was used).
@@ -727,6 +895,10 @@ impl Battle {
                 if let Some(times) = self.times_attacked.get_mut(target) {
                     *times = times.saturating_add(landed as u16);
                 }
+                // Turn memory: the last hit this combatant took (Comeuppance).
+                if target < self.turn_last_damage.len() {
+                    self.turn_last_damage[target] = Some((action.actor, dealt));
+                }
             }
             if hits > 1 {
                 self.effect_events.push(EffectEvent::Hits {
@@ -735,6 +907,9 @@ impl Battle {
                 });
             }
             let move_name_for_hook = move_name.clone();
+            // A hit with "no effect" (type immunity) is a failed move in Showdown's flow; a
+            // landed hit is a success.
+            self.note_move_result(action.actor, multiplier == 0.0);
             events.push(Event::UsedMove {
                 actor: action.actor,
                 target,
@@ -760,6 +935,7 @@ impl Battle {
                     rng,
                 );
                 self.status_post_effects(action.actor, target, fx, true, rng);
+                self.apply_use_hooks(action.actor, &move_type, fx, dealt);
                 for (t, status) in std::mem::take(&mut self.pending_status) {
                     events.push(Event::StatusApplied { target: t, status });
                 }
@@ -771,28 +947,35 @@ impl Battle {
         }
         // End-of-round status damage and status timing are conventional-series assumptions.
         let mut status_knockouts = Vec::new();
-        for side in &self.sides {
-            for &i in side {
-                if !self.combatants[i].is_alive() {
-                    continue;
-                }
-                let Some(
-                    status @ (MajorStatus::Poison | MajorStatus::Burn | MajorStatus::Frostbite),
-                ) = self.combatants[i].status
-                else {
-                    continue;
-                };
-                let damage = self.residual_damage(i, status);
-                self.combatants[i].hp = self.combatants[i].hp.saturating_sub(damage);
-                events.push(Event::Recoil {
-                    target: i,
-                    status,
-                    damage,
-                });
-                if self.combatants[i].hp == 0 {
-                    events.push(Event::KnockedOut(i));
-                    status_knockouts.push(i);
-                }
+        let members: Vec<usize> = self.sides.iter().flatten().copied().collect();
+        for i in members {
+            if !self.combatants[i].is_alive() {
+                continue;
+            }
+            let Some(
+                status @ (MajorStatus::Poison
+                | MajorStatus::Burn
+                | MajorStatus::Frostbite
+                | MajorStatus::BadlyPoisoned),
+            ) = self.combatants[i].status
+            else {
+                continue;
+            };
+            let damage = if status == MajorStatus::BadlyPoisoned {
+                // The counter grows before the damage of the same end of turn (VERIFIED).
+                self.toxic_slip_damage(i)
+            } else {
+                self.residual_damage(i, status)
+            };
+            self.combatants[i].hp = self.combatants[i].hp.saturating_sub(damage);
+            events.push(Event::Recoil {
+                target: i,
+                status,
+                damage,
+            });
+            if self.combatants[i].hp == 0 {
+                events.push(Event::KnockedOut(i));
+                status_knockouts.push(i);
             }
         }
         for index in status_knockouts {
@@ -809,6 +992,30 @@ impl Battle {
             });
         }
         events
+    }
+
+    /// Whether the combatant's last move attempt failed (external generation-9 memory; Temper
+    /// Flare). Mirrors Showdown's `moveLastTurnResult === false`: a failed move is an accuracy
+    /// miss, a move with no effect (type immunity), a refused use condition, a lost Protect
+    /// chain roll, or a turn lost to paralysis/real sleep/drowsiness/confusion/flinch
+    /// (Showdown's `BeforeMove` handlers return `false` for those; Bulbapedia states the same
+    /// for Stomping Tantrum). Charge and recharge turns and a hit blocked by the target's
+    /// Protect are the `null` outcome and do NOT count.
+    pub fn last_move_failed(&self, combatant: usize) -> bool {
+        self.last_move_failed
+            .get(combatant)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Record the outcome of one move attempt for the external base-power callbacks (Temper
+    /// Flare). Only call it when the combatant really attempted an action: a move that is
+    /// merely skipped (disabled by `cantusetwice`, no PP, no target) leaves the memory alone,
+    /// exactly as Showdown keeps `moveLastTurnResult` until the next attempt.
+    fn note_move_result(&mut self, actor: usize, failed: bool) {
+        if actor < self.last_move_failed.len() {
+            self.last_move_failed[actor] = failed;
+        }
     }
 
     /// Base power after the external generation-9 power callbacks. Formulas are taken from the
@@ -869,7 +1076,84 @@ impl Battle {
                     base
                 }
             }
+            PowerRule::TemperFlare => {
+                // Showdown `pokemon.moveLastTurnResult === false` (75 -> 150).
+                if self.last_move_failed(actor) {
+                    base.saturating_mul(2)
+                } else {
+                    base
+                }
+            }
         }
+    }
+
+    /// External generation-9 use conditions, DERIVED from Showdown's `onTry`/`onTryMove`
+    /// callbacks. Returns true when the move is refused for this action (the log gets a
+    /// `MoveFailed` line). `planned` holds the actions chosen for this turn and `acted` the
+    /// actors that already spent theirs.
+    #[allow(clippy::too_many_arguments)]
+    fn gen9_use_refused(
+        &mut self,
+        actor: usize,
+        target: usize,
+        move_name: &str,
+        move_type: &str,
+        fx: &MoveEffects,
+        planned: &[Action],
+        acted: &[usize],
+    ) -> bool {
+        let refused = if fx.hooks.half_hp_cost {
+            // Fillet Away fails at or below half HP (Showdown `hp <= maxhp / 2`).
+            self.combatants[actor].hp * 2 <= self.combatants[actor].max_hp
+        } else if fx.hooks.fail_unless_user_has_move_type {
+            // Double Shock fails unless the user has the move's own type (`hasType('Electric')`).
+            !self.combatants[actor]
+                .species
+                .types
+                .iter()
+                .any(|t| t == move_type)
+        } else if (fx.hooks.require_target_priority || fx.hooks.require_target_attack)
+            && acted.contains(&target)
+        {
+            // The target already spent its action: `willMove` has nothing queued.
+            true
+        } else if fx.hooks.require_target_priority || fx.hooks.require_target_attack {
+            // The target's chosen action for this turn, when the engine knows it (a classic
+            // round carries every action; a single-action PLA queue turn does not).
+            let movement = planned
+                .iter()
+                .find(|a| a.actor == target)
+                .and_then(|a| self.combatants[target].moves.get(a.move_slot));
+            let Some(movement) = movement else {
+                self.note_status_event(statuses::StatusEvent::MoveFailed {
+                    actor,
+                    move_name: move_name.to_owned(),
+                });
+                return true;
+            };
+            if fx.hooks.require_target_priority {
+                movement.priority <= 0
+            } else {
+                // Thunderclap only works against an attack (`move.category === 'Status'` fails).
+                movement.data.category == "Status"
+            }
+        } else if fx.hooks.return_last_damage {
+            // Comeuppance fails when the user has not been hit this turn (`getLastDamagedBy`),
+            // or when whoever hit it is no longer able to battle.
+            match self.turn_last_damage.get(actor).copied().flatten() {
+                Some((by, _)) if self.combatants[by].is_alive() => false,
+                _ => true,
+            }
+        } else {
+            false
+        };
+        if refused {
+            self.note_status_event(statuses::StatusEvent::MoveFailed {
+                actor,
+                move_name: move_name.to_owned(),
+            });
+        }
+        refused
     }
 
     fn target_for(&self, actor: usize) -> Option<usize> {
@@ -898,6 +1182,8 @@ impl Battle {
                     .find(|&index| self.combatants[index].is_alive())
                 {
                     self.active[side] = next;
+                    // Entering the field after a knockout also starts a clean stay.
+                    self.note_move_result(next, false);
                 }
             }
         }
@@ -929,9 +1215,14 @@ impl Battle {
         let status = match c.status {
             None => data.capture_status_multiplier("None")?,
             Some(MajorStatus::Paralysis) => data.capture_status_multiplier("Paralysis")?,
-            Some(MajorStatus::Poison) => data.capture_status_multiplier("Poison")?,
+            // Badly poisoned is the same game record (id 5): the poison factor applies.
+            Some(MajorStatus::Poison | MajorStatus::BadlyPoisoned) => {
+                data.capture_status_multiplier("Poison")?
+            }
             Some(MajorStatus::Burn) => data.capture_status_multiplier("Burn")?,
-            Some(MajorStatus::Drowsy) => data.capture_status_multiplier("Drowsiness / Sleep")?,
+            Some(MajorStatus::Drowsy | MajorStatus::Sleep) => {
+                data.capture_status_multiplier("Drowsiness / Sleep")?
+            }
             Some(MajorStatus::Frostbite) => data.capture_status_multiplier("Frostbite / Freeze")?,
         };
         let context = data
@@ -968,6 +1259,33 @@ pub fn type_effectiveness(chart: &TypeChart, attack: &str, defenses: &[String]) 
         seen.push(defense);
         match chart.multiplier(attack, defense).unwrap_or(1.0) {
             0.0 => return 0.0,
+            0.5 => exponent -= 1,
+            2.0 => exponent += 1,
+            _ => {}
+        }
+    }
+    effectiveness_from_exponent(exponent)
+}
+
+/// Type-chart effectiveness with the immunity of the attack's own type ignored (external
+/// Nihil Light, Showdown `ignoreImmunity = {'<move type>': true}`): a 0x matchup of `attack`
+/// counts as neutral instead of zero, while every other defender type keeps its multiplier.
+/// Showdown's chart lookup reports immunity as neutral once `runImmunity` passes (its
+/// `getEffectiveness` has no value for "immune"), so Fairy vs Dragon becomes a neutral hit.
+pub fn type_effectiveness_ignoring_immunity(
+    chart: &TypeChart,
+    attack: &str,
+    defenses: &[String],
+) -> f32 {
+    let mut exponent = 0_i32;
+    let mut seen: Vec<&String> = Vec::new();
+    for defense in defenses {
+        if seen.contains(&defense) {
+            continue;
+        }
+        seen.push(defense);
+        match chart.multiplier(attack, defense).unwrap_or(1.0) {
+            0.0 => continue,
             0.5 => exponent -= 1,
             2.0 => exponent += 1,
             _ => {}
@@ -1162,6 +1480,8 @@ fn expected_damage(
 /// critical x1.5, 85-100 % roll, STAB x1.25, type category, burn/physical and
 /// frostbite/special x50 %, drowsy defender x133 % (when `drowsy_bonus`), minimum 1.
 /// `slow_start` halves the power of physical moves (PROBABLE target of the game's halving).
+/// `ignore_own_type_immunity` is the external generation-9 Nihil Light rule: the 0x matchup of
+/// `attack_type` becomes neutral.
 #[allow(clippy::too_many_arguments)]
 fn calculate_damage(
     attacker: &Combatant,
@@ -1176,6 +1496,7 @@ fn calculate_damage(
     drowsy_bonus: bool,
     pla_formula: bool,
     slow_start: bool,
+    ignore_own_type_immunity: bool,
     rng: &mut impl BattleRng,
 ) -> (u32, bool, f32) {
     let (attack, defense) = if category == "Physical" {
@@ -1191,7 +1512,11 @@ fn calculate_damage(
     let defense = q12_mul(defense, u32::from(target.defense_modifier_q12));
     let base = rules::base_damage(pla_formula, power, attack, u32::from(attacker.level), defense);
     let base = rules::apply_rank_states(base, ranks.0, ranks.1);
-    let effectiveness = type_effectiveness(chart, attack_type, &target.species.types);
+    let effectiveness = if ignore_own_type_immunity {
+        type_effectiveness_ignoring_immunity(chart, attack_type, &target.species.types)
+    } else {
+        type_effectiveness(chart, attack_type, &target.species.types)
+    };
     let mut damage = q12_mul(base, u32::from(attacker.damage_modifier_q12));
     if weather == BattleWeather::Rain && attack_type == "Fire" {
         damage = q12_mul(damage, 3072);
@@ -1386,6 +1711,7 @@ mod tests {
             false,
             true,
             false,
+            false,
             &mut Fixed(vec![0, 0]),
         );
         assert!(critical);
@@ -1402,6 +1728,7 @@ mod tests {
             (0, 0),
             false,
             true,
+            false,
             false,
             &mut Fixed(vec![1, 15]),
         );
@@ -1420,6 +1747,7 @@ mod tests {
             (0, 0),
             false,
             true,
+            false,
             false,
             &mut Fixed(vec![1, 15]),
         );

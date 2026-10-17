@@ -181,6 +181,10 @@ pub fn status_sequence(status: MajorStatus) -> &'static str {
         MajorStatus::Burn => "es003",
         MajorStatus::Frostbite => "es004",
         MajorStatus::Paralysis => "es005",
+        // Badly poisoned uses the poison sequence: same game record (id 5).
+        MajorStatus::BadlyPoisoned => "es002",
+        // Real sleep plays the same "nemuke" sequence as drowsiness (no dedicated one found).
+        MajorStatus::Sleep => "es001",
     }
 }
 

@@ -1,0 +1,683 @@
+# sheet: data/national/evolutions
+# version: 1
+# generator: .tools/build_national_dex.py
+# target: species-level evolution links with all PokeAPI detail columns
+# source: EXTERNAL/PROBABLE, not from the game files: PokeAPI data/v2/csv (commit 5ee47a9a9c1229632ec4b473a9c1c53026e005dd, fetched 2026-10-17; BSD-3-Clause) + Pokemon Showdown (MIT, commit 7244fe8e28fa8bc4d0809ae30d183c608b62bb2b) for the Legends: Z-A learnsets. For species/forms with active rows in data/pml_personal.tsv the VERIFIED game sheets always win at load time (crates/pla/src/national.rs).
+# semantics: from_species is the evolves-from species of to_species; numeric *_form columns are PokeAPI pokemon_forms ids (0 = none); item/held_item/known_move/location/party/trade are PokeAPI identifiers; condition is a human-readable DERIVED summary.
+evolution_chain:u16	from_species:u16	from_form:u16	to_species:u16	to_form:u16	trigger:string	trigger_id:u8	min_level:u8	item:string	held_item:string	time_of_day:string	known_move:string	known_move_type:string	min_happiness:u16	min_beauty:u16	min_affection:u16	relative_physical_stats:i8	gender:string	location:string	party_species:u16	party_type:string	trade_species:u16	needs_overworld_rain:bool	turn_upside_down:bool	needs_multiplayer:bool	near_special_rock:bool	used_move:string	min_move_count:u16	min_steps:u16	min_damage_taken:u16	condition_expression:string	condition:string	version_group:u16
+1	1	0	2	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	1
+1	2	0	3	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	1
+2	4	0	5	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	1
+2	5	0	6	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	1
+3	7	0	8	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	1
+3	8	0	9	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	1
+4	10	0	11	0	level-up	1	7						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=7	1
+4	11	0	12	0	level-up	1	10						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=10	1
+5	13	0	14	0	level-up	1	7						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=7	1
+5	14	0	15	0	level-up	1	10						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=10	1
+6	16	0	17	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	1
+6	17	0	18	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	1
+7	19	0	20	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	1
+8	21	0	22	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	1
+9	23	0	24	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	1
+10	172	0	25	0	level-up	1	0						220	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=220	3
+10	25	25	26	0	use-item	3	0	thunder-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=thunder-stone	1
+11	27	0	28	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	1
+12	29	0	30	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	1
+12	30	0	31	0	use-item	3	0	moon-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=moon-stone	1
+13	32	0	33	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	1
+13	33	0	34	0	use-item	3	0	moon-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=moon-stone	1
+14	173	0	35	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	3
+14	35	0	36	0	use-item	3	0	moon-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=moon-stone	1
+15	37	0	38	0	use-item	3	0	fire-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=fire-stone	1
+16	174	0	39	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	3
+16	39	0	40	0	use-item	3	0	moon-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=moon-stone	1
+17	41	0	42	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	1
+18	43	0	44	0	level-up	1	21						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=21	1
+18	44	0	45	0	use-item	3	0	leaf-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=leaf-stone	1
+19	46	0	47	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	1
+20	48	0	49	0	level-up	1	31						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=31	1
+21	50	0	51	0	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	1
+22	52	0	53	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	1
+23	54	0	55	0	level-up	1	33						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=33	1
+24	56	0	57	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	1
+25	58	0	59	0	use-item	3	0	fire-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=fire-stone	1
+26	60	0	61	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	1
+26	61	0	62	0	use-item	3	0	water-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=water-stone	1
+27	63	0	64	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	1
+27	64	0	65	0	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			1
+28	66	0	67	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	1
+28	67	0	68	0	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			1
+29	69	0	70	0	level-up	1	21						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=21	1
+29	70	0	71	0	use-item	3	0	leaf-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=leaf-stone	1
+30	72	0	73	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	1
+31	74	0	75	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	1
+31	75	0	76	0	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			1
+32	77	0	78	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	1
+33	79	0	80	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	1
+34	81	0	82	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	1
+36	84	0	85	0	level-up	1	31						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=31	1
+37	86	0	87	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	1
+38	88	0	89	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	1
+39	90	0	91	0	use-item	3	0	water-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=water-stone	1
+40	92	0	93	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	1
+40	93	0	94	0	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			1
+42	96	0	97	0	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	1
+43	98	0	99	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	1
+44	100	0	101	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	1
+45	102	0	103	0	use-item	3	0	leaf-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=leaf-stone	1
+46	104	0	105	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	1
+47	236	0	106	0	level-up	1	20						0	0	0	1			0		0	0	0	0	0		0	0	0		level>=20;physical_stats=1	3
+47	236	0	107	0	level-up	1	20						0	0	0	-1			0		0	0	0	0	0		0	0	0		level>=20;physical_stats=-1	3
+49	109	0	110	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	1
+50	111	0	112	0	level-up	1	42						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=42	1
+51	440	0	113	0	level-up	1	0		oval-stone	day			0	0	0	0			0		0	0	0	0	0		0	0	0		held=oval-stone;time=day	8
+54	116	0	117	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	1
+55	118	0	119	0	level-up	1	33						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=33	1
+56	120	0	121	0	use-item	3	0	water-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=water-stone	1
+57	439	0	122	0	level-up	1	0				mimic		0	0	0	0			0		0	0	0	0	0		0	0	0		move=mimic	8
+59	238	0	124	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	3
+60	239	0	125	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	3
+61	240	0	126	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	3
+64	129	0	130	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	1
+67	133	133	134	0	use-item	3	0	water-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=water-stone	1
+67	133	133	135	0	use-item	3	0	thunder-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=thunder-stone	1
+67	133	133	136	0	use-item	3	0	fire-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=fire-stone	1
+69	138	0	139	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	1
+70	140	0	141	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	1
+72	446	0	143	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	8
+76	147	0	148	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	1
+76	148	0	149	0	level-up	1	55						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=55	1
+79	152	0	153	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	3
+79	153	0	154	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	3
+80	155	0	156	0	level-up	1	14						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=14	3
+80	156	0	157	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	3
+81	158	0	159	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	3
+81	159	0	160	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	3
+82	161	0	162	0	level-up	1	15						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=15	3
+83	163	0	164	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	3
+84	165	0	166	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	3
+85	167	0	168	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	3
+17	42	0	169	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	3
+86	170	0	171	0	level-up	1	27						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=27	3
+87	175	0	176	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	3
+88	177	0	178	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	3
+89	179	0	180	0	level-up	1	15						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=15	3
+89	180	0	181	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	3
+18	44	0	182	0	use-item	3	0	sun-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=sun-stone	3
+90	298	0	183	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	5
+90	183	0	184	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	3
+91	438	0	185	0	level-up	1	0				mimic		0	0	0	0			0		0	0	0	0	0		0	0	0		move=mimic	8
+26	61	0	186	0	trade	2	0		kings-rock				0	0	0	0			0		0	0	0	0	0		0	0	0		held=kings-rock	3
+92	187	0	188	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	3
+92	188	0	189	0	level-up	1	27						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=27	3
+94	191	0	192	0	use-item	3	0	sun-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=sun-stone	3
+96	194	0	195	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	3
+67	133	133	196	0	level-up	1	0			day			160	0	0	0			0		0	0	0	0	0		0	0	0		time=day;happiness>=160	3
+67	133	133	197	0	level-up	1	0			night			160	0	0	0			0		0	0	0	0	0		0	0	0		time=night;happiness>=160	3
+33	79	0	199	0	trade	2	0		kings-rock				0	0	0	0			0		0	0	0	0	0		0	0	0		held=kings-rock	3
+100	360	0	202	0	level-up	1	15						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=15	5
+102	204	0	205	0	level-up	1	31						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=31	3
+41	95	0	208	0	trade	2	0		metal-coat				0	0	0	0			0		0	0	0	0	0		0	0	0		held=metal-coat	3
+105	209	0	210	0	level-up	1	23						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=23	3
+58	123	0	212	0	trade	2	0		metal-coat				0	0	0	0			0		0	0	0	0	0		0	0	0		held=metal-coat	3
+110	216	0	217	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	3
+111	218	0	219	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	3
+112	220	0	221	0	level-up	1	33						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=33	3
+114	223	0	224	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	3
+116	458	0	226	0	level-up	1	0						0	0	0	0			223		0	0	0	0	0		0	0	0		party_species=223	8
+118	228	0	229	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	3
+54	117	0	230	0	trade	2	0		dragon-scale				0	0	0	0			0		0	0	0	0	0		0	0	0		held=dragon-scale	3
+119	231	0	232	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	3
+68	137	0	233	0	trade	2	0		up-grade				0	0	0	0			0		0	0	0	0	0		0	0	0		held=up-grade	3
+47	236	0	237	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	3
+51	113	0	242	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	3
+126	246	0	247	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	3
+126	247	0	248	0	level-up	1	55						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=55	3
+130	252	0	253	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	5
+130	253	0	254	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	5
+131	255	0	256	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	5
+131	256	0	257	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	5
+132	258	0	259	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	5
+132	259	0	260	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	5
+133	261	0	262	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	5
+134	263	0	264	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	5
+135	265	0	266	0	level-up	1	7						0	0	0	0			0		0	0	0	0	0		0	0	0	PID 16 >> 10 % 4 <=	level>=7;PID 16 >> 10 % 4 <=	5
+135	266	0	267	0	level-up	1	10						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=10	5
+135	265	0	268	0	level-up	1	7						0	0	0	0			0		0	0	0	0	0		0	0	0	PID 16 >> 10 % 5 >=	level>=7;PID 16 >> 10 % 5 >=	5
+135	268	0	269	0	level-up	1	10						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=10	5
+136	270	0	271	0	level-up	1	14						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=14	5
+136	271	0	272	0	use-item	3	0	water-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=water-stone	5
+137	273	0	274	0	level-up	1	14						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=14	5
+137	274	0	275	0	use-item	3	0	leaf-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=leaf-stone	5
+138	276	0	277	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	5
+139	278	0	279	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	5
+140	280	0	281	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	5
+140	281	0	282	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	5
+141	283	0	284	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	5
+142	285	0	286	0	level-up	1	23						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=23	5
+143	287	0	288	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	5
+143	288	0	289	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	5
+144	290	0	291	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	5
+144	290	0	292	0	shed	4	0						0	0	0	0			0		0	0	0	0	0		0	0	0			5
+145	293	0	294	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	5
+145	294	0	295	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	5
+146	296	0	297	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	5
+148	300	0	301	0	use-item	3	0	moon-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=moon-stone	5
+151	304	0	305	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	5
+151	305	0	306	0	level-up	1	42						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=42	5
+152	307	0	308	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	5
+153	309	0	310	0	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	5
+158	406	0	315	0	level-up	1	0			day			160	0	0	0			0		0	0	0	0	0		0	0	0		time=day;happiness>=160	8
+159	316	0	317	0	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	5
+160	318	0	319	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	5
+161	320	0	321	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	5
+162	322	0	323	0	level-up	1	33						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=33	5
+164	325	0	326	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	5
+166	328	0	329	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	5
+166	329	0	330	0	level-up	1	45						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=45	5
+167	331	0	332	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	5
+168	333	0	334	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	5
+173	339	0	340	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	5
+174	341	0	342	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	5
+175	343	0	344	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	5
+176	345	0	346	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	5
+177	347	0	348	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	5
+178	349	0	350	0	level-up	1	0						0	170	0	0			0		0	0	0	0	0		0	0	0		beauty>=170	5
+181	353	0	354	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	5
+182	355	0	356	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	5
+184	433	0	358	0	level-up	1	0			night			220	0	0	0			0		0	0	0	0	0		0	0	0		time=night;happiness>=220	8
+186	361	0	362	0	level-up	1	42						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=42	5
+187	363	0	364	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	5
+187	364	0	365	0	level-up	1	44						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=44	5
+188	366	0	367	0	trade	2	0		deep-sea-tooth				0	0	0	0			0		0	0	0	0	0		0	0	0		held=deep-sea-tooth	5
+188	366	0	368	0	trade	2	0		deep-sea-scale				0	0	0	0			0		0	0	0	0	0		0	0	0		held=deep-sea-scale	5
+191	371	0	372	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	5
+191	372	0	373	0	level-up	1	50						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=50	5
+192	374	0	375	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	5
+192	375	0	376	0	level-up	1	45						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=45	5
+203	387	0	388	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	8
+203	388	0	389	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	8
+204	390	0	391	0	level-up	1	14						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=14	8
+204	391	0	392	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	8
+205	393	0	394	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	8
+205	394	0	395	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	8
+206	396	0	397	0	level-up	1	14						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=14	8
+206	397	0	398	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	8
+207	399	0	400	0	level-up	1	15						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=15	8
+208	401	0	402	0	level-up	1	10						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=10	8
+209	403	0	404	0	level-up	1	15						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=15	8
+209	404	0	405	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	8
+158	315	0	407	0	use-item	3	0	shiny-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=shiny-stone	8
+211	408	0	409	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	8
+212	410	0	411	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	8
+213	412	412	413	413	level-up	1	20						0	0	0	0	female		0		0	0	0	0	0		0	0	0		level>=20;gender=female	8
+213	412	0	414	0	level-up	1	20						0	0	0	0	male		0		0	0	0	0	0		0	0	0		level>=20;gender=male	8
+214	415	0	416	0	level-up	1	21						0	0	0	0	female		0		0	0	0	0	0		0	0	0		level>=21;gender=female	8
+216	418	0	419	0	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	8
+217	420	0	421	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	8
+218	422	422	423	423	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	8
+93	190	0	424	0	level-up	1	0				double-hit		0	0	0	0			0		0	0	0	0	0		0	0	0		move=double-hit	8
+219	425	0	426	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	8
+220	427	0	428	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	8
+98	200	0	429	0	use-item	3	0	dusk-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=dusk-stone	8
+97	198	0	430	0	use-item	3	0	dusk-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=dusk-stone	8
+221	431	0	432	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	8
+223	434	0	435	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	8
+224	436	0	437	0	level-up	1	33						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=33	8
+230	443	0	444	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	8
+230	444	0	445	0	level-up	1	48						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=48	8
+232	447	0	448	0	level-up	1	0			day			160	0	0	0			0		0	0	0	0	0		0	0	0		time=day;happiness>=160	8
+233	449	0	450	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	8
+234	451	0	452	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	8
+235	453	0	454	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	8
+237	456	0	457	0	level-up	1	31						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=31	8
+239	459	0	460	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	8
+109	215	0	461	0	level-up	1	0		razor-claw	night			0	0	0	0			0		0	0	0	0	0		0	0	0		held=razor-claw;time=night	8
+34	82	0	462	0	level-up	1	0						0	0	0	0		mt-coronet	0		0	0	0	0	0		0	0	0		location=mt-coronet	8
+48	108	0	463	0	level-up	1	0				rollout		0	0	0	0			0		0	0	0	0	0		0	0	0		move=rollout	8
+50	112	0	464	0	trade	2	0		protector				0	0	0	0			0		0	0	0	0	0		0	0	0		held=protector	8
+52	114	0	465	0	level-up	1	0				ancient-power		0	0	0	0			0		0	0	0	0	0		0	0	0		move=ancient-power	8
+60	125	0	466	0	trade	2	0		electirizer				0	0	0	0			0		0	0	0	0	0		0	0	0		held=electirizer	8
+61	126	0	467	0	trade	2	0		magmarizer				0	0	0	0			0		0	0	0	0	0		0	0	0		held=magmarizer	8
+87	176	0	468	0	use-item	3	0	shiny-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=shiny-stone	8
+95	193	0	469	0	level-up	1	0				ancient-power		0	0	0	0			0		0	0	0	0	0		0	0	0		move=ancient-power	8
+67	133	133	470	0	level-up	1	0						0	0	0	0		eterna-forest	0		0	0	0	0	1		0	0	0		location=eterna-forest;near_special_rock	8
+67	133	133	471	0	level-up	1	0						0	0	0	0		sinnoh-route-217	0		0	0	0	0	1		0	0	0		location=sinnoh-route-217;near_special_rock	8
+104	207	0	472	0	level-up	1	0		razor-fang	night			0	0	0	0			0		0	0	0	0	0		0	0	0		held=razor-fang;time=night	8
+112	221	0	473	0	level-up	1	0				ancient-power		0	0	0	0			0		0	0	0	0	0		0	0	0		move=ancient-power	8
+68	233	0	474	0	trade	2	0		dubious-disc				0	0	0	0			0		0	0	0	0	0		0	0	0		held=dubious-disc	8
+140	281	0	475	0	use-item	3	0	dawn-stone					0	0	0	0	male		0		0	0	0	0	0		0	0	0		item=dawn-stone;gender=male	8
+147	299	0	476	0	level-up	1	0						0	0	0	0		mt-coronet	0		0	0	0	0	0		0	0	0		location=mt-coronet	8
+182	356	0	477	0	trade	2	0		reaper-cloth				0	0	0	0			0		0	0	0	0	0		0	0	0		held=reaper-cloth	8
+186	361	0	478	0	use-item	3	0	dawn-stone					0	0	0	0	female		0		0	0	0	0	0		0	0	0		item=dawn-stone;gender=female	8
+256	495	0	496	0	level-up	1	17						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=17	11
+256	496	0	497	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	11
+257	498	0	499	0	level-up	1	17						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=17	11
+257	499	0	500	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	11
+258	501	0	502	0	level-up	1	17						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=17	11
+258	502	0	503	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	11
+259	504	0	505	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	11
+260	506	0	507	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	11
+260	507	0	508	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	11
+261	509	0	510	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	11
+262	511	0	512	0	use-item	3	0	leaf-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=leaf-stone	11
+263	513	0	514	0	use-item	3	0	fire-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=fire-stone	11
+264	515	0	516	0	use-item	3	0	water-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=water-stone	11
+265	517	0	518	0	use-item	3	0	moon-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=moon-stone	11
+266	519	0	520	0	level-up	1	21						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=21	11
+266	520	0	521	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	11
+267	522	0	523	0	level-up	1	27						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=27	11
+268	524	0	525	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	11
+268	525	0	526	0	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			11
+269	527	0	528	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	11
+270	529	0	530	0	level-up	1	31						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=31	11
+272	532	0	533	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	11
+272	533	0	534	0	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			11
+273	535	0	536	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	11
+273	536	0	537	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	11
+276	540	0	541	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	11
+276	541	0	542	0	level-up	1	0						220	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=220	11
+277	543	0	544	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	11
+277	544	0	545	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	11
+278	546	0	547	0	use-item	3	0	sun-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=sun-stone	11
+279	548	0	549	0	use-item	3	0	sun-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=sun-stone	11
+281	551	0	552	0	level-up	1	29						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=29	11
+281	552	0	553	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	11
+282	554	0	555	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	11
+284	557	0	558	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	11
+285	559	0	560	0	level-up	1	39						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=39	11
+287	562	0	563	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	11
+288	564	0	565	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	11
+289	566	0	567	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	11
+290	568	0	569	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	11
+291	570	0	571	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	11
+292	572	0	573	0	use-item	3	0	shiny-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=shiny-stone	11
+293	574	0	575	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	11
+293	575	0	576	0	level-up	1	41						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=41	11
+294	577	0	578	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	11
+294	578	0	579	0	level-up	1	41						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=41	11
+295	580	0	581	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	11
+296	582	0	583	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	11
+296	583	0	584	0	level-up	1	47						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=47	11
+297	585	585	586	586	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	11
+299	588	0	589	0	trade	2	0						0	0	0	0			0		616	0	0	0	0		0	0	0		trade_species=616	11
+300	590	0	591	0	level-up	1	39						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=39	11
+301	592	0	593	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	11
+303	595	0	596	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	11
+304	597	0	598	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	11
+305	599	0	600	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	11
+305	600	0	601	0	level-up	1	49						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=49	11
+306	602	0	603	0	level-up	1	39						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=39	11
+306	603	0	604	0	use-item	3	0	thunder-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=thunder-stone	11
+307	605	0	606	0	level-up	1	42						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=42	11
+308	607	0	608	0	level-up	1	41						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=41	11
+308	608	0	609	0	use-item	3	0	dusk-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=dusk-stone	11
+309	610	0	611	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	11
+309	611	0	612	0	level-up	1	48						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=48	11
+310	613	0	614	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	11
+312	616	0	617	0	trade	2	0						0	0	0	0			0		588	0	0	0	0		0	0	0		trade_species=588	11
+314	619	0	620	0	level-up	1	50						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=50	11
+316	622	0	623	0	level-up	1	43						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=43	11
+317	624	0	625	0	level-up	1	52						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=52	11
+319	627	0	628	0	level-up	1	54						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=54	11
+320	629	0	630	0	level-up	1	54						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=54	11
+323	633	0	634	0	level-up	1	50						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=50	11
+323	634	0	635	0	level-up	1	64						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=64	11
+324	636	0	637	0	level-up	1	59						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=59	11
+178	349	0	350	0	trade	2	0		prism-scale				0	0	0	0			0		0	0	0	0	0		0	0	0		held=prism-scale	11
+34	82	0	462	0	level-up	1	0						0	0	0	0		chargestone-cave	0		0	0	0	0	0		0	0	0		location=chargestone-cave	11
+147	299	0	476	0	level-up	1	0						0	0	0	0		chargestone-cave	0		0	0	0	0	0		0	0	0		location=chargestone-cave	11
+67	133	133	470	0	level-up	1	0						0	0	0	0		pinwheel-forest	0		0	0	0	0	1		0	0	0		location=pinwheel-forest;near_special_rock	11
+67	133	133	471	0	level-up	1	0						0	0	0	0		twist-mountain	0		0	0	0	0	1		0	0	0		location=twist-mountain;near_special_rock	11
+350	682	0	683	0	trade	2	0		sachet				0	0	0	0			0		0	0	0	0	0		0	0	0		held=sachet	11
+341	661	0	662	0	level-up	1	17						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=17	15
+364	708	0	709	0	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			15
+341	662	0	663	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	15
+338	653	0	654	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	15
+352	686	0	687	0	level-up	1	30						0	0	0	0			0		0	0	1	0	0		0	0	0		level>=30;upside_down	15
+338	654	0	655	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	15
+337	650	0	651	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	15
+355	692	0	693	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	15
+337	651	0	652	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	15
+339	656	0	657	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	15
+339	657	0	658	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	15
+349	679	0	680	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	15
+362	704	0	705	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	15
+342	665	665	666	10086	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	664	664	665	665	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+353	688	0	689	0	level-up	1	39						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=39	15
+365	710	710	711	711	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			15
+340	659	0	660	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	15
+344	669	669	670	670	level-up	1	19						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=19	15
+344	670	670	671	671	use-item	3	0	shiny-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=shiny-stone	15
+349	680	0	681	0	use-item	3	0	dusk-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=dusk-stone	15
+346	674	0	675	0	level-up	1	32						0	0	0	0			0	Dark	0	0	0	0	0		0	0	0		level>=32;party_type=Dark	15
+351	684	0	685	0	trade	2	0		whipped-dream				0	0	0	0			0		0	0	0	0	0		0	0	0		held=whipped-dream	15
+354	690	0	691	0	level-up	1	48						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=48	15
+357	696	0	697	0	level-up	1	39			day			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=39;time=day	15
+358	698	0	699	0	level-up	1	39			night			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=39;time=night	15
+366	712	0	713	0	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	15
+356	694	0	695	0	use-item	3	0	sun-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=sun-stone	15
+343	667	0	668	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	15
+345	672	0	673	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	15
+362	705	0	706	0	level-up	1	50						0	0	0	0			0		0	1	0	0	0		0	0	0		level>=50;rain	15
+367	714	0	715	0	level-up	1	48						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=48	15
+348	677	0	678	678	level-up	1	25						0	0	0	0	male		0		0	0	0	0	0		0	0	0		level>=25;gender=male	15
+67	133	133	700	0	level-up	1	0					Fairy	0	0	2	0			0		0	0	0	0	0		0	0	0		move_type=Fairy;affection>=2	15
+34	82	0	462	0	level-up	1	0						0	0	0	0		kalos-route-13	0		0	0	0	0	0		0	0	0		location=kalos-route-13	15
+67	133	133	470	0	level-up	1	0						0	0	0	0		kalos-route-20	0		0	0	0	0	1		0	0	0		location=kalos-route-20;near_special_rock	15
+67	133	133	471	0	level-up	1	0						0	0	0	0		frost-cavern	0		0	0	0	0	1		0	0	0		location=frost-cavern;near_special_rock	15
+147	299	0	476	0	level-up	1	0						0	0	0	0		kalos-route-13	0		0	0	0	0	0		0	0	0		location=kalos-route-13	15
+34	82	0	462	0	level-up	1	0						0	0	0	0		blush-mountain	0		0	0	0	0	0		0	0	0		location=blush-mountain	17
+46	104	0	105	10217	level-up	1	28			night			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28;time=night	17
+34	82	0	462	0	level-up	1	0						0	0	0	0		vast-poni-canyon	0		0	0	0	0	0		0	0	0		location=vast-poni-canyon	17
+147	299	0	476	0	level-up	1	0						0	0	0	0		blush-mountain	0		0	0	0	0	0		0	0	0		location=blush-mountain	17
+147	299	0	476	0	level-up	1	0						0	0	0	0		vast-poni-canyon	0		0	0	0	0	0		0	0	0		location=vast-poni-canyon	17
+379	737	0	738	0	level-up	1	0						0	0	0	0		vast-poni-canyon	0		0	0	0	0	0		0	0	0		location=vast-poni-canyon	17
+374	722	0	723	0	level-up	1	17						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=17	17
+374	723	0	724	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	17
+375	725	0	726	0	level-up	1	17						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=17	17
+375	726	0	727	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	17
+376	728	0	729	0	level-up	1	17						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=17	17
+376	729	0	730	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	17
+377	731	0	732	0	level-up	1	14						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=14	17
+377	732	0	733	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	17
+378	734	0	735	0	level-up	1	20			day			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20;time=day	17
+379	736	0	737	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	17
+379	737	0	738	0	level-up	1	0						0	0	0	0		blush-mountain	0		0	0	0	0	0		0	0	0		location=blush-mountain	17
+380	739	0	740	0	level-up	1	0						0	0	0	0		mount-lanakila	0		0	0	0	0	0		0	0	0		location=mount-lanakila	17
+382	742	0	743	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	17
+383	744	744	745	745	level-up	1	25			day			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25;time=day	17
+383	744	744	745	10228	level-up	1	25			night			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25;time=night	17
+385	747	0	748	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	17
+386	749	0	750	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	17
+387	751	0	752	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	17
+388	753	0	754	0	level-up	1	34			day			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34;time=day	17
+389	755	0	756	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	17
+390	757	0	758	0	level-up	1	33						0	0	0	0	female		0		0	0	0	0	0		0	0	0		level>=33;gender=female	17
+391	759	0	760	0	level-up	1	27						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=27	17
+392	761	0	762	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	17
+392	762	0	763	0	level-up	1	0				stomp		0	0	0	0			0		0	0	0	0	0		0	0	0		move=stomp	17
+396	767	0	768	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	17
+397	769	0	770	0	level-up	1	42						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=42	17
+399	772	0	773	0	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	17
+408	782	0	783	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	17
+408	783	0	784	0	level-up	1	45						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=45	17
+413	789	0	790	0	level-up	1	43						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=43	17
+413	790	0	791	0	level-up	1	53						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=53	17
+413	790	0	792	0	level-up	1	53						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=53	17
+424	803	0	804	0	level-up	1	0				dragon-pulse		0	0	0	0			0		0	0	0	0	0		0	0	0		move=dragon-pulse	18
+34	82	0	462	0	use-item	3	0	thunder-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=thunder-stone	20
+67	133	133	470	0	use-item	3	0	leaf-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=leaf-stone	20
+67	133	133	471	0	use-item	3	0	ice-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=ice-stone	20
+67	133	133	700	0	level-up	1	0					Fairy	160	0	0	0			0		0	0	0	0	0		0	0	0		move_type=Fairy;happiness>=160	20
+379	737	0	738	0	use-item	3	0	thunder-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=thunder-stone	20
+430	810	0	811	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	20
+430	811	0	812	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	20
+431	813	0	814	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	20
+431	814	0	815	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	20
+432	816	0	817	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	20
+432	817	0	818	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	20
+433	819	0	820	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	20
+434	821	0	822	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	20
+434	822	0	823	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	20
+435	824	0	825	0	level-up	1	10						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=10	20
+435	825	0	826	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	20
+436	827	0	828	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	20
+437	829	0	830	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	20
+438	831	0	832	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	20
+439	833	0	834	0	level-up	1	22						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=22	20
+440	835	0	836	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	20
+441	837	0	838	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	20
+441	838	0	839	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	20
+442	840	0	841	0	use-item	3	0	tart-apple					0	0	0	0			0		0	0	0	0	0		0	0	0		item=tart-apple	20
+442	840	0	842	0	use-item	3	0	sweet-apple					0	0	0	0			0		0	0	0	0	0		0	0	0		item=sweet-apple	20
+443	843	0	844	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	20
+445	846	0	847	0	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	20
+446	848	0	849	849	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	20
+447	850	0	851	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	20
+448	852	0	853	0	level-up	1	0				taunt		0	0	0	0			0		0	0	0	0	0		0	0	0		move=taunt	20
+449	854	854	855	855	use-item	3	0	cracked-pot					0	0	0	0			0		0	0	0	0	0		0	0	0		item=cracked-pot	20
+450	856	0	857	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	20
+450	857	0	858	0	level-up	1	42						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=42	20
+451	859	0	860	0	level-up	1	32						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=32	20
+451	860	0	861	0	level-up	1	42						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=42	20
+452	868	0	869	869	spin	5	0		strawberry-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=strawberry-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+455	872	0	873	0	level-up	1	0			night			160	0	0	0			0		0	0	0	0	0		0	0	0		time=night;happiness>=160	20
+460	878	0	879	0	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	20
+466	885	0	886	0	level-up	1	50						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=50	20
+466	886	0	887	0	level-up	1	60						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=60	20
+470	891	0	892	892	tower-of-darkness	6	0						0	0	0	0			0		0	0	0	0	0		0	0	0			21
+470	891	0	892	10360	tower-of-waters	7	0						0	0	0	0			0		0	0	0	0	0		0	0	0			21
+11	27	10203	28	10204	use-item	3	0	ice-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=ice-stone	17
+15	37	10205	38	10206	use-item	3	0	ice-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=ice-stone	17
+22	52	10209	53	10210	level-up	1	0						160	0	0	0			0		0	0	0	0	0		0	0	0		happiness>=160	17
+22	52	10320	863	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	20
+33	79	10323	80	10324	use-item	3	0	galarica-cuff					0	0	0	0			0		0	0	0	0	0		0	0	0		item=galarica-cuff	21
+33	79	10323	199	10331	use-item	3	0	galarica-wreath					0	0	0	0			0		0	0	0	0	0		0	0	0		item=galarica-wreath	21
+35	83	10325	865	0	three-critical-hits	8	0						0	0	0	0			0		0	0	0	0	0		0	0	0			20
+57	122	10327	866	0	level-up	1	42						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=42	20
+113	222	10332	864	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	20
+134	264	10334	862	0	level-up	1	35			night			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35;time=night	20
+282	554	10335	555	10336	use-item	3	0	ice-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=ice-stone	20
+287	562	10338	867	0	take-damage	9	0						0	0	0	0		dusty-bowl	0		0	0	0	0	0		0	0	49		location=dusty-bowl;damage_taken>=49	20
+383	744	10310	745	10311	level-up	1	25			dusk			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25;time=dusk	17
+7	19	10193	20	10194	level-up	1	20			night			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20;time=night	17
+120	234	0	899	0	agile-style-move	11	0						0	0	0	0			0		0	0	0	0	0	psyshield-bash	20	0	0		used_move=psyshield-bash;move_count>=20	24
+58	123	0	900	0	use-item	3	0	black-augurite					0	0	0	0			0		0	0	0	0	0		0	0	0		item=black-augurite	24
+110	217	0	901	0	use-item	3	0	peat-block		full-moon			0	0	0	0			0		0	0	0	0	0		0	0	0		item=peat-block;time=full-moon	24
+280	550	10416	902	902	recoil-damage	13	0						0	0	0	0	male		0		0	0	0	0	0		0	0	294		gender=male;damage_taken>=294	24
+109	215	10404	903	0	level-up	1	0		razor-claw	day			0	0	0	0			0		0	0	0	0	0		0	0	0		held=razor-claw;time=day	24
+106	211	10403	904	0	strong-style-move	12	0						0	0	0	0			0		0	0	0	0	0	barb-barrage	20	0	0		used_move=barb-barrage;move_count>=20	24
+478	906	0	907	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	25
+478	907	0	908	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	25
+479	909	0	910	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	25
+479	910	0	911	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	25
+480	912	0	913	0	level-up	1	16						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=16	25
+480	913	0	914	0	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	25
+481	915	0	916	916	level-up	1	18						0	0	0	0	male		0		0	0	0	0	0		0	0	0		level>=18;gender=male	25
+482	917	0	918	0	level-up	1	15						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=15	25
+483	919	0	920	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	25
+484	921	0	922	0	level-up	1	18						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=18	25
+484	922	0	923	0	level-up	1	0						0	0	0	0			0		0	0	0	0	0		0	1000	0		steps>=1000	25
+485	924	0	925	925	in-battle-level-up	10	25						0	0	0	0			0		0	0	0	0	0		0	0	0	EC 100 % 0 !=	level>=25;EC 100 % 0 !=	25
+486	926	0	927	0	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	25
+487	928	0	929	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	25
+487	929	0	930	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	25
+489	932	0	933	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	25
+489	933	0	934	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	25
+490	935	0	936	0	use-item	3	0	auspicious-armor					0	0	0	0			0		0	0	0	0	0		0	0	0		item=auspicious-armor	25
+490	935	0	937	0	use-item	3	0	malicious-armor					0	0	0	0			0		0	0	0	0	0		0	0	0		item=malicious-armor	25
+491	938	0	939	0	use-item	3	0	thunder-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=thunder-stone	25
+492	940	0	941	0	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	25
+493	942	0	943	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	25
+494	944	0	945	0	level-up	1	28						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=28	25
+495	946	0	947	0	level-up	1	0						0	0	0	0			0		0	0	0	0	0		0	1000	0		steps>=1000	25
+496	948	0	949	0	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	25
+498	951	0	952	0	use-item	3	0	fire-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=fire-stone	25
+499	953	0	954	0	level-up	1	0						0	0	0	0			0		0	0	0	0	0		0	1000	0		steps>=1000	25
+500	955	0	956	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	25
+501	957	0	958	0	level-up	1	24						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=24	25
+501	958	0	959	0	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	25
+502	960	0	961	0	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	25
+504	963	0	964	0	level-up	1	38						0	0	0	0			0		0	0	0	1	0		0	0	0		level>=38;multiplayer	25
+505	965	0	966	0	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	25
+508	969	0	970	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	25
+509	971	0	972	0	level-up	1	30			night			0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30;time=night	25
+511	974	0	975	0	use-item	3	0	ice-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=ice-stone	25
+24	57	0	979	0	use-move	14	0						0	0	0	0			0		0	0	0	0	0	rage-fist	20	0	0		used_move=rage-fist;move_count>=20	25
+96	194	10422	980	0	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	25
+101	203	0	981	0	level-up	1	0				twin-beam		0	0	0	0			0		0	0	0	0	0		0	0	0		move=twin-beam	25
+103	206	0	982	982	level-up	1	0				hyper-drill		0	0	0	0			0		0	0	0	0	0		0	0	0	EC 100 % 0 !=	move=hyper-drill;EC 100 % 0 !=	25
+317	625	0	983	0	three-defeated-bisharp	15	0						0	0	0	0			0		0	0	0	0	0		0	0	0			25
+527	996	0	997	0	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	25
+527	997	0	998	0	level-up	1	54						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=54	25
+528	999	0	1000	0	gimmighoul-coins	16	0						0	0	0	0			0		0	0	0	0	0		0	0	0			25
+380	739	0	740	0	use-item	3	0	ice-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=ice-stone	25
+147	299	0	476	0	use-item	3	0	thunder-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=thunder-stone	25
+106	211	10403	904	0	level-up	1	0				barb-barrage		0	0	0	0			0		0	0	0	0	0		0	0	0		move=barb-barrage	25
+106	211	10403	904	0	use-move	14	0						0	0	0	0			0		0	0	0	0	0	barb-barrage	20	0	0		used_move=barb-barrage;move_count>=20	30
+10	25	25	26	10202	use-item	3	0	thunder-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=thunder-stone	17
+21	50	10207	51	10208	level-up	1	26						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=26	17
+31	74	10211	75	10212	level-up	1	25						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=25	17
+31	75	10212	76	10213	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			17
+38	88	10214	89	10215	level-up	1	38						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=38	17
+45	102	0	103	10216	use-item	3	0	leaf-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=leaf-stone	17
+25	58	10398	59	10399	use-item	3	0	fire-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=fire-stone	24
+44	100	10400	101	10401	use-item	3	0	leaf-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=leaf-stone	24
+80	155	0	156	0	level-up	1	17						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=17	24
+80	156	0	157	10402	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	24
+258	502	0	503	10405	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	24
+279	548	0	549	10406	use-item	3	0	sun-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=sun-stone	24
+291	570	10407	571	10408	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	24
+319	627	0	628	10409	level-up	1	54						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=54	24
+362	704	0	705	10410	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	24
+362	705	10410	706	10411	level-up	1	50						0	0	0	0			0		0	1	0	0	0		0	0	0		level>=50;rain	24
+366	712	0	713	10412	level-up	1	37						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=37	24
+374	723	0	724	10413	level-up	1	36						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=36	24
+32	77	10321	78	10322	level-up	1	40						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=40	20
+49	109	0	110	10326	level-up	1	35						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=35	20
+57	439	0	122	10327	level-up	1	0				mimic		0	0	0	0			0		0	0	0	0	0		0	0	0		move=mimic	20
+134	263	10333	264	10334	level-up	1	20						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=20	20
+470	891	0	892	892	use-item	3	0	scroll-of-darkness					0	0	0	0			0		0	0	0	0	0		0	0	0		item=scroll-of-darkness	25
+470	891	0	892	10360	use-item	3	0	scroll-of-waters					0	0	0	0			0		0	0	0	0	0		0	0	0		item=scroll-of-waters	25
+442	840	0	1011	0	use-item	3	0	syrupy-apple					0	0	0	0			0		0	0	0	0	0		0	0	0		item=syrupy-apple	26
+465	884	0	1018	0	use-item	3	0	metal-alloy					0	0	0	0			0		0	0	0	0	0		0	0	0		item=metal-alloy	27
+442	1011	0	1019	0	level-up	1	0				dragon-cheer		0	0	0	0			0		0	0	0	0	0		0	0	0		move=dragon-cheer	27
+539	1012	1012	1013	1013	use-item	3	0	unremarkable-teacup					0	0	0	0			0		0	0	0	0	0		0	0	0		item=unremarkable-teacup	26
+539	1012	10447	1013	10448	use-item	3	0	masterpiece-teacup					0	0	0	0			0		0	0	0	0	0		0	0	0		item=masterpiece-teacup	26
+34	82	0	462	0	level-up	1	0						0	0	0	0		new-mauville	0		0	0	0	0	0		0	0	0		location=new-mauville	16
+147	299	0	476	0	level-up	1	0						0	0	0	0		new-mauville	0		0	0	0	0	0		0	0	0		location=new-mauville	16
+67	133	133	470	0	level-up	1	0						0	0	0	0		petalburg-woods	0		0	0	0	0	1		0	0	0		location=petalburg-woods;near_special_rock	16
+67	133	133	471	0	level-up	1	0						0	0	0	0		shoal-cave	0		0	0	0	0	1		0	0	0		location=shoal-cave;near_special_rock	16
+67	133	133	470	0	level-up	1	0						0	0	0	0		lush-jungle	0		0	0	0	0	1		0	0	0		location=lush-jungle;near_special_rock	17
+67	133	133	471	0	level-up	1	0						0	0	0	0		mount-lanakila	0		0	0	0	0	1		0	0	0		location=mount-lanakila;near_special_rock	17
+449	854	10344	855	10345	use-item	3	0	chipped-pot					0	0	0	0			0		0	0	0	0	0		0	0	0		item=chipped-pot	20
+178	349	0	350	0	level-up	1	0						0	170	0	0			0		0	0	0	0	0		0	0	0		beauty>=170	16
+365	710	10126	711	10129	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			15
+365	710	10127	711	10130	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			15
+365	710	10128	711	10131	trade	2	0						0	0	0	0			0		0	0	0	0	0		0	0	0			15
+348	677	0	678	10124	level-up	1	25						0	0	0	0	female		0		0	0	0	0	0		0	0	0		level>=25;gender=female	15
+481	915	0	916	10423	level-up	1	18						0	0	0	0	female		0		0	0	0	0	0		0	0	0		level>=18;gender=female	25
+446	848	0	849	10343	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	20
+485	924	0	925	10426	in-battle-level-up	10	25						0	0	0	0			0		0	0	0	0	0		0	0	0	EC 100 % 0 ==	level>=25;EC 100 % 0 ==	25
+103	206	0	982	10424	level-up	1	0				hyper-drill		0	0	0	0			0		0	0	0	0	0		0	0	0	EC 100 % 0 ==	move=hyper-drill;EC 100 % 0 ==	25
+280	550	10416	902	10417	recoil-damage	13	0						0	0	0	0	female		0		0	0	0	0	0		0	0	294		gender=female;damage_taken>=294	24
+135	265	0	266	0	level-up	1	7						0	0	0	0			0		0	0	0	0	0		0	0	0	EC 16 >> 10 % 4 <=	level>=7;EC 16 >> 10 % 4 <=	15
+135	265	0	268	0	level-up	1	7						0	0	0	0			0		0	0	0	0	0		0	0	0	EC 16 >> 10 % 5 >=	level>=7;EC 16 >> 10 % 5 >=	15
+213	412	10034	413	10036	level-up	1	20						0	0	0	0	female		0		0	0	0	0	0		0	0	0		level>=20;gender=female	8
+213	412	10035	413	10037	level-up	1	20						0	0	0	0	female		0		0	0	0	0	0		0	0	0		level>=20;gender=female	8
+428	808	0	809	0	meltan-candies	17	0						0	0	0	0			0		0	0	0	0	0		0	0	0			19
+344	669	10103	670	10107	level-up	1	19						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=19	15
+344	669	10104	670	10108	level-up	1	19						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=19	15
+344	669	10105	670	10109	level-up	1	19						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=19	15
+344	669	10106	670	10110	level-up	1	19						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=19	15
+344	670	10107	671	10111	use-item	3	0	shiny-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=shiny-stone	15
+344	670	10108	671	10112	use-item	3	0	shiny-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=shiny-stone	15
+344	670	10109	671	10113	use-item	3	0	shiny-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=shiny-stone	15
+344	670	10110	671	10114	use-item	3	0	shiny-stone					0	0	0	0			0		0	0	0	0	0		0	0	0		item=shiny-stone	15
+218	422	10039	423	10040	level-up	1	30						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=30	8
+297	585	10068	586	10071	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	11
+297	585	10069	586	10072	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	11
+297	585	10070	586	10073	level-up	1	34						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=34	11
+342	664	10271	665	10290	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10272	665	10291	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10273	665	10292	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10274	665	10293	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10275	665	10294	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10276	665	10295	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10277	665	10296	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10278	665	10297	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10279	665	10298	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10280	665	10299	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10281	665	10300	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10282	665	10301	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10283	665	10302	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10284	665	10303	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10285	665	10304	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10286	665	10305	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10287	665	10306	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10288	665	10307	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	664	10289	665	10308	level-up	1	9						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=9	15
+342	665	10290	666	10087	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10291	666	10088	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10292	666	10089	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10293	666	10090	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10294	666	10091	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10295	666	666	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10296	666	10092	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10297	666	10093	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10298	666	10094	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10299	666	10095	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10300	666	10096	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10301	666	10097	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10302	666	10098	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10303	666	10099	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10304	666	10100	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10305	666	10101	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10306	666	10102	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10307	666	10161	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+342	665	10308	666	10162	level-up	1	12						0	0	0	0			0		0	0	0	0	0		0	0	0		level>=12	15
+452	868	0	869	10346	spin	5	0		strawberry-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=strawberry-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10347	spin	5	0		strawberry-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=strawberry-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10348	spin	5	0		strawberry-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=strawberry-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10349	spin	5	0		strawberry-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=strawberry-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10350	spin	5	0		strawberry-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=strawberry-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10351	spin	5	0		strawberry-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=strawberry-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10352	spin	5	0		strawberry-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=strawberry-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10353	spin	5	0		strawberry-sweet	dusk			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_SEC 10 >=	held=strawberry-sweet;time=dusk;SPIN_SEC 10 >=	20
+452	868	0	869	10449	spin	5	0		berry-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=berry-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10450	spin	5	0		berry-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=berry-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10451	spin	5	0		berry-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=berry-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10452	spin	5	0		berry-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=berry-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10453	spin	5	0		berry-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=berry-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10454	spin	5	0		berry-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=berry-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10455	spin	5	0		berry-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=berry-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10456	spin	5	0		berry-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=berry-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10457	spin	5	0		berry-sweet	dusk			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_SEC 10 >=	held=berry-sweet;time=dusk;SPIN_SEC 10 >=	20
+452	868	0	869	10458	spin	5	0		love-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=love-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10459	spin	5	0		love-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=love-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10460	spin	5	0		love-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=love-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10461	spin	5	0		love-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=love-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10462	spin	5	0		love-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=love-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10463	spin	5	0		love-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=love-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10464	spin	5	0		love-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=love-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10465	spin	5	0		love-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=love-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10466	spin	5	0		love-sweet	dusk			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_SEC 10 >=	held=love-sweet;time=dusk;SPIN_SEC 10 >=	20
+452	868	0	869	10467	spin	5	0		star-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=star-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10468	spin	5	0		star-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=star-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10469	spin	5	0		star-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=star-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10470	spin	5	0		star-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=star-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10471	spin	5	0		star-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=star-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10472	spin	5	0		star-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=star-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10473	spin	5	0		star-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=star-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10474	spin	5	0		star-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=star-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10475	spin	5	0		star-sweet	dusk			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_SEC 10 >=	held=star-sweet;time=dusk;SPIN_SEC 10 >=	20
+452	868	0	869	10476	spin	5	0		clover-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=clover-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10477	spin	5	0		clover-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=clover-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10478	spin	5	0		clover-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=clover-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10479	spin	5	0		clover-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=clover-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10480	spin	5	0		clover-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=clover-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10481	spin	5	0		clover-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=clover-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10482	spin	5	0		clover-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=clover-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10483	spin	5	0		clover-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=clover-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10484	spin	5	0		clover-sweet	dusk			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_SEC 10 >=	held=clover-sweet;time=dusk;SPIN_SEC 10 >=	20
+452	868	0	869	10485	spin	5	0		flower-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=flower-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10486	spin	5	0		flower-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=flower-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10487	spin	5	0		flower-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=flower-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10488	spin	5	0		flower-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=flower-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10489	spin	5	0		flower-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=flower-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10490	spin	5	0		flower-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=flower-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10491	spin	5	0		flower-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=flower-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10492	spin	5	0		flower-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=flower-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10493	spin	5	0		flower-sweet	dusk			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_SEC 10 >=	held=flower-sweet;time=dusk;SPIN_SEC 10 >=	20
+452	868	0	869	10494	spin	5	0		ribbon-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=ribbon-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10495	spin	5	0		ribbon-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=ribbon-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10496	spin	5	0		ribbon-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 < &&	held=ribbon-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 < &&	20
+452	868	0	869	10497	spin	5	0		ribbon-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=ribbon-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10498	spin	5	0		ribbon-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=ribbon-sweet;time=night;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10499	spin	5	0		ribbon-sweet	night			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 < &&	held=ribbon-sweet;time=night;SPIN_DIR 1 == SPIN_SEC 5 < &&	20
+452	868	0	869	10500	spin	5	0		ribbon-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 1 == SPIN_SEC 5 >= &&	held=ribbon-sweet;time=day;SPIN_DIR 1 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10501	spin	5	0		ribbon-sweet	day			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_DIR 0 == SPIN_SEC 5 >= &&	held=ribbon-sweet;time=day;SPIN_DIR 0 == SPIN_SEC 5 >= &&	20
+452	868	0	869	10502	spin	5	0		ribbon-sweet	dusk			0	0	0	0			0		0	0	0	0	0		0	0	0	SPIN_SEC 10 >=	held=ribbon-sweet;time=dusk;SPIN_SEC 10 >=	20

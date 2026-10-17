@@ -291,14 +291,14 @@ mod tests {
         let physical = |slow: bool| {
             calculate_damage(
                 &regi, &pk, "Normal", "Physical", 40, chart, BattleWeather::Clear, 0, (0, 0),
-                false, true, slow, &mut roll(),
+                false, true, slow, false, &mut roll(),
             )
             .0
         };
         let special = |slow: bool| {
             calculate_damage(
                 &regi, &pk, "Normal", "Special", 40, chart, BattleWeather::Clear, 0, (0, 0),
-                false, true, slow, &mut roll(),
+                false, true, slow, false, &mut roll(),
             )
             .0
         };

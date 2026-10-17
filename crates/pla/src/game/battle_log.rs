@@ -16,6 +16,10 @@ pub fn status_name(status: MajorStatus) -> &'static str {
         MajorStatus::Poison => "poisoned",
         MajorStatus::Burn => "burned",
         MajorStatus::Frostbite => "frostbitten",
+        // The game has a distinct line for the badly-poisoned state (text 79 poison, 80 toxic).
+        MajorStatus::BadlyPoisoned => "badly poisoned",
+        // Real sleep (record id 2), distinct from drowsiness (id 6).
+        MajorStatus::Sleep => "asleep",
     }
 }
 
@@ -185,6 +189,12 @@ pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<
         StatusEvent::SyrupBomb { target } => format!("{} was covered in syrup!", name(*target)),
         StatusEvent::SyrupBombEnded { target } => format!("{} shook off the syrup!", name(*target)),
         StatusEvent::Thawed { target } => format!("{} thawed out!", name(*target)),
+        StatusEvent::MoveFailed { actor, move_name } => {
+            format!("{}'s {move_name} failed!", name(*actor))
+        }
+        StatusEvent::LostType { actor, type_name } => {
+            format!("{} lost its {type_name} type!", name(*actor))
+        }
     })
 }
 

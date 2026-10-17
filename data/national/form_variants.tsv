@@ -1,0 +1,235 @@
+# sheet: data/national/form_variants
+# version: 1
+# generator: .tools/build_national_dex.py
+# target: extra cosmetic form entries that are not separate pokemon rows (Unown letters, Alcremie flavors, Vivillon patterns, Pyroar female, ...)
+# source: EXTERNAL/PROBABLE, not from the game files: PokeAPI data/v2/csv (commit 5ee47a9a9c1229632ec4b473a9c1c53026e005dd, fetched 2026-10-17; BSD-3-Clause) + Pokemon Showdown (MIT, commit 7244fe8e28fa8bc4d0809ae30d183c608b62bb2b) for the Legends: Z-A learnsets. For species/forms with active rows in data/pml_personal.tsv the VERIFIED game sheets always win at load time (crates/pla/src/national.rs).
+# semantics: form_index continues the species numbering after its forms.tsv entries; stats, types, height, weight and learnsets are inherited from parent_pokemon_id (see the inherited columns of base_stats.tsv / types.tsv / learnsets.tsv).
+national_number:u16	form_index:u8	parent_pokemon_id:u32	identifier:string	form_identifier:string	form_order:u8	name_en:string	name_es:string
+172	1	172	pichu-spiky-eared	spiky-eared	2	Spiky-eared	
+201	1	201	unown-b	b	2	B	B
+201	2	201	unown-c	c	3	C	C
+201	3	201	unown-d	d	4	D	D
+201	4	201	unown-e	e	5	E	E
+201	5	201	unown-f	f	6	F	F
+201	6	201	unown-g	g	7	G	G
+201	7	201	unown-h	h	8	H	H
+201	8	201	unown-i	i	9	I	I
+201	9	201	unown-j	j	10	J	J
+201	10	201	unown-k	k	11	K	K
+201	11	201	unown-l	l	12	L	L
+201	12	201	unown-m	m	13	M	M
+201	13	201	unown-n	n	14	N	N
+201	14	201	unown-o	o	15	O	O
+201	15	201	unown-p	p	16	P	P
+201	16	201	unown-q	q	17	Q	Q
+201	17	201	unown-r	r	18	R	R
+201	18	201	unown-s	s	19	S	S
+201	19	201	unown-t	t	20	T	T
+201	20	201	unown-u	u	21	U	U
+201	21	201	unown-v	v	22	V	V
+201	22	201	unown-w	w	23	W	W
+201	23	201	unown-x	x	24	X	X
+201	24	201	unown-y	y	25	Y	Y
+201	25	201	unown-z	z	26	Z	Z
+201	26	201	unown-exclamation	exclamation	27	!	!
+201	27	201	unown-question	question	28	?	?
+412	1	412	burmy-sandy	sandy	2	Sandy Cloak	Tronco Arena
+412	2	412	burmy-trash	trash	3	Trash Cloak	Tronco Basura
+414	1	414	mothim-sandy	sandy	2		
+414	2	414	mothim-trash	trash	3		
+421	1	421	cherrim-sunshine	sunshine	2	Sunshine Form	Forma Soleado
+422	1	422	shellos-east	east	2	East Sea	Mar Este
+423	1	423	gastrodon-east	east	2	East Sea	Mar Este
+493	1	493	arceus-fighting	fighting	2	Fighting Type	Tipo Lucha
+493	2	493	arceus-flying	flying	3	Flying Type	Tipo Volador
+493	3	493	arceus-poison	poison	4	Poison Type	Tipo Veneno
+493	4	493	arceus-ground	ground	5	Ground Type	Tipo Tierra
+493	5	493	arceus-rock	rock	6	Rock Type	Tipo Roca
+493	6	493	arceus-bug	bug	7	Bug Type	Tipo Bicho
+493	7	493	arceus-ghost	ghost	8	Ghost Type	Tipo Fantasma
+493	8	493	arceus-steel	steel	9	Steel Type	Tipo Acero
+493	9	493	arceus-fire	fire	10	Fire Type	Tipo Fuego
+493	10	493	arceus-water	water	11	Water Type	Tipo Agua
+493	11	493	arceus-grass	grass	12	Grass Type	Tipo Planta
+493	12	493	arceus-electric	electric	13	Electric Type	Tipo Eléctrico
+493	13	493	arceus-psychic	psychic	14	Psychic Type	Tipo Psíquico
+493	14	493	arceus-ice	ice	15	Ice Type	Tipo Hielo
+493	15	493	arceus-dragon	dragon	16	Dragon Type	Tipo Dragón
+493	16	493	arceus-dark	dark	17	Dark Type	Tipo Siniestro
+493	17	493	arceus-fairy	fairy	18	Fairy Type	Tipo Hada
+493	18	493	arceus-unknown	unknown	19	??? Type	Tipo ???
+585	1	585	deerling-summer	summer	2	Summer Form	Forma Verano
+585	2	585	deerling-autumn	autumn	3	Autumn Form	Forma Otoño
+585	3	585	deerling-winter	winter	4	Winter Form	Forma Invierno
+586	1	586	sawsbuck-summer	summer	2	Summer Form	Forma Verano
+586	2	586	sawsbuck-autumn	autumn	3	Autumn Form	Forma Otoño
+586	3	586	sawsbuck-winter	winter	4	Winter Form	Forma Invierno
+592	1	592	frillish-female	female	2	Female	Hembra
+593	1	593	jellicent-female	female	2	Female	Hembra
+649	1	649	genesect-douse	douse	2	Douse Drive	HidroROM
+649	2	649	genesect-shock	shock	3	Shock Drive	FulgoROM
+649	3	649	genesect-burn	burn	4	Burn Drive	PiroROM
+649	4	649	genesect-chill	chill	5	Chill Drive	CrioROM
+664	1	664	scatterbug-polar	polar	2		
+664	2	664	scatterbug-tundra	tundra	3		
+664	3	664	scatterbug-continental	continental	4		
+664	4	664	scatterbug-garden	garden	5		
+664	5	664	scatterbug-elegant	elegant	6		
+664	6	664	scatterbug-meadow	meadow	7		
+664	7	664	scatterbug-modern	modern	8		
+664	8	664	scatterbug-marine	marine	9		
+664	9	664	scatterbug-archipelago	archipelago	10		
+664	10	664	scatterbug-high-plains	high-plains	11		
+664	11	664	scatterbug-sandstorm	sandstorm	12		
+664	12	664	scatterbug-river	river	13		
+664	13	664	scatterbug-monsoon	monsoon	14		
+664	14	664	scatterbug-savanna	savanna	15		
+664	15	664	scatterbug-sun	sun	16		
+664	16	664	scatterbug-ocean	ocean	17		
+664	17	664	scatterbug-jungle	jungle	18		
+664	18	664	scatterbug-fancy	fancy	19		
+664	19	664	scatterbug-poke-ball	poke-ball	20		
+665	1	665	spewpa-polar	polar	2		
+665	2	665	spewpa-tundra	tundra	3		
+665	3	665	spewpa-continental	continental	4		
+665	4	665	spewpa-garden	garden	5		
+665	5	665	spewpa-elegant	elegant	6		
+665	6	665	spewpa-meadow	meadow	7		
+665	7	665	spewpa-modern	modern	8		
+665	8	665	spewpa-marine	marine	9		
+665	9	665	spewpa-archipelago	archipelago	10		
+665	10	665	spewpa-high-plains	high-plains	11		
+665	11	665	spewpa-sandstorm	sandstorm	12		
+665	12	665	spewpa-river	river	13		
+665	13	665	spewpa-monsoon	monsoon	14		
+665	14	665	spewpa-savanna	savanna	15		
+665	15	665	spewpa-sun	sun	16		
+665	16	665	spewpa-ocean	ocean	17		
+665	17	665	spewpa-jungle	jungle	18		
+665	18	665	spewpa-fancy	fancy	19		
+665	19	665	spewpa-poke-ball	poke-ball	20		
+666	1	666	vivillon-icy-snow	icy-snow	1	Icy Snow Pattern	Motivo Polar
+666	2	666	vivillon-polar	polar	2	Polar Pattern	Motivo Taiga
+666	3	666	vivillon-tundra	tundra	3	Tundra Pattern	Motivo Tundra
+666	4	666	vivillon-continental	continental	4	Continental Pattern	Motivo Continental
+666	5	666	vivillon-garden	garden	5	Garden Pattern	Motivo Vergel
+666	6	666	vivillon-elegant	elegant	6	Elegant Pattern	Motivo Oriental
+666	7	666	vivillon-modern	modern	8	Modern Pattern	Motivo Moderno
+666	8	666	vivillon-marine	marine	9	Marine Pattern	Motivo Marino
+666	9	666	vivillon-archipelago	archipelago	10	Archipelago Pattern	Motivo Isleño
+666	10	666	vivillon-high-plains	high-plains	11	High Plains Pattern	Motivo Estepa
+666	11	666	vivillon-sandstorm	sandstorm	12	Sandstorm Pattern	Motivo Desierto
+666	12	666	vivillon-river	river	13	River Pattern	Motivo Oasis
+666	13	666	vivillon-monsoon	monsoon	14	Monsoon Pattern	Motivo Monzón
+666	14	666	vivillon-savanna	savanna	15	Savanna Pattern	Motivo Pantano
+666	15	666	vivillon-sun	sun	16	Sun Pattern	Motivo Solar
+666	16	666	vivillon-ocean	ocean	17	Ocean Pattern	Motivo Océano
+666	17	666	vivillon-jungle	jungle	18	Jungle Pattern	Motivo Jungla
+666	18	666	vivillon-fancy	fancy	19	Fancy Pattern	Motivo Fantasía
+666	19	666	vivillon-poke-ball	poke-ball	20	Poké Ball Pattern	Motivo Poké Ball
+668	2	668	pyroar-female	female	2	Female	Hembra
+669	1	669	flabebe-yellow	yellow	2	Yellow Flower	Flor Amarilla
+669	2	669	flabebe-orange	orange	3	Orange Flower	Flor Naranja
+669	3	669	flabebe-blue	blue	4	Blue Flower	Flor Azul
+669	4	669	flabebe-white	white	5	White Flower	Flor Blanca
+670	3	670	floette-yellow	yellow	2	Yellow Flower	Flor Amarilla
+670	4	670	floette-orange	orange	3	Orange Flower	Flor Naranja
+670	5	670	floette-blue	blue	4	Blue Flower	Flor Azul
+670	6	670	floette-white	white	5	White Flower	Flor Blanca
+671	1	671	florges-yellow	yellow	2	Yellow Flower	Flor Amarilla
+671	2	671	florges-orange	orange	3	Orange Flower	Flor Naranja
+671	3	671	florges-blue	blue	4	Blue Flower	Flor Azul
+671	4	671	florges-white	white	5	White Flower	Flor Blanca
+676	1	676	furfrou-heart	heart	2	Heart Trim	Corte Corazón
+676	2	676	furfrou-star	star	3	Star Trim	Corte Estrella
+676	3	676	furfrou-diamond	diamond	4	Diamond Trim	Corte Rombo
+676	4	676	furfrou-debutante	debutante	5	Debutante Trim	Corte Señorita
+676	5	676	furfrou-matron	matron	6	Matron Trim	Corte Dama
+676	6	676	furfrou-dandy	dandy	7	Dandy Trim	Corte Caballero
+676	7	676	furfrou-la-reine	la-reine	8	La Reine Trim	Corte Aristocrático
+676	8	676	furfrou-kabuki	kabuki	9	Kabuki Trim	Corte Kabuki
+676	9	676	furfrou-pharaoh	pharaoh	10	Pharaoh Trim	Corte Faraónico
+716	1	716	xerneas-active	active	2	Active Mode	Modo Activo
+773	1	773	silvally-fighting	fighting	2	Type: Fighting	Tipo: Lucha
+773	2	773	silvally-flying	flying	3	Type: Flying	Tipo: Volador
+773	3	773	silvally-poison	poison	4	Type: Poison	Tipo: Veneno
+773	4	773	silvally-ground	ground	5	Type: Ground	Tipo: Tierra
+773	5	773	silvally-rock	rock	6	Type: Rock	Tipo: Roca
+773	6	773	silvally-bug	bug	7	Type: Bug	Tipo: Bicho
+773	7	773	silvally-ghost	ghost	8	Type: Ghost	Tipo: Fantasma
+773	8	773	silvally-steel	steel	9	Type: Steel	Tipo: Acero
+773	9	773	silvally-fire	fire	10	Type: Fire	Tipo: Fuego
+773	10	773	silvally-water	water	11	Type: Water	Tipo: Agua
+773	11	773	silvally-grass	grass	12	Type: Grass	Tipo: Planta
+773	12	773	silvally-electric	electric	13	Type: Electric	Tipo: Eléctrico
+773	13	773	silvally-psychic	psychic	14	Type: Psychic	Tipo: Psíquico
+773	14	773	silvally-ice	ice	15	Type: Ice	Tipo: Hielo
+773	15	773	silvally-dragon	dragon	16	Type: Dragon	Tipo: Dragón
+773	16	773	silvally-dark	dark	17	Type: Dark	Tipo: Siniestro
+773	17	773	silvally-fairy	fairy	18	Type: Fairy	Tipo: Hada
+854	1	854	sinistea-antique	antique	2	Antique Form	
+855	1	855	polteageist-antique	antique	2	Antique Form	
+869	2	869	alcremie-ruby-cream-strawberry-sweet	ruby-cream-strawberry-sweet	2	Ruby Cream Strawberry Sweet	Crema Rosa
+869	3	869	alcremie-matcha-cream-strawberry-sweet	matcha-cream-strawberry-sweet	3	Matcha Cream Strawberry Sweet	Crema de Té
+869	4	869	alcremie-mint-cream-strawberry-sweet	mint-cream-strawberry-sweet	4	Mint Cream Strawberry Sweet	Crema de Menta
+869	5	869	alcremie-lemon-cream-strawberry-sweet	lemon-cream-strawberry-sweet	5	Lemon Cream Strawberry Sweet	Crema de Limón
+869	6	869	alcremie-salted-cream-strawberry-sweet	salted-cream-strawberry-sweet	6	Salted Cream Strawberry Sweet	Crema Salada
+869	7	869	alcremie-ruby-swirl-strawberry-sweet	ruby-swirl-strawberry-sweet	7	Ruby Swirl Strawberry Sweet	Mezcla Rosa
+869	8	869	alcremie-caramel-swirl-strawberry-sweet	caramel-swirl-strawberry-sweet	8	Caramel Swirl Strawberry Sweet	Mezcla Caramelo
+869	9	869	alcremie-rainbow-swirl-strawberry-sweet	rainbow-swirl-strawberry-sweet	9	Rainbow Swirl Strawberry Sweet	Tres Sabores
+869	10	869	alcremie-vanilla-cream-berry-sweet	vanilla-cream-berry-sweet	10	Vanilla Cream Berry Sweet	
+869	11	869	alcremie-ruby-cream-berry-sweet	ruby-cream-berry-sweet	11	Ruby Cream Berry Sweet	
+869	12	869	alcremie-matcha-cream-berry-sweet	matcha-cream-berry-sweet	12	Matcha Cream Berry Sweet	
+869	13	869	alcremie-mint-cream-berry-sweet	mint-cream-berry-sweet	13	Mint Cream Berry Sweet	
+869	14	869	alcremie-lemon-cream-berry-sweet	lemon-cream-berry-sweet	14	Lemon Cream Berry Sweet	
+869	15	869	alcremie-salted-cream-berry-sweet	salted-cream-berry-sweet	15	Salted Cream Berry Sweet	
+869	16	869	alcremie-ruby-swirl-berry-sweet	ruby-swirl-berry-sweet	16	Ruby Swirl Berry Sweet	
+869	17	869	alcremie-caramel-swirl-berry-sweet	caramel-swirl-berry-sweet	17	Caramel Swirl Berry Sweet	
+869	18	869	alcremie-rainbow-swirl-berry-sweet	rainbow-swirl-berry-sweet	18	Rainbow Swirl Berry Sweet	
+869	19	869	alcremie-vanilla-cream-love-sweet	vanilla-cream-love-sweet	19	Vanilla Cream Love Sweet	
+869	20	869	alcremie-ruby-cream-love-sweet	ruby-cream-love-sweet	20	Ruby Cream Love Sweet	
+869	21	869	alcremie-matcha-cream-love-sweet	matcha-cream-love-sweet	21	Matcha Cream Love Sweet	
+869	22	869	alcremie-mint-cream-love-sweet	mint-cream-love-sweet	22	Mint Cream Love Sweet	
+869	23	869	alcremie-lemon-cream-love-sweet	lemon-cream-love-sweet	23	Lemon Cream Love Sweet	
+869	24	869	alcremie-salted-cream-love-sweet	salted-cream-love-sweet	24	Salted Cream Love Sweet	
+869	25	869	alcremie-ruby-swirl-love-sweet	ruby-swirl-love-sweet	25	Ruby Swirl Love Sweet	
+869	26	869	alcremie-caramel-swirl-love-sweet	caramel-swirl-love-sweet	26	Caramel Swirl Love Sweet	
+869	27	869	alcremie-rainbow-swirl-love-sweet	rainbow-swirl-love-sweet	27	Rainbow Swirl Love Sweet	
+869	28	869	alcremie-vanilla-cream-star-sweet	vanilla-cream-star-sweet	28	Vanilla Cream Star Sweet	
+869	29	869	alcremie-ruby-cream-star-sweet	ruby-cream-star-sweet	29	Ruby Cream Star Sweet	
+869	30	869	alcremie-matcha-cream-star-sweet	matcha-cream-star-sweet	30	Matcha Cream Star Sweet	
+869	31	869	alcremie-mint-cream-star-sweet	mint-cream-star-sweet	31	Mint Cream Star Sweet	
+869	32	869	alcremie-lemon-cream-star-sweet	lemon-cream-star-sweet	32	Lemon Cream Star Sweet	
+869	33	869	alcremie-salted-cream-star-sweet	salted-cream-star-sweet	33	Salted Cream Star Sweet	
+869	34	869	alcremie-ruby-swirl-star-sweet	ruby-swirl-star-sweet	34	Ruby Swirl Star Sweet	
+869	35	869	alcremie-caramel-swirl-star-sweet	caramel-swirl-star-sweet	35	Caramel Swirl Star Sweet	
+869	36	869	alcremie-rainbow-swirl-star-sweet	rainbow-swirl-star-sweet	36	Rainbow Swirl Star Sweet	
+869	37	869	alcremie-vanilla-cream-clover-sweet	vanilla-cream-clover-sweet	37	Vanilla Cream Clover Sweet	
+869	38	869	alcremie-ruby-cream-clover-sweet	ruby-cream-clover-sweet	38	Ruby Cream Clover Sweet	
+869	39	869	alcremie-matcha-cream-clover-sweet	matcha-cream-clover-sweet	39	Matcha Cream Clover Sweet	
+869	40	869	alcremie-mint-cream-clover-sweet	mint-cream-clover-sweet	40	Mint Cream Clover Sweet	
+869	41	869	alcremie-lemon-cream-clover-sweet	lemon-cream-clover-sweet	41	Lemon Cream Clover Sweet	
+869	42	869	alcremie-salted-cream-clover-sweet	salted-cream-clover-sweet	42	Salted Cream Clover Sweet	
+869	43	869	alcremie-ruby-swirl-clover-sweet	ruby-swirl-clover-sweet	43	Ruby Swirl Clover Sweet	
+869	44	869	alcremie-caramel-swirl-clover-sweet	caramel-swirl-clover-sweet	44	Caramel Swirl Clover Sweet	
+869	45	869	alcremie-rainbow-swirl-clover-sweet	rainbow-swirl-clover-sweet	45	Rainbow Swirl Clover Sweet	
+869	46	869	alcremie-vanilla-cream-flower-sweet	vanilla-cream-flower-sweet	46	Vanilla Cream Flower Sweet	
+869	47	869	alcremie-ruby-cream-flower-sweet	ruby-cream-flower-sweet	47	Ruby Cream Flower Sweet	
+869	48	869	alcremie-matcha-cream-flower-sweet	matcha-cream-flower-sweet	48	Matcha Cream Flower Sweet	
+869	49	869	alcremie-mint-cream-flower-sweet	mint-cream-flower-sweet	49	Mint Cream Flower Sweet	
+869	50	869	alcremie-lemon-cream-flower-sweet	lemon-cream-flower-sweet	50	Lemon Cream Flower Sweet	
+869	51	869	alcremie-salted-cream-flower-sweet	salted-cream-flower-sweet	51	Salted Cream Flower Sweet	
+869	52	869	alcremie-ruby-swirl-flower-sweet	ruby-swirl-flower-sweet	52	Ruby Swirl Flower Sweet	
+869	53	869	alcremie-caramel-swirl-flower-sweet	caramel-swirl-flower-sweet	53	Caramel Swirl Flower Sweet	
+869	54	869	alcremie-rainbow-swirl-flower-sweet	rainbow-swirl-flower-sweet	54	Rainbow Swirl Flower Sweet	
+869	55	869	alcremie-vanilla-cream-ribbon-sweet	vanilla-cream-ribbon-sweet	55	Vanilla Cream Ribbon Sweet	
+869	56	869	alcremie-ruby-cream-ribbon-sweet	ruby-cream-ribbon-sweet	56	Ruby Cream Ribbon Sweet	
+869	57	869	alcremie-matcha-cream-ribbon-sweet	matcha-cream-ribbon-sweet	57	Matcha Cream Ribbon Sweet	
+869	58	869	alcremie-mint-cream-ribbon-sweet	mint-cream-ribbon-sweet	58	Mint Cream Ribbon Sweet	
+869	59	869	alcremie-lemon-cream-ribbon-sweet	lemon-cream-ribbon-sweet	59	Lemon Cream Ribbon Sweet	
+869	60	869	alcremie-salted-cream-ribbon-sweet	salted-cream-ribbon-sweet	60	Salted Cream Ribbon Sweet	
+869	61	869	alcremie-ruby-swirl-ribbon-sweet	ruby-swirl-ribbon-sweet	61	Ruby Swirl Ribbon Sweet	
+869	62	869	alcremie-caramel-swirl-ribbon-sweet	caramel-swirl-ribbon-sweet	62	Caramel Swirl Ribbon Sweet	
+869	63	869	alcremie-rainbow-swirl-ribbon-sweet	rainbow-swirl-ribbon-sweet	63	Rainbow Swirl Ribbon Sweet	
+1012	1	1012	poltchageist-artisan	artisan	2	Artisan Form	Forma Opulenta
+1013	1	1013	sinistcha-masterpiece	masterpiece	2	Masterpiece Form	Forma Exquisita

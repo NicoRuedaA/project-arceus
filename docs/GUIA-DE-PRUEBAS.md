@@ -156,6 +156,7 @@ valor por defecto.
 | I | Mochila |
 | M | Mapa a pantalla completa |
 | Esc | Menú de pausa (desde ahí también: Equipo, Cajas, Pokédex, Artesanía, Tienda y **Cargar partida**; ver 2.8 y 2.15) |
+| Y (en la Pokédex) | Cambia entre la lista de Hisui (242 especies, con investigación) y la **lista nacional** (1.025 especies, solo nombres; sin modelos, iconos ni investigación todavía) |
 | F5 | Guardar |
 | F1 | **Depuración visual: colisiones.** Cada pulsación: apagado → dibujar colisiones encima del mundo → solo colisiones (se ocultan modelos y terreno) → apagado. Ver 2.18 |
 | F2 | **Depuración visual: modelos.** Cada pulsación: normal → sin texturas (gris liso) → alambre → normal. Ver 2.18 |
@@ -412,6 +413,9 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
       (Antes la tecla B abría las cajas; se quitó porque B es la Poké Ball.)
     - **Pokédex:** 242 especies; las no vistas salen como «??????», las vistas como «SILHOUETTE»
       y las capturadas con su número y nombre interno. Flechas para moverte.
+      Con **Y** cambia a la **lista nacional**: las 1.025 especies por número con su nombre
+      (es una lista de datos, sin modelo ni icono; sin investigación). **Y** te devuelve a la
+      lista de Hisui, que sigue funcionando igual que antes.
     Fallo: algo se mueve detrás, Esc no cierra, abrir Pokémon boxes y luego Esc vuelve a abrir el
     menú de pausa, los cambios de la caja se pierden al guardar (F5) y reiniciar.
 
