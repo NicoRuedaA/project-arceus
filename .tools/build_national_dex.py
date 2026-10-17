@@ -1446,6 +1446,28 @@ def main() -> int:
         "no las trae), y el contraste con PKHeX personal_za (descargado pero no interpretado: "
         "su formato binario requiere trabajo de contraste aparte).\n"
     )
+    lines.append("## Pokédex: UX propuesta (implementada)\n")
+    lines.append(
+        "- La pantalla de Pokédex gana un modo nacional **opcional**: se abre como siempre en la "
+        "lista de Hisui (242 especies, con siluetas y tareas de investigación) y la tecla **Y** "
+        "cambia a la lista nacional (1.025 especies por número, con su nombre) y viceversa.  El "
+        "aviso con la tecla está en la propia pantalla (línea de descripción: «Y: national "
+        "list» / «Y: Hisui list»).\n"
+        "- En el modo nacional no se usan iconos ni modelos (marcador de posición «?»), el nombre "
+        "se lee siempre (no hay siluetas: es una lista de datos, no un estado de partida) y la "
+        "línea de estado dice «National listing (external data, no research yet)».\n"
+        "- El modo por defecto no cambia: quien no pulse Y ve exactamente la Pokédex de antes.\n"
+        "- La misma tecla funciona con el UI original (por defecto) y con el UI provisional "
+        "(`--ui debug`).\n"
+    )
+    lines.append("## Cómo regenerar\n")
+    lines.append(
+        "```bash\n"
+        "python3 .tools/build_national_dex.py   # reescribe data/national/*.tsv y este informe\n"
+        "```\n"
+        "El script exige las fuentes en `work/cache/external/` (fuera de git).  Los hashes de las "
+        "fuentes usadas quedan en `data/national/manifest.json`.\n"
+    )
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
