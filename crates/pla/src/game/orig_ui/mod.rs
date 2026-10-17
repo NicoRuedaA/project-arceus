@@ -22,6 +22,7 @@
 pub mod anim;
 pub mod battle;
 pub mod crafting_screen;
+pub mod dressup_screen;
 pub mod field;
 pub mod icons;
 pub mod layout;
@@ -190,10 +191,12 @@ pub enum ScreenId {
     Crafting,
     /// Shop (Esc menu -> "Shop", or `E` at a shop trigger), the game's `shop_buy_00` screen.
     Shop,
+    /// Customize (Esc menu -> "Customize"), the game's `dressup_00` screen.
+    Customize,
 }
 
 impl ScreenId {
-    pub const ALL: [ScreenId; 17] = [
+    pub const ALL: [ScreenId; 18] = [
         ScreenId::BattleHud,
         ScreenId::BattleEnemyPlate,
         ScreenId::BattleTimeline,
@@ -211,6 +214,7 @@ impl ScreenId {
         ScreenId::Options,
         ScreenId::Crafting,
         ScreenId::Shop,
+        ScreenId::Customize,
     ];
 
     /// (screen document id, layout name).
@@ -233,6 +237,7 @@ impl ScreenId {
             ScreenId::Options => ("option", "option_settings_00"),
             ScreenId::Crafting => ("making", "making"),
             ScreenId::Shop => ("shop", "shop_buy_00"),
+            ScreenId::Customize => ("dressup", "dressup_00"),
         }
     }
 
@@ -268,6 +273,7 @@ impl ScreenId {
             | ScreenId::Options
             | ScreenId::Crafting
             | ScreenId::Shop
+            | ScreenId::Customize
             | ScreenId::Party => 190,
             ScreenId::PauseMenu => 200,
         }
@@ -698,6 +704,7 @@ impl Plugin for OrigUiPlugin {
         summary::install(app);
         crafting_screen::install(app);
         shop_screen::install(app);
+        dressup_screen::install(app);
     }
 }
 
@@ -1165,6 +1172,7 @@ pub fn hides_minimap(id: ScreenId) -> bool {
             | ScreenId::Options
             | ScreenId::Crafting
             | ScreenId::Shop
+            | ScreenId::Customize
     )
 }
 

@@ -81,6 +81,16 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "L_money_00",
             "L_info_item_00",
         ],
+        ScreenId::Customize => &[
+            "L_dressup_tab_00",
+            "L_tab_00",
+            "L_tab_06",
+            "L_btn_list_00",
+            "L_btn_list_06",
+            "T_name_item_00",
+            "L_info_equipment_00",
+            "T_name_item_epuip_00",
+        ],
         _ => &[],
     }
 }
@@ -1137,5 +1147,116 @@ fn shop_binding_fills_the_item_grid_and_money() {
     assert!(
         !f.geoms[s.scene.find_in(grid, "L_btn_main_01").unwrap()].visible,
         "second sell cell hidden"
+    );
+}
+
+/// The customize screen fills the game's seven row slots from the port's thirteen rows (window
+/// follows the selection), marks the category tab of the selected row and shows its value in the
+/// equipment strip; the game's buy side, fitting strip and key guide stay hidden.
+#[test]
+fn customize_binding_fills_rows_tabs_and_equipment() {
+    let Some(root) = local_root() else { return };
+    use crate::game::customize_screen::CustomizeScreenState;
+    use crate::game::dressup::{LookCatalog, PlayerLookState};
+    let (mut app, e) = screen_app(&root, ScreenId::Customize, |app| {
+        app.insert_resource(CustomizeScreenState {
+            open: true,
+            selected: 0,
+            scroll: 0,
+        });
+        app.insert_resource(PlayerLookState::default());
+        app.insert_resource(LookCatalog::builtin());
+        app.add_systems(
+            Update,
+            (dressup_screen::bind_dressup_screen, render_screens).chain(),
+        );
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(s.shown, "open customize must show");
+    let f = s.last.clone().expect("evaluated");
+    let text_in = |inst: usize, name: &str| {
+        let n = s.scene.find_in(inst, name).unwrap();
+        f.texts
+            .iter()
+            .find(|t| t.node == n)
+            .map(|t| t.text.clone())
+    };
+    // Hidden branches: the game's buy side, fitting strip and key guide.
+    for name in ["N_buy_00", "N_fitting_00", "L_guide_00"] {
+        let n = s.scene.find(name).unwrap();
+        assert!(!f.geoms[n].visible, "{name} hidden");
+    }
+    // The off-box scroller rows stay hidden; the five on-box slots show the first window.
+    for k in [0usize, 6] {
+        let n = s.scene.find(&format!("L_btn_list_{k:02}")).unwrap();
+        assert!(!f.geoms[n].visible, "off-box row part {k} hidden");
+    }
+    let row0 = s.scene.part_instance("L_btn_list_01").unwrap();
+    assert_eq!(
+        text_in(row0, "T_name_item_00").as_deref(),
+        Some("Protagonist")
+    );
+    assert_eq!(text_in(row0, "T_name_color_00").as_deref(), Some("P1 (Rei)"));
+    let row5 = s.scene.part_instance("L_btn_list_05").unwrap();
+    assert_eq!(
+        text_in(row5, "T_name_item_00").as_deref(),
+        Some("Eye colour"),
+        "fifth slot of the first window"
+    );
+    let anim = |inst: usize, tag: &str| {
+        s.anim
+            .tracks
+            .iter()
+            .any(|t| t.instance == inst && t.anim.ends_with(tag))
+    };
+    assert!(anim(row0, "_select"), "cursor row carries the select state");
+    assert!(!anim(row0, "_unselect"));
+    assert!(anim(s.scene.part_instance("L_btn_list_02").unwrap(), "_unselect"));
+    // Tab 0 (protagonist) selected, tab 1 not.
+    assert!(anim(s.scene.part_instance("L_tab_00").unwrap(), "_select"));
+    assert!(anim(s.scene.part_instance("L_tab_01").unwrap(), "_unselect"));
+    // Equipment strip shows the selected row's value.
+    let eq = s.scene.part_instance("L_info_equipment_00").unwrap();
+    assert_eq!(text_in(eq, "T_name_item_epuip_00").as_deref(), Some("P1 (Rei)"));
+    assert_eq!(text_in(eq, "T_name_color_equip_00").as_deref(), Some("Protagonist"));
+
+    // Jump to the last row: the window scrolls to 6 and the bag tab lights up.
+    app.world_mut()
+        .resource_mut::<CustomizeScreenState>()
+        .selected = 12;
+    app.update();
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    let f = s.last.clone().expect("evaluated");
+    let text_in = |inst: usize, name: &str| {
+        let n = s.scene.find_in(inst, name).unwrap();
+        f.texts
+            .iter()
+            .find(|t| t.node == n)
+            .map(|t| t.text.clone())
+    };
+    let row1 = s.scene.part_instance("L_btn_list_01").unwrap();
+    assert_eq!(
+        text_in(row1, "T_name_item_00").as_deref(),
+        Some("Bottom"),
+        "the window scrolled to row 8"
+    );
+    let row5 = s.scene.part_instance("L_btn_list_05").unwrap();
+    assert_eq!(text_in(row5, "T_name_item_00").as_deref(), Some("Bag"));
+    assert!(
+        s.anim.tracks.iter().any(|t| {
+            t.instance == row5 && t.label == "sel" && t.anim.ends_with("_select")
+        }),
+        "the bag row carries the select state"
+    );
+    assert!(s.anim.tracks.iter().any(|t| {
+        let inst = s.scene.part_instance("L_tab_06").unwrap();
+        t.instance == inst && t.anim.ends_with("_select")
+    }));
+    let eq = s.scene.part_instance("L_info_equipment_00").unwrap();
+    assert_eq!(text_in(eq, "T_name_color_equip_00").as_deref(), Some("Bag"));
+    let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
+    assert!(
+        free.iter().any(|t| t.contains("13 / 13") && t.contains("Esc: back")),
+        "key hint: {free:?}"
     );
 }
