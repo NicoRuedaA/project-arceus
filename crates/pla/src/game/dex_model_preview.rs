@@ -412,6 +412,14 @@ fn rebuild_preview_model(
     }
 }
 
+/// Mouse state of the turning drag: the last cursor position seen and, while the left button
+/// stays down, the position the drag last measured from (both in physical pixels).
+#[derive(Default)]
+struct PreviewDrag {
+    last: Option<Vec2>,
+    from: Option<Vec2>,
+}
+
 /// Keyboard (Q/E held, R reset) and mouse drag (left button inside the frame) turning of the
 /// previewed model.
 #[allow(clippy::too_many_arguments)]
@@ -425,10 +433,10 @@ fn preview_spin_input(
     time: Res<Time>,
     frame: Query<(&ComputedNode, &UiGlobalTransform), With<DexPreviewRoot>>,
     mut spin: ResMut<DexPreviewSpin>,
-    mut drag: Local<Option<Vec2>>,
+    mut drag: Local<PreviewDrag>,
 ) {
     if !ui.open || ui.mode != DexMode::National {
-        drag.take();
+        *drag = PreviewDrag::default();
         moved.clear();
         return;
     }
@@ -437,20 +445,24 @@ fn preview_spin_input(
     let mut delta = Vec2::ZERO;
     for event in moved.read() {
         let position = event.position * scale;
-        if let Some(last) = *drag {
-            delta += position - last;
-            *drag = Some(position);
-        } else if mouse.pressed(MouseButton::Left)
-            && frame
-                .iter()
-                .any(|(node, transform)| node.contains_point(*transform, position))
-        {
-            // The drag starts where the press landed inside the frame (inside the photo).
-            *drag = Some(position);
+        drag.last = Some(position);
+        if let Some(from) = drag.from {
+            delta += position - from;
+            drag.from = Some(position);
         }
     }
     if !mouse.pressed(MouseButton::Left) {
-        drag.take();
+        drag.from = None;
+    } else if drag.from.is_none() && mouse.just_pressed(MouseButton::Left) {
+        // The drag starts where the press landed: only inside the frame (the photo).
+        if let Some(position) = drag.last {
+            if frame
+                .iter()
+                .any(|(node, transform)| node.contains_point(*transform, position))
+            {
+                drag.from = Some(position);
+            }
+        }
     }
     if delta != Vec2::ZERO {
         apply_drag(&mut spin, delta);
