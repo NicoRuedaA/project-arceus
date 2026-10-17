@@ -54,10 +54,11 @@
 //!   vegetation) by saving its previous `Visibility` and restoring it exactly when the mode
 //!   leaves `only`.
 //! * F2 `flat` swaps the material of every mesh for a shared grey `StandardMaterial` and restores
-//!   the exact original handles when it leaves `flat`. Both `StandardMaterial` (world, terrain,
-//!   pickups...) and the art-style `ToonMaterial` that characters carry when the "original" style
-//!   is on (the Graphics default) are covered. Custom materials (the water shader, the terrain
-//!   splat material when enabled) keep their own look: they are neither of the two.
+//!   the exact original handles when it leaves `flat`. Four material types are covered:
+//!   `StandardMaterial` (world, pickups, fallback meshes...), the art-style `ToonMaterial` that
+//!   characters carry when the "original" style is on (the Graphics default), the
+//!   `TerrainSplatMaterial` of the real-time terrain (`--terrain splat`, the default) and the
+//!   `WaterMaterial` of the rivers and the sea.
 //! * F2 `wireframe` uses Bevy's `bevy::pbr::wireframe::WireframePlugin` (`global` toggled on
 //!   demand). If the GPU lacks `POLYGON_MODE_LINE`/`IMMEDIATES` Bevy logs a warning and the mode
 //!   simply draws nothing (the rest of the viewer is unaffected).
