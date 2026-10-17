@@ -3,7 +3,7 @@
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
 //! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
-//! the sheet classifies `engine_class = a` are loaded (35 moves): moves whose whole behaviour
+//! the sheet classifies `engine_class = a` are loaded (37 moves): moves whose whole behaviour
 //! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
 //! rank, hits, drain/heal, one paralysis/burn/poison/confusion roll, stat stages on a single
 //! receiver). Rows classified `b` need new engine logic and are skipped, never approximated.
@@ -11,7 +11,7 @@
 //! through `MoveEffects::repeat_lock`; Last Respects, Rage Fist, Hard Press, Collision Course,
 //! Electro Drift and Fickle Beam load through the derived `PowerRule` callbacks; Axe Kick and
 //! Supercell Slam load through `crash_damage_pct`; Salt Cure and Syrup Bomb load through
-//! `ResidualVolatile`.
+//! `ResidualVolatile`; Hydro Steam and Matcha Gotcha load through `thaws_target`.
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -156,6 +156,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
     let (c_sec_boosts, c_sec_self) = (col("sec_boosts")?, col("sec_self_boosts")?);
     let c_class = col("engine_class")?;
     let c_crash = col("crash_damage_pct")?;
+    let c_thaw = col("thaws_target")?;
 
     let mut out = Vec::new();
     for (n, line) in lines.enumerate() {
@@ -278,6 +279,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             power_rule: power_rule(&name),
             crash_damage_pct: num(c_crash)? as u8,
             residual_volatile,
+            thaws_target: num(c_thaw)? != 0,
         };
         out.push(Gen9Move {
             id: num(c_move)? as u16,
@@ -340,7 +342,7 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        assert_eq!(moves.len(), 35);
+        assert_eq!(moves.len(), 37);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -412,6 +414,9 @@ mod tests {
             find(&moves, "syrup-bomb").effects.residual_volatile,
             ResidualVolatile::SyrupBomb
         );
+        // Thawing hits.
+        assert!(find(&moves, "hydro-steam").effects.thaws_target);
+        assert!(find(&moves, "matcha-gotcha").effects.thaws_target);
     }
 
     #[test]
@@ -783,6 +788,32 @@ mod tests {
             .take_status_events()
             .iter()
             .any(|e| matches!(e, StatusEvent::SyrupBombEnded { target: 1 })));
+    }
+
+    #[test]
+    fn thawing_moves_clear_frostbite_and_matcha_gotcha_heals() {
+        // Hydro Steam thaws a frostbitten target.
+        let mut b = duel(
+            ("pikachu", &["hydro-steam"], 60),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.combatants[1].status = Some(MajorStatus::Frostbite);
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(b.combatants[1].status, None);
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::Thawed { target: 1 })));
+
+        // Matcha Gotcha heals the user for half the damage dealt.
+        let mut b = duel(
+            ("pikachu", &["matcha-gotcha"], 60),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.combatants[0].hp = b.combatants[0].max_hp - 60;
+        let before = b.combatants[0].hp;
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 99]));
+        assert!(b.combatants[0].hp > before, "drain must heal the user");
     }
 
     #[test]

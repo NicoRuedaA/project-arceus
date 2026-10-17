@@ -184,6 +184,7 @@ pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<
         StatusEvent::HurtBySaltCure { target, damage } => format!("{} is hurt by the salt! (-{damage} HP)", name(*target)),
         StatusEvent::SyrupBomb { target } => format!("{} was covered in syrup!", name(*target)),
         StatusEvent::SyrupBombEnded { target } => format!("{} shook off the syrup!", name(*target)),
+        StatusEvent::Thawed { target } => format!("{} thawed out!", name(*target)),
     })
 }
 
