@@ -1157,6 +1157,9 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     // Visual debug aid (F1 collisions, F2 models, F3 data overlays; `--debug-view` for captures).
     // OFF by default and zero-cost while off; F5 (save) stays untouched.
     app.add_plugins(pla::game::debug_visual::DebugVisualPlugin::from_args(&cli_args));
+    // F6 lives in the debug view above; F7 is the national species spawn selector (search +
+    // place one model next to the player; see game::debug_spawn).
+    app.add_plugins(pla::game::debug_spawn::DebugSpawnPlugin::default());
     // Ride Pokémon (Brief 38): mount/dismount (V, gamepad Select), cycle (G), decoded speeds.
     app.add_plugins(pla::game::ride::RidePlugin);
     // On-screen control hints: the mount's keys after summoning, "Trepar" near a cliff.
@@ -5124,6 +5127,19 @@ mod startup_schedule_guard {
     #[test]
     fn debug_ui_starts() {
         check_viewer_start("debug-ui", &["port_viewer", "--area", "1", "--ui", "debug"]);
+    }
+
+    /// `--debug-pokedex` (F6 already on) and the F7 spawn selector plugin start with the viewer.
+    #[test]
+    fn debug_pokedex_flag_starts() {
+        check_viewer_start(
+            "debug-pokedex",
+            &["port_viewer", "--area", "1", "--debug-pokedex"],
+        );
+        check_viewer_start(
+            "debug-view-pokedex",
+            &["port_viewer", "--area", "1", "--debug-view", "pokedex"],
+        );
     }
 
     /// `--ui original` and the battle path: the original battle screens bind to a running battle.

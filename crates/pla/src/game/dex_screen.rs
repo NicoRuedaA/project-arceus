@@ -689,6 +689,7 @@ fn sync_dex_ui(
     catalog: Res<DexCatalog>,
     tasks: Res<DexTasks>,
     progress: Option<Res<PlayerProgress>>,
+    debug: Option<Res<super::debug_visual::DebugViewState>>,
     mut ui: ResMut<DexUi>,
     mut root: Query<&mut Visibility, With<DexRoot>>,
     mut texts: Query<(&DexText, &mut Text)>,
@@ -709,11 +710,24 @@ fn sync_dex_ui(
     let counters = progress
         .as_ref()
         .map_or(&empty_counters, |save| &save.research);
-    let seen_count = entries.iter().filter(|entry| seen.contains(&entry.id)).count();
-    let caught_count = entries
-        .iter()
-        .filter(|entry| caught.contains(&entry.id))
-        .count();
+    // F6 (debug visual): every entry reads as seen + caught for the display; the save and the
+    // research counters stay the player's real ones (this flag only changes what is drawn).
+    let all = debug
+        .as_ref()
+        .is_some_and(|state| state.pokedex_all_active());
+    let seen_count = if all {
+        len
+    } else {
+        entries.iter().filter(|entry| seen.contains(&entry.id)).count()
+    };
+    let caught_count = if all {
+        len
+    } else {
+        entries
+            .iter()
+            .filter(|entry| caught.contains(&entry.id))
+            .count()
+    };
     let page = page_entries_of(entries, ui.page);
 
     for mut visibility in &mut root {
@@ -733,24 +747,31 @@ fn sync_dex_ui(
                 }
             ),
             (DexText::Status, DexMode::Hisui) => format!(
-                "{}  |  Page {}/{}  |  seen {seen_count}  |  caught {caught_count}  |  total {len}",
+                "{}  |  Page {}/{}  |  seen {seen_count}  |  caught {caught_count}  |  total {len}{}",
                 rank_line(&tasks, counters),
                 ui.page + 1,
                 page_count(len).max(1),
+                if all { "  |  F6: TODAS (debug)" } else { "" },
             ),
             (DexText::Status, DexMode::National) => format!(
-                "external data (no research yet)  |  Page {}/{}  |  seen {seen_count}  |  caught {caught_count}  |  total {len}",
+                "external data (no research yet)  |  Page {}/{}  |  seen {seen_count}  |  caught {caught_count}  |  total {len}{}",
                 ui.page + 1,
                 page_count(len).max(1),
+                if all { "  |  F6: TODAS (debug)" } else { "" },
             ),
             (DexText::Hint, _) => {
                 "Up/Down: select  |  Y: national/Hisui  |  Esc: close".to_string()
             }
             (DexText::Row(index), DexMode::Hisui) => {
                 page.get(index).map_or_else(String::new, |entry| {
+                    let state = if all {
+                        DexVisibility::Caught
+                    } else {
+                        visibility(entry.id, seen, caught)
+                    };
                     format!(
                         "{}{}",
-                        row_label(entry, visibility(entry.id, seen, caught)),
+                        row_label(entry, state),
                         research_suffix(&tasks, counters, entry.id)
                     )
                 })
@@ -1068,6 +1089,47 @@ national_number:u16\tidentifier:string\tname_en:string\tname_es:string\n\
             "#0001 Bulbasaur"
         );
         assert_eq!(page_entries_of(&catalog.national, 0).len(), 1);
+    }
+
+    /// F6 (`game::debug_visual`) is a display-only override: every Hisui row reads as caught
+    /// (name instead of `??????`/SILHOUETTE), the counters show the whole list, and the player's
+    /// real `PlayerProgress` (the only source of the save) is byte-identical before and after.
+    #[test]
+    fn f6_shows_every_species_as_caught_and_never_writes_to_the_save() {
+        use super::super::debug_visual::{DebugViewState, DebugVisualPlugin};
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default()));
+        app.init_asset::<Mesh>().init_asset::<StandardMaterial>();
+        app.add_plugins(DebugVisualPlugin::default());
+        app.add_plugins(DexScreenPlugin::default());
+        let mut progress = PlayerProgress::default();
+        progress.seen.insert(25); // seen, never caught
+        app.insert_resource(progress.clone());
+        app.world_mut().resource_mut::<DexUi>().open = true;
+        app.update();
+        app.update();
+
+        // Without F6 the seen-but-uncaught Pikachu row keeps its silhouette.
+        assert_eq!(row_text(&mut app, 0), "#0025  SILHOUETTE");
+
+        press_once(&mut app, KeyCode::F6);
+        app.update();
+        assert!(app.world().resource::<DebugViewState>().pokedex_all);
+        let row = row_text(&mut app, 0);
+        assert!(row.contains("pikachu"), "caught-like label: {row:?}");
+        assert!(!row.contains("??????") && !row.contains("SILHOUETTE"), "{row:?}");
+        assert_eq!(
+            *app.world().resource::<PlayerProgress>(),
+            progress,
+            "F6 must not touch the saved seen/caught/research state"
+        );
+
+        press_once(&mut app, KeyCode::F6);
+        app.update();
+        assert!(!app.world().resource::<DebugViewState>().pokedex_all);
+        assert_eq!(row_text(&mut app, 0), "#0025  SILHOUETTE", "off: the real state is back");
+        assert_eq!(*app.world().resource::<PlayerProgress>(), progress);
     }
 
     /// End-to-end headless screen check with the real tracked data: `Y` switches to the national

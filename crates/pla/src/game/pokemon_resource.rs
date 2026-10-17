@@ -129,6 +129,8 @@ pub struct NationalModelRow {
     pub model: String,
     pub species: u16,
     pub form: u8,
+    /// Form label of the sheet ("Mega Charizard X", "Hisuian Form"; empty for base rows).
+    pub form_name: String,
     pub kind: String,
     pub confidence: String,
 }
@@ -161,6 +163,7 @@ impl NationalModelMap {
                 model: f[0].to_string(),
                 species,
                 form,
+                form_name: f[3].to_string(),
                 kind: f[4].to_string(),
                 confidence: f[5].to_string(),
             });
@@ -255,13 +258,64 @@ pub struct ResolvedModel {
 pub fn resolve_model(species: u16, form: u8) -> Option<ResolvedModel> {
     let table = global_table();
     for f in [u16::from(form), 0] {
-        if let Some(stem) = table.pack_stem(species, f) {
-            if let Some(rel) = batch_gltf_rel_for_stem(&stem, &["idle", "static"]) {
-                return Some(ResolvedModel { rel, single_file: false });
-            }
+        if let Some(model) = game_model(table, species, f) {
+            return Some(model);
         }
     }
     national_gltf_rel(species, form).map(|rel| ResolvedModel { rel, single_file: true })
+}
+
+/// Exact model of `(species, form)` with no form-0 fallback: the game catalog entry of that
+/// form first, then the converted national model of that form; `None` when neither exists.
+///
+/// This is what [`resolve_forms`] uses to tell REAL forms apart: [`resolve_model`] answers with
+/// the base model for a form it does not have (deliberate for `--spawn-species`), so it cannot
+/// be used to list which forms have a model of their own.
+pub fn resolve_model_exact(species: u16, form: u8) -> Option<ResolvedModel> {
+    let table = global_table();
+    if let Some(model) = game_model(table, species, u16::from(form)) {
+        return Some(model);
+    }
+    national_gltf_rel(species, form).map(|rel| ResolvedModel { rel, single_file: true })
+}
+
+/// One form's model from the game's own PLA catalog (`form` is the catalog's form index).
+fn game_model(table: &PokemonResourceTable, species: u16, form: u16) -> Option<ResolvedModel> {
+    let stem = table.pack_stem(species, form)?;
+    batch_gltf_rel_for_stem(&stem, &["idle", "static"]).map(|rel| ResolvedModel {
+        rel,
+        single_file: false,
+    })
+}
+
+/// Highest form index any sheet maps (`data/national/model_map.tsv` reaches 27 for the
+/// Unown-like cosmetic runs); the F7 form scan caps here.
+pub const MAX_FORM_INDEX: u8 = 31;
+
+/// Forms of `species` that have a model of their own (game catalog or converted collection),
+/// ascending, as `(form, display name)`. The name comes from `data/national/model_map.tsv` when
+/// that sheet names the form ("Mega Charizard X"), else "base"/"forma N".
+pub fn resolve_forms(species: u16) -> Vec<(u8, String)> {
+    let map = global_national_map();
+    let mut forms = Vec::new();
+    for form in 0..=MAX_FORM_INDEX {
+        if resolve_model_exact(species, form).is_none() {
+            continue;
+        }
+        let named = map
+            .pack_for(species, form)
+            .map(|row| row.form_name.trim().to_string())
+            .filter(|name| !name.is_empty());
+        let name = named.unwrap_or_else(|| {
+            if form == 0 {
+                "base".to_string()
+            } else {
+                format!("forma {form}")
+            }
+        });
+        forms.push((form, name));
+    }
+    forms
 }
 
 #[cfg(test)]
@@ -357,5 +411,45 @@ mod tests {
         }
         assert!(checked > 1000, "only {checked} spawn slots read");
         assert!(missing.is_empty(), "{} slots without a model:\n{}", missing.len(), missing.join("\n"));
+    }
+
+    /// The F7 form listing (`resolve_forms`) answers with the forms that really have a model:
+    /// Charizard (#6, not a PLA species) lists base + both Megas from the converted collection
+    /// with their sheet names, the Hisuian Growlithe (#58 form 1) resolves exactly through the
+    /// game's own catalog, and a species without any model lists no form.
+    #[test]
+    fn resolve_forms_lists_only_forms_with_a_real_model() {
+        let cache = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../work/cache");
+        let cache = std::env::var("PLA_CACHE_ROOT")
+            .map(PathBuf::from)
+            .ok()
+            .filter(|p| p.is_dir())
+            .unwrap_or(cache);
+        if !cache.join("pokemon_national").is_dir() {
+            eprintln!("[skip] no pokemon cache at {}", cache.display());
+            return;
+        }
+        assert!(resolve_model_exact(6, 0).is_some(), "Charizard base");
+        let charizard = resolve_forms(6);
+        let forms: Vec<u8> = charizard.iter().map(|(form, _)| *form).collect();
+        assert!(forms.contains(&0) && forms.contains(&1) && forms.contains(&2), "{charizard:?}");
+        assert_eq!(charizard[0].1, "Charizard");
+        assert!(
+            charizard.iter().any(|(form, name)| *form == 1 && name == "Mega Charizard X"),
+            "{charizard:?}"
+        );
+        assert!(
+            charizard.iter().any(|(form, name)| *form == 2 && name.contains("Charizard Y")),
+            "{charizard:?}"
+        );
+        let growlithe = resolve_forms(58);
+        assert!(
+            growlithe.iter().any(|(form, name)| *form == 1 && name == "Hisuian Form"),
+            "{growlithe:?}"
+        );
+        // Pecharunt (#1025) has no row in any model sheet and no catalog pack: no forms at all.
+        assert!(resolve_forms(1025).is_empty());
+        // No form-0 fallback: form 3 of Charizard is not a real form and stays unresolved.
+        assert!(resolve_model_exact(6, 3).is_none());
     }
 }
