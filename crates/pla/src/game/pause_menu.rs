@@ -1,9 +1,11 @@
 //! Pause menu (Esc or gamepad +): a Bevy UI overlay navigable with the keyboard
 //! (arrows, W/S or A/D, D-pad, Enter/A) and the mouse (hover + click).
 //!
-//! Options: Resume, Bag, Party, Boxes, Pokédex, Crafting, Shop (test shop 0), Invert camera X
-//! axis, Invert camera Y axis, Volume (master, cycles 100/75/50/25/0 %), Back to safe spawn, Save
-//! game, Load game (the file Save writes), Rest (heals the party), Quit. The screen rows only raise a request resource
+//! Options: Resume, Bag, Party, Summary, Boxes, Pokédex, Crafting, Shop (test shop 0), Volume
+//! (master, cycles 100/75/50/25/0 %), Graphics..., Customize, Back to safe spawn, Save
+//! game, Load game (the file Save writes), Rest (heals the party), Quit. The camera-axis
+//! inversions live in the Graphics screen ("Invert camera X / Y axis"), not here (brief
+//! ui-menu: the pause menu keeps the game's own distribution). The screen rows only raise a request resource
 //! ([`BagOpenRequested`], [`PartyOpenRequested`], [`BoxOpenRequested`], [`DexOpenRequested`],
 //! [`ShopOpenRequested`], [`crate::game::crafting_ui::CraftingOpenRequested`]); each screen plugin
 //! consumes its own request, freezes the world and owns the input until it closes. A screen whose
@@ -43,8 +45,6 @@ pub enum MenuOption {
     Pokedex,
     Crafting,
     Shop,
-    InvertX,
-    InvertY,
     Volume,
     Graphics,
     /// The customization screen (`game::customize_screen`, Brief 36).
@@ -56,8 +56,9 @@ pub enum MenuOption {
     Quit,
 }
 
-/// Menu rows in display order.
-pub const OPTIONS: [MenuOption; 18] = [
+/// Menu rows in display order. Every camera-axis inversion is a Graphics-screen option, so the
+/// list is exactly four pages of four icons in the original pause-menu strip.
+pub const OPTIONS: [MenuOption; 16] = [
     MenuOption::Resume,
     MenuOption::Bag,
     MenuOption::Party,
@@ -66,8 +67,6 @@ pub const OPTIONS: [MenuOption; 18] = [
     MenuOption::Pokedex,
     MenuOption::Crafting,
     MenuOption::Shop,
-    MenuOption::InvertX,
-    MenuOption::InvertY,
     MenuOption::Volume,
     MenuOption::Graphics,
     MenuOption::Customize,
@@ -137,14 +136,6 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
         MenuOption::Shop => MenuAction::OpenScreen(Screen::Shop),
         MenuOption::Graphics => MenuAction::OpenScreen(Screen::Graphics),
         MenuOption::Customize => MenuAction::OpenScreen(Screen::Customize),
-        MenuOption::InvertX => {
-            settings.invert_camera_x = !settings.invert_camera_x;
-            MenuAction::SettingsChanged
-        }
-        MenuOption::InvertY => {
-            settings.invert_camera_y = !settings.invert_camera_y;
-            MenuAction::SettingsChanged
-        }
         MenuOption::Volume => {
             settings.master_volume = next_volume_step(settings.master_volume);
             MenuAction::SettingsChanged
@@ -154,14 +145,6 @@ pub fn activate(option: MenuOption, settings: &mut UserSettings) -> MenuAction {
         MenuOption::Load => MenuAction::Load,
         MenuOption::Rest => MenuAction::Rest,
         MenuOption::Quit => MenuAction::Quit,
-    }
-}
-
-fn on_off(v: bool) -> &'static str {
-    if v {
-        "ON"
-    } else {
-        "OFF"
     }
 }
 
@@ -176,8 +159,6 @@ pub fn option_label(option: MenuOption, settings: &UserSettings) -> String {
         MenuOption::Pokedex => "Pokédex".into(),
         MenuOption::Crafting => "Crafting".into(),
         MenuOption::Shop => "Shop (test shop)".into(),
-        MenuOption::InvertX => format!("Invert camera X axis: {}", on_off(settings.invert_camera_x)),
-        MenuOption::InvertY => format!("Invert camera Y axis: {}", on_off(settings.invert_camera_y)),
         MenuOption::Customize => "Customize".into(),
         MenuOption::Volume => format!("Volume: {}%", settings.master_volume),
         MenuOption::Graphics => "Graphics...".into(),
@@ -636,17 +617,22 @@ mod tests {
     }
 
     #[test]
-    fn toggles_flip_only_their_axis_and_show_on_off() {
+    fn camera_inversions_live_only_in_the_graphics_screen() {
+        // The pause menu keeps the game's own distribution: no camera-axis rows. The Graphics
+        // screen carries them (`graphics_screen::Row::InvertX` / `InvertY`).
         let mut s = UserSettings::default();
-        assert_eq!(option_label(MenuOption::InvertX, &s), "Invert camera X axis: OFF");
-        assert_eq!(activate(MenuOption::InvertX, &mut s), MenuAction::SettingsChanged);
-        assert!(s.invert_camera_x && !s.invert_camera_y);
-        assert_eq!(option_label(MenuOption::InvertX, &s), "Invert camera X axis: ON");
-        assert_eq!(option_label(MenuOption::InvertY, &s), "Invert camera Y axis: OFF");
-        assert_eq!(activate(MenuOption::InvertY, &mut s), MenuAction::SettingsChanged);
-        assert!(s.invert_camera_x && s.invert_camera_y);
-        assert_eq!(activate(MenuOption::InvertX, &mut s), MenuAction::SettingsChanged);
-        assert!(!s.invert_camera_x && s.invert_camera_y);
+        for o in OPTIONS {
+            let label = option_label(o, &s);
+            assert!(
+                !label.to_ascii_lowercase().contains("invert camera"),
+                "{o:?} still shows a camera inversion: {label}"
+            );
+        }
+        // The settings themselves still work and stay independent.
+        s.invert_camera_x = true;
+        assert_eq!(s.apply_invert(3.0, 2.0), (-3.0, 2.0));
+        s.invert_camera_y = true;
+        assert_eq!(s.apply_invert(3.0, 2.0), (-3.0, -2.0));
     }
 
     #[test]
@@ -689,7 +675,7 @@ mod tests {
                 MenuOption::Shop
             ]
         );
-        assert_eq!(OPTIONS[bag + 7], MenuOption::InvertX);
+        assert_eq!(OPTIONS[bag + 7], MenuOption::Volume);
         let mut s = UserSettings::default();
         assert_eq!(activate(MenuOption::Summary, &mut s), MenuAction::OpenScreen(Screen::Summary));
         assert!(screen_unavailable_text(Screen::Boxes, false).contains("only while exploring"));
@@ -739,10 +725,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("pla_pause_settings_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let mut s = UserSettings::load_from_dir(&dir);
-        activate(MenuOption::InvertY, &mut s);
+        activate(MenuOption::Volume, &mut s);
         s.save_to_dir(&dir).unwrap();
         let reloaded = UserSettings::load_from_dir(&dir);
-        assert!(reloaded.invert_camera_y && !reloaded.invert_camera_x);
+        assert_eq!(reloaded.master_volume, 75);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -950,18 +936,19 @@ mod tests {
         step(&mut app, &[KeyCode::Escape], &[]);
         assert_eq!(app.world().resource::<PauseMenu>().selected, 0);
 
-        // D-pad/A-D/arrow navigation passes the Bag and screen rows and reaches Invert camera X.
-        let invert_x = OPTIONS.iter().position(|o| *o == MenuOption::InvertX).unwrap();
+        // D-pad/A-D/arrow navigation passes the Bag and screen rows and reaches the Volume row
+        // (the only setting the pause menu still owns; the camera inversions are in Graphics).
+        let volume = OPTIONS.iter().position(|o| *o == MenuOption::Volume).unwrap();
         step(&mut app, &[KeyCode::ArrowDown], &[]);
         assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
-        for expected in 2..=invert_x {
+        for expected in 2..=volume {
             step(&mut app, &[], &[KeyCode::ArrowDown]);
             step(&mut app, &[KeyCode::ArrowDown], &[]);
             assert_eq!(app.world().resource::<PauseMenu>().selected, expected);
         }
 
         step(&mut app, &[KeyCode::Enter], &[]);
-        assert!(app.world().resource::<UserSettings>().invert_camera_x);
+        assert_eq!(app.world().resource::<UserSettings>().master_volume, 75);
         assert!(
             app.world().resource::<Paused>().0,
             "a toggle row keeps the menu open"
@@ -974,13 +961,13 @@ mod tests {
 
         // W/S still move through the vertical menu; S does not leak as the battle Switch.
         step(&mut app, &[KeyCode::KeyS], &[KeyCode::ArrowDown, KeyCode::Enter]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, invert_x + 1);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, volume + 1);
         assert!(!app
             .world()
             .resource::<ActionState>()
             .just_pressed(Action::OpenSwitch));
         step(&mut app, &[KeyCode::KeyW], &[KeyCode::KeyS]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, invert_x);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, volume);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
