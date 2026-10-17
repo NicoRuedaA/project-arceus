@@ -28,9 +28,18 @@
 //!
 //! Saddle: the original attaches the rider to a per-mount `player_attach_joint_name` bone
 //! (`parts` / `parts_01` / `parts_03` / `origin`; VERIFIED in the ride pack's skeletons).
-//! The exported glTFs used by the port do not carry those bones, so the rider sits at a
-//! saddle height read from the exported skeleton's own rest pose (`spine_02` / `waist`
-//! world Y, PROBABLE) for all five mounts. See `reports/data-progress/mounts.md`.
+//! The exported glTFs used by the port do not carry those bones, so the rider follows the
+//! skeleton bone that matches the seat area instead ([`RiderSeat`]): each frame the rider
+//! model root is the anchor bone's transform times the constant `rider_local` offset, so the
+//! rider follows the mount's animation (bobbing, turning) instead of a fixed height.
+//!
+//! Where the rider belongs comes from the game's OWN rider clips: the `origin` bone channels
+//! of `ride_<mount>_idle` (exported from the player pack) place the rider in the ride model's
+//! frame — Wyrdeer 1.304 m, Ursaluna 1.760 m, Braviary -0.530 m (hanging below), Basculegion
+//! and Sneasler 0 (PROBABLE: read off the exported clip, see `reports/data-progress/mounts.md`).
+//! The port keeps those numbers as the starting placement and corrects the two mounts whose
+//! clip carries no offset (the authored pose alone does not sit on the mount's back), measured
+//! against the official art. Every correction is marked in [`RiderSeat::rider_pos`].
 //!
 //! Stamina: `ride_stamina_parameter.bin` decodes to a `default` record with 18000 / 3000 /
 //! 20.0 and per-mount vectors whose semantics are UNKNOWN (see the report). The port uses
@@ -133,11 +142,11 @@ pub struct RideParams {
     /// Species + form for the model catalog (`data/pokemon_resource_table.tsv`).
     pub dex: u16,
     pub form: u16,
-    /// `player_attach_joint_name` (the saddle bone in the ride pack skeleton, VERIFIED).
+    /// `player_attach_joint_name` (the saddle bone in the ride pack skeleton, VERIFIED name;
+    /// the port cannot use it because its model exports do not carry that bone).
     pub attach_bone: &'static str,
-    /// Height of the rider's feet above the mount root (m): read from the exported
-    /// skeleton's rest pose (`spine_02` / `waist` world Y; PROBABLE).
-    pub saddle_height: f32,
+    /// Where the rider rides this mount (anchor bone + placement).
+    pub seat: RiderSeat,
     /// Locomotion domain of the mount.
     pub domain: RideDomain,
     /// `control_input_*`: magnitudes that separate stop / walk / run / dash.
@@ -148,6 +157,60 @@ pub struct RideParams {
     pub walk: f32,
     pub run: f32,
     pub dash: f32,
+}
+
+/// How the rider sits on one mount: the exported-skeleton bone the rider follows and the
+/// rider's model root in that bone's REST frame.
+///
+/// `rest_*` is the bone's rest transform relative to the model root, read from the exported
+/// skeleton (PROBABLE: same pose the glTF spawns with). `rider_pos` is the rider's model root
+/// in MOUNT-ROOT space: the game's authored clip placement (`ride_<mount>_idle` `origin`
+/// channel) plus the per-mount correction measured against the official art with offscreen
+/// captures. All five models' roots sit at the feet on the ground (y = 0), the mount's head
+/// facing +Z, so a mount-space point reads as (side, height, forward).
+#[derive(Debug, Clone, Copy)]
+pub struct RiderSeat {
+    /// Bone of the exported mount model the rider follows (the back, between the shoulders).
+    pub bone: &'static str,
+    /// Bone rest translation in model space (m), from the exported skeleton.
+    pub rest_pos: [f32; 3],
+    /// Bone rest rotation in model space, from the exported skeleton.
+    pub rest_rot: [f32; 4],
+    /// Rider model root in mount space (m): authored clip placement + correction.
+    pub rider_pos: [f32; 3],
+    /// Rotation of the rider's model root in mount space (identity: the rider clips' own
+    /// `origin` rotation carries the body tilt).
+    pub rider_rot: [f32; 4],
+}
+
+impl RiderSeat {
+    /// Rider model root in the ANCHOR BONE's rest frame: `inverse(bone_rest) * rider_root`.
+    /// This is the constant the runtime multiplies by the bone's live transform.
+    pub fn rider_local(&self) -> Transform {
+        let bone = Transform {
+            translation: Vec3::from(self.rest_pos),
+            rotation: Quat::from_array(self.rest_rot),
+            scale: Vec3::ONE,
+        };
+        let rider = Transform {
+            translation: Vec3::from(self.rider_pos),
+            rotation: Quat::from_array(self.rider_rot),
+            scale: Vec3::ONE,
+        };
+        inverse_transform(&bone).mul_transform(rider)
+    }
+}
+
+/// Inverse of a scale-rotation-translation transform (`T + R * S * p`, the [`Transform`]
+/// convention): `S⁻¹ * R⁻¹ * (p - T)`.
+pub fn inverse_transform(t: &Transform) -> Transform {
+    let inv_rot = t.rotation.inverse();
+    let inv_scale = Vec3::ONE / t.scale;
+    Transform {
+        translation: inv_rot * (-t.translation * inv_scale),
+        rotation: inv_rot,
+        scale: inv_scale,
+    }
 }
 
 impl RideKind {
@@ -163,13 +226,21 @@ impl RideKind {
     /// Decoded parameters of this mount (see the module docs for the sources).
     pub fn params(self) -> RideParams {
         match self {
-            // Speeds: ride_odoshishi_config. Saddle: spine_02 rest height 0.723 m (PROBABLE).
+            // Speeds: ride_odoshishi_config. Seat: spine_02 (the back behind the neck); the
+            // authored clip places the root at y = 1.304 and the correction lowers it onto
+            // the exported back (top ~1.0-1.14 m), feet hanging down the flanks.
             RideKind::Wyrdeer => RideParams {
                 internal_name: "odoshishi",
                 dex: 899,
                 form: 0,
                 attach_bone: "parts",
-                saddle_height: 0.75,
+                seat: RiderSeat {
+                    bone: "spine_02",
+                    rest_pos: [0.0, 0.7232, -0.0124],
+                    rest_rot: [0.3800, -0.3800, 0.5963, 0.5963],
+                    rider_pos: [0.0, 1.05, -0.18],
+                    rider_rot: [0.0, 0.0, 0.0, 1.0],
+                },
                 domain: RideDomain::Ground,
                 input_walk: 0.01,
                 input_run: 0.97,
@@ -179,13 +250,20 @@ impl RideKind {
                 dash: 11.0,
             },
             // Speeds: ride_ringuma_controller_config (0.35/0.70/1.05 thresholds).
-            // Saddle: spine_02 rest height 0.858 m (PROBABLE).
+            // Seat: spine_02 (between the shoulders); the authored clip placement (1.760)
+            // sits on the hump with the feet resting on the back (VERIFIED in captures).
             RideKind::Ursaluna => RideParams {
                 internal_name: "ringuma",
                 dex: 901,
                 form: 0,
                 attach_bone: "parts_01",
-                saddle_height: 0.90,
+                seat: RiderSeat {
+                    bone: "spine_02",
+                    rest_pos: [0.0, 0.8582, -0.5048],
+                    rest_rot: [0.5747, 0.5747, 0.4120, -0.4120],
+                    rider_pos: [0.008, 1.760, -0.348],
+                    rider_rot: [0.0, 0.0, 0.0, 1.0],
+                },
                 domain: RideDomain::Ground,
                 input_walk: 0.35,
                 input_run: 0.70,
@@ -194,13 +272,22 @@ impl RideKind {
                 run: 5.0,
                 dash: 6.0,
             },
-            // Speeds: ride_basurao_config. Saddle: waist rest height 0.71 m (PROBABLE).
+            // Speeds: ride_basurao_config. Seat: spine_01 (the body); the clip carries NO
+            // offset (the game attaches the rider at this mount's root joint) and its pose
+            // alone leaves the rider inside the fish, so the correction lifts the model root
+            // onto the back in front of the dorsal fin (fish top ~1.06 m at z ~ +0.6).
             RideKind::Basculegion => RideParams {
                 internal_name: "basurao",
                 dex: 902,
                 form: 0,
                 attach_bone: "origin",
-                saddle_height: 0.70,
+                seat: RiderSeat {
+                    bone: "spine_01",
+                    rest_pos: [0.0, 0.7100, 0.5103],
+                    rest_rot: [-0.0, -0.7071, 0.0, 0.7071],
+                    rider_pos: [0.0, 0.38, 0.60],
+                    rider_rot: [0.0, 0.0, 0.0, 1.0],
+                },
                 domain: RideDomain::Water,
                 input_walk: 0.01,
                 input_run: 0.97,
@@ -210,13 +297,21 @@ impl RideKind {
                 dash: 11.0,
             },
             // Speeds: ride_nyuura_controller_config; climb_move_speed_max = 4.8.
-            // Saddle: spine_02 rest height 0.746 m of the exported skeleton (PROBABLE).
+            // Seat: spine_02; the clip carries NO offset and its perched pose already sits
+            // the hips at the back height (pelvis ~1.23 m above the root), so the authored
+            // placement is kept (correction measured in captures).
             RideKind::Sneasler => RideParams {
                 internal_name: "nyuura",
                 dex: 903,
                 form: 0,
                 attach_bone: "origin",
-                saddle_height: 0.75,
+                seat: RiderSeat {
+                    bone: "spine_02",
+                    rest_pos: [0.0, 0.7461, -0.0],
+                    rest_rot: [-0.0, -0.0, 0.7071, 0.7071],
+                    rider_pos: [0.0, 0.18, -0.05],
+                    rider_rot: [0.0, 0.0, 0.0, 1.0],
+                },
                 domain: RideDomain::Ground,
                 input_walk: 0.01,
                 input_run: 0.97,
@@ -226,13 +321,22 @@ impl RideKind {
                 dash: 8.4,
             },
             // Speeds: ride_whooguru_controller_config; air: main_max_move_speed = 9.5.
-            // Saddle: spine_02 rest height 1.01 m of the exported skeleton (PROBABLE).
+            // Seat: spine_01 (the body). The clip hangs the rider BELOW the mount root
+            // (-0.530 m) in a prone, hands-forward pose: the official art shows the rider
+            // hanging from a bar held by the talons. SUPUESTO: the bar itself is not in the
+            // exported model, so only the hanging pose is shown.
             RideKind::Braviary => RideParams {
                 internal_name: "whooguru",
                 dex: 628,
                 form: 41,
                 attach_bone: "parts_03",
-                saddle_height: 1.00,
+                seat: RiderSeat {
+                    bone: "spine_01",
+                    rest_pos: [0.0, 0.9562, 0.1093],
+                    rest_rot: [-0.5531, -0.5531, -0.4405, 0.4405],
+                    rider_pos: [0.083, -0.530, 0.382],
+                    rider_rot: [0.0, 0.0, 0.0, 1.0],
+                },
                 domain: RideDomain::Air,
                 input_walk: 0.01,
                 input_run: 0.97,
@@ -413,6 +517,39 @@ pub struct RideMountView {
     pub kind: RideKind,
 }
 
+/// Seat binding of one mount view: the exported-skeleton bone the rider follows. Added once
+/// the bone exists in the spawned scene (assets load asynchronously); `seat_rider` places
+/// every [`PlayerModelScene`] at that bone's live transform times the constant offset.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct MountSeat {
+    pub kind: RideKind,
+    pub bone: Entity,
+    /// Rider model root in the bone's rest frame (see [`RiderSeat::rider_local`]).
+    pub local: Transform,
+}
+
+/// The rider's transform for one frame: the anchor bone's live transform relative to the
+/// mount view, times the constant bone-frame offset, expressed in the avatar's frame.
+/// `mount_tf` is the mount view's own local transform (feet on the ground).
+pub fn rider_attached_transform(mount_tf: &Transform, bone_rel: &Transform, local: &Transform) -> Transform {
+    mount_tf.mul_transform(*bone_rel).mul_transform(*local)
+}
+
+/// The on-foot transform of the player model child (its feet on the ground).
+pub fn rider_on_foot_transform() -> Transform {
+    Transform::from_xyz(0.0, -AVATAR_ROOT_ABOVE_GROUND, 0.0)
+}
+
+/// Eases the rider between the on-foot transform (`eased` 0) and the attached one (1).
+pub fn blend_rider_transform(on_foot: &Transform, attached: &Transform, eased: f32) -> Transform {
+    let t = eased.clamp(0.0, 1.0);
+    Transform {
+        translation: on_foot.translation.lerp(attached.translation, t),
+        rotation: on_foot.rotation.slerp(attached.rotation, t),
+        scale: on_foot.scale.lerp(attached.scale, t),
+    }
+}
+
 /// The ride state of the player. The viewer reads [`RideState::mounted_speed`] for its
 /// locomotion and [`RideState::camera_bonus`] for the camera pull-back.
 #[derive(Resource, Debug, Clone)]
@@ -517,17 +654,22 @@ impl RideState {
         CAMERA_BONUS * eased
     }
 
-    /// Saddle offset of the player model while mounting, eased by the transition: the model
-    /// child sits at `-(AVATAR_ROOT_ABOVE_GROUND)` on foot and rises to `saddle_height -
-    /// AVATAR_ROOT_ABOVE_GROUND` when mounted (the mount being transitioned to, falling back
-    /// to the selected one while dismounting).
-    pub fn player_model_offset_y(&self) -> f32 {
-        let kind = self.mounted.unwrap_or(self.selected);
-        let saddle = kind.params().saddle_height;
-        let eased = smoothstep(self.transition.clamp(0.0, 1.0));
-        // On foot the child sits at -AVATAR_ROOT_ABOVE_GROUND (feet on the ground); at full
-        // mount its feet are `saddle` metres up, so the term `saddle * eased` is added.
-        saddle * eased - AVATAR_ROOT_ABOVE_GROUND
+    /// Mount whose view must exist this frame: the ridden one, or the mount being left while
+    /// the dismount transition still runs (so the rider eases down off the saddle instead of
+    /// snapping to the ground when the body disappears).
+    pub fn view_target(&self) -> Option<RideKind> {
+        if self.mounted.is_some() {
+            self.mounted
+        } else if self.transition > 0.0 {
+            Some(self.selected)
+        } else {
+            None
+        }
+    }
+
+    /// Transition easing (0 on foot, 1 fully seated) shared by the camera and the seat.
+    pub fn seat_ease(&self) -> f32 {
+        smoothstep(self.transition.clamp(0.0, 1.0))
     }
 
     /// Advances the mount/dismount transition; returns `true` when it changed this frame.
@@ -661,14 +803,8 @@ fn ride_input(
 /// A per-frame planar speed above this is a teleport, not locomotion (m/s).
 const TELEPORT_SPEED: f32 = 25.0;
 
-/// Query inputs of [`sync_mount_view`]: the player-model scene child (its local Y is the
-/// seat height) and the glide marker entities.
-type MountViewQueries<'w, 's> = (
-    Query<'w, 's, &'static mut Transform, (With<PlayerModelScene>, Without<PlayerAvatar>, Without<RideMountView>)>,
-    Query<'w, 's, (Entity, &'static GlideMount)>,
-);
-
-/// Keeps the mount view entity and the rider's seat in sync with the ride state.
+/// Keeps the mount view entity in sync with the ride state; the rider's seat position itself
+/// is placed by [`seat_rider`].
 #[allow(clippy::too_many_arguments)]
 fn sync_mount_view(
     mut commands: Commands,
@@ -677,14 +813,16 @@ fn sync_mount_view(
     input: Res<ActionState>,
     avatar: Query<Entity, With<PlayerAvatar>>,
     views: Query<(Entity, &RideMountView)>,
-    (mut scenes, glide): MountViewQueries,
+    glide: Query<'_, '_, (Entity, &'static GlideMount)>,
     mut warned: Local<Option<RideKind>>,
 ) {
     let Ok(avatar_e) = avatar.single() else {
         return;
     };
     // Spawn / respawn / despawn the mount view (a child of the avatar, feet at its root).
-    let want = ride.mounted;
+    // While the dismount transition runs the view of the mount being left stays alive, so the
+    // rider eases down off the saddle instead of snapping to the ground.
+    let want = ride.view_target();
     let stale = views.iter().any(|(_, v)| Some(v.kind) != want);
     if stale {
         for (e, _) in &views {
@@ -717,13 +855,6 @@ fn sync_mount_view(
             }
         }
     }
-    // Seat the rider: the player model child rises to the saddle over the transition.
-    for mut tf in &mut scenes {
-        let want_y = ride.player_model_offset_y();
-        if (tf.translation.y - want_y).abs() > 1e-4 {
-            tf.translation.y = want_y;
-        }
-    }
     // Glide marker on the avatar (flyers only), inserted and removed only when it changes.
     // Sprinting while airborne swoops: the cap rises so the dive actually descends.
     match ride.fall_cap_input(input.pressed(Action::Sprint)) {
@@ -745,6 +876,77 @@ fn sync_mount_view(
     }
 }
 
+/// Finds the anchor bone of every mount view whose scene has spawned and binds [`MountSeat`].
+/// Runs until the asset is loaded; a mount whose export lacks the bone simply gets no seat
+/// (the rider then stays at the on-foot transform).
+fn find_mount_seat(
+    mut commands: Commands,
+    views: Query<(Entity, &RideMountView), Without<MountSeat>>,
+    children: Query<&Children>,
+    names: Query<&Name>,
+) {
+    for (view, mount) in &views {
+        let bone = mount.kind.params().seat.bone;
+        let Some(found) = children
+            .iter_descendants(view)
+            .find(|d| names.get(*d).is_ok_and(|n| n.as_str() == bone))
+        else {
+            continue;
+        };
+        commands.entity(view).insert(MountSeat {
+            kind: mount.kind,
+            bone: found,
+            local: mount.kind.params().seat.rider_local(),
+        });
+    }
+}
+
+/// Places every player-model scene on the saddle: the model root is the mount's anchor bone
+/// (live, animated transform relative to the mount view) times the constant bone-frame offset,
+/// eased from the on-foot transform by the mount/dismount transition. Runs after the
+/// animation system wrote the bones and before transforms propagate, so the seat follows the
+/// mount's animation exactly on the frame it moves.
+fn seat_rider(
+    ride: Res<RideState>,
+    seats: Query<(Entity, &MountSeat, &Transform), Without<PlayerModelScene>>,
+    parents: Query<&ChildOf>,
+    bones: Query<&Transform, (Without<PlayerModelScene>, Without<MountSeat>)>,
+    mut scenes: Query<&mut Transform, (With<PlayerModelScene>, Without<MountSeat>)>,
+) {
+    let on_foot = rider_on_foot_transform();
+    let eased = ride.seat_ease();
+    let mut target = on_foot;
+    if eased > 0.0 {
+        if let Some((view, seat, mount_tf)) = seats.iter().next() {
+            // The bone's transform relative to the mount view: compose the locals up to (and
+            // excluding) the view entity.
+            if let Ok(bone_tf) = bones.get(seat.bone) {
+                let mut rel = *bone_tf;
+                let mut cur = seat.bone;
+                while let Ok(child_of) = parents.get(cur) {
+                    let parent = child_of.parent();
+                    if parent == view {
+                        break;
+                    }
+                    let Ok(parent_tf) = bones.get(parent) else { break };
+                    rel = parent_tf.mul_transform(rel);
+                    cur = parent;
+                }
+                target = blend_rider_transform(
+                    &on_foot,
+                    &rider_attached_transform(mount_tf, &rel, &seat.local),
+                    eased,
+                );
+            }
+        }
+    }
+    for mut tf in &mut scenes {
+        if *tf != target {
+            *tf = target;
+        }
+    }
+}
+
 /// Systems of [`RidePlugin`] (mount input, then view sync). Other modules that must see the
 /// ride state of the current frame (the HUD hints) order `.after(RideSystems)`.
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -758,11 +960,19 @@ impl Plugin for RidePlugin {
         app.init_resource::<RideState>();
         app.add_systems(
             Update,
-            (ride_input, sync_mount_view)
+            (ride_input, sync_mount_view, find_mount_seat)
                 .chain()
                 .in_set(RideSystems)
                 .run_if(in_state(GameState::World))
                 .run_if(not_paused),
+        );
+        // The seat follows the mount's animation: after the animation system wrote the bone
+        // transforms and before they propagate (same slot as the player's root-motion pin).
+        app.add_systems(
+            PostUpdate,
+            seat_rider
+                .after(bevy::app::AnimationSystems)
+                .before(bevy::transform::TransformSystems::Propagate),
         );
     }
 }
@@ -859,18 +1069,17 @@ mod tests {
     }
 
     #[test]
-    fn transition_eases_the_seat_and_the_camera() {
+    fn transition_eases_the_camera_and_keeps_the_mount_view_alive() {
         let mut st = RideState::default();
         assert!((st.camera_bonus()).abs() < 1e-6);
+        assert_eq!(st.view_target(), None, "no mount view on foot");
         st.toggle();
         assert_eq!(st.transition_dir, 1.0);
+        assert_eq!(st.view_target(), Some(RideKind::Wyrdeer));
         // Half way: smoothstep(0.5) = 0.5 exactly.
         st.transition = 0.5;
         assert!((st.camera_bonus() - CAMERA_BONUS * 0.5).abs() < 1e-4);
-        let on_foot = -AVATAR_ROOT_ABOVE_GROUND;
-        let seated = RideKind::Wyrdeer.params().saddle_height - AVATAR_ROOT_ABOVE_GROUND;
-        let mid = st.player_model_offset_y();
-        assert!((mid - (on_foot + seated) * 0.5).abs() < 1e-4, "{mid}");
+        assert!((st.seat_ease() - 0.5).abs() < 1e-4);
         // Reaches the saddle after TRANSITION_TIME seconds.
         let mut t = 0.0;
         while t < TRANSITION_TIME + 0.01 {
@@ -879,8 +1088,152 @@ mod tests {
         }
         assert_eq!(st.transition, 1.0);
         assert_eq!(st.transition_dir, 0.0);
-        assert!((st.player_model_offset_y() - seated).abs() < 1e-4);
         assert!((st.camera_bonus() - CAMERA_BONUS).abs() < 1e-4);
+        assert!((st.seat_ease() - 1.0).abs() < 1e-4);
+        // Dismounting: the view of the mount being left stays alive while the transition runs.
+        st.toggle();
+        assert_eq!(st.view_target(), Some(RideKind::Wyrdeer));
+        let mut t = 0.0;
+        while t < TRANSITION_TIME + 0.01 {
+            st.step_transition(1.0 / 60.0);
+            t += 1.0 / 60.0;
+        }
+        assert_eq!(st.transition, 0.0);
+        assert_eq!(st.view_target(), None);
+    }
+
+    #[test]
+    fn the_bone_frame_offset_reproduces_the_authored_placement() {
+        // `rider_local` is folded so that bone_rest * rider_local == rider_pos for every mount:
+        // the runtime multiplies the live bone transform by `rider_local`, so at rest the rider
+        // must land exactly where the table says.
+        for kind in RideKind::ALL {
+            let seat = kind.params().seat;
+            let bone = Transform {
+                translation: Vec3::from(seat.rest_pos),
+                rotation: Quat::from_array(seat.rest_rot),
+                scale: Vec3::ONE,
+            };
+            let placed = bone.mul_transform(seat.rider_local());
+            let want = Vec3::from(seat.rider_pos);
+            assert!(
+                (placed.translation - want).length() < 1e-3,
+                "{kind:?}: {} vs {}",
+                placed.translation,
+                want
+            );
+            assert!((placed.rotation.dot(Quat::from_array(seat.rider_rot))).abs() > 0.9999, "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn the_blend_eases_between_the_ground_and_the_saddle() {
+        let on_foot = rider_on_foot_transform();
+        let attached = Transform::from_xyz(0.0, 1.05, -0.06);
+        assert_eq!(blend_rider_transform(&on_foot, &attached, 0.0), on_foot);
+        assert_eq!(blend_rider_transform(&on_foot, &attached, 1.0), attached);
+        let mid = blend_rider_transform(&on_foot, &attached, 0.5);
+        assert!((mid.translation.y - (on_foot.translation.y + 1.05) * 0.5).abs() < 1e-4);
+    }
+
+    #[test]
+    fn seat_rider_follows_the_anchor_bone() {
+        use crate::game::input_map::{actions, RawInput};
+        use bevy::state::app::StatesPlugin;
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+            1.0 / 60.0,
+        )));
+        app.init_state::<GameState>();
+        app.add_plugins(RidePlugin);
+
+        let avatar = app.world_mut().spawn((PlayerAvatar, Transform::default())).id();
+        let scene = app.world_mut().spawn((PlayerModelScene, rider_on_foot_transform())).id();
+        app.world_mut().entity_mut(avatar).add_child(scene);
+
+        // A synthetic mount: view at the feet-on-ground offset, a fake root chain whose final
+        // link is the anchor bone (named like the exported skeleton's).
+        let seat = RideKind::Wyrdeer.params().seat;
+        let view = app
+            .world_mut()
+            .spawn((
+                RideMountView { kind: RideKind::Wyrdeer },
+                Transform::from_xyz(0.0, -AVATAR_ROOT_ABOVE_GROUND, 0.0),
+            ))
+            .id();
+        app.world_mut().entity_mut(avatar).add_child(view);
+        let chain = app
+            .world_mut()
+            .spawn((
+                Transform {
+                    translation: Vec3::from(seat.rest_pos),
+                    rotation: Quat::from_array(seat.rest_rot),
+                    scale: Vec3::ONE,
+                },
+                Name::new(seat.bone),
+            ))
+            .id();
+        app.world_mut().entity_mut(view).add_child(chain);
+        app.world_mut().entity_mut(view).insert(MountSeat {
+            kind: RideKind::Wyrdeer,
+            bone: chain,
+            local: seat.rider_local(),
+        });
+
+        // V mounts; the rider eases from the ground onto the bone over the transition.
+        let mut keys = ButtonInput::<KeyCode>::default();
+        keys.press(KeyCode::KeyV);
+        app.insert_resource(actions(&RawInput::from_keyboard(&keys)));
+        app.update();
+        for _ in 0..(TRANSITION_TIME * 60.0) as i32 + 2 {
+            app.insert_resource(actions(&RawInput::default()));
+            app.update();
+        }
+        let t = *app.world().get::<Transform>(scene).unwrap();
+        let want = Vec3::from(seat.rider_pos) + Vec3::new(0.0, -AVATAR_ROOT_ABOVE_GROUND, 0.0);
+        assert!((t.translation - want).length() < 1e-3, "seat {:?} vs {want:?}", t.translation);
+
+        // The bone moving (the mount's animation) carries the rider with it: a bone local
+        // translation delta moves the rider by exactly that delta in mount space.
+        app.world_mut().get_mut::<Transform>(chain).unwrap().translation.y += 0.25;
+        app.insert_resource(actions(&RawInput::default()));
+        app.update();
+        let moved = app.world().get::<Transform>(scene).unwrap().translation;
+        let expected = want + Vec3::new(0.0, 0.25, 0.0);
+        assert!(
+            (moved - expected).length() < 1e-3,
+            "rider did not follow the bone: {moved:?} vs {expected:?}"
+        );
+    }
+
+    #[test]
+    fn a_bone_displacement_carries_the_rider_by_the_same_amount() {
+        // What a spine bob does at runtime: the bone's transform gains a parent-space offset.
+        // The rider must follow rigidly, anchored at the bone.
+        let mount = Transform::from_xyz(0.0, -AVATAR_ROOT_ABOVE_GROUND, 0.0);
+        for kind in RideKind::ALL {
+            let seat = kind.params().seat;
+            let local = seat.rider_local();
+            let rest = Transform {
+                translation: Vec3::from(seat.rest_pos),
+                rotation: Quat::from_array(seat.rest_rot),
+                scale: Vec3::ONE,
+            };
+            let shift = Vec3::new(0.02, 0.12, -0.05);
+            let shifted = Transform::from_translation(shift).mul_transform(rest);
+            let at_rest = rider_attached_transform(&mount, &rest, &local);
+            let moved = rider_attached_transform(&mount, &shifted, &local);
+            assert!(
+                (moved.translation - at_rest.translation - shift).length() < 1e-4,
+                "{kind:?}: {:?} vs {:?}",
+                moved.translation,
+                at_rest.translation
+            );
+        }
     }
 
     #[test]
@@ -977,14 +1330,18 @@ mod tests {
             Some(RideKind::Wyrdeer)
         );
 
-        // Idle frames: stays mounted; the seat rises to the saddle and the camera eases back.
+        // Idle frames: stays mounted; the camera eases back. Without an asset server no mount
+        // body spawns, so there is no seat bone and the rider stays at the on-foot transform
+        // (the same fallback as an export without the bone).
         for _ in 0..(TRANSITION_TIME * 60.0) as i32 + 2 {
             app.insert_resource(actions(&RawInput::default()));
             app.update();
         }
         let seat_y = app.world().get::<Transform>(scene).unwrap().translation.y;
-        let want = RideKind::Wyrdeer.params().saddle_height - AVATAR_ROOT_ABOVE_GROUND;
-        assert!((seat_y - want).abs() < 1e-3, "seat {seat_y} vs {want}");
+        assert!(
+            (seat_y + AVATAR_ROOT_ABOVE_GROUND).abs() < 1e-3,
+            "seat {seat_y}"
+        );
         let bonus = app.world().resource::<RideState>().camera_bonus();
         assert!((bonus - CAMERA_BONUS).abs() < 1e-3, "bonus {bonus}");
 
@@ -1040,6 +1397,85 @@ mod tests {
             assert!(!p.attach_bone.is_empty(), "{kind:?}");
             assert!(kind.pack_stem().starts_with("pm"), "{kind:?}");
             assert!(p.dash > p.run && p.run > p.walk, "{kind:?}");
+        }
+    }
+
+    /// The seat constants (`rest_pos`/`rest_rot` of [`RiderSeat`]) are read from the exported
+    /// skeleton. This recomputes them from the cached glTF and compares, so a re-export that
+    /// moves the anchor bone is caught here (skipped when the cache is not present).
+    #[test]
+    fn seat_bones_and_rest_transforms_match_the_exported_skeletons() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../work/cache/pokemon_batch");
+        let cache_roots = [
+            root.clone(),
+            std::path::PathBuf::from(std::env::var("PLA_CACHE_DIR").unwrap_or_default()).join("pokemon_batch"),
+        ];
+        for kind in RideKind::ALL {
+            let seat = kind.params().seat;
+            let stem = kind.pack_stem();
+            let path = cache_roots
+                .iter()
+                .map(|r| r.join(stem).join(format!("{stem}_idle.gltf")))
+                .find(|p| p.is_file());
+            let Some(path) = path else {
+                eprintln!("[skip] no cache export for {stem}");
+                continue;
+            };
+            let text = std::fs::read_to_string(&path).unwrap();
+            let gltf: serde_json::Value = serde_json::from_str(&text).unwrap();
+            let nodes = gltf["nodes"].as_array().unwrap();
+            let name_of = |i: usize| nodes[i]["name"].as_str().unwrap_or_default().to_owned();
+            let bone_index = (0..nodes.len()).find(|i| name_of(*i) == seat.bone);
+            let Some(mut cur) = bone_index else {
+                panic!("{stem}: seat bone {} missing from the export", seat.bone);
+            };
+            // Chain from the anchor up to the scene root, composing the rest locals top-down.
+            let mut chain = vec![cur];
+            'outer: loop {
+                for (i, n) in nodes.iter().enumerate() {
+                    if n["children"].as_array().is_some_and(|c| c.iter().any(|x| x.as_u64() == Some(cur as u64))) {
+                        chain.push(i);
+                        cur = i;
+                        continue 'outer;
+                    }
+                }
+                break;
+            }
+            let mut t = Transform::IDENTITY;
+            for index in chain.iter().rev() {
+                let n = &nodes[*index];
+                let local = Transform {
+                    translation: n["translation"]
+                        .as_array()
+                        .map(|a| Vec3::new(a[0].as_f64().unwrap() as f32, a[1].as_f64().unwrap() as f32, a[2].as_f64().unwrap() as f32))
+                        .unwrap_or(Vec3::ZERO),
+                    rotation: n["rotation"]
+                        .as_array()
+                        .map(|a| {
+                            Quat::from_xyzw(
+                                a[0].as_f64().unwrap() as f32,
+                                a[1].as_f64().unwrap() as f32,
+                                a[2].as_f64().unwrap() as f32,
+                                a[3].as_f64().unwrap() as f32,
+                            )
+                        })
+                        .unwrap_or(Quat::IDENTITY),
+                    scale: Vec3::ONE,
+                };
+                t = t.mul_transform(local);
+            }
+            assert!(
+                (t.translation - Vec3::from(seat.rest_pos)).length() < 2e-3,
+                "{kind:?}: rest_pos {} vs {}",
+                t.translation,
+                Vec3::from(seat.rest_pos)
+            );
+            assert!(
+                t.rotation.dot(Quat::from_array(seat.rest_rot)).abs() > 0.999,
+                "{kind:?}: rest_rot {} vs {}",
+                t.rotation,
+                Quat::from_array(seat.rest_rot)
+            );
         }
     }
 }
