@@ -105,6 +105,8 @@ pub enum StatusEvent {
     /// below half HP, Double Shock without the Electric type, Comeuppance without damage
     /// taken, Upper Hand / Thunderclap against the wrong planned action).
     MoveFailed { actor: usize, move_name: String },
+    /// The user lost one of its types (Double Shock's `self.onHit`).
+    LostType { actor: usize, type_name: String },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -342,7 +344,15 @@ impl Battle {
             return false;
         };
         if self.effects_flag(move_name, Flag::Charge) && !releasing {
+            // Electro Shot (external row): rain skips the charge turn (and its boost).
+            if fx.hooks.charge_skip_in_rain && self.weather == BattleWeather::Rain {
+                return false;
+            }
             self.vol(actor).charging = Some(slot);
+            // Electro Shot: the charge turn raises the user's Sp. Atk one rank.
+            if fx.hooks.charge_boost_spa {
+                self.change_stat(actor, Stat::SpecialAttack, 1);
+            }
             self.status.events.push(StatusEvent::Charging {
                 actor,
                 move_name: move_name.to_owned(),
@@ -406,6 +416,19 @@ impl Battle {
     ) {
         if !self.status.rules.volatile_statuses || !self.combatants[target].is_alive() {
             return;
+        }
+        // Alluring Voice (external generation-9 row): its `secondary.onHit` confuses a target
+        // that raised any of its stats this turn.
+        if damaging
+            && fx.hooks.confuse_if_target_raised
+            && self.turn_raised_stats.get(target).copied().unwrap_or(false)
+            && self.vol(target).confusion == 0
+        {
+            let (lo, hi) = data_turns(fx, (2, 5));
+            self.vol(target).confusion = rules::roll_turns(lo, hi, rng);
+            self.status
+                .events
+                .push(StatusEvent::Confused { target });
         }
         let applies = fx.ailment_id != 0 || fx.residual_volatile != ResidualVolatile::None;
         if !applies {

@@ -188,6 +188,9 @@ pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<
         StatusEvent::MoveFailed { actor, move_name } => {
             format!("{}'s {move_name} failed!", name(*actor))
         }
+        StatusEvent::LostType { actor, type_name } => {
+            format!("{} lost its {type_name} type!", name(*actor))
+        }
     })
 }
 

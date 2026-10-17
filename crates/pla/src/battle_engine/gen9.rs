@@ -20,6 +20,12 @@
 //! boosts are filled into the sheet's `self_boosts` column), Fillet Away (`half_hp_cost` plus
 //! its boosts; the Generation-9 +2 collapses to +1 per PLA rank group) and Ruination
 //! (`half_current_hp_damage`).
+//! Family B (same day) adds the turn-memory rows: Comeuppance (`return_last_damage`), Alluring
+//! Voice (`confuse_if_target_raised`), Double Shock (`fail_unless_user_has_move_type` +
+//! `remove_user_type_after_hit`), Upper Hand (`require_target_priority`) and Thunderclap
+//! (`require_target_attack`; both read the actions declared for the turn, so they are refused
+//! in the single-action PLA queue flow) and Electro Shot (`charge` flag plus `charge_boost_spa`
+//! and `charge_skip_in_rain`).
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -130,6 +136,38 @@ fn hooks(name: &str) -> MoveHooks {
         // damageCallback -> fixed floor(target HP / 2), minimum 1, typeless.
         "ruination" => MoveHooks {
             half_current_hp_damage: true,
+            ..MoveHooks::default()
+        },
+        // damageCallback + onTry -> 3/2 of the last hit taken this turn; refused without one.
+        "comeuppance" => MoveHooks {
+            return_last_damage: true,
+            ..MoveHooks::default()
+        },
+        // onTry -> refused unless the target's chosen action has priority (`willMove`).
+        "upper-hand" => MoveHooks {
+            require_target_priority: true,
+            ..MoveHooks::default()
+        },
+        // onTry -> refused unless the target's chosen action is an attack (`willMove`).
+        "thunderclap" => MoveHooks {
+            require_target_attack: true,
+            ..MoveHooks::default()
+        },
+        // secondary.onHit -> confuses a target that raised a stat this turn.
+        "alluring-voice" => MoveHooks {
+            confuse_if_target_raised: true,
+            ..MoveHooks::default()
+        },
+        // onTryMove (`hasType('Electric')`) + self.onHit (removes it after the hit).
+        "double-shock" => MoveHooks {
+            fail_unless_user_has_move_type: true,
+            remove_user_type_after_hit: true,
+            ..MoveHooks::default()
+        },
+        // onTryMove -> the charge turn boosts Sp. Atk one rank; rain skips the charge.
+        "electro-shot" => MoveHooks {
+            charge_boost_spa: true,
+            charge_skip_in_rain: true,
             ..MoveHooks::default()
         },
         _ => MoveHooks::default(),
@@ -321,7 +359,9 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             stat_changes: changes,
             contact: flags.contains(&"contact"),
             effect_id: 0,
-            charge: false,
+            // The sheet's `charge` flag (Electro Shot); `recharge` stays false: the rule was
+            // REFUTED for PLA and no external row needs it.
+            charge: flags.contains(&"charge"),
             recharge: false,
             protectable: flags.contains(&"protect"),
             repeat_lock: flags.contains(&"cantusetwice"),
@@ -354,7 +394,9 @@ mod tests {
         EffectEvent, MoveEffectsTable, PowerRule, ResidualVolatile,
     };
     use crate::battle_engine::statuses::{StatusEvent, StatusRules};
-    use crate::battle_engine::{Action, Battle, BattleRng, Combatant, Event, MajorStatus};
+    use crate::battle_engine::{
+        Action, Battle, BattleRng, BattleWeather, Combatant, Event, MajorStatus,
+    };
     use std::path::PathBuf;
 
     struct Fixed(Vec<u32>);
@@ -393,8 +435,9 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        // 38 classic-column rows + family A (861, 866, 868, 870, 875, 877, 882).
-        assert_eq!(moves.len(), 45);
+        // 38 classic-column rows + family A (861, 866, 868, 870, 875, 877, 882) and family B
+        // (892, 894, 905, 909, 914, 918).
+        assert_eq!(moves.len(), 51);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -1066,5 +1109,193 @@ mod tests {
                 ..
             } if name == "ruination"
         )));
+    }
+
+    /// Comeuppance (894): returns 3/2 of the last hit the user took this turn (rounds down);
+    /// refused when the user took no damage this turn.
+    #[test]
+    fn comeuppance_returns_the_last_hit_of_the_turn() {
+        let mut b = duel(
+            ("bidoof", &["comeuppance"], 20),
+            ("pikachu", &["tackle"], 60),
+        );
+        assert!(b.combatants[0].speed < b.combatants[1].speed);
+        let taken = {
+            // Pikachu's tackle first (accuracy, crit, roll), then the answer.
+            b.play_turn(&[act(0), act(1)], &mut Fixed(vec![0, 1, 0, 0]));
+            b.combatants[0].max_hp - b.combatants[0].hp
+        };
+        assert!(taken > 0, "the tackle must land");
+        assert_eq!(
+            b.combatants[1].max_hp - b.combatants[1].hp,
+            (taken * 3 / 2).max(1),
+            "the hit comes back at 3/2"
+        );
+
+        // Next turn the user has taken no damage yet: the move is refused and deals nothing.
+        let hp = b.combatants[1].hp;
+        b.play_turn(&[act(0)], &mut Fixed(vec![]));
+        assert_eq!(b.combatants[1].hp, hp);
+        assert!(b.take_status_events().iter().any(|e| matches!(
+            e,
+            StatusEvent::MoveFailed { actor: 0, move_name } if move_name == "comeuppance"
+        )));
+    }
+
+    /// Alluring Voice (914): confuses a target that raised a stat this turn (`secondary.onHit`).
+    #[test]
+    fn alluring_voice_confuses_only_a_booster() {
+        // Pikachu (faster) dances first; the slower Bidoof answers with the voice.
+        let mut b = duel(
+            ("pikachu", &["swords-dance"], 50),
+            ("bidoof", &["alluring-voice"], 30),
+        );
+        b.set_status_rules(StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        });
+        assert!(b.combatants[0].speed > b.combatants[1].speed);
+        // Swords Dance (accuracy 101 never rolls) raises Attack; the voice hits (accuracy,
+        // crit, roll, then the confusion duration).
+        b.play_turn(&[act(0), act(1)], &mut Fixed(vec![0, 1, 0, 0]));
+        assert_eq!(b.stages(0).attack, 1);
+        assert!(b.is_confused(0), "a booster must be confused");
+
+        // Against a target that did not raise anything this turn, nothing happens.
+        let mut b = duel(
+            ("snorlax", &["tackle"], 80),
+            ("pikachu", &["alluring-voice"], 50),
+        );
+        b.set_status_rules(StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        });
+        b.play_turn(&[act(0), act(1)], &mut Fixed(vec![0, 1, 0, 0, 1, 0]));
+        assert!(!b.is_confused(0));
+    }
+
+    /// Double Shock (892): refused unless the user has the move's own type; the hit removes it.
+    #[test]
+    fn double_shock_requires_and_consumes_the_electric_type() {
+        let mut b = duel(
+            ("pikachu", &["double-shock"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        assert!(b.combatants[0].species.types.iter().any(|t| t == "Electric"));
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert!(
+            !b.combatants[0].species.types.iter().any(|t| t == "Electric"),
+            "the type is gone after the hit"
+        );
+        assert!(b.take_status_events().iter().any(|e| matches!(
+            e,
+            StatusEvent::LostType { actor: 0, type_name } if type_name == "Electric"
+        )));
+
+        // A non-Electric user cannot even try: no damage, a failed log line.
+        let mut b = duel(
+            ("bidoof", &["double-shock"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        let hp = b.combatants[1].hp;
+        b.play_turn(&[act(0)], &mut Fixed(vec![]));
+        assert_eq!(b.combatants[1].hp, hp);
+        assert!(b.take_status_events().iter().any(|e| matches!(
+            e,
+            StatusEvent::MoveFailed { actor: 0, move_name } if move_name == "double-shock"
+        )));
+    }
+
+    /// Upper Hand (918): +3 priority + 100 % flinch, but only against a target whose chosen
+    /// action uses a priority move.
+    #[test]
+    fn upper_hand_needs_a_priority_target() {
+        // Pikachu (faster) chose Quick Attack (+1); Upper Hand is +3, so it acts first, lands
+        // and the flinch eats the target's action.
+        let mut b = duel(
+            ("bidoof", &["upper-hand"], 30),
+            ("pikachu", &["quick-attack"], 60),
+        );
+        let ev = b.play_turn(&[act(0), act(1)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(ev[1], Event::ActedFirst(0));
+        assert!(b.combatants[1].hp < b.combatants[1].max_hp);
+        assert_eq!(b.combatants[0].hp, b.combatants[0].max_hp, "quick attack was flinched");
+        assert!(b
+            .take_effect_events()
+            .contains(&EffectEvent::FlinchedAndSkipped { actor: 1 }));
+
+        // Against a plain Tackle (priority 0) the move is refused and the tackle lands.
+        let mut b = duel(
+            ("bidoof", &["upper-hand"], 30),
+            ("pikachu", &["tackle"], 60),
+        );
+        b.play_turn(&[act(0), act(1)], &mut Fixed(vec![0, 1, 0]));
+        assert!(b.combatants[0].hp < b.combatants[0].max_hp);
+        assert!(b.take_status_events().iter().any(|e| matches!(
+            e,
+            StatusEvent::MoveFailed { actor: 0, move_name } if move_name == "upper-hand"
+        )));
+    }
+
+    /// Thunderclap (909): +1 priority, but only against a target whose chosen action is an
+    /// attack (category different from Status).
+    #[test]
+    fn thunderclap_needs_an_attack_target() {
+        let mut b = duel(
+            ("bidoof", &["thunderclap"], 30),
+            ("pikachu", &["tackle"], 60),
+        );
+        let ev = b.play_turn(&[act(0), act(1)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(ev[1], Event::ActedFirst(0), "+1 priority goes first");
+        assert!(b.combatants[1].hp < b.combatants[1].max_hp);
+
+        // A status move (Growl) makes it fail.
+        let mut b = duel(
+            ("bidoof", &["thunderclap"], 30),
+            ("pikachu", &["growl"], 60),
+        );
+        let hp = b.combatants[1].hp;
+        b.play_turn(&[act(0), act(1)], &mut Fixed(vec![0]));
+        assert_eq!(b.combatants[1].hp, hp);
+        assert!(b.take_status_events().iter().any(|e| matches!(
+            e,
+            StatusEvent::MoveFailed { actor: 0, move_name } if move_name == "thunderclap"
+        )));
+    }
+
+    /// Electro Shot (905): charges a turn raising Sp. Atk one rank, attacks the next; rain
+    /// skips the charge and its boost.
+    #[test]
+    fn electro_shot_charges_boosts_and_skips_in_rain() {
+        let rules = StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        };
+        let mut b = duel(
+            ("pikachu", &["electro-shot"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.set_status_rules(rules);
+        b.play_turn(&[act(0)], &mut Fixed(vec![]));
+        assert!(b.is_charging(0));
+        assert_eq!(b.stages(0).attack, 1, "Sp. Atk shares the first rank group");
+        assert_eq!(b.combatants[1].hp, b.combatants[1].max_hp, "no damage on the charge turn");
+        let pp = b.combatants[0].moves[0].pp;
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert!(!b.is_charging(0));
+        assert!(b.combatants[1].hp < b.combatants[1].max_hp);
+        assert_eq!(b.combatants[0].moves[0].pp, pp, "PP is only spent once");
+
+        // Rain: one turn, no charge state and no boost.
+        let mut b = duel(
+            ("pikachu", &["electro-shot"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.set_status_rules(rules);
+        b.weather = BattleWeather::Rain;
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert!(!b.is_charging(0));
+        assert_eq!(b.stages(0).attack, 0);
+        assert!(b.combatants[1].hp < b.combatants[1].max_hp);
     }
 }
