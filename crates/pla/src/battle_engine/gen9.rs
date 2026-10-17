@@ -3,12 +3,13 @@
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
 //! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
-//! the sheet classifies `engine_class = a` are loaded (24 moves): moves whose whole behaviour
+//! the sheet classifies `engine_class = a` are loaded (30 moves): moves whose whole behaviour
 //! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
 //! rank, hits, drain/heal, one paralysis/burn/poison roll, stat stages on a single receiver).
 //! Rows classified `b` need new engine logic and are skipped, never approximated. Gigaton
 //! Hammer and Blood Moon load because the engine now honours their `cantusetwice` flag through
-//! `MoveEffects::repeat_lock`.
+//! `MoveEffects::repeat_lock`; Last Respects, Rage Fist, Hard Press, Collision Course, Electro
+//! Drift and Fickle Beam load through the derived `PowerRule` callbacks.
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -25,7 +26,7 @@
 use std::fs;
 use std::path::Path;
 
-use super::effects::{ailment_status, MoveEffects, Stat, StatChange};
+use super::effects::{ailment_status, MoveEffects, PowerRule, Stat, StatChange};
 
 /// One loadable generation-9 move: the base row and its effects.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,6 +78,20 @@ fn stat_from_key(key: &str) -> Result<Stat, String> {
         "evasion" => Stat::Evasion,
         other => return Err(format!("gen9 moves: unknown stat key {other:?}")),
     })
+}
+
+/// Base-power callback of the sheet, DERIVED from Showdown (`basePowerCallback`/`onBasePower`).
+/// Temper Flare is absent: it needs the previous move's failure state, which the engine does
+/// not model yet, so it stays class b.
+fn power_rule(name: &str) -> PowerRule {
+    match name {
+        "last-respects" => PowerRule::LastRespects,
+        "rage-fist" => PowerRule::RageFist,
+        "hard-press" => PowerRule::HardPress,
+        "collision-course" | "electro-drift" => PowerRule::SuperEffectiveBoost,
+        "fickle-beam" => PowerRule::FickleBeam,
+        _ => PowerRule::None,
+    }
 }
 
 /// Parse `atk:2,def:-2` into `(stat, stage)` pairs.
@@ -245,6 +260,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             recharge: false,
             protectable: flags.contains(&"protect"),
             repeat_lock: flags.contains(&"cantusetwice"),
+            power_rule: power_rule(&name),
         };
         out.push(Gen9Move {
             id: num(c_move)? as u16,
@@ -264,7 +280,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
 mod tests {
     use super::*;
     use crate::battle::BattleData;
-    use crate::battle_engine::effects::{EffectEvent, MoveEffectsTable};
+    use crate::battle_engine::effects::{EffectEvent, MoveEffectsTable, PowerRule};
     use crate::battle_engine::statuses::StatusEvent;
     use crate::battle_engine::{Action, Battle, BattleRng, Combatant, Event, MajorStatus};
     use std::path::PathBuf;
@@ -305,14 +321,15 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        assert_eq!(moves.len(), 24);
+        assert_eq!(moves.len(), 30);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
             "tera-blast",
             "psychic-noise",
-            "last-respects",
             "revival-blessing",
+            "temper-flare",
+            "salt-cure",
         ] {
             assert!(
                 moves.iter().all(|m| m.name != skipped),
@@ -497,6 +514,145 @@ mod tests {
                 new_state: -1
             }
         )));
+    }
+
+    #[test]
+    fn power_rules_follow_the_showdown_callbacks() {
+        let moves = all();
+        assert_eq!(
+            find(&moves, "last-respects").effects.power_rule,
+            PowerRule::LastRespects
+        );
+        assert_eq!(
+            find(&moves, "rage-fist").effects.power_rule,
+            PowerRule::RageFist
+        );
+        assert_eq!(
+            find(&moves, "hard-press").effects.power_rule,
+            PowerRule::HardPress
+        );
+        assert_eq!(
+            find(&moves, "collision-course").effects.power_rule,
+            PowerRule::SuperEffectiveBoost
+        );
+        assert_eq!(
+            find(&moves, "fickle-beam").effects.power_rule,
+            PowerRule::FickleBeam
+        );
+
+        // Last Respects: 50 + 50 per fainted member of the user's side.
+        let data = BattleData::load(root()).unwrap();
+        let mut deps = |names: &[&str]| {
+            names
+                .iter()
+                .map(|n| mon(&data, n, &["tackle"], 20))
+                .collect::<Vec<_>>()
+        };
+        let mut b = Battle::new(
+            {
+                let mut v = deps(&["pikachu", "bidoof", "starly", "snorlax"]);
+                v[0] = mon(&data, "pikachu", &["last-respects"], 50);
+                v
+            },
+            vec![vec![0, 1], vec![2, 3]],
+            data.type_chart().clone(),
+        )
+        .unwrap();
+        b.set_move_effects(MoveEffectsTable::load(root()).unwrap());
+        assert_eq!(
+            b.effective_power(
+                0,
+                2,
+                50,
+                PowerRule::LastRespects,
+                "Ghost",
+                &mut Fixed(vec![])
+            ),
+            50
+        );
+        b.combatants[1].hp = 0;
+        assert_eq!(
+            b.effective_power(
+                0,
+                2,
+                50,
+                PowerRule::LastRespects,
+                "Ghost",
+                &mut Fixed(vec![])
+            ),
+            100
+        );
+
+        // Hard Press: ~100 at full HP, ~50 at half, minimum 1.
+        assert_eq!(
+            b.effective_power(0, 3, 0, PowerRule::HardPress, "Steel", &mut Fixed(vec![])),
+            100
+        );
+        b.combatants[3].hp = b.combatants[3].max_hp / 2;
+        assert_eq!(
+            b.effective_power(0, 3, 0, PowerRule::HardPress, "Steel", &mut Fixed(vec![])),
+            50
+        );
+
+        // Collision Course/Electro Drift: x1.333 only when super effective (Electric vs Flying).
+        assert_eq!(
+            b.effective_power(
+                0,
+                2,
+                100,
+                PowerRule::SuperEffectiveBoost,
+                "Electric",
+                &mut Fixed(vec![])
+            ),
+            133
+        );
+        assert_eq!(
+            b.effective_power(
+                0,
+                2,
+                100,
+                PowerRule::SuperEffectiveBoost,
+                "Normal",
+                &mut Fixed(vec![])
+            ),
+            100
+        );
+
+        // Fickle Beam: the 30 % roll doubles the power.
+        assert_eq!(
+            b.effective_power(
+                0,
+                2,
+                80,
+                PowerRule::FickleBeam,
+                "Dragon",
+                &mut Fixed(vec![29])
+            ),
+            160
+        );
+        assert_eq!(
+            b.effective_power(
+                0,
+                2,
+                80,
+                PowerRule::FickleBeam,
+                "Dragon",
+                &mut Fixed(vec![30])
+            ),
+            80
+        );
+
+        // Rage Fist: 50 + 50 per hit taken (starly hits pikachu in the first slot).
+        let mut b = duel(("pikachu", &["tackle"], 50), ("starly", &["tackle"], 20));
+        assert_eq!(
+            b.effective_power(0, 1, 50, PowerRule::RageFist, "Ghost", &mut Fixed(vec![])),
+            50
+        );
+        b.play_turn(&[act(1)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(
+            b.effective_power(0, 1, 50, PowerRule::RageFist, "Ghost", &mut Fixed(vec![])),
+            100
+        );
     }
 
     #[test]
