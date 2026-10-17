@@ -127,6 +127,8 @@ pub struct MoveEffects {
     pub residual_volatile: ResidualVolatile,
     /// The hit thaws the target (Hydro Steam, Matcha Gotcha); PLA rows never set it.
     pub thaws_target: bool,
+    /// Every hit of a multi-hit move rolls accuracy again (Population Bomb).
+    pub multi_accuracy: bool,
 }
 
 impl MoveEffects {
@@ -265,6 +267,7 @@ impl MoveEffectsTable {
                 crash_damage_pct: 0,
                 residual_volatile: ResidualVolatile::None,
                 thaws_target: false,
+                multi_accuracy: false,
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);

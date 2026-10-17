@@ -690,6 +690,12 @@ impl Battle {
             let mut landed = 0;
             let slow_start = self.slow_start_active(action.actor);
             for _ in 0..hits {
+                if landed > 0
+                    && fx.as_ref().is_some_and(|f| f.multi_accuracy)
+                    && !accuracy_hits(accuracy, acc_stage, eva_stage, 4096, rng)
+                {
+                    break;
+                }
                 let (d, c, m) = calculate_damage(
                     &self.combatants[action.actor],
                     &self.combatants[target],
