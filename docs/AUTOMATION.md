@@ -73,7 +73,7 @@ Every other viewer flag works as usual (`--area`, `--player-pos`, `--trainer`, `
 | `ping`, `state`, `save`, `load`, `quit` | Same-named command. |
 | `step N` / `wait S` | `step` / `wait_seconds`. |
 | `key K [--frames N] [--action press\|down\|up]` | `key`. |
-| `mouse [X Y] [--wheel N] [--button left\|right\|middle] [--action move\|press\|release\|click]` | `mouse` (virtual pointer: there is no window to move a cursor in; see below). |
+| `mouse [X Y] [--wheel N] [--button left\|right\|middle] [--action move\|press\|release\|click]` | `mouse` (virtual pointer and real mouse messages: there is no window to move a cursor in; see below). |
 | `shot PATH [--width W --height H] [--yaw D --pitch D --distance M]` | `screenshot` (angles in degrees). |
 | `entities [FILTER] [--limit N]` | `entities`. |
 | `log [N]` | `log_tail`. |
@@ -96,7 +96,7 @@ are errors, never crashes.
 | `step` | `frames` (default 1, max 100000) | Runs that many frames. |
 | `wait_seconds` | `seconds` | `round(seconds*60)` frames. |
 | `key` | `key`, `action` = `press` (default) / `down` / `up`, `frames` (default 1) | Injected as a real `KeyboardInput` message. `press`: down, `frames` frames, up, 1 frame. Keys: letters, digits, `F1`-`F12`, `Escape`/`Esc`, `Enter`, `Space`, `Tab`, `Backspace`, `Shift`, `Ctrl`, `Alt`, `Up`/`Down`/`Left`/`Right`, `[`/`]` (bag quantity), or Bevy names (`KeyV`, `Digit1`, `ShiftLeft`). |
-| `mouse` | optional `x` + `y` (window pixels of the offscreen size), `wheel` (-50..=50 notches, positive = down), `button` = `left`/`right`/`middle`, `action` = `move` (default) / `press` / `release` / `click`, `frames` (default 1) | Drives the port's scrollbars (`orig_ui::scrollbar::VirtualPointer`): there is no window in automation mode, so the pointer is virtual (the middle of the viewport until the first `x`/`y`). `x`/`y` move it (missing coordinate keeps its value), `wheel` scrolls the list under it, `click` presses and releases with `frames` frames between, then `frames` more run. Reply: `pointer`, `wheel`, `button`, `action`, `stepped`. |
+| `mouse` | optional `x` + `y` (window pixels of the offscreen size), `wheel` (-50..=50 notches, positive = down), `button` = `left`/`right`/`middle`, `action` = `move` (default) / `press` / `release` / `click`, `frames` (default 1) | Drives the port's scrollbars (`orig_ui::scrollbar::VirtualPointer`): there is no window in automation mode, so the pointer is virtual (the middle of the viewport until the first `x`/`y`). `x`/`y` move it (missing coordinate keeps its value), `wheel` scrolls the list under it, `click` presses and releases with `frames` frames between, then `frames` more run. A move is also injected as a real `CursorMoved` message, and press / release / click as real `MouseButtonInput` ones, so systems that follow the mouse (e.g. the Pokédex model drag) see them. A drag is `mouse X Y` + `mouse --button left --action press` + `mouse X2 Y2` + `mouse --action release`. Reply: `pointer`, `wheel`, `button`, `action`, `stepped`. |
 | `teleport` | `x`, `z` | Moves the player; off the navmesh it snaps to the nearest walkable face (400 m); Y from navmesh/terrain + 0.9. No frame is run. |
 | `teleport_zone` | `area` (0-99), optional `x`,`z` | Real zone change (`ZoneChangeRequest`) to `ha_areaNN` at its fast-travel arrival (or x,z); runs frames until the load finishes (max 3600). World state only. |
 | `set_time` | `minutes` (0-1439) **or** `slot` (0-3), optional `pinned` | Sets the game clock; `pinned:true` stops it. |
@@ -141,6 +141,13 @@ $G cmd '{"cmd":"add_pokemon","species":"shinx","level":12}'
 $G cmd '{"cmd":"graphics","preset":"high"}'
 $G cmd '{"cmd":"graphics","set":{"vsync":"off","fps_cap":"120"}}'
 $G cmd '{"cmd":"bench","frames":300,"warmup":120}'
+
+# Mouse drag (e.g. turning the Pokédex model inside its photo frame) at coordinates of the
+# offscreen target; each line is one frame unless `frames` says otherwise.
+$G cmd '{"cmd":"mouse","x":325,"y":320}'
+$G cmd '{"cmd":"mouse","button":"left","action":"press"}'
+$G cmd '{"cmd":"mouse","x":425,"y":320}'          # +100 px to the right
+$G cmd '{"cmd":"mouse","button":"left","action":"release"}'
 ```
 
 Raw socket without gamectl (Python one-liner):
@@ -157,8 +164,10 @@ python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.connect(sys.ar
   example world events seeded at start) keep their state.
 - **`start_battle` with a species** starts the session directly instead of walking up to a
   creature; the battle itself is the viewer's own code.
-- **Mouse and gamepad are not injected** (keys only). The camera can be placed for a screenshot
-  with `camera`, not moved by the mouse.
+- **The gamepad is not injected**, and the cursor only moves when a `mouse` command runs (no OS
+  cursor position is read): systems that follow the mouse must read `CursorMoved` /
+  `ButtonInput<MouseButton>`, not the window's cursor. The 3D camera can still be placed for a
+  screenshot with `camera`.
 - **One frame target.** Screenshots capture the main 3D camera and the UI on it; the full-screen
   map (`M`) and other cameras are not covered.
 - **Linux/Unix only** (Unix domain socket).

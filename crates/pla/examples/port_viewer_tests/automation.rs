@@ -100,6 +100,9 @@ fn socket_session_ping_step_state_quit() {
             r#"{"cmd":"ping"}"#,
             r#"{"cmd":"step","frames":3}"#,
             r#"{"cmd":"state"}"#,
+            r#"{"cmd":"mouse","x":120,"y":80}"#,
+            r#"{"cmd":"mouse","button":"left","action":"press"}"#,
+            r#"{"cmd":"mouse","button":"left","action":"release"}"#,
             r#"{"cmd":"fly"}"#,
             r#"{"cmd":"screenshot","path":"x.png"}"#,
             r#"{"cmd":"quit"}"#,
@@ -111,7 +114,15 @@ fn socket_session_ping_step_state_quit() {
     let exit = app.run();
     let replies = client.join().expect("client thread");
     assert_eq!(exit, AppExit::Success);
-    let [ping, step, state, bad, shot, quit] = &replies[..] else { panic!("{replies:?}") };
+    let [ping, step, state, moved, pressed, released, bad, shot, quit] = &replies[..] else {
+        panic!("{replies:?}")
+    };
+    // The mouse commands answer their pointer state and run frames, and the move / press edges
+    // reach the systems that follow the mouse (the same messages a real mouse sends).
+    assert_eq!(moved["ok"], true, "{moved}");
+    assert_eq!(moved["pointer"], serde_json::json!([120.0, 80.0]), "{moved}");
+    assert_eq!(pressed["action"], "Press", "{pressed}");
+    assert_eq!(released["action"], "Release", "{released}");
     assert_eq!(ping["ok"], true, "{ping}");
     assert_eq!(ping["pong"], true);
     assert_eq!(ping["gpu"], false);
@@ -121,6 +132,7 @@ fn socket_session_ping_step_state_quit() {
     assert_eq!(state["ok"], true, "{state}");
     assert_eq!(state["game_state"], "World", "{state}");
     assert_eq!(state["frames"]["frame"].as_u64().unwrap(), f0 + 3);
+    assert_eq!(moved["frame"].as_u64().unwrap(), f0 + 4, "one frame per mouse command");
     assert!(state["counts"].is_object(), "{state}");
     assert_eq!(bad["ok"], false);
     assert!(bad["error"].as_str().unwrap().contains("unknown command"), "{bad}");

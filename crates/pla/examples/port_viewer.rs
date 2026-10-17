@@ -21,7 +21,6 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use bevy::asset::RenderAssetUsages;
-use bevy::camera::RenderTarget;
 use bevy::gltf::{Gltf, GltfMaterial, GltfMesh};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};

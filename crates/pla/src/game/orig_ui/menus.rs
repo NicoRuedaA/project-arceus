@@ -1357,6 +1357,8 @@ pub fn bind_dex_screen(
     // plates; the port keeps the selection centred).
     let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", DEX_PLATES, entries.len(), start);
     bars.publish(ScreenId::Dex, bar);
+    // The national listing draws the species model in the photo frame: its keys are spelled
+    // out here (rule: every action the port adds must show its key on screen).
     s.set_free_texts(vec![free_text(
         60.0,
         1020.0,
@@ -1365,7 +1367,11 @@ pub fn bind_dex_screen(
         26.0,
         [0.92, 0.9, 0.82, 1.0],
         TextAlign::Left,
-        "Up / Down: select   Wheel / drag the bar: list   Esc: close",
+        if national {
+            "Up / Down: select   Wheel / drag the bar: list   Q / E: turn model   drag: turn   R: reset   Esc: close"
+        } else {
+            "Up / Down: select   Wheel / drag the bar: list   Esc: close"
+        },
     )]);
 }
 
