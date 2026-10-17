@@ -73,6 +73,7 @@ Every other viewer flag works as usual (`--area`, `--player-pos`, `--trainer`, `
 | `ping`, `state`, `save`, `load`, `quit` | Same-named command. |
 | `step N` / `wait S` | `step` / `wait_seconds`. |
 | `key K [--frames N] [--action press\|down\|up]` | `key`. |
+| `mouse [X Y] [--wheel N] [--button left\|right\|middle] [--action move\|press\|release\|click]` | `mouse` (virtual pointer: there is no window to move a cursor in; see below). |
 | `shot PATH [--width W --height H] [--yaw D --pitch D --distance M]` | `screenshot` (angles in degrees). |
 | `entities [FILTER] [--limit N]` | `entities`. |
 | `log [N]` | `log_tail`. |
@@ -95,6 +96,7 @@ are errors, never crashes.
 | `step` | `frames` (default 1, max 100000) | Runs that many frames. |
 | `wait_seconds` | `seconds` | `round(seconds*60)` frames. |
 | `key` | `key`, `action` = `press` (default) / `down` / `up`, `frames` (default 1) | Injected as a real `KeyboardInput` message. `press`: down, `frames` frames, up, 1 frame. Keys: letters, digits, `F1`-`F12`, `Escape`/`Esc`, `Enter`, `Space`, `Tab`, `Backspace`, `Shift`, `Ctrl`, `Alt`, `Up`/`Down`/`Left`/`Right`, or Bevy names (`KeyV`, `Digit1`, `ShiftLeft`). |
+| `mouse` | optional `x` + `y` (window pixels of the offscreen size), `wheel` (-50..=50 notches, positive = down), `button` = `left`/`right`/`middle`, `action` = `move` (default) / `press` / `release` / `click`, `frames` (default 1) | Drives the port's scrollbars (`orig_ui::scrollbar::VirtualPointer`): there is no window in automation mode, so the pointer is virtual (the middle of the viewport until the first `x`/`y`). `x`/`y` move it (missing coordinate keeps its value), `wheel` scrolls the list under it, `click` presses and releases with `frames` frames between, then `frames` more run. Reply: `pointer`, `wheel`, `button`, `action`, `stepped`. |
 | `teleport` | `x`, `z` | Moves the player; off the navmesh it snaps to the nearest walkable face (400 m); Y from navmesh/terrain + 0.9. No frame is run. |
 | `teleport_zone` | `area` (0-99), optional `x`,`z` | Real zone change (`ZoneChangeRequest`) to `ha_areaNN` at its fast-travel arrival (or x,z); runs frames until the load finishes (max 3600). World state only. |
 | `set_time` | `minutes` (0-1439) **or** `slot` (0-3), optional `pinned` | Sets the game clock; `pinned:true` stops it. |
@@ -128,6 +130,10 @@ $G cmd '{"cmd":"force_alpha","all":true}'                                    # e
 $G cmd '{"cmd":"start_battle","trainer":"giratina01"}'
 $G cmd '{"cmd":"open_screen","screen":"party"}'; $G shot work/automation/shots/party.png
 $G cmd '{"cmd":"open_screen","screen":"close"}'
+$G mouse 640 360 --wheel -3                # pointer over the list, wheel up three notches
+$G mouse 1181 320 --button left --action press
+$G mouse 1181 700 --button left --action release   # drag a scrollbar knob in two steps
+$G mouse 1181 500 --button left            # --button without --action = click
 $G shot work/automation/shots/orbit.png --yaw 45 --pitch 30 --distance 7
 $G entities npc --limit 5
 $G cmd '{"cmd":"give_item","id":17,"count":5}'
