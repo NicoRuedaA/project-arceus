@@ -224,13 +224,26 @@ jugador quedaba a ~2 m del suelo. Arreglo (VERIFICADO con teclas reales, sin tel
   del sistema de animación, antes de propagar transformaciones) con el desplazamiento
   constante del jinete en el marco de reposo del hueso; el desplazamiento del clip se fija
   (pin) para no duplicarlo (`player_anim::pin_root_motion`, clips de jinete).
-- Altura final por montura (capturas `…/capturas_jinete/impl2/`): Wyrdeer sentado tras el
-  cuello con las piernas colgando por los costados; Ursaluna sentado en la joroba entre los
-  hombros; Basculegion sentado en el lomo delante de la aleta dorsal; Sneasler encima del
-  lomo (el original lleva una **cesta** en la espalda que no está exportada: la pose sobre el
-  lomo es lo que el port puede mostrar, SUPUESTO); Braviary **colgando por debajo** con las
-  manos al frente (la barra de las garras no está en el modelo exportado: solo la postura,
-  SUPUESTO). Capturado también en vuelo (planeo) para comprobar el colgado.
+- Altura final por montura (capturas `…/capturas_jinete/impl2/` y `impl3/`): Wyrdeer sentado
+  tras el cuello con las piernas colgando por los costados; Ursaluna sentado en la joroba
+  entre los hombros (encaja con la foto oficial, panel 2: la jinete va en la joroba; el
+  arnés/riendas de la foto son del modelo de montura, no exportable); Basculegion sentado en
+  el lomo delante de la aleta dorsal; Braviary **colgando por debajo** con los brazos al
+  frente. El paquete de monturas trae **silla/cesta/barra** en su modelo (los nombres
+  `chair_mesh`, `stirrups_mesh`, `belt_mesh` del descriptor de Ursaluna; la **cesta** que
+  Sneasler lleva a la espalda y el **asiento colgante con barra** de Braviary en la foto
+  oficial) pero esos modelos no son exportables, así que el port muestra **solo la postura**
+  (SUPUESTO, declarado). Comprobación contra la foto oficial (2026-10-17): Ursaluna encaja;
+  Sneasler queda con el jinete a horcajadas sobre un lomo sin cesta (la pose del clip
+  `03602_wait01_loop` es la única disponible); Braviary cuelga por debajo, con el cuerpo
+  tumbado y los brazos al frente, y **en vuelo** queda claramente separado del cuerpo del ave
+  (capturas `impl3/braviary_vuelo_*`).
+- Braviary en el suelo: el clip cuelga al jinete **por debajo de la raíz** de la montura
+  (−0,53 m), que de pie está a ras de suelo; sin corrección quedaba enterrado. Regla del port
+  (SUPUESTO): con el ave **en el suelo** la raíz del jinete se eleva a 0,30 m como mínimo
+  (se le ve bajo la barriga, con los pies en la hierba); en el aire cuelga como el clip manda.
+  El juego original no llega a mostrar esta montura parada (montarla despega), así que el
+  estado en suelo no tiene referencia que copiar.
 - Pruebas: 21 en `game::ride`, incluida la que recompone las constantes de hueso desde los
   glTF exportados de la caché (se salta sin caché) y la que comprueba que un desplazamiento
   del hueso arrastra al jinete la misma distancia. A pie el jinete sigue a 0,9 m sobre el suelo
