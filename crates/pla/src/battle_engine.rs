@@ -13,7 +13,7 @@ pub mod rules;
 pub mod statuses;
 pub mod styles;
 use abilities::AbilityState;
-use effects::{EffectEvent, MoveEffectsTable, Stages};
+use effects::{EffectEvent, MoveEffectsTable, PowerRule, Stages};
 use items::ItemTable;
 
 pub trait BattleRng {
@@ -267,6 +267,8 @@ pub struct Battle {
     abilities: AbilityState,
     /// Last move each combatant used (repeat-lock moves read it; cleared on switch).
     last_move: Vec<Option<String>>,
+    /// Times each combatant has been hit by a damaging move (Rage Fist; persists on switch).
+    times_attacked: Vec<u16>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -331,6 +333,7 @@ impl Battle {
             styles: styles::StyleState::default(),
             abilities: AbilityState::default(),
             last_move: vec![None; combatant_count],
+            times_attacked: vec![0; combatant_count],
         })
     }
 
@@ -557,7 +560,7 @@ impl Battle {
                 continue;
             }
             let category = movement.data.category.clone();
-            let power = movement.data.power;
+            let mut power = movement.data.power;
             let accuracy = movement.data.accuracy;
             let critical_rank = movement.critical_rank;
             let move_type = movement.data.move_type.clone();
@@ -608,6 +611,18 @@ impl Battle {
                 .as_ref()
                 .and_then(|t| t.get(&move_name))
                 .cloned();
+            // External generation-9 base-power callbacks (Last Respects, Rage Fist, Hard
+            // Press, Collision Course/Electro Drift, Fickle Beam); no-op for PLA rows.
+            if let Some(fx) = &fx {
+                power = self.effective_power(
+                    action.actor,
+                    target,
+                    power,
+                    fx.power_rule,
+                    &move_type,
+                    rng,
+                );
+            }
             if power == 0 {
                 if let Some(fx) = &fx {
                     let ko = self.apply_move_effects(
@@ -681,6 +696,11 @@ impl Battle {
                 landed += 1;
                 if self.combatants[target].hp == 0 {
                     break;
+                }
+            }
+            if landed > 0 {
+                if let Some(times) = self.times_attacked.get_mut(target) {
+                    *times = times.saturating_add(landed as u16);
                 }
             }
             if hits > 1 {
@@ -763,6 +783,67 @@ impl Battle {
             });
         }
         events
+    }
+
+    /// Base power after the external generation-9 power callbacks. Formulas are taken from the
+    /// pinned Showdown source (`basePowerCallback`/`onBasePower`); `None` returns `base` untouched.
+    pub(crate) fn effective_power(
+        &self,
+        actor: usize,
+        target: usize,
+        base: u16,
+        rule: PowerRule,
+        move_type: &str,
+        rng: &mut impl BattleRng,
+    ) -> u16 {
+        match rule {
+            PowerRule::None => base,
+            PowerRule::LastRespects => {
+                let fainted = self
+                    .sides
+                    .iter()
+                    .find(|side| side.contains(&actor))
+                    .map_or(0, |side| {
+                        side.iter()
+                            .filter(|&&i| !self.combatants[i].is_alive())
+                            .count() as u32
+                    });
+                (50 + 50 * fainted).min(u32::from(u16::MAX)) as u16
+            }
+            PowerRule::RageFist => {
+                let hits = u32::from(self.times_attacked.get(actor).copied().unwrap_or(0));
+                (50 + 50 * hits).min(350) as u16
+            }
+            PowerRule::HardPress => {
+                let c = &self.combatants[target];
+                if c.max_hp == 0 {
+                    return base;
+                }
+                // floor(floor((10000 * floor(4096*hp/maxhp) + 2047) / 4096) / 100), min 1.
+                let r = (u64::from(c.hp) * 4096) / u64::from(c.max_hp);
+                let bp = (((10_000 * r + 2047) / 4096) / 100).clamp(1, 100);
+                bp as u16
+            }
+            PowerRule::SuperEffectiveBoost => {
+                let effectiveness = type_effectiveness(
+                    &self.type_chart,
+                    move_type,
+                    &self.combatants[target].species.types,
+                );
+                if effectiveness > 1.0 {
+                    q12_mul(u32::from(base), 5461) as u16
+                } else {
+                    base
+                }
+            }
+            PowerRule::FickleBeam => {
+                if rng.below(100) < 30 {
+                    base.saturating_mul(2)
+                } else {
+                    base
+                }
+            }
+        }
     }
 
     fn target_for(&self, actor: usize) -> Option<usize> {

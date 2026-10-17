@@ -59,6 +59,25 @@ pub enum EffectTarget {
     Opponent,
 }
 
+/// Base-power rules of the external generation-9 sheet (DERIVED from Showdown's
+/// `basePowerCallback` / `onBasePower`, not a game-data column). Only the rows that load
+/// through `gen9.rs` use a non-default value.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PowerRule {
+    #[default]
+    None,
+    /// 50 + 50 per fainted member of the user's side (Last Respects).
+    LastRespects,
+    /// 50 + 50 per hit taken, capped at 350 (Rage Fist).
+    RageFist,
+    /// About 100 x target's remaining HP fraction, minimum 1 (Hard Press).
+    HardPress,
+    /// x1.333 when the move is super effective (Collision Course, Electro Drift).
+    SuperEffectiveBoost,
+    /// 30 % chance to double the power (Fickle Beam).
+    FickleBeam,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MoveEffects {
     pub name: String,
@@ -88,6 +107,8 @@ pub struct MoveEffects {
     pub protectable: bool,
     /// The move cannot be used on the turn right after it was used (`cantusetwice`).
     pub repeat_lock: bool,
+    /// External generation-9 base-power callback; `None` for every PLA row.
+    pub power_rule: PowerRule,
 }
 
 impl MoveEffects {
@@ -222,6 +243,7 @@ impl MoveEffectsTable {
                 protectable: num(c_protectable)? != 0,
                 // Only the external generation-9 sheet carries this flag.
                 repeat_lock: false,
+                power_rule: PowerRule::None,
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);

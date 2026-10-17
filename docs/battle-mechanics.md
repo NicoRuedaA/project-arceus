@@ -46,10 +46,12 @@ project wants in the dex come from an external sheet (`data/gen9_moves.tsv`: Pok
 verified against the game**: every value is EXTERNAL/PROBABLE and the sheet is never mixed
 with `pml_moves.tsv` rows, which always win by name.
 
-- 22 of the 70 rows fit the effect columns the engine already reads and load through
-  `battle_engine/gen9.rs`; Gigaton Hammer and Blood Moon also load because their
-  `cantusetwice` flag is honoured by `MoveEffects::repeat_lock` (the move fails and spends
-  no PP on the turn right after it was used). The other 46 stay out with a per-row reason in
+- 30 of the 70 rows now load through `battle_engine/gen9.rs`: 22 fit the effect columns,
+  Gigaton Hammer and Blood Moon add the `cantusetwice` flag (`MoveEffects::repeat_lock`: the
+  move fails and spends no PP on the turn right after it was used), and Last Respects, Rage
+  Fist, Hard Press, Collision Course, Electro Drift and Fickle Beam add their Showdown
+  base-power callbacks (`PowerRule`: fainted allies, hits taken, target HP, super-effective
+  x1.333 and the 30 % double). The other 40 stay out with a per-row reason in
   `engine_reason` (volatile statuses, weather/terrain, Tera, charge turns, stat changes on
   both sides, ...). Class `b` is never approximated.
 - The 8 Showdown/WikiDex stat disagreements were adjudicated on 2026-10-17 to the
@@ -63,8 +65,8 @@ with `pml_moves.tsv` rows, which always win by name.
   they are used in the normal style and draw no particle effect. Status lengths follow the
   PLA rules (5 turns from status moves, 3 from secondaries), not the modern games'.
 - Regression: `cargo test -p pla --lib gen9` runs the sheet parsing plus windowless battles
-  (Jet Punch priority, Torch Song's self boost, Bitter Blade's drain, Lumina Crash's drop and
-  the repeat lock of Gigaton Hammer).
+  (Jet Punch priority, Torch Song's self boost, Bitter Blade's drain, Lumina Crash's drop,
+  the repeat lock of Gigaton Hammer and the six base-power rules).
 
 ## Explicit unknowns
 

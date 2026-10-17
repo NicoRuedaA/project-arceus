@@ -41,6 +41,11 @@ INERT = {"num", "name", "contestType", "isNonstandard", "zMove", "maxMove", "noP
 EXPRESSIBLE = {"secondary", "self", "boosts", "multihit", "critRatio", "drain", "recoil", "heal", "status"}
 STAGE_STATUS = {"par", "brn", "psn"}  # ailments with a matching engine status (ailment_status)
 STAT_KEYS = {"atk", "def", "spa", "spd", "spe", "accuracy", "evasion"}
+# Moves whose only callback is a base-power rule the engine implements (gen9.rs `power_rule`):
+# Last Respects 854, Collision Course 878, Electro Drift 879, Rage Fist 889, Fickle Beam 907,
+# Hard Press 912. Temper Flare (915) is NOT here: it needs the previous move's failure state.
+POWER_RULE_MOVES = {854, 878, 879, 889, 907, 912}
+POWER_RULE_CALLBACKS = {"basePowerCallback", "onBasePower"}
 
 
 def fetch(url: str, path: Path) -> str:
@@ -177,7 +182,10 @@ def parse_move(num: int, ident: str, body: str) -> dict[str, str]:
 def classify(row: dict[str, str]) -> tuple[str, str]:
     reasons: list[str] = []
     if row["callbacks"]:
-        reasons.append("callback:" + row["callbacks"])
+        callbacks = set(row["callbacks"].split(";"))
+        implemented = int(row["move"]) in POWER_RULE_MOVES and callbacks <= POWER_RULE_CALLBACKS
+        if not implemented:
+            reasons.append("callback:" + row["callbacks"])
     if row["other_props"]:
         reasons.append("prop:" + row["other_props"])
     if row["volatile_status"]:
