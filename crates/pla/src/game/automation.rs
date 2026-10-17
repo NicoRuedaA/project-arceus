@@ -491,6 +491,12 @@ pub fn parse_key(name: &str) -> Option<KeyCode> {
         "right" | "arrowright" => K::ArrowRight,
         "[" | "bracketleft" | "leftbracket" => K::BracketLeft,
         "]" | "bracketright" | "rightbracket" => K::BracketRight,
+        // List navigation and removal (the F7 spawn selector and the box screen use them).
+        "delete" | "del" | "supr" => K::Delete,
+        "home" => K::Home,
+        "end" => K::End,
+        "pageup" | "pgup" | "repag" => K::PageUp,
+        "pagedown" | "pgdn" | "avpag" => K::PageDown,
         _ => return None,
     })
 }
@@ -1386,6 +1392,12 @@ pub fn open_screens(world: &World) -> Vec<&'static str> {
     if world.get_resource::<super::dex_screen::DexUi>().is_some_and(|s| s.open) {
         out.push("dex");
     }
+    if world
+        .get_resource::<super::debug_spawn::DebugSpawnPanel>()
+        .is_some_and(|p| p.open)
+    {
+        out.push("debug_spawn");
+    }
     if world.get_resource::<super::crafting_ui::CraftingUi>().is_some_and(|s| s.open) {
         out.push("crafting");
     }
@@ -2005,6 +2017,12 @@ mod tests {
         assert_eq!(parse_key("["), Some(KeyCode::BracketLeft));
         assert_eq!(parse_key("]"), Some(KeyCode::BracketRight));
         assert_eq!(parse_key("BracketRight"), Some(KeyCode::BracketRight));
+        assert_eq!(parse_key("delete"), Some(KeyCode::Delete));
+        assert_eq!(parse_key("Supr"), Some(KeyCode::Delete));
+        assert_eq!(parse_key("pgup"), Some(KeyCode::PageUp));
+        assert_eq!(parse_key("pageDown"), Some(KeyCode::PageDown));
+        assert_eq!(parse_key("home"), Some(KeyCode::Home));
+        assert_eq!(parse_key("end"), Some(KeyCode::End));
         assert_eq!(parse_key("F13"), None);
         assert_eq!(parse_key("hyper"), None);
     }
