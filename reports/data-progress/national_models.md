@@ -95,3 +95,33 @@ python3 .tools/build_model_map.py            # regenera data/national/model_map.
 ```
 
 El script es de solo lectura sobre la carpeta del usuario. No copia nada a git.
+
+
+## Conversión y uso en el juego (2026-10-17)
+
+- **Conversor:** `.tools/blender_export_pokemon.py` (Blender sin ventana) escribe un glTF por
+  pack con malla, esqueleto, texturas y los clips renombrados al esquema del motor
+  (`<pack>_NNNNN_<sufijo>`). El color base se hornea desde las capas Trinity del propio
+  material (`BaseColorLayer1..4` x canales de `_lym`), la misma fórmula que el exportador de
+  PLA; sin ese horneado el albedo viene en blanco y el modelo sale gris.
+- **Lote:** `.tools/convert_national_batch.py` (2 procesos Blender a la vez, `systemd-run`
+  con 6 GB por proceso, resumible, para si el disco baja de 40 GB).
+  **1.092 packs convertidos, 1.092 correctos, 0 fallos, 3,18 GB** en
+  `work/cache/pokemon_national/` (ignorado por git). Índice en
+  `data/national/model_export_index.tsv` (pack, ruta, tamaño, huesos, clips, texturas, estado;
+  82 huesos y 33 clips de media). Los 6 packs del piloto (Charizard, Mega Charizard X, Raichu
+  de Alola, Garchomp, Rowlet, Skeledirge) llevan todos sus clips (40-58); el lote lleva los 12
+  clips que el motor busca (`--clips all` regenera los completos).
+- **En el juego:** `game::pokemon_resource::resolve_model` (el catálogo propio del juego gana;
+  los convertidos rellenan el resto). La Pokédex nacional (tecla Y) dibuja el modelo real de la
+  especie seleccionada en el hueco del panel (`game::dex_model_preview`); un combate contra una
+  especie sin modelo en el juego (Skeledirge, pack `pm1015_00_00`) sale con el modelo convertido
+  en la arena; `--spawn-species N[:forma]` (+ `--spawn-clip`, `--spawn-dist`, `--spawn-cycle`)
+  coloca una especie delante del jugador. Carga perezosa: cada modelo se carga solo cuando su
+  especie aparece; no se cargan los 1.025 de golpe.
+- **Comprobado por capturas** (miradas una a una): los 6 modelos del piloto, el panel de la
+  Pokédex con Bulbasaur, el combate salvaje contra Skeledirge y Zubat/Beedrill tras corregir el
+  caso de packs cuyos clips solo existen en el bloque 20000+.
+- **Límites:** color plano horneado (sin shaders de capas/emisión), 12 clips por modelo del
+  lote, 298 especies sin modelo emparejado, y la postura/fidelidad de los modelos no está
+  revisada por el usuario.
