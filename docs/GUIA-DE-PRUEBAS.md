@@ -725,7 +725,7 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     `.tools/gamectl.py start -- --area 0 --debug-view collisions=only` (y `markers`, `wireframe`...),
     o pulsar las teclas de verdad con `.tools/gamectl.py key F1`.
 
-### 2.19 Modelos de la Pokédex nacional (`--spawn-species`)  [EN RAMA feat/nacional-modelos]
+### 2.19 Modelos de la Pokédex nacional (`--spawn-species`)  [EN MAIN]
 
 78. **Qué es.** Colocar en el mundo, delante de ti, el modelo 3D de cualquier especie nacional
     (1.025) usando tu carpeta de modelos convertida. Arranca con
