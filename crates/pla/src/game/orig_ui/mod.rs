@@ -21,6 +21,7 @@
 
 pub mod anim;
 pub mod battle;
+pub mod crafting_screen;
 pub mod field;
 pub mod icons;
 pub mod layout;
@@ -183,10 +184,12 @@ pub enum ScreenId {
     Map,
     /// Graphics settings (Esc menu -> "Graphics..."), the game's `option_settings_00` list.
     Options,
+    /// Crafting (Esc menu -> "Crafting"), the game's `making` screen.
+    Crafting,
 }
 
 impl ScreenId {
-    pub const ALL: [ScreenId; 15] = [
+    pub const ALL: [ScreenId; 16] = [
         ScreenId::BattleHud,
         ScreenId::BattleEnemyPlate,
         ScreenId::BattleTimeline,
@@ -202,6 +205,7 @@ impl ScreenId {
         ScreenId::Dex,
         ScreenId::Map,
         ScreenId::Options,
+        ScreenId::Crafting,
     ];
 
     /// (screen document id, layout name).
@@ -222,6 +226,7 @@ impl ScreenId {
             ScreenId::Dex => ("gfpak_poke_dex", "pokedex_detail_00"),
             ScreenId::Map => ("gfpak_map", "map_top_00"),
             ScreenId::Options => ("option", "option_settings_00"),
+            ScreenId::Crafting => ("making", "making"),
         }
     }
 
@@ -235,6 +240,7 @@ impl ScreenId {
             | ScreenId::Summary
             | ScreenId::Map
             | ScreenId::Options
+            | ScreenId::Crafting
             | ScreenId::Party => Color::srgba(0.07, 0.07, 0.09, 0.97),
             _ => Color::NONE,
         }
@@ -253,6 +259,7 @@ impl ScreenId {
             | ScreenId::Dex
             | ScreenId::Summary
             | ScreenId::Options
+            | ScreenId::Crafting
             | ScreenId::Party => 190,
             ScreenId::PauseMenu => 200,
         }
@@ -674,6 +681,7 @@ impl Plugin for OrigUiPlugin {
         field::install(app);
         menus::install(app);
         summary::install(app);
+        crafting_screen::install(app);
     }
 }
 
@@ -1139,6 +1147,7 @@ pub fn hides_minimap(id: ScreenId) -> bool {
             | ScreenId::Box
             | ScreenId::Dex
             | ScreenId::Options
+            | ScreenId::Crafting
     )
 }
 

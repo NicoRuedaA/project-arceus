@@ -90,7 +90,7 @@ pub fn option_icon(o: MenuOption) -> &'static str {
 
 /// PNG of texture `name` of the screen's archive, as an override image (`None` for a missing or
 /// placeholder texture).
-fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
+pub(super) fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
     let info = s.scene.archive().textures.get(name)?;
     if info.width <= 2 || info.height <= 2 {
         return None; // placeholder texture
@@ -714,7 +714,7 @@ pub fn slot_centres(s: &OrigScreen, prefix: &str, n: usize) -> Option<Vec<Vec2>>
 /// (layout pixels, the grid's own placement is run-time data), show `content` (icon, label) or
 /// an empty slot, and the game's select / unselect state.
 #[allow(clippy::too_many_arguments)]
-fn fill_cell(
+pub(super) fn fill_cell(
     s: &mut OrigScreen,
     grid: usize,
     k: usize,

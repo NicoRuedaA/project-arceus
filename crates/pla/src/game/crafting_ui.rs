@@ -35,7 +35,7 @@ pub struct CraftingUi {
 }
 
 #[derive(Component)]
-struct CraftingRoot;
+pub struct CraftingRoot;
 
 #[derive(Component, Clone, Copy)]
 struct CraftingRow(usize);
