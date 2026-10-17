@@ -86,6 +86,8 @@ pub struct MoveEffects {
     pub charge: bool,
     pub recharge: bool,
     pub protectable: bool,
+    /// The move cannot be used on the turn right after it was used (`cantusetwice`).
+    pub repeat_lock: bool,
 }
 
 impl MoveEffects {
@@ -218,6 +220,8 @@ impl MoveEffectsTable {
                 charge: num(c_charge)? != 0,
                 recharge: num(c_recharge)? != 0,
                 protectable: num(c_protectable)? != 0,
+                // Only the external generation-9 sheet carries this flag.
+                repeat_lock: false,
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);

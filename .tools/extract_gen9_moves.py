@@ -192,8 +192,8 @@ def classify(row: dict[str, str]) -> tuple[str, str]:
         reasons.append("self:" + row["self_other"])
     if row["recoil_pct"] != "0":
         reasons.append("recoil (engine expresses it as negative drain_pct only)")
-    if "cantusetwice" in row["flags"].split(";"):
-        reasons.append("cannot be used twice in a row (no engine state)")
+    # `cantusetwice` is expressible: gen9.rs fills `repeat_lock` and the engine disables the
+    # move on the following turn, so it does not push a row to class b.
     user_side = row["self_boosts"] or row["sec_self_boosts"] or (row["boosts"] if row["target"] == "self" else "")
     target_side = row["sec_boosts"] or (row["boosts"] if row["target"] != "self" else "")
     if user_side and target_side:

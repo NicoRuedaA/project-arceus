@@ -179,6 +179,7 @@ pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<
         StatusEvent::ProtectUp { actor } => format!("{} is protected!", name(*actor)),
         StatusEvent::ProtectFailed { actor } => format!("{}'s protection failed!", name(*actor)),
         StatusEvent::ProtectedFrom { target, attacker, move_name } => format!("{} protected itself from {}'s {move_name}!", name(*target), name(*attacker)),
+        StatusEvent::MoveLocked { actor, move_name } => format!("{} can't use {move_name} twice in a row!", name(*actor)),
     })
 }
 

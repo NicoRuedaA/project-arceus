@@ -3,11 +3,12 @@
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
 //! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
-//! the sheet classifies `engine_class = a` are loaded (22 moves): moves whose whole behaviour
+//! the sheet classifies `engine_class = a` are loaded (24 moves): moves whose whole behaviour
 //! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
 //! rank, hits, drain/heal, one paralysis/burn/poison roll, stat stages on a single receiver).
-//! Rows classified `b` need new engine logic and are skipped, never approximated; that includes
-//! Gigaton Hammer and Blood Moon, whose "cannot be used twice in a row" rule has no engine state.
+//! Rows classified `b` need new engine logic and are skipped, never approximated. Gigaton
+//! Hammer and Blood Moon load because the engine now honours their `cantusetwice` flag through
+//! `MoveEffects::repeat_lock`.
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -243,6 +244,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             charge: false,
             recharge: false,
             protectable: flags.contains(&"protect"),
+            repeat_lock: flags.contains(&"cantusetwice"),
         };
         out.push(Gen9Move {
             id: num(c_move)? as u16,
@@ -263,6 +265,7 @@ mod tests {
     use super::*;
     use crate::battle::BattleData;
     use crate::battle_engine::effects::{EffectEvent, MoveEffectsTable};
+    use crate::battle_engine::statuses::StatusEvent;
     use crate::battle_engine::{Action, Battle, BattleRng, Combatant, Event, MajorStatus};
     use std::path::PathBuf;
 
@@ -302,7 +305,7 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        assert_eq!(moves.len(), 22);
+        assert_eq!(moves.len(), 24);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -310,8 +313,6 @@ mod tests {
             "psychic-noise",
             "last-respects",
             "revival-blessing",
-            "gigaton-hammer",
-            "blood-moon",
         ] {
             assert!(
                 moves.iter().all(|m| m.name != skipped),
@@ -410,9 +411,9 @@ mod tests {
         assert_eq!(table.get("jet-punch").unwrap().priority, 1);
         assert_eq!(table.get("quick-attack").unwrap().priority, 1);
         assert!(table.get("tera-blast").is_none());
-        // Class b after the cantusetwice fix: absent from the table too.
-        assert!(table.get("gigaton-hammer").is_none());
-        assert!(table.get("blood-moon").is_none());
+        // Repeat-lock rows load and carry their flag.
+        assert!(table.get("gigaton-hammer").unwrap().repeat_lock);
+        assert!(table.get("blood-moon").unwrap().repeat_lock);
     }
 
     fn mon(data: &BattleData, species: &str, moves: &[&str], level: u8) -> Combatant {
@@ -496,5 +497,36 @@ mod tests {
                 new_state: -1
             }
         )));
+    }
+
+    #[test]
+    fn repeat_lock_moves_cannot_be_used_twice_in_a_row() {
+        let mut b = duel(
+            ("pikachu", &["gigaton-hammer", "tackle"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(b.combatants[0].moves[0].pp, 4);
+        let hp = b.combatants[1].hp;
+
+        // The very next turn the slot is locked: no PP spent and no damage dealt.
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(b.combatants[0].moves[0].pp, 4);
+        assert_eq!(b.combatants[1].hp, hp);
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::MoveLocked { actor: 0, .. })));
+
+        // Another move replaces the last move, so the lock is gone on the following turn.
+        b.play_turn(
+            &[Action {
+                actor: 0,
+                move_slot: 1,
+            }],
+            &mut Fixed(vec![0, 1, 0]),
+        );
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(b.combatants[0].moves[0].pp, 3);
     }
 }
