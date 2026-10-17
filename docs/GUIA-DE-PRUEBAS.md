@@ -158,7 +158,7 @@ valor por defecto.
 | I | Mochila |
 | M | Mapa a pantalla completa |
 | Esc | Menú de pausa (desde ahí también: Equipo, Cajas, Pokédex, Artesanía, Tienda y **Cargar partida**; ver 2.8 y 2.15) |
-| Y (en la Pokédex) | Cambia entre la lista de Hisui (242 especies, con investigación) y la **lista nacional** (1.025 especies, solo nombres; sin modelos, iconos ni investigación todavía) |
+| Y (en la Pokédex) | Cambia entre la lista de Hisui (242 especies, con investigación) y la **lista nacional** (1.025 especies, solo nombres; sin iconos ni investigación todavía). Con la lista nacional abierta, el modelo del centro se gira con **Q/E** (mantenidas), **arrastrando con el ratón dentro del hueco** o se reinicia con **R** (ver 2.19) |
 | F5 | Guardar |
 | F1 | **Depuración visual: colisiones.** Cada pulsación: apagado → dibujar colisiones encima del mundo → solo colisiones (se ocultan modelos y terreno) → apagado. Ver 2.18 |
 | F2 | **Depuración visual: modelos.** Cada pulsación: normal → sin texturas (gris liso) → alambre → normal. Ver 2.18 |
@@ -743,8 +743,15 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     - **Ojo:** los modelos convertidos pesan 2-4 MB cada uno y viven en `work/cache/`
       (no van al repositorio). Si borras la caché, la bandera avisa y no coloca nada.
     - **Pokédex (Y):** abre la Pokédex con el menú de pausa, pulsa `Y` para pasar a la lista
-      nacional y el modelo real de la especie seleccionada sale dibujado en el hueco del panel
-      (si esa especie aún no tiene modelo, el hueco queda vacío y el texto lo dice).
+      nacional y el modelo real de la especie seleccionada sale dibujado en el hueco de la foto
+      del panel central (si esa especie aún no tiene modelo, el hueco queda vacío y el texto lo
+      dice). El modelo se ve de frente, entero y con un margen alrededor (da igual que sea
+      diminuto como Joltik #595 o enorme como Wailord #321), y **se puede girar**:
+      `Q`/`E` (mantenidas) lo giran a izquierda/derecha, arrastrar con el botón izquierdo del
+      ratón **dentro del hueco** lo gira libremente (y lo inclina un poco hacia arriba/abajo),
+      `R` vuelve al ángulo inicial, y al cambiar de especie el ángulo se reinicia solo. Abajo,
+      en el pie de la página, salen las teclas. El aviso de la ruta del modelo sobre la página
+      solo aparece con `PLA_DEBUG_DEX_PREVIEW=1` (es información de desarrollo).
     - **Combate:** las especies sin modelo en el juego ya pelean con su modelo convertido
       (por ejemplo, un combate salvaje contra Skeledirge).
     - **Cobertura actual:** 727 de las 1.025 especies tienen modelo; la lista de las que no y el

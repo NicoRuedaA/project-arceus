@@ -73,6 +73,8 @@ Every other viewer flag works as usual (`--area`, `--player-pos`, `--trainer`, `
 | `ping`, `state`, `save`, `load`, `quit` | Same-named command. |
 | `step N` / `wait S` | `step` / `wait_seconds`. |
 | `key K [--frames N] [--action press\|down\|up]` | `key`. |
+| `cmd '{"cmd":"mousemove","x":W,"y":H}'` | `mousemove`: moves the virtual cursor (see below). |
+| `cmd '{"cmd":"mouse","button":"left","action":"down"}'` | `mouse`: presses / releases a mouse button. |
 | `shot PATH [--width W --height H] [--yaw D --pitch D --distance M]` | `screenshot` (angles in degrees). |
 | `entities [FILTER] [--limit N]` | `entities`. |
 | `log [N]` | `log_tail`. |
@@ -95,6 +97,8 @@ are errors, never crashes.
 | `step` | `frames` (default 1, max 100000) | Runs that many frames. |
 | `wait_seconds` | `seconds` | `round(seconds*60)` frames. |
 | `key` | `key`, `action` = `press` (default) / `down` / `up`, `frames` (default 1) | Injected as a real `KeyboardInput` message. `press`: down, `frames` frames, up, 1 frame. Keys: letters, digits, `F1`-`F12`, `Escape`/`Esc`, `Enter`, `Space`, `Tab`, `Backspace`, `Shift`, `Ctrl`, `Alt`, `Up`/`Down`/`Left`/`Right`, or Bevy names (`KeyV`, `Digit1`, `ShiftLeft`). |
+| `mousemove` | `x`, `y` (physical pixels of the offscreen target; logical pixels in a windowed run) | Injected as a real `CursorMoved` message (1 frame). |
+| `mouse` | `button` = `left`/`right`/`middle`, `action` = `press` (default) / `down` / `up`, `frames` (default 1) | Injected as a real `MouseButtonInput` message, same framing as `key`. A drag is `mouse down` + two `mousemove` + `mouse up`. |
 | `teleport` | `x`, `z` | Moves the player; off the navmesh it snaps to the nearest walkable face (400 m); Y from navmesh/terrain + 0.9. No frame is run. |
 | `teleport_zone` | `area` (0-99), optional `x`,`z` | Real zone change (`ZoneChangeRequest`) to `ha_areaNN` at its fast-travel arrival (or x,z); runs frames until the load finishes (max 3600). World state only. |
 | `set_time` | `minutes` (0-1439) **or** `slot` (0-3), optional `pinned` | Sets the game clock; `pinned:true` stops it. |
@@ -135,6 +139,13 @@ $G cmd '{"cmd":"add_pokemon","species":"shinx","level":12}'
 $G cmd '{"cmd":"graphics","preset":"high"}'
 $G cmd '{"cmd":"graphics","set":{"vsync":"off","fps_cap":"120"}}'
 $G cmd '{"cmd":"bench","frames":300,"warmup":120}'
+
+# Mouse drag (e.g. turning the Pokédex model inside its photo frame) at coordinates of the
+# offscreen target; each line is one frame unless `frames` says otherwise.
+$G cmd '{"cmd":"mouse","button":"left","action":"down"}'
+$G cmd '{"cmd":"mousemove","x":325,"y":320}'
+$G cmd '{"cmd":"mousemove","x":425,"y":320}'      # +100 px to the right
+$G cmd '{"cmd":"mouse","button":"left","action":"up"}'
 ```
 
 Raw socket without gamectl (Python one-liner):
@@ -151,8 +162,9 @@ python3 -c 'import socket,sys; s=socket.socket(socket.AF_UNIX); s.connect(sys.ar
   example world events seeded at start) keep their state.
 - **`start_battle` with a species** starts the session directly instead of walking up to a
   creature; the battle itself is the viewer's own code.
-- **Mouse and gamepad are not injected** (keys only). The camera can be placed for a screenshot
-  with `camera`, not moved by the mouse.
+- **The gamepad is not injected**, and the cursor only moves when `mousemove` runs (no OS cursor
+  position is read): systems that follow the mouse must read `CursorMoved` / `ButtonInput<MouseButton>`,
+  not the window's cursor. The 3D camera can still be placed for a screenshot with `camera`.
 - **One frame target.** Screenshots capture the main 3D camera and the UI on it; the full-screen
   map (`M`) and other cameras are not covered.
 - **Linux/Unix only** (Unix domain socket).
