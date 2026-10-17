@@ -215,7 +215,7 @@ colour list stays on screen. **F5 (save) is not touched**; F4 and F6..F12 stay f
 
 | Key | Cycles (each press advances, then wraps) | What it shows |
 |---|---|---|
-| `F1` | off → over → only | Placed-object collision lines over the world; `only` hides every world model/terrain and leaves collisions + navigation (walkable faces green, sampled non-walkable cells dark red) |
+| `F1` | off → over → only | Placed-object collision lines over the world; `only` hides every world model/terrain and leaves collisions + navigation (walkable faces green, sampled non-walkable cells red; near-black screen background) |
 | `F2` | normal → no textures → wireframe | Plain grey material swap for models, characters, the splat terrain and the water (restores the exact original materials) and Bevy's wireframe pass |
 | `F3` | off → player → player + markers | Player line (position, speed, movement state, zone, sub-area, game time, FPS) and coloured interest markers: doors+reach (yellow), climb surfaces (orange), water (blue), spawners/safe spawn (lime), pickups (magenta), NPC capsules (white), wild creatures + aggro radius (red) |
 
