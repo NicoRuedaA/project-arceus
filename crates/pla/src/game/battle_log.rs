@@ -179,6 +179,12 @@ pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<
         StatusEvent::ProtectUp { actor } => format!("{} is protected!", name(*actor)),
         StatusEvent::ProtectFailed { actor } => format!("{}'s protection failed!", name(*actor)),
         StatusEvent::ProtectedFrom { target, attacker, move_name } => format!("{} protected itself from {}'s {move_name}!", name(*target), name(*attacker)),
+        StatusEvent::MoveLocked { actor, move_name } => format!("{} can't use {move_name} twice in a row!", name(*actor)),
+        StatusEvent::SaltCure { target } => format!("{} was covered in salt!", name(*target)),
+        StatusEvent::HurtBySaltCure { target, damage } => format!("{} is hurt by the salt! (-{damage} HP)", name(*target)),
+        StatusEvent::SyrupBomb { target } => format!("{} was covered in syrup!", name(*target)),
+        StatusEvent::SyrupBombEnded { target } => format!("{} shook off the syrup!", name(*target)),
+        StatusEvent::Thawed { target } => format!("{} thawed out!", name(*target)),
     })
 }
 
@@ -218,6 +224,9 @@ pub fn format_effect(name: &dyn Fn(usize) -> String, e: &EffectEvent) -> Option<
         }
         EffectEvent::HpCost { actor, amount } => {
             format!("{} paid {amount} HP!", name(*actor))
+        }
+        EffectEvent::CrashDamage { actor, amount } => {
+            format!("{} is hurt by the crash! (-{amount} HP)", name(*actor))
         }
         EffectEvent::Flinched { target } => format!("{} flinched!", name(*target)),
         EffectEvent::FlinchedAndSkipped { actor } => {

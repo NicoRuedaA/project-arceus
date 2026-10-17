@@ -59,6 +59,37 @@ pub enum EffectTarget {
     Opponent,
 }
 
+/// Base-power rules of the external generation-9 sheet (DERIVED from Showdown's
+/// `basePowerCallback` / `onBasePower`, not a game-data column). Only the rows that load
+/// through `gen9.rs` use a non-default value.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PowerRule {
+    #[default]
+    None,
+    /// 50 + 50 per fainted member of the user's side (Last Respects).
+    LastRespects,
+    /// 50 + 50 per hit taken, capped at 350 (Rage Fist).
+    RageFist,
+    /// About 100 x target's remaining HP fraction, minimum 1 (Hard Press).
+    HardPress,
+    /// x1.333 when the move is super effective (Collision Course, Electro Drift).
+    SuperEffectiveBoost,
+    /// 30 % chance to double the power (Fickle Beam).
+    FickleBeam,
+}
+
+/// Residual volatile conditions of the external generation-9 sheet (DERIVED from Showdown's
+/// `condition`/`secondary.volatileStatus`). PLA rows use `None`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ResidualVolatile {
+    #[default]
+    None,
+    /// End-of-turn damage: 1/8 max HP, 1/4 against Water/Steel (Salt Cure).
+    SaltCure,
+    /// Speed -1 at the end of each turn for three turns (Syrup Bomb).
+    SyrupBomb,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MoveEffects {
     pub name: String,
@@ -86,6 +117,16 @@ pub struct MoveEffects {
     pub charge: bool,
     pub recharge: bool,
     pub protectable: bool,
+    /// The move cannot be used on the turn right after it was used (`cantusetwice`).
+    pub repeat_lock: bool,
+    /// External generation-9 base-power callback; `None` for every PLA row.
+    pub power_rule: PowerRule,
+    /// Percent of the user's max HP lost when the move misses (crash damage); 0 = none.
+    pub crash_damage_pct: u8,
+    /// External generation-9 residual volatile; `None` for every PLA row.
+    pub residual_volatile: ResidualVolatile,
+    /// The hit thaws the target (Hydro Steam, Matcha Gotcha); PLA rows never set it.
+    pub thaws_target: bool,
 }
 
 impl MoveEffects {
@@ -109,7 +150,12 @@ impl MoveEffectsTable {
     pub fn load(data_root: impl AsRef<Path>) -> Result<Self, String> {
         let path = data_root.as_ref().join("pml_move_effects.tsv");
         let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        Self::from_tsv(&text)
+        let mut table = Self::from_tsv(&text)?;
+        // Generation-9 moves (external sheet, class `a` only); the PLA rows always win by name.
+        for mv in super::gen9::load(data_root.as_ref())? {
+            table.by_name.entry(mv.name).or_insert(mv.effects);
+        }
+        Ok(table)
     }
 
     pub fn from_tsv(text: &str) -> Result<Self, String> {
@@ -213,6 +259,12 @@ impl MoveEffectsTable {
                 charge: num(c_charge)? != 0,
                 recharge: num(c_recharge)? != 0,
                 protectable: num(c_protectable)? != 0,
+                // Only the external generation-9 sheet carries this flag.
+                repeat_lock: false,
+                power_rule: PowerRule::None,
+                crash_damage_pct: 0,
+                residual_volatile: ResidualVolatile::None,
+                thaws_target: false,
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);
@@ -296,6 +348,11 @@ pub enum EffectEvent {
         amount: u32,
     },
     HpCost {
+        actor: usize,
+        amount: u32,
+    },
+    /// Crash damage after a missed move (Axe Kick, Supercell Slam).
+    CrashDamage {
         actor: usize,
         amount: u32,
     },
