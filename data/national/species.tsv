@@ -1,0 +1,1032 @@
+# sheet: data/national/species
+# version: 1
+# generator: .tools/build_national_dex.py
+# target: national Pokédex species (1..1025, generations 1-9), species-level fields
+# source: EXTERNAL/PROBABLE, not from the game files: PokeAPI data/v2/csv (commit 5ee47a9a9c1229632ec4b473a9c1c53026e005dd, fetched 2026-10-17; BSD-3-Clause) + Pokemon Showdown (MIT, commit 7244fe8e28fa8bc4d0809ae30d183c608b62bb2b) for the Legends: Z-A learnsets. For species/forms with active rows in data/pml_personal.tsv the VERIFIED game sheets always win at load time (crates/pla/src/national.rs).
+# semantics: one row per species; gender_rate is PokeAPI's female eighths (-1 = genderless); gender_raw is the engine-style byte DERIVED from it (255 genderless, 0 all male, 254 all female, else f*254/8); growth_group is the PLA exp group id of data/pml_grow_table.tsv DERIVED from PokeAPI's growth curve; entry_count is the number of national form entries of the species; base_experience is the default form's PokeAPI value.
+national_number:u16	identifier:string	generation:u8	is_legendary:bool	is_mythical:bool	is_baby:bool	capture_rate:u8	gender_rate:i8	gender_raw:u8	hatch_counter:u16	growth_rate_id:u8	growth_group:u8	growth_name:string	base_happiness:u8	base_experience:u16	evolution_chain:u16	entry_count:u16	name_en:string	name_es:string	name_ja_roma:string
+1	bulbasaur	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	64	1	1	Bulbasaur	Bulbasaur	Fushigidane
+2	ivysaur	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	1	1	Ivysaur	Ivysaur	Fushigisou
+3	venusaur	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	236	1	3	Venusaur	Venusaur	Fushigibana
+4	charmander	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	2	1	Charmander	Charmander	Hitokage
+5	charmeleon	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	2	1	Charmeleon	Charmeleon	Lizardo
+6	charizard	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	240	2	4	Charizard	Charizard	Lizardon
+7	squirtle	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	63	3	1	Squirtle	Squirtle	Zenigame
+8	wartortle	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	3	1	Wartortle	Wartortle	Kameil
+9	blastoise	1	0	0	0	45	1	31	20	4	3	Medium Slow	70	239	3	3	Blastoise	Blastoise	Kamex
+10	caterpie	1	0	0	0	255	4	127	15	2	0	Medium Fast	70	39	4	1	Caterpie	Caterpie	Caterpie
+11	metapod	1	0	0	0	120	4	127	15	2	0	Medium Fast	70	72	4	1	Metapod	Metapod	Transel
+12	butterfree	1	0	0	0	45	4	127	15	2	0	Medium Fast	70	178	4	2	Butterfree	Butterfree	Butterfree
+13	weedle	1	0	0	0	255	4	127	15	2	0	Medium Fast	70	39	5	1	Weedle	Weedle	Beedle
+14	kakuna	1	0	0	0	120	4	127	15	2	0	Medium Fast	70	72	5	1	Kakuna	Kakuna	Cocoon
+15	beedrill	1	0	0	0	45	4	127	15	2	0	Medium Fast	70	178	5	2	Beedrill	Beedrill	Spear
+16	pidgey	1	0	0	0	255	4	127	15	4	3	Medium Slow	70	50	6	1	Pidgey	Pidgey	Poppo
+17	pidgeotto	1	0	0	0	120	4	127	15	4	3	Medium Slow	70	122	6	1	Pidgeotto	Pidgeotto	Pigeon
+18	pidgeot	1	0	0	0	45	4	127	15	4	3	Medium Slow	70	216	6	2	Pidgeot	Pidgeot	Pigeot
+19	rattata	1	0	0	0	255	4	127	15	2	0	Medium Fast	70	51	7	2	Rattata	Rattata	Koratta
+20	raticate	1	0	0	0	127	4	127	15	2	0	Medium Fast	70	145	7	3	Raticate	Raticate	Ratta
+21	spearow	1	0	0	0	255	4	127	15	2	0	Medium Fast	70	52	8	1	Spearow	Spearow	Onisuzume
+22	fearow	1	0	0	0	90	4	127	15	2	0	Medium Fast	70	155	8	1	Fearow	Fearow	Onidrill
+23	ekans	1	0	0	0	255	4	127	20	2	0	Medium Fast	70	58	9	1	Ekans	Ekans	Arbo
+24	arbok	1	0	0	0	90	4	127	20	2	0	Medium Fast	70	157	9	1	Arbok	Arbok	Arbok
+25	pikachu	1	0	0	0	190	4	127	10	2	0	Medium Fast	70	112	10	17	Pikachu	Pikachu	Pikachu
+26	raichu	1	0	0	0	75	4	127	10	2	0	Medium Fast	70	218	10	4	Raichu	Raichu	Raichu
+27	sandshrew	1	0	0	0	255	4	127	20	2	0	Medium Fast	70	60	11	2	Sandshrew	Sandshrew	Sand
+28	sandslash	1	0	0	0	90	4	127	20	2	0	Medium Fast	70	158	11	2	Sandslash	Sandslash	Sandpan
+29	nidoran-f	1	0	0	0	235	8	254	20	4	3	Medium Slow	70	55	12	1	Nidoran♀	Nidoran♀	Nidoran♀
+30	nidorina	1	0	0	0	120	8	254	20	4	3	Medium Slow	70	128	12	1	Nidorina	Nidorina	Nidorina
+31	nidoqueen	1	0	0	0	45	8	254	20	4	3	Medium Slow	70	227	12	1	Nidoqueen	Nidoqueen	Nidoqueen
+32	nidoran-m	1	0	0	0	235	0	0	20	4	3	Medium Slow	70	55	13	1	Nidoran♂	Nidoran♂	Nidoran♂
+33	nidorino	1	0	0	0	120	0	0	20	4	3	Medium Slow	70	128	13	1	Nidorino	Nidorino	Nidorino
+34	nidoking	1	0	0	0	45	0	0	20	4	3	Medium Slow	70	227	13	1	Nidoking	Nidoking	Nidoking
+35	clefairy	1	0	0	0	150	6	190	10	3	4	Fast	140	113	14	1	Clefairy	Clefairy	Pippi
+36	clefable	1	0	0	0	25	6	190	10	3	4	Fast	140	217	14	2	Clefable	Clefable	Pixy
+37	vulpix	1	0	0	0	190	6	190	20	2	0	Medium Fast	70	60	15	2	Vulpix	Vulpix	Rokon
+38	ninetales	1	0	0	0	75	6	190	20	2	0	Medium Fast	70	177	15	2	Ninetales	Ninetales	Kyukon
+39	jigglypuff	1	0	0	0	170	6	190	10	3	4	Fast	70	95	16	1	Jigglypuff	Jigglypuff	Purin
+40	wigglytuff	1	0	0	0	50	6	190	10	3	4	Fast	70	196	16	1	Wigglytuff	Wigglytuff	Pukurin
+41	zubat	1	0	0	0	255	4	127	15	2	0	Medium Fast	70	49	17	1	Zubat	Zubat	Zubat
+42	golbat	1	0	0	0	90	4	127	15	2	0	Medium Fast	70	159	17	1	Golbat	Golbat	Golbat
+43	oddish	1	0	0	0	255	4	127	20	4	3	Medium Slow	70	64	18	1	Oddish	Oddish	Nazonokusa
+44	gloom	1	0	0	0	120	4	127	20	4	3	Medium Slow	70	138	18	1	Gloom	Gloom	Kusaihana
+45	vileplume	1	0	0	0	45	4	127	20	4	3	Medium Slow	70	221	18	1	Vileplume	Vileplume	Ruffresia
+46	paras	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	57	19	1	Paras	Paras	Paras
+47	parasect	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	142	19	1	Parasect	Parasect	Parasect
+48	venonat	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	61	20	1	Venonat	Venonat	Kongpang
+49	venomoth	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	158	20	1	Venomoth	Venomoth	Morphon
+50	diglett	1	0	0	0	255	4	127	20	2	0	Medium Fast	70	53	21	2	Diglett	Diglett	Digda
+51	dugtrio	1	0	0	0	50	4	127	20	2	0	Medium Fast	70	149	21	2	Dugtrio	Dugtrio	Dugtrio
+52	meowth	1	0	0	0	255	4	127	20	2	0	Medium Fast	70	58	22	4	Meowth	Meowth	Nyarth
+53	persian	1	0	0	0	90	4	127	20	2	0	Medium Fast	70	154	22	2	Persian	Persian	Persian
+54	psyduck	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	64	23	1	Psyduck	Psyduck	Koduck
+55	golduck	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	175	23	1	Golduck	Golduck	Golduck
+56	mankey	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	61	24	1	Mankey	Mankey	Mankey
+57	primeape	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	159	24	1	Primeape	Primeape	Okorizaru
+58	growlithe	1	0	0	0	190	2	63	20	1	5	Slow	70	70	25	2	Growlithe	Growlithe	Gardie
+59	arcanine	1	0	0	0	75	2	63	20	1	5	Slow	70	194	25	2	Arcanine	Arcanine	Windie
+60	poliwag	1	0	0	0	255	4	127	20	4	3	Medium Slow	70	60	26	1	Poliwag	Poliwag	Nyoromo
+61	poliwhirl	1	0	0	0	120	4	127	20	4	3	Medium Slow	70	135	26	1	Poliwhirl	Poliwhirl	Nyorozo
+62	poliwrath	1	0	0	0	45	4	127	20	4	3	Medium Slow	70	230	26	1	Poliwrath	Poliwrath	Nyorobon
+63	abra	1	0	0	0	200	2	63	20	4	3	Medium Slow	70	62	27	1	Abra	Abra	Casey
+64	kadabra	1	0	0	0	100	2	63	20	4	3	Medium Slow	70	140	27	1	Kadabra	Kadabra	Yungerer
+65	alakazam	1	0	0	0	50	2	63	20	4	3	Medium Slow	70	225	27	2	Alakazam	Alakazam	Foodin
+66	machop	1	0	0	0	180	2	63	20	4	3	Medium Slow	70	61	28	1	Machop	Machop	Wanriky
+67	machoke	1	0	0	0	90	2	63	20	4	3	Medium Slow	70	142	28	1	Machoke	Machoke	Goriky
+68	machamp	1	0	0	0	45	2	63	20	4	3	Medium Slow	70	227	28	2	Machamp	Machamp	Kairiky
+69	bellsprout	1	0	0	0	255	4	127	20	4	3	Medium Slow	70	60	29	1	Bellsprout	Bellsprout	Madatsubomi
+70	weepinbell	1	0	0	0	120	4	127	20	4	3	Medium Slow	70	137	29	1	Weepinbell	Weepinbell	Utsudon
+71	victreebel	1	0	0	0	45	4	127	20	4	3	Medium Slow	70	221	29	2	Victreebel	Victreebel	Utsubot
+72	tentacool	1	0	0	0	190	4	127	20	1	5	Slow	70	67	30	1	Tentacool	Tentacool	Menokurage
+73	tentacruel	1	0	0	0	60	4	127	20	1	5	Slow	70	180	30	1	Tentacruel	Tentacruel	Dokukurage
+74	geodude	1	0	0	0	255	4	127	15	4	3	Medium Slow	70	60	31	2	Geodude	Geodude	Isitsubute
+75	graveler	1	0	0	0	120	4	127	15	4	3	Medium Slow	70	137	31	2	Graveler	Graveler	Golone
+76	golem	1	0	0	0	45	4	127	15	4	3	Medium Slow	70	223	31	2	Golem	Golem	Golonya
+77	ponyta	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	82	32	2	Ponyta	Ponyta	Ponyta
+78	rapidash	1	0	0	0	60	4	127	20	2	0	Medium Fast	70	175	32	2	Rapidash	Rapidash	Gallop
+79	slowpoke	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	63	33	2	Slowpoke	Slowpoke	Yadon
+80	slowbro	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	172	33	3	Slowbro	Slowbro	Yadoran
+81	magnemite	1	0	0	0	190	-1	255	20	2	0	Medium Fast	70	65	34	1	Magnemite	Magnemite	Coil
+82	magneton	1	0	0	0	60	-1	255	20	2	0	Medium Fast	70	163	34	1	Magneton	Magneton	Rarecoil
+83	farfetchd	1	0	0	0	45	4	127	20	2	0	Medium Fast	70	132	35	2	Farfetch’d	Farfetch’d	Kamonegi
+84	doduo	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	62	36	1	Doduo	Doduo	Dodo
+85	dodrio	1	0	0	0	45	4	127	20	2	0	Medium Fast	70	165	36	1	Dodrio	Dodrio	Dodorio
+86	seel	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	65	37	1	Seel	Seel	Pawou
+87	dewgong	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	166	37	1	Dewgong	Dewgong	Jugon
+88	grimer	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	65	38	2	Grimer	Grimer	Betbeter
+89	muk	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	175	38	2	Muk	Muk	Betbeton
+90	shellder	1	0	0	0	190	4	127	20	1	5	Slow	70	61	39	1	Shellder	Shellder	Shellder
+91	cloyster	1	0	0	0	60	4	127	20	1	5	Slow	70	184	39	1	Cloyster	Cloyster	Parshen
+92	gastly	1	0	0	0	190	4	127	20	4	3	Medium Slow	70	62	40	1	Gastly	Gastly	Ghos
+93	haunter	1	0	0	0	90	4	127	20	4	3	Medium Slow	70	142	40	1	Haunter	Haunter	Ghost
+94	gengar	1	0	0	0	45	4	127	20	4	3	Medium Slow	70	225	40	3	Gengar	Gengar	Gangar
+95	onix	1	0	0	0	45	4	127	25	2	0	Medium Fast	70	77	41	1	Onix	Onix	Iwark
+96	drowzee	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	66	42	1	Drowzee	Drowzee	Sleepe
+97	hypno	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	169	42	1	Hypno	Hypno	Sleeper
+98	krabby	1	0	0	0	225	4	127	20	2	0	Medium Fast	70	65	43	1	Krabby	Krabby	Crab
+99	kingler	1	0	0	0	60	4	127	20	2	0	Medium Fast	70	166	43	2	Kingler	Kingler	Kingler
+100	voltorb	1	0	0	0	190	-1	255	20	2	0	Medium Fast	70	66	44	2	Voltorb	Voltorb	Biriridama
+101	electrode	1	0	0	0	60	-1	255	20	2	0	Medium Fast	70	172	44	2	Electrode	Electrode	Marumine
+102	exeggcute	1	0	0	0	90	4	127	20	1	5	Slow	70	65	45	1	Exeggcute	Exeggcute	Tamatama
+103	exeggutor	1	0	0	0	45	4	127	20	1	5	Slow	70	186	45	2	Exeggutor	Exeggutor	Nassy
+104	cubone	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	64	46	1	Cubone	Cubone	Karakara
+105	marowak	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	149	46	3	Marowak	Marowak	Garagara
+106	hitmonlee	1	0	0	0	45	0	0	25	2	0	Medium Fast	70	159	47	1	Hitmonlee	Hitmonlee	Sawamular
+107	hitmonchan	1	0	0	0	45	0	0	25	2	0	Medium Fast	70	159	47	1	Hitmonchan	Hitmonchan	Ebiwalar
+108	lickitung	1	0	0	0	45	4	127	20	2	0	Medium Fast	70	77	48	1	Lickitung	Lickitung	Beroringa
+109	koffing	1	0	0	0	190	4	127	20	2	0	Medium Fast	70	68	49	1	Koffing	Koffing	Dogars
+110	weezing	1	0	0	0	60	4	127	20	2	0	Medium Fast	70	172	49	2	Weezing	Weezing	Matadogas
+111	rhyhorn	1	0	0	0	120	4	127	20	1	5	Slow	70	69	50	1	Rhyhorn	Rhyhorn	Sihorn
+112	rhydon	1	0	0	0	60	4	127	20	1	5	Slow	70	170	50	1	Rhydon	Rhydon	Sidon
+113	chansey	1	0	0	0	30	8	254	40	3	4	Fast	140	395	51	1	Chansey	Chansey	Lucky
+114	tangela	1	0	0	0	45	4	127	20	2	0	Medium Fast	70	87	52	1	Tangela	Tangela	Monjara
+115	kangaskhan	1	0	0	0	45	8	254	20	2	0	Medium Fast	70	172	53	2	Kangaskhan	Kangaskhan	Garura
+116	horsea	1	0	0	0	225	4	127	20	2	0	Medium Fast	70	59	54	1	Horsea	Horsea	Tattu
+117	seadra	1	0	0	0	75	4	127	20	2	0	Medium Fast	70	154	54	1	Seadra	Seadra	Seadra
+118	goldeen	1	0	0	0	225	4	127	20	2	0	Medium Fast	70	64	55	1	Goldeen	Goldeen	Tosakinto
+119	seaking	1	0	0	0	60	4	127	20	2	0	Medium Fast	70	158	55	1	Seaking	Seaking	Azumao
+120	staryu	1	0	0	0	225	-1	255	20	1	5	Slow	70	68	56	1	Staryu	Staryu	Hitodeman
+121	starmie	1	0	0	0	60	-1	255	20	1	5	Slow	70	182	56	2	Starmie	Starmie	Starmie
+122	mr-mime	1	0	0	0	45	4	127	25	2	0	Medium Fast	70	161	57	2	Mr. Mime	Mr. Mime	Barrierd
+123	scyther	1	0	0	0	45	4	127	25	2	0	Medium Fast	70	100	58	1	Scyther	Scyther	Strike
+124	jynx	1	0	0	0	45	8	254	25	2	0	Medium Fast	70	159	59	1	Jynx	Jynx	Rougela
+125	electabuzz	1	0	0	0	45	2	63	25	2	0	Medium Fast	70	172	60	1	Electabuzz	Electabuzz	Eleboo
+126	magmar	1	0	0	0	45	2	63	25	2	0	Medium Fast	70	173	61	1	Magmar	Magmar	Boober
+127	pinsir	1	0	0	0	45	4	127	25	1	5	Slow	70	175	62	2	Pinsir	Pinsir	Kailios
+128	tauros	1	0	0	0	45	0	0	20	1	5	Slow	70	172	63	4	Tauros	Tauros	Kentauros
+129	magikarp	1	0	0	0	255	4	127	5	1	5	Slow	70	40	64	1	Magikarp	Magikarp	Koiking
+130	gyarados	1	0	0	0	45	4	127	5	1	5	Slow	70	189	64	2	Gyarados	Gyarados	Gyarados
+131	lapras	1	0	0	0	45	4	127	40	1	5	Slow	70	187	65	2	Lapras	Lapras	Laplace
+132	ditto	1	0	0	0	35	-1	255	20	2	0	Medium Fast	70	101	66	1	Ditto	Ditto	Metamon
+133	eevee	1	0	0	0	45	1	31	35	2	0	Medium Fast	70	65	67	3	Eevee	Eevee	Eievui
+134	vaporeon	1	0	0	0	45	1	31	35	2	0	Medium Fast	70	184	67	1	Vaporeon	Vaporeon	Showers
+135	jolteon	1	0	0	0	45	1	31	35	2	0	Medium Fast	70	184	67	1	Jolteon	Jolteon	Thunders
+136	flareon	1	0	0	0	45	1	31	35	2	0	Medium Fast	70	184	67	1	Flareon	Flareon	Booster
+137	porygon	1	0	0	0	45	-1	255	20	2	0	Medium Fast	70	79	68	1	Porygon	Porygon	Porygon
+138	omanyte	1	0	0	0	45	1	31	30	2	0	Medium Fast	70	71	69	1	Omanyte	Omanyte	Omnite
+139	omastar	1	0	0	0	45	1	31	30	2	0	Medium Fast	70	173	69	1	Omastar	Omastar	Omstar
+140	kabuto	1	0	0	0	45	1	31	30	2	0	Medium Fast	70	71	70	1	Kabuto	Kabuto	Kabuto
+141	kabutops	1	0	0	0	45	1	31	30	2	0	Medium Fast	70	173	70	1	Kabutops	Kabutops	Kabutops
+142	aerodactyl	1	0	0	0	45	1	31	35	1	5	Slow	70	180	71	2	Aerodactyl	Aerodactyl	Ptera
+143	snorlax	1	0	0	0	25	1	31	40	1	5	Slow	70	189	72	2	Snorlax	Snorlax	Kabigon
+144	articuno	1	1	0	0	3	-1	255	80	1	5	Slow	35	261	73	2	Articuno	Articuno	Freezer
+145	zapdos	1	1	0	0	3	-1	255	80	1	5	Slow	35	261	74	2	Zapdos	Zapdos	Thunder
+146	moltres	1	1	0	0	3	-1	255	80	1	5	Slow	35	261	75	2	Moltres	Moltres	Fire
+147	dratini	1	0	0	0	45	4	127	40	1	5	Slow	35	60	76	1	Dratini	Dratini	Miniryu
+148	dragonair	1	0	0	0	45	4	127	40	1	5	Slow	35	147	76	1	Dragonair	Dragonair	Hakuryu
+149	dragonite	1	0	0	0	45	4	127	40	1	5	Slow	35	270	76	2	Dragonite	Dragonite	Kairyu
+150	mewtwo	1	1	0	0	3	-1	255	120	1	5	Slow	0	306	77	3	Mewtwo	Mewtwo	Mewtwo
+151	mew	1	0	1	0	45	-1	255	120	4	3	Medium Slow	100	270	78	1	Mew	Mew	Mew
+152	chikorita	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	64	79	1	Chikorita	Chikorita	Chicorita
+153	bayleef	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	79	1	Bayleef	Bayleef	Bayleaf
+154	meganium	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	236	79	2	Meganium	Meganium	Meganium
+155	cyndaquil	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	80	1	Cyndaquil	Cyndaquil	Hinoarashi
+156	quilava	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	80	1	Quilava	Quilava	Magmarashi
+157	typhlosion	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	240	80	2	Typhlosion	Typhlosion	Bakphoon
+158	totodile	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	63	81	1	Totodile	Totodile	Waninoko
+159	croconaw	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	81	1	Croconaw	Croconaw	Alligates
+160	feraligatr	2	0	0	0	45	1	31	20	4	3	Medium Slow	70	239	81	2	Feraligatr	Feraligatr	Ordile
+161	sentret	2	0	0	0	255	4	127	15	2	0	Medium Fast	70	43	82	1	Sentret	Sentret	Otachi
+162	furret	2	0	0	0	90	4	127	15	2	0	Medium Fast	70	145	82	1	Furret	Furret	Ootachi
+163	hoothoot	2	0	0	0	255	4	127	15	2	0	Medium Fast	70	52	83	1	Hoothoot	Hoothoot	Hoho
+164	noctowl	2	0	0	0	90	4	127	15	2	0	Medium Fast	70	158	83	1	Noctowl	Noctowl	Yorunozuku
+165	ledyba	2	0	0	0	255	4	127	15	3	4	Fast	70	53	84	1	Ledyba	Ledyba	Rediba
+166	ledian	2	0	0	0	90	4	127	15	3	4	Fast	70	137	84	1	Ledian	Ledian	Redian
+167	spinarak	2	0	0	0	255	4	127	15	3	4	Fast	70	50	85	1	Spinarak	Spinarak	Itomaru
+168	ariados	2	0	0	0	90	4	127	15	3	4	Fast	70	140	85	1	Ariados	Ariados	Ariados
+169	crobat	2	0	0	0	90	4	127	15	2	0	Medium Fast	70	241	17	1	Crobat	Crobat	Crobat
+170	chinchou	2	0	0	0	190	4	127	20	1	5	Slow	70	66	86	1	Chinchou	Chinchou	Chonchie
+171	lanturn	2	0	0	0	75	4	127	20	1	5	Slow	70	161	86	1	Lanturn	Lanturn	Lantern
+172	pichu	2	0	0	1	190	4	127	10	2	0	Medium Fast	70	41	10	2	Pichu	Pichu	Pichu
+173	cleffa	2	0	0	1	150	6	190	10	3	4	Fast	140	44	14	1	Cleffa	Cleffa	Py
+174	igglybuff	2	0	0	1	170	6	190	10	3	4	Fast	70	42	16	1	Igglybuff	Igglybuff	Pupurin
+175	togepi	2	0	0	1	190	1	31	10	3	4	Fast	70	49	87	1	Togepi	Togepi	Togepy
+176	togetic	2	0	0	0	75	1	31	10	3	4	Fast	70	142	87	1	Togetic	Togetic	Togechick
+177	natu	2	0	0	0	190	4	127	20	2	0	Medium Fast	70	64	88	1	Natu	Natu	Naty
+178	xatu	2	0	0	0	75	4	127	20	2	0	Medium Fast	70	165	88	1	Xatu	Xatu	Natio
+179	mareep	2	0	0	0	235	4	127	20	4	3	Medium Slow	70	56	89	1	Mareep	Mareep	Merriep
+180	flaaffy	2	0	0	0	120	4	127	20	4	3	Medium Slow	70	128	89	1	Flaaffy	Flaaffy	Mokoko
+181	ampharos	2	0	0	0	45	4	127	20	4	3	Medium Slow	70	230	89	2	Ampharos	Ampharos	Denryu
+182	bellossom	2	0	0	0	45	4	127	20	4	3	Medium Slow	70	221	18	1	Bellossom	Bellossom	Kireihana
+183	marill	2	0	0	0	190	4	127	10	3	4	Fast	70	88	90	1	Marill	Marill	Maril
+184	azumarill	2	0	0	0	75	4	127	10	3	4	Fast	70	189	90	1	Azumarill	Azumarill	Marilli
+185	sudowoodo	2	0	0	0	65	4	127	20	2	0	Medium Fast	70	144	91	1	Sudowoodo	Sudowoodo	Usokkie
+186	politoed	2	0	0	0	45	4	127	20	4	3	Medium Slow	70	225	26	1	Politoed	Politoed	Nyorotono
+187	hoppip	2	0	0	0	255	4	127	20	4	3	Medium Slow	70	50	92	1	Hoppip	Hoppip	Hanecco
+188	skiploom	2	0	0	0	120	4	127	20	4	3	Medium Slow	70	119	92	1	Skiploom	Skiploom	Popocco
+189	jumpluff	2	0	0	0	45	4	127	20	4	3	Medium Slow	70	207	92	1	Jumpluff	Jumpluff	Watacco
+190	aipom	2	0	0	0	45	4	127	20	3	4	Fast	70	72	93	1	Aipom	Aipom	Eipam
+191	sunkern	2	0	0	0	235	4	127	20	4	3	Medium Slow	70	36	94	1	Sunkern	Sunkern	Himanuts
+192	sunflora	2	0	0	0	120	4	127	20	4	3	Medium Slow	70	149	94	1	Sunflora	Sunflora	Kimawari
+193	yanma	2	0	0	0	75	4	127	20	2	0	Medium Fast	70	78	95	1	Yanma	Yanma	Yanyanma
+194	wooper	2	0	0	0	255	4	127	20	2	0	Medium Fast	70	42	96	2	Wooper	Wooper	Upah
+195	quagsire	2	0	0	0	90	4	127	20	2	0	Medium Fast	70	151	96	1	Quagsire	Quagsire	Nuoh
+196	espeon	2	0	0	0	45	1	31	35	2	0	Medium Fast	70	184	67	1	Espeon	Espeon	Eifie
+197	umbreon	2	0	0	0	45	1	31	35	2	0	Medium Fast	35	184	67	1	Umbreon	Umbreon	Bracky
+198	murkrow	2	0	0	0	30	4	127	20	4	3	Medium Slow	35	81	97	1	Murkrow	Murkrow	Yamikarasu
+199	slowking	2	0	0	0	70	4	127	20	2	0	Medium Fast	70	172	33	2	Slowking	Slowking	Yadoking
+200	misdreavus	2	0	0	0	45	4	127	25	3	4	Fast	35	87	98	1	Misdreavus	Misdreavus	Muma
+201	unown	2	0	0	0	225	-1	255	40	2	0	Medium Fast	70	118	99	28	Unown	Unown	Unknown
+202	wobbuffet	2	0	0	0	45	4	127	20	2	0	Medium Fast	70	142	100	1	Wobbuffet	Wobbuffet	Sonans
+203	girafarig	2	0	0	0	60	4	127	20	2	0	Medium Fast	70	159	101	1	Girafarig	Girafarig	Kirinriki
+204	pineco	2	0	0	0	190	4	127	20	2	0	Medium Fast	70	58	102	1	Pineco	Pineco	Kunugidama
+205	forretress	2	0	0	0	75	4	127	20	2	0	Medium Fast	70	163	102	1	Forretress	Forretress	Foretos
+206	dunsparce	2	0	0	0	190	4	127	20	2	0	Medium Fast	70	145	103	1	Dunsparce	Dunsparce	Nokocchi
+207	gligar	2	0	0	0	60	4	127	20	4	3	Medium Slow	70	86	104	1	Gligar	Gligar	Gliger
+208	steelix	2	0	0	0	25	4	127	25	2	0	Medium Fast	70	179	41	2	Steelix	Steelix	Haganeil
+209	snubbull	2	0	0	0	190	6	190	20	3	4	Fast	70	60	105	1	Snubbull	Snubbull	Bulu
+210	granbull	2	0	0	0	75	6	190	20	3	4	Fast	70	158	105	1	Granbull	Granbull	Granbulu
+211	qwilfish	2	0	0	0	45	4	127	20	2	0	Medium Fast	70	88	106	2	Qwilfish	Qwilfish	Harysen
+212	scizor	2	0	0	0	25	4	127	25	2	0	Medium Fast	70	175	58	2	Scizor	Scizor	Hassam
+213	shuckle	2	0	0	0	190	4	127	20	4	3	Medium Slow	70	177	107	1	Shuckle	Shuckle	Tsubotsubo
+214	heracross	2	0	0	0	45	4	127	25	1	5	Slow	70	175	108	2	Heracross	Heracross	Heracros
+215	sneasel	2	0	0	0	60	4	127	20	4	3	Medium Slow	35	86	109	2	Sneasel	Sneasel	Nyula
+216	teddiursa	2	0	0	0	120	4	127	20	2	0	Medium Fast	70	66	110	1	Teddiursa	Teddiursa	Himeguma
+217	ursaring	2	0	0	0	60	4	127	20	2	0	Medium Fast	70	175	110	1	Ursaring	Ursaring	Ringuma
+218	slugma	2	0	0	0	190	4	127	20	2	0	Medium Fast	70	50	111	1	Slugma	Slugma	Magmag
+219	magcargo	2	0	0	0	75	4	127	20	2	0	Medium Fast	70	151	111	1	Magcargo	Magcargo	Magcargot
+220	swinub	2	0	0	0	225	4	127	20	1	5	Slow	70	50	112	1	Swinub	Swinub	Urimoo
+221	piloswine	2	0	0	0	75	4	127	20	1	5	Slow	70	158	112	1	Piloswine	Piloswine	Inomoo
+222	corsola	2	0	0	0	60	6	190	20	3	4	Fast	70	144	113	2	Corsola	Corsola	Sunnygo
+223	remoraid	2	0	0	0	190	4	127	20	2	0	Medium Fast	70	60	114	1	Remoraid	Remoraid	Teppouo
+224	octillery	2	0	0	0	75	4	127	20	2	0	Medium Fast	70	168	114	1	Octillery	Octillery	Okutank
+225	delibird	2	0	0	0	45	4	127	20	3	4	Fast	70	116	115	1	Delibird	Delibird	Delibird
+226	mantine	2	0	0	0	25	4	127	25	1	5	Slow	70	170	116	1	Mantine	Mantine	Mantain
+227	skarmory	2	0	0	0	25	4	127	25	1	5	Slow	70	163	117	2	Skarmory	Skarmory	Airmd
+228	houndour	2	0	0	0	120	4	127	20	1	5	Slow	35	66	118	1	Houndour	Houndour	Delvil
+229	houndoom	2	0	0	0	45	4	127	20	1	5	Slow	35	175	118	2	Houndoom	Houndoom	Hellgar
+230	kingdra	2	0	0	0	45	4	127	20	2	0	Medium Fast	70	243	54	1	Kingdra	Kingdra	Kingdra
+231	phanpy	2	0	0	0	120	4	127	20	2	0	Medium Fast	70	66	119	1	Phanpy	Phanpy	Gomazou
+232	donphan	2	0	0	0	60	4	127	20	2	0	Medium Fast	70	175	119	1	Donphan	Donphan	Donfan
+233	porygon2	2	0	0	0	45	-1	255	20	2	0	Medium Fast	70	180	68	1	Porygon2	Porygon2	Porygon2
+234	stantler	2	0	0	0	45	4	127	20	1	5	Slow	70	163	120	1	Stantler	Stantler	Odoshishi
+235	smeargle	2	0	0	0	45	4	127	20	3	4	Fast	70	88	121	1	Smeargle	Smeargle	Doble
+236	tyrogue	2	0	0	1	75	0	0	25	2	0	Medium Fast	70	42	47	1	Tyrogue	Tyrogue	Balkie
+237	hitmontop	2	0	0	0	45	0	0	25	2	0	Medium Fast	70	159	47	1	Hitmontop	Hitmontop	Kapoerer
+238	smoochum	2	0	0	1	45	8	254	25	2	0	Medium Fast	70	61	59	1	Smoochum	Smoochum	Muchul
+239	elekid	2	0	0	1	45	2	63	25	2	0	Medium Fast	70	72	60	1	Elekid	Elekid	Elekid
+240	magby	2	0	0	1	45	2	63	25	2	0	Medium Fast	70	73	61	1	Magby	Magby	Buby
+241	miltank	2	0	0	0	45	8	254	20	1	5	Slow	70	172	122	1	Miltank	Miltank	Miltank
+242	blissey	2	0	0	0	30	8	254	40	3	4	Fast	140	608	51	1	Blissey	Blissey	Happinas
+243	raikou	2	1	0	0	3	-1	255	80	1	5	Slow	35	261	123	1	Raikou	Raikou	Raikou
+244	entei	2	1	0	0	3	-1	255	80	1	5	Slow	35	261	124	1	Entei	Entei	Entei
+245	suicune	2	1	0	0	3	-1	255	80	1	5	Slow	35	261	125	1	Suicune	Suicune	Suicune
+246	larvitar	2	0	0	0	45	4	127	40	1	5	Slow	35	60	126	1	Larvitar	Larvitar	Yogiras
+247	pupitar	2	0	0	0	45	4	127	40	1	5	Slow	35	144	126	1	Pupitar	Pupitar	Sanagiras
+248	tyranitar	2	0	0	0	45	4	127	40	1	5	Slow	35	270	126	2	Tyranitar	Tyranitar	Bangiras
+249	lugia	2	1	0	0	3	-1	255	120	1	5	Slow	0	306	127	1	Lugia	Lugia	Lugia
+250	ho-oh	2	1	0	0	3	-1	255	120	1	5	Slow	0	306	128	1	Ho-Oh	Ho-Oh	Houou
+251	celebi	2	0	1	0	45	-1	255	120	4	3	Medium Slow	100	270	129	1	Celebi	Celebi	Celebi
+252	treecko	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	130	1	Treecko	Treecko	Kimori
+253	grovyle	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	130	1	Grovyle	Grovyle	Juptile
+254	sceptile	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	239	130	2	Sceptile	Sceptile	Jukain
+255	torchic	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	131	1	Torchic	Torchic	Achamo
+256	combusken	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	131	1	Combusken	Combusken	Wakasyamo
+257	blaziken	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	239	131	2	Blaziken	Blaziken	Bursyamo
+258	mudkip	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	132	1	Mudkip	Mudkip	Mizugorou
+259	marshtomp	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	132	1	Marshtomp	Marshtomp	Numacraw
+260	swampert	3	0	0	0	45	1	31	20	4	3	Medium Slow	70	241	132	2	Swampert	Swampert	Laglarge
+261	poochyena	3	0	0	0	255	4	127	15	2	0	Medium Fast	70	56	133	1	Poochyena	Poochyena	Pochiena
+262	mightyena	3	0	0	0	127	4	127	15	2	0	Medium Fast	70	147	133	1	Mightyena	Mightyena	Graena
+263	zigzagoon	3	0	0	0	255	4	127	15	2	0	Medium Fast	70	56	134	2	Zigzagoon	Zigzagoon	Jiguzaguma
+264	linoone	3	0	0	0	90	4	127	15	2	0	Medium Fast	70	147	134	2	Linoone	Linoone	Massuguma
+265	wurmple	3	0	0	0	255	4	127	15	2	0	Medium Fast	70	56	135	1	Wurmple	Wurmple	Kemusso
+266	silcoon	3	0	0	0	120	4	127	15	2	0	Medium Fast	70	72	135	1	Silcoon	Silcoon	Karasalis
+267	beautifly	3	0	0	0	45	4	127	15	2	0	Medium Fast	70	178	135	1	Beautifly	Beautifly	Agehunt
+268	cascoon	3	0	0	0	120	4	127	15	2	0	Medium Fast	70	72	135	1	Cascoon	Cascoon	Mayuld
+269	dustox	3	0	0	0	45	4	127	15	2	0	Medium Fast	70	173	135	1	Dustox	Dustox	Dokucale
+270	lotad	3	0	0	0	255	4	127	15	4	3	Medium Slow	70	44	136	1	Lotad	Lotad	Hassboh
+271	lombre	3	0	0	0	120	4	127	15	4	3	Medium Slow	70	119	136	1	Lombre	Lombre	Hasubrero
+272	ludicolo	3	0	0	0	45	4	127	15	4	3	Medium Slow	70	216	136	1	Ludicolo	Ludicolo	Runpappa
+273	seedot	3	0	0	0	255	4	127	15	4	3	Medium Slow	70	44	137	1	Seedot	Seedot	Taneboh
+274	nuzleaf	3	0	0	0	120	4	127	15	4	3	Medium Slow	70	119	137	1	Nuzleaf	Nuzleaf	Konohana
+275	shiftry	3	0	0	0	45	4	127	15	4	3	Medium Slow	70	216	137	1	Shiftry	Shiftry	Dirteng
+276	taillow	3	0	0	0	200	4	127	15	4	3	Medium Slow	70	54	138	1	Taillow	Taillow	Subame
+277	swellow	3	0	0	0	45	4	127	15	4	3	Medium Slow	70	159	138	1	Swellow	Swellow	Ohsubame
+278	wingull	3	0	0	0	190	4	127	20	2	0	Medium Fast	70	54	139	1	Wingull	Wingull	Camome
+279	pelipper	3	0	0	0	45	4	127	20	2	0	Medium Fast	70	154	139	1	Pelipper	Pelipper	Pelipper
+280	ralts	3	0	0	0	235	4	127	20	1	5	Slow	35	40	140	1	Ralts	Ralts	Ralts
+281	kirlia	3	0	0	0	120	4	127	20	1	5	Slow	35	97	140	1	Kirlia	Kirlia	Kirlia
+282	gardevoir	3	0	0	0	45	4	127	20	1	5	Slow	35	233	140	2	Gardevoir	Gardevoir	Sirnight
+283	surskit	3	0	0	0	200	4	127	15	2	0	Medium Fast	70	54	141	1	Surskit	Surskit	Ametama
+284	masquerain	3	0	0	0	75	4	127	15	2	0	Medium Fast	70	159	141	1	Masquerain	Masquerain	Amemoth
+285	shroomish	3	0	0	0	255	4	127	15	6	2	Fluctuating	70	59	142	1	Shroomish	Shroomish	Kinococo
+286	breloom	3	0	0	0	90	4	127	15	6	2	Fluctuating	70	161	142	1	Breloom	Breloom	Kinogassa
+287	slakoth	3	0	0	0	255	4	127	15	1	5	Slow	70	56	143	1	Slakoth	Slakoth	Namakero
+288	vigoroth	3	0	0	0	120	4	127	15	1	5	Slow	70	154	143	1	Vigoroth	Vigoroth	Yarukimono
+289	slaking	3	0	0	0	45	4	127	15	1	5	Slow	70	252	143	1	Slaking	Slaking	Kekking
+290	nincada	3	0	0	0	255	4	127	15	5	1	Erratic	70	53	144	1	Nincada	Nincada	Tutinin
+291	ninjask	3	0	0	0	120	4	127	15	5	1	Erratic	70	160	144	1	Ninjask	Ninjask	Tekkanin
+292	shedinja	3	0	0	0	45	-1	255	15	5	1	Erratic	70	83	144	1	Shedinja	Shedinja	Nukenin
+293	whismur	3	0	0	0	190	4	127	20	4	3	Medium Slow	70	48	145	1	Whismur	Whismur	Gonyonyo
+294	loudred	3	0	0	0	120	4	127	20	4	3	Medium Slow	70	126	145	1	Loudred	Loudred	Dogohmb
+295	exploud	3	0	0	0	45	4	127	20	4	3	Medium Slow	70	221	145	1	Exploud	Exploud	Bakuong
+296	makuhita	3	0	0	0	180	2	63	20	6	2	Fluctuating	70	47	146	1	Makuhita	Makuhita	Makunoshita
+297	hariyama	3	0	0	0	200	2	63	20	6	2	Fluctuating	70	166	146	1	Hariyama	Hariyama	Hariteyama
+298	azurill	3	0	0	1	150	6	190	10	3	4	Fast	70	38	90	1	Azurill	Azurill	Ruriri
+299	nosepass	3	0	0	0	255	4	127	20	2	0	Medium Fast	70	75	147	1	Nosepass	Nosepass	Nosepass
+300	skitty	3	0	0	0	255	6	190	15	3	4	Fast	70	52	148	1	Skitty	Skitty	Eneco
+301	delcatty	3	0	0	0	60	6	190	15	3	4	Fast	70	140	148	1	Delcatty	Delcatty	Enekororo
+302	sableye	3	0	0	0	45	4	127	25	4	3	Medium Slow	35	133	149	2	Sableye	Sableye	Yamirami
+303	mawile	3	0	0	0	45	4	127	20	3	4	Fast	70	133	150	2	Mawile	Mawile	Kucheat
+304	aron	3	0	0	0	180	4	127	35	1	5	Slow	35	66	151	1	Aron	Aron	Cokodora
+305	lairon	3	0	0	0	90	4	127	35	1	5	Slow	35	151	151	1	Lairon	Lairon	Kodora
+306	aggron	3	0	0	0	45	4	127	35	1	5	Slow	35	239	151	2	Aggron	Aggron	Bossgodora
+307	meditite	3	0	0	0	180	4	127	20	2	0	Medium Fast	70	56	152	1	Meditite	Meditite	Asanan
+308	medicham	3	0	0	0	90	4	127	20	2	0	Medium Fast	70	144	152	2	Medicham	Medicham	Charem
+309	electrike	3	0	0	0	120	4	127	20	1	5	Slow	70	59	153	1	Electrike	Electrike	Rakurai
+310	manectric	3	0	0	0	45	4	127	20	1	5	Slow	70	166	153	2	Manectric	Manectric	Livolt
+311	plusle	3	0	0	0	200	4	127	20	2	0	Medium Fast	70	142	154	1	Plusle	Plusle	Prasle
+312	minun	3	0	0	0	200	4	127	20	2	0	Medium Fast	70	142	155	1	Minun	Minun	Minun
+313	volbeat	3	0	0	0	150	0	0	15	5	1	Erratic	70	151	156	1	Volbeat	Volbeat	Barubeat
+314	illumise	3	0	0	0	150	8	254	15	6	2	Fluctuating	70	151	157	1	Illumise	Illumise	Illumise
+315	roselia	3	0	0	0	150	4	127	20	4	3	Medium Slow	70	140	158	1	Roselia	Roselia	Roselia
+316	gulpin	3	0	0	0	225	4	127	20	6	2	Fluctuating	70	60	159	1	Gulpin	Gulpin	Gokulin
+317	swalot	3	0	0	0	75	4	127	20	6	2	Fluctuating	70	163	159	1	Swalot	Swalot	Marunoom
+318	carvanha	3	0	0	0	225	4	127	20	1	5	Slow	35	61	160	1	Carvanha	Carvanha	Kibanha
+319	sharpedo	3	0	0	0	60	4	127	20	1	5	Slow	35	161	160	2	Sharpedo	Sharpedo	Samehader
+320	wailmer	3	0	0	0	125	4	127	40	6	2	Fluctuating	70	80	161	1	Wailmer	Wailmer	Hoeruko
+321	wailord	3	0	0	0	60	4	127	40	6	2	Fluctuating	70	175	161	1	Wailord	Wailord	Whaloh
+322	numel	3	0	0	0	255	4	127	20	2	0	Medium Fast	70	61	162	1	Numel	Numel	Donmel
+323	camerupt	3	0	0	0	150	4	127	20	2	0	Medium Fast	70	161	162	2	Camerupt	Camerupt	Bakuuda
+324	torkoal	3	0	0	0	90	4	127	20	2	0	Medium Fast	70	165	163	1	Torkoal	Torkoal	Cotoise
+325	spoink	3	0	0	0	255	4	127	20	3	4	Fast	70	66	164	1	Spoink	Spoink	Baneboo
+326	grumpig	3	0	0	0	60	4	127	20	3	4	Fast	70	165	164	1	Grumpig	Grumpig	Boopig
+327	spinda	3	0	0	0	255	4	127	15	3	4	Fast	70	126	165	1	Spinda	Spinda	Patcheel
+328	trapinch	3	0	0	0	255	4	127	20	4	3	Medium Slow	70	58	166	1	Trapinch	Trapinch	Nuckrar
+329	vibrava	3	0	0	0	120	4	127	20	4	3	Medium Slow	70	119	166	1	Vibrava	Vibrava	Vibrava
+330	flygon	3	0	0	0	45	4	127	20	4	3	Medium Slow	70	234	166	1	Flygon	Flygon	Flygon
+331	cacnea	3	0	0	0	190	4	127	20	4	3	Medium Slow	35	67	167	1	Cacnea	Cacnea	Sabonea
+332	cacturne	3	0	0	0	60	4	127	20	4	3	Medium Slow	35	166	167	1	Cacturne	Cacturne	Noctus
+333	swablu	3	0	0	0	255	4	127	20	5	1	Erratic	70	62	168	1	Swablu	Swablu	Tyltto
+334	altaria	3	0	0	0	45	4	127	20	5	1	Erratic	70	172	168	2	Altaria	Altaria	Tyltalis
+335	zangoose	3	0	0	0	90	4	127	20	5	1	Erratic	70	160	169	1	Zangoose	Zangoose	Zangoose
+336	seviper	3	0	0	0	90	4	127	20	6	2	Fluctuating	70	160	170	1	Seviper	Seviper	Habunake
+337	lunatone	3	0	0	0	45	-1	255	25	3	4	Fast	70	161	171	1	Lunatone	Lunatone	Lunatone
+338	solrock	3	0	0	0	45	-1	255	25	3	4	Fast	70	161	172	1	Solrock	Solrock	Solrock
+339	barboach	3	0	0	0	190	4	127	20	2	0	Medium Fast	70	58	173	1	Barboach	Barboach	Dojoach
+340	whiscash	3	0	0	0	75	4	127	20	2	0	Medium Fast	70	164	173	1	Whiscash	Whiscash	Namazun
+341	corphish	3	0	0	0	205	4	127	15	6	2	Fluctuating	70	62	174	1	Corphish	Corphish	Heigani
+342	crawdaunt	3	0	0	0	155	4	127	15	6	2	Fluctuating	70	164	174	1	Crawdaunt	Crawdaunt	Shizariger
+343	baltoy	3	0	0	0	255	-1	255	20	2	0	Medium Fast	70	60	175	1	Baltoy	Baltoy	Yajilon
+344	claydol	3	0	0	0	90	-1	255	20	2	0	Medium Fast	70	175	175	1	Claydol	Claydol	Nendoll
+345	lileep	3	0	0	0	45	1	31	30	5	1	Erratic	70	71	176	1	Lileep	Lileep	Lilyla
+346	cradily	3	0	0	0	45	1	31	30	5	1	Erratic	70	173	176	1	Cradily	Cradily	Yuradle
+347	anorith	3	0	0	0	45	1	31	30	5	1	Erratic	70	71	177	1	Anorith	Anorith	Anopth
+348	armaldo	3	0	0	0	45	1	31	30	5	1	Erratic	70	173	177	1	Armaldo	Armaldo	Armaldo
+349	feebas	3	0	0	0	255	4	127	20	5	1	Erratic	70	40	178	1	Feebas	Feebas	Hinbass
+350	milotic	3	0	0	0	60	4	127	20	5	1	Erratic	70	189	178	1	Milotic	Milotic	Milokaross
+351	castform	3	0	0	0	45	4	127	25	2	0	Medium Fast	70	147	179	4	Castform	Castform	Powalen
+352	kecleon	3	0	0	0	200	4	127	20	4	3	Medium Slow	70	154	180	1	Kecleon	Kecleon	Kakureon
+353	shuppet	3	0	0	0	225	4	127	25	3	4	Fast	35	59	181	1	Shuppet	Shuppet	Kagebouzu
+354	banette	3	0	0	0	45	4	127	25	3	4	Fast	35	159	181	2	Banette	Banette	Juppeta
+355	duskull	3	0	0	0	190	4	127	25	3	4	Fast	35	59	182	1	Duskull	Duskull	Yomawaru
+356	dusclops	3	0	0	0	90	4	127	25	3	4	Fast	35	159	182	1	Dusclops	Dusclops	Samayouru
+357	tropius	3	0	0	0	200	4	127	25	1	5	Slow	70	161	183	1	Tropius	Tropius	Tropius
+358	chimecho	3	0	0	0	45	4	127	25	3	4	Fast	70	159	184	2	Chimecho	Chimecho	Chirean
+359	absol	3	0	0	0	30	4	127	25	4	3	Medium Slow	35	163	185	3	Absol	Absol	Absol
+360	wynaut	3	0	0	1	125	4	127	20	2	0	Medium Fast	70	52	100	1	Wynaut	Wynaut	Sohnano
+361	snorunt	3	0	0	0	190	4	127	20	2	0	Medium Fast	70	60	186	1	Snorunt	Snorunt	Yukiwarashi
+362	glalie	3	0	0	0	75	4	127	20	2	0	Medium Fast	70	168	186	2	Glalie	Glalie	Onigohri
+363	spheal	3	0	0	0	255	4	127	20	4	3	Medium Slow	70	58	187	1	Spheal	Spheal	Tamazarashi
+364	sealeo	3	0	0	0	120	4	127	20	4	3	Medium Slow	70	144	187	1	Sealeo	Sealeo	Todoggler
+365	walrein	3	0	0	0	45	4	127	20	4	3	Medium Slow	70	239	187	1	Walrein	Walrein	Todoseruga
+366	clamperl	3	0	0	0	255	4	127	20	5	1	Erratic	70	69	188	1	Clamperl	Clamperl	Pearlulu
+367	huntail	3	0	0	0	60	4	127	20	5	1	Erratic	70	170	188	1	Huntail	Huntail	Huntail
+368	gorebyss	3	0	0	0	60	4	127	20	5	1	Erratic	70	170	188	1	Gorebyss	Gorebyss	Sakurabyss
+369	relicanth	3	0	0	0	25	1	31	40	1	5	Slow	70	170	189	1	Relicanth	Relicanth	Glanth
+370	luvdisc	3	0	0	0	225	6	190	20	3	4	Fast	70	116	190	1	Luvdisc	Luvdisc	Lovecus
+371	bagon	3	0	0	0	45	4	127	40	1	5	Slow	35	60	191	1	Bagon	Bagon	Tatsubay
+372	shelgon	3	0	0	0	45	4	127	40	1	5	Slow	35	147	191	1	Shelgon	Shelgon	Komoruu
+373	salamence	3	0	0	0	45	4	127	40	1	5	Slow	35	270	191	2	Salamence	Salamence	Bohmander
+374	beldum	3	0	0	0	3	-1	255	40	1	5	Slow	35	60	192	1	Beldum	Beldum	Dumbber
+375	metang	3	0	0	0	3	-1	255	40	1	5	Slow	35	147	192	1	Metang	Metang	Metang
+376	metagross	3	0	0	0	3	-1	255	40	1	5	Slow	35	270	192	2	Metagross	Metagross	Metagross
+377	regirock	3	1	0	0	3	-1	255	80	1	5	Slow	35	261	193	1	Regirock	Regirock	Regirock
+378	regice	3	1	0	0	3	-1	255	80	1	5	Slow	35	261	194	1	Regice	Regice	Regice
+379	registeel	3	1	0	0	3	-1	255	80	1	5	Slow	35	261	195	1	Registeel	Registeel	Registeel
+380	latias	3	1	0	0	3	8	254	120	1	5	Slow	90	270	196	2	Latias	Latias	Latias
+381	latios	3	1	0	0	3	0	0	120	1	5	Slow	90	270	197	2	Latios	Latios	Latios
+382	kyogre	3	1	0	0	3	-1	255	120	1	5	Slow	0	302	198	2	Kyogre	Kyogre	Kyogre
+383	groudon	3	1	0	0	3	-1	255	120	1	5	Slow	0	302	199	2	Groudon	Groudon	Groudon
+384	rayquaza	3	1	0	0	45	-1	255	120	1	5	Slow	0	306	200	2	Rayquaza	Rayquaza	Rayquaza
+385	jirachi	3	0	1	0	3	-1	255	120	1	5	Slow	100	270	201	1	Jirachi	Jirachi	Jirachi
+386	deoxys	3	0	1	0	3	-1	255	120	1	5	Slow	0	270	202	4	Deoxys	Deoxys	Deoxys
+387	turtwig	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	64	203	1	Turtwig	Turtwig	Naetle
+388	grotle	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	203	1	Grotle	Grotle	Hayashigame
+389	torterra	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	236	203	1	Torterra	Torterra	Dodaitose
+390	chimchar	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	204	1	Chimchar	Chimchar	Hikozaru
+391	monferno	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	204	1	Monferno	Monferno	Moukazaru
+392	infernape	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	240	204	1	Infernape	Infernape	Goukazaru
+393	piplup	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	63	205	1	Piplup	Piplup	Pochama
+394	prinplup	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	205	1	Prinplup	Prinplup	Pottaishi
+395	empoleon	4	0	0	0	45	1	31	20	4	3	Medium Slow	70	239	205	1	Empoleon	Empoleon	Emperte
+396	starly	4	0	0	0	255	4	127	15	4	3	Medium Slow	70	49	206	1	Starly	Starly	Mukkuru
+397	staravia	4	0	0	0	120	4	127	15	4	3	Medium Slow	70	119	206	1	Staravia	Staravia	Mukubird
+398	staraptor	4	0	0	0	45	4	127	15	4	3	Medium Slow	70	218	206	2	Staraptor	Staraptor	Mukuhawk
+399	bidoof	4	0	0	0	255	4	127	15	2	0	Medium Fast	70	50	207	1	Bidoof	Bidoof	Bippa
+400	bibarel	4	0	0	0	127	4	127	15	2	0	Medium Fast	70	144	207	1	Bibarel	Bibarel	Beadaru
+401	kricketot	4	0	0	0	255	4	127	15	4	3	Medium Slow	70	39	208	1	Kricketot	Kricketot	Korobohshi
+402	kricketune	4	0	0	0	45	4	127	15	4	3	Medium Slow	70	134	208	1	Kricketune	Kricketune	Korotock
+403	shinx	4	0	0	0	235	4	127	20	4	3	Medium Slow	70	53	209	1	Shinx	Shinx	Kolink
+404	luxio	4	0	0	0	120	4	127	20	4	3	Medium Slow	100	127	209	1	Luxio	Luxio	Luxio
+405	luxray	4	0	0	0	45	4	127	20	4	3	Medium Slow	70	235	209	1	Luxray	Luxray	Rentorar
+406	budew	4	0	0	1	255	4	127	20	4	3	Medium Slow	70	56	158	1	Budew	Budew	Subomie
+407	roserade	4	0	0	0	75	4	127	20	4	3	Medium Slow	70	232	158	1	Roserade	Roserade	Roserade
+408	cranidos	4	0	0	0	45	1	31	30	5	1	Erratic	70	70	211	1	Cranidos	Cranidos	Zugaidos
+409	rampardos	4	0	0	0	45	1	31	30	5	1	Erratic	70	173	211	1	Rampardos	Rampardos	Rampald
+410	shieldon	4	0	0	0	45	1	31	30	5	1	Erratic	70	70	212	1	Shieldon	Shieldon	Tatetops
+411	bastiodon	4	0	0	0	45	1	31	30	5	1	Erratic	70	173	212	1	Bastiodon	Bastiodon	Torideps
+412	burmy	4	0	0	0	120	4	127	15	2	0	Medium Fast	70	45	213	3	Burmy	Burmy	Minomucchi
+413	wormadam	4	0	0	0	45	8	254	15	2	0	Medium Fast	70	148	213	3	Wormadam	Wormadam	Minomadam
+414	mothim	4	0	0	0	45	0	0	15	2	0	Medium Fast	70	148	213	3	Mothim	Mothim	Gamale
+415	combee	4	0	0	0	120	1	31	15	4	3	Medium Slow	70	49	214	1	Combee	Combee	Mitsuhoney
+416	vespiquen	4	0	0	0	45	8	254	15	4	3	Medium Slow	70	166	214	1	Vespiquen	Vespiquen	Beequen
+417	pachirisu	4	0	0	0	200	4	127	10	2	0	Medium Fast	100	142	215	1	Pachirisu	Pachirisu	Pachirisu
+418	buizel	4	0	0	0	190	4	127	20	2	0	Medium Fast	70	66	216	1	Buizel	Buizel	Buoysel
+419	floatzel	4	0	0	0	75	4	127	20	2	0	Medium Fast	70	173	216	1	Floatzel	Floatzel	Floazel
+420	cherubi	4	0	0	0	190	4	127	20	2	0	Medium Fast	70	55	217	1	Cherubi	Cherubi	Cherinbo
+421	cherrim	4	0	0	0	75	4	127	20	2	0	Medium Fast	70	158	217	2	Cherrim	Cherrim	Cherrim
+422	shellos	4	0	0	0	190	4	127	20	2	0	Medium Fast	70	65	218	2	Shellos	Shellos	Karanakushi
+423	gastrodon	4	0	0	0	75	4	127	20	2	0	Medium Fast	70	166	218	2	Gastrodon	Gastrodon	Tritodon
+424	ambipom	4	0	0	0	45	4	127	20	3	4	Fast	100	169	93	1	Ambipom	Ambipom	Eteboth
+425	drifloon	4	0	0	0	125	4	127	30	6	2	Fluctuating	70	70	219	1	Drifloon	Drifloon	Fuwante
+426	drifblim	4	0	0	0	60	4	127	30	6	2	Fluctuating	70	174	219	1	Drifblim	Drifblim	Fuwaride
+427	buneary	4	0	0	0	190	4	127	20	2	0	Medium Fast	0	70	220	1	Buneary	Buneary	Mimirol
+428	lopunny	4	0	0	0	60	4	127	20	2	0	Medium Fast	140	168	220	2	Lopunny	Lopunny	Mimilop
+429	mismagius	4	0	0	0	45	4	127	25	3	4	Fast	35	173	98	1	Mismagius	Mismagius	Mumargi
+430	honchkrow	4	0	0	0	30	4	127	20	4	3	Medium Slow	35	177	97	1	Honchkrow	Honchkrow	Dongkarasu
+431	glameow	4	0	0	0	190	6	190	20	3	4	Fast	70	62	221	1	Glameow	Glameow	Nyarmar
+432	purugly	4	0	0	0	75	6	190	20	3	4	Fast	70	158	221	1	Purugly	Purugly	Bunyatto
+433	chingling	4	0	0	1	120	4	127	25	3	4	Fast	70	57	184	1	Chingling	Chingling	Lisyan
+434	stunky	4	0	0	0	225	4	127	20	2	0	Medium Fast	70	66	223	1	Stunky	Stunky	Skunpuu
+435	skuntank	4	0	0	0	60	4	127	20	2	0	Medium Fast	70	168	223	1	Skuntank	Skuntank	Skutank
+436	bronzor	4	0	0	0	255	-1	255	20	2	0	Medium Fast	70	60	224	1	Bronzor	Bronzor	Dohmirror
+437	bronzong	4	0	0	0	90	-1	255	20	2	0	Medium Fast	70	175	224	1	Bronzong	Bronzong	Dohtakun
+438	bonsly	4	0	0	1	255	4	127	20	2	0	Medium Fast	70	58	91	1	Bonsly	Bonsly	Usohachi
+439	mime-jr	4	0	0	1	145	4	127	25	2	0	Medium Fast	70	62	57	1	Mime Jr.	Mime Jr.	Manene
+440	happiny	4	0	0	1	130	8	254	40	3	4	Fast	140	110	51	1	Happiny	Happiny	Pinpuku
+441	chatot	4	0	0	0	30	4	127	20	4	3	Medium Slow	35	144	228	1	Chatot	Chatot	Perap
+442	spiritomb	4	0	0	0	100	4	127	30	2	0	Medium Fast	70	170	229	1	Spiritomb	Spiritomb	Mikaruge
+443	gible	4	0	0	0	45	4	127	40	1	5	Slow	70	60	230	1	Gible	Gible	Fukamaru
+444	gabite	4	0	0	0	45	4	127	40	1	5	Slow	70	144	230	1	Gabite	Gabite	Gabite
+445	garchomp	4	0	0	0	45	4	127	40	1	5	Slow	70	270	230	3	Garchomp	Garchomp	Gaburias
+446	munchlax	4	0	0	1	50	1	31	40	1	5	Slow	70	78	72	1	Munchlax	Munchlax	Gonbe
+447	riolu	4	0	0	1	75	1	31	25	4	3	Medium Slow	70	57	232	1	Riolu	Riolu	Riolu
+448	lucario	4	0	0	0	45	1	31	25	4	3	Medium Slow	70	184	232	3	Lucario	Lucario	Lucario
+449	hippopotas	4	0	0	0	140	4	127	30	1	5	Slow	70	66	233	1	Hippopotas	Hippopotas	Hippopotas
+450	hippowdon	4	0	0	0	60	4	127	30	1	5	Slow	70	184	233	1	Hippowdon	Hippowdon	Kabaldon
+451	skorupi	4	0	0	0	120	4	127	20	1	5	Slow	70	66	234	1	Skorupi	Skorupi	Scorupi
+452	drapion	4	0	0	0	45	4	127	20	1	5	Slow	70	175	234	1	Drapion	Drapion	Dorapion
+453	croagunk	4	0	0	0	140	4	127	10	2	0	Medium Fast	100	60	235	1	Croagunk	Croagunk	Gureggru
+454	toxicroak	4	0	0	0	75	4	127	20	2	0	Medium Fast	70	172	235	1	Toxicroak	Toxicroak	Dokurog
+455	carnivine	4	0	0	0	200	4	127	25	1	5	Slow	70	159	236	1	Carnivine	Carnivine	Muskippa
+456	finneon	4	0	0	0	190	4	127	20	5	1	Erratic	70	66	237	1	Finneon	Finneon	Keikouo
+457	lumineon	4	0	0	0	75	4	127	20	5	1	Erratic	70	161	237	1	Lumineon	Lumineon	Neolant
+458	mantyke	4	0	0	1	25	4	127	25	1	5	Slow	70	69	116	1	Mantyke	Mantyke	Tamanta
+459	snover	4	0	0	0	120	4	127	20	1	5	Slow	70	67	239	1	Snover	Snover	Yukikaburi
+460	abomasnow	4	0	0	0	60	4	127	20	1	5	Slow	70	173	239	2	Abomasnow	Abomasnow	Yukinooh
+461	weavile	4	0	0	0	45	4	127	20	4	3	Medium Slow	35	179	109	1	Weavile	Weavile	Manyula
+462	magnezone	4	0	0	0	30	-1	255	20	2	0	Medium Fast	70	241	34	1	Magnezone	Magnezone	Jibacoil
+463	lickilicky	4	0	0	0	30	4	127	20	2	0	Medium Fast	70	180	48	1	Lickilicky	Lickilicky	Berobelt
+464	rhyperior	4	0	0	0	30	4	127	20	1	5	Slow	70	241	50	1	Rhyperior	Rhyperior	Dosidon
+465	tangrowth	4	0	0	0	30	4	127	20	2	0	Medium Fast	70	187	52	1	Tangrowth	Tangrowth	Mojumbo
+466	electivire	4	0	0	0	30	2	63	25	2	0	Medium Fast	70	243	60	1	Electivire	Electivire	Elekible
+467	magmortar	4	0	0	0	30	2	63	25	2	0	Medium Fast	70	243	61	1	Magmortar	Magmortar	Booburn
+468	togekiss	4	0	0	0	30	1	31	10	3	4	Fast	70	245	87	1	Togekiss	Togekiss	Togekiss
+469	yanmega	4	0	0	0	30	4	127	20	2	0	Medium Fast	70	180	95	1	Yanmega	Yanmega	Megayanma
+470	leafeon	4	0	0	0	45	1	31	35	2	0	Medium Fast	35	184	67	1	Leafeon	Leafeon	Leafia
+471	glaceon	4	0	0	0	45	1	31	35	2	0	Medium Fast	35	184	67	1	Glaceon	Glaceon	Glacia
+472	gliscor	4	0	0	0	30	4	127	20	4	3	Medium Slow	70	179	104	1	Gliscor	Gliscor	Glion
+473	mamoswine	4	0	0	0	50	4	127	20	1	5	Slow	70	239	112	1	Mamoswine	Mamoswine	Mammoo
+474	porygon-z	4	0	0	0	30	-1	255	20	2	0	Medium Fast	70	241	68	1	Porygon-Z	Porygon-Z	Porygon-Z
+475	gallade	4	0	0	0	45	0	0	20	1	5	Slow	35	233	140	2	Gallade	Gallade	Erureido
+476	probopass	4	0	0	0	60	4	127	20	2	0	Medium Fast	70	184	147	1	Probopass	Probopass	Dainose
+477	dusknoir	4	0	0	0	45	4	127	25	3	4	Fast	35	236	182	1	Dusknoir	Dusknoir	Yonoir
+478	froslass	4	0	0	0	75	8	254	20	2	0	Medium Fast	70	168	186	2	Froslass	Froslass	Yukimenoko
+479	rotom	4	0	0	0	45	-1	255	20	2	0	Medium Fast	70	154	240	6	Rotom	Rotom	Rotom
+480	uxie	4	1	0	0	3	-1	255	80	1	5	Slow	140	261	241	1	Uxie	Uxie	Yuxie
+481	mesprit	4	1	0	0	3	-1	255	80	1	5	Slow	140	261	242	1	Mesprit	Mesprit	Emrit
+482	azelf	4	1	0	0	3	-1	255	80	1	5	Slow	140	261	243	1	Azelf	Azelf	Agnome
+483	dialga	4	1	0	0	3	-1	255	120	1	5	Slow	0	306	244	2	Dialga	Dialga	Dialga
+484	palkia	4	1	0	0	3	-1	255	120	1	5	Slow	0	306	245	2	Palkia	Palkia	Palkia
+485	heatran	4	1	0	0	3	4	127	10	1	5	Slow	100	270	246	2	Heatran	Heatran	Heatran
+486	regigigas	4	1	0	0	3	-1	255	120	1	5	Slow	0	302	247	1	Regigigas	Regigigas	Regigigas
+487	giratina	4	1	0	0	3	-1	255	120	1	5	Slow	0	306	248	2	Giratina	Giratina	Giratina
+488	cresselia	4	1	0	0	3	8	254	120	1	5	Slow	100	270	249	1	Cresselia	Cresselia	Cresselia
+489	phione	4	0	1	0	30	-1	255	40	1	5	Slow	70	216	250	1	Phione	Phione	Phione
+490	manaphy	4	0	1	0	3	-1	255	10	1	5	Slow	70	270	250	1	Manaphy	Manaphy	Manaphy
+491	darkrai	4	0	1	0	3	-1	255	120	1	5	Slow	0	270	252	2	Darkrai	Darkrai	Darkrai
+492	shaymin	4	0	1	0	45	-1	255	120	4	3	Medium Slow	100	270	253	2	Shaymin	Shaymin	Shaymin
+493	arceus	4	0	1	0	3	-1	255	120	1	5	Slow	0	324	254	19	Arceus	Arceus	Arceus
+494	victini	5	0	1	0	3	-1	255	120	1	5	Slow	100	270	255	1	Victini	Victini	Victini
+495	snivy	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	256	1	Snivy	Snivy	Tsutarja
+496	servine	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	145	256	1	Servine	Servine	Janovy
+497	serperior	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	238	256	1	Serperior	Serperior	Jalorda
+498	tepig	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	257	1	Tepig	Tepig	Pokabu
+499	pignite	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	146	257	1	Pignite	Pignite	Chaoboo
+500	emboar	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	238	257	2	Emboar	Emboar	Enbuoh
+501	oshawott	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	62	258	1	Oshawott	Oshawott	Mijumaru
+502	dewott	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	145	258	1	Dewott	Dewott	Futachimaru
+503	samurott	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	238	258	2	Samurott	Samurott	Daikenki
+504	patrat	5	0	0	0	255	4	127	15	2	0	Medium Fast	70	51	259	1	Patrat	Patrat	Minezumi
+505	watchog	5	0	0	0	255	4	127	20	2	0	Medium Fast	70	147	259	1	Watchog	Watchog	Miruhog
+506	lillipup	5	0	0	0	255	4	127	15	4	3	Medium Slow	70	55	260	1	Lillipup	Lillipup	Yorterrie
+507	herdier	5	0	0	0	120	4	127	15	4	3	Medium Slow	70	130	260	1	Herdier	Herdier	Herderrie
+508	stoutland	5	0	0	0	45	4	127	15	4	3	Medium Slow	70	225	260	1	Stoutland	Stoutland	Mooland
+509	purrloin	5	0	0	0	255	4	127	20	2	0	Medium Fast	70	56	261	1	Purrloin	Purrloin	Choroneko
+510	liepard	5	0	0	0	90	4	127	20	2	0	Medium Fast	70	156	261	1	Liepard	Liepard	Lepardas
+511	pansage	5	0	0	0	190	1	31	20	2	0	Medium Fast	70	63	262	1	Pansage	Pansage	Yanappu
+512	simisage	5	0	0	0	75	1	31	20	2	0	Medium Fast	70	174	262	1	Simisage	Simisage	Yanakkie
+513	pansear	5	0	0	0	190	1	31	20	2	0	Medium Fast	70	63	263	1	Pansear	Pansear	Baoppu
+514	simisear	5	0	0	0	75	1	31	20	2	0	Medium Fast	70	174	263	1	Simisear	Simisear	Baokkie
+515	panpour	5	0	0	0	190	1	31	20	2	0	Medium Fast	70	63	264	1	Panpour	Panpour	Hiyappu
+516	simipour	5	0	0	0	75	1	31	20	2	0	Medium Fast	70	174	264	1	Simipour	Simipour	Hiyakkie
+517	munna	5	0	0	0	190	4	127	10	3	4	Fast	70	58	265	1	Munna	Munna	Munna
+518	musharna	5	0	0	0	75	4	127	10	3	4	Fast	70	170	265	1	Musharna	Musharna	Musharna
+519	pidove	5	0	0	0	255	4	127	15	4	3	Medium Slow	70	53	266	1	Pidove	Pidove	Mamepato
+520	tranquill	5	0	0	0	120	4	127	15	4	3	Medium Slow	70	125	266	1	Tranquill	Tranquill	Hatoboh
+521	unfezant	5	0	0	0	45	4	127	15	4	3	Medium Slow	70	220	266	1	Unfezant	Unfezant	Kenhallow
+522	blitzle	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	59	267	1	Blitzle	Blitzle	Shimama
+523	zebstrika	5	0	0	0	75	4	127	20	2	0	Medium Fast	70	174	267	1	Zebstrika	Zebstrika	Zebraika
+524	roggenrola	5	0	0	0	255	4	127	15	4	3	Medium Slow	70	56	268	1	Roggenrola	Roggenrola	Dangoro
+525	boldore	5	0	0	0	120	4	127	15	4	3	Medium Slow	70	137	268	1	Boldore	Boldore	Gantle
+526	gigalith	5	0	0	0	45	4	127	15	4	3	Medium Slow	70	232	268	1	Gigalith	Gigalith	Gigaiath
+527	woobat	5	0	0	0	190	4	127	15	2	0	Medium Fast	70	65	269	1	Woobat	Woobat	Koromori
+528	swoobat	5	0	0	0	45	4	127	15	2	0	Medium Fast	70	149	269	1	Swoobat	Swoobat	Kokoromori
+529	drilbur	5	0	0	0	120	4	127	20	2	0	Medium Fast	70	66	270	1	Drilbur	Drilbur	Mogurew
+530	excadrill	5	0	0	0	60	4	127	20	2	0	Medium Fast	70	178	270	2	Excadrill	Excadrill	Doryuzu
+531	audino	5	0	0	0	255	4	127	20	3	4	Fast	70	390	271	2	Audino	Audino	Tabunne
+532	timburr	5	0	0	0	180	2	63	20	4	3	Medium Slow	70	61	272	1	Timburr	Timburr	Dokkorer
+533	gurdurr	5	0	0	0	90	2	63	20	4	3	Medium Slow	70	142	272	1	Gurdurr	Gurdurr	Dotekkotsu
+534	conkeldurr	5	0	0	0	45	2	63	20	4	3	Medium Slow	70	227	272	1	Conkeldurr	Conkeldurr	Roubushin
+535	tympole	5	0	0	0	255	4	127	20	4	3	Medium Slow	70	59	273	1	Tympole	Tympole	Otamaro
+536	palpitoad	5	0	0	0	120	4	127	20	4	3	Medium Slow	70	134	273	1	Palpitoad	Palpitoad	Gamagaru
+537	seismitoad	5	0	0	0	45	4	127	20	4	3	Medium Slow	70	229	273	1	Seismitoad	Seismitoad	Gamageroge
+538	throh	5	0	0	0	45	0	0	20	2	0	Medium Fast	70	163	274	1	Throh	Throh	Nageki
+539	sawk	5	0	0	0	45	0	0	20	2	0	Medium Fast	70	163	275	1	Sawk	Sawk	Dageki
+540	sewaddle	5	0	0	0	255	4	127	15	4	3	Medium Slow	70	62	276	1	Sewaddle	Sewaddle	Kurumiru
+541	swadloon	5	0	0	0	120	4	127	15	4	3	Medium Slow	70	133	276	1	Swadloon	Swadloon	Kurumayu
+542	leavanny	5	0	0	0	45	4	127	15	4	3	Medium Slow	70	225	276	1	Leavanny	Leavanny	Hahakomori
+543	venipede	5	0	0	0	255	4	127	15	4	3	Medium Slow	70	52	277	1	Venipede	Venipede	Fushide
+544	whirlipede	5	0	0	0	120	4	127	15	4	3	Medium Slow	70	126	277	1	Whirlipede	Whirlipede	Wheega
+545	scolipede	5	0	0	0	45	4	127	20	4	3	Medium Slow	70	218	277	2	Scolipede	Scolipede	Pendror
+546	cottonee	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	56	278	1	Cottonee	Cottonee	Monmen
+547	whimsicott	5	0	0	0	75	4	127	20	2	0	Medium Fast	70	168	278	1	Whimsicott	Whimsicott	Elfuun
+548	petilil	5	0	0	0	190	8	254	20	2	0	Medium Fast	70	56	279	1	Petilil	Petilil	Churine
+549	lilligant	5	0	0	0	75	8	254	20	2	0	Medium Fast	70	168	279	2	Lilligant	Lilligant	Dredear
+550	basculin	5	0	0	0	25	4	127	40	2	0	Medium Fast	70	161	280	3	Basculin	Basculin	Bassrao
+551	sandile	5	0	0	0	180	4	127	20	4	3	Medium Slow	70	58	281	1	Sandile	Sandile	Meguroco
+552	krokorok	5	0	0	0	90	4	127	20	4	3	Medium Slow	70	123	281	1	Krokorok	Krokorok	Waruvile
+553	krookodile	5	0	0	0	45	4	127	20	4	3	Medium Slow	70	234	281	1	Krookodile	Krookodile	Waruvial
+554	darumaka	5	0	0	0	120	4	127	20	4	3	Medium Slow	70	63	282	2	Darumaka	Darumaka	Darumakka
+555	darmanitan	5	0	0	0	60	4	127	20	4	3	Medium Slow	70	168	282	4	Darmanitan	Darmanitan	Hihidaruma
+556	maractus	5	0	0	0	255	4	127	20	2	0	Medium Fast	70	161	283	1	Maractus	Maractus	Maracacchi
+557	dwebble	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	65	284	1	Dwebble	Dwebble	Ishizumai
+558	crustle	5	0	0	0	75	4	127	20	2	0	Medium Fast	70	170	284	1	Crustle	Crustle	Iwapalace
+559	scraggy	5	0	0	0	180	4	127	15	2	0	Medium Fast	35	70	285	1	Scraggy	Scraggy	Zuruggu
+560	scrafty	5	0	0	0	90	4	127	15	2	0	Medium Fast	70	171	285	2	Scrafty	Scrafty	Zuruzukin
+561	sigilyph	5	0	0	0	45	4	127	20	2	0	Medium Fast	70	172	286	1	Sigilyph	Sigilyph	Symboler
+562	yamask	5	0	0	0	190	4	127	25	2	0	Medium Fast	70	61	287	2	Yamask	Yamask	Desumasu
+563	cofagrigus	5	0	0	0	90	4	127	25	2	0	Medium Fast	70	169	287	1	Cofagrigus	Cofagrigus	Desukarn
+564	tirtouga	5	0	0	0	45	1	31	30	2	0	Medium Fast	70	71	288	1	Tirtouga	Tirtouga	Protoga
+565	carracosta	5	0	0	0	45	1	31	30	2	0	Medium Fast	70	173	288	1	Carracosta	Carracosta	Abagoura
+566	archen	5	0	0	0	45	1	31	30	2	0	Medium Fast	70	71	289	1	Archen	Archen	Archen
+567	archeops	5	0	0	0	45	1	31	30	2	0	Medium Fast	70	177	289	1	Archeops	Archeops	Archeos
+568	trubbish	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	66	290	1	Trubbish	Trubbish	Yabukuron
+569	garbodor	5	0	0	0	60	4	127	20	2	0	Medium Fast	70	166	290	2	Garbodor	Garbodor	Dustdas
+570	zorua	5	0	0	0	75	1	31	25	4	3	Medium Slow	70	66	291	2	Zorua	Zorua	Zorua
+571	zoroark	5	0	0	0	45	1	31	20	4	3	Medium Slow	70	179	291	2	Zoroark	Zoroark	Zoroark
+572	minccino	5	0	0	0	255	6	190	15	3	4	Fast	70	60	292	1	Minccino	Minccino	Chillarmy
+573	cinccino	5	0	0	0	60	6	190	15	3	4	Fast	70	165	292	1	Cinccino	Cinccino	Chillaccino
+574	gothita	5	0	0	0	200	6	190	20	4	3	Medium Slow	70	58	293	1	Gothita	Gothita	Gothimu
+575	gothorita	5	0	0	0	100	6	190	20	4	3	Medium Slow	70	137	293	1	Gothorita	Gothorita	Gothimiru
+576	gothitelle	5	0	0	0	50	6	190	20	4	3	Medium Slow	70	221	293	1	Gothitelle	Gothitelle	Gothiruselle
+577	solosis	5	0	0	0	200	4	127	20	4	3	Medium Slow	70	58	294	1	Solosis	Solosis	Uniran
+578	duosion	5	0	0	0	100	4	127	20	4	3	Medium Slow	70	130	294	1	Duosion	Duosion	Doublan
+579	reuniclus	5	0	0	0	50	4	127	20	4	3	Medium Slow	70	221	294	1	Reuniclus	Reuniclus	Lanculus
+580	ducklett	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	61	295	1	Ducklett	Ducklett	Koaruhie
+581	swanna	5	0	0	0	45	4	127	20	2	0	Medium Fast	70	166	295	1	Swanna	Swanna	Swanna
+582	vanillite	5	0	0	0	255	4	127	20	1	5	Slow	70	61	296	1	Vanillite	Vanillite	Vanipeti
+583	vanillish	5	0	0	0	120	4	127	20	1	5	Slow	70	138	296	1	Vanillish	Vanillish	Vanirich
+584	vanilluxe	5	0	0	0	45	4	127	20	1	5	Slow	70	241	296	1	Vanilluxe	Vanilluxe	Baivanilla
+585	deerling	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	67	297	4	Deerling	Deerling	Shikijika
+586	sawsbuck	5	0	0	0	75	4	127	20	2	0	Medium Fast	70	166	297	4	Sawsbuck	Sawsbuck	Mebukijika
+587	emolga	5	0	0	0	200	4	127	20	2	0	Medium Fast	70	150	298	1	Emolga	Emolga	Emolga
+588	karrablast	5	0	0	0	200	4	127	15	2	0	Medium Fast	70	63	299	1	Karrablast	Karrablast	Kaburumo
+589	escavalier	5	0	0	0	75	4	127	15	2	0	Medium Fast	70	173	299	1	Escavalier	Escavalier	Chevargo
+590	foongus	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	59	300	1	Foongus	Foongus	Tamagetake
+591	amoonguss	5	0	0	0	75	4	127	20	2	0	Medium Fast	70	162	300	1	Amoonguss	Amoonguss	Morobareru
+592	frillish	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	67	301	2	Frillish	Frillish	Pururill
+593	jellicent	5	0	0	0	60	4	127	20	2	0	Medium Fast	70	168	301	2	Jellicent	Jellicent	Burungel
+594	alomomola	5	0	0	0	75	4	127	40	3	4	Fast	70	165	302	1	Alomomola	Alomomola	Mamanbou
+595	joltik	5	0	0	0	190	4	127	20	2	0	Medium Fast	70	64	303	1	Joltik	Joltik	Bachuru
+596	galvantula	5	0	0	0	75	4	127	20	2	0	Medium Fast	70	165	303	1	Galvantula	Galvantula	Dentula
+597	ferroseed	5	0	0	0	255	4	127	20	2	0	Medium Fast	70	61	304	1	Ferroseed	Ferroseed	Tesseed
+598	ferrothorn	5	0	0	0	90	4	127	20	2	0	Medium Fast	70	171	304	1	Ferrothorn	Ferrothorn	Nutrey
+599	klink	5	0	0	0	130	-1	255	20	4	3	Medium Slow	70	60	305	1	Klink	Klink	Giaru
+600	klang	5	0	0	0	60	-1	255	20	4	3	Medium Slow	70	154	305	1	Klang	Klang	Gigiaru
+601	klinklang	5	0	0	0	30	-1	255	20	4	3	Medium Slow	70	234	305	1	Klinklang	Klinklang	Gigigiaru
+602	tynamo	5	0	0	0	190	4	127	20	1	5	Slow	70	55	306	1	Tynamo	Tynamo	Shibishirasu
+603	eelektrik	5	0	0	0	60	4	127	20	1	5	Slow	70	142	306	1	Eelektrik	Eelektrik	Shibibeel
+604	eelektross	5	0	0	0	30	4	127	20	1	5	Slow	70	232	306	2	Eelektross	Eelektross	Shibirudon
+605	elgyem	5	0	0	0	255	4	127	20	2	0	Medium Fast	70	67	307	1	Elgyem	Elgyem	Ligray
+606	beheeyem	5	0	0	0	90	4	127	20	2	0	Medium Fast	70	170	307	1	Beheeyem	Beheeyem	Ohbem
+607	litwick	5	0	0	0	190	4	127	20	4	3	Medium Slow	70	55	308	1	Litwick	Litwick	Hitomoshi
+608	lampent	5	0	0	0	90	4	127	20	4	3	Medium Slow	70	130	308	1	Lampent	Lampent	Lampler
+609	chandelure	5	0	0	0	45	4	127	20	4	3	Medium Slow	70	234	308	2	Chandelure	Chandelure	Chandela
+610	axew	5	0	0	0	75	4	127	40	1	5	Slow	35	64	309	1	Axew	Axew	Kibago
+611	fraxure	5	0	0	0	60	4	127	40	1	5	Slow	35	144	309	1	Fraxure	Fraxure	Onondo
+612	haxorus	5	0	0	0	45	4	127	40	1	5	Slow	35	243	309	1	Haxorus	Haxorus	Ononokus
+613	cubchoo	5	0	0	0	120	4	127	20	2	0	Medium Fast	70	61	310	1	Cubchoo	Cubchoo	Kumasyun
+614	beartic	5	0	0	0	60	4	127	20	2	0	Medium Fast	70	177	310	1	Beartic	Beartic	Tunbear
+615	cryogonal	5	0	0	0	25	-1	255	25	2	0	Medium Fast	70	180	311	1	Cryogonal	Cryogonal	Freegeo
+616	shelmet	5	0	0	0	200	4	127	15	2	0	Medium Fast	70	61	312	1	Shelmet	Shelmet	Chobomaki
+617	accelgor	5	0	0	0	75	4	127	15	2	0	Medium Fast	70	173	312	1	Accelgor	Accelgor	Agilder
+618	stunfisk	5	0	0	0	75	4	127	20	2	0	Medium Fast	70	165	313	2	Stunfisk	Stunfisk	Maggyo
+619	mienfoo	5	0	0	0	180	4	127	25	4	3	Medium Slow	70	70	314	1	Mienfoo	Mienfoo	Kojofu
+620	mienshao	5	0	0	0	45	4	127	25	4	3	Medium Slow	70	179	314	1	Mienshao	Mienshao	Kojondo
+621	druddigon	5	0	0	0	45	4	127	30	2	0	Medium Fast	70	170	315	1	Druddigon	Druddigon	Crimgan
+622	golett	5	0	0	0	190	-1	255	25	2	0	Medium Fast	70	61	316	1	Golett	Golett	Gobit
+623	golurk	5	0	0	0	90	-1	255	25	2	0	Medium Fast	70	169	316	2	Golurk	Golurk	Goloog
+624	pawniard	5	0	0	0	120	4	127	20	2	0	Medium Fast	35	68	317	1	Pawniard	Pawniard	Komatana
+625	bisharp	5	0	0	0	45	4	127	20	2	0	Medium Fast	35	172	317	1	Bisharp	Bisharp	Kirikizan
+626	bouffalant	5	0	0	0	45	4	127	20	2	0	Medium Fast	70	172	318	1	Bouffalant	Bouffalant	Buffron
+627	rufflet	5	0	0	0	190	0	0	20	1	5	Slow	70	70	319	1	Rufflet	Rufflet	Washibon
+628	braviary	5	0	0	0	60	0	0	20	1	5	Slow	70	179	319	2	Braviary	Braviary	Warrgle
+629	vullaby	5	0	0	0	190	8	254	20	1	5	Slow	35	74	320	1	Vullaby	Vullaby	Valchai
+630	mandibuzz	5	0	0	0	60	8	254	20	1	5	Slow	35	179	320	1	Mandibuzz	Mandibuzz	Vulgina
+631	heatmor	5	0	0	0	90	4	127	20	2	0	Medium Fast	70	169	321	1	Heatmor	Heatmor	Kuitaran
+632	durant	5	0	0	0	90	4	127	20	2	0	Medium Fast	70	169	322	1	Durant	Durant	Aiant
+633	deino	5	0	0	0	45	4	127	40	1	5	Slow	35	60	323	1	Deino	Deino	Monozu
+634	zweilous	5	0	0	0	45	4	127	40	1	5	Slow	35	147	323	1	Zweilous	Zweilous	Dihead
+635	hydreigon	5	0	0	0	45	4	127	40	1	5	Slow	35	270	323	1	Hydreigon	Hydreigon	Sazandora
+636	larvesta	5	0	0	0	45	4	127	40	1	5	Slow	70	72	324	1	Larvesta	Larvesta	Merlarva
+637	volcarona	5	0	0	0	15	4	127	40	1	5	Slow	70	248	324	1	Volcarona	Volcarona	Ulgamoth
+638	cobalion	5	1	0	0	3	-1	255	80	1	5	Slow	35	261	325	1	Cobalion	Cobalion	Cobalon
+639	terrakion	5	1	0	0	3	-1	255	80	1	5	Slow	35	261	326	1	Terrakion	Terrakion	Terrakion
+640	virizion	5	1	0	0	3	-1	255	80	1	5	Slow	35	261	327	1	Virizion	Virizion	Virizion
+641	tornadus	5	1	0	0	3	0	0	120	1	5	Slow	90	261	328	2	Tornadus	Tornadus	Tornelos
+642	thundurus	5	1	0	0	3	0	0	120	1	5	Slow	90	261	329	2	Thundurus	Thundurus	Voltolos
+643	reshiram	5	1	0	0	3	-1	255	120	1	5	Slow	0	306	330	1	Reshiram	Reshiram	Reshiram
+644	zekrom	5	1	0	0	3	-1	255	120	1	5	Slow	0	306	331	1	Zekrom	Zekrom	Zekrom
+645	landorus	5	1	0	0	3	0	0	120	1	5	Slow	90	270	332	2	Landorus	Landorus	Landlos
+646	kyurem	5	1	0	0	3	-1	255	120	1	5	Slow	0	297	333	3	Kyurem	Kyurem	Kyurem
+647	keldeo	5	0	1	0	3	-1	255	80	1	5	Slow	35	261	334	2	Keldeo	Keldeo	Keldeo
+648	meloetta	5	0	1	0	3	-1	255	120	1	5	Slow	100	270	335	2	Meloetta	Meloetta	Meloetta
+649	genesect	5	0	1	0	3	-1	255	120	1	5	Slow	0	270	336	5	Genesect	Genesect	Genesect
+650	chespin	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	63	337	1	Chespin	Chespin	Harimaron
+651	quilladin	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	337	1	Quilladin	Quilladin	Hariborg
+652	chesnaught	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	239	337	2	Chesnaught	Chesnaught	Brigarron
+653	fennekin	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	61	338	1	Fennekin	Fennekin	Fokko
+654	braixen	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	143	338	1	Braixen	Braixen	Tairenar
+655	delphox	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	240	338	2	Delphox	Delphox	Mahoxy
+656	froakie	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	63	339	1	Froakie	Froakie	Keromatsu
+657	frogadier	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	142	339	1	Frogadier	Frogadier	Gekogashira
+658	greninja	6	0	0	0	45	1	31	20	4	3	Medium Slow	70	239	339	4	Greninja	Greninja	Gekkouga
+659	bunnelby	6	0	0	0	255	4	127	15	2	0	Medium Fast	70	47	340	1	Bunnelby	Bunnelby	Horubee
+660	diggersby	6	0	0	0	127	4	127	15	2	0	Medium Fast	70	148	340	1	Diggersby	Diggersby	Horudo
+661	fletchling	6	0	0	0	255	4	127	15	4	3	Medium Slow	70	56	341	1	Fletchling	Fletchling	Yayakoma
+662	fletchinder	6	0	0	0	120	4	127	15	4	3	Medium Slow	70	134	341	1	Fletchinder	Fletchinder	Hinoyakoma
+663	talonflame	6	0	0	0	45	4	127	15	4	3	Medium Slow	70	175	341	1	Talonflame	Talonflame	Fiarrow
+664	scatterbug	6	0	0	0	255	4	127	15	2	0	Medium Fast	70	40	342	20	Scatterbug	Scatterbug	Kofukimushi
+665	spewpa	6	0	0	0	120	4	127	15	2	0	Medium Fast	70	75	342	20	Spewpa	Spewpa	Kofuurai
+666	vivillon	6	0	0	0	45	4	127	15	2	0	Medium Fast	70	185	342	20	Vivillon	Vivillon	Viviyon
+667	litleo	6	0	0	0	220	7	222	20	4	3	Medium Slow	70	74	343	1	Litleo	Litleo	Shishiko
+668	pyroar	6	0	0	0	65	7	222	20	4	3	Medium Slow	70	177	343	3	Pyroar	Pyroar	Kaenjishi
+669	flabebe	6	0	0	0	225	8	254	20	2	0	Medium Fast	70	61	344	5	Flabébé	Flabébé	Flabebe
+670	floette	6	0	0	0	120	8	254	20	2	0	Medium Fast	70	130	344	7	Floette	Floette	Floette
+671	florges	6	0	0	0	45	8	254	20	2	0	Medium Fast	70	248	344	5	Florges	Florges	Florges
+672	skiddo	6	0	0	0	200	4	127	20	2	0	Medium Fast	70	70	345	1	Skiddo	Skiddo	Meecle
+673	gogoat	6	0	0	0	45	4	127	20	2	0	Medium Fast	70	186	345	1	Gogoat	Gogoat	Gogoat
+674	pancham	6	0	0	0	220	4	127	25	2	0	Medium Fast	70	70	346	1	Pancham	Pancham	Yancham
+675	pangoro	6	0	0	0	65	4	127	25	2	0	Medium Fast	70	173	346	1	Pangoro	Pangoro	Goronda
+676	furfrou	6	0	0	0	160	4	127	20	2	0	Medium Fast	70	165	347	10	Furfrou	Furfrou	Trimmien
+677	espurr	6	0	0	0	190	4	127	20	2	0	Medium Fast	70	71	348	1	Espurr	Espurr	Nyasper
+678	meowstic	6	0	0	0	75	4	127	20	2	0	Medium Fast	70	163	348	4	Meowstic	Meowstic	Nyaonix
+679	honedge	6	0	0	0	180	4	127	20	2	0	Medium Fast	70	65	349	1	Honedge	Honedge	Hitotsuki
+680	doublade	6	0	0	0	90	4	127	20	2	0	Medium Fast	70	157	349	1	Doublade	Doublade	Nidangill
+681	aegislash	6	0	0	0	45	4	127	20	2	0	Medium Fast	70	234	349	2	Aegislash	Aegislash	Gillgard
+682	spritzee	6	0	0	0	200	4	127	20	2	0	Medium Fast	70	68	350	1	Spritzee	Spritzee	Shushupu
+683	aromatisse	6	0	0	0	140	4	127	20	2	0	Medium Fast	70	162	350	1	Aromatisse	Aromatisse	Frefuwan
+684	swirlix	6	0	0	0	200	4	127	20	2	0	Medium Fast	70	68	351	1	Swirlix	Swirlix	Peroppafu
+685	slurpuff	6	0	0	0	140	4	127	20	2	0	Medium Fast	70	168	351	1	Slurpuff	Slurpuff	Peroream
+686	inkay	6	0	0	0	190	4	127	20	2	0	Medium Fast	70	58	352	1	Inkay	Inkay	Maaiika
+687	malamar	6	0	0	0	80	4	127	20	2	0	Medium Fast	70	169	352	2	Malamar	Malamar	Calamanero
+688	binacle	6	0	0	0	120	4	127	20	2	0	Medium Fast	70	61	353	1	Binacle	Binacle	Kametete
+689	barbaracle	6	0	0	0	45	4	127	20	2	0	Medium Fast	70	175	353	2	Barbaracle	Barbaracle	Gamenodes
+690	skrelp	6	0	0	0	225	4	127	20	2	0	Medium Fast	70	64	354	1	Skrelp	Skrelp	Kuzumo
+691	dragalge	6	0	0	0	55	4	127	20	2	0	Medium Fast	70	173	354	2	Dragalge	Dragalge	Dramidoro
+692	clauncher	6	0	0	0	225	4	127	15	1	5	Slow	70	66	355	1	Clauncher	Clauncher	Udeppou
+693	clawitzer	6	0	0	0	55	4	127	15	1	5	Slow	70	100	355	1	Clawitzer	Clawitzer	Bloster
+694	helioptile	6	0	0	0	190	4	127	20	2	0	Medium Fast	70	58	356	1	Helioptile	Helioptile	Erikiteru
+695	heliolisk	6	0	0	0	75	4	127	20	2	0	Medium Fast	70	168	356	1	Heliolisk	Heliolisk	Elezard
+696	tyrunt	6	0	0	0	45	1	31	30	2	0	Medium Fast	70	72	357	1	Tyrunt	Tyrunt	Chigoras
+697	tyrantrum	6	0	0	0	45	1	31	30	2	0	Medium Fast	70	182	357	1	Tyrantrum	Tyrantrum	Gachigoras
+698	amaura	6	0	0	0	45	1	31	30	2	0	Medium Fast	70	72	358	1	Amaura	Amaura	Amarus
+699	aurorus	6	0	0	0	45	1	31	30	2	0	Medium Fast	70	104	358	1	Aurorus	Aurorus	Amaruruga
+700	sylveon	6	0	0	0	45	1	31	35	2	0	Medium Fast	70	184	67	1	Sylveon	Sylveon	Nymphia
+701	hawlucha	6	0	0	0	100	4	127	20	2	0	Medium Fast	70	175	359	2	Hawlucha	Hawlucha	Luchabull
+702	dedenne	6	0	0	0	180	4	127	20	2	0	Medium Fast	70	151	360	1	Dedenne	Dedenne	Dedenne
+703	carbink	6	0	0	0	60	-1	255	25	1	5	Slow	70	100	361	1	Carbink	Carbink	Melecie
+704	goomy	6	0	0	0	45	4	127	40	1	5	Slow	35	60	362	1	Goomy	Goomy	Numera
+705	sliggoo	6	0	0	0	45	4	127	40	1	5	Slow	35	158	362	2	Sliggoo	Sliggoo	Numeil
+706	goodra	6	0	0	0	45	4	127	40	1	5	Slow	35	270	362	2	Goodra	Goodra	Numelgon
+707	klefki	6	0	0	0	75	4	127	20	3	4	Fast	70	165	363	1	Klefki	Klefki	Cleffy
+708	phantump	6	0	0	0	120	4	127	20	2	0	Medium Fast	70	62	364	1	Phantump	Phantump	Bokurei
+709	trevenant	6	0	0	0	60	4	127	20	2	0	Medium Fast	70	166	364	1	Trevenant	Trevenant	Ohrot
+710	pumpkaboo	6	0	0	0	120	4	127	20	2	0	Medium Fast	70	67	365	4	Pumpkaboo	Pumpkaboo	Bakeccha
+711	gourgeist	6	0	0	0	60	4	127	20	2	0	Medium Fast	70	173	365	4	Gourgeist	Gourgeist	Pumpjin
+712	bergmite	6	0	0	0	190	4	127	20	2	0	Medium Fast	70	61	366	1	Bergmite	Bergmite	Kachikohru
+713	avalugg	6	0	0	0	55	4	127	20	2	0	Medium Fast	70	180	366	2	Avalugg	Avalugg	Crebase
+714	noibat	6	0	0	0	190	4	127	20	2	0	Medium Fast	70	49	367	1	Noibat	Noibat	Onbat
+715	noivern	6	0	0	0	45	4	127	20	2	0	Medium Fast	70	187	367	1	Noivern	Noivern	Onvern
+716	xerneas	6	1	0	0	45	-1	255	120	1	5	Slow	0	306	368	2	Xerneas	Xerneas	Xerneas
+717	yveltal	6	1	0	0	45	-1	255	120	1	5	Slow	0	306	369	1	Yveltal	Yveltal	Yveltal
+718	zygarde	6	1	0	0	3	-1	255	120	1	5	Slow	0	270	370	6	Zygarde	Zygarde	Zygarde
+719	diancie	6	0	1	0	3	-1	255	25	1	5	Slow	70	270	371	2	Diancie	Diancie	Diancie
+720	hoopa	6	0	1	0	3	-1	255	120	1	5	Slow	100	270	372	2	Hoopa	Hoopa	Hoopa
+721	volcanion	6	0	1	0	3	-1	255	120	1	5	Slow	100	270	373	1	Volcanion	Volcanion	Volcanion
+722	rowlet	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	64	374	1	Rowlet	Rowlet	Mokuroh
+723	dartrix	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	147	374	1	Dartrix	Dartrix	Fukuthrow
+724	decidueye	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	239	374	2	Decidueye	Decidueye	Junaiper
+725	litten	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	64	375	1	Litten	Litten	Nyabby
+726	torracat	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	147	375	1	Torracat	Torracat	Nyaheat
+727	incineroar	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	239	375	1	Incineroar	Incineroar	Gaogaen
+728	popplio	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	64	376	1	Popplio	Popplio	Ashimari
+729	brionne	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	147	376	1	Brionne	Brionne	Osyamari
+730	primarina	7	0	0	0	45	1	31	15	4	3	Medium Slow	70	239	376	1	Primarina	Primarina	Ashirene
+731	pikipek	7	0	0	0	255	4	127	15	2	0	Medium Fast	70	53	377	1	Pikipek	Pikipek	Tsutsukera
+732	trumbeak	7	0	0	0	120	4	127	15	2	0	Medium Fast	70	124	377	1	Trumbeak	Trumbeak	Kerarappa
+733	toucannon	7	0	0	0	45	4	127	15	2	0	Medium Fast	70	218	377	1	Toucannon	Toucannon	Dodekabashi
+734	yungoos	7	0	0	0	255	4	127	15	2	0	Medium Fast	70	51	378	1	Yungoos	Yungoos	Youngoose
+735	gumshoos	7	0	0	0	127	4	127	15	2	0	Medium Fast	70	146	378	2	Gumshoos	Gumshoos	Dekagoose
+736	grubbin	7	0	0	0	255	4	127	15	2	0	Medium Fast	70	60	379	1	Grubbin	Grubbin	Agojimushi
+737	charjabug	7	0	0	0	120	4	127	15	2	0	Medium Fast	70	140	379	1	Charjabug	Charjabug	Dendimushi
+738	vikavolt	7	0	0	0	45	4	127	15	2	0	Medium Fast	70	225	379	2	Vikavolt	Vikavolt	Kuwagannon
+739	crabrawler	7	0	0	0	225	4	127	20	2	0	Medium Fast	70	68	380	1	Crabrawler	Crabrawler	Makenkani
+740	crabominable	7	0	0	0	60	4	127	20	2	0	Medium Fast	70	167	380	2	Crabominable	Crabominable	Kekenkani
+741	oricorio	7	0	0	0	45	6	190	20	2	0	Medium Fast	70	167	381	4	Oricorio	Oricorio	Odoridori
+742	cutiefly	7	0	0	0	190	4	127	20	2	0	Medium Fast	70	61	382	1	Cutiefly	Cutiefly	Abuly
+743	ribombee	7	0	0	0	75	4	127	20	2	0	Medium Fast	70	162	382	2	Ribombee	Ribombee	Aburibbon
+744	rockruff	7	0	0	0	190	4	127	15	2	0	Medium Fast	70	56	383	2	Rockruff	Rockruff	Iwanko
+745	lycanroc	7	0	0	0	90	4	127	15	2	0	Medium Fast	70	170	383	3	Lycanroc	Lycanroc	Lugarugan
+746	wishiwashi	7	0	0	0	60	4	127	15	3	4	Fast	70	61	384	2	Wishiwashi	Wishiwashi	Yowashi
+747	mareanie	7	0	0	0	190	4	127	20	2	0	Medium Fast	70	61	385	1	Mareanie	Mareanie	Hidoide
+748	toxapex	7	0	0	0	75	4	127	20	2	0	Medium Fast	70	173	385	1	Toxapex	Toxapex	Dohidoide
+749	mudbray	7	0	0	0	190	4	127	20	2	0	Medium Fast	70	77	386	1	Mudbray	Mudbray	Dorobanko
+750	mudsdale	7	0	0	0	60	4	127	20	2	0	Medium Fast	70	175	386	1	Mudsdale	Mudsdale	Banbadoro
+751	dewpider	7	0	0	0	200	4	127	15	2	0	Medium Fast	70	54	387	1	Dewpider	Dewpider	Shizukumo
+752	araquanid	7	0	0	0	100	4	127	15	2	0	Medium Fast	70	159	387	2	Araquanid	Araquanid	Onishizukumo
+753	fomantis	7	0	0	0	190	4	127	20	2	0	Medium Fast	70	50	388	1	Fomantis	Fomantis	Karikiri
+754	lurantis	7	0	0	0	75	4	127	20	2	0	Medium Fast	70	168	388	2	Lurantis	Lurantis	Lalantes
+755	morelull	7	0	0	0	190	4	127	20	2	0	Medium Fast	70	57	389	1	Morelull	Morelull	Nemasyu
+756	shiinotic	7	0	0	0	75	4	127	20	2	0	Medium Fast	70	142	389	1	Shiinotic	Shiinotic	Mashade
+757	salandit	7	0	0	0	120	1	31	20	2	0	Medium Fast	70	64	390	1	Salandit	Salandit	Yatoumori
+758	salazzle	7	0	0	0	45	8	254	20	2	0	Medium Fast	70	168	390	2	Salazzle	Salazzle	Ennewt
+759	stufful	7	0	0	0	140	4	127	15	2	0	Medium Fast	70	68	391	1	Stufful	Stufful	Nuikoguma
+760	bewear	7	0	0	0	70	4	127	15	2	0	Medium Fast	70	175	391	1	Bewear	Bewear	Kiteruguma
+761	bounsweet	7	0	0	0	235	8	254	20	4	3	Medium Slow	70	42	392	1	Bounsweet	Bounsweet	Amakaji
+762	steenee	7	0	0	0	120	8	254	20	4	3	Medium Slow	70	102	392	1	Steenee	Steenee	Amamaiko
+763	tsareena	7	0	0	0	45	8	254	20	4	3	Medium Slow	70	230	392	1	Tsareena	Tsareena	Amajo
+764	comfey	7	0	0	0	60	6	190	20	3	4	Fast	70	170	393	1	Comfey	Comfey	Cuwawa
+765	oranguru	7	0	0	0	45	4	127	20	1	5	Slow	70	172	394	1	Oranguru	Oranguru	Yareyuutan
+766	passimian	7	0	0	0	45	4	127	20	1	5	Slow	70	172	395	1	Passimian	Passimian	Nagetukesaru
+767	wimpod	7	0	0	0	90	4	127	20	2	0	Medium Fast	70	46	396	1	Wimpod	Wimpod	Kosokumushi
+768	golisopod	7	0	0	0	45	4	127	20	2	0	Medium Fast	70	186	396	2	Golisopod	Golisopod	Gusokumusha
+769	sandygast	7	0	0	0	140	4	127	15	2	0	Medium Fast	70	64	397	1	Sandygast	Sandygast	Sunaba
+770	palossand	7	0	0	0	60	4	127	15	2	0	Medium Fast	70	168	397	1	Palossand	Palossand	Sirodethna
+771	pyukumuku	7	0	0	0	60	4	127	15	3	4	Fast	70	144	398	1	Pyukumuku	Pyukumuku	Namakobushi
+772	type-null	7	1	0	0	3	-1	255	120	1	5	Slow	0	107	399	1	Type: Null	Código Cero	Type:Null
+773	silvally	7	1	0	0	3	-1	255	120	1	5	Slow	0	257	399	18	Silvally	Silvally	Silvady
+774	minior	7	0	0	0	30	-1	255	25	4	3	Medium Slow	70	154	400	14	Minior	Minior	Meteno
+775	komala	7	0	0	0	45	4	127	20	1	5	Slow	70	168	401	1	Komala	Komala	Nekkoara
+776	turtonator	7	0	0	0	70	4	127	20	2	0	Medium Fast	70	170	402	1	Turtonator	Turtonator	Bakugames
+777	togedemaru	7	0	0	0	180	4	127	10	2	0	Medium Fast	70	152	403	2	Togedemaru	Togedemaru	Togedemaru
+778	mimikyu	7	0	0	0	45	4	127	20	2	0	Medium Fast	70	167	404	4	Mimikyu	Mimikyu	Mimikkyu
+779	bruxish	7	0	0	0	80	4	127	15	2	0	Medium Fast	70	166	405	1	Bruxish	Bruxish	Hagigishiri
+780	drampa	7	0	0	0	70	4	127	20	2	0	Medium Fast	70	170	406	2	Drampa	Drampa	Jijilong
+781	dhelmise	7	0	0	0	25	-1	255	25	2	0	Medium Fast	70	181	407	1	Dhelmise	Dhelmise	Dadarin
+782	jangmo-o	7	0	0	0	45	4	127	40	1	5	Slow	70	60	408	1	Jangmo-o	Jangmo-o	Jyarako
+783	hakamo-o	7	0	0	0	45	4	127	40	1	5	Slow	70	147	408	1	Hakamo-o	Hakamo-o	Jyarango
+784	kommo-o	7	0	0	0	45	4	127	40	1	5	Slow	70	270	408	2	Kommo-o	Kommo-o	Jyararanga
+785	tapu-koko	7	1	0	0	3	-1	255	15	1	5	Slow	70	257	409	1	Tapu Koko	Tapu Koko	Kapu-Kokeko
+786	tapu-lele	7	1	0	0	3	-1	255	15	1	5	Slow	70	257	410	1	Tapu Lele	Tapu Lele	Kapu-Tetefu
+787	tapu-bulu	7	1	0	0	3	-1	255	15	1	5	Slow	70	257	411	1	Tapu Bulu	Tapu Bulu	Kapu-Bulul
+788	tapu-fini	7	1	0	0	3	-1	255	15	1	5	Slow	70	257	412	1	Tapu Fini	Tapu Fini	Kapu-Rehire
+789	cosmog	7	1	0	0	45	-1	255	120	1	5	Slow	0	40	413	1	Cosmog	Cosmog	Cosmog
+790	cosmoem	7	1	0	0	45	-1	255	120	1	5	Slow	0	140	413	1	Cosmoem	Cosmoem	Cosmovum
+791	solgaleo	7	1	0	0	45	-1	255	120	1	5	Slow	0	306	413	1	Solgaleo	Solgaleo	Solgaleo
+792	lunala	7	1	0	0	45	-1	255	120	1	5	Slow	0	306	413	1	Lunala	Lunala	Lunala
+793	nihilego	7	0	0	0	45	-1	255	120	1	5	Slow	0	257	414	1	Nihilego	Nihilego	Uturoid
+794	buzzwole	7	0	0	0	45	-1	255	120	1	5	Slow	0	257	415	1	Buzzwole	Buzzwole	Massivoon
+795	pheromosa	7	0	0	0	45	-1	255	120	1	5	Slow	0	257	416	1	Pheromosa	Pheromosa	Pheroache
+796	xurkitree	7	0	0	0	45	-1	255	120	1	5	Slow	0	257	417	1	Xurkitree	Xurkitree	Denjyumoku
+797	celesteela	7	0	0	0	45	-1	255	120	1	5	Slow	0	257	418	1	Celesteela	Celesteela	Tekkaguya
+798	kartana	7	0	0	0	45	-1	255	120	1	5	Slow	0	257	419	1	Kartana	Kartana	Kamiturugi
+799	guzzlord	7	0	0	0	45	-1	255	120	1	5	Slow	0	257	420	1	Guzzlord	Guzzlord	Akuziking
+800	necrozma	7	1	0	0	255	-1	255	120	1	5	Slow	0	270	421	4	Necrozma	Necrozma	Necrozma
+801	magearna	7	0	1	0	3	-1	255	120	1	5	Slow	0	270	422	4	Magearna	Magearna	Magearna
+802	marshadow	7	0	1	0	3	-1	255	120	1	5	Slow	0	270	423	1	Marshadow	Marshadow	Marshadow
+803	poipole	7	0	0	0	45	-1	255	120	1	5	Slow	0	189	424	1	Poipole	Poipole	Bevenom
+804	naganadel	7	0	0	0	45	-1	255	120	1	5	Slow	0	243	424	1	Naganadel	Naganadel	Agoyon
+805	stakataka	7	0	0	0	30	-1	255	120	1	5	Slow	0	257	425	1	Stakataka	Stakataka	Tundetunde
+806	blacephalon	7	0	0	0	30	-1	255	120	1	5	Slow	0	257	426	1	Blacephalon	Blacephalon	Zugadoon
+807	zeraora	7	0	1	0	3	-1	255	120	1	5	Slow	0	270	427	2	Zeraora	Zeraora	Zeraora
+808	meltan	7	0	1	0	3	-1	255	120	1	5	Slow	0	135	428	1	Meltan	Meltan	Meltan
+809	melmetal	7	0	1	0	3	-1	255	120	1	5	Slow	0	270	428	2	Melmetal	Melmetal	Melmetal
+810	grookey	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	62	430	1	Grookey	Grookey	Sarunori
+811	thwackey	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	147	430	1	Thwackey	Thwackey	Bachinkey
+812	rillaboom	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	265	430	2	Rillaboom	Rillaboom	Gorirander
+813	scorbunny	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	62	431	1	Scorbunny	Scorbunny	Hibanny
+814	raboot	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	147	431	1	Raboot	Raboot	Rabbifuto
+815	cinderace	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	265	431	2	Cinderace	Cinderace	Aceburn
+816	sobble	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	62	432	1	Sobble	Sobble	Messon
+817	drizzile	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	147	432	1	Drizzile	Drizzile	Jimereon
+818	inteleon	8	0	0	0	45	1	31	20	4	3	Medium Slow	50	265	432	2	Inteleon	Inteleon	Intereon
+819	skwovet	8	0	0	0	255	4	127	20	2	0	Medium Fast	50	55	433	1	Skwovet	Skwovet	Hoshigarisu
+820	greedent	8	0	0	0	90	4	127	20	2	0	Medium Fast	50	161	433	1	Greedent	Greedent	Yokubarisu
+821	rookidee	8	0	0	0	255	4	127	15	4	3	Medium Slow	50	49	434	1	Rookidee	Rookidee	Kokogara
+822	corvisquire	8	0	0	0	120	4	127	15	4	3	Medium Slow	50	128	434	1	Corvisquire	Corvisquire	Aogarasu
+823	corviknight	8	0	0	0	45	4	127	15	4	3	Medium Slow	50	248	434	2	Corviknight	Corviknight	Armorga
+824	blipbug	8	0	0	0	255	4	127	15	2	0	Medium Fast	50	36	435	1	Blipbug	Blipbug	Sacchimushi
+825	dottler	8	0	0	0	120	4	127	15	2	0	Medium Fast	50	117	435	1	Dottler	Dottler	Redomushi
+826	orbeetle	8	0	0	0	45	4	127	15	2	0	Medium Fast	50	253	435	2	Orbeetle	Orbeetle	Eolb
+827	nickit	8	0	0	0	255	4	127	15	3	4	Fast	50	49	436	1	Nickit	Nickit	Kusune
+828	thievul	8	0	0	0	127	4	127	15	3	4	Fast	50	159	436	1	Thievul	Thievul	Foxly
+829	gossifleur	8	0	0	0	190	4	127	20	2	0	Medium Fast	50	50	437	1	Gossifleur	Gossifleur	Himenka
+830	eldegoss	8	0	0	0	75	4	127	20	2	0	Medium Fast	50	161	437	1	Eldegoss	Eldegoss	Watashiraga
+831	wooloo	8	0	0	0	255	4	127	15	2	0	Medium Fast	50	122	438	1	Wooloo	Wooloo	Wooluu
+832	dubwool	8	0	0	0	127	4	127	15	2	0	Medium Fast	50	172	438	1	Dubwool	Dubwool	Baiwooluu
+833	chewtle	8	0	0	0	255	4	127	20	2	0	Medium Fast	50	57	439	1	Chewtle	Chewtle	Kamukame
+834	drednaw	8	0	0	0	75	4	127	20	2	0	Medium Fast	50	170	439	2	Drednaw	Drednaw	Kajirigame
+835	yamper	8	0	0	0	255	4	127	20	3	4	Fast	50	54	440	1	Yamper	Yamper	Wanpachi
+836	boltund	8	0	0	0	45	4	127	20	3	4	Fast	50	172	440	1	Boltund	Boltund	Pulsewan
+837	rolycoly	8	0	0	0	255	4	127	15	4	3	Medium Slow	50	48	441	1	Rolycoly	Rolycoly	Tandon
+838	carkol	8	0	0	0	120	4	127	15	4	3	Medium Slow	50	144	441	1	Carkol	Carkol	Toroggon
+839	coalossal	8	0	0	0	45	4	127	15	4	3	Medium Slow	50	255	441	2	Coalossal	Coalossal	Sekitanzan
+840	applin	8	0	0	0	255	4	127	20	5	1	Erratic	50	52	442	1	Applin	Applin	Kajicchu
+841	flapple	8	0	0	0	45	4	127	20	5	1	Erratic	50	170	442	2	Flapple	Flapple	Appryu
+842	appletun	8	0	0	0	45	4	127	20	5	1	Erratic	50	170	442	2	Appletun	Appletun	Tarupple
+843	silicobra	8	0	0	0	255	4	127	20	2	0	Medium Fast	50	63	443	1	Silicobra	Silicobra	Sunahebi
+844	sandaconda	8	0	0	0	120	4	127	20	2	0	Medium Fast	50	179	443	2	Sandaconda	Sandaconda	Sadaija
+845	cramorant	8	0	0	0	45	4	127	20	2	0	Medium Fast	50	166	444	3	Cramorant	Cramorant	Uu
+846	arrokuda	8	0	0	0	255	4	127	20	1	5	Slow	50	56	445	1	Arrokuda	Arrokuda	Sasikamasu
+847	barraskewda	8	0	0	0	60	4	127	20	1	5	Slow	50	172	445	1	Barraskewda	Barraskewda	Kamasujaw
+848	toxel	8	0	0	1	75	4	127	25	4	3	Medium Slow	50	48	446	1	Toxel	Toxel	Eleson
+849	toxtricity	8	0	0	0	45	4	127	25	4	3	Medium Slow	50	176	446	4	Toxtricity	Toxtricity	Strinder
+850	sizzlipede	8	0	0	0	190	4	127	20	2	0	Medium Fast	50	61	447	1	Sizzlipede	Sizzlipede	Yakude
+851	centiskorch	8	0	0	0	75	4	127	20	2	0	Medium Fast	50	184	447	2	Centiskorch	Centiskorch	Maruyakude
+852	clobbopus	8	0	0	0	180	4	127	25	4	3	Medium Slow	50	62	448	1	Clobbopus	Clobbopus	Tatakko
+853	grapploct	8	0	0	0	45	4	127	25	4	3	Medium Slow	50	168	448	1	Grapploct	Grapploct	Otosupus
+854	sinistea	8	0	0	0	120	-1	255	20	2	0	Medium Fast	50	62	449	2	Sinistea	Sinistea	Yabacha
+855	polteageist	8	0	0	0	60	-1	255	20	2	0	Medium Fast	50	178	449	2	Polteageist	Polteageist	Potdeath
+856	hatenna	8	0	0	0	235	8	254	20	1	5	Slow	50	53	450	1	Hatenna	Hatenna	Mibrim
+857	hattrem	8	0	0	0	120	8	254	20	1	5	Slow	50	130	450	1	Hattrem	Hattrem	Tebrim
+858	hatterene	8	0	0	0	45	8	254	20	1	5	Slow	50	255	450	2	Hatterene	Hatterene	Brimuon
+859	impidimp	8	0	0	0	255	0	0	20	2	0	Medium Fast	50	53	451	1	Impidimp	Impidimp	Beroba
+860	morgrem	8	0	0	0	120	0	0	20	2	0	Medium Fast	50	130	451	1	Morgrem	Morgrem	Gimoh
+861	grimmsnarl	8	0	0	0	45	0	0	20	2	0	Medium Fast	50	255	451	2	Grimmsnarl	Grimmsnarl	Ohlonge
+862	obstagoon	8	0	0	0	45	4	127	15	2	0	Medium Fast	50	260	134	1	Obstagoon	Obstagoon	Tachifusaguma
+863	perrserker	8	0	0	0	90	4	127	20	2	0	Medium Fast	50	154	22	1	Perrserker	Perrserker	Nyaiking
+864	cursola	8	0	0	0	30	6	190	20	3	4	Fast	50	179	113	1	Cursola	Cursola	Sunigoon
+865	sirfetchd	8	0	0	0	45	4	127	20	2	0	Medium Fast	50	177	35	1	Sirfetch’d	Sirfetch’d	Negigaknight
+866	mr-rime	8	0	0	0	45	4	127	25	2	0	Medium Fast	50	182	57	1	Mr. Rime	Mr. Rime	Barrikohru
+867	runerigus	8	0	0	0	90	4	127	25	2	0	Medium Fast	50	169	287	1	Runerigus	Runerigus	Deathbarn
+868	milcery	8	0	0	0	200	8	254	20	2	0	Medium Fast	50	54	452	1	Milcery	Milcery	Mahomil
+869	alcremie	8	0	0	0	100	8	254	20	2	0	Medium Fast	50	173	452	64	Alcremie	Alcremie	Mawhip
+870	falinks	8	0	0	0	45	-1	255	25	2	0	Medium Fast	50	165	453	2	Falinks	Falinks	Tairetsu
+871	pincurchin	8	0	0	0	75	4	127	20	2	0	Medium Fast	50	152	454	1	Pincurchin	Pincurchin	Bachinuni
+872	snom	8	0	0	0	190	4	127	20	2	0	Medium Fast	50	37	455	1	Snom	Snom	Yukihami
+873	frosmoth	8	0	0	0	75	4	127	20	2	0	Medium Fast	50	166	455	1	Frosmoth	Frosmoth	Mothnow
+874	stonjourner	8	0	0	0	60	4	127	25	1	5	Slow	50	165	456	1	Stonjourner	Stonjourner	Ishihengin
+875	eiscue	8	0	0	0	60	4	127	25	1	5	Slow	50	165	457	2	Eiscue	Eiscue	Korippo
+876	indeedee	8	0	0	0	30	4	127	40	3	4	Fast	140	166	458	2	Indeedee	Indeedee	Yessan
+877	morpeko	8	0	0	0	180	4	127	10	2	0	Medium Fast	50	153	459	2	Morpeko	Morpeko	Morpeko
+878	cufant	8	0	0	0	190	4	127	25	2	0	Medium Fast	50	66	460	1	Cufant	Cufant	Zoudou
+879	copperajah	8	0	0	0	90	4	127	25	2	0	Medium Fast	50	175	460	2	Copperajah	Copperajah	Daioudou
+880	dracozolt	8	0	0	0	45	-1	255	35	1	5	Slow	50	177	461	1	Dracozolt	Dracozolt	Patchiragon
+881	arctozolt	8	0	0	0	45	-1	255	35	1	5	Slow	50	177	462	1	Arctozolt	Arctozolt	Patchilldon
+882	dracovish	8	0	0	0	45	-1	255	35	1	5	Slow	50	177	463	1	Dracovish	Dracovish	Uonoragon
+883	arctovish	8	0	0	0	45	-1	255	35	1	5	Slow	50	177	464	1	Arctovish	Arctovish	Uochilldon
+884	duraludon	8	0	0	0	45	4	127	30	2	0	Medium Fast	50	187	465	2	Duraludon	Duraludon	Duraludon
+885	dreepy	8	0	0	0	45	4	127	40	1	5	Slow	50	54	466	1	Dreepy	Dreepy	Dorameshiya
+886	drakloak	8	0	0	0	45	4	127	40	1	5	Slow	50	144	466	1	Drakloak	Drakloak	Doronch
+887	dragapult	8	0	0	0	45	4	127	40	1	5	Slow	50	300	466	1	Dragapult	Dragapult	Dorapult
+888	zacian	8	1	0	0	10	-1	255	120	1	5	Slow	0	335	467	2	Zacian	Zacian	Zacian
+889	zamazenta	8	1	0	0	10	-1	255	120	1	5	Slow	0	335	468	2	Zamazenta	Zamazenta	Zamazenta
+890	eternatus	8	1	0	0	255	-1	255	120	1	5	Slow	0	345	469	2	Eternatus	Eternatus	Mugendina
+891	kubfu	8	1	0	0	3	1	31	120	1	5	Slow	50	77	470	1	Kubfu	Kubfu	Dakuma
+892	urshifu	8	1	0	0	3	1	31	120	1	5	Slow	50	275	470	4	Urshifu	Urshifu	Wulaosu
+893	zarude	8	0	1	0	3	-1	255	120	1	5	Slow	0	300	471	2	Zarude	Zarude	Zarude
+894	regieleki	8	1	0	0	3	-1	255	120	1	5	Slow	35	290	472	1	Regieleki	Regieleki	Regieleki
+895	regidrago	8	1	0	0	3	-1	255	120	1	5	Slow	35	290	473	1	Regidrago	Regidrago	Regidorago
+896	glastrier	8	1	0	0	3	-1	255	120	1	5	Slow	35	290	474	1	Glastrier	Glastrier	Blizzapos
+897	spectrier	8	1	0	0	3	-1	255	120	1	5	Slow	35	290	475	1	Spectrier	Spectrier	Wraithpos
+898	calyrex	8	1	0	0	3	-1	255	120	1	5	Slow	100	250	476	3	Calyrex	Calyrex	Budrex
+899	wyrdeer	8	0	0	0	135	4	127	20	1	5	Slow	50	263	120	1	Wyrdeer	Wyrdeer	Ayashishi
+900	kleavor	8	0	0	0	115	4	127	20	2	0	Medium Fast	50	175	58	1	Kleavor	Kleavor	Basagiri
+901	ursaluna	8	0	0	0	75	4	127	20	2	0	Medium Fast	50	275	110	2	Ursaluna	Ursaluna	Gachiguma
+902	basculegion	8	0	0	0	135	4	127	20	2	0	Medium Fast	50	265	280	2	Basculegion	Basculegion	Idaitou
+903	sneasler	8	0	0	0	135	4	127	20	4	3	Medium Slow	50	102	109	1	Sneasler	Sneasler	Ohnyula
+904	overqwil	8	0	0	0	135	4	127	20	2	0	Medium Fast	50	179	106	1	Overqwil	Overqwil	Haryman
+905	enamorus	8	1	0	0	3	8	254	20	1	5	Slow	50	116	477	2	Enamorus	Enamorus	Lovetolos
+906	sprigatito	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	62	478	1	Sprigatito	Sprigatito	Nyahoja
+907	floragato	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	144	478	1	Floragato	Floragato	Nyarote
+908	meowscarada	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	265	478	1	Meowscarada	Meowscarada	Masquernya
+909	fuecoco	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	62	479	1	Fuecoco	Fuecoco	Hogator
+910	crocalor	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	144	479	1	Crocalor	Crocalor	Achigator
+911	skeledirge	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	265	479	1	Skeledirge	Skeledirge	Laudbon
+912	quaxly	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	62	480	1	Quaxly	Quaxly	Kuwassu
+913	quaxwell	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	144	480	1	Quaxwell	Quaxwell	Welkamo
+914	quaquaval	9	0	0	0	45	1	31	20	4	3	Medium Slow	50	265	480	1	Quaquaval	Quaquaval	Wanival
+915	lechonk	9	0	0	0	255	4	127	15	2	0	Medium Fast	50	51	481	1	Lechonk	Lechonk	Gourton
+916	oinkologne	9	0	0	0	100	0	0	15	2	0	Medium Fast	50	171	481	2	Oinkologne	Oinkologne	Perfuton
+917	tarountula	9	0	0	0	255	4	127	15	5	1	Erratic	50	42	482	1	Tarountula	Tarountula	Tamantula
+918	spidops	9	0	0	0	120	4	127	15	5	1	Erratic	50	141	482	1	Spidops	Spidops	Wanaider
+919	nymble	9	0	0	0	190	4	127	20	2	0	Medium Fast	20	42	483	1	Nymble	Nymble	Mamebatta
+920	lokix	9	0	0	0	30	4	127	20	2	0	Medium Fast	0	158	483	1	Lokix	Lokix	Exleg
+921	pawmi	9	0	0	0	190	4	127	15	2	0	Medium Fast	50	48	484	1	Pawmi	Pawmi	Pamo
+922	pawmo	9	0	0	0	80	4	127	15	2	0	Medium Fast	50	123	484	1	Pawmo	Pawmo	Pamot
+923	pawmot	9	0	0	0	45	4	127	15	2	0	Medium Fast	50	245	484	1	Pawmot	Pawmot	Parmot
+924	tandemaus	9	0	0	0	150	-1	255	10	3	4	Fast	50	61	485	1	Tandemaus	Tandemaus	Wakkanezumi
+925	maushold	9	0	0	0	75	-1	255	10	3	4	Fast	50	165	485	2	Maushold	Maushold	Ikkanezumi
+926	fidough	9	0	0	0	190	4	127	20	4	3	Medium Slow	50	62	486	1	Fidough	Fidough	Pupimocchi
+927	dachsbun	9	0	0	0	90	4	127	20	4	3	Medium Slow	50	167	486	1	Dachsbun	Dachsbun	Bowtzel
+928	smoliv	9	0	0	0	255	4	127	20	4	3	Medium Slow	50	52	487	1	Smoliv	Smoliv	Minive
+929	dolliv	9	0	0	0	120	4	127	20	4	3	Medium Slow	50	124	487	1	Dolliv	Dolliv	Olinyo
+930	arboliva	9	0	0	0	45	4	127	20	4	3	Medium Slow	50	255	487	1	Arboliva	Arboliva	Oliva
+931	squawkabilly	9	0	0	0	190	4	127	15	5	1	Erratic	50	146	488	4	Squawkabilly	Squawkabilly	Ikirinko
+932	nacli	9	0	0	0	255	4	127	20	4	3	Medium Slow	50	56	489	1	Nacli	Nacli	Kojio
+933	naclstack	9	0	0	0	120	4	127	20	4	3	Medium Slow	50	124	489	1	Naclstack	Naclstack	Jiodumu
+934	garganacl	9	0	0	0	45	4	127	20	4	3	Medium Slow	50	250	489	1	Garganacl	Garganacl	Kyojiohn
+935	charcadet	9	0	0	0	90	4	127	35	1	5	Slow	50	51	490	1	Charcadet	Charcadet	Carbou
+936	armarouge	9	0	0	0	25	4	127	35	1	5	Slow	20	263	490	1	Armarouge	Armarouge	Gurenarma
+937	ceruledge	9	0	0	0	25	4	127	35	1	5	Slow	20	263	490	1	Ceruledge	Ceruledge	Soublades
+938	tadbulb	9	0	0	0	190	4	127	20	2	0	Medium Fast	50	54	491	1	Tadbulb	Tadbulb	Zupika
+939	bellibolt	9	0	0	0	50	4	127	20	2	0	Medium Fast	50	173	491	1	Bellibolt	Bellibolt	Harabarie
+940	wattrel	9	0	0	0	180	4	127	20	4	3	Medium Slow	50	56	492	1	Wattrel	Wattrel	Kaiden
+941	kilowattrel	9	0	0	0	90	4	127	20	4	3	Medium Slow	50	172	492	1	Kilowattrel	Kilowattrel	Taikaiden
+942	maschiff	9	0	0	0	150	4	127	20	4	3	Medium Slow	50	68	493	1	Maschiff	Maschiff	Orachifu
+943	mabosstiff	9	0	0	0	75	4	127	20	4	3	Medium Slow	50	177	493	1	Mabosstiff	Mabosstiff	Mafitiff
+944	shroodle	9	0	0	0	190	4	127	20	4	3	Medium Slow	50	58	494	1	Shroodle	Shroodle	Shirushrew
+945	grafaiai	9	0	0	0	90	4	127	20	4	3	Medium Slow	50	170	494	1	Grafaiai	Grafaiai	Taggingru
+946	bramblin	9	0	0	0	190	4	127	20	2	0	Medium Fast	50	55	495	1	Bramblin	Bramblin	Anokusa
+947	brambleghast	9	0	0	0	45	4	127	20	2	0	Medium Fast	50	168	495	1	Brambleghast	Brambleghast	Anohoragusa
+948	toedscool	9	0	0	0	190	4	127	20	4	3	Medium Slow	50	67	496	1	Toedscool	Toedscool	Nonokurage
+949	toedscruel	9	0	0	0	90	4	127	20	4	3	Medium Slow	50	180	496	1	Toedscruel	Toedscruel	Rikukurage
+950	klawf	9	0	0	0	120	4	127	35	2	0	Medium Fast	50	158	497	1	Klawf	Klawf	Gakegani
+951	capsakid	9	0	0	0	190	4	127	20	2	0	Medium Fast	50	61	498	1	Capsakid	Capsakid	Capsaiji
+952	scovillain	9	0	0	0	75	4	127	20	2	0	Medium Fast	50	170	498	2	Scovillain	Scovillain	Scovillain
+953	rellor	9	0	0	0	190	4	127	20	3	4	Fast	50	54	499	1	Rellor	Rellor	Shigaroko
+954	rabsca	9	0	0	0	45	4	127	20	3	4	Fast	50	165	499	1	Rabsca	Rabsca	Beracas
+955	flittle	9	0	0	0	120	4	127	20	4	3	Medium Slow	50	51	500	1	Flittle	Flittle	Hirahina
+956	espathra	9	0	0	0	60	4	127	20	4	3	Medium Slow	50	168	500	1	Espathra	Espathra	Cuespatra
+957	tinkatink	9	0	0	0	190	8	254	20	4	3	Medium Slow	50	59	501	1	Tinkatink	Tinkatink	Kanuchan
+958	tinkatuff	9	0	0	0	90	8	254	20	4	3	Medium Slow	50	133	501	1	Tinkatuff	Tinkatuff	Nakanuchan
+959	tinkaton	9	0	0	0	45	8	254	20	4	3	Medium Slow	50	253	501	1	Tinkaton	Tinkaton	Dekanuchan
+960	wiglett	9	0	0	0	255	4	127	20	2	0	Medium Fast	50	49	502	1	Wiglett	Wiglett	Umidigda
+961	wugtrio	9	0	0	0	50	4	127	20	2	0	Medium Fast	50	149	502	1	Wugtrio	Wugtrio	Umitrio
+962	bombirdier	9	0	0	0	25	4	127	35	1	5	Slow	50	243	503	1	Bombirdier	Bombirdier	Otoshidori
+963	finizen	9	0	0	0	200	4	127	40	1	5	Slow	50	63	504	1	Finizen	Finizen	Namiiruka
+964	palafin	9	0	0	0	45	4	127	40	1	5	Slow	50	160	504	2	Palafin	Palafin	Irukaman
+965	varoom	9	0	0	0	190	4	127	20	2	0	Medium Fast	50	60	505	1	Varoom	Varoom	Buroron
+966	revavroom	9	0	0	0	75	4	127	20	2	0	Medium Fast	50	175	505	1	Revavroom	Revavroom	Burororoom
+967	cyclizar	9	0	0	0	190	4	127	30	4	3	Medium Slow	50	175	506	1	Cyclizar	Cyclizar	Mototokage
+968	orthworm	9	0	0	0	25	4	127	35	1	5	Slow	50	240	507	1	Orthworm	Orthworm	Mimizuzu
+969	glimmet	9	0	0	0	70	4	127	30	4	3	Medium Slow	50	70	508	1	Glimmet	Glimmet	Kirame
+970	glimmora	9	0	0	0	25	4	127	30	4	3	Medium Slow	50	184	508	2	Glimmora	Glimmora	Kiraflor
+971	greavard	9	0	0	0	120	4	127	20	4	3	Medium Slow	50	58	509	1	Greavard	Greavard	Bochi
+972	houndstone	9	0	0	0	60	4	127	20	4	3	Medium Slow	50	171	509	1	Houndstone	Houndstone	Hakadog
+973	flamigo	9	0	0	0	100	4	127	20	4	3	Medium Slow	50	175	510	1	Flamigo	Flamigo	Karamingo
+974	cetoddle	9	0	0	0	150	4	127	25	4	3	Medium Slow	50	67	511	1	Cetoddle	Cetoddle	Arukujira
+975	cetitan	9	0	0	0	50	4	127	25	4	3	Medium Slow	50	182	511	1	Cetitan	Cetitan	Hulkujira
+976	veluza	9	0	0	0	100	4	127	20	3	4	Fast	50	167	512	1	Veluza	Veluza	Migalusa
+977	dondozo	9	0	0	0	25	4	127	40	1	5	Slow	50	265	513	1	Dondozo	Dondozo	Heyrusher
+978	tatsugiri	9	0	0	0	100	4	127	35	4	3	Medium Slow	50	166	514	6	Tatsugiri	Tatsugiri	Syaritatsu
+979	annihilape	9	0	0	0	45	4	127	20	2	0	Medium Fast	50	268	24	1	Annihilape	Annihilape	Konoyozaru
+980	clodsire	9	0	0	0	90	4	127	20	2	0	Medium Fast	50	151	96	1	Clodsire	Clodsire	Dooh
+981	farigiraf	9	0	0	0	45	4	127	20	2	0	Medium Fast	50	260	101	1	Farigiraf	Farigiraf	Rikikirin
+982	dudunsparce	9	0	0	0	45	4	127	20	2	0	Medium Fast	50	182	103	2	Dudunsparce	Dudunsparce	Nokokocchi
+983	kingambit	9	0	0	0	25	4	127	20	2	0	Medium Fast	50	275	317	1	Kingambit	Kingambit	Dodogezan
+984	great-tusk	9	0	0	0	30	-1	255	50	1	5	Slow	0	285	515	1	Great Tusk	Colmilargo	Idainakiba
+985	scream-tail	9	0	0	0	50	-1	255	50	1	5	Slow	0	285	516	1	Scream Tail	Colagrito	Sakebushippo
+986	brute-bonnet	9	0	0	0	50	-1	255	50	1	5	Slow	0	285	517	1	Brute Bonnet	Furioseta	Araburutake
+987	flutter-mane	9	0	0	0	30	-1	255	50	1	5	Slow	0	285	518	1	Flutter Mane	Melenaleteo	Habatakukami
+988	slither-wing	9	0	0	0	30	-1	255	50	1	5	Slow	0	285	519	1	Slither Wing	Reptalada	Chiwohauhane
+989	sandy-shocks	9	0	0	0	30	-1	255	50	1	5	Slow	0	285	520	1	Sandy Shocks	Pelarena	Sunanokegawa
+990	iron-treads	9	0	0	0	30	-1	255	50	1	5	Slow	0	285	521	1	Iron Treads	Ferrodada	Tetsunowadachi
+991	iron-bundle	9	0	0	0	50	-1	255	50	1	5	Slow	0	285	522	1	Iron Bundle	Ferrosaco	Tetsunotsutsumi
+992	iron-hands	9	0	0	0	50	-1	255	50	1	5	Slow	0	285	523	1	Iron Hands	Ferropalmas	Tetsunokaina
+993	iron-jugulis	9	0	0	0	30	-1	255	50	1	5	Slow	0	285	524	1	Iron Jugulis	Ferrocuello	Tetsunokoube
+994	iron-moth	9	0	0	0	30	-1	255	50	1	5	Slow	0	285	525	1	Iron Moth	Ferropolilla	Tetsunodokuga
+995	iron-thorns	9	0	0	0	30	-1	255	50	1	5	Slow	0	285	526	1	Iron Thorns	Ferropúas	Tetsunoibara
+996	frigibax	9	0	0	0	45	4	127	40	1	5	Slow	50	64	527	1	Frigibax	Frigibax	Sebie
+997	arctibax	9	0	0	0	25	4	127	40	1	5	Slow	50	148	527	1	Arctibax	Arctibax	Segohru
+998	baxcalibur	9	0	0	0	10	4	127	40	1	5	Slow	50	300	527	2	Baxcalibur	Baxcalibur	Seglaive
+999	gimmighoul	9	0	0	0	45	-1	255	50	1	5	Slow	50	60	528	2	Gimmighoul	Gimmighoul	Collecurei
+1000	gholdengo	9	0	0	0	45	-1	255	50	1	5	Slow	50	275	528	1	Gholdengo	Gholdengo	Surfugo
+1001	wo-chien	9	1	0	0	6	-1	255	50	1	5	Slow	0	285	529	1	Wo-Chien	Wo-Chien	Chionjen
+1002	chien-pao	9	1	0	0	6	-1	255	50	1	5	Slow	0	285	530	1	Chien-Pao	Chien-Pao	Paojian
+1003	ting-lu	9	1	0	0	6	-1	255	50	1	5	Slow	0	285	531	1	Ting-Lu	Ting-Lu	Dinlu
+1004	chi-yu	9	1	0	0	6	-1	255	50	1	5	Slow	0	285	532	1	Chi-Yu	Chi-Yu	Yiyui
+1005	roaring-moon	9	0	0	0	10	-1	255	50	1	5	Slow	0	295	533	1	Roaring Moon	Bramaluna	Todorokutsuki
+1006	iron-valiant	9	0	0	0	10	-1	255	50	1	5	Slow	0	295	534	1	Iron Valiant	Ferropaladín	Tetsunobujin
+1007	koraidon	9	1	0	0	3	-1	255	50	1	5	Slow	0	335	535	5	Koraidon	Koraidon	Koraidon
+1008	miraidon	9	1	0	0	3	-1	255	50	1	5	Slow	0	335	536	5	Miraidon	Miraidon	Miraidon
+1009	walking-wake	9	0	0	0	5	-1	255	50	1	5	Slow	0	295	537	1	Walking Wake	Ondulagua	Uneruminamo
+1010	iron-leaves	9	0	0	0	5	-1	255	50	1	5	Slow	0	295	538	1	Iron Leaves	Ferroverdor	Tetsunoisaha
+1011	dipplin	9	0	0	0	45	4	127	20	1	5	Slow	50	170	442	1	Dipplin	Dipplin	Kamicchu
+1012	poltchageist	9	0	0	0	120	-1	255	50	1	5	Slow	50	62	539	2	Poltchageist	Poltchageist	Chadeath
+1013	sinistcha	9	0	0	0	60	-1	255	50	1	5	Slow	50	178	539	2	Sinistcha	Sinistcha	Yabasocha
+1014	okidogi	9	1	0	0	3	0	0	50	1	5	Slow	0	278	540	1	Okidogi	Okidogi	Iineinu
+1015	munkidori	9	1	0	0	3	0	0	50	1	5	Slow	0	278	541	1	Munkidori	Munkidori	Mashimashira
+1016	fezandipiti	9	1	0	0	3	0	0	50	1	5	Slow	0	278	542	1	Fezandipiti	Fezandipiti	Kichikigisu
+1017	ogerpon	9	1	0	0	5	8	254	50	1	5	Slow	50	275	543	4	Ogerpon	Ogerpon	Ogerpon
+1018	archaludon	9	0	0	0	10	4	127	30	2	0	Medium Fast	50	300	465	1	Archaludon	Archaludon	Briduras
+1019	hydrapple	9	0	0	0	10	4	127	20	5	1	Erratic	50	270	442	1	Hydrapple	Hydrapple	Kamitsuorochi
+1020	gouging-fire	9	0	0	0	10	-1	255	50	1	5	Slow	0	295	544	1	Gouging Fire	Flamariete	Ugatsuhomura
+1021	raging-bolt	9	0	0	0	10	-1	255	50	1	5	Slow	0	295	545	1	Raging Bolt	Electrofuria	Takeruraiko
+1022	iron-boulder	9	0	0	0	10	-1	255	50	1	5	Slow	0	295	547	1	Iron Boulder	Ferromole	Tetsunoiwao
+1023	iron-crown	9	0	0	0	10	-1	255	50	1	5	Slow	0	295	546	1	Iron Crown	Ferrotesta	Tetsunokashira
+1024	terapagos	9	1	0	0	255	4	127	5	1	5	Slow	50	90	548	3	Terapagos	Terapagos	Terapagos
+1025	pecharunt	9	0	1	0	3	-1	255	20	1	5	Slow	0	300	549	1	Pecharunt	Pecharunt	Momowarou

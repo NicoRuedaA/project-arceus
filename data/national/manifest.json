@@ -1,0 +1,25 @@
+{
+  "built_by": ".tools/build_national_dex.py",
+  "pokeapi_commit": "5ee47a9a9c1229632ec4b473a9c1c53026e005dd",
+  "showdown_commit": "7244fe8e28fa8bc4d0809ae30d183c608b62bb2b",
+  "fetch_date": "2026-10-17",
+  "source_sha256": {
+    "pokemon.csv": "16c81c33188b0eac403aa2f759fcbe9e42c611f722d263f5b5a6a5bff9f8ce6b",
+    "pokemon_species.csv": "e66e2eeb25fd3836b0ebab6bf87bbf01960aa3c0555e2bac495fa8393c5e0c45",
+    "pokemon_moves.csv": "22a807cef26891eeac0d0c900bd363e66baf421f7ee795bc7bc3e718f23b939e",
+    "pokemon_stats.csv": "fa2c44263a3706468682fefc3e0b3c4f5487fe9febed7d4ebcd6939c34b16aa8",
+    "pokemon_types.csv": "f1fc4bfd657a034ea3bf6972423b10276424aa068577b304a78a08996425ba05",
+    "pokemon_evolution.csv": "e78be51c8805551fffccd5551a556e752e4a76ff1b52482b53b409dd3882e1dd",
+    "gen9legends_learnsets.ts": "da28ffeb8b2218e8b02d0543a0a063151fe73176cd45d72cf5b4db73115ce888"
+  },
+  "counts": {
+    "species": 1025,
+    "forms": 1351,
+    "form_variants": 228,
+    "base_stats_rows": 1579,
+    "types_rows": 1579,
+    "evolutions_rows": 676,
+    "learnset_rows": 84373,
+    "moves_not_in_engine": 14
+  }
+}
