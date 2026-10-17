@@ -76,6 +76,11 @@ pub enum PowerRule {
     SuperEffectiveBoost,
     /// 30 % chance to double the power (Fickle Beam).
     FickleBeam,
+    /// x2 while the user's previous move failed (Temper Flare). The engine keeps one
+    /// `last_move_failed` flag per combatant that follows Showdown's
+    /// `moveLastTurnResult === false` (see `battle_engine.rs`); it is cleared at the start of
+    /// the battle and when the combatant changes.
+    TemperFlare,
 }
 
 /// Residual volatile conditions of the external generation-9 sheet (DERIVED from Showdown's
@@ -122,6 +127,16 @@ pub struct MoveHooks {
     pub charge_boost_spa: bool,
     /// Electro Shot: rain skips the charge turn (and its boost).
     pub charge_skip_in_rain: bool,
+    /// Nihil Light: the accuracy check drops the target's evasion ranks (Showdown
+    /// `ignoreEvasion`). In Hisui accuracy and evasion share one rank state, so only the
+    /// target's contribution to that shared state is dropped (see `battle_engine.rs`).
+    pub ignore_evasion: bool,
+    /// Nihil Light: the damage step drops the target's Def/SpD ranks (Showdown
+    /// `ignoreDefensive`).
+    pub ignore_defensive: bool,
+    /// Nihil Light: the 0x type-chart immunity of the move's own type counts as neutral
+    /// damage (Showdown `ignoreImmunity = {'<move type>': true}`; Dragon vs Fairy here).
+    pub ignore_immunity_move_type: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

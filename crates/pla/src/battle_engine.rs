@@ -298,6 +298,11 @@ pub struct Battle {
     turn_last_damage: Vec<Option<(usize, u32)>>,
     /// Turn memory: whether each combatant raised any of its stats this turn (Alluring Voice).
     turn_raised_stats: Vec<bool>,
+    /// Whether each combatant's last move attempt failed (external generation-9 memory for
+    /// Temper Flare; Showdown's `moveLastTurnResult === false`). It is not a turn memory: it
+    /// survives turns and is cleared at the start of the battle and when the combatant changes
+    /// (switch in/out or a switch after a knockout).
+    last_move_failed: Vec<bool>,
     /// Badly-poisoned counter (starts at 0, +1 per end of turn, capped at 15; VERIFIED).
     toxic_counter: Vec<u8>,
     /// Real sleep (record id 2) per combatant: `(duration, attempts to act)`. The duration is
@@ -371,6 +376,7 @@ impl Battle {
             times_attacked: vec![0; combatant_count],
             turn_last_damage: vec![None; combatant_count],
             turn_raised_stats: vec![false; combatant_count],
+            last_move_failed: vec![false; combatant_count],
             toxic_counter: vec![0; combatant_count],
             sleep: vec![None; combatant_count],
         })
@@ -397,6 +403,10 @@ impl Battle {
         if let Some(last) = self.last_move.get_mut(from) {
             *last = None;
         }
+        // The external failure memory is per stay on the field (Temper Flare): both the
+        // combatant leaving and the one entering start with a clean result.
+        self.note_move_result(from, false);
+        self.note_move_result(replacement, false);
         self.active[side] = replacement;
         Ok(Event::Switched {
             side,
@@ -571,11 +581,20 @@ impl Battle {
                 self.effect_events.push(EffectEvent::FlinchedAndSkipped {
                     actor: action.actor,
                 });
+                // Showdown's flinch handler fails `BeforeMove` (moveThisTurnResult = false):
+                // the turn counts as a failed move for Temper Flare.
+                self.note_move_result(action.actor, true);
                 continue;
             }
             let mut releasing = false;
             match self.status_pre_action(action.actor, rng, &mut events) {
-                statuses::PreAction::Skip => continue,
+                statuses::PreAction::Skip { failed } => {
+                    // Real sleep, paralysis, drowsiness and confusion self-hits fail
+                    // `BeforeMove` in Showdown (false); the recharge turn returns null and
+                    // does not count.
+                    self.note_move_result(action.actor, failed);
+                    continue;
+                }
                 statuses::PreAction::Act(Some(slot)) => {
                     action.move_slot = slot;
                     releasing = true;
@@ -635,10 +654,12 @@ impl Battle {
                         actor: action.actor,
                         status,
                     });
+                    // The legacy (rules-off) inability models also fail `BeforeMove`.
+                    self.note_move_result(action.actor, true);
                     continue;
                 }
             }
-            if self.status_pre_move(
+            match self.status_pre_move(
                 action.actor,
                 target,
                 action.move_slot,
@@ -646,7 +667,20 @@ impl Battle {
                 releasing,
                 rng,
             ) {
-                continue;
+                statuses::PreMove::Continue => {}
+                statuses::PreMove::Ended => {
+                    // Charge turn, a successful Protect and a move blocked by Protect are all
+                    // Showdown's `null` result: not a failed move. Blocking does NOT set
+                    // Temper Flare's doubling (Protect returns NOT_FAIL; Bulbapedia states the
+                    // same for Stomping Tantrum).
+                    self.note_move_result(action.actor, false);
+                    continue;
+                }
+                statuses::PreMove::Failed => {
+                    // The user's own Protect lost its chain roll (a failed `PrepareHit`).
+                    self.note_move_result(action.actor, true);
+                    continue;
+                }
             }
             let fx = self
                 .effects
@@ -665,15 +699,25 @@ impl Battle {
                     &planned,
                     &acted,
                 ) {
+                    // Showdown's `onTry`/`onTryMove` failed: the move counts as failed.
+                    self.note_move_result(action.actor, true);
                     continue;
                 }
             }
-            // VERIFIED: accuracy and evasion read the shared Spe/Acc/Eva rank group.
+            // VERIFIED: accuracy and evasion read the shared Spe/Acc/Eva rank group. Nihil
+            // Light (`ignoreEvasion`) drops the target's contribution: in Hisui accuracy and
+            // evasion share one rank state, so the target's evasion cannot be separated from
+            // its accuracy rank; the engine drops the target's share and keeps the user's
+            // accuracy rank.
             let acc_stage = (self.combatants[action.actor].accuracy_stage
                 + self.stages(action.actor).speed)
                 .clamp(-1, 1);
-            let eva_stage =
-                (self.combatants[target].evasion_stage + self.stages(target).speed).clamp(-1, 1);
+            let ignore_evasion = fx.as_ref().is_some_and(|f| f.hooks.ignore_evasion);
+            let eva_stage = if ignore_evasion {
+                0
+            } else {
+                (self.combatants[target].evasion_stage + self.stages(target).speed).clamp(-1, 1)
+            };
             if !accuracy_hits(accuracy, acc_stage, eva_stage, 4096, rng) {
                 events.push(Event::Missed {
                     actor: action.actor,
@@ -699,6 +743,8 @@ impl Battle {
                         self.advance_active_for(actor);
                     }
                 }
+                // An accuracy miss is a failed move (`moveThisTurnResult = false`).
+                self.note_move_result(action.actor, true);
                 continue;
             }
             // External generation-9 base-power callbacks (Last Respects, Rage Fist, Hard
@@ -748,6 +794,7 @@ impl Battle {
                             events.push(Event::KnockedOut(receiver));
                             self.advance_active_for(receiver);
                         }
+                        self.note_move_result(action.actor, false);
                         continue;
                     }
                     let ko = self.apply_move_effects(
@@ -768,6 +815,7 @@ impl Battle {
                         events.push(Event::KnockedOut(k));
                         self.advance_active_for(k);
                     }
+                    self.note_move_result(action.actor, false);
                     continue;
                 }
                 if let Some(status) = status_move(&move_name) {
@@ -776,18 +824,30 @@ impl Battle {
                         events.push(Event::StatusApplied { target, status });
                     }
                 }
+                self.note_move_result(action.actor, false);
                 continue;
             }
             let hits = fx.as_ref().map_or(1, |f| Self::roll_hits(f, rng));
             // VERIFIED: rank states multiply the base damage (not the stats); see rules.rs.
+            // Nihil Light (`ignoreDefensive`) drops the target's Def/SpD rank.
+            let ignore_defensive = fx.as_ref().is_some_and(|f| f.hooks.ignore_defensive);
             let ranks = if self.stage_multipliers {
                 (
                     self.stages(action.actor).attack,
-                    self.stages(target).defense,
+                    if ignore_defensive {
+                        0
+                    } else {
+                        self.stages(target).defense
+                    },
                 )
             } else {
                 (0, 0)
             };
+            // Nihil Light (`ignoreImmunity = {'Dragon': true}`): the 0x immunity of the
+            // move's own type counts as a neutral matchup instead.
+            let ignore_own_type_immunity = fx
+                .as_ref()
+                .is_some_and(|f| f.hooks.ignore_immunity_move_type);
             let drowsy_bonus = self.status_rules().notes_rates;
             let pla_formula = self.pla_damage;
             let mut damage = 0;
@@ -816,6 +876,7 @@ impl Battle {
                     drowsy_bonus,
                     pla_formula,
                     slow_start,
+                    ignore_own_type_immunity,
                     rng,
                 );
                 // Opt-in Fixated multipliers (no-op unless `set_fixated` was used).
@@ -846,6 +907,9 @@ impl Battle {
                 });
             }
             let move_name_for_hook = move_name.clone();
+            // A hit with "no effect" (type immunity) is a failed move in Showdown's flow; a
+            // landed hit is a success.
+            self.note_move_result(action.actor, multiplier == 0.0);
             events.push(Event::UsedMove {
                 actor: action.actor,
                 target,
@@ -858,7 +922,7 @@ impl Battle {
                 events.push(Event::KnockedOut(target));
                 self.advance_active_for(target);
             }
-                self.status_post_hit(action.actor, &move_name_for_hook);
+            self.status_post_hit(action.actor, &move_name_for_hook);
             if let Some(fx) = &fx {
                 self.status_thaw_target(target, fx);
                 let ko = self.apply_move_effects(
@@ -930,6 +994,30 @@ impl Battle {
         events
     }
 
+    /// Whether the combatant's last move attempt failed (external generation-9 memory; Temper
+    /// Flare). Mirrors Showdown's `moveLastTurnResult === false`: a failed move is an accuracy
+    /// miss, a move with no effect (type immunity), a refused use condition, a lost Protect
+    /// chain roll, or a turn lost to paralysis/real sleep/drowsiness/confusion/flinch
+    /// (Showdown's `BeforeMove` handlers return `false` for those; Bulbapedia states the same
+    /// for Stomping Tantrum). Charge and recharge turns and a hit blocked by the target's
+    /// Protect are the `null` outcome and do NOT count.
+    pub fn last_move_failed(&self, combatant: usize) -> bool {
+        self.last_move_failed
+            .get(combatant)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Record the outcome of one move attempt for the external base-power callbacks (Temper
+    /// Flare). Only call it when the combatant really attempted an action: a move that is
+    /// merely skipped (disabled by `cantusetwice`, no PP, no target) leaves the memory alone,
+    /// exactly as Showdown keeps `moveLastTurnResult` until the next attempt.
+    fn note_move_result(&mut self, actor: usize, failed: bool) {
+        if actor < self.last_move_failed.len() {
+            self.last_move_failed[actor] = failed;
+        }
+    }
+
     /// Base power after the external generation-9 power callbacks. Formulas are taken from the
     /// pinned Showdown source (`basePowerCallback`/`onBasePower`); `None` returns `base` untouched.
     pub(crate) fn effective_power(
@@ -983,6 +1071,14 @@ impl Battle {
             }
             PowerRule::FickleBeam => {
                 if rng.below(100) < 30 {
+                    base.saturating_mul(2)
+                } else {
+                    base
+                }
+            }
+            PowerRule::TemperFlare => {
+                // Showdown `pokemon.moveLastTurnResult === false` (75 -> 150).
+                if self.last_move_failed(actor) {
                     base.saturating_mul(2)
                 } else {
                     base
@@ -1086,6 +1182,8 @@ impl Battle {
                     .find(|&index| self.combatants[index].is_alive())
                 {
                     self.active[side] = next;
+                    // Entering the field after a knockout also starts a clean stay.
+                    self.note_move_result(next, false);
                 }
             }
         }
@@ -1161,6 +1259,33 @@ pub fn type_effectiveness(chart: &TypeChart, attack: &str, defenses: &[String]) 
         seen.push(defense);
         match chart.multiplier(attack, defense).unwrap_or(1.0) {
             0.0 => return 0.0,
+            0.5 => exponent -= 1,
+            2.0 => exponent += 1,
+            _ => {}
+        }
+    }
+    effectiveness_from_exponent(exponent)
+}
+
+/// Type-chart effectiveness with the immunity of the attack's own type ignored (external
+/// Nihil Light, Showdown `ignoreImmunity = {'<move type>': true}`): a 0x matchup of `attack`
+/// counts as neutral instead of zero, while every other defender type keeps its multiplier.
+/// Showdown's chart lookup reports immunity as neutral once `runImmunity` passes (its
+/// `getEffectiveness` has no value for "immune"), so Fairy vs Dragon becomes a neutral hit.
+pub fn type_effectiveness_ignoring_immunity(
+    chart: &TypeChart,
+    attack: &str,
+    defenses: &[String],
+) -> f32 {
+    let mut exponent = 0_i32;
+    let mut seen: Vec<&String> = Vec::new();
+    for defense in defenses {
+        if seen.contains(&defense) {
+            continue;
+        }
+        seen.push(defense);
+        match chart.multiplier(attack, defense).unwrap_or(1.0) {
+            0.0 => continue,
             0.5 => exponent -= 1,
             2.0 => exponent += 1,
             _ => {}
@@ -1355,6 +1480,8 @@ fn expected_damage(
 /// critical x1.5, 85-100 % roll, STAB x1.25, type category, burn/physical and
 /// frostbite/special x50 %, drowsy defender x133 % (when `drowsy_bonus`), minimum 1.
 /// `slow_start` halves the power of physical moves (PROBABLE target of the game's halving).
+/// `ignore_own_type_immunity` is the external generation-9 Nihil Light rule: the 0x matchup of
+/// `attack_type` becomes neutral.
 #[allow(clippy::too_many_arguments)]
 fn calculate_damage(
     attacker: &Combatant,
@@ -1369,6 +1496,7 @@ fn calculate_damage(
     drowsy_bonus: bool,
     pla_formula: bool,
     slow_start: bool,
+    ignore_own_type_immunity: bool,
     rng: &mut impl BattleRng,
 ) -> (u32, bool, f32) {
     let (attack, defense) = if category == "Physical" {
@@ -1384,7 +1512,11 @@ fn calculate_damage(
     let defense = q12_mul(defense, u32::from(target.defense_modifier_q12));
     let base = rules::base_damage(pla_formula, power, attack, u32::from(attacker.level), defense);
     let base = rules::apply_rank_states(base, ranks.0, ranks.1);
-    let effectiveness = type_effectiveness(chart, attack_type, &target.species.types);
+    let effectiveness = if ignore_own_type_immunity {
+        type_effectiveness_ignoring_immunity(chart, attack_type, &target.species.types)
+    } else {
+        type_effectiveness(chart, attack_type, &target.species.types)
+    };
     let mut damage = q12_mul(base, u32::from(attacker.damage_modifier_q12));
     if weather == BattleWeather::Rain && attack_type == "Fire" {
         damage = q12_mul(damage, 3072);
@@ -1579,6 +1711,7 @@ mod tests {
             false,
             true,
             false,
+            false,
             &mut Fixed(vec![0, 0]),
         );
         assert!(critical);
@@ -1595,6 +1728,7 @@ mod tests {
             (0, 0),
             false,
             true,
+            false,
             false,
             &mut Fixed(vec![1, 15]),
         );
@@ -1613,6 +1747,7 @@ mod tests {
             (0, 0),
             false,
             true,
+            false,
             false,
             &mut Fixed(vec![1, 15]),
         );
