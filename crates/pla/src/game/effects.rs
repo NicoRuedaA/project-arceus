@@ -292,7 +292,7 @@ fn classify_absent_timelines(
 fn is_shared_sequence(name: &str) -> bool {
     [timeline::CRITICAL_SEQUENCE, timeline::SUPER_EFFECTIVE_SEQUENCE, timeline::NOT_VERY_EFFECTIVE_SEQUENCE]
         .contains(&name)
-        || [MajorStatus::Drowsy, MajorStatus::Poison, MajorStatus::Burn, MajorStatus::Frostbite, MajorStatus::Paralysis]
+        || [MajorStatus::Drowsy, MajorStatus::Poison, MajorStatus::Burn, MajorStatus::Frostbite, MajorStatus::Paralysis, MajorStatus::BadlyPoisoned]
             .iter()
             .any(|s| timeline::status_sequence(*s) == name)
 }
@@ -338,7 +338,7 @@ fn drive_battle_effects(
                 .map(String::from),
         );
         names.extend(
-            [MajorStatus::Drowsy, MajorStatus::Poison, MajorStatus::Burn, MajorStatus::Frostbite, MajorStatus::Paralysis]
+            [MajorStatus::Drowsy, MajorStatus::Poison, MajorStatus::Burn, MajorStatus::Frostbite, MajorStatus::Paralysis, MajorStatus::BadlyPoisoned]
                 .map(|s| timeline::status_sequence(s).to_string()),
         );
         for n in names {

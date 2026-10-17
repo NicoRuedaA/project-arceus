@@ -16,6 +16,8 @@ pub fn status_name(status: MajorStatus) -> &'static str {
         MajorStatus::Poison => "poisoned",
         MajorStatus::Burn => "burned",
         MajorStatus::Frostbite => "frostbitten",
+        // The game has a distinct line for the badly-poisoned state (text 79 poison, 80 toxic).
+        MajorStatus::BadlyPoisoned => "badly poisoned",
     }
 }
 

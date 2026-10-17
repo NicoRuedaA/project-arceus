@@ -231,7 +231,8 @@ pub fn capture_preview(
     let status = data.capture_status_multiplier(match c.status {
         None => "None",
         Some(MajorStatus::Paralysis) => "Paralysis",
-        Some(MajorStatus::Poison) => "Poison",
+        // Badly poisoned is the same game record (id 5): the poison factor applies.
+        Some(MajorStatus::Poison | MajorStatus::BadlyPoisoned) => "Poison",
         Some(MajorStatus::Burn) => "Burn",
         Some(MajorStatus::Drowsy) => "Drowsiness / Sleep",
         Some(MajorStatus::Frostbite) => "Frostbite / Freeze",

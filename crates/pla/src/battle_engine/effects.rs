@@ -254,6 +254,19 @@ impl MoveEffectsTable {
                     .map_err(|_| format!("move effects row {}: bad number {:?}", n + 2, v[i]))
             };
             let ailment_id = num(c_aid)? as u16;
+            let ailment_turns = match turn_cols {
+                (Some(k), Some(lo), Some(hi)) => {
+                    Some((num(k)? as u8, num(lo)? as u8, num(hi)? as u8))
+                }
+                _ => None,
+            };
+            // The game's badly-poisoned mark (0xf01): poison record 5 with kind 1 and duration 15.
+            let ailment = match ailment_turns {
+                Some((kind, lo, hi)) if is_toxic_mark(ailment_id, kind, lo, hi) => {
+                    Some(MajorStatus::BadlyPoisoned)
+                }
+                _ => ailment_status(ailment_id),
+            };
             let mut stat_changes = Vec::new();
             let opt = |c: Option<usize>| -> Result<u8, String> {
                 c.map_or(Ok(0), |i| num(i).map(|x| x as u8))
@@ -280,15 +293,10 @@ impl MoveEffectsTable {
                 max_hits: num(c_maxh)? as u8,
                 drain_pct: num(c_drain)? as i8,
                 heal_pct: num(c_heal)? as i8,
-                ailment: ailment_status(ailment_id),
+                ailment,
                 ailment_id,
                 ailment_chance: num(c_ach)? as u8,
-                ailment_turns: match turn_cols {
-                    (Some(k), Some(lo), Some(hi)) => {
-                        Some((num(k)? as u8, num(lo)? as u8, num(hi)? as u8))
-                    }
-                    _ => None,
-                },
+                ailment_turns,
                 meta_category: num(c_meta)? as u8,
                 target_raw: num(c_tgt)? as u8,
                 stat_changes,
@@ -335,8 +343,12 @@ impl MoveEffectsTable {
     }
 }
 
-/// Ailment ids 2 and 6 are both sleep-like in the data (distinct meaning UNKNOWN);
-/// 3 (freeze-like), 8 (confusion), 9, 10 and 65535 are not modeled.
+/// Ailment ids as in the game's status records: 1 paralysis, 4 burn, 5 poison, 7 frostbite.
+/// Ids 2 and 6 are both sleep-like in the sheet (2 = the game's real sleep, 6 = drowsiness;
+/// the engine still maps both to drowsiness until the real sleep lands). Id 15 is a SYNTHETIC
+/// engine id for the external generation-9 sheet's `tox` secondary (the game has no separate
+/// toxic id: badly poisoned is record 5 with the `0xf01` mark). 3 (freeze-like), 8 (confusion),
+/// 9 and 10 are handled elsewhere or not modeled.
 pub fn ailment_status(id: u16) -> Option<MajorStatus> {
     match id {
         1 => Some(MajorStatus::Paralysis),
@@ -344,8 +356,17 @@ pub fn ailment_status(id: u16) -> Option<MajorStatus> {
         4 => Some(MajorStatus::Burn),
         5 => Some(MajorStatus::Poison),
         7 => Some(MajorStatus::Frostbite),
+        15 => Some(MajorStatus::BadlyPoisoned),
         _ => None,
     }
+}
+
+/// VERIFIED mark of the game's badly-poisoned state: poison record 5 applied with kind 1 and
+/// duration 15, i.e. the packed value `0xf01` (`FUN_02850c34` / `FUN_02850cf0`). In the move
+/// sheet that is `ailment_id` 5 with `raw_f13` 1 and `raw_f14`/`raw_f15` 15 (Toxic 92 and
+/// Poison Fang 305 are the only rows that carry it).
+fn is_toxic_mark(ailment_id: u16, kind: u8, lo: u8, hi: u8) -> bool {
+    ailment_id == 5 && kind == 1 && lo == 15 && hi == 15
 }
 
 /// PLA stat ranks have only three states per group (VERIFIED): -1 down, 0 neutral, +1 up.
@@ -624,6 +645,13 @@ impl Battle {
                 && Self::chance_passes(fx.ailment_chance, !damaging, rng)
             {
                 self.combatants[target].status = Some(status);
+                if status == MajorStatus::BadlyPoisoned {
+                    // VERIFIED: the counter is set to 0 when the state is applied.
+                    if self.toxic_counter.len() <= target {
+                        self.toxic_counter.resize(target + 1, 0);
+                    }
+                    self.toxic_counter[target] = 0;
+                }
                 self.start_status_turns(target, fx, rng);
                 self.pending_status.push((target, status));
             }
@@ -704,6 +732,28 @@ mod tests {
         assert_eq!(t.get("double-edge").unwrap().drain_pct, -33);
         assert_eq!(t.get("fury-swipes").unwrap().max_hits, 5);
         assert_eq!(t.get("growl").unwrap().stat_changes[0].stage, -1);
+    }
+
+    /// The game's `0xf01` mark (record 5 + kind 1 + duration 15) is only on Toxic and Poison
+    /// Fang; every other poison row keeps the normal state.
+    #[test]
+    fn toxic_and_poison_fang_load_the_badly_poisoned_state() {
+        let t = MoveEffectsTable::load(root()).unwrap();
+        assert_eq!(
+            t.get("toxic").unwrap().ailment,
+            Some(MajorStatus::BadlyPoisoned)
+        );
+        assert_eq!(
+            t.get("poison-fang").unwrap().ailment,
+            Some(MajorStatus::BadlyPoisoned)
+        );
+        for plain in ["poison-powder", "sludge-bomb", "poison-jab", "sludge", "twineedle"] {
+            assert_eq!(
+                t.get(plain).unwrap().ailment,
+                Some(MajorStatus::Poison),
+                "{plain} must stay plain poison"
+            );
+        }
     }
 
     #[test]

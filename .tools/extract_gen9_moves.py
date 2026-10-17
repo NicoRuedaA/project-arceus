@@ -39,7 +39,7 @@ INERT = {"num", "name", "contestType", "isNonstandard", "zMove", "maxMove", "noP
          "target", "type"}
 # Properties the current engine columns can express (when no callback is attached).
 EXPRESSIBLE = {"secondary", "self", "boosts", "multihit", "critRatio", "drain", "recoil", "heal", "status"}
-STAGE_STATUS = {"par", "brn", "psn"}  # ailments with a matching engine status (ailment_status)
+STAGE_STATUS = {"par", "brn", "psn", "tox"}  # ailments with an engine status (ailment_status; tox = synthetic id 15)
 STAT_KEYS = {"atk", "def", "spa", "spd", "spe", "accuracy", "evasion"}
 # Moves whose only callback is a base-power rule the engine implements (gen9.rs `power_rule`):
 # Last Respects 854, Collision Course 878, Electro Drift 879, Rage Fist 889, Fickle Beam 907,
@@ -77,6 +77,8 @@ HOOK_MOVES: dict[int, tuple[set[str], set[str], str]] = {
     914: ({"secondary.onHit"}, set(), "hook:confuse_if_target_raised"),
     # onTry: refused unless the target's chosen action has priority > 0.
     918: ({"onTry"}, set(), "hook:require_target_priority (turn action)"),
+    # secondary.status tox -> the engine's badly-poisoned state (synthetic ailment id 15).
+    919: (set(), set(), "sec tox -> badly poisoned (engine id 15)"),
 }
 
 # Self boosts Showdown applies from a callback instead of a `self.boosts`/`boosts` block;
