@@ -1887,6 +1887,16 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
     let hints = world.get_resource::<super::ride_hints::RideHints>().map(|h| {
         json!({ "controls": h.controls })
     });
+    // National Pokédex model preview: angle, camera distance, measured box and placed rectangle.
+    let dex_preview = super::dex_model_preview::snapshot(world).map(|p| {
+        json!({
+            "yaw_deg": round2(p.yaw.to_degrees()),
+            "pitch_deg": round2(p.pitch.to_degrees()),
+            "distance": round2(p.distance),
+            "bounds": p.bounds.map(|b| json!([v3(b.min), v3(b.max)])),
+            "frame": p.frame.map(|(l, t, w, h)| json!({"left": round2(l), "top": round2(t), "width": round2(w), "height": round2(h)})),
+        })
+    });
     json!({
         "game_state": game_state,
         "next_state": next_state,
@@ -1896,6 +1906,7 @@ fn state_json(app: &mut App, ctx: &Ctx) -> Value {
         "player": player,
         "ride": ride,
         "hints": hints,
+        "dex_preview": dex_preview,
         "clock": clock,
         "weather": weather,
         "progress": progress,

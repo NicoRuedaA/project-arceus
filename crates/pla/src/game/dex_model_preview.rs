@@ -487,15 +487,12 @@ fn posed_bounds(
         }
         if let Ok((mesh_handle, skin, global)) = meshes.get(entity) {
             if let Some(mesh) = mesh_assets.get(mesh_handle) {
-                match skin {
-                    Some(skin) => {
-                        let Some(ibm) = bindposes.get(&skin.inverse_bindposes) else {
-                            continue;
-                        };
-                        let Some((positions, skinning)) = skinned_vertices(mesh, skin, ibm, joints)
-                        else {
-                            continue;
-                        };
+                let posed = skin.and_then(|skin| {
+                    let ibm = bindposes.get(&skin.inverse_bindposes)?;
+                    skinned_vertices(mesh, skin, ibm, joints)
+                });
+                match posed {
+                    Some((positions, skinning)) => {
                         for (vertex, position) in positions.iter().enumerate() {
                             let Some(influences) = skinning.get(&vertex) else {
                                 continue;
@@ -511,6 +508,8 @@ fn posed_bounds(
                             }
                         }
                     }
+                    // No skin data (yet, or an unusual export): the mesh's own box is a looser
+                    // but always available stand-in, so the camera never keeps a stale framing.
                     None => {
                         if let Some(local) = mesh.compute_aabb() {
                             let center = Vec3::from(local.center);
@@ -682,6 +681,7 @@ fn place_preview_frame(
     screens: Query<&OrigScreen>,
     mut frame: Query<&mut Node, (With<DexPreviewRoot>, Without<DexPreviewCaption>)>,
     mut caption: Query<&mut Visibility, With<DexPreviewCaption>>,
+    mut placed: Local<u8>,
 ) {
     let original = config.as_ref().is_some_and(|c| c.enabled());
     let photo = original
@@ -695,6 +695,13 @@ fn place_preview_frame(
             geom.visible.then_some((geom.center, geom.size, screen.scene.width, screen.scene.height))
         })
         .flatten();
+    if super::debug_flags::dex_preview() {
+        let state = (original as u8) | ((photo.is_some() as u8) << 1);
+        if *placed != state {
+            *placed = state;
+            info!("dex preview place: original={original} photo={:?}", photo.is_some());
+        }
+    }
     for mut node in &mut frame {
         let next = match photo {
             Some((center, size, width, height)) => Node {
@@ -730,6 +737,57 @@ fn place_preview_frame(
         if *visibility != want {
             *visibility = want;
         }
+    }
+}
+
+/// What the preview is doing right now (automation `state` and tests).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DexPreviewSnapshot {
+    pub yaw: f32,
+    pub pitch: f32,
+    /// Distance of the preview camera to [`PREVIEW_ORIGIN`] (model units of the current model).
+    pub distance: f32,
+    /// Measured model box, when a model is loaded.
+    pub bounds: Option<PreviewBounds>,
+    /// Placed rectangle of the preview image: `(left, top, width, height)`, px or % as placed.
+    pub frame: Option<(f32, f32, f32, f32)>,
+}
+
+/// Read the current preview state (see [`DexPreviewSnapshot`]).
+pub fn snapshot(world: &mut World) -> Option<DexPreviewSnapshot> {
+    let spin = *world.get_resource::<DexPreviewSpin>()?;
+    let distance = {
+        let mut query = world.query_filtered::<&Transform, With<DexPreviewCamera>>();
+        query.iter(world).next().map_or(0.0, |t| t.translation.z - PREVIEW_ORIGIN.z)
+    };
+    let bounds = {
+        let mut query = world.query::<&DexPreviewFramed>();
+        query.iter(world).next().map(|framed| framed.bounds)
+    };
+    let frame = {
+        let mut query = world.query_filtered::<&Node, With<DexPreviewRoot>>();
+        let node = query.iter(world).next()?;
+        Some((
+            val_f32(node.left),
+            val_f32(node.top),
+            val_f32(node.width),
+            val_f32(node.height),
+        ))
+    };
+    Some(DexPreviewSnapshot {
+        yaw: spin.yaw,
+        pitch: spin.pitch,
+        distance,
+        bounds,
+        frame,
+    })
+}
+
+fn val_f32(val: Val) -> f32 {
+    match val {
+        Val::Px(v) => v,
+        Val::Percent(v) => v,
+        _ => f32::NAN,
     }
 }
 
@@ -998,6 +1056,69 @@ mod tests {
         let reset = app.world().resource::<DexPreviewSpin>();
         assert_eq!(reset.yaw, PREVIEW_INITIAL_YAW);
         assert_eq!(reset.pitch, 0.0);
+    }
+
+    /// The placement system in a headless app: with the original page active the image takes the
+    /// photo pane's rectangle in screen percentages (so it tracks the window); without it, the
+    /// provisional box stays.
+    #[test]
+    fn preview_follows_the_photo_pane_of_the_original_screen() {
+        use crate::game::orig_ui::layout::ScreenDoc;
+        use crate::game::orig_ui::scene::Scene;
+        use crate::game::orig_ui::{OrigScreen, OrigUiConfig, ScreenId, UiMode};
+
+        // A document with the photo pane of `pokedex_detail_00` (the real numbers).
+        let json = r#"{"screen":"gfpak_poke_dex","archives":[{"name":"pokedex_detail_00",
+          "layouts":{"pokedex_detail_00":{"layout":{"width":1920,"height":1080,"name":"pokedex_detail_00"},
+          "materials":[],"root":{"name":"RootPane","type":"null",
+            "origin":{"x":"center","y":"center"},"parent_origin":{"x":"center","y":"center"},
+            "translate":[0,0,0],"rotate":[0,0,0],"scale":[1,1],"size":[1920,1080],"children":[
+              {"name":"N_poke_picture_00","type":"null","origin":{"x":"center","y":"center"},
+               "parent_origin":{"x":"center","y":"center"},"translate":[-472,62,0],"rotate":[0,0,0],
+               "scale":[1,1],"size":[512,512],"children":[]}]}}}}]}"#;
+        let doc = ScreenDoc::from_json(json).unwrap();
+        let scene = std::sync::Arc::new(Scene::build(std::sync::Arc::new(doc), "pokedex_detail_00").unwrap());
+        let mut screen = OrigScreen::new(ScreenId::Dex, scene);
+        screen.shown = true;
+        screen.last = Some(screen.evaluate());
+
+        let mut app = App::new();
+        app.insert_resource(OrigUiConfig {
+            mode: UiMode::Original,
+            root: Some(std::path::PathBuf::from("work/ui")),
+        });
+        app.world_mut().spawn(screen);
+        let node = app
+            .world_mut()
+            .spawn((DexPreviewRoot, Node::default()))
+            .with_child((DexPreviewCaption, Visibility::Inherited))
+            .id();
+        app.add_systems(Update, place_preview_frame);
+        app.update();
+        let placed = app.world().get::<Node>(node).unwrap();
+        // The pane sits at x 232..744, y 222..734 of 1920×1080: 12.08 %, 20.56 %, 26.67 %, 47.41 %.
+        assert!((val_f32(placed.left) - 232.0 / 1920.0 * 100.0).abs() < 1e-3, "{:?}", placed.left);
+        assert!((val_f32(placed.top) - 222.0 / 1080.0 * 100.0).abs() < 1e-3, "{:?}", placed.top);
+        assert!((val_f32(placed.width) - 512.0 / 1920.0 * 100.0).abs() < 1e-3, "{:?}", placed.width);
+        assert!((val_f32(placed.height) - 512.0 / 1080.0 * 100.0).abs() < 1e-3, "{:?}", placed.height);
+        // The caption is debug clutter over the original page.
+        let mut caption = app.world_mut().query_filtered::<&Visibility, With<DexPreviewCaption>>();
+        let hidden = caption.iter(app.world()).all(|v| *v == Visibility::Hidden);
+        assert!(hidden, "the caption must only show with PLA_DEBUG_DEX_PREVIEW");
+
+        // Without the original screen (provisional) the old fixed box comes back.
+        app.insert_resource(OrigUiConfig {
+            mode: UiMode::Debug,
+            root: None,
+        });
+        app.update();
+        let placed = app.world().get::<Node>(node).unwrap();
+        assert_eq!(placed.left, Val::Px(PROVISIONAL_BOX.0));
+        assert_eq!(placed.top, Val::Px(PROVISIONAL_BOX.1));
+        assert_eq!(placed.width, Val::Px(PROVISIONAL_BOX.2));
+        let mut caption = app.world_mut().query_filtered::<&Visibility, With<DexPreviewCaption>>();
+        let shown = caption.iter(app.world()).all(|v| *v == Visibility::Inherited);
+        assert!(shown, "the provisional screen keeps the caption");
     }
 
     #[test]
