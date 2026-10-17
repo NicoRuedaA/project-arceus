@@ -191,32 +191,34 @@ pub fn bind_pause_menu(
         s.freeze_end(inst, tag, "sel");
     }
     // The port's own footer under the strip: money / play time and the keys of this menu (the
-    // game's own texts are never read; the game shows no such line here).
+    // game's own texts are never read; the game shows no such line here). Bottom-right, so the
+    // port's field-message toast (bottom-left) never covers the key hint.
     let money = progress.as_ref().map_or(0, |p| p.money);
     let seconds = play.as_ref().map_or(0, |p| p.seconds);
     let dim = [0.82, 0.82, 0.78, 1.0];
     s.set_free_quads(Vec::new());
     s.set_free_texts(vec![
         free_text(
-            60.0,
+            940.0,
             944.0,
-            900.0,
+            920.0,
             40.0,
             24.0,
             dim,
-            TextAlign::Left,
+            TextAlign::Right,
             menu_info_text(money, seconds),
         ),
         free_text(
-            60.0,
+            940.0,
             988.0,
-            1400.0,
+            920.0,
             40.0,
             24.0,
             dim,
-            TextAlign::Left,
+            TextAlign::Right,
             "Left / Right: choose   Enter: open   Esc: resume",
-        ),    ]);
+        ),
+    ]);
 }
 
 // ------------------------------------------------------------------------------------- party
