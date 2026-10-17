@@ -452,7 +452,9 @@ pub fn parse_key(name: &str) -> Option<KeyCode> {
         it.next().is_none().then_some(c)
     };
     if let Some(c) = single(n) {
-        return letter(c).or_else(|| digit(c));
+        if let Some(k) = letter(c).or_else(|| digit(c)) {
+            return Some(k);
+        }
     }
     if let Some(rest) = lower.strip_prefix("key") {
         if let Some(c) = single(rest) {
@@ -487,6 +489,8 @@ pub fn parse_key(name: &str) -> Option<KeyCode> {
         "down" | "arrowdown" => K::ArrowDown,
         "left" | "arrowleft" => K::ArrowLeft,
         "right" | "arrowright" => K::ArrowRight,
+        "[" | "bracketleft" | "leftbracket" => K::BracketLeft,
+        "]" | "bracketright" | "rightbracket" => K::BracketRight,
         _ => return None,
     })
 }
@@ -1998,6 +2002,9 @@ mod tests {
         assert_eq!(parse_key("f"), Some(KeyCode::KeyF));
         assert_eq!(parse_key("Shift"), Some(KeyCode::ShiftLeft));
         assert_eq!(parse_key("up"), Some(KeyCode::ArrowUp));
+        assert_eq!(parse_key("["), Some(KeyCode::BracketLeft));
+        assert_eq!(parse_key("]"), Some(KeyCode::BracketRight));
+        assert_eq!(parse_key("BracketRight"), Some(KeyCode::BracketRight));
         assert_eq!(parse_key("F13"), None);
         assert_eq!(parse_key("hyper"), None);
     }

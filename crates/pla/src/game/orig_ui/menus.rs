@@ -102,6 +102,30 @@ pub(super) fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage>
     })
 }
 
+/// Label of an item id: the decoded effect text, or `Item #id` for ids outside the table.
+pub(super) fn item_label(table: Option<&crate::battle_engine::items::ItemTable>, id: u16) -> String {
+    match table.and_then(|t| t.get(id)) {
+        Some(item) => label(item),
+        None => format!("Item #{id}"),
+    }
+}
+
+/// Button label: the effect text without the trailing ` #<id>` (the grid cells are narrower than
+/// the full label; the info panels keep the id). The generic `Item #id` label keeps its id:
+/// without it the name says nothing.
+pub(super) fn short_label(full: &str) -> &str {
+    if let Some((head, tail)) = full.rsplit_once(" #") {
+        if head != "Item"
+            && !head.is_empty()
+            && !tail.is_empty()
+            && tail.chars().all(|c| c.is_ascii_digit())
+        {
+            return head;
+        }
+    }
+    full
+}
+
 const TABS: usize = 4;
 
 #[allow(clippy::too_many_arguments)]

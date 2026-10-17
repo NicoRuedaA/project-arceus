@@ -13,11 +13,15 @@ use bevy::prelude::*;
 use super::icons::IconIndex;
 use super::menus::{fill_cell, slot_centres, translate_onto};
 use super::{OrigScreen, OrigUiConfig, OrigUiSystems, ScreenId};
-use crate::battle_engine::items::ItemTable;
 use crate::game::bag_screen::BagItemTable;
-use crate::game::battle_items::label;
 use crate::game::crafting::{can_craft, Bag, Recipe};
 use crate::game::crafting_ui::{CraftingBag, CraftingCatalog, CraftingRoot, CraftingUi};
+
+/// Label of an item id and its short button form (shared helpers, `menus::item_label` /
+/// `menus::short_label`; re-exported here because this screen's tests and `recipe_detail` use
+/// them).
+pub(super) use super::menus::item_label;
+pub(super) use super::menus::short_label;
 
 /// Grid cells of the game's inventory layout (the recipe grid reuses it).
 pub const CRAFT_CELLS: usize = 48;
@@ -32,32 +36,8 @@ pub fn install(app: &mut App) {
     super::hide_when_shown::<CraftingRoot>(app, ScreenId::Crafting);
 }
 
-/// Label of an item id: the decoded effect text, or `Item #id` for ids outside the table.
-pub fn item_label(table: Option<&ItemTable>, id: u16) -> String {
-    match table.and_then(|t| t.get(id)) {
-        Some(item) => label(item),
-        None => format!("Item #{id}"),
-    }
-}
-
-/// Button label: the effect text without the trailing ` #<id>` (the grid cells are narrower than
-/// the full label; the info panel and the material rows keep the id). The generic `Item #id` label
-/// keeps its id: without it the name says nothing.
-pub fn short_label(full: &str) -> &str {
-    if let Some((head, tail)) = full.rsplit_once(" #") {
-        if head != "Item"
-            && !head.is_empty()
-            && !tail.is_empty()
-            && tail.chars().all(|c| c.is_ascii_digit())
-        {
-            return head;
-        }
-    }
-    full
-}
-
 /// Detail line of the selected recipe for the info panel (port's own words).
-pub fn recipe_detail(table: Option<&ItemTable>, recipe: &Recipe, bag: &Bag) -> String {
+pub fn recipe_detail(table: Option<&crate::battle_engine::items::ItemTable>, recipe: &Recipe, bag: &Bag) -> String {
     format!(
         "Recipe {}: makes {} x{}. Condition: {}. {}",
         recipe.id,
@@ -215,10 +195,11 @@ pub fn bind_crafting_screen(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::battle_engine::items::ItemTable;
     use crate::game::crafting::{MaterialCost, RecipeCondition, RecipeName};
 
     fn table() -> ItemTable {
-        crate::battle_engine::items::ItemTable::load(
+        ItemTable::load(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
         .unwrap()

@@ -73,6 +73,14 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "T_msg_guid_00",
             "L_info_item_00",
         ],
+        ScreenId::Shop => &[
+            "L_inventory_parts_00",
+            "P_deco_base_item_00",
+            "P_deco_base_item_20",
+            "T_heading_pt_00",
+            "L_money_00",
+            "L_info_item_00",
+        ],
         _ => &[],
     }
 }
@@ -904,5 +912,106 @@ fn crafting_binding_fills_the_recipe_grid_and_materials() {
     assert!(
         texts.iter().any(|t| t.contains("1 / 1") && t.contains("Enter: craft")),
         "the message strip shows the hint: {texts:?}"
+    );
+}
+
+/// The shop screen fills the game's own grid, money plate, heading and info panel from the
+/// existing bag/shop state, and follows the Buy / Sell tab.
+#[test]
+fn shop_binding_fills_the_item_grid_and_money() {
+    let Some(root) = local_root() else { return };
+    use crate::game::bag_screen::{BagItemTable, BagMode, BagUi, ShopCatalog, ShopTab};
+    use crate::game::save_wire::PlayerProgress;
+    use crate::game::shop::Shop;
+    let Ok(table) = crate::battle_engine::items::ItemTable::load(data_dir()) else {
+        println!("[skip] item table missing");
+        return;
+    };
+    let (mut app, e) = screen_app(&root, ScreenId::Shop, |app| {
+        let mut p = PlayerProgress::new_game();
+        p.money = 680;
+        p.bag.clear();
+        p.bag.insert(17, 1);
+        app.insert_resource(p);
+        app.insert_resource(BagItemTable(Some(table)));
+        app.insert_resource(ShopCatalog(vec![Shop {
+            hash: 7,
+            stock: vec![17, 26],
+        }]));
+        app.insert_resource(BagUi {
+            open: true,
+            mode: BagMode::Shop,
+            tab: ShopTab::Buy,
+            selected: 0,
+            quantity: 2,
+            ..Default::default()
+        });
+        app.add_systems(Update, (shop_screen::bind_shop_screen, render_screens).chain());
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(s.shown, "open shop must show");
+    let f = s.last.clone().expect("evaluated");
+    let grid = s.scene.part_instance("L_inventory_parts_00").unwrap();
+    let btn = s.scene.find_in(grid, "L_btn_main_00").unwrap();
+    let slot = s.scene.find("P_deco_base_item_00").unwrap();
+    assert!(f.geoms[btn].visible, "item cell 0 shown");
+    assert!(
+        (f.geoms[btn].center - f.geoms[slot].center).length() < 2.0,
+        "button at {:?}, slot at {:?}",
+        f.geoms[btn].center,
+        f.geoms[slot].center
+    );
+    assert!(
+        !f.geoms[s.scene.find_in(grid, "L_btn_main_21").unwrap()].visible,
+        "cells past the 21-slot page stay hidden"
+    );
+    let visible: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    assert!(visible.contains(&"Buy"), "{visible:?}");
+    assert!(visible.contains(&"680"), "money plate: {visible:?}");
+    assert!(
+        visible.contains(&"Heal 60 HP #17"),
+        "info heading: {visible:?}"
+    );
+    let detail = visible.iter().find(|t| t.contains("You have 1")).unwrap_or_else(|| {
+        panic!("detail line missing: {visible:?}")
+    });
+    assert!(detail.contains("costs 400"), "200 x 2: {detail}");
+    assert!(detail.contains("sells for 100"), "{detail}");
+    let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
+    assert!(
+        free.iter().any(|t| t.contains("[ ] quantity")),
+        "key hint: {free:?}"
+    );
+
+    // The Sell tab lists your priced items and the heading follows.
+    {
+        let mut ui = app.world_mut().resource_mut::<BagUi>();
+        ui.tab = ShopTab::Sell;
+        ui.selected = 0;
+    }
+    app.update();
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    let f = s.last.clone().expect("evaluated");
+    let visible: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    assert!(visible.contains(&"Sell"), "{visible:?}");
+    assert!(
+        visible.iter().any(|t| t.contains("selling 2 pays 200")),
+        "sell total: {visible:?}"
+    );
+    // Only one sellable item is held, so the second cell stays hidden.
+    let grid = s.scene.part_instance("L_inventory_parts_00").unwrap();
+    assert!(
+        !f.geoms[s.scene.find_in(grid, "L_btn_main_01").unwrap()].visible,
+        "second sell cell hidden"
     );
 }
