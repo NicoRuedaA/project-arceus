@@ -120,6 +120,7 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 | `--debug-zone-links` | Activa ayudas para probar cambios de zona (P y T, ver 2.7). |
 | `--obj-rot neg\|flip` | Solo si los edificios salen girados de lado: prueba otra interpretación del giro. |
 | `--player-variant p1\|p2` | Elige el modelo del protagonista (p1 por defecto). |
+| `--debug-view LISTA` | **Nuevo.** Enciende ya (sin pulsar teclas) una o varias vistas de depuración, para capturas automáticas: `collisions` (= encima), `collisions=only`, `models` (= sin textura), `wireframe` (= alambre), `data` (= jugador), `markers` (= marcas) y `off`. Se pueden combinar con comas: `--debug-view collisions=only,wireframe`. Ver 2.18. |
 | `--cell-size`, `--vertical-scale` | Cambian la escala del terreno. No hace falta tocarlas. |
 
 Las opciones `--headless`, `--auto-demo`, `--script`, `--screenshot`, `--ticks`, `--verify-views`
@@ -157,6 +158,9 @@ valor por defecto.
 | Esc | Menú de pausa (desde ahí también: Equipo, Cajas, Pokédex, Artesanía, Tienda y **Cargar partida**; ver 2.8 y 2.15) |
 | Y (en la Pokédex) | Cambia entre la lista de Hisui (242 especies, con investigación) y la **lista nacional** (1.025 especies, solo nombres; sin modelos, iconos ni investigación todavía) |
 | F5 | Guardar |
+| F1 | **Depuración visual: colisiones.** Cada pulsación: apagado → dibujar colisiones encima del mundo → solo colisiones (se ocultan modelos y terreno) → apagado. Ver 2.18 |
+| F2 | **Depuración visual: modelos.** Cada pulsación: normal → sin texturas (gris liso) → alambre → normal. Ver 2.18 |
+| F3 | **Depuración visual: datos.** Cada pulsación: apagado → información del jugador → información + marcas de colores (puertas, trepables, agua, apariciones, objetos, PNJ, salvajes) → apagado. Ver 2.18 |
 | 1 a 5 | Cambia el color del Pokémon de pruebas (es una ayuda de desarrollo, no una función del juego) |
 | P (con `--debug-zone-links`) | Escribe en la terminal las puertas cercanas |
 | T (con `--debug-zone-links`) | Viaje rápido a la siguiente zona principal |
@@ -665,6 +669,58 @@ agua (la zona 2 vale): cruza el agua a su velocidad (medido: 45 m de marisma a 8
 
 Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento del jinete,
 `/home/nico/work/capturas_jinete/impl2/` (lado y tres cuartos de cada montura + Braviary en vuelo).
+
+### 2.18 Depuración visual (F1 / F2 / F3)  [EN MAIN]
+
+77. **Qué es.** Tres ayudas de desarrollo para *mirar* cómo está montado el port: enseñar las
+    colisiones, enseñar los modelos sin texturas y enseñar datos de zonas de interés. **Están
+    apagadas por defecto** y, apagadas, no tocan nada del juego normal (no gastan rendimiento).
+    Mientras alguna esté encendida, arriba a la izquierda (justo debajo del cartel con el nombre de
+    la zona) sale siempre un aviso con las tres teclas, el modo actual de cada una y la lista de
+    colores. **F5 (guardar) no cambia.**
+
+    Cada tecla **cicla**: cada pulsación pasa al siguiente estado y, al final, vuelve al principio.
+    Las tres teclas son independientes (puedes tener F1 en «solo colisiones» y F3 en «datos» a la vez).
+
+    | Tecla | Estados (en orden, vuelve al primero) |
+    |---|---|
+    | **F1 colisiones** | APAGADO → **ENCIMA** (líneas de colisión por encima del mundo) → **SOLO** (se esconden los modelos y el terreno: solo se ven colisiones y navegación) |
+    | **F2 modelos** | NORMAL → **SIN TEXTURA** (material gris liso, para ver la forma) → **ALAMBRE** (líneas de los triángulos) |
+    | **F3 datos** | APAGADO → **JUGADOR** (posición, velocidad, estado, zona, subárea, hora de juego, FPS) → **JUGADOR+MARCAS** (además, marcas de colores) |
+
+    Colores de las marcas de F3 (salen en el aviso de pantalla): **amarillo** puertas (caja del
+    disparador y círculo de alcance), **naranja** riscos trepables, **azul** agua, **lima** puntos
+    de aparición de salvajes (y punto de reaparición seguro), **magenta** objetos del suelo
+    recogibles, **blanco** PNJ, **rojo** Pokémon salvajes con su radio de enfado. En F1:
+    **cian** muros de edificios/rocas, **verde** navegación caminable, **rojo oscuro** navegación
+    NO caminable (dibujada por muestreo cada 8 m), **gris oscuro** suelos y tejados de colisión.
+
+    Qué hacer y qué deberías ver: camina por la aldea (zona 0) y por el bosque (zona 1) con cada
+    modo. **Es un fallo** que al apagarlo todo quede algo raro: un modelo sin textura que no
+    vuelve, un trozo de mundo que se queda invisible o colores que no correspondan con la lista.
+    También es un fallo que el aviso de arriba no salga con algún modo encendido.
+
+    Notas honestas:
+    - El dibujo de colisiones se limita a unos 70 m alrededor del protagonista y la navegación a
+      unos 64 m; más lejos no se dibuja (para no ir lento). Las marcas de F3, a unos 160 m.
+    - El modo **ALAMBRE** usa la pieza de dibujo de Bevy; si tu tarjeta gráfica no la soportara,
+      Bevy lo avisa en la consola y el modo simplemente no dibuja líneas (nada se rompe).
+    - El modo **SIN TEXTURA** cambia el material de los modelos, del terreno (tanto el normal
+      como el suelo «splat» en tiempo real), del agua (su dibujo con olas) y de los personajes
+      (que usan el material del estilo original). Es decir, mira la forma de todo sin colores;
+      al apagarlo, cada pieza recupera su material original exacto.
+    - El aviso y la línea del jugador usan texto sin tildes («navegacion», «subarea») porque la
+      fuente por defecto del motor no trae esos caracteres; con tilde saldrían cuadros.
+    - Las colisiones de los **interiores** se ven igual que las de fuera (entran en el mismo
+      sistema); las salas de relleno de un interior sin datos son solo dibujo, no tienen colisión.
+    - No es una ayuda para jugar: es para que tú (y el asistente) puedan mirar y comprobar el port.
+    - Capturas de referencia, en la aldea y en el bosque: apagado, colisiones (encima y solo),
+      sin textura, alambre, jugador y marcas, más tres de detalle (salvaje con su radio, puerta
+      y agua): `/home/nico/work/capturas_debug_visual/` (con `LEEME.txt`).
+
+    Para capturas automáticas (sin ventana) se puede arrancar ya con un modo encendido:
+    `.tools/gamectl.py start -- --area 0 --debug-view collisions=only` (y `markers`, `wireframe`...),
+    o pulsar las teclas de verdad con `.tools/gamectl.py key F1`.
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 

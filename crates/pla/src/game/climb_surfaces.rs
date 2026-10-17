@@ -94,6 +94,11 @@ impl ClimbSurfaces {
     pub fn drawn(&self) -> bool {
         self.drawn
     }
+
+    /// The parsed surfaces of the active area (read-only; the visual debug view draws them).
+    pub fn patches(&self) -> &[Climbable] {
+        &self.patches
+    }
 }
 
 /// Spawns `patches` into `world`, optionally with a translucent debug box child. The box is a

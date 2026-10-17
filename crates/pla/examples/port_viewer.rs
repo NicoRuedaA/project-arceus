@@ -1136,6 +1136,9 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(effects);
     // Keyboard + gamepad (bevy_gilrs) to ActionState; gameplay systems below read only that.
     app.add_plugins(pla::game::input_map::InputMapPlugin);
+    // Visual debug aid (F1 collisions, F2 models, F3 data overlays; `--debug-view` for captures).
+    // OFF by default and zero-cost while off; F5 (save) stays untouched.
+    app.add_plugins(pla::game::debug_visual::DebugVisualPlugin::from_args(&cli_args));
     // Ride Pokémon (Brief 38): mount/dismount (V, gamepad Select), cycle (G), decoded speeds.
     app.add_plugins(pla::game::ride::RidePlugin);
     // On-screen control hints: the mount's keys after summoning, "Trepar" near a cliff.

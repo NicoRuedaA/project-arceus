@@ -207,6 +207,23 @@ space, options and troubleshooting: [`docs/INSTALL.md`](docs/INSTALL.md).
 
 Play-testing the viewer: a checklist for non-programmers (in Spanish) is in [`docs/GUIA-DE-PRUEBAS.md`](docs/GUIA-DE-PRUEBAS.md).
 
+### Visual debug view (F1/F2/F3)
+
+A developer aid, **OFF by default and zero-cost while off** (nothing is iterated, spawned or
+drawn when every mode is off). While any mode is active a legend with the current states and the
+colour list stays on screen. **F5 (save) is not touched**; F4 and F6..F12 stay free.
+
+| Key | Cycles (each press advances, then wraps) | What it shows |
+|---|---|---|
+| `F1` | off → over → only | Placed-object collision lines over the world; `only` hides every world model/terrain and leaves collisions + navigation (walkable faces green, sampled non-walkable cells dark red) |
+| `F2` | normal → no textures → wireframe | Plain grey material swap for models, characters, the splat terrain and the water (restores the exact original materials) and Bevy's wireframe pass |
+| `F3` | off → player → player + markers | Player line (position, speed, movement state, zone, sub-area, game time, FPS) and coloured interest markers: doors+reach (yellow), climb surfaces (orange), water (blue), spawners/safe spawn (lime), pickups (magenta), NPC capsules (white), wild creatures + aggro radius (red) |
+
+Windowless captures can start with a mode already on: `--debug-view collisions=only` (also
+`models`, `wireframe`, `data`, `markers`, comma-separated) or drive it with real key presses
+(`gamectl.py key F1`). Module: `crates/pla/src/game/debug_visual.rs` (key map, colours and cost
+notes); tested cycling, CLI parsing and "off = no entities".
+
 ## Quickstart
 
 ```bash

@@ -66,6 +66,9 @@ pub struct CollisionGrid {
     cell: f32,
     cells: HashMap<(i32, i32), Vec<u32>>,
     instances: Vec<CollisionInstance>,
+    /// Bumped on every clear/insert so consumers (the visual debug view) can detect changes
+    /// without walking the instances.
+    revision: u64,
 }
 
 impl CollisionGrid {
@@ -74,6 +77,7 @@ impl CollisionGrid {
             cell: cell.max(0.5),
             cells: HashMap::new(),
             instances: Vec::new(),
+            revision: 0,
         }
     }
 
@@ -92,6 +96,23 @@ impl CollisionGrid {
     pub fn clear(&mut self) {
         self.cells.clear();
         self.instances.clear();
+        self.revision = self.revision.wrapping_add(1);
+    }
+
+    /// All live instances (read-only; the visual debug view draws them).
+    pub fn instances(&self) -> &[CollisionInstance] {
+        &self.instances
+    }
+
+    /// Instance ids whose grid cells overlap the box around `center` ± `radius` in XZ
+    /// (public read-only view of the internal candidate lookup, for debug drawing).
+    pub fn instance_ids_near(&self, center: Vec3, radius: f32) -> Vec<u32> {
+        self.candidates(center, radius)
+    }
+
+    /// Change counter (see the field): differs whenever instances were cleared or inserted.
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     pub fn cell_of(&self, x: f32, z: f32) -> (i32, i32) {
@@ -105,6 +126,7 @@ impl CollisionGrid {
     pub fn insert(&mut self, mesh: Arc<CollisionMesh>, transform: Mat4) -> u32 {
         let (aabb_min, aabb_max) = transformed_bounds(&mesh, &transform);
         let id = self.instances.len() as u32;
+        self.revision = self.revision.wrapping_add(1);
         self.instances.push(CollisionInstance {
             mesh,
             transform,
@@ -699,6 +721,25 @@ impl WorldCollision {
     /// Number of live collision instances (for tests/probes).
     pub fn instance_count(&self) -> usize {
         self.grid.len()
+    }
+
+    /// Live collision instances within `radius` of a point in XZ (for the visual debug view).
+    ///
+    /// The candidate set comes from the same grid cells the capsule push-out uses; instances
+    /// whose cell was inserted are returned even if the point is only near their bounding box.
+    pub fn instances_near(&self, center: Vec2, radius: f32) -> Vec<&CollisionInstance> {
+        let ids = self
+            .grid
+            .instance_ids_near(Vec3::new(center.x, 0.0, center.y), radius);
+        let instances = self.grid.instances();
+        ids.into_iter()
+            .filter_map(|id| instances.get(id as usize))
+            .collect()
+    }
+
+    /// Change counter of the underlying grid (see [`CollisionGrid::revision`]).
+    pub fn collision_revision(&self) -> u64 {
+        self.grid.revision()
     }
 
     /// Live instances within `radius` of a point (for tests/probes).
