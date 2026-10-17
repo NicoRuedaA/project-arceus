@@ -602,8 +602,27 @@ impl Battle {
                 events.push(Event::Missed {
                     actor: action.actor,
                     target,
-                    name: move_name,
+                    name: move_name.clone(),
                 });
+                // Crash damage (Axe Kick, Supercell Slam): half the user's max HP on a miss.
+                let crash_pct = self
+                    .effects
+                    .as_ref()
+                    .and_then(|t| t.get(&move_name))
+                    .map_or(0, |fx| fx.crash_damage_pct);
+                if crash_pct > 0 {
+                    let actor = action.actor;
+                    let amount = (self.combatants[actor].max_hp * u32::from(crash_pct) / 100)
+                        .max(1)
+                        .min(self.combatants[actor].hp);
+                    self.combatants[actor].hp -= amount;
+                    self.effect_events
+                        .push(EffectEvent::CrashDamage { actor, amount });
+                    if self.combatants[actor].hp == 0 {
+                        events.push(Event::KnockedOut(actor));
+                        self.advance_active_for(actor);
+                    }
+                }
                 continue;
             }
             let fx = self

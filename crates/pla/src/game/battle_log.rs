@@ -220,6 +220,9 @@ pub fn format_effect(name: &dyn Fn(usize) -> String, e: &EffectEvent) -> Option<
         EffectEvent::HpCost { actor, amount } => {
             format!("{} paid {amount} HP!", name(*actor))
         }
+        EffectEvent::CrashDamage { actor, amount } => {
+            format!("{} is hurt by the crash! (-{amount} HP)", name(*actor))
+        }
         EffectEvent::Flinched { target } => format!("{} flinched!", name(*target)),
         EffectEvent::FlinchedAndSkipped { actor } => {
             format!("{} flinched and couldn't move!", name(*actor))

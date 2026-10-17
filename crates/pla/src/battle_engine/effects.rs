@@ -109,6 +109,8 @@ pub struct MoveEffects {
     pub repeat_lock: bool,
     /// External generation-9 base-power callback; `None` for every PLA row.
     pub power_rule: PowerRule,
+    /// Percent of the user's max HP lost when the move misses (crash damage); 0 = none.
+    pub crash_damage_pct: u8,
 }
 
 impl MoveEffects {
@@ -244,6 +246,7 @@ impl MoveEffectsTable {
                 // Only the external generation-9 sheet carries this flag.
                 repeat_lock: false,
                 power_rule: PowerRule::None,
+                crash_damage_pct: 0,
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);
@@ -327,6 +330,11 @@ pub enum EffectEvent {
         amount: u32,
     },
     HpCost {
+        actor: usize,
+        amount: u32,
+    },
+    /// Crash damage after a missed move (Axe Kick, Supercell Slam).
+    CrashDamage {
         actor: usize,
         amount: u32,
     },
