@@ -99,6 +99,8 @@ pub enum StatusEvent {
     SyrupBomb { target: usize },
     /// Syrup Bomb's last Speed drop happened.
     SyrupBombEnded { target: usize },
+    /// The target's frostbite was removed by a thawing move (Hydro Steam, Matcha Gotcha).
+    Thawed { target: usize },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -436,6 +438,14 @@ impl Battle {
                 }
             }
             ResidualVolatile::None => {}
+        }
+    }
+
+    /// Thawing hits: the external generation-9 moves with `thawsTarget` clear frostbite.
+    pub(super) fn status_thaw_target(&mut self, target: usize, fx: &MoveEffects) {
+        if fx.thaws_target && self.combatants[target].status == Some(MajorStatus::Frostbite) {
+            self.combatants[target].status = None;
+            self.status.events.push(StatusEvent::Thawed { target });
         }
     }
 

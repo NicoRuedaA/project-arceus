@@ -125,6 +125,8 @@ pub struct MoveEffects {
     pub crash_damage_pct: u8,
     /// External generation-9 residual volatile; `None` for every PLA row.
     pub residual_volatile: ResidualVolatile,
+    /// The hit thaws the target (Hydro Steam, Matcha Gotcha); PLA rows never set it.
+    pub thaws_target: bool,
 }
 
 impl MoveEffects {
@@ -262,6 +264,7 @@ impl MoveEffectsTable {
                 power_rule: PowerRule::None,
                 crash_damage_pct: 0,
                 residual_volatile: ResidualVolatile::None,
+                thaws_target: false,
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);

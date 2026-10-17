@@ -743,6 +743,7 @@ impl Battle {
             }
             self.status_post_hit(action.actor, &move_name_for_hook);
             if let Some(fx) = &fx {
+                self.status_thaw_target(target, fx);
                 let ko = self.apply_move_effects(
                     action.actor,
                     target,

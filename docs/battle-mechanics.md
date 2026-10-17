@@ -46,13 +46,13 @@ project wants in the dex come from an external sheet (`data/gen9_moves.tsv`: Pok
 verified against the game**: every value is EXTERNAL/PROBABLE and the sheet is never mixed
 with `pml_moves.tsv` rows, which always win by name.
 
-- 35 of the 70 rows now load through `battle_engine/gen9.rs`: 22 fit the effect columns,
+- 37 of the 70 rows now load through `battle_engine/gen9.rs`: 22 fit the effect columns,
   Gigaton Hammer and Blood Moon add the `cantusetwice` flag (`MoveEffects::repeat_lock`), Last
   Respects, Rage Fist, Hard Press, Collision Course, Electro Drift and Fickle Beam add their
   Showdown base-power callbacks (`PowerRule`), Axe Kick, Supercell Slam and Magical Torque add
-  miss crash damage (`crash_damage_pct`) and the confusion secondary, and Salt Cure and Syrup
-  Bomb add end-of-turn residual conditions (`ResidualVolatile`: 1/8 or 1/4 max HP each turn
-  until switching, and three Speed drops). The other 35 stay out with a per-row reason in
+  miss crash damage (`crash_damage_pct`) and the confusion secondary, Salt Cure and Syrup Bomb
+  add end-of-turn residual conditions (`ResidualVolatile`), and Hydro Steam and Matcha Gotcha
+  add the thawing hit (`thaws_target`). The other 33 stay out with a per-row reason in
   `engine_reason` (volatile statuses, weather/terrain, Tera, charge turns, stat changes on
   both sides, ...). Class `b` is never approximated.
 - The 8 Showdown/WikiDex stat disagreements were adjudicated on 2026-10-17 to the
@@ -68,7 +68,24 @@ with `pml_moves.tsv` rows, which always win by name.
 - Regression: `cargo test -p pla --lib gen9` runs the sheet parsing plus windowless battles
   (Jet Punch priority, Torch Song's self boost, Bitter Blade's drain, Lumina Crash's drop,
   the repeat lock of Gigaton Hammer, the six base-power rules, Axe Kick's crash damage,
-  Magical Torque's confusion and the Salt Cure/Syrup Bomb residuals).
+  Magical Torque's confusion, the Salt Cure/Syrup Bomb residuals and the thawing hits).
+
+### Pending class-b moves (documented, never approximated)
+
+The remaining class-b rows keep loading out of the engine; the exact blocker of every row is
+its `engine_reason` column. The families are: Tera and forms (Tera Blast, Tera Starstorm, Ivy
+Cudgel, Raging Bull: no Tera state, per-move type change or screens); weather (Snowscape,
+Chilly Reception: Snow exists as a state but the Ice Defense boost and the switching rider do
+not); switching and party (Shed Tail, Revival Blessing: no substitute or party revive);
+Protect variants (Silk Trap, Burning Bulwark: no contact punishment on a blocked hit);
+charge (Electro Shot, Double Shock: charge flow exists, the on-charge spell, rain shortcut
+and Electric-type removal do not); terrain and hazards (Ice Spinner, Mortal Spin: no terrain
+or hazard state to clear); vulnerability and doubles (Glaive Rush, Dragon Cheer); ability and
+field cleanup (Doodle, Tidy Up); fixed/reactive damage (Ruination, Comeuppance); conditional
+priority (Thunderclap, Upper Hand); always-crit (Flower Trick); multi-accuracy (Population
+Bomb); stateful power (Temper Flare's previous failure, Psyblade's terrain); unmodelled
+statuses (Wicked Torque sleep, Malignant Chain toxic, Psychic Noise heal block, Alluring
+Voice, Order Up); and Nihil Light, which is absent from Scarlet/Violet and cannot be verified.
 
 ## Explicit unknowns
 

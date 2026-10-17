@@ -179,6 +179,11 @@ def parse_move(num: int, ident: str, body: str) -> dict[str, str]:
         row["crash_damage_pct"] = "50"  # Showdown onMoveFail: half the user's max HP
     else:
         row["crash_damage_pct"] = "0"
+    if "thawsTarget=true" in others:
+        others.remove("thawsTarget=true")
+        row["thaws_target"] = "1"
+    else:
+        row["thaws_target"] = "0"
     row["other_props"] = ";".join(others)
     row["is_nonstandard"] = scalar(p["isNonstandard"]) if "isNonstandard" in p else ""
     return row
@@ -289,7 +294,7 @@ COLUMNS = [
     ("status", "string"), ("volatile_status", "string"), ("boosts", "string"), ("self_boosts", "string"),
     ("self_other", "string"), ("sec_chance", "u8"), ("sec_status", "string"), ("sec_volatile", "string"),
     ("sec_boosts", "string"), ("sec_self_boosts", "string"), ("callbacks", "string"),
-    ("crash_damage_pct", "u8"),
+    ("crash_damage_pct", "u8"), ("thaws_target", "u8"),
     ("other_props", "string"), ("is_nonstandard", "string"), ("source_diff", "string"), ("engine_class", "enum"),
     ("engine_reason", "string"),
 ]
@@ -307,8 +312,9 @@ def write_sheet(path: Path, rows: list[dict[str, str]], counts: dict[str, int]) 
         "#   data/pml_moves.tsv). drain/recoil/heal are percents; recoil_pct is kept apart from drain_pct.",
         "#   sec_* = secondary effect of the hit, self_boosts = boosts the user gets, boosts = status-move boosts",
         "#   (stat keys atk/def/spa/spd/spe/accuracy/evasion); crash_damage_pct = percent of the user's max",
-        "#   HP lost on a miss (Showdown hasCrashDamage). callbacks = behaviour hooks Showdown attaches;",
-        "#   other_props = remaining Showdown properties with no engine column. source_diff = stat values where",
+        "#   HP lost on a miss (Showdown hasCrashDamage); thaws_target = the hit clears the target's frostbite.",
+        "#   callbacks = behaviour hooks Showdown attaches; other_props = remaining Showdown properties with",
+        "#   no engine column. source_diff = stat values where",
         "#   WikiDex disagrees with Showdown (a WikiDex footnote states the pre-Champions value; each row keeps",
         "#   the Scarlet/Violet value and records how the disagreement was adjudicated, PROBABLE if undecidable).",
         f"# classification (DERIVED, not data): engine_class a = expressible with the existing pml_move_effects",
