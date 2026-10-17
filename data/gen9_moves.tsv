@@ -13,8 +13,9 @@
 #   no engine column. source_diff = stat values where
 #   WikiDex disagrees with Showdown (a WikiDex footnote states the pre-Champions value; each row keeps
 #   the Scarlet/Violet value and records how the disagreement was adjudicated, PROBABLE if undecidable).
-# classification (DERIVED, not data): engine_class a = expressible with the existing pml_move_effects
-#   columns (38 moves), b = needs new engine logic (32 moves); engine_reason lists why.
+# classification (DERIVED, not data): engine_class a = the engine implements it (the classic pml_move_effects
+#   columns or a named hook in battle_engine/gen9.rs; 45 moves), b = needs new engine logic
+#   (25 moves); engine_reason lists why (hook notes are DERIVED from the same source).
 # confidence: EXTERNAL/PROBABLE; not verified against the game. Do not mix with pml_moves rows.
 move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:string	power:u8	accuracy:u8	pp:u8	priority:i32	target:string	flags:string	crit_ratio:u8	min_hits:u8	max_hits:u8	drain_pct:i32	recoil_pct:i32	heal_pct:i32	status:string	volatile_status:string	boosts:string	self_boosts:string	self_other:string	sec_chance:u8	sec_status:string	sec_volatile:string	sec_boosts:string	sec_self_boosts:string	callbacks:string	crash_damage_pct:u8	thaws_target:u8	multi_accuracy:u8	other_props:string	is_nonstandard:string	source_diff:string	engine_class:enum	engine_reason:string
 851	terablast	Tera Blast	Teraexplosión	Normal	Special	80	100	10	0	normal	metronome;mirror;mustpressure;protect	0	0	0	0	0	0											basePowerCallback;onPrepareHit;onModifyType;onModifyMove	0	0	0				b	callback:basePowerCallback;onPrepareHit;onModifyType;onModifyMove
@@ -27,28 +28,28 @@ move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:st
 858	spicyextract	Spicy Extract	Extracto Picante	Grass	Status	0	101	15	0	normal	mirror;protect;reflectable	0	0	0	0	0	0			atk:2,def:-2									0	0	0				a	
 859	spinout	Spin Out	Quemarrueda	Steel	Physical	100	100	5	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0				spe:-2								0	0	0				a	
 860	populationbomb	Population Bomb	Proliferación	Normal	Physical	20	90	10	0	normal	contact;mirror;protect;slicing	0	10	10	0	0	0												0	0	1				a	
-861	icespinner	Ice Spinner	Pirueta Helada	Ice	Physical	80	100	15	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0											onAfterHit;onAfterSubDamage	0	0	0			pp: showdown 15 / wikidex 10 (no footnote; SV PP 15 (PokemonDB): WikiDex 10 is post-Champions; showdown kept)	b	callback:onAfterHit;onAfterSubDamage
+861	icespinner	Ice Spinner	Pirueta Helada	Ice	Physical	80	100	15	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0											onAfterHit;onAfterSubDamage	0	0	0			pp: showdown 15 / wikidex 10 (no footnote; SV PP 15 (PokemonDB): WikiDex 10 is post-Champions; showdown kept)	a	hook:none (terrain clear omitted: Hisui has no terrain)
 862	glaiverush	Glaive Rush	Asalto Espadón	Dragon	Physical	120	100	5	0	normal	contact;metronome;mirror;protect	0	0	0	0	0	0					volatileStatus=glaiverush						condition	0	0	0				b	callback:condition; self:volatileStatus=glaiverush
 863	revivalblessing	Revival Blessing	Plegaria Vital	Normal	Status	0	101	1	0	self	heal;nosketch	0	0	0	0	0	0											onTryHit;condition	0	0	0	slotCondition=revivalblessing;selfSwitch=true			b	callback:onTryHit;condition; prop:slotCondition=revivalblessing;selfSwitch=true
 864	saltcure	Salt Cure	Salación/Salazón	Rock	Physical	40	100	15	0	normal	mirror;protect	0	0	0	0	0	0						100		saltcure			condition	0	0	0			pp: showdown 15 / wikidex 10 (no footnote; SV PP 15 (PokemonDB): WikiDex 10 is post-Champions; showdown kept)	a	
 865	tripledive	Triple Dive	Triple Inmersión	Water	Physical	30	95	10	0	normal	contact;metronome;mirror;protect	0	3	3	0	0	0												0	0	0			power: showdown 30 / wikidex 35 (wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept)	a	
-866	mortalspin	Mortal Spin	Giro Mortífero	Poison	Physical	30	100	15	0	allAdjacentFoes	contact;metronome;mirror;protect	0	0	0	0	0	0						100	psn				onAfterHit;onAfterSubDamage	0	0	0				b	callback:onAfterHit;onAfterSubDamage
+866	mortalspin	Mortal Spin	Giro Mortífero	Poison	Physical	30	100	15	0	allAdjacentFoes	contact;metronome;mirror;protect	0	0	0	0	0	0						100	psn				onAfterHit;onAfterSubDamage	0	0	0				a	hook:clear_user_trap
 867	doodle	Doodle	Plagio/Decalcomanía	Normal	Status	0	100	10	0	adjacentFoe		0	0	0	0	0	0											onHit	0	0	0				b	callback:onHit
-868	filletaway	Fillet Away	Fileteo/Deslome	Normal	Status	0	101	10	0	self	snatch	0	0	0	0	0	0			atk:2,spa:2,spe:2								onTry;onTryHit;onHit	0	0	0				b	callback:onTry;onTryHit;onHit
+868	filletaway	Fillet Away	Fileteo/Deslome	Normal	Status	0	101	10	0	self	snatch	0	0	0	0	0	0			atk:2,spa:2,spe:2								onTry;onTryHit;onHit	0	0	0				a	hook:half_hp_cost; self boosts +2 collapse to +1 per PLA rank group
 869	kowtowcleave	Kowtow Cleave	Genufendiente	Dark	Physical	85	101	10	0	normal	contact;metronome;mirror;protect;slicing	0	0	0	0	0	0												0	0	0				a	
-870	flowertrick	Flower Trick	Truco Floral	Grass	Physical	70	101	10	0	normal	metronome;mirror;protect	0	0	0	0	0	0												0	0	0	willCrit=true			b	prop:willCrit=true
+870	flowertrick	Flower Trick	Truco Floral	Grass	Physical	70	101	10	0	normal	metronome;mirror;protect	0	0	0	0	0	0												0	0	0	willCrit=true			a	hook:always_crit (willCrit)
 871	torchsong	Torch Song	Canto Ígneo/Canto Ardiente	Fire	Special	80	100	10	0	normal	bypasssub;metronome;mirror;protect;sound	0	0	0	0	0	0						100				spa:1		0	0	0				a	
 872	aquastep	Aqua Step	Danza Acuática	Water	Physical	80	100	10	0	normal	contact;dance;metronome;mirror;protect	0	0	0	0	0	0						100				spe:1		0	0	0				a	
 873	ragingbull	Raging Bull	Furia Taurina	Normal	Physical	90	100	10	0	normal	contact;mirror;protect	0	0	0	0	0	0											onTryHit;onModifyType	0	0	0				b	callback:onTryHit;onModifyType
 874	makeitrain	Make It Rain	Fiebre Dorada	Steel	Special	120	100	5	0	allAdjacentFoes	mirror;protect	0	0	0	0	0	0				spa:-1								0	0	0			accuracy: showdown 100 / wikidex 95 (wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept)	a	
-875	psyblade	Psyblade	Psicohojas	Psychic	Physical	80	100	15	0	normal	contact;metronome;mirror;protect;slicing	0	0	0	0	0	0											onBasePower	0	0	0				b	callback:onBasePower
+875	psyblade	Psyblade	Psicohojas	Psychic	Physical	80	100	15	0	normal	contact;metronome;mirror;protect;slicing	0	0	0	0	0	0											onBasePower	0	0	0				a	hook:none (terrain boost omitted: Hisui has no terrain)
 876	hydrosteam	Hydro Steam	Hidrovapor	Water	Special	80	100	15	0	normal	defrost;metronome;mirror;protect	0	0	0	0	0	0												0	1	0				a	
-877	ruination	Ruination	Calamidad	Dark	Special	0	90	10	0	normal	mirror;protect	0	0	0	0	0	0											damageCallback	0	0	0				b	callback:damageCallback
+877	ruination	Ruination	Calamidad	Dark	Special	0	90	10	0	normal	mirror;protect	0	0	0	0	0	0											damageCallback	0	0	0				a	hook:half_current_hp_damage
 878	collisioncourse	Collision Course	Nitrochoque	Fighting	Physical	100	100	5	0	normal	contact;mirror;protect	0	0	0	0	0	0											onBasePower	0	0	0				a	
 879	electrodrift	Electro Drift	Electroderrape	Electric	Special	100	100	5	0	normal	contact;mirror;protect	0	0	0	0	0	0											onBasePower	0	0	0				a	
 880	shedtail	Shed Tail	Autotomía	Normal	Status	0	101	10	0	self		0	0	0	0	0	0		substitute									onTryHit;onHit;self.onHit	0	0	0	selfSwitch=shedtail			b	callback:onTryHit;onHit;self.onHit; prop:selfSwitch=shedtail; volatileStatus:substitute
 881	chillyreception	Chilly Reception	Respuesta Fría/Fría Acogida	Ice	Status	0	101	10	0	all		0	0	0	0	0	0											priorityChargeCallback;condition	0	0	0	weather=snowscape;selfSwitch=true			b	callback:priorityChargeCallback;condition; prop:weather=snowscape;selfSwitch=true
-882	tidyup	Tidy Up	Limpieza General	Normal	Status	0	101	10	0	self		0	0	0	0	0	0											onHit	0	0	0				b	callback:onHit
+882	tidyup	Tidy Up	Limpieza General	Normal	Status	0	101	10	0	self		0	0	0	0	0	0				atk:1,spe:1							onHit	0	0	0				a	hook:self boosts (hazards/Substitute not modelled)
 883	snowscape	Snowscape	Paisaje Nevado	Ice	Status	0	101	10	0	all		0	0	0	0	0	0												0	0	0	weather=snowscape			b	prop:weather=snowscape
 884	pounce	Pounce	Brinco	Bug	Physical	50	100	20	0	normal	contact;mirror;protect	0	0	0	0	0	0						100			spe:-1			0	0	0				a	
 885	trailblaze	Trailblaze	Abrecaminos	Grass	Physical	50	100	20	0	normal	contact;mirror;protect	0	0	0	0	0	0						100				spe:1		0	0	0				a	
