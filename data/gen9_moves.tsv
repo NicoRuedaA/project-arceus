@@ -14,8 +14,8 @@
 #   WikiDex disagrees with Showdown (a WikiDex footnote states the pre-Champions value; each row keeps
 #   the Scarlet/Violet value and records how the disagreement was adjudicated, PROBABLE if undecidable).
 # classification (DERIVED, not data): engine_class a = the engine implements it (the classic pml_move_effects
-#   columns or a named hook in battle_engine/gen9.rs; 52 moves), b = needs new engine logic
-#   (18 moves); engine_reason lists why (hook notes are DERIVED from the same source).
+#   columns or a named hook in battle_engine/gen9.rs; 53 moves), b = needs new engine logic
+#   (17 moves); engine_reason lists why (hook notes are DERIVED from the same source).
 # confidence: EXTERNAL/PROBABLE; not verified against the game. Do not mix with pml_moves rows.
 move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:string	power:u8	accuracy:u8	pp:u8	priority:i32	target:string	flags:string	crit_ratio:u8	min_hits:u8	max_hits:u8	drain_pct:i32	recoil_pct:i32	heal_pct:i32	status:string	volatile_status:string	boosts:string	self_boosts:string	self_other:string	sec_chance:u8	sec_status:string	sec_volatile:string	sec_boosts:string	sec_self_boosts:string	callbacks:string	crash_damage_pct:u8	thaws_target:u8	multi_accuracy:u8	other_props:string	is_nonstandard:string	source_diff:string	engine_class:enum	engine_reason:string
 851	terablast	Tera Blast	Teraexplosión	Normal	Special	80	100	10	0	normal	metronome;mirror;mustpressure;protect	0	0	0	0	0	0											basePowerCallback;onPrepareHit;onModifyType;onModifyMove	0	0	0				b	callback:basePowerCallback;onPrepareHit;onModifyType;onModifyMove
@@ -64,7 +64,7 @@ move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:st
 894	comeuppance	Comeuppance	Resarcimiento	Dark	Physical	0	100	10	0	scripted	contact;failmefirst;mirror;protect	0	0	0	0	0	0											damageCallback;onTry;onModifyTarget	0	0	0				a	hook:return_last_damage (rounds down)
 895	aquacutter	Aqua Cutter	Corte Acuático/Tajo Acuático	Water	Physical	70	100	20	0	normal	metronome;mirror;protect;slicing	2	0	0	0	0	0												0	0	0				a	
 896	blazingtorque	Blazing Torque	Pirochoque	Fire	Physical	80	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	brn					0	0	0		Unobtainable		a	
-897	wickedtorque	Wicked Torque	Ominochoque	Dark	Physical	80	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						10	slp					0	0	0		Unobtainable		b	secondary.status:slp
+897	wickedtorque	Wicked Torque	Ominochoque	Dark	Physical	80	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						10	slp					0	0	0		Unobtainable		a	sec slp -> real sleep (engine id 2)
 898	noxioustorque	Noxious Torque	Ponzochoque	Poison	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	psn					0	0	0		Unobtainable		a	
 899	combattorque	Combat Torque	Pugnachoque	Fighting	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	par					0	0	0		Unobtainable		a	
 900	magicaltorque	Magical Torque	Feerichoque	Fairy	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30		confusion				0	0	0		Unobtainable		a	

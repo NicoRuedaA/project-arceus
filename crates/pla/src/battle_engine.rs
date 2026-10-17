@@ -47,6 +47,10 @@ pub enum MajorStatus {
     /// End-of-turn damage `ceil(max_hp / 16) x counter`, counter capped at 15, never expires
     /// (VERIFIED; see `sleep_toxic.md` and `rules::TOXIC_*`).
     BadlyPoisoned,
+    /// The game's real sleep (record id 2), distinct from [`MajorStatus::Drowsy`] (id 6):
+    /// rolled duration 2-4, wakes through a counter of attempts to act, no extra damage taken
+    /// and no snow interaction (VERIFIED; see `sleep_toxic.md` and [`StatusRules::real_sleep`]).
+    Sleep,
 }
 
 #[derive(Debug, Clone)]
@@ -296,6 +300,10 @@ pub struct Battle {
     turn_raised_stats: Vec<bool>,
     /// Badly-poisoned counter (starts at 0, +1 per end of turn, capped at 15; VERIFIED).
     toxic_counter: Vec<u8>,
+    /// Real sleep (record id 2) per combatant: `(duration, attempts to act)`. The duration is
+    /// rolled on apply (2..=4 from the move's fields); the counter advances only when the
+    /// combatant tries to act and the status clears when `attempts >= duration` (VERIFIED).
+    sleep: Vec<Option<(u8, u8)>>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -364,6 +372,7 @@ impl Battle {
             turn_last_damage: vec![None; combatant_count],
             turn_raised_stats: vec![false; combatant_count],
             toxic_counter: vec![0; combatant_count],
+            sleep: vec![None; combatant_count],
         })
     }
 
@@ -1113,7 +1122,9 @@ impl Battle {
                 data.capture_status_multiplier("Poison")?
             }
             Some(MajorStatus::Burn) => data.capture_status_multiplier("Burn")?,
-            Some(MajorStatus::Drowsy) => data.capture_status_multiplier("Drowsiness / Sleep")?,
+            Some(MajorStatus::Drowsy | MajorStatus::Sleep) => {
+                data.capture_status_multiplier("Drowsiness / Sleep")?
+            }
             Some(MajorStatus::Frostbite) => data.capture_status_multiplier("Frostbite / Freeze")?,
         };
         let context = data

@@ -27,7 +27,8 @@
 //! in the single-action PLA queue flow) and Electro Shot (`charge` flag plus `charge_boost_spa`
 //! and `charge_skip_in_rain`). Malignant Chain (919) loads with the sheet's `tox` secondary,
 //! mapped to the synthetic engine ailment id 15 (badly poisoned; see `effects.rs` and
-//! `reports/data-progress/sleep_toxic.md`).
+//! `reports/data-progress/sleep_toxic.md`), and Wicked Torque (897) with its 10 % `slp`
+//! secondary, which loads as the game's real sleep (record id 2, distinct from drowsiness).
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -307,6 +308,8 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             ("psn", _) => 5,
             // Synthetic id 15 = badly poisoned (the game's `0xf01` poison mark; see effects.rs).
             ("tox", _) => 15,
+            // Real sleep (game record id 2; Wicked Torque), distinct from drowsiness.
+            ("slp", _) => 2,
             ("", "confusion") => 8,
             ("", _) => 0,
             (other, _) => {
@@ -440,8 +443,8 @@ mod tests {
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
         // 38 classic-column rows + family A (861, 866, 868, 870, 875, 877, 882), family B
-        // (892, 894, 905, 909, 914, 918) and Malignant Chain (919).
-        assert_eq!(moves.len(), 52);
+        // (892, 894, 905, 909, 914, 918), Malignant Chain (919) and Wicked Torque (897).
+        assert_eq!(moves.len(), 53);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -449,7 +452,7 @@ mod tests {
             "psychic-noise",
             "revival-blessing",
             "temper-flare",
-            "wicked-torque",
+            "doodle",
             "nihil-light",
         ] {
             assert!(
@@ -1320,6 +1323,32 @@ mod tests {
             ("snorlax", &["tackle"], 80),
         );
         b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 50]));
+        assert_eq!(b.combatants[1].status, None);
+    }
+
+    /// Wicked Torque (897): Dark attack with a 10 % real-sleep secondary (game record id 2).
+    #[test]
+    fn wicked_torque_sleeps_one_time_in_ten() {
+        let rules = StatusRules {
+            real_sleep: true,
+            ..StatusRules::default()
+        };
+        // accuracy, crit, damage roll, then the 10 % roll (9 passes) and the duration roll.
+        let mut b = duel(
+            ("pikachu", &["wicked-torque"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.set_status_rules(rules);
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 9, 0]));
+        assert_eq!(b.combatants[1].status, Some(MajorStatus::Sleep));
+        assert_eq!(b.sleep_state(1), Some((2, 0)));
+
+        let mut b = duel(
+            ("pikachu", &["wicked-torque"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.set_status_rules(rules);
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 10]));
         assert_eq!(b.combatants[1].status, None);
     }
 }

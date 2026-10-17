@@ -343,18 +343,21 @@ impl MoveEffectsTable {
     }
 }
 
-/// Ailment ids as in the game's status records: 1 paralysis, 4 burn, 5 poison, 7 frostbite.
-/// Ids 2 and 6 are both sleep-like in the sheet (2 = the game's real sleep, 6 = drowsiness;
-/// the engine still maps both to drowsiness until the real sleep lands). Id 15 is a SYNTHETIC
+/// Ailment ids as in the game's status records: 1 paralysis, 2 real sleep (VERIFIED, distinct
+/// from 6 drowsiness), 4 burn, 5 poison, 6 drowsiness, 7 frostbite. Id 15 is a SYNTHETIC
 /// engine id for the external generation-9 sheet's `tox` secondary (the game has no separate
 /// toxic id: badly poisoned is record 5 with the `0xf01` mark). 3 (freeze-like), 8 (confusion),
 /// 9 and 10 are handled elsewhere or not modeled.
+/// PLA rows with id 2 (Sing 47, Lovely Kiss 142, Grass Whistle 320, Relic Song 547) used to
+/// load as drowsiness; they now load as real sleep. Id 6 rows (Sleep Powder, Hypnosis, Spore,
+/// Dark Void) keep the drowsy state.
 pub fn ailment_status(id: u16) -> Option<MajorStatus> {
     match id {
         1 => Some(MajorStatus::Paralysis),
-        2 | 6 => Some(MajorStatus::Drowsy),
+        2 => Some(MajorStatus::Sleep),
         4 => Some(MajorStatus::Burn),
         5 => Some(MajorStatus::Poison),
+        6 => Some(MajorStatus::Drowsy),
         7 => Some(MajorStatus::Frostbite),
         15 => Some(MajorStatus::BadlyPoisoned),
         _ => None,
@@ -652,6 +655,11 @@ impl Battle {
                     }
                     self.toxic_counter[target] = 0;
                 }
+                if status == MajorStatus::Sleep {
+                    // VERIFIED: the real-sleep duration is rolled on apply (2..=4 from the
+                    // move's fields) and the attempts-to-act counter starts at 0.
+                    self.start_sleep(target, fx, rng);
+                }
                 self.start_status_turns(target, fx, rng);
                 self.pending_status.push((target, status));
             }
@@ -732,6 +740,29 @@ mod tests {
         assert_eq!(t.get("double-edge").unwrap().drain_pct, -33);
         assert_eq!(t.get("fury-swipes").unwrap().max_hits, 5);
         assert_eq!(t.get("growl").unwrap().stat_changes[0].stage, -1);
+    }
+
+    /// Ailment id 2 (real sleep) is distinct from id 6 (drowsiness): the four PLA sleep moves
+    /// load the real state and the drowsy rows keep theirs.
+    #[test]
+    fn sleep_rows_load_the_real_sleep_state() {
+        let t = MoveEffectsTable::load(root()).unwrap();
+        for name in ["sing", "lovely-kiss", "grass-whistle", "relic-song"] {
+            assert_eq!(
+                t.get(name).unwrap().ailment,
+                Some(MajorStatus::Sleep),
+                "{name}"
+            );
+        }
+        for drowsy in ["sleep-powder", "hypnosis", "spore", "dark-void"] {
+            assert_eq!(
+                t.get(drowsy).unwrap().ailment,
+                Some(MajorStatus::Drowsy),
+                "{drowsy}"
+            );
+        }
+        // The duration comes from the move's own fields (2..=4 for the sleep moves).
+        assert_eq!(t.get("sing").unwrap().ailment_turns, Some((2, 2, 4)));
     }
 
     /// The game's `0xf01` mark (record 5 + kind 1 + duration 15) is only on Toxic and Poison
