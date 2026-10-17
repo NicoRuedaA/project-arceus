@@ -641,8 +641,12 @@ paridad visual nativa ni binary matching.
 con las teclas de la montura («Wyrdeer - Correr: Shift | Cambiar montura: G | Desmontar: V»),
 12 s (arreglo 2026-10-16: las teclas no se sabían). Con **G** cambias de montura y la línea se actualiza al momento (Ursaluna
 añade «Buscar/cavar: H», Braviary «Salta con K: puedes planear | Picado: Shift en el aire»,
-Sneasler «Trepar: camina contra una pared»). **V** otra vez desmonta. Ves: el **jinete sentado**
-sobre cada una de las cinco monturas (posturas reales del juego), no de pie.
+Sneasler «Trepar: camina contra una pared»). **V** otra vez desmonta. Ves: el **jinete sentado
+ENCIMA de cada montura** (posturas reales del juego), no de pie ni flotando: en Wyrdeer tras el
+cuello con las piernas por los costados, en Ursaluna entre las paletillas, en Basculegion delante
+de la aleta dorsal y en **Braviary colgando por debajo** con las manos al frente (arreglo
+2026-10-17: antes el jinete quedaba flotando ~1 m por encima; ahora va anclado al hueso del lomo
+y acompaña el balanceo de la montura).
 
 **Correr y galopar:** con Wyrdeer mantén **W** (8 m/s, medido) y **W+Shift** (11 m/s, galope).
 Fallo: en vez de pararse contra un muro la montura tiembla clavada (arreglado el 2026-10-16:
@@ -655,7 +659,8 @@ planear; **Shift+W en el aire** es el picado (16 m/s medidos). Con **Basculegion
 agua (la zona 2 vale): cruza el agua a su velocidad (medido: 45 m de marisma a 8 m/s). Con
 **Sneasler**, anda contra una pared trepable: trepa a 4,8 m/s (prueba 12).
 
-Capturas de referencia: `/home/nico/work/capturas_monturas2/`.
+Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento del jinete,
+`/home/nico/work/capturas_jinete/impl2/` (lado y tres cuartos de cada montura + Braviary en vuelo).
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 

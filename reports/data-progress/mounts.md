@@ -81,15 +81,40 @@ nombres y valores; el radio en unidades del mundo es PROBABLE).
 
 Los modelos del paquete `bin/archive/field/ride_pokemon.gfpak` (509 entradas, 5 modelos)
 son los que llevan la silla: su esqueleto añade huesos `attach` + `parts*` que los glTF
-exportados del paquete normal (`bin/archive/pokemon/pm*.gfpak`) **no tienen**. El port usa
-esos glTF del paquete normal (los cinco tienen ya idle/walk/battle en la caché compartida;
-la hoja `data/pokemon_model_export_index.tsv` del árbol todavía dice «static only» para
-`pm0628_00_41`/`pm1003_00_41` — una reexportación de otra sesión llegó a `work/cache`
-durante este encargo, la hoja se regenerará en la fusión). Por eso el port coloca al
-jugador en una altura de lomo **leída del propio esqueleto exportado** (reposo de
-`spine_02`/`waist`: Wyrdeer 0.72, Ursaluna 0.86, Basculegion 0.71, Sneasler 0.75,
-Braviary 1.01 m; PROBABLE) y no en el hueso real (DESCONOCIDO en el export actual: haría
-falta exportar el paquete de monturas).
+exportados del paquete normal (`bin/archive/pokemon/pm*.gfpak`) **no tienen**. El paquete de
+monturas se volcó entero (`.tools/gfdump`, `work/dump/field/ride_pokemon/`): contiene texturas
+BNTX y 5 descriptores FlatBuffers de 216 bytes con las mallas de silla por montura
+(`pm1007_00_00_chair_mesh`, `stirrups_mesh`, `belt_mesh`, …) y los nombres de hueso
+(`attach`, `parts_01`), pero **no contiene** las mallas ni los esqueletos de montura
+(`.trmsh`/`.trskl`): las rutas que los descriptores nombran no resuelven a ninguna entrada de
+ningún gfpak del RomFS (**VERIFICADO** por barrido de las 678 rutas de paquete contra el hash
+FNV-1a del nombre). La silla del original **no se puede exportar** con lo decodificado hasta
+hoy; el port usa por tanto los glTF del paquete normal (los cinco con idle/walk/battle).
+
+### 3.1 Anclaje del jinete en el port (arreglo «jinete», 2026-10-17)
+
+El jugador va **anclado a un hueso del lomo** de cada montura, no a una altura fija:
+
+- **Dónde va** (posición del modelo del jugador en el marco de la montura, con la raíz en el
+  suelo, y +Z = hacia delante): Wyrdeer `(0; 1,05; −0,18)`, Ursaluna `(0,008; 1,76; −0,35)`,
+  Basculegion `(0; 0,38; 0,60)`, Sneasler `(0; 0,18; −0,05)`, Braviary `(0,08; −0,53; 0,38)`.
+  Los valores de Ursaluna y Braviary (y la base de los demás) son la colocación que el propio
+  juego autora en los clips de jinete: el canal del hueso `origin` de `ride_<montura>_idle`
+  (exportado del paquete del jugador): Wyrdeer 1,304 m, Ursaluna 1,760 m, Braviary −0,530 m
+  (colgando por debajo) y 0 en Basculegion/Sneasler (**PROBABLE**: leído del clip exportado).
+  Wyrdeer baja 0,25 m y Basculegion/Sneasler suben respecto de su clip porque esos clips no
+  traen desplazamiento (o lo traen para el modelo con silla, que no existe en el port): el
+  ajuste se midió contra la foto oficial con capturas sin ventana (SUPUESTO en la cifra, la
+  forma es la de la pose real del juego).
+- **Hueso que sigue**: `spine_02` (Wyrdeer, Ursaluna, Sneasler), `spine_01` (Basculegion,
+  Braviary). Cada fotograma el modelo del jugador se coloca en la transformación **viva** de
+  ese hueso (`game::ride::seat_rider`, tras el sistema de animación) por el desplazamiento
+  constante del jinete en el marco de reposo del hueso, así que el jinete acompaña la
+  animación de la montura (balanceo, giro) y ya no hay altura fija.
+- La transición de subida/bajada (1 s, `INOUT_SINE`) mezcla entre la altura a pie y el asiento,
+  y el cuerpo de la montura que se abandona se mantiene en pantalla hasta que la transición
+  termina (antes desaparecía de golpe y el jinete caía al suelo sin más).
+
 
 ## 4. Estamina (`bin/field/ride/ride_stamina_parameter.bin`)
 
@@ -186,3 +211,30 @@ Con el visor por automatización (área 01, `--automation`), 2026-10-15:
   mostrar dos mensajes a la vez.
 - **Pruebas:** `cargo test -p pla --lib` 1176 verdes (38 en los módulos de montura) y los tests
   del visor 17 verdes. Capturas en `/home/nico/work/capturas_monturas2/`.
+
+### Seguimiento 2026-10-17 (feat/jinete): el jinete se ancla al hueso del lomo
+
+Informe del usuario con capturas: el jinete **flotaba** por encima de la montura (sobre las
+astas de Wyrdeer, sobre el lomo de Ursaluna, en el aire sobre Basculegion). Causa medida: el
+port colocaba al jinete con una **altura fija** (`saddle_height` 0,70–1,00 m) *encima* del
+desplazamiento que ya trae el clip de jinete en su hueso `origin` (Wyrdeer +1,304 m): el
+jugador quedaba a ~2 m del suelo. Arreglo (VERIFICADO con teclas reales, sin teletransporte):
+
+- El jinete sigue el hueso `spine_02`/`spine_01` de su montura (`ride::seat_rider`, después
+  del sistema de animación, antes de propagar transformaciones) con el desplazamiento
+  constante del jinete en el marco de reposo del hueso; el desplazamiento del clip se fija
+  (pin) para no duplicarlo (`player_anim::pin_root_motion`, clips de jinete).
+- Altura final por montura (capturas `…/capturas_jinete/impl2/`): Wyrdeer sentado tras el
+  cuello con las piernas colgando por los costados; Ursaluna sentado en la joroba entre los
+  hombros; Basculegion sentado en el lomo delante de la aleta dorsal; Sneasler encima del
+  lomo (el original lleva una **cesta** en la espalda que no está exportada: la pose sobre el
+  lomo es lo que el port puede mostrar, SUPUESTO); Braviary **colgando por debajo** con las
+  manos al frente (la barra de las garras no está en el modelo exportado: solo la postura,
+  SUPUESTO). Capturado también en vuelo (planeo) para comprobar el colgado.
+- Pruebas: 21 en `game::ride`, incluida la que recompone las constantes de hueso desde los
+  glTF exportados de la caché (se salta sin caché) y la que comprueba que un desplazamiento
+  del hueso arrastra al jinete la misma distancia. A pie el jinete sigue a 0,9 m sobre el suelo
+  (test headless del plugin) y sin modelo de montura no hay asiento (se queda a pie, aviso ya
+  existente por consola).
+- Nueva captura de referencia: `/home/nico/work/capturas_jinete/` (`antes/`, `exp1_*` del
+  primer experimento, `impl2/` final: lado y tres cuartos por montura + Braviary en vuelo).
