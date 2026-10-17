@@ -8,6 +8,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
+use crate::national::{NationalDex, NationalForm};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Table {
     headers: Vec<String>,
@@ -92,6 +94,10 @@ pub struct BattleData {
     /// in which case every species gets ability slots of zero and nothing changes.
     personal_abilities: Option<Table>,
     type_chart: TypeChart,
+    /// National Pokédex layer (EXTERNAL/PROBABLE, `data/national/*.tsv`): fills species and forms
+    /// that the game does not have.  Empty when the directory is missing, in which case every
+    /// lookup behaves exactly as before this layer existed.  PLA active rows always win.
+    national: NationalDex,
 }
 
 /// Verified raw type-effectiveness values extracted from the game executable.
@@ -219,21 +225,31 @@ impl BattleData {
             personal_data: Table::load(&root.join("pml_personal.tsv"), None)?,
             personal_abilities: Table::load(&root.join("pml_personal_abilities.tsv"), None).ok(),
             type_chart: TypeChart::load(&root.join("type_chart.tsv"))?,
+            national: NationalDex::load(root.join("national"))?,
         })
+    }
+
+    /// The national data layer (EXTERNAL/PROBABLE); empty when `data/national/` is missing.
+    pub fn national(&self) -> &NationalDex {
+        &self.national
     }
 
     pub fn type_chart(&self) -> &TypeChart {
         &self.type_chart
     }
 
-    /// Find an active base-form species row in the checked-in personal table.
+    /// Find an active base-form species row in the checked-in personal table; when the game does
+    /// not have it, fall back to the national layer's default form (EXTERNAL/PROBABLE).
     pub fn species_row(&self, name: &str) -> Result<Option<BattleSpecies>, String> {
         let Some(row) = self.personal_data.rows.iter().find(|row| {
             row.get("species_name:string").is_some_and(|v| v == name)
                 && row.get("form:u8").is_some_and(|v| v == "0")
                 && row.get("is_active:bool").is_some_and(|v| v == "1")
         }) else {
-            return Ok(None);
+            return match self.national.default_form_by_identifier(name) {
+                Some(form) => self.national_species_from(form).map(Some),
+                None => Ok(None),
+            };
         };
         self.species_from_row(row, name).map(Some)
     }
@@ -258,8 +274,53 @@ impl BattleData {
                 let name = Table::value(row, "species_name:string")?.to_owned();
                 self.species_from_row(row, &name).map(Some)
             }
+            // The game has no active row for this species at all: fill from the national layer.
+            None => self.national_species_row(dex, form),
+        }
+    }
+
+    /// Explicit national-layer lookup for a national dex number and form, ignoring the PLA
+    /// tables entirely (EXTERNAL/PROBABLE rows; exact form, else the species' default form).
+    pub fn national_species_row(&self, dex: u16, form: u8) -> Result<Option<BattleSpecies>, String> {
+        let entry = self
+            .national
+            .form(dex, form)
+            .or_else(|| self.national.default_form(dex));
+        match entry {
+            Some(form) => self.national_species_from(form).map(Some),
             None => Ok(None),
         }
+    }
+
+    fn national_species_from(&self, form: &NationalForm) -> Result<BattleSpecies, String> {
+        let (national, form_index) = (form.national_number, form.form_index);
+        let stats = self.national.stats_of(national, form_index).ok_or_else(|| {
+            format!("national base_stats row missing for {national}/{form_index}")
+        })?;
+        let types = self
+            .national
+            .types_of(national, form_index)
+            .ok_or_else(|| format!("national types row missing for {national}/{form_index}"))?;
+        // Mono-typed national rows leave type2 empty; the engine's PLA convention repeats type1.
+        let type2 = if types.type2.is_empty() {
+            types.type1.clone()
+        } else {
+            types.type2.clone()
+        };
+        Ok(BattleSpecies {
+            dex: national,
+            name: form.identifier.clone(),
+            hp: u16::from(stats.stats[0]),
+            attack: u16::from(stats.stats[1]),
+            defense: u16::from(stats.stats[2]),
+            special_attack: u16::from(stats.stats[3]),
+            special_defense: u16::from(stats.stats[4]),
+            speed: u16::from(stats.stats[5]),
+            types: [types.type1.clone(), type2],
+            // This phase does not carry abilities for external species (see the report).
+            abilities: [0; 3],
+            external: true,
+        })
     }
 
     fn species_from_row(
@@ -291,6 +352,7 @@ impl BattleData {
                 Table::value(row, "type_2:string")?.to_owned(),
             ],
             abilities: self.ability_slots(dex, form),
+            external: false,
         })
     }
 
@@ -334,7 +396,21 @@ impl BattleData {
         });
         match name {
             Some(n) => self.species_row(&n),
-            None => Ok(None),
+            // Only fill from the national layer when the game has no active row for this species
+            // at all: a species the game has (e.g. the Hisuian Growlithe line) keeps its previous
+            // `None` so a saved party rebuild can never silently switch to an external form.
+            None => {
+                let want = dex.to_string();
+                let has_active = self.personal_data.rows.iter().any(|row| {
+                    row.get("dex_index_national:u16").is_some_and(|v| *v == want)
+                        && row.get("is_active:bool").is_some_and(|v| v == "1")
+                });
+                if has_active {
+                    Ok(None)
+                } else {
+                    self.national_species_row(dex, 0)
+                }
+            }
         }
     }
 
@@ -615,6 +691,9 @@ pub struct BattleSpecies {
     /// `[0; 3]` when that sheet is missing. Only ids 112 (Slow Start) and 122 (Flower Gift)
     /// have an effect in this game, and only with `Battle::set_abilities`.
     pub abilities: [u16; 3],
+    /// False for rows read from the VERIFIED `data/pml_personal.tsv` game sheet; true for rows
+    /// filled from the EXTERNAL/PROBABLE national layer (`data/national/*.tsv`).
+    pub external: bool,
 }
 
 /// Move power, type, accuracy and PP recovered from `data/pml_moves.tsv`.

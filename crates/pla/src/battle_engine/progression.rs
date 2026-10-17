@@ -799,6 +799,7 @@ mod tests {
             speed: 90,
             types: ["Electric".into(), "Electric".into()],
             abilities: [0; 3],
+            external: false,
         };
         let mut c = Combatant::from_base(sp.clone(), 5, vec![]);
         c.hp -= 3;

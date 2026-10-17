@@ -1,0 +1,1358 @@
+# sheet: data/national/forms
+# version: 1
+# generator: .tools/build_national_dex.py
+# target: national form entries that have a PokeAPI pokemon_id (1025 defaults + 326 alternatives)
+# source: EXTERNAL/PROBABLE, not from the game files: PokeAPI data/v2/csv (commit 5ee47a9a9c1229632ec4b473a9c1c53026e005dd, fetched 2026-10-17; BSD-3-Clause) + Pokemon Showdown (MIT, commit 7244fe8e28fa8bc4d0809ae30d183c608b62bb2b) for the Legends: Z-A learnsets. For species/forms with active rows in data/pml_personal.tsv the VERIFIED game sheets always win at load time (crates/pla/src/national.rs).
+# semantics: equivalence table pokemon_id <-> national_number + form_index; form_index 0 is the default form, the rest are numbered by pokemon id; form_kind: base|regional|mega|gmax|form (DERIVED); height_dm = decimetres, weight_hg = hectograms; name_en/name_es from pokemon_form_names (fallback: pokemon/species name); base_experience 0 means PokeAPI publishes no value for that row (recent Z-A megas).
+pokemon_id:u32	national_number:u16	form_index:u8	identifier:string	form_identifier:string	is_default:bool	form_kind:string	is_mega:bool	is_gmax:bool	is_regional:bool	is_battle_only:bool	introduced_version_group:u16	form_order:u8	height_dm:u16	weight_hg:u16	base_experience:u16	name_en:string	name_es:string
+1	1	0	bulbasaur		1	base	0	0	0	0	28	1	7	69	64	Bulbasaur	Bulbasaur
+2	2	0	ivysaur		1	base	0	0	0	0	28	1	10	130	142	Ivysaur	Ivysaur
+3	3	0	venusaur		1	base	0	0	0	0	28	1	20	1000	236	Venusaur	Venusaur
+10033	3	1	venusaur-mega	mega	0	mega	1	0	0	1	15	2	24	1555	281	Mega Venusaur	Mega-Venusaur
+10195	3	2	venusaur-gmax	gmax	0	gmax	0	1	0	1	20	1	240	10000	236	Gigantamax Form	Venusaur
+4	4	0	charmander		1	base	0	0	0	0	28	1	6	85	62	Charmander	Charmander
+5	5	0	charmeleon		1	base	0	0	0	0	28	1	11	190	142	Charmeleon	Charmeleon
+6	6	0	charizard		1	base	0	0	0	0	28	1	17	905	240	Charizard	Charizard
+10034	6	1	charizard-mega-x	mega-x	0	mega	1	0	0	1	15	2	17	1105	285	Mega Charizard X	Mega-Charizard X
+10035	6	2	charizard-mega-y	mega-y	0	mega	1	0	0	1	15	3	17	1005	285	Mega Charizard Y	Mega-Charizard Y
+10196	6	3	charizard-gmax	gmax	0	gmax	0	1	0	1	20	1	280	10000	240	Gigantamax Form	Charizard
+7	7	0	squirtle		1	base	0	0	0	0	28	1	5	90	63	Squirtle	Squirtle
+8	8	0	wartortle		1	base	0	0	0	0	28	1	10	225	142	Wartortle	Wartortle
+9	9	0	blastoise		1	base	0	0	0	0	28	1	16	855	239	Blastoise	Blastoise
+10036	9	1	blastoise-mega	mega	0	mega	1	0	0	1	15	2	16	1011	284	Mega Blastoise	Mega-Blastoise
+10197	9	2	blastoise-gmax	gmax	0	gmax	0	1	0	1	20	1	250	10000	239	Gigantamax Form	Blastoise
+10	10	0	caterpie		1	base	0	0	0	0	28	1	3	29	39	Caterpie	Caterpie
+11	11	0	metapod		1	base	0	0	0	0	28	1	7	99	72	Metapod	Metapod
+12	12	0	butterfree		1	base	0	0	0	0	28	1	11	320	178	Butterfree	Butterfree
+10198	12	1	butterfree-gmax	gmax	0	gmax	0	1	0	1	20	1	170	10000	178	Gigantamax Form	Butterfree
+13	13	0	weedle		1	base	0	0	0	0	28	1	3	32	39	Weedle	Weedle
+14	14	0	kakuna		1	base	0	0	0	0	28	1	6	100	72	Kakuna	Kakuna
+15	15	0	beedrill		1	base	0	0	0	0	28	1	10	295	178	Beedrill	Beedrill
+10090	15	1	beedrill-mega	mega	0	mega	1	0	0	1	16	2	14	405	223	Mega Beedrill	Mega-Beedrill
+16	16	0	pidgey		1	base	0	0	0	0	28	1	3	18	50	Pidgey	Pidgey
+17	17	0	pidgeotto		1	base	0	0	0	0	28	1	11	300	122	Pidgeotto	Pidgeotto
+18	18	0	pidgeot		1	base	0	0	0	0	28	1	15	395	216	Pidgeot	Pidgeot
+10073	18	1	pidgeot-mega	mega	0	mega	1	0	0	1	16	2	22	505	261	Mega Pidgeot	Mega-Pidgeot
+19	19	0	rattata		1	base	0	0	0	0	28	1	3	35	51	Rattata	Rattata
+10091	19	1	rattata-alola	alola	0	regional	0	0	1	0	17	2	3	38	51	Alolan Form	Forma de Alola
+20	20	0	raticate		1	base	0	0	0	0	28	1	7	185	145	Raticate	Raticate
+10092	20	1	raticate-alola	alola	0	regional	0	0	1	0	17	2	7	255	145	Alolan Form	Forma de Alola
+10093	20	2	raticate-totem-alola	totem-alola	0	regional	0	0	1	0	17	3	14	1050	145	Totem Alolan Raticate	Raticate
+21	21	0	spearow		1	base	0	0	0	0	28	1	3	20	52	Spearow	Spearow
+22	22	0	fearow		1	base	0	0	0	0	28	1	12	380	155	Fearow	Fearow
+23	23	0	ekans		1	base	0	0	0	0	28	1	20	69	58	Ekans	Ekans
+24	24	0	arbok		1	base	0	0	0	0	28	1	35	650	157	Arbok	Arbok
+25	25	0	pikachu		1	base	0	0	0	0	28	1	4	60	112	Pikachu	Pikachu
+10080	25	1	pikachu-rock-star	rock-star	0	form	0	0	0	0	16	3	4	60	112	Pikachu Rock Star	Pikachu
+10081	25	2	pikachu-belle	belle	0	form	0	0	0	0	16	4	4	60	112	Pikachu Belle	Pikachu
+10082	25	3	pikachu-pop-star	pop-star	0	form	0	0	0	0	16	5	4	60	112	Pikachu Pop Star	Pikachu
+10083	25	4	pikachu-phd	phd	0	form	0	0	0	0	16	6	4	60	112	Pikachu Ph.D.	Pikachu
+10084	25	5	pikachu-libre	libre	0	form	0	0	0	0	16	7	4	60	112	Pikachu Libre	Pikachu
+10085	25	6	pikachu-cosplay	cosplay	0	form	0	0	0	0	16	2	4	60	112	Cosplay Pikachu	Pikachu
+10094	25	7	pikachu-original-cap	original-cap	0	form	0	0	0	0	17	8	4	60	112	Original Cap	Gorra Original
+10095	25	8	pikachu-hoenn-cap	hoenn-cap	0	form	0	0	0	0	17	9	4	60	112	Hoenn Cap	Gorra Hoenn
+10096	25	9	pikachu-sinnoh-cap	sinnoh-cap	0	form	0	0	0	0	17	10	4	60	112	Sinnoh Cap	Gorra Sinnoh
+10097	25	10	pikachu-unova-cap	unova-cap	0	form	0	0	0	0	17	11	4	60	112	Unova Cap	Gorra Teselia
+10098	25	11	pikachu-kalos-cap	kalos-cap	0	form	0	0	0	0	17	12	4	60	112	Kalos Cap	Gorra Kalos
+10099	25	12	pikachu-alola-cap	alola-cap	0	regional	0	0	1	0	17	13	4	60	112	Alola Cap	Gorra Alola
+10148	25	13	pikachu-partner-cap	partner-cap	0	form	0	0	0	0	18	14	4	60	112	Partner Cap	Gorra Compañero
+10158	25	14	pikachu-starter	starter	0	form	0	0	0	0	19	15	4	60	86	Partner Pikachu	Pikachu
+10160	25	15	pikachu-world-cap	world-cap	0	form	0	0	0	0	20	16	4	60	112	World Cap	Gorra Trotamundos
+10199	25	16	pikachu-gmax	gmax	0	gmax	0	1	0	1	20	1	210	10000	112	Gigantamax Form	Pikachu
+26	26	0	raichu		1	base	0	0	0	0	28	1	8	300	218	Raichu	Raichu
+10100	26	1	raichu-alola	alola	0	regional	0	0	1	0	17	2	7	210	243	Alolan Form	Forma de Alola
+10304	26	2	raichu-mega-x	mega-x	0	mega	1	0	0	1	31	3	12	380	0	Mega Raichu X	Raichu
+10305	26	3	raichu-mega-y	mega-y	0	mega	1	0	0	1	31	4	10	260	0	Mega Raichu Y	Raichu
+27	27	0	sandshrew		1	base	0	0	0	0	28	1	6	120	60	Sandshrew	Sandshrew
+10101	27	1	sandshrew-alola	alola	0	regional	0	0	1	0	17	2	7	400	60	Alolan Form	Forma de Alola
+28	28	0	sandslash		1	base	0	0	0	0	28	1	10	295	158	Sandslash	Sandslash
+10102	28	1	sandslash-alola	alola	0	regional	0	0	1	0	17	2	12	550	158	Alolan Form	Forma de Alola
+29	29	0	nidoran-f		1	base	0	0	0	0	28	1	4	70	55	Nidoran♀	Nidoran♀
+30	30	0	nidorina		1	base	0	0	0	0	28	1	8	200	128	Nidorina	Nidorina
+31	31	0	nidoqueen		1	base	0	0	0	0	28	1	13	600	227	Nidoqueen	Nidoqueen
+32	32	0	nidoran-m		1	base	0	0	0	0	28	1	5	90	55	Nidoran♂	Nidoran♂
+33	33	0	nidorino		1	base	0	0	0	0	28	1	9	195	128	Nidorino	Nidorino
+34	34	0	nidoking		1	base	0	0	0	0	28	1	14	620	227	Nidoking	Nidoking
+35	35	0	clefairy		1	base	0	0	0	0	28	1	6	75	113	Clefairy	Clefairy
+36	36	0	clefable		1	base	0	0	0	0	28	1	13	400	217	Clefable	Clefable
+10278	36	1	clefable-mega	mega	0	mega	1	0	0	1	31	2	17	423	0	Mega Clefable	Clefable
+37	37	0	vulpix		1	base	0	0	0	0	28	1	6	99	60	Vulpix	Vulpix
+10103	37	1	vulpix-alola	alola	0	regional	0	0	1	0	17	2	6	99	60	Alolan Form	Forma de Alola
+38	38	0	ninetales		1	base	0	0	0	0	28	1	11	199	177	Ninetales	Ninetales
+10104	38	1	ninetales-alola	alola	0	regional	0	0	1	0	17	2	11	199	177	Alolan Form	Forma de Alola
+39	39	0	jigglypuff		1	base	0	0	0	0	28	1	5	55	95	Jigglypuff	Jigglypuff
+40	40	0	wigglytuff		1	base	0	0	0	0	28	1	10	120	196	Wigglytuff	Wigglytuff
+41	41	0	zubat		1	base	0	0	0	0	28	1	8	75	49	Zubat	Zubat
+42	42	0	golbat		1	base	0	0	0	0	28	1	16	550	159	Golbat	Golbat
+43	43	0	oddish		1	base	0	0	0	0	28	1	5	54	64	Oddish	Oddish
+44	44	0	gloom		1	base	0	0	0	0	28	1	8	86	138	Gloom	Gloom
+45	45	0	vileplume		1	base	0	0	0	0	28	1	12	186	221	Vileplume	Vileplume
+46	46	0	paras		1	base	0	0	0	0	28	1	3	54	57	Paras	Paras
+47	47	0	parasect		1	base	0	0	0	0	28	1	10	295	142	Parasect	Parasect
+48	48	0	venonat		1	base	0	0	0	0	28	1	10	300	61	Venonat	Venonat
+49	49	0	venomoth		1	base	0	0	0	0	28	1	15	125	158	Venomoth	Venomoth
+50	50	0	diglett		1	base	0	0	0	0	28	1	2	8	53	Diglett	Diglett
+10105	50	1	diglett-alola	alola	0	regional	0	0	1	0	17	2	2	10	53	Alolan Form	Forma de Alola
+51	51	0	dugtrio		1	base	0	0	0	0	28	1	7	333	149	Dugtrio	Dugtrio
+10106	51	1	dugtrio-alola	alola	0	regional	0	0	1	0	17	2	7	666	149	Alolan Form	Forma de Alola
+52	52	0	meowth		1	base	0	0	0	0	28	1	4	42	58	Meowth	Meowth
+10107	52	1	meowth-alola	alola	0	regional	0	0	1	0	17	2	4	42	58	Alolan Form	Forma de Alola
+10161	52	2	meowth-galar	galar	0	regional	0	0	1	0	20	3	4	75	58	Galarian Form	Forma de Galar
+10200	52	3	meowth-gmax	gmax	0	gmax	0	1	0	1	20	1	330	10000	58	Gigantamax Form	Meowth
+53	53	0	persian		1	base	0	0	0	0	28	1	10	320	154	Persian	Persian
+10108	53	1	persian-alola	alola	0	regional	0	0	1	0	17	2	11	330	154	Alolan Form	Forma de Alola
+54	54	0	psyduck		1	base	0	0	0	0	28	1	8	196	64	Psyduck	Psyduck
+55	55	0	golduck		1	base	0	0	0	0	28	1	17	766	175	Golduck	Golduck
+56	56	0	mankey		1	base	0	0	0	0	28	1	5	280	61	Mankey	Mankey
+57	57	0	primeape		1	base	0	0	0	0	28	1	10	320	159	Primeape	Primeape
+58	58	0	growlithe		1	base	0	0	0	0	28	1	7	190	70	Growlithe	Growlithe
+10229	58	1	growlithe-hisui	hisui	0	regional	0	0	1	0	24	2	8	227	70	Hisuian Form	Growlithe
+59	59	0	arcanine		1	base	0	0	0	0	28	1	19	1550	194	Arcanine	Arcanine
+10230	59	1	arcanine-hisui	hisui	0	regional	0	0	1	0	24	2	20	1680	194	Hisuian Form	Arcanine
+60	60	0	poliwag		1	base	0	0	0	0	28	1	6	124	60	Poliwag	Poliwag
+61	61	0	poliwhirl		1	base	0	0	0	0	28	1	10	200	135	Poliwhirl	Poliwhirl
+62	62	0	poliwrath		1	base	0	0	0	0	28	1	13	540	230	Poliwrath	Poliwrath
+63	63	0	abra		1	base	0	0	0	0	28	1	9	195	62	Abra	Abra
+64	64	0	kadabra		1	base	0	0	0	0	28	1	13	565	140	Kadabra	Kadabra
+65	65	0	alakazam		1	base	0	0	0	0	28	1	15	480	225	Alakazam	Alakazam
+10037	65	1	alakazam-mega	mega	0	mega	1	0	0	1	15	2	12	480	270	Mega Alakazam	Mega-Alakazam
+66	66	0	machop		1	base	0	0	0	0	28	1	8	195	61	Machop	Machop
+67	67	0	machoke		1	base	0	0	0	0	28	1	15	705	142	Machoke	Machoke
+68	68	0	machamp		1	base	0	0	0	0	28	1	16	1300	227	Machamp	Machamp
+10201	68	1	machamp-gmax	gmax	0	gmax	0	1	0	1	20	1	250	10000	227	Gigantamax Form	Machamp
+69	69	0	bellsprout		1	base	0	0	0	0	28	1	7	40	60	Bellsprout	Bellsprout
+70	70	0	weepinbell		1	base	0	0	0	0	28	1	10	64	137	Weepinbell	Weepinbell
+71	71	0	victreebel		1	base	0	0	0	0	28	1	17	155	221	Victreebel	Victreebel
+10279	71	1	victreebel-mega	mega	0	mega	1	0	0	1	31	2	45	1255	0	Mega Victreebel	Victreebel
+72	72	0	tentacool		1	base	0	0	0	0	28	1	9	455	67	Tentacool	Tentacool
+73	73	0	tentacruel		1	base	0	0	0	0	28	1	16	550	180	Tentacruel	Tentacruel
+74	74	0	geodude		1	base	0	0	0	0	28	1	4	200	60	Geodude	Geodude
+10109	74	1	geodude-alola	alola	0	regional	0	0	1	0	17	2	4	203	60	Alolan Form	Forma de Alola
+75	75	0	graveler		1	base	0	0	0	0	28	1	10	1050	137	Graveler	Graveler
+10110	75	1	graveler-alola	alola	0	regional	0	0	1	0	17	2	10	1100	137	Alolan Form	Forma de Alola
+76	76	0	golem		1	base	0	0	0	0	28	1	14	3000	223	Golem	Golem
+10111	76	1	golem-alola	alola	0	regional	0	0	1	0	17	2	17	3160	223	Alolan Form	Forma de Alola
+77	77	0	ponyta		1	base	0	0	0	0	28	1	10	300	82	Ponyta	Ponyta
+10162	77	1	ponyta-galar	galar	0	regional	0	0	1	0	20	2	8	240	82	Galarian Form	Forma de Galar
+78	78	0	rapidash		1	base	0	0	0	0	28	1	17	950	175	Rapidash	Rapidash
+10163	78	1	rapidash-galar	galar	0	regional	0	0	1	0	20	2	17	800	175	Galarian Form	Forma de Galar
+79	79	0	slowpoke		1	base	0	0	0	0	28	1	12	360	63	Slowpoke	Slowpoke
+10164	79	1	slowpoke-galar	galar	0	regional	0	0	1	0	20	2	12	360	63	Galarian Form	Forma de Galar
+80	80	0	slowbro		1	base	0	0	0	0	28	1	16	785	172	Slowbro	Slowbro
+10071	80	1	slowbro-mega	mega	0	mega	1	0	0	1	16	2	20	1200	207	Mega Slowbro	Mega-Slowbro
+10165	80	2	slowbro-galar	galar	0	regional	0	0	1	0	20	3	16	705	172	Galarian Form	Forma de Galar
+81	81	0	magnemite		1	base	0	0	0	0	28	1	3	60	65	Magnemite	Magnemite
+82	82	0	magneton		1	base	0	0	0	0	28	1	10	600	163	Magneton	Magneton
+83	83	0	farfetchd		1	base	0	0	0	0	28	1	8	150	132	Farfetch’d	Farfetch’d
+10166	83	1	farfetchd-galar	galar	0	regional	0	0	1	0	20	2	8	420	132	Galarian Form	Forma de Galar
+84	84	0	doduo		1	base	0	0	0	0	28	1	14	392	62	Doduo	Doduo
+85	85	0	dodrio		1	base	0	0	0	0	28	1	18	852	165	Dodrio	Dodrio
+86	86	0	seel		1	base	0	0	0	0	28	1	11	900	65	Seel	Seel
+87	87	0	dewgong		1	base	0	0	0	0	28	1	17	1200	166	Dewgong	Dewgong
+88	88	0	grimer		1	base	0	0	0	0	28	1	9	300	65	Grimer	Grimer
+10112	88	1	grimer-alola	alola	0	regional	0	0	1	0	17	2	7	420	65	Alolan Form	Forma de Alola
+89	89	0	muk		1	base	0	0	0	0	28	1	12	300	175	Muk	Muk
+10113	89	1	muk-alola	alola	0	regional	0	0	1	0	17	2	10	520	175	Alolan Form	Forma de Alola
+90	90	0	shellder		1	base	0	0	0	0	28	1	3	40	61	Shellder	Shellder
+91	91	0	cloyster		1	base	0	0	0	0	28	1	15	1325	184	Cloyster	Cloyster
+92	92	0	gastly		1	base	0	0	0	0	28	1	13	1	62	Gastly	Gastly
+93	93	0	haunter		1	base	0	0	0	0	28	1	16	1	142	Haunter	Haunter
+94	94	0	gengar		1	base	0	0	0	0	28	1	15	405	225	Gengar	Gengar
+10038	94	1	gengar-mega	mega	0	mega	1	0	0	1	15	2	14	405	270	Mega Gengar	Mega-Gengar
+10202	94	2	gengar-gmax	gmax	0	gmax	0	1	0	1	20	1	200	10000	225	Gigantamax Form	Gengar
+95	95	0	onix		1	base	0	0	0	0	28	1	88	2100	77	Onix	Onix
+96	96	0	drowzee		1	base	0	0	0	0	28	1	10	324	66	Drowzee	Drowzee
+97	97	0	hypno		1	base	0	0	0	0	28	1	16	756	169	Hypno	Hypno
+98	98	0	krabby		1	base	0	0	0	0	28	1	4	65	65	Krabby	Krabby
+99	99	0	kingler		1	base	0	0	0	0	28	1	13	600	166	Kingler	Kingler
+10203	99	1	kingler-gmax	gmax	0	gmax	0	1	0	1	20	1	190	10000	166	Gigantamax Form	Kingler
+100	100	0	voltorb		1	base	0	0	0	0	28	1	5	104	66	Voltorb	Voltorb
+10231	100	1	voltorb-hisui	hisui	0	regional	0	0	1	0	24	2	5	130	66	Hisuian Form	Voltorb
+101	101	0	electrode		1	base	0	0	0	0	28	1	12	666	172	Electrode	Electrode
+10232	101	1	electrode-hisui	hisui	0	regional	0	0	1	0	24	2	12	710	172	Hisuian Form	Electrode
+102	102	0	exeggcute		1	base	0	0	0	0	28	1	4	25	65	Exeggcute	Exeggcute
+103	103	0	exeggutor		1	base	0	0	0	0	28	1	20	1200	186	Exeggutor	Exeggutor
+10114	103	1	exeggutor-alola	alola	0	regional	0	0	1	0	17	2	109	4156	186	Alolan Form	Forma de Alola
+104	104	0	cubone		1	base	0	0	0	0	28	1	4	65	64	Cubone	Cubone
+105	105	0	marowak		1	base	0	0	0	0	28	1	10	450	149	Marowak	Marowak
+10115	105	1	marowak-alola	alola	0	regional	0	0	1	0	17	2	10	340	149	Alolan Form	Forma de Alola
+10149	105	2	marowak-totem	totem	0	form	0	0	0	0	18	3	17	980	149	Totem Alolan Marowak	Marowak
+106	106	0	hitmonlee		1	base	0	0	0	0	28	1	15	498	159	Hitmonlee	Hitmonlee
+107	107	0	hitmonchan		1	base	0	0	0	0	28	1	14	502	159	Hitmonchan	Hitmonchan
+108	108	0	lickitung		1	base	0	0	0	0	28	1	12	655	77	Lickitung	Lickitung
+109	109	0	koffing		1	base	0	0	0	0	28	1	6	10	68	Koffing	Koffing
+110	110	0	weezing		1	base	0	0	0	0	28	1	12	95	172	Weezing	Weezing
+10167	110	1	weezing-galar	galar	0	regional	0	0	1	0	20	2	30	160	172	Galarian Form	Forma de Galar
+111	111	0	rhyhorn		1	base	0	0	0	0	28	1	10	1150	69	Rhyhorn	Rhyhorn
+112	112	0	rhydon		1	base	0	0	0	0	28	1	19	1200	170	Rhydon	Rhydon
+113	113	0	chansey		1	base	0	0	0	0	28	1	11	346	395	Chansey	Chansey
+114	114	0	tangela		1	base	0	0	0	0	28	1	10	350	87	Tangela	Tangela
+115	115	0	kangaskhan		1	base	0	0	0	0	28	1	22	800	172	Kangaskhan	Kangaskhan
+10039	115	1	kangaskhan-mega	mega	0	mega	1	0	0	1	15	2	22	1000	207	Mega Kangaskhan	Mega-Kangaskhan
+116	116	0	horsea		1	base	0	0	0	0	28	1	4	80	59	Horsea	Horsea
+117	117	0	seadra		1	base	0	0	0	0	28	1	12	250	154	Seadra	Seadra
+118	118	0	goldeen		1	base	0	0	0	0	28	1	6	150	64	Goldeen	Goldeen
+119	119	0	seaking		1	base	0	0	0	0	28	1	13	390	158	Seaking	Seaking
+120	120	0	staryu		1	base	0	0	0	0	28	1	8	345	68	Staryu	Staryu
+121	121	0	starmie		1	base	0	0	0	0	28	1	11	800	182	Starmie	Starmie
+10280	121	1	starmie-mega	mega	0	mega	1	0	0	1	31	2	23	800	0	Mega Starmie	Starmie
+122	122	0	mr-mime		1	base	0	0	0	0	28	1	13	545	161	Mr. Mime	Mr. Mime
+10168	122	1	mr-mime-galar	galar	0	regional	0	0	1	0	20	2	14	568	161	Galarian Form	Forma de Galar
+123	123	0	scyther		1	base	0	0	0	0	28	1	15	560	100	Scyther	Scyther
+124	124	0	jynx		1	base	0	0	0	0	28	1	14	406	159	Jynx	Jynx
+125	125	0	electabuzz		1	base	0	0	0	0	28	1	11	300	172	Electabuzz	Electabuzz
+126	126	0	magmar		1	base	0	0	0	0	28	1	13	445	173	Magmar	Magmar
+127	127	0	pinsir		1	base	0	0	0	0	28	1	15	550	175	Pinsir	Pinsir
+10040	127	1	pinsir-mega	mega	0	mega	1	0	0	1	15	2	17	590	210	Mega Pinsir	Mega-Pinsir
+128	128	0	tauros		1	base	0	0	0	0	28	1	14	884	172	Tauros	Tauros
+10250	128	1	tauros-paldea-combat-breed	paldea-combat-breed	0	regional	0	0	1	0	25	2	14	1150	172	Paldean Form (Combat Breed)	Tauros
+10251	128	2	tauros-paldea-blaze-breed	paldea-blaze-breed	0	regional	0	0	1	0	25	3	14	850	172	Paldean Form (Blaze Breed)	Tauros
+10252	128	3	tauros-paldea-aqua-breed	paldea-aqua-breed	0	regional	0	0	1	0	25	4	14	1100	172	Paldean Form (Aqua Breed)	Tauros
+129	129	0	magikarp		1	base	0	0	0	0	28	1	9	100	40	Magikarp	Magikarp
+130	130	0	gyarados		1	base	0	0	0	0	28	1	65	2350	189	Gyarados	Gyarados
+10041	130	1	gyarados-mega	mega	0	mega	1	0	0	1	15	2	65	3050	224	Mega Gyarados	Mega-Gyarados
+131	131	0	lapras		1	base	0	0	0	0	28	1	25	2200	187	Lapras	Lapras
+10204	131	1	lapras-gmax	gmax	0	gmax	0	1	0	1	20	1	240	10000	187	Gigantamax Form	Lapras
+132	132	0	ditto		1	base	0	0	0	0	28	1	3	40	101	Ditto	Ditto
+133	133	0	eevee		1	base	0	0	0	0	28	1	3	65	65	Eevee	Eevee
+10159	133	1	eevee-starter	starter	0	form	0	0	0	0	19	2	3	65	87	Partner Eevee	Eevee
+10205	133	2	eevee-gmax	gmax	0	gmax	0	1	0	1	20	1	180	10000	65	Gigantamax Form	Eevee
+134	134	0	vaporeon		1	base	0	0	0	0	28	1	10	290	184	Vaporeon	Vaporeon
+135	135	0	jolteon		1	base	0	0	0	0	28	1	8	245	184	Jolteon	Jolteon
+136	136	0	flareon		1	base	0	0	0	0	28	1	9	250	184	Flareon	Flareon
+137	137	0	porygon		1	base	0	0	0	0	28	1	8	365	79	Porygon	Porygon
+138	138	0	omanyte		1	base	0	0	0	0	28	1	4	75	71	Omanyte	Omanyte
+139	139	0	omastar		1	base	0	0	0	0	28	1	10	350	173	Omastar	Omastar
+140	140	0	kabuto		1	base	0	0	0	0	28	1	5	115	71	Kabuto	Kabuto
+141	141	0	kabutops		1	base	0	0	0	0	28	1	13	405	173	Kabutops	Kabutops
+142	142	0	aerodactyl		1	base	0	0	0	0	28	1	18	590	180	Aerodactyl	Aerodactyl
+10042	142	1	aerodactyl-mega	mega	0	mega	1	0	0	1	15	2	21	790	215	Mega Aerodactyl	Mega-Aerodactyl
+143	143	0	snorlax		1	base	0	0	0	0	28	1	21	4600	189	Snorlax	Snorlax
+10206	143	1	snorlax-gmax	gmax	0	gmax	0	1	0	1	20	1	350	10000	189	Gigantamax Form	Snorlax
+144	144	0	articuno		1	base	0	0	0	0	28	1	17	554	261	Articuno	Articuno
+10169	144	1	articuno-galar	galar	0	regional	0	0	1	0	20	2	17	509	290	Galarian Form	Forma de Galar
+145	145	0	zapdos		1	base	0	0	0	0	28	1	16	526	261	Zapdos	Zapdos
+10170	145	1	zapdos-galar	galar	0	regional	0	0	1	0	20	2	16	582	290	Galarian Form	Forma de Galar
+146	146	0	moltres		1	base	0	0	0	0	28	1	20	600	261	Moltres	Moltres
+10171	146	1	moltres-galar	galar	0	regional	0	0	1	0	20	2	20	660	290	Galarian Form	Forma de Galar
+147	147	0	dratini		1	base	0	0	0	0	28	1	18	33	60	Dratini	Dratini
+148	148	0	dragonair		1	base	0	0	0	0	28	1	40	165	147	Dragonair	Dragonair
+149	149	0	dragonite		1	base	0	0	0	0	28	1	22	2100	270	Dragonite	Dragonite
+10281	149	1	dragonite-mega	mega	0	mega	1	0	0	1	31	2	22	2900	0	Mega Dragonite	Dragonite
+150	150	0	mewtwo		1	base	0	0	0	0	28	1	20	1220	306	Mewtwo	Mewtwo
+10043	150	1	mewtwo-mega-x	mega-x	0	mega	1	0	0	1	15	2	23	1270	351	Mega Mewtwo X	Mega-Mewtwo X
+10044	150	2	mewtwo-mega-y	mega-y	0	mega	1	0	0	1	15	3	15	330	351	Mega Mewtwo Y	Mega-Mewtwo Y
+151	151	0	mew		1	base	0	0	0	0	28	1	4	40	270	Mew	Mew
+152	152	0	chikorita		1	base	0	0	0	0	3	1	9	64	64	Chikorita	Chikorita
+153	153	0	bayleef		1	base	0	0	0	0	3	1	12	158	142	Bayleef	Bayleef
+154	154	0	meganium		1	base	0	0	0	0	3	1	18	1005	236	Meganium	Meganium
+10282	154	1	meganium-mega	mega	0	mega	1	0	0	1	31	2	24	2010	0	Mega Meganium	Meganium
+155	155	0	cyndaquil		1	base	0	0	0	0	3	1	5	79	62	Cyndaquil	Cyndaquil
+156	156	0	quilava		1	base	0	0	0	0	3	1	9	190	142	Quilava	Quilava
+157	157	0	typhlosion		1	base	0	0	0	0	3	1	17	795	240	Typhlosion	Typhlosion
+10233	157	1	typhlosion-hisui	hisui	0	regional	0	0	1	0	24	2	16	698	240	Hisuian Form	Typhlosion
+158	158	0	totodile		1	base	0	0	0	0	3	1	6	95	63	Totodile	Totodile
+159	159	0	croconaw		1	base	0	0	0	0	3	1	11	250	142	Croconaw	Croconaw
+160	160	0	feraligatr		1	base	0	0	0	0	3	1	23	888	239	Feraligatr	Feraligatr
+10283	160	1	feraligatr-mega	mega	0	mega	1	0	0	1	31	2	23	1088	0	Mega Feraligatr	Feraligatr
+161	161	0	sentret		1	base	0	0	0	0	3	1	8	60	43	Sentret	Sentret
+162	162	0	furret		1	base	0	0	0	0	3	1	18	325	145	Furret	Furret
+163	163	0	hoothoot		1	base	0	0	0	0	3	1	7	212	52	Hoothoot	Hoothoot
+164	164	0	noctowl		1	base	0	0	0	0	3	1	16	408	158	Noctowl	Noctowl
+165	165	0	ledyba		1	base	0	0	0	0	3	1	10	108	53	Ledyba	Ledyba
+166	166	0	ledian		1	base	0	0	0	0	3	1	14	356	137	Ledian	Ledian
+167	167	0	spinarak		1	base	0	0	0	0	3	1	5	85	50	Spinarak	Spinarak
+168	168	0	ariados		1	base	0	0	0	0	3	1	11	335	140	Ariados	Ariados
+169	169	0	crobat		1	base	0	0	0	0	3	1	18	750	241	Crobat	Crobat
+170	170	0	chinchou		1	base	0	0	0	0	3	1	5	120	66	Chinchou	Chinchou
+171	171	0	lanturn		1	base	0	0	0	0	3	1	12	225	161	Lanturn	Lanturn
+172	172	0	pichu		1	base	0	0	0	0	3	1	3	20	41	Pichu	Pichu
+173	173	0	cleffa		1	base	0	0	0	0	3	1	3	30	44	Cleffa	Cleffa
+174	174	0	igglybuff		1	base	0	0	0	0	3	1	3	10	42	Igglybuff	Igglybuff
+175	175	0	togepi		1	base	0	0	0	0	3	1	3	15	49	Togepi	Togepi
+176	176	0	togetic		1	base	0	0	0	0	3	1	6	32	142	Togetic	Togetic
+177	177	0	natu		1	base	0	0	0	0	3	1	2	20	64	Natu	Natu
+178	178	0	xatu		1	base	0	0	0	0	3	1	15	150	165	Xatu	Xatu
+179	179	0	mareep		1	base	0	0	0	0	3	1	6	78	56	Mareep	Mareep
+180	180	0	flaaffy		1	base	0	0	0	0	3	1	8	133	128	Flaaffy	Flaaffy
+181	181	0	ampharos		1	base	0	0	0	0	3	1	14	615	230	Ampharos	Ampharos
+10045	181	1	ampharos-mega	mega	0	mega	1	0	0	1	15	2	14	615	275	Mega Ampharos	Mega-Ampharos
+182	182	0	bellossom		1	base	0	0	0	0	3	1	4	58	221	Bellossom	Bellossom
+183	183	0	marill		1	base	0	0	0	0	3	1	4	85	88	Marill	Marill
+184	184	0	azumarill		1	base	0	0	0	0	3	1	8	285	189	Azumarill	Azumarill
+185	185	0	sudowoodo		1	base	0	0	0	0	3	1	12	380	144	Sudowoodo	Sudowoodo
+186	186	0	politoed		1	base	0	0	0	0	3	1	11	339	225	Politoed	Politoed
+187	187	0	hoppip		1	base	0	0	0	0	3	1	4	5	50	Hoppip	Hoppip
+188	188	0	skiploom		1	base	0	0	0	0	3	1	6	10	119	Skiploom	Skiploom
+189	189	0	jumpluff		1	base	0	0	0	0	3	1	8	30	207	Jumpluff	Jumpluff
+190	190	0	aipom		1	base	0	0	0	0	3	1	8	115	72	Aipom	Aipom
+191	191	0	sunkern		1	base	0	0	0	0	3	1	3	18	36	Sunkern	Sunkern
+192	192	0	sunflora		1	base	0	0	0	0	3	1	8	85	149	Sunflora	Sunflora
+193	193	0	yanma		1	base	0	0	0	0	3	1	12	380	78	Yanma	Yanma
+194	194	0	wooper		1	base	0	0	0	0	3	1	4	85	42	Wooper	Wooper
+10253	194	1	wooper-paldea	paldea	0	regional	0	0	1	0	25	2	4	110	42	Paldean Form	Wooper
+195	195	0	quagsire		1	base	0	0	0	0	3	1	14	750	151	Quagsire	Quagsire
+196	196	0	espeon		1	base	0	0	0	0	3	1	9	265	184	Espeon	Espeon
+197	197	0	umbreon		1	base	0	0	0	0	3	1	10	270	184	Umbreon	Umbreon
+198	198	0	murkrow		1	base	0	0	0	0	3	1	5	21	81	Murkrow	Murkrow
+199	199	0	slowking		1	base	0	0	0	0	3	1	20	795	172	Slowking	Slowking
+10172	199	1	slowking-galar	galar	0	regional	0	0	1	0	20	2	18	795	172	Galarian Form	Forma de Galar
+200	200	0	misdreavus		1	base	0	0	0	0	3	1	7	10	87	Misdreavus	Misdreavus
+201	201	0	unown	a	1	base	0	0	0	0	3	1	5	50	118	A	A
+202	202	0	wobbuffet		1	base	0	0	0	0	3	1	13	285	142	Wobbuffet	Wobbuffet
+203	203	0	girafarig		1	base	0	0	0	0	3	1	15	415	159	Girafarig	Girafarig
+204	204	0	pineco		1	base	0	0	0	0	3	1	6	72	58	Pineco	Pineco
+205	205	0	forretress		1	base	0	0	0	0	3	1	12	1258	163	Forretress	Forretress
+206	206	0	dunsparce		1	base	0	0	0	0	3	1	15	140	145	Dunsparce	Dunsparce
+207	207	0	gligar		1	base	0	0	0	0	3	1	11	648	86	Gligar	Gligar
+208	208	0	steelix		1	base	0	0	0	0	3	1	92	4000	179	Steelix	Steelix
+10072	208	1	steelix-mega	mega	0	mega	1	0	0	1	16	2	105	7400	214	Mega Steelix	Mega-Steelix
+209	209	0	snubbull		1	base	0	0	0	0	3	1	6	78	60	Snubbull	Snubbull
+210	210	0	granbull		1	base	0	0	0	0	3	1	14	487	158	Granbull	Granbull
+211	211	0	qwilfish		1	base	0	0	0	0	3	1	5	39	88	Qwilfish	Qwilfish
+10234	211	1	qwilfish-hisui	hisui	0	regional	0	0	1	0	24	2	5	39	88	Hisuian Form	Qwilfish
+212	212	0	scizor		1	base	0	0	0	0	3	1	18	1180	175	Scizor	Scizor
+10046	212	1	scizor-mega	mega	0	mega	1	0	0	1	15	2	20	1250	210	Mega Scizor	Mega-Scizor
+213	213	0	shuckle		1	base	0	0	0	0	3	1	6	205	177	Shuckle	Shuckle
+214	214	0	heracross		1	base	0	0	0	0	3	1	15	540	175	Heracross	Heracross
+10047	214	1	heracross-mega	mega	0	mega	1	0	0	1	15	2	17	625	210	Mega Heracross	Mega-Heracross
+215	215	0	sneasel		1	base	0	0	0	0	3	1	9	280	86	Sneasel	Sneasel
+10235	215	1	sneasel-hisui	hisui	0	regional	0	0	1	0	24	2	9	270	86	Hisuian Form	Sneasel
+216	216	0	teddiursa		1	base	0	0	0	0	3	1	6	88	66	Teddiursa	Teddiursa
+217	217	0	ursaring		1	base	0	0	0	0	3	1	18	1258	175	Ursaring	Ursaring
+218	218	0	slugma		1	base	0	0	0	0	3	1	7	350	50	Slugma	Slugma
+219	219	0	magcargo		1	base	0	0	0	0	3	1	8	550	151	Magcargo	Magcargo
+220	220	0	swinub		1	base	0	0	0	0	3	1	4	65	50	Swinub	Swinub
+221	221	0	piloswine		1	base	0	0	0	0	3	1	11	558	158	Piloswine	Piloswine
+222	222	0	corsola		1	base	0	0	0	0	3	1	6	50	144	Corsola	Corsola
+10173	222	1	corsola-galar	galar	0	regional	0	0	1	0	20	2	6	5	144	Galarian Form	Forma de Galar
+223	223	0	remoraid		1	base	0	0	0	0	3	1	6	120	60	Remoraid	Remoraid
+224	224	0	octillery		1	base	0	0	0	0	3	1	9	285	168	Octillery	Octillery
+225	225	0	delibird		1	base	0	0	0	0	3	1	9	160	116	Delibird	Delibird
+226	226	0	mantine		1	base	0	0	0	0	3	1	21	2200	170	Mantine	Mantine
+227	227	0	skarmory		1	base	0	0	0	0	3	1	17	505	163	Skarmory	Skarmory
+10284	227	1	skarmory-mega	mega	0	mega	1	0	0	1	31	2	17	404	0	Mega Skarmory	Skarmory
+228	228	0	houndour		1	base	0	0	0	0	3	1	6	108	66	Houndour	Houndour
+229	229	0	houndoom		1	base	0	0	0	0	3	1	14	350	175	Houndoom	Houndoom
+10048	229	1	houndoom-mega	mega	0	mega	1	0	0	1	15	2	19	495	210	Mega Houndoom	Mega-Houndoom
+230	230	0	kingdra		1	base	0	0	0	0	3	1	18	1520	243	Kingdra	Kingdra
+231	231	0	phanpy		1	base	0	0	0	0	3	1	5	335	66	Phanpy	Phanpy
+232	232	0	donphan		1	base	0	0	0	0	3	1	11	1200	175	Donphan	Donphan
+233	233	0	porygon2		1	base	0	0	0	0	3	1	6	325	180	Porygon2	Porygon2
+234	234	0	stantler		1	base	0	0	0	0	3	1	14	712	163	Stantler	Stantler
+235	235	0	smeargle		1	base	0	0	0	0	3	1	12	580	88	Smeargle	Smeargle
+236	236	0	tyrogue		1	base	0	0	0	0	3	1	7	210	42	Tyrogue	Tyrogue
+237	237	0	hitmontop		1	base	0	0	0	0	3	1	14	480	159	Hitmontop	Hitmontop
+238	238	0	smoochum		1	base	0	0	0	0	3	1	4	60	61	Smoochum	Smoochum
+239	239	0	elekid		1	base	0	0	0	0	3	1	6	235	72	Elekid	Elekid
+240	240	0	magby		1	base	0	0	0	0	3	1	7	214	73	Magby	Magby
+241	241	0	miltank		1	base	0	0	0	0	3	1	12	755	172	Miltank	Miltank
+242	242	0	blissey		1	base	0	0	0	0	3	1	15	468	608	Blissey	Blissey
+243	243	0	raikou		1	base	0	0	0	0	3	1	19	1780	261	Raikou	Raikou
+244	244	0	entei		1	base	0	0	0	0	3	1	21	1980	261	Entei	Entei
+245	245	0	suicune		1	base	0	0	0	0	3	1	20	1870	261	Suicune	Suicune
+246	246	0	larvitar		1	base	0	0	0	0	3	1	6	720	60	Larvitar	Larvitar
+247	247	0	pupitar		1	base	0	0	0	0	3	1	12	1520	144	Pupitar	Pupitar
+248	248	0	tyranitar		1	base	0	0	0	0	3	1	20	2020	270	Tyranitar	Tyranitar
+10049	248	1	tyranitar-mega	mega	0	mega	1	0	0	1	15	2	25	2550	315	Mega Tyranitar	Mega-Tyranitar
+249	249	0	lugia		1	base	0	0	0	0	3	1	52	2160	306	Lugia	Lugia
+250	250	0	ho-oh		1	base	0	0	0	0	3	1	38	1990	306	Ho-Oh	Ho-Oh
+251	251	0	celebi		1	base	0	0	0	0	3	1	6	50	270	Celebi	Celebi
+252	252	0	treecko		1	base	0	0	0	0	5	1	5	50	62	Treecko	Treecko
+253	253	0	grovyle		1	base	0	0	0	0	5	1	9	216	142	Grovyle	Grovyle
+254	254	0	sceptile		1	base	0	0	0	0	5	1	17	522	239	Sceptile	Sceptile
+10065	254	1	sceptile-mega	mega	0	mega	1	0	0	1	16	2	19	552	284	Mega Sceptile	Mega-Sceptile
+255	255	0	torchic		1	base	0	0	0	0	5	1	4	25	62	Torchic	Torchic
+256	256	0	combusken		1	base	0	0	0	0	5	1	9	195	142	Combusken	Combusken
+257	257	0	blaziken		1	base	0	0	0	0	5	1	19	520	239	Blaziken	Blaziken
+10050	257	1	blaziken-mega	mega	0	mega	1	0	0	1	15	2	19	520	284	Mega Blaziken	Mega-Blaziken
+258	258	0	mudkip		1	base	0	0	0	0	5	1	4	76	62	Mudkip	Mudkip
+259	259	0	marshtomp		1	base	0	0	0	0	5	1	7	280	142	Marshtomp	Marshtomp
+260	260	0	swampert		1	base	0	0	0	0	5	1	15	819	241	Swampert	Swampert
+10064	260	1	swampert-mega	mega	0	mega	1	0	0	1	16	2	19	1020	286	Mega Swampert	Mega-Swampert
+261	261	0	poochyena		1	base	0	0	0	0	5	1	5	136	56	Poochyena	Poochyena
+262	262	0	mightyena		1	base	0	0	0	0	5	1	10	370	147	Mightyena	Mightyena
+263	263	0	zigzagoon		1	base	0	0	0	0	5	1	4	175	56	Zigzagoon	Zigzagoon
+10174	263	1	zigzagoon-galar	galar	0	regional	0	0	1	0	20	2	4	175	56	Galarian Form	Forma de Galar
+264	264	0	linoone		1	base	0	0	0	0	5	1	5	325	147	Linoone	Linoone
+10175	264	1	linoone-galar	galar	0	regional	0	0	1	0	20	2	5	325	147	Galarian Form	Forma de Galar
+265	265	0	wurmple		1	base	0	0	0	0	5	1	3	36	56	Wurmple	Wurmple
+266	266	0	silcoon		1	base	0	0	0	0	5	1	6	100	72	Silcoon	Silcoon
+267	267	0	beautifly		1	base	0	0	0	0	5	1	10	284	178	Beautifly	Beautifly
+268	268	0	cascoon		1	base	0	0	0	0	5	1	7	115	72	Cascoon	Cascoon
+269	269	0	dustox		1	base	0	0	0	0	5	1	12	316	173	Dustox	Dustox
+270	270	0	lotad		1	base	0	0	0	0	5	1	5	26	44	Lotad	Lotad
+271	271	0	lombre		1	base	0	0	0	0	5	1	12	325	119	Lombre	Lombre
+272	272	0	ludicolo		1	base	0	0	0	0	5	1	15	550	216	Ludicolo	Ludicolo
+273	273	0	seedot		1	base	0	0	0	0	5	1	5	40	44	Seedot	Seedot
+274	274	0	nuzleaf		1	base	0	0	0	0	5	1	10	280	119	Nuzleaf	Nuzleaf
+275	275	0	shiftry		1	base	0	0	0	0	5	1	13	596	216	Shiftry	Shiftry
+276	276	0	taillow		1	base	0	0	0	0	5	1	3	23	54	Taillow	Taillow
+277	277	0	swellow		1	base	0	0	0	0	5	1	7	198	159	Swellow	Swellow
+278	278	0	wingull		1	base	0	0	0	0	5	1	6	95	54	Wingull	Wingull
+279	279	0	pelipper		1	base	0	0	0	0	5	1	12	280	154	Pelipper	Pelipper
+280	280	0	ralts		1	base	0	0	0	0	5	1	4	66	40	Ralts	Ralts
+281	281	0	kirlia		1	base	0	0	0	0	5	1	8	202	97	Kirlia	Kirlia
+282	282	0	gardevoir		1	base	0	0	0	0	5	1	16	484	233	Gardevoir	Gardevoir
+10051	282	1	gardevoir-mega	mega	0	mega	1	0	0	1	15	2	16	484	278	Mega Gardevoir	Mega-Gardevoir
+283	283	0	surskit		1	base	0	0	0	0	5	1	5	17	54	Surskit	Surskit
+284	284	0	masquerain		1	base	0	0	0	0	5	1	8	36	159	Masquerain	Masquerain
+285	285	0	shroomish		1	base	0	0	0	0	5	1	4	45	59	Shroomish	Shroomish
+286	286	0	breloom		1	base	0	0	0	0	5	1	12	392	161	Breloom	Breloom
+287	287	0	slakoth		1	base	0	0	0	0	5	1	8	240	56	Slakoth	Slakoth
+288	288	0	vigoroth		1	base	0	0	0	0	5	1	14	465	154	Vigoroth	Vigoroth
+289	289	0	slaking		1	base	0	0	0	0	5	1	20	1305	252	Slaking	Slaking
+290	290	0	nincada		1	base	0	0	0	0	5	1	5	55	53	Nincada	Nincada
+291	291	0	ninjask		1	base	0	0	0	0	5	1	8	120	160	Ninjask	Ninjask
+292	292	0	shedinja		1	base	0	0	0	0	5	1	8	12	83	Shedinja	Shedinja
+293	293	0	whismur		1	base	0	0	0	0	5	1	6	163	48	Whismur	Whismur
+294	294	0	loudred		1	base	0	0	0	0	5	1	10	405	126	Loudred	Loudred
+295	295	0	exploud		1	base	0	0	0	0	5	1	15	840	221	Exploud	Exploud
+296	296	0	makuhita		1	base	0	0	0	0	5	1	10	864	47	Makuhita	Makuhita
+297	297	0	hariyama		1	base	0	0	0	0	5	1	23	2538	166	Hariyama	Hariyama
+298	298	0	azurill		1	base	0	0	0	0	5	1	2	20	38	Azurill	Azurill
+299	299	0	nosepass		1	base	0	0	0	0	5	1	10	970	75	Nosepass	Nosepass
+300	300	0	skitty		1	base	0	0	0	0	5	1	6	110	52	Skitty	Skitty
+301	301	0	delcatty		1	base	0	0	0	0	5	1	11	326	140	Delcatty	Delcatty
+302	302	0	sableye		1	base	0	0	0	0	5	1	5	110	133	Sableye	Sableye
+10066	302	1	sableye-mega	mega	0	mega	1	0	0	1	16	2	5	1610	168	Mega Sableye	Mega-Sableye
+303	303	0	mawile		1	base	0	0	0	0	5	1	6	115	133	Mawile	Mawile
+10052	303	1	mawile-mega	mega	0	mega	1	0	0	1	15	2	10	235	168	Mega Mawile	Mega-Mawile
+304	304	0	aron		1	base	0	0	0	0	5	1	4	600	66	Aron	Aron
+305	305	0	lairon		1	base	0	0	0	0	5	1	9	1200	151	Lairon	Lairon
+306	306	0	aggron		1	base	0	0	0	0	5	1	21	3600	239	Aggron	Aggron
+10053	306	1	aggron-mega	mega	0	mega	1	0	0	1	15	2	22	3950	284	Mega Aggron	Mega-Aggron
+307	307	0	meditite		1	base	0	0	0	0	5	1	6	112	56	Meditite	Meditite
+308	308	0	medicham		1	base	0	0	0	0	5	1	13	315	144	Medicham	Medicham
+10054	308	1	medicham-mega	mega	0	mega	1	0	0	1	15	2	13	315	179	Mega Medicham	Mega-Medicham
+309	309	0	electrike		1	base	0	0	0	0	5	1	6	152	59	Electrike	Electrike
+310	310	0	manectric		1	base	0	0	0	0	5	1	15	402	166	Manectric	Manectric
+10055	310	1	manectric-mega	mega	0	mega	1	0	0	1	15	2	18	440	201	Mega Manectric	Mega-Manectric
+311	311	0	plusle		1	base	0	0	0	0	5	1	4	42	142	Plusle	Plusle
+312	312	0	minun		1	base	0	0	0	0	5	1	4	42	142	Minun	Minun
+313	313	0	volbeat		1	base	0	0	0	0	5	1	7	177	151	Volbeat	Volbeat
+314	314	0	illumise		1	base	0	0	0	0	5	1	6	177	151	Illumise	Illumise
+315	315	0	roselia		1	base	0	0	0	0	5	1	3	20	140	Roselia	Roselia
+316	316	0	gulpin		1	base	0	0	0	0	5	1	4	103	60	Gulpin	Gulpin
+317	317	0	swalot		1	base	0	0	0	0	5	1	17	800	163	Swalot	Swalot
+318	318	0	carvanha		1	base	0	0	0	0	5	1	8	208	61	Carvanha	Carvanha
+319	319	0	sharpedo		1	base	0	0	0	0	5	1	18	888	161	Sharpedo	Sharpedo
+10070	319	1	sharpedo-mega	mega	0	mega	1	0	0	1	16	2	25	1303	196	Mega Sharpedo	Mega-Sharpedo
+320	320	0	wailmer		1	base	0	0	0	0	5	1	20	1300	80	Wailmer	Wailmer
+321	321	0	wailord		1	base	0	0	0	0	5	1	145	3980	175	Wailord	Wailord
+322	322	0	numel		1	base	0	0	0	0	5	1	7	240	61	Numel	Numel
+323	323	0	camerupt		1	base	0	0	0	0	5	1	19	2200	161	Camerupt	Camerupt
+10087	323	1	camerupt-mega	mega	0	mega	1	0	0	1	16	2	25	3205	196	Mega Camerupt	Mega-Camerupt
+324	324	0	torkoal		1	base	0	0	0	0	5	1	5	804	165	Torkoal	Torkoal
+325	325	0	spoink		1	base	0	0	0	0	5	1	7	306	66	Spoink	Spoink
+326	326	0	grumpig		1	base	0	0	0	0	5	1	9	715	165	Grumpig	Grumpig
+327	327	0	spinda		1	base	0	0	0	0	5	1	11	50	126	Spinda	Spinda
+328	328	0	trapinch		1	base	0	0	0	0	5	1	7	150	58	Trapinch	Trapinch
+329	329	0	vibrava		1	base	0	0	0	0	5	1	11	153	119	Vibrava	Vibrava
+330	330	0	flygon		1	base	0	0	0	0	5	1	20	820	234	Flygon	Flygon
+331	331	0	cacnea		1	base	0	0	0	0	5	1	4	513	67	Cacnea	Cacnea
+332	332	0	cacturne		1	base	0	0	0	0	5	1	13	774	166	Cacturne	Cacturne
+333	333	0	swablu		1	base	0	0	0	0	5	1	4	12	62	Swablu	Swablu
+334	334	0	altaria		1	base	0	0	0	0	5	1	11	206	172	Altaria	Altaria
+10067	334	1	altaria-mega	mega	0	mega	1	0	0	1	16	2	15	206	207	Mega Altaria	Mega-Altaria
+335	335	0	zangoose		1	base	0	0	0	0	5	1	13	403	160	Zangoose	Zangoose
+336	336	0	seviper		1	base	0	0	0	0	5	1	27	525	160	Seviper	Seviper
+337	337	0	lunatone		1	base	0	0	0	0	5	1	10	1680	161	Lunatone	Lunatone
+338	338	0	solrock		1	base	0	0	0	0	5	1	12	1540	161	Solrock	Solrock
+339	339	0	barboach		1	base	0	0	0	0	5	1	4	19	58	Barboach	Barboach
+340	340	0	whiscash		1	base	0	0	0	0	5	1	9	236	164	Whiscash	Whiscash
+341	341	0	corphish		1	base	0	0	0	0	5	1	6	115	62	Corphish	Corphish
+342	342	0	crawdaunt		1	base	0	0	0	0	5	1	11	328	164	Crawdaunt	Crawdaunt
+343	343	0	baltoy		1	base	0	0	0	0	5	1	5	215	60	Baltoy	Baltoy
+344	344	0	claydol		1	base	0	0	0	0	5	1	15	1080	175	Claydol	Claydol
+345	345	0	lileep		1	base	0	0	0	0	5	1	10	238	71	Lileep	Lileep
+346	346	0	cradily		1	base	0	0	0	0	5	1	15	604	173	Cradily	Cradily
+347	347	0	anorith		1	base	0	0	0	0	5	1	7	125	71	Anorith	Anorith
+348	348	0	armaldo		1	base	0	0	0	0	5	1	15	682	173	Armaldo	Armaldo
+349	349	0	feebas		1	base	0	0	0	0	5	1	6	74	40	Feebas	Feebas
+350	350	0	milotic		1	base	0	0	0	0	5	1	62	1620	189	Milotic	Milotic
+351	351	0	castform		1	base	0	0	0	0	5	1	3	8	147	Normal	Forma de Castform
+10013	351	1	castform-sunny	sunny	0	form	0	0	0	1	5	2	3	8	147	Sunny Form	Forma Sol
+10014	351	2	castform-rainy	rainy	0	form	0	0	0	1	5	3	3	8	147	Rainy Form	Forma Lluvia
+10015	351	3	castform-snowy	snowy	0	form	0	0	0	1	5	4	3	8	147	Snowy Form	Forma Nieve
+352	352	0	kecleon		1	base	0	0	0	0	5	1	10	220	154	Kecleon	Kecleon
+353	353	0	shuppet		1	base	0	0	0	0	5	1	6	23	59	Shuppet	Shuppet
+354	354	0	banette		1	base	0	0	0	0	5	1	11	125	159	Banette	Banette
+10056	354	1	banette-mega	mega	0	mega	1	0	0	1	15	2	12	130	194	Mega Banette	Mega-Banette
+355	355	0	duskull		1	base	0	0	0	0	5	1	8	150	59	Duskull	Duskull
+356	356	0	dusclops		1	base	0	0	0	0	5	1	16	306	159	Dusclops	Dusclops
+357	357	0	tropius		1	base	0	0	0	0	5	1	20	1000	161	Tropius	Tropius
+358	358	0	chimecho		1	base	0	0	0	0	5	1	6	10	159	Chimecho	Chimecho
+10306	358	1	chimecho-mega	mega	0	mega	1	0	0	1	31	2	12	80	0	Mega Chimecho	Chimecho
+359	359	0	absol		1	base	0	0	0	0	5	1	12	470	163	Absol	Absol
+10057	359	1	absol-mega	mega	0	mega	1	0	0	1	15	2	12	490	198	Mega Absol	Mega-Absol
+10307	359	2	absol-mega-z	mega-z	0	mega	1	0	0	1	31	3	12	490	0	Mega Absol Z	Absol
+360	360	0	wynaut		1	base	0	0	0	0	5	1	6	140	52	Wynaut	Wynaut
+361	361	0	snorunt		1	base	0	0	0	0	5	1	7	168	60	Snorunt	Snorunt
+362	362	0	glalie		1	base	0	0	0	0	5	1	15	2565	168	Glalie	Glalie
+10074	362	1	glalie-mega	mega	0	mega	1	0	0	1	16	2	21	3502	203	Mega Glalie	Mega-Glalie
+363	363	0	spheal		1	base	0	0	0	0	5	1	8	395	58	Spheal	Spheal
+364	364	0	sealeo		1	base	0	0	0	0	5	1	11	876	144	Sealeo	Sealeo
+365	365	0	walrein		1	base	0	0	0	0	5	1	14	1506	239	Walrein	Walrein
+366	366	0	clamperl		1	base	0	0	0	0	5	1	4	525	69	Clamperl	Clamperl
+367	367	0	huntail		1	base	0	0	0	0	5	1	17	270	170	Huntail	Huntail
+368	368	0	gorebyss		1	base	0	0	0	0	5	1	18	226	170	Gorebyss	Gorebyss
+369	369	0	relicanth		1	base	0	0	0	0	5	1	10	234	170	Relicanth	Relicanth
+370	370	0	luvdisc		1	base	0	0	0	0	5	1	6	87	116	Luvdisc	Luvdisc
+371	371	0	bagon		1	base	0	0	0	0	5	1	6	421	60	Bagon	Bagon
+372	372	0	shelgon		1	base	0	0	0	0	5	1	11	1105	147	Shelgon	Shelgon
+373	373	0	salamence		1	base	0	0	0	0	5	1	15	1026	270	Salamence	Salamence
+10089	373	1	salamence-mega	mega	0	mega	1	0	0	1	16	2	18	1126	315	Mega Salamence	Mega-Salamence
+374	374	0	beldum		1	base	0	0	0	0	5	1	6	952	60	Beldum	Beldum
+375	375	0	metang		1	base	0	0	0	0	5	1	12	2025	147	Metang	Metang
+376	376	0	metagross		1	base	0	0	0	0	5	1	16	5500	270	Metagross	Metagross
+10076	376	1	metagross-mega	mega	0	mega	1	0	0	1	16	2	25	9429	315	Mega Metagross	Mega-Metagross
+377	377	0	regirock		1	base	0	0	0	0	5	1	17	2300	261	Regirock	Regirock
+378	378	0	regice		1	base	0	0	0	0	5	1	18	1750	261	Regice	Regice
+379	379	0	registeel		1	base	0	0	0	0	5	1	19	2050	261	Registeel	Registeel
+380	380	0	latias		1	base	0	0	0	0	5	1	14	400	270	Latias	Latias
+10062	380	1	latias-mega	mega	0	mega	1	0	0	1	15	2	18	520	315	Mega Latias	Mega-Latias
+381	381	0	latios		1	base	0	0	0	0	5	1	20	600	270	Latios	Latios
+10063	381	1	latios-mega	mega	0	mega	1	0	0	1	15	2	23	700	315	Mega Latios	Mega-Latios
+382	382	0	kyogre		1	base	0	0	0	0	5	1	45	3520	302	Kyogre	Kyogre
+10077	382	1	kyogre-primal	primal	0	form	0	0	0	1	16	2	98	4300	347	Primal Reversion	Regresión Primigenia
+383	383	0	groudon		1	base	0	0	0	0	5	1	35	9500	302	Groudon	Groudon
+10078	383	1	groudon-primal	primal	0	form	0	0	0	1	16	2	50	9997	347	Primal Reversion	Regresión Primigenia
+384	384	0	rayquaza		1	base	0	0	0	0	5	1	70	2065	306	Rayquaza	Rayquaza
+10079	384	1	rayquaza-mega	mega	0	mega	1	0	0	1	16	2	108	3920	351	Mega Rayquaza	Mega-Rayquaza
+385	385	0	jirachi		1	base	0	0	0	0	5	1	3	11	270	Jirachi	Jirachi
+386	386	0	deoxys-normal	normal	1	base	0	0	0	0	5	1	17	608	270	Normal Forme	Forma Normal
+10001	386	1	deoxys-attack	attack	0	form	0	0	0	0	7	2	17	608	270	Attack Forme	Forma Ataque
+10002	386	2	deoxys-defense	defense	0	form	0	0	0	0	7	3	17	608	270	Defense Forme	Forma Defensa
+10003	386	3	deoxys-speed	speed	0	form	0	0	0	0	6	4	17	608	270	Speed Forme	Forma Velocidad
+387	387	0	turtwig		1	base	0	0	0	0	8	1	4	102	64	Turtwig	Turtwig
+388	388	0	grotle		1	base	0	0	0	0	8	1	11	970	142	Grotle	Grotle
+389	389	0	torterra		1	base	0	0	0	0	8	1	22	3100	236	Torterra	Torterra
+390	390	0	chimchar		1	base	0	0	0	0	8	1	5	62	62	Chimchar	Chimchar
+391	391	0	monferno		1	base	0	0	0	0	8	1	9	220	142	Monferno	Monferno
+392	392	0	infernape		1	base	0	0	0	0	8	1	12	550	240	Infernape	Infernape
+393	393	0	piplup		1	base	0	0	0	0	8	1	4	52	63	Piplup	Piplup
+394	394	0	prinplup		1	base	0	0	0	0	8	1	8	230	142	Prinplup	Prinplup
+395	395	0	empoleon		1	base	0	0	0	0	8	1	17	845	239	Empoleon	Empoleon
+396	396	0	starly		1	base	0	0	0	0	8	1	3	20	49	Starly	Starly
+397	397	0	staravia		1	base	0	0	0	0	8	1	6	155	119	Staravia	Staravia
+398	398	0	staraptor		1	base	0	0	0	0	8	1	12	249	218	Staraptor	Staraptor
+10308	398	1	staraptor-mega	mega	0	mega	1	0	0	1	31	2	19	500	0	Mega Staraptor	Staraptor
+399	399	0	bidoof		1	base	0	0	0	0	8	1	5	200	50	Bidoof	Bidoof
+400	400	0	bibarel		1	base	0	0	0	0	8	1	10	315	144	Bibarel	Bibarel
+401	401	0	kricketot		1	base	0	0	0	0	8	1	3	22	39	Kricketot	Kricketot
+402	402	0	kricketune		1	base	0	0	0	0	8	1	10	255	134	Kricketune	Kricketune
+403	403	0	shinx		1	base	0	0	0	0	8	1	5	95	53	Shinx	Shinx
+404	404	0	luxio		1	base	0	0	0	0	8	1	9	305	127	Luxio	Luxio
+405	405	0	luxray		1	base	0	0	0	0	8	1	14	420	235	Luxray	Luxray
+406	406	0	budew		1	base	0	0	0	0	8	1	2	12	56	Budew	Budew
+407	407	0	roserade		1	base	0	0	0	0	8	1	9	145	232	Roserade	Roserade
+408	408	0	cranidos		1	base	0	0	0	0	8	1	9	315	70	Cranidos	Cranidos
+409	409	0	rampardos		1	base	0	0	0	0	8	1	16	1025	173	Rampardos	Rampardos
+410	410	0	shieldon		1	base	0	0	0	0	8	1	5	570	70	Shieldon	Shieldon
+411	411	0	bastiodon		1	base	0	0	0	0	8	1	13	1495	173	Bastiodon	Bastiodon
+412	412	0	burmy	plant	1	base	0	0	0	0	8	1	2	34	45	Plant Cloak	Tronco Planta
+413	413	0	wormadam-plant	plant	1	base	0	0	0	0	8	1	5	65	148	Plant Cloak	Tronco Planta
+10004	413	1	wormadam-sandy	sandy	0	form	0	0	0	0	8	2	5	65	148	Sandy Cloak	Tronco Arena
+10005	413	2	wormadam-trash	trash	0	form	0	0	0	0	8	3	5	65	148	Trash Cloak	Tronco Basura
+414	414	0	mothim	plant	1	base	0	0	0	0	8	1	9	233	148	Mothim	Mothim
+415	415	0	combee		1	base	0	0	0	0	8	1	3	55	49	Combee	Combee
+416	416	0	vespiquen		1	base	0	0	0	0	8	1	12	385	166	Vespiquen	Vespiquen
+417	417	0	pachirisu		1	base	0	0	0	0	8	1	4	39	142	Pachirisu	Pachirisu
+418	418	0	buizel		1	base	0	0	0	0	8	1	7	295	66	Buizel	Buizel
+419	419	0	floatzel		1	base	0	0	0	0	8	1	11	335	173	Floatzel	Floatzel
+420	420	0	cherubi		1	base	0	0	0	0	8	1	4	33	55	Cherubi	Cherubi
+421	421	0	cherrim	overcast	1	base	0	0	0	0	8	1	5	93	158	Overcast Form	Forma Encapotado
+422	422	0	shellos	west	1	base	0	0	0	0	8	1	3	63	65	West Sea	Mar Oeste
+423	423	0	gastrodon	west	1	base	0	0	0	0	8	1	9	299	166	West Sea	Mar Oeste
+424	424	0	ambipom		1	base	0	0	0	0	8	1	12	203	169	Ambipom	Ambipom
+425	425	0	drifloon		1	base	0	0	0	0	8	1	4	12	70	Drifloon	Drifloon
+426	426	0	drifblim		1	base	0	0	0	0	8	1	12	150	174	Drifblim	Drifblim
+427	427	0	buneary		1	base	0	0	0	0	8	1	4	55	70	Buneary	Buneary
+428	428	0	lopunny		1	base	0	0	0	0	8	1	12	333	168	Lopunny	Lopunny
+10088	428	1	lopunny-mega	mega	0	mega	1	0	0	1	16	2	13	283	203	Mega Lopunny	Mega-Lopunny
+429	429	0	mismagius		1	base	0	0	0	0	8	1	9	44	173	Mismagius	Mismagius
+430	430	0	honchkrow		1	base	0	0	0	0	8	1	9	273	177	Honchkrow	Honchkrow
+431	431	0	glameow		1	base	0	0	0	0	8	1	5	39	62	Glameow	Glameow
+432	432	0	purugly		1	base	0	0	0	0	8	1	10	438	158	Purugly	Purugly
+433	433	0	chingling		1	base	0	0	0	0	8	1	2	6	57	Chingling	Chingling
+434	434	0	stunky		1	base	0	0	0	0	8	1	4	192	66	Stunky	Stunky
+435	435	0	skuntank		1	base	0	0	0	0	8	1	10	380	168	Skuntank	Skuntank
+436	436	0	bronzor		1	base	0	0	0	0	8	1	5	605	60	Bronzor	Bronzor
+437	437	0	bronzong		1	base	0	0	0	0	8	1	13	1870	175	Bronzong	Bronzong
+438	438	0	bonsly		1	base	0	0	0	0	8	1	5	150	58	Bonsly	Bonsly
+439	439	0	mime-jr		1	base	0	0	0	0	8	1	6	130	62	Mime Jr.	Mime Jr.
+440	440	0	happiny		1	base	0	0	0	0	8	1	6	244	110	Happiny	Happiny
+441	441	0	chatot		1	base	0	0	0	0	8	1	5	19	144	Chatot	Chatot
+442	442	0	spiritomb		1	base	0	0	0	0	8	1	10	1080	170	Spiritomb	Spiritomb
+443	443	0	gible		1	base	0	0	0	0	8	1	7	205	60	Gible	Gible
+444	444	0	gabite		1	base	0	0	0	0	8	1	14	560	144	Gabite	Gabite
+445	445	0	garchomp		1	base	0	0	0	0	8	1	19	950	270	Garchomp	Garchomp
+10058	445	1	garchomp-mega	mega	0	mega	1	0	0	1	15	2	19	950	315	Mega Garchomp	Mega-Garchomp
+10309	445	2	garchomp-mega-z	mega-z	0	mega	1	0	0	1	31	3	19	990	0	Mega Garchomp Z	Garchomp
+446	446	0	munchlax		1	base	0	0	0	0	8	1	6	1050	78	Munchlax	Munchlax
+447	447	0	riolu		1	base	0	0	0	0	8	1	7	202	57	Riolu	Riolu
+448	448	0	lucario		1	base	0	0	0	0	8	1	12	540	184	Lucario	Lucario
+10059	448	1	lucario-mega	mega	0	mega	1	0	0	1	15	2	13	575	219	Mega Lucario	Mega-Lucario
+10310	448	2	lucario-mega-z	mega-z	0	mega	1	0	0	1	31	3	13	494	0	Mega Lucario Z	Lucario
+449	449	0	hippopotas		1	base	0	0	0	0	8	1	8	495	66	Hippopotas	Hippopotas
+450	450	0	hippowdon		1	base	0	0	0	0	8	1	20	3000	184	Hippowdon	Hippowdon
+451	451	0	skorupi		1	base	0	0	0	0	8	1	8	120	66	Skorupi	Skorupi
+452	452	0	drapion		1	base	0	0	0	0	8	1	13	615	175	Drapion	Drapion
+453	453	0	croagunk		1	base	0	0	0	0	8	1	7	230	60	Croagunk	Croagunk
+454	454	0	toxicroak		1	base	0	0	0	0	8	1	13	444	172	Toxicroak	Toxicroak
+455	455	0	carnivine		1	base	0	0	0	0	8	1	14	270	159	Carnivine	Carnivine
+456	456	0	finneon		1	base	0	0	0	0	8	1	4	70	66	Finneon	Finneon
+457	457	0	lumineon		1	base	0	0	0	0	8	1	12	240	161	Lumineon	Lumineon
+458	458	0	mantyke		1	base	0	0	0	0	8	1	10	650	69	Mantyke	Mantyke
+459	459	0	snover		1	base	0	0	0	0	8	1	10	505	67	Snover	Snover
+460	460	0	abomasnow		1	base	0	0	0	0	8	1	22	1355	173	Abomasnow	Abomasnow
+10060	460	1	abomasnow-mega	mega	0	mega	1	0	0	1	15	2	27	1850	208	Mega Abomasnow	Mega-Abomasnow
+461	461	0	weavile		1	base	0	0	0	0	8	1	11	340	179	Weavile	Weavile
+462	462	0	magnezone		1	base	0	0	0	0	8	1	12	1800	241	Magnezone	Magnezone
+463	463	0	lickilicky		1	base	0	0	0	0	8	1	17	1400	180	Lickilicky	Lickilicky
+464	464	0	rhyperior		1	base	0	0	0	0	8	1	24	2828	241	Rhyperior	Rhyperior
+465	465	0	tangrowth		1	base	0	0	0	0	8	1	20	1286	187	Tangrowth	Tangrowth
+466	466	0	electivire		1	base	0	0	0	0	8	1	18	1386	243	Electivire	Electivire
+467	467	0	magmortar		1	base	0	0	0	0	8	1	16	680	243	Magmortar	Magmortar
+468	468	0	togekiss		1	base	0	0	0	0	8	1	15	380	245	Togekiss	Togekiss
+469	469	0	yanmega		1	base	0	0	0	0	8	1	19	515	180	Yanmega	Yanmega
+470	470	0	leafeon		1	base	0	0	0	0	8	1	10	255	184	Leafeon	Leafeon
+471	471	0	glaceon		1	base	0	0	0	0	8	1	8	259	184	Glaceon	Glaceon
+472	472	0	gliscor		1	base	0	0	0	0	8	1	20	425	179	Gliscor	Gliscor
+473	473	0	mamoswine		1	base	0	0	0	0	8	1	25	2910	239	Mamoswine	Mamoswine
+474	474	0	porygon-z		1	base	0	0	0	0	8	1	9	340	241	Porygon-Z	Porygon-Z
+475	475	0	gallade		1	base	0	0	0	0	8	1	16	520	233	Gallade	Gallade
+10068	475	1	gallade-mega	mega	0	mega	1	0	0	1	16	2	16	564	278	Mega Gallade	Mega-Gallade
+476	476	0	probopass		1	base	0	0	0	0	8	1	14	3400	184	Probopass	Probopass
+477	477	0	dusknoir		1	base	0	0	0	0	8	1	22	1066	236	Dusknoir	Dusknoir
+478	478	0	froslass		1	base	0	0	0	0	8	1	13	266	168	Froslass	Froslass
+10285	478	1	froslass-mega	mega	0	mega	1	0	0	1	31	2	26	296	0	Mega Froslass	Froslass
+479	479	0	rotom		1	base	0	0	0	0	8	1	3	3	154	Rotom	Forma de Rotom
+10008	479	1	rotom-heat	heat	0	form	0	0	0	0	9	2	3	3	182	Heat Rotom	Rotom Calor
+10009	479	2	rotom-wash	wash	0	form	0	0	0	0	9	3	3	3	182	Wash Rotom	Rotom Lavado
+10010	479	3	rotom-frost	frost	0	form	0	0	0	0	9	4	3	3	182	Frost Rotom	Rotom Frío
+10011	479	4	rotom-fan	fan	0	form	0	0	0	0	9	5	3	3	182	Fan Rotom	Rotom Ventilador
+10012	479	5	rotom-mow	mow	0	form	0	0	0	0	9	6	3	3	182	Mow Rotom	Rotom Corte
+480	480	0	uxie		1	base	0	0	0	0	8	1	3	3	261	Uxie	Uxie
+481	481	0	mesprit		1	base	0	0	0	0	8	1	3	3	261	Mesprit	Mesprit
+482	482	0	azelf		1	base	0	0	0	0	8	1	3	3	261	Azelf	Azelf
+483	483	0	dialga		1	base	0	0	0	0	8	1	54	6830	306	Dialga	Dialga
+10245	483	1	dialga-origin	origin	0	form	0	0	0	0	24	2	70	8487	306	Origin Forme	Dialga
+484	484	0	palkia		1	base	0	0	0	0	8	1	42	3360	306	Palkia	Palkia
+10246	484	1	palkia-origin	origin	0	form	0	0	0	0	24	2	63	6590	306	Origin Forme	Palkia
+485	485	0	heatran		1	base	0	0	0	0	8	1	17	4300	270	Heatran	Heatran
+10311	485	1	heatran-mega	mega	0	mega	1	0	0	1	31	2	28	5700	0	Mega Heatran	Heatran
+486	486	0	regigigas		1	base	0	0	0	0	8	1	37	4200	302	Regigigas	Regigigas
+487	487	0	giratina-altered	altered	1	base	0	0	0	0	8	1	45	7500	306	Altered Forme	Forma Modificada
+10007	487	1	giratina-origin	origin	0	form	0	0	0	0	9	2	69	6500	340	Origin Forme	Forma Origen
+488	488	0	cresselia		1	base	0	0	0	0	8	1	15	856	270	Cresselia	Cresselia
+489	489	0	phione		1	base	0	0	0	0	8	1	4	31	216	Phione	Phione
+490	490	0	manaphy		1	base	0	0	0	0	8	1	3	14	270	Manaphy	Manaphy
+491	491	0	darkrai		1	base	0	0	0	0	8	1	15	505	270	Darkrai	Darkrai
+10312	491	1	darkrai-mega	mega	0	mega	1	0	0	1	31	2	30	2400	0	Mega Darkrai	Darkrai
+492	492	0	shaymin-land	land	1	base	0	0	0	0	8	1	2	21	270	Land Forme	Forma Tierra
+10006	492	1	shaymin-sky	sky	0	form	0	0	0	0	9	2	4	52	270	Sky Forme	Forma Cielo
+493	493	0	arceus	normal	1	base	0	0	0	0	8	1	32	3200	324	Normal Type	Tipo Normal
+494	494	0	victini		1	base	0	0	0	0	11	1	4	40	270	Victini	Victini
+495	495	0	snivy		1	base	0	0	0	0	11	1	6	81	62	Snivy	Snivy
+496	496	0	servine		1	base	0	0	0	0	11	1	8	160	145	Servine	Servine
+497	497	0	serperior		1	base	0	0	0	0	11	1	33	630	238	Serperior	Serperior
+498	498	0	tepig		1	base	0	0	0	0	11	1	5	99	62	Tepig	Tepig
+499	499	0	pignite		1	base	0	0	0	0	11	1	10	555	146	Pignite	Pignite
+500	500	0	emboar		1	base	0	0	0	0	11	1	16	1500	238	Emboar	Emboar
+10286	500	1	emboar-mega	mega	0	mega	1	0	0	1	31	2	18	1803	0	Mega Emboar	Emboar
+501	501	0	oshawott		1	base	0	0	0	0	11	1	5	59	62	Oshawott	Oshawott
+502	502	0	dewott		1	base	0	0	0	0	11	1	8	245	145	Dewott	Dewott
+503	503	0	samurott		1	base	0	0	0	0	11	1	15	946	238	Samurott	Samurott
+10236	503	1	samurott-hisui	hisui	0	regional	0	0	1	0	24	2	15	582	238	Hisuian Form	Samurott
+504	504	0	patrat		1	base	0	0	0	0	11	1	5	116	51	Patrat	Patrat
+505	505	0	watchog		1	base	0	0	0	0	11	1	11	270	147	Watchog	Watchog
+506	506	0	lillipup		1	base	0	0	0	0	11	1	4	41	55	Lillipup	Lillipup
+507	507	0	herdier		1	base	0	0	0	0	11	1	9	147	130	Herdier	Herdier
+508	508	0	stoutland		1	base	0	0	0	0	11	1	12	610	225	Stoutland	Stoutland
+509	509	0	purrloin		1	base	0	0	0	0	11	1	4	101	56	Purrloin	Purrloin
+510	510	0	liepard		1	base	0	0	0	0	11	1	11	375	156	Liepard	Liepard
+511	511	0	pansage		1	base	0	0	0	0	11	1	6	105	63	Pansage	Pansage
+512	512	0	simisage		1	base	0	0	0	0	11	1	11	305	174	Simisage	Simisage
+513	513	0	pansear		1	base	0	0	0	0	11	1	6	110	63	Pansear	Pansear
+514	514	0	simisear		1	base	0	0	0	0	11	1	10	280	174	Simisear	Simisear
+515	515	0	panpour		1	base	0	0	0	0	11	1	6	135	63	Panpour	Panpour
+516	516	0	simipour		1	base	0	0	0	0	11	1	10	290	174	Simipour	Simipour
+517	517	0	munna		1	base	0	0	0	0	11	1	6	233	58	Munna	Munna
+518	518	0	musharna		1	base	0	0	0	0	11	1	11	605	170	Musharna	Musharna
+519	519	0	pidove		1	base	0	0	0	0	11	1	3	21	53	Pidove	Pidove
+520	520	0	tranquill		1	base	0	0	0	0	11	1	6	150	125	Tranquill	Tranquill
+521	521	0	unfezant		1	base	0	0	0	0	11	1	12	290	220	Unfezant	Unfezant
+522	522	0	blitzle		1	base	0	0	0	0	11	1	8	298	59	Blitzle	Blitzle
+523	523	0	zebstrika		1	base	0	0	0	0	11	1	16	795	174	Zebstrika	Zebstrika
+524	524	0	roggenrola		1	base	0	0	0	0	11	1	4	180	56	Roggenrola	Roggenrola
+525	525	0	boldore		1	base	0	0	0	0	11	1	9	1020	137	Boldore	Boldore
+526	526	0	gigalith		1	base	0	0	0	0	11	1	17	2600	232	Gigalith	Gigalith
+527	527	0	woobat		1	base	0	0	0	0	11	1	4	21	65	Woobat	Woobat
+528	528	0	swoobat		1	base	0	0	0	0	11	1	9	105	149	Swoobat	Swoobat
+529	529	0	drilbur		1	base	0	0	0	0	11	1	3	85	66	Drilbur	Drilbur
+530	530	0	excadrill		1	base	0	0	0	0	11	1	7	404	178	Excadrill	Excadrill
+10287	530	1	excadrill-mega	mega	0	mega	1	0	0	1	31	2	9	600	0	Mega Excadrill	Excadrill
+531	531	0	audino		1	base	0	0	0	0	11	1	11	310	390	Audino	Audino
+10069	531	1	audino-mega	mega	0	mega	1	0	0	1	16	2	15	320	425	Mega Audino	Mega-Audino
+532	532	0	timburr		1	base	0	0	0	0	11	1	6	125	61	Timburr	Timburr
+533	533	0	gurdurr		1	base	0	0	0	0	11	1	12	400	142	Gurdurr	Gurdurr
+534	534	0	conkeldurr		1	base	0	0	0	0	11	1	14	870	227	Conkeldurr	Conkeldurr
+535	535	0	tympole		1	base	0	0	0	0	11	1	5	45	59	Tympole	Tympole
+536	536	0	palpitoad		1	base	0	0	0	0	11	1	8	170	134	Palpitoad	Palpitoad
+537	537	0	seismitoad		1	base	0	0	0	0	11	1	15	620	229	Seismitoad	Seismitoad
+538	538	0	throh		1	base	0	0	0	0	11	1	13	555	163	Throh	Throh
+539	539	0	sawk		1	base	0	0	0	0	11	1	14	510	163	Sawk	Sawk
+540	540	0	sewaddle		1	base	0	0	0	0	11	1	3	25	62	Sewaddle	Sewaddle
+541	541	0	swadloon		1	base	0	0	0	0	11	1	5	73	133	Swadloon	Swadloon
+542	542	0	leavanny		1	base	0	0	0	0	11	1	12	205	225	Leavanny	Leavanny
+543	543	0	venipede		1	base	0	0	0	0	11	1	4	53	52	Venipede	Venipede
+544	544	0	whirlipede		1	base	0	0	0	0	11	1	12	585	126	Whirlipede	Whirlipede
+545	545	0	scolipede		1	base	0	0	0	0	11	1	25	2005	218	Scolipede	Scolipede
+10288	545	1	scolipede-mega	mega	0	mega	1	0	0	1	31	2	32	2305	0	Mega Scolipede	Scolipede
+546	546	0	cottonee		1	base	0	0	0	0	11	1	3	6	56	Cottonee	Cottonee
+547	547	0	whimsicott		1	base	0	0	0	0	11	1	7	66	168	Whimsicott	Whimsicott
+548	548	0	petilil		1	base	0	0	0	0	11	1	5	66	56	Petilil	Petilil
+549	549	0	lilligant		1	base	0	0	0	0	11	1	11	163	168	Lilligant	Lilligant
+10237	549	1	lilligant-hisui	hisui	0	regional	0	0	1	0	24	2	12	192	168	Hisuian Form	Lilligant
+550	550	0	basculin-red-striped	red-striped	1	base	0	0	0	0	11	1	10	180	161	Red-Striped Form	Forma Raya Roja
+10016	550	1	basculin-blue-striped	blue-striped	0	form	0	0	0	0	11	2	10	180	161	Blue-Striped Form	Forma Raya Azul
+10247	550	2	basculin-white-striped	white-striped	0	form	0	0	0	0	24	3	10	180	161	White-Striped Form	Basculin
+551	551	0	sandile		1	base	0	0	0	0	11	1	7	152	58	Sandile	Sandile
+552	552	0	krokorok		1	base	0	0	0	0	11	1	10	334	123	Krokorok	Krokorok
+553	553	0	krookodile		1	base	0	0	0	0	11	1	15	963	234	Krookodile	Krookodile
+554	554	0	darumaka		1	base	0	0	0	0	11	1	6	375	63	Darumaka	Darumaka
+10176	554	1	darumaka-galar	galar	0	regional	0	0	1	0	20	2	7	400	63	Galarian Form	Forma de Galar
+555	555	0	darmanitan-standard	standard	1	base	0	0	0	0	11	1	13	929	168	Standard Mode	Modo Normal
+10017	555	1	darmanitan-zen	zen	0	form	0	0	0	1	11	2	13	929	189	Zen Mode	Modo Daruma
+10177	555	2	darmanitan-galar-standard	galar-standard	0	regional	0	0	1	0	20	3	17	1200	168	Galarian Form	Forma de Galar
+10178	555	3	darmanitan-galar-zen	galar-zen	0	regional	0	0	1	1	20	4	17	1200	189	Zen Mode	Modo Daruma
+556	556	0	maractus		1	base	0	0	0	0	11	1	10	280	161	Maractus	Maractus
+557	557	0	dwebble		1	base	0	0	0	0	11	1	3	145	65	Dwebble	Dwebble
+558	558	0	crustle		1	base	0	0	0	0	11	1	14	2000	170	Crustle	Crustle
+559	559	0	scraggy		1	base	0	0	0	0	11	1	6	118	70	Scraggy	Scraggy
+560	560	0	scrafty		1	base	0	0	0	0	11	1	11	300	171	Scrafty	Scrafty
+10289	560	1	scrafty-mega	mega	0	mega	1	0	0	1	31	2	11	310	0	Mega Scrafty	Scrafty
+561	561	0	sigilyph		1	base	0	0	0	0	11	1	14	140	172	Sigilyph	Sigilyph
+562	562	0	yamask		1	base	0	0	0	0	11	1	5	15	61	Yamask	Yamask
+10179	562	1	yamask-galar	galar	0	regional	0	0	1	0	20	2	5	15	61	Galarian Form	Forma de Galar
+563	563	0	cofagrigus		1	base	0	0	0	0	11	1	17	765	169	Cofagrigus	Cofagrigus
+564	564	0	tirtouga		1	base	0	0	0	0	11	1	7	165	71	Tirtouga	Tirtouga
+565	565	0	carracosta		1	base	0	0	0	0	11	1	12	810	173	Carracosta	Carracosta
+566	566	0	archen		1	base	0	0	0	0	11	1	5	95	71	Archen	Archen
+567	567	0	archeops		1	base	0	0	0	0	11	1	14	320	177	Archeops	Archeops
+568	568	0	trubbish		1	base	0	0	0	0	11	1	6	310	66	Trubbish	Trubbish
+569	569	0	garbodor		1	base	0	0	0	0	11	1	19	1073	166	Garbodor	Garbodor
+10207	569	1	garbodor-gmax	gmax	0	gmax	0	1	0	1	20	1	210	10000	166	Gigantamax Form	Garbodor
+570	570	0	zorua		1	base	0	0	0	0	11	1	7	125	66	Zorua	Zorua
+10238	570	1	zorua-hisui	hisui	0	regional	0	0	1	0	24	2	7	125	66	Hisuian Form	Zorua
+571	571	0	zoroark		1	base	0	0	0	0	11	1	16	811	179	Zoroark	Zoroark
+10239	571	1	zoroark-hisui	hisui	0	regional	0	0	1	0	24	2	16	730	179	Hisuian Form	Zoroark
+572	572	0	minccino		1	base	0	0	0	0	11	1	4	58	60	Minccino	Minccino
+573	573	0	cinccino		1	base	0	0	0	0	11	1	5	75	165	Cinccino	Cinccino
+574	574	0	gothita		1	base	0	0	0	0	11	1	4	58	58	Gothita	Gothita
+575	575	0	gothorita		1	base	0	0	0	0	11	1	7	180	137	Gothorita	Gothorita
+576	576	0	gothitelle		1	base	0	0	0	0	11	1	15	440	221	Gothitelle	Gothitelle
+577	577	0	solosis		1	base	0	0	0	0	11	1	3	10	58	Solosis	Solosis
+578	578	0	duosion		1	base	0	0	0	0	11	1	6	80	130	Duosion	Duosion
+579	579	0	reuniclus		1	base	0	0	0	0	11	1	10	201	221	Reuniclus	Reuniclus
+580	580	0	ducklett		1	base	0	0	0	0	11	1	5	55	61	Ducklett	Ducklett
+581	581	0	swanna		1	base	0	0	0	0	11	1	13	242	166	Swanna	Swanna
+582	582	0	vanillite		1	base	0	0	0	0	11	1	4	57	61	Vanillite	Vanillite
+583	583	0	vanillish		1	base	0	0	0	0	11	1	11	410	138	Vanillish	Vanillish
+584	584	0	vanilluxe		1	base	0	0	0	0	11	1	13	575	241	Vanilluxe	Vanilluxe
+585	585	0	deerling	spring	1	base	0	0	0	0	11	1	6	195	67	Spring Form	Forma Primavera
+586	586	0	sawsbuck	spring	1	base	0	0	0	0	11	1	19	925	166	Spring Form	Forma Primavera
+587	587	0	emolga		1	base	0	0	0	0	11	1	4	50	150	Emolga	Emolga
+588	588	0	karrablast		1	base	0	0	0	0	11	1	5	59	63	Karrablast	Karrablast
+589	589	0	escavalier		1	base	0	0	0	0	11	1	10	330	173	Escavalier	Escavalier
+590	590	0	foongus		1	base	0	0	0	0	11	1	2	10	59	Foongus	Foongus
+591	591	0	amoonguss		1	base	0	0	0	0	11	1	6	105	162	Amoonguss	Amoonguss
+592	592	0	frillish-male	male	1	base	0	0	0	0	11	1	12	330	67	Male	Macho
+593	593	0	jellicent-male	male	1	base	0	0	0	0	11	1	22	1350	168	Male	Macho
+594	594	0	alomomola		1	base	0	0	0	0	11	1	12	316	165	Alomomola	Alomomola
+595	595	0	joltik		1	base	0	0	0	0	11	1	1	6	64	Joltik	Joltik
+596	596	0	galvantula		1	base	0	0	0	0	11	1	8	143	165	Galvantula	Galvantula
+597	597	0	ferroseed		1	base	0	0	0	0	11	1	6	188	61	Ferroseed	Ferroseed
+598	598	0	ferrothorn		1	base	0	0	0	0	11	1	10	1100	171	Ferrothorn	Ferrothorn
+599	599	0	klink		1	base	0	0	0	0	11	1	3	210	60	Klink	Klink
+600	600	0	klang		1	base	0	0	0	0	11	1	6	510	154	Klang	Klang
+601	601	0	klinklang		1	base	0	0	0	0	11	1	6	810	234	Klinklang	Klinklang
+602	602	0	tynamo		1	base	0	0	0	0	11	1	2	3	55	Tynamo	Tynamo
+603	603	0	eelektrik		1	base	0	0	0	0	11	1	12	220	142	Eelektrik	Eelektrik
+604	604	0	eelektross		1	base	0	0	0	0	11	1	21	805	232	Eelektross	Eelektross
+10290	604	1	eelektross-mega	mega	0	mega	1	0	0	1	31	2	30	1800	0	Mega Eelektross	Eelektross
+605	605	0	elgyem		1	base	0	0	0	0	11	1	5	90	67	Elgyem	Elgyem
+606	606	0	beheeyem		1	base	0	0	0	0	11	1	10	345	170	Beheeyem	Beheeyem
+607	607	0	litwick		1	base	0	0	0	0	11	1	3	31	55	Litwick	Litwick
+608	608	0	lampent		1	base	0	0	0	0	11	1	6	130	130	Lampent	Lampent
+609	609	0	chandelure		1	base	0	0	0	0	11	1	10	343	234	Chandelure	Chandelure
+10291	609	1	chandelure-mega	mega	0	mega	1	0	0	1	31	2	25	696	0	Mega Chandelure	Chandelure
+610	610	0	axew		1	base	0	0	0	0	11	1	6	180	64	Axew	Axew
+611	611	0	fraxure		1	base	0	0	0	0	11	1	10	360	144	Fraxure	Fraxure
+612	612	0	haxorus		1	base	0	0	0	0	11	1	18	1055	243	Haxorus	Haxorus
+613	613	0	cubchoo		1	base	0	0	0	0	11	1	5	85	61	Cubchoo	Cubchoo
+614	614	0	beartic		1	base	0	0	0	0	11	1	26	2600	177	Beartic	Beartic
+615	615	0	cryogonal		1	base	0	0	0	0	11	1	11	1480	180	Cryogonal	Cryogonal
+616	616	0	shelmet		1	base	0	0	0	0	11	1	4	77	61	Shelmet	Shelmet
+617	617	0	accelgor		1	base	0	0	0	0	11	1	8	253	173	Accelgor	Accelgor
+618	618	0	stunfisk		1	base	0	0	0	0	11	1	7	110	165	Stunfisk	Stunfisk
+10180	618	1	stunfisk-galar	galar	0	regional	0	0	1	0	20	2	7	205	165	Galarian Form	Forma de Galar
+619	619	0	mienfoo		1	base	0	0	0	0	11	1	9	200	70	Mienfoo	Mienfoo
+620	620	0	mienshao		1	base	0	0	0	0	11	1	14	355	179	Mienshao	Mienshao
+621	621	0	druddigon		1	base	0	0	0	0	11	1	16	1390	170	Druddigon	Druddigon
+622	622	0	golett		1	base	0	0	0	0	11	1	10	920	61	Golett	Golett
+623	623	0	golurk		1	base	0	0	0	0	11	1	28	3300	169	Golurk	Golurk
+10313	623	1	golurk-mega	mega	0	mega	1	0	0	1	31	2	40	3300	0	Mega Golurk	Golurk
+624	624	0	pawniard		1	base	0	0	0	0	11	1	5	102	68	Pawniard	Pawniard
+625	625	0	bisharp		1	base	0	0	0	0	11	1	16	700	172	Bisharp	Bisharp
+626	626	0	bouffalant		1	base	0	0	0	0	11	1	16	946	172	Bouffalant	Bouffalant
+627	627	0	rufflet		1	base	0	0	0	0	11	1	5	105	70	Rufflet	Rufflet
+628	628	0	braviary		1	base	0	0	0	0	11	1	15	410	179	Braviary	Braviary
+10240	628	1	braviary-hisui	hisui	0	regional	0	0	1	0	24	2	17	434	179	Hisuian Form	Braviary
+629	629	0	vullaby		1	base	0	0	0	0	11	1	5	90	74	Vullaby	Vullaby
+630	630	0	mandibuzz		1	base	0	0	0	0	11	1	12	395	179	Mandibuzz	Mandibuzz
+631	631	0	heatmor		1	base	0	0	0	0	11	1	14	580	169	Heatmor	Heatmor
+632	632	0	durant		1	base	0	0	0	0	11	1	3	330	169	Durant	Durant
+633	633	0	deino		1	base	0	0	0	0	11	1	8	173	60	Deino	Deino
+634	634	0	zweilous		1	base	0	0	0	0	11	1	14	500	147	Zweilous	Zweilous
+635	635	0	hydreigon		1	base	0	0	0	0	11	1	18	1600	270	Hydreigon	Hydreigon
+636	636	0	larvesta		1	base	0	0	0	0	11	1	11	288	72	Larvesta	Larvesta
+637	637	0	volcarona		1	base	0	0	0	0	11	1	16	460	248	Volcarona	Volcarona
+638	638	0	cobalion		1	base	0	0	0	0	11	1	21	2500	261	Cobalion	Cobalion
+639	639	0	terrakion		1	base	0	0	0	0	11	1	19	2600	261	Terrakion	Terrakion
+640	640	0	virizion		1	base	0	0	0	0	11	1	20	2000	261	Virizion	Virizion
+641	641	0	tornadus-incarnate	incarnate	1	base	0	0	0	0	11	1	15	630	261	Incarnate Forme	Forma Avatar
+10019	641	1	tornadus-therian	therian	0	form	0	0	0	0	14	2	14	630	290	Therian Forme	Forma Tótem
+642	642	0	thundurus-incarnate	incarnate	1	base	0	0	0	0	11	1	15	610	261	Incarnate Forme	Forma Avatar
+10020	642	1	thundurus-therian	therian	0	form	0	0	0	0	14	2	30	610	290	Therian Forme	Forma Tótem
+643	643	0	reshiram		1	base	0	0	0	0	11	1	32	3300	306	Reshiram	Reshiram
+644	644	0	zekrom		1	base	0	0	0	0	11	1	29	3450	306	Zekrom	Zekrom
+645	645	0	landorus-incarnate	incarnate	1	base	0	0	0	0	11	1	15	680	270	Incarnate Forme	Forma Avatar
+10021	645	1	landorus-therian	therian	0	form	0	0	0	0	14	2	13	680	300	Therian Forme	Forma Tótem
+646	646	0	kyurem		1	base	0	0	0	0	11	1	30	3250	297	Kyurem	Forma de Kyurem
+10022	646	1	kyurem-black	black	0	form	0	0	0	0	14	3	33	3250	350	Black Kyurem	Kyurem Negro
+10023	646	2	kyurem-white	white	0	form	0	0	0	0	14	2	36	3250	350	White Kyurem	Kyurem Blanco
+647	647	0	keldeo-ordinary	ordinary	1	base	0	0	0	0	11	1	14	485	261	Ordinary Form	Forma Habitual
+10024	647	1	keldeo-resolute	resolute	0	form	0	0	0	0	14	2	14	485	290	Resolute Form	Forma Brío
+648	648	0	meloetta-aria	aria	1	base	0	0	0	0	11	1	6	65	270	Aria Forme	Forma Lírica
+10018	648	1	meloetta-pirouette	pirouette	0	form	0	0	0	1	11	2	6	65	270	Pirouette Forme	Forma Danza
+649	649	0	genesect		1	base	0	0	0	0	11	1	15	825	270	Genesect	Genesect
+650	650	0	chespin		1	base	0	0	0	0	15	1	4	90	63	Chespin	Chespin
+651	651	0	quilladin		1	base	0	0	0	0	15	1	7	290	142	Quilladin	Quilladin
+652	652	0	chesnaught		1	base	0	0	0	0	15	1	16	900	239	Chesnaught	Chesnaught
+10292	652	1	chesnaught-mega	mega	0	mega	1	0	0	1	31	2	16	900	0	Mega Chesnaught	Chesnaught
+653	653	0	fennekin		1	base	0	0	0	0	15	1	4	94	61	Fennekin	Fennekin
+654	654	0	braixen		1	base	0	0	0	0	15	1	10	145	143	Braixen	Braixen
+655	655	0	delphox		1	base	0	0	0	0	15	1	15	390	240	Delphox	Delphox
+10293	655	1	delphox-mega	mega	0	mega	1	0	0	1	31	2	15	390	0	Mega Delphox	Delphox
+656	656	0	froakie		1	base	0	0	0	0	15	1	3	70	63	Froakie	Froakie
+657	657	0	frogadier		1	base	0	0	0	0	15	1	6	109	142	Frogadier	Frogadier
+658	658	0	greninja		1	base	0	0	0	0	15	1	15	400	239	Greninja	Greninja
+10116	658	1	greninja-battle-bond	battle-bond	0	form	0	0	0	0	17	2	15	400	239	Battle Bond Greninja	Greninja
+10117	658	2	greninja-ash	ash	0	form	0	0	0	1	17	3	15	400	288	Ash-Greninja	Forma Ash
+10294	658	3	greninja-mega	mega	0	mega	1	0	0	1	31	4	15	400	0	Mega Greninja	Greninja
+659	659	0	bunnelby		1	base	0	0	0	0	15	1	4	50	47	Bunnelby	Bunnelby
+660	660	0	diggersby		1	base	0	0	0	0	15	1	10	424	148	Diggersby	Diggersby
+661	661	0	fletchling		1	base	0	0	0	0	15	1	3	17	56	Fletchling	Fletchling
+662	662	0	fletchinder		1	base	0	0	0	0	15	1	7	160	134	Fletchinder	Fletchinder
+663	663	0	talonflame		1	base	0	0	0	0	15	1	12	245	175	Talonflame	Talonflame
+664	664	0	scatterbug	icy-snow	1	base	0	0	0	0	15	1	3	25	40	Scatterbug	Scatterbug
+665	665	0	spewpa	icy-snow	1	base	0	0	0	0	15	1	3	84	75	Spewpa	Spewpa
+666	666	0	vivillon	meadow	1	base	0	0	0	0	15	7	12	170	185	Meadow Pattern	Motivo Floral
+667	667	0	litleo		1	base	0	0	0	0	15	1	6	135	74	Litleo	Litleo
+668	668	0	pyroar-male	male	1	base	0	0	0	0	15	1	15	815	177	Male	Macho
+10295	668	1	pyroar-mega	mega	0	mega	1	0	0	1	31	3	15	933	0	Mega Pyroar	Pyroar
+669	669	0	flabebe	red	1	base	0	0	0	0	15	1	1	1	61	Red Flower	Flor Roja
+670	670	0	floette	red	1	base	0	0	0	0	15	1	2	9	130	Red Flower	Flor Roja
+10061	670	1	floette-eternal	eternal	0	form	0	0	0	0	15	6	2	9	243	Eternal Flower	Flor Eterna
+10296	670	2	floette-mega	mega	0	mega	1	0	0	1	31	7	2	1008	0	Mega Floette	Floette
+671	671	0	florges	red	1	base	0	0	0	0	15	1	11	100	248	Red Flower	Flor Roja
+672	672	0	skiddo		1	base	0	0	0	0	15	1	9	310	70	Skiddo	Skiddo
+673	673	0	gogoat		1	base	0	0	0	0	15	1	17	910	186	Gogoat	Gogoat
+674	674	0	pancham		1	base	0	0	0	0	15	1	6	80	70	Pancham	Pancham
+675	675	0	pangoro		1	base	0	0	0	0	15	1	21	1360	173	Pangoro	Pangoro
+676	676	0	furfrou	natural	1	base	0	0	0	0	15	1	12	280	165	Natural Form	Forma Salvaje
+677	677	0	espurr		1	base	0	0	0	0	15	1	3	35	71	Espurr	Espurr
+678	678	0	meowstic-male	male	1	base	0	0	0	0	15	1	6	85	163	Male	Macho
+10025	678	1	meowstic-female	female	0	form	0	0	0	0	15	2	6	85	163	Female	Hembra
+10314	678	2	meowstic-male-mega	mega-male	0	mega	1	0	0	1	31	3	8	101	0	Mega Meowstic	Meowstic
+10326	678	3	meowstic-female-mega	mega-female	0	mega	1	0	0	1	31	4	8	101	0	Mega Meowstic	Meowstic
+679	679	0	honedge		1	base	0	0	0	0	15	1	8	20	65	Honedge	Honedge
+680	680	0	doublade		1	base	0	0	0	0	15	1	8	45	157	Doublade	Doublade
+681	681	0	aegislash-shield	shield	1	base	0	0	0	0	15	1	17	530	234	Shield Forme	Forma Escudo
+10026	681	1	aegislash-blade	blade	0	form	0	0	0	1	15	2	17	530	250	Blade Forme	Forma Filo
+682	682	0	spritzee		1	base	0	0	0	0	15	1	2	5	68	Spritzee	Spritzee
+683	683	0	aromatisse		1	base	0	0	0	0	15	1	8	155	162	Aromatisse	Aromatisse
+684	684	0	swirlix		1	base	0	0	0	0	15	1	4	35	68	Swirlix	Swirlix
+685	685	0	slurpuff		1	base	0	0	0	0	15	1	8	50	168	Slurpuff	Slurpuff
+686	686	0	inkay		1	base	0	0	0	0	15	1	4	35	58	Inkay	Inkay
+687	687	0	malamar		1	base	0	0	0	0	15	1	15	470	169	Malamar	Malamar
+10297	687	1	malamar-mega	mega	0	mega	1	0	0	1	31	2	29	698	0	Mega Malamar	Malamar
+688	688	0	binacle		1	base	0	0	0	0	15	1	5	310	61	Binacle	Binacle
+689	689	0	barbaracle		1	base	0	0	0	0	15	1	13	960	175	Barbaracle	Barbaracle
+10298	689	1	barbaracle-mega	mega	0	mega	1	0	0	1	31	2	22	1000	0	Mega Barbaracle	Barbaracle
+690	690	0	skrelp		1	base	0	0	0	0	15	1	5	73	64	Skrelp	Skrelp
+691	691	0	dragalge		1	base	0	0	0	0	15	1	18	815	173	Dragalge	Dragalge
+10299	691	1	dragalge-mega	mega	0	mega	1	0	0	1	31	2	21	1003	0	Mega Dragalge	Dragalge
+692	692	0	clauncher		1	base	0	0	0	0	15	1	5	83	66	Clauncher	Clauncher
+693	693	0	clawitzer		1	base	0	0	0	0	15	1	13	353	100	Clawitzer	Clawitzer
+694	694	0	helioptile		1	base	0	0	0	0	15	1	5	60	58	Helioptile	Helioptile
+695	695	0	heliolisk		1	base	0	0	0	0	15	1	10	210	168	Heliolisk	Heliolisk
+696	696	0	tyrunt		1	base	0	0	0	0	15	1	8	260	72	Tyrunt	Tyrunt
+697	697	0	tyrantrum		1	base	0	0	0	0	15	1	25	2700	182	Tyrantrum	Tyrantrum
+698	698	0	amaura		1	base	0	0	0	0	15	1	13	252	72	Amaura	Amaura
+699	699	0	aurorus		1	base	0	0	0	0	15	1	27	2250	104	Aurorus	Aurorus
+700	700	0	sylveon		1	base	0	0	0	0	15	1	10	235	184	Sylveon	Sylveon
+701	701	0	hawlucha		1	base	0	0	0	0	15	1	8	215	175	Hawlucha	Hawlucha
+10300	701	1	hawlucha-mega	mega	0	mega	1	0	0	1	31	2	10	250	0	Mega Hawlucha	Hawlucha
+702	702	0	dedenne		1	base	0	0	0	0	15	1	2	22	151	Dedenne	Dedenne
+703	703	0	carbink		1	base	0	0	0	0	15	1	3	57	100	Carbink	Carbink
+704	704	0	goomy		1	base	0	0	0	0	15	1	3	28	60	Goomy	Goomy
+705	705	0	sliggoo		1	base	0	0	0	0	15	1	8	175	158	Sliggoo	Sliggoo
+10241	705	1	sliggoo-hisui	hisui	0	regional	0	0	1	0	24	2	7	685	158	Hisuian Form	Sliggoo
+706	706	0	goodra		1	base	0	0	0	0	15	1	20	1505	270	Goodra	Goodra
+10242	706	1	goodra-hisui	hisui	0	regional	0	0	1	0	24	2	17	3341	270	Hisuian Form	Goodra
+707	707	0	klefki		1	base	0	0	0	0	15	1	2	30	165	Klefki	Klefki
+708	708	0	phantump		1	base	0	0	0	0	15	1	4	70	62	Phantump	Phantump
+709	709	0	trevenant		1	base	0	0	0	0	15	1	15	710	166	Trevenant	Trevenant
+710	710	0	pumpkaboo-average	average	1	base	0	0	0	0	15	1	4	50	67	Average Size	Tamaño Normal
+10027	710	1	pumpkaboo-small	small	0	form	0	0	0	0	15	2	3	35	67	Small Size	Tamaño Pequeño
+10028	710	2	pumpkaboo-large	large	0	form	0	0	0	0	15	3	5	75	67	Large Size	Tamaño Grande
+10029	710	3	pumpkaboo-super	super	0	form	0	0	0	0	15	4	8	150	67	Super Size	Tamaño Extragrande
+711	711	0	gourgeist-average	average	1	base	0	0	0	0	15	1	9	125	173	Average Size	Tamaño Normal
+10030	711	1	gourgeist-small	small	0	form	0	0	0	0	15	2	7	95	173	Small Size	Tamaño Pequeño
+10031	711	2	gourgeist-large	large	0	form	0	0	0	0	15	3	11	140	173	Large Size	Tamaño Grande
+10032	711	3	gourgeist-super	super	0	form	0	0	0	0	15	4	17	390	173	Super Size	Tamaño Extragrande
+712	712	0	bergmite		1	base	0	0	0	0	15	1	10	995	61	Bergmite	Bergmite
+713	713	0	avalugg		1	base	0	0	0	0	15	1	20	5050	180	Avalugg	Avalugg
+10243	713	1	avalugg-hisui	hisui	0	regional	0	0	1	0	24	2	14	2624	180	Hisuian Form	Avalugg
+714	714	0	noibat		1	base	0	0	0	0	15	1	5	80	49	Noibat	Noibat
+715	715	0	noivern		1	base	0	0	0	0	15	1	15	850	187	Noivern	Noivern
+716	716	0	xerneas	neutral	1	base	0	0	0	0	15	1	30	2150	306	Neutral Mode	Modo Relajado
+717	717	0	yveltal		1	base	0	0	0	0	15	1	58	2030	306	Yveltal	Yveltal
+718	718	0	zygarde-50	50	1	base	0	0	0	0	15	1	50	3050	270	50% Forme	Forma 50%
+10118	718	1	zygarde-10-power-construct	10-power-construct	0	form	0	0	0	0	17	3	12	335	243	10% Forme	Forma 10%
+10119	718	2	zygarde-50-power-construct	50-power-construct	0	form	0	0	0	0	17	4	50	3050	300	50% Forme	Forma 50%
+10120	718	3	zygarde-complete	complete	0	form	0	0	0	1	17	5	45	6100	354	Complete Forme	Forma Completa
+10181	718	4	zygarde-10	10	0	form	0	0	0	0	17	2	12	335	243	10% Forme	Forma 10%
+10301	718	5	zygarde-mega	mega	0	mega	1	0	0	1	31	6	77	6100	0	Mega Zygarde	Zygarde
+719	719	0	diancie		1	base	0	0	0	0	15	1	7	88	270	Diancie	Diancie
+10075	719	1	diancie-mega	mega	0	mega	1	0	0	1	16	2	11	278	315	Mega Diancie	Mega-Diancie
+720	720	0	hoopa	confined	1	base	0	0	0	0	15	1	5	90	270	Hoopa Confined	Hoopa Contenido
+10086	720	1	hoopa-unbound	unbound	0	form	0	0	0	0	16	2	65	4900	306	Hoopa Unbound	Hoopa Desatado
+721	721	0	volcanion		1	base	0	0	0	0	15	1	17	1950	270	Volcanion	Volcanion
+722	722	0	rowlet		1	base	0	0	0	0	17	1	3	15	64	Rowlet	Rowlet
+723	723	0	dartrix		1	base	0	0	0	0	17	1	7	160	147	Dartrix	Dartrix
+724	724	0	decidueye		1	base	0	0	0	0	17	1	16	366	239	Decidueye	Decidueye
+10244	724	1	decidueye-hisui	hisui	0	regional	0	0	1	0	24	2	16	370	239	Hisuian Form	Decidueye
+725	725	0	litten		1	base	0	0	0	0	17	1	4	43	64	Litten	Litten
+726	726	0	torracat		1	base	0	0	0	0	17	1	7	250	147	Torracat	Torracat
+727	727	0	incineroar		1	base	0	0	0	0	17	1	18	830	239	Incineroar	Incineroar
+728	728	0	popplio		1	base	0	0	0	0	17	1	4	75	64	Popplio	Popplio
+729	729	0	brionne		1	base	0	0	0	0	17	1	6	175	147	Brionne	Brionne
+730	730	0	primarina		1	base	0	0	0	0	17	1	18	440	239	Primarina	Primarina
+731	731	0	pikipek		1	base	0	0	0	0	17	1	3	12	53	Pikipek	Pikipek
+732	732	0	trumbeak		1	base	0	0	0	0	17	1	6	148	124	Trumbeak	Trumbeak
+733	733	0	toucannon		1	base	0	0	0	0	17	1	11	260	218	Toucannon	Toucannon
+734	734	0	yungoos		1	base	0	0	0	0	17	1	4	60	51	Yungoos	Yungoos
+735	735	0	gumshoos		1	base	0	0	0	0	17	1	7	142	146	Gumshoos	Gumshoos
+10121	735	1	gumshoos-totem	totem	0	form	0	0	0	0	17	2	14	600	146	Totem Gumshoos	Gumshoos
+736	736	0	grubbin		1	base	0	0	0	0	17	1	4	44	60	Grubbin	Grubbin
+737	737	0	charjabug		1	base	0	0	0	0	17	1	5	105	140	Charjabug	Charjabug
+738	738	0	vikavolt		1	base	0	0	0	0	17	1	15	450	225	Vikavolt	Vikavolt
+10122	738	1	vikavolt-totem	totem	0	form	0	0	0	0	17	2	26	1475	225	Totem Vikavolt	Vikavolt
+739	739	0	crabrawler		1	base	0	0	0	0	17	1	6	70	68	Crabrawler	Crabrawler
+740	740	0	crabominable		1	base	0	0	0	0	17	1	17	1800	167	Crabominable	Crabominable
+10315	740	1	crabominable-mega	mega	0	mega	1	0	0	1	31	2	26	2528	0	Mega Crabominable	Crabominable
+741	741	0	oricorio-baile	baile	1	base	0	0	0	0	17	1	6	34	167	Baile Style	Estilo Apasionado
+10123	741	1	oricorio-pom-pom	pom-pom	0	form	0	0	0	0	17	2	6	34	167	Pom-Pom Style	Estilo Animado
+10124	741	2	oricorio-pau	pau	0	form	0	0	0	0	17	3	6	34	167	Pa’u Style	Estilo Plácido
+10125	741	3	oricorio-sensu	sensu	0	form	0	0	0	0	17	4	6	34	167	Sensu Style	Estilo Refinado
+742	742	0	cutiefly		1	base	0	0	0	0	17	1	1	2	61	Cutiefly	Cutiefly
+743	743	0	ribombee		1	base	0	0	0	0	17	1	2	5	162	Ribombee	Ribombee
+10150	743	1	ribombee-totem	totem	0	form	0	0	0	0	18	2	4	20	162	Totem Ribombee	Ribombee
+744	744	0	rockruff		1	base	0	0	0	0	17	1	5	92	56	Rockruff	Rockruff
+10151	744	1	rockruff-own-tempo	own-tempo	0	form	0	0	0	0	18	2	5	92	56	Own Tempo Rockruff	Rockruff
+745	745	0	lycanroc-midday	midday	1	base	0	0	0	0	17	1	8	250	170	Midday Form	Forma Diurna
+10126	745	1	lycanroc-midnight	midnight	0	form	0	0	0	0	17	2	11	250	170	Midnight Form	Forma Nocturna
+10152	745	2	lycanroc-dusk	dusk	0	form	0	0	0	0	18	3	8	250	170	Dusk Form	Forma Crepuscular
+746	746	0	wishiwashi-solo	solo	1	base	0	0	0	0	17	1	2	3	61	Solo Form	Forma Individual
+10127	746	1	wishiwashi-school	school	0	form	0	0	0	1	17	2	82	786	217	School Form	Forma Banco
+747	747	0	mareanie		1	base	0	0	0	0	17	1	4	80	61	Mareanie	Mareanie
+748	748	0	toxapex		1	base	0	0	0	0	17	1	7	145	173	Toxapex	Toxapex
+749	749	0	mudbray		1	base	0	0	0	0	17	1	10	1100	77	Mudbray	Mudbray
+750	750	0	mudsdale		1	base	0	0	0	0	17	1	25	9200	175	Mudsdale	Mudsdale
+751	751	0	dewpider		1	base	0	0	0	0	17	1	3	40	54	Dewpider	Dewpider
+752	752	0	araquanid		1	base	0	0	0	0	17	1	18	820	159	Araquanid	Araquanid
+10153	752	1	araquanid-totem	totem	0	form	0	0	0	0	18	2	31	2175	159	Totem Araquanid	Araquanid
+753	753	0	fomantis		1	base	0	0	0	0	17	1	3	15	50	Fomantis	Fomantis
+754	754	0	lurantis		1	base	0	0	0	0	17	1	9	185	168	Lurantis	Lurantis
+10128	754	1	lurantis-totem	totem	0	form	0	0	0	0	17	2	15	580	168	Totem Lurantis	Lurantis
+755	755	0	morelull		1	base	0	0	0	0	17	1	2	15	57	Morelull	Morelull
+756	756	0	shiinotic		1	base	0	0	0	0	17	1	10	115	142	Shiinotic	Shiinotic
+757	757	0	salandit		1	base	0	0	0	0	17	1	6	48	64	Salandit	Salandit
+758	758	0	salazzle		1	base	0	0	0	0	17	1	12	222	168	Salazzle	Salazzle
+10129	758	1	salazzle-totem	totem	0	form	0	0	0	0	17	2	21	810	168	Totem Salazzle	Salazzle
+759	759	0	stufful		1	base	0	0	0	0	17	1	5	68	68	Stufful	Stufful
+760	760	0	bewear		1	base	0	0	0	0	17	1	21	1350	175	Bewear	Bewear
+761	761	0	bounsweet		1	base	0	0	0	0	17	1	3	32	42	Bounsweet	Bounsweet
+762	762	0	steenee		1	base	0	0	0	0	17	1	7	82	102	Steenee	Steenee
+763	763	0	tsareena		1	base	0	0	0	0	17	1	12	214	230	Tsareena	Tsareena
+764	764	0	comfey		1	base	0	0	0	0	17	1	1	3	170	Comfey	Comfey
+765	765	0	oranguru		1	base	0	0	0	0	17	1	15	760	172	Oranguru	Oranguru
+766	766	0	passimian		1	base	0	0	0	0	17	1	20	828	172	Passimian	Passimian
+767	767	0	wimpod		1	base	0	0	0	0	17	1	5	120	46	Wimpod	Wimpod
+768	768	0	golisopod		1	base	0	0	0	0	17	1	20	1080	186	Golisopod	Golisopod
+10316	768	1	golisopod-mega	mega	0	mega	1	0	0	1	31	2	23	1480	0	Mega Golisopod	Golisopod
+769	769	0	sandygast		1	base	0	0	0	0	17	1	5	700	64	Sandygast	Sandygast
+770	770	0	palossand		1	base	0	0	0	0	17	1	13	2500	168	Palossand	Palossand
+771	771	0	pyukumuku		1	base	0	0	0	0	17	1	3	12	144	Pyukumuku	Pyukumuku
+772	772	0	type-null		1	base	0	0	0	0	17	1	19	1205	107	Type: Null	Código Cero
+773	773	0	silvally	normal	1	base	0	0	0	0	17	1	23	1005	257	Type: Normal	Tipo: Normal
+774	774	0	minior-red-meteor	red-meteor	1	base	0	0	0	0	17	1	3	400	154	Meteor Form	Forma Meteorito
+10130	774	1	minior-orange-meteor	orange-meteor	0	form	0	0	0	0	17	2	3	400	154	Meteor Form	Forma Meteorito
+10131	774	2	minior-yellow-meteor	yellow-meteor	0	form	0	0	0	0	17	3	3	400	154	Meteor Form	Forma Meteorito
+10132	774	3	minior-green-meteor	green-meteor	0	form	0	0	0	0	17	4	3	400	154	Meteor Form	Forma Meteorito
+10133	774	4	minior-blue-meteor	blue-meteor	0	form	0	0	0	0	17	5	3	400	154	Meteor Form	Forma Meteorito
+10134	774	5	minior-indigo-meteor	indigo-meteor	0	form	0	0	0	0	17	6	3	400	154	Meteor Form	Forma Meteorito
+10135	774	6	minior-violet-meteor	violet-meteor	0	form	0	0	0	0	17	7	3	400	154	Meteor Form	Forma Meteorito
+10136	774	7	minior-red	red	0	form	0	0	0	0	17	8	3	3	175	Red Core	Núcleo Rojo
+10137	774	8	minior-orange	orange	0	form	0	0	0	0	17	9	3	3	175	Orange Core	Núcleo Naranja
+10138	774	9	minior-yellow	yellow	0	form	0	0	0	0	17	10	3	3	175	Yellow Core	Núcleo Amarillo
+10139	774	10	minior-green	green	0	form	0	0	0	0	17	11	3	3	175	Green Core	Núcleo Verde
+10140	774	11	minior-blue	blue	0	form	0	0	0	0	17	12	3	3	175	Blue Core	Núcleo Azul
+10141	774	12	minior-indigo	indigo	0	form	0	0	0	0	17	13	3	3	175	Indigo Core	Núcleo Añil
+10142	774	13	minior-violet	violet	0	form	0	0	0	0	17	14	3	3	175	Violet Core	Núcleo Violeta
+775	775	0	komala		1	base	0	0	0	0	17	1	4	199	168	Komala	Komala
+776	776	0	turtonator		1	base	0	0	0	0	17	1	20	2120	170	Turtonator	Turtonator
+777	777	0	togedemaru		1	base	0	0	0	0	17	1	3	33	152	Togedemaru	Togedemaru
+10154	777	1	togedemaru-totem	totem	0	form	0	0	0	0	18	2	6	130	152	Totem Togedemaru	Togedemaru
+778	778	0	mimikyu-disguised	disguised	1	base	0	0	0	0	17	1	2	7	167	Disguised Form	Forma Encubierta
+10143	778	1	mimikyu-busted	busted	0	form	0	0	0	1	17	2	2	7	167	Busted Form	Forma Descubierta
+10144	778	2	mimikyu-totem-disguised	totem-disguised	0	form	0	0	0	0	17	3	4	28	167	Totem Disguised Mimikyu	Mimikyu
+10145	778	3	mimikyu-totem-busted	totem-busted	0	form	0	0	0	1	17	4	4	28	167	Totem Busted Mimikyu	Mimikyu
+779	779	0	bruxish		1	base	0	0	0	0	17	1	9	190	166	Bruxish	Bruxish
+780	780	0	drampa		1	base	0	0	0	0	17	1	30	1850	170	Drampa	Drampa
+10302	780	1	drampa-mega	mega	0	mega	1	0	0	1	31	2	30	2405	0	Mega Drampa	Drampa
+781	781	0	dhelmise		1	base	0	0	0	0	17	1	39	2100	181	Dhelmise	Dhelmise
+782	782	0	jangmo-o		1	base	0	0	0	0	17	1	6	297	60	Jangmo-o	Jangmo-o
+783	783	0	hakamo-o		1	base	0	0	0	0	17	1	12	470	147	Hakamo-o	Hakamo-o
+784	784	0	kommo-o		1	base	0	0	0	0	17	1	16	782	270	Kommo-o	Kommo-o
+10146	784	1	kommo-o-totem	totem	0	form	0	0	0	0	17	2	24	2075	270	Totem Kommo-o	Kommo-o
+785	785	0	tapu-koko		1	base	0	0	0	0	17	1	18	205	257	Tapu Koko	Tapu Koko
+786	786	0	tapu-lele		1	base	0	0	0	0	17	1	12	186	257	Tapu Lele	Tapu Lele
+787	787	0	tapu-bulu		1	base	0	0	0	0	17	1	19	455	257	Tapu Bulu	Tapu Bulu
+788	788	0	tapu-fini		1	base	0	0	0	0	17	1	13	212	257	Tapu Fini	Tapu Fini
+789	789	0	cosmog		1	base	0	0	0	0	17	1	2	1	40	Cosmog	Cosmog
+790	790	0	cosmoem		1	base	0	0	0	0	17	1	1	9999	140	Cosmoem	Cosmoem
+791	791	0	solgaleo		1	base	0	0	0	0	17	1	34	2300	306	Solgaleo	Solgaleo
+792	792	0	lunala		1	base	0	0	0	0	17	1	40	1200	306	Lunala	Lunala
+793	793	0	nihilego		1	base	0	0	0	0	17	1	12	555	257	Nihilego	Nihilego
+794	794	0	buzzwole		1	base	0	0	0	0	17	1	24	3336	257	Buzzwole	Buzzwole
+795	795	0	pheromosa		1	base	0	0	0	0	17	1	18	250	257	Pheromosa	Pheromosa
+796	796	0	xurkitree		1	base	0	0	0	0	17	1	38	1000	257	Xurkitree	Xurkitree
+797	797	0	celesteela		1	base	0	0	0	0	17	1	92	9999	257	Celesteela	Celesteela
+798	798	0	kartana		1	base	0	0	0	0	17	1	3	1	257	Kartana	Kartana
+799	799	0	guzzlord		1	base	0	0	0	0	17	1	55	8880	257	Guzzlord	Guzzlord
+800	800	0	necrozma		1	base	0	0	0	0	17	1	24	2300	270	Necrozma	Necrozma
+10155	800	1	necrozma-dusk	dusk	0	form	0	0	0	0	18	2	38	4600	340	Dusk Mane	Melena Crepuscular
+10156	800	2	necrozma-dawn	dawn	0	form	0	0	0	0	18	3	42	3500	340	Dawn Wings	Alas del Alba
+10157	800	3	necrozma-ultra	ultra	0	form	0	0	0	1	18	4	75	2300	339	Ultra Necrozma	Ultra-Necrozma
+801	801	0	magearna		1	base	0	0	0	0	17	1	10	805	270	Magearna	Magearna
+10147	801	1	magearna-original	original	0	form	0	0	0	0	17	2	10	805	300	Original Color	Color Vetusto
+10317	801	2	magearna-mega	mega	0	mega	1	0	0	1	31	3	13	2481	0	Mega Magearna	Magearna
+10318	801	3	magearna-original-mega	mega	0	mega	1	0	0	1	31	4	13	2481	0	Mega Original Magearna	Magearna
+802	802	0	marshadow		1	base	0	0	0	0	17	1	7	222	270	Marshadow	Marshadow
+803	803	0	poipole		1	base	0	0	0	0	18	1	6	18	189	Poipole	Poipole
+804	804	0	naganadel		1	base	0	0	0	0	18	1	36	1500	243	Naganadel	Naganadel
+805	805	0	stakataka		1	base	0	0	0	0	18	1	55	8200	257	Stakataka	Stakataka
+806	806	0	blacephalon		1	base	0	0	0	0	18	1	18	130	257	Blacephalon	Blacephalon
+807	807	0	zeraora		1	base	0	0	0	0	18	1	15	445	270	Zeraora	Zeraora
+10319	807	1	zeraora-mega	mega	0	mega	1	0	0	1	31	2	15	445	0	Mega Zeraora	Zeraora
+808	808	0	meltan		1	base	0	0	0	0	19	1	2	80	135	Meltan	Meltan
+809	809	0	melmetal		1	base	0	0	0	0	19	1	25	8000	270	Melmetal	Melmetal
+10208	809	1	melmetal-gmax	gmax	0	gmax	0	1	0	1	20	1	250	10000	270	Gigantamax Form	Melmetal
+810	810	0	grookey		1	base	0	0	0	0	20	1	3	50	62	Grookey	Grookey
+811	811	0	thwackey		1	base	0	0	0	0	20	1	7	140	147	Thwackey	Thwackey
+812	812	0	rillaboom		1	base	0	0	0	0	20	1	21	900	265	Rillaboom	Rillaboom
+10209	812	1	rillaboom-gmax	gmax	0	gmax	0	1	0	1	20	1	280	10000	265	Gigantamax Form	Rillaboom
+813	813	0	scorbunny		1	base	0	0	0	0	20	1	3	45	62	Scorbunny	Scorbunny
+814	814	0	raboot		1	base	0	0	0	0	20	1	6	90	147	Raboot	Raboot
+815	815	0	cinderace		1	base	0	0	0	0	20	1	14	330	265	Cinderace	Cinderace
+10210	815	1	cinderace-gmax	gmax	0	gmax	0	1	0	1	20	1	270	10000	265	Gigantamax Form	Cinderace
+816	816	0	sobble		1	base	0	0	0	0	20	1	3	40	62	Sobble	Sobble
+817	817	0	drizzile		1	base	0	0	0	0	20	1	7	115	147	Drizzile	Drizzile
+818	818	0	inteleon		1	base	0	0	0	0	20	1	19	452	265	Inteleon	Inteleon
+10211	818	1	inteleon-gmax	gmax	0	gmax	0	1	0	1	20	1	400	10000	265	Gigantamax Form	Inteleon
+819	819	0	skwovet		1	base	0	0	0	0	20	1	3	25	55	Skwovet	Skwovet
+820	820	0	greedent		1	base	0	0	0	0	20	1	6	60	161	Greedent	Greedent
+821	821	0	rookidee		1	base	0	0	0	0	20	1	2	18	49	Rookidee	Rookidee
+822	822	0	corvisquire		1	base	0	0	0	0	20	1	8	160	128	Corvisquire	Corvisquire
+823	823	0	corviknight		1	base	0	0	0	0	20	1	22	750	248	Corviknight	Corviknight
+10212	823	1	corviknight-gmax	gmax	0	gmax	0	1	0	1	20	1	140	10000	248	Gigantamax Form	Corviknight
+824	824	0	blipbug		1	base	0	0	0	0	20	1	4	80	36	Blipbug	Blipbug
+825	825	0	dottler		1	base	0	0	0	0	20	1	4	195	117	Dottler	Dottler
+826	826	0	orbeetle		1	base	0	0	0	0	20	1	4	408	253	Orbeetle	Orbeetle
+10213	826	1	orbeetle-gmax	gmax	0	gmax	0	1	0	1	20	1	140	10000	253	Gigantamax Form	Orbeetle
+827	827	0	nickit		1	base	0	0	0	0	20	1	6	89	49	Nickit	Nickit
+828	828	0	thievul		1	base	0	0	0	0	20	1	12	199	159	Thievul	Thievul
+829	829	0	gossifleur		1	base	0	0	0	0	20	1	4	22	50	Gossifleur	Gossifleur
+830	830	0	eldegoss		1	base	0	0	0	0	20	1	5	25	161	Eldegoss	Eldegoss
+831	831	0	wooloo		1	base	0	0	0	0	20	1	6	60	122	Wooloo	Wooloo
+832	832	0	dubwool		1	base	0	0	0	0	20	1	13	430	172	Dubwool	Dubwool
+833	833	0	chewtle		1	base	0	0	0	0	20	1	3	85	57	Chewtle	Chewtle
+834	834	0	drednaw		1	base	0	0	0	0	20	1	10	1155	170	Drednaw	Drednaw
+10214	834	1	drednaw-gmax	gmax	0	gmax	0	1	0	1	20	1	240	10000	170	Gigantamax Form	Drednaw
+835	835	0	yamper		1	base	0	0	0	0	20	1	3	135	54	Yamper	Yamper
+836	836	0	boltund		1	base	0	0	0	0	20	1	10	340	172	Boltund	Boltund
+837	837	0	rolycoly		1	base	0	0	0	0	20	1	3	120	48	Rolycoly	Rolycoly
+838	838	0	carkol		1	base	0	0	0	0	20	1	11	780	144	Carkol	Carkol
+839	839	0	coalossal		1	base	0	0	0	0	20	1	28	3105	255	Coalossal	Coalossal
+10215	839	1	coalossal-gmax	gmax	0	gmax	0	1	0	1	20	1	420	10000	255	Gigantamax Form	Coalossal
+840	840	0	applin		1	base	0	0	0	0	20	1	2	5	52	Applin	Applin
+841	841	0	flapple		1	base	0	0	0	0	20	1	3	10	170	Flapple	Flapple
+10216	841	1	flapple-gmax	gmax	0	gmax	0	1	0	1	20	1	240	10000	170	Gigantamax Form	Flapple
+842	842	0	appletun		1	base	0	0	0	0	20	1	4	130	170	Appletun	Appletun
+10217	842	1	appletun-gmax	gmax	0	gmax	0	1	0	1	20	1	240	10000	170	Gigantamax Form	Appletun
+843	843	0	silicobra		1	base	0	0	0	0	20	1	22	76	63	Silicobra	Silicobra
+844	844	0	sandaconda		1	base	0	0	0	0	20	1	38	655	179	Sandaconda	Sandaconda
+10218	844	1	sandaconda-gmax	gmax	0	gmax	0	1	0	1	20	1	220	10000	179	Gigantamax Form	Sandaconda
+845	845	0	cramorant		1	base	0	0	0	0	20	1	8	180	166	Cramorant	Cramorant
+10182	845	1	cramorant-gulping	gulping	0	form	0	0	0	1	20	2	8	180	166	Gulping Form	Forma Tragatodo
+10183	845	2	cramorant-gorging	gorging	0	form	0	0	0	1	20	3	8	180	166	Gorging Form	Forma Engulletodo
+846	846	0	arrokuda		1	base	0	0	0	0	20	1	5	10	56	Arrokuda	Arrokuda
+847	847	0	barraskewda		1	base	0	0	0	0	20	1	13	300	172	Barraskewda	Barraskewda
+848	848	0	toxel		1	base	0	0	0	0	20	1	4	110	48	Toxel	Toxel
+849	849	0	toxtricity-amped	amped	1	base	0	0	0	0	20	1	16	400	176	Amped Form	Forma Aguda
+10184	849	1	toxtricity-low-key	low-key	0	form	0	0	0	0	20	2	16	400	176	Low Key Form	Forma Grave
+10219	849	2	toxtricity-amped-gmax	gmax	0	gmax	0	1	0	1	20	1	240	10000	176	Gigantamax Form	Toxtricity
+10228	849	3	toxtricity-low-key-gmax	gmax	0	gmax	0	1	0	1	20	1	240	10000	176	Gigantamax Form	Toxtricity
+850	850	0	sizzlipede		1	base	0	0	0	0	20	1	7	10	61	Sizzlipede	Sizzlipede
+851	851	0	centiskorch		1	base	0	0	0	0	20	1	30	1200	184	Centiskorch	Centiskorch
+10220	851	1	centiskorch-gmax	gmax	0	gmax	0	1	0	1	20	1	750	10000	184	Gigantamax Form	Centiskorch
+852	852	0	clobbopus		1	base	0	0	0	0	20	1	6	40	62	Clobbopus	Clobbopus
+853	853	0	grapploct		1	base	0	0	0	0	20	1	16	390	168	Grapploct	Grapploct
+854	854	0	sinistea	phony	1	base	0	0	0	0	20	1	1	2	62	Phony Form	Sinistea
+855	855	0	polteageist	phony	1	base	0	0	0	0	20	1	2	4	178	Phony Form	Polteageist
+856	856	0	hatenna		1	base	0	0	0	0	20	1	4	34	53	Hatenna	Hatenna
+857	857	0	hattrem		1	base	0	0	0	0	20	1	6	48	130	Hattrem	Hattrem
+858	858	0	hatterene		1	base	0	0	0	0	20	1	21	51	255	Hatterene	Hatterene
+10221	858	1	hatterene-gmax	gmax	0	gmax	0	1	0	1	20	1	260	10000	255	Gigantamax Form	Hatterene
+859	859	0	impidimp		1	base	0	0	0	0	20	1	4	55	53	Impidimp	Impidimp
+860	860	0	morgrem		1	base	0	0	0	0	20	1	8	125	130	Morgrem	Morgrem
+861	861	0	grimmsnarl		1	base	0	0	0	0	20	1	15	610	255	Grimmsnarl	Grimmsnarl
+10222	861	1	grimmsnarl-gmax	gmax	0	gmax	0	1	0	1	20	1	320	10000	255	Gigantamax Form	Grimmsnarl
+862	862	0	obstagoon		1	base	0	0	0	0	20	1	16	460	260	Obstagoon	Obstagoon
+863	863	0	perrserker		1	base	0	0	0	0	20	1	8	280	154	Perrserker	Perrserker
+864	864	0	cursola		1	base	0	0	0	0	20	1	10	4	179	Cursola	Cursola
+865	865	0	sirfetchd		1	base	0	0	0	0	20	1	8	1170	177	Sirfetch’d	Sirfetch’d
+866	866	0	mr-rime		1	base	0	0	0	0	20	1	15	582	182	Mr. Rime	Mr. Rime
+867	867	0	runerigus		1	base	0	0	0	0	20	1	16	666	169	Runerigus	Runerigus
+868	868	0	milcery		1	base	0	0	0	0	20	1	2	3	54	Milcery	Milcery
+869	869	0	alcremie	vanilla-cream-strawberry-sweet	1	base	0	0	0	0	20	1	3	5	173	Vanilla Cream Strawberry Sweet	Crema de Vainilla
+10223	869	1	alcremie-gmax	gmax	0	gmax	0	1	0	1	20	1	300	10000	173	Gigantamax Form	Alcremie
+870	870	0	falinks		1	base	0	0	0	0	20	1	30	620	165	Falinks	Falinks
+10303	870	1	falinks-mega	mega	0	mega	1	0	0	1	31	2	16	990	0	Mega Falinks	Falinks
+871	871	0	pincurchin		1	base	0	0	0	0	20	1	3	10	152	Pincurchin	Pincurchin
+872	872	0	snom		1	base	0	0	0	0	20	1	3	38	37	Snom	Snom
+873	873	0	frosmoth		1	base	0	0	0	0	20	1	13	420	166	Frosmoth	Frosmoth
+874	874	0	stonjourner		1	base	0	0	0	0	20	1	25	5200	165	Stonjourner	Stonjourner
+875	875	0	eiscue-ice	ice	1	base	0	0	0	0	20	1	14	890	165	Ice Face	Cara de Hielo
+10185	875	1	eiscue-noice	noice	0	form	0	0	0	1	20	2	14	890	165	Noice Face	Cara Deshielo
+876	876	0	indeedee-male	male	1	base	0	0	0	0	20	1	9	280	166	Male	Macho
+10186	876	1	indeedee-female	female	0	form	0	0	0	0	20	2	9	280	166	Female	Hembra
+877	877	0	morpeko-full-belly	full-belly	1	base	0	0	0	0	20	1	3	30	153	Full Belly Mode	Forma Saciada
+10187	877	1	morpeko-hangry	hangry	0	form	0	0	0	1	20	2	3	30	153	Hangry Mode	Forma Voraz
+878	878	0	cufant		1	base	0	0	0	0	20	1	12	1000	66	Cufant	Cufant
+879	879	0	copperajah		1	base	0	0	0	0	20	1	30	6500	175	Copperajah	Copperajah
+10224	879	1	copperajah-gmax	gmax	0	gmax	0	1	0	1	20	1	230	10000	175	Gigantamax Form	Copperajah
+880	880	0	dracozolt		1	base	0	0	0	0	20	1	18	1900	177	Dracozolt	Dracozolt
+881	881	0	arctozolt		1	base	0	0	0	0	20	1	23	1500	177	Arctozolt	Arctozolt
+882	882	0	dracovish		1	base	0	0	0	0	20	1	23	2150	177	Dracovish	Dracovish
+883	883	0	arctovish		1	base	0	0	0	0	20	1	20	1750	177	Arctovish	Arctovish
+884	884	0	duraludon		1	base	0	0	0	0	20	1	18	400	187	Duraludon	Duraludon
+10225	884	1	duraludon-gmax	gmax	0	gmax	0	1	0	1	20	1	430	10000	187	Gigantamax Form	Duraludon
+885	885	0	dreepy		1	base	0	0	0	0	20	1	5	20	54	Dreepy	Dreepy
+886	886	0	drakloak		1	base	0	0	0	0	20	1	14	110	144	Drakloak	Drakloak
+887	887	0	dragapult		1	base	0	0	0	0	20	1	30	500	300	Dragapult	Dragapult
+888	888	0	zacian		1	base	0	0	0	0	20	1	28	1100	335	Hero of Many Battles	Guerrero Avezado
+10188	888	1	zacian-crowned	crowned	0	form	0	0	0	1	20	2	28	3550	360	Crowned Sword	Espada Suprema
+889	889	0	zamazenta		1	base	0	0	0	0	20	1	29	2100	335	Hero of Many Battles	Guerrero Avezado
+10189	889	1	zamazenta-crowned	crowned	0	form	0	0	0	1	20	2	29	7850	360	Crowned Shield	Escudo Supremo
+890	890	0	eternatus		1	base	0	0	0	0	20	1	200	9500	345	Eternatus	Eternatus
+10190	890	1	eternatus-eternamax	eternamax	0	form	0	0	0	0	20	2	1000	0	563	Eternamax	Dinamax Infinito
+891	891	0	kubfu		1	base	0	0	0	0	20	1	6	120	77	Kubfu	Kubfu
+892	892	0	urshifu-single-strike	single-strike	1	base	0	0	0	0	20	1	19	1050	275	Single Strike Style	Estilo Brusco
+10191	892	1	urshifu-rapid-strike	rapid-strike	0	form	0	0	0	0	20	2	19	1050	275	Rapid Strike Style	Estilo Fluido
+10226	892	2	urshifu-single-strike-gmax	gmax	0	gmax	0	1	0	1	20	1	290	10000	275	Gigantamax Form	Urshifu
+10227	892	3	urshifu-rapid-strike-gmax	gmax	0	gmax	0	1	0	1	20	1	260	10000	275	Gigantamax Form	Urshifu
+893	893	0	zarude		1	base	0	0	0	0	20	1	18	700	300	Zarude	Zarude
+10192	893	1	zarude-dada	dada	0	form	0	0	0	0	20	2	18	700	300	Dada	Papá
+894	894	0	regieleki		1	base	0	0	0	0	20	1	12	1450	290	Regieleki	Regieleki
+895	895	0	regidrago		1	base	0	0	0	0	20	1	21	2000	290	Regidrago	Regidrago
+896	896	0	glastrier		1	base	0	0	0	0	20	1	22	8000	290	Glastrier	Glastrier
+897	897	0	spectrier		1	base	0	0	0	0	20	1	20	445	290	Spectrier	Spectrier
+898	898	0	calyrex		1	base	0	0	0	0	20	1	11	77	250	Calyrex	Calyrex
+10193	898	1	calyrex-ice	ice	0	form	0	0	0	0	20	2	24	8091	340	Ice Rider	Jinete Glacial
+10194	898	2	calyrex-shadow	shadow	0	form	0	0	0	0	20	3	24	536	340	Shadow Rider	Jinete Espectral
+899	899	0	wyrdeer		1	base	0	0	0	0	24	1	18	951	263	Wyrdeer	Wyrdeer
+900	900	0	kleavor		1	base	0	0	0	0	24	1	18	890	175	Kleavor	Kleavor
+901	901	0	ursaluna		1	base	0	0	0	0	24	1	24	2900	275	Ursaluna	Ursaluna
+10272	901	1	ursaluna-bloodmoon	bloodmoon	0	form	0	0	0	0	26	2	24	2900	275	Bloodmoon	Luna Carmesí
+902	902	0	basculegion-male	male	1	base	0	0	0	0	24	1	30	1100	265	Male	Basculegion
+10248	902	1	basculegion-female	female	0	form	0	0	0	0	24	2	30	1100	265	Female	Basculegion
+903	903	0	sneasler		1	base	0	0	0	0	24	1	13	430	102	Sneasler	Sneasler
+904	904	0	overqwil		1	base	0	0	0	0	24	1	25	605	179	Overqwil	Overqwil
+905	905	0	enamorus-incarnate	incarnate	1	base	0	0	0	0	24	1	16	480	116	Incarnate Forme	Enamorus
+10249	905	1	enamorus-therian	therian	0	form	0	0	0	0	24	2	16	480	116	Therian Forme	Enamorus
+906	906	0	sprigatito		1	base	0	0	0	0	25	1	4	41	62	Sprigatito	Sprigatito
+907	907	0	floragato		1	base	0	0	0	0	25	1	9	122	144	Floragato	Floragato
+908	908	0	meowscarada		1	base	0	0	0	0	25	1	15	312	265	Meowscarada	Meowscarada
+909	909	0	fuecoco		1	base	0	0	0	0	25	1	4	98	62	Fuecoco	Fuecoco
+910	910	0	crocalor		1	base	0	0	0	0	25	1	10	307	144	Crocalor	Crocalor
+911	911	0	skeledirge		1	base	0	0	0	0	25	1	16	3265	265	Skeledirge	Skeledirge
+912	912	0	quaxly		1	base	0	0	0	0	25	1	5	61	62	Quaxly	Quaxly
+913	913	0	quaxwell		1	base	0	0	0	0	25	1	12	215	144	Quaxwell	Quaxwell
+914	914	0	quaquaval		1	base	0	0	0	0	25	1	18	619	265	Quaquaval	Quaquaval
+915	915	0	lechonk		1	base	0	0	0	0	25	1	5	102	51	Lechonk	Lechonk
+916	916	0	oinkologne-male	male	1	base	0	0	0	0	25	1	10	1200	171	Male	Oinkologne
+10254	916	1	oinkologne-female	female	0	form	0	0	0	0	25	2	10	1200	171	Female	Oinkologne
+917	917	0	tarountula		1	base	0	0	0	0	25	1	3	40	42	Tarountula	Tarountula
+918	918	0	spidops		1	base	0	0	0	0	25	1	10	165	141	Spidops	Spidops
+919	919	0	nymble		1	base	0	0	0	0	25	1	2	10	42	Nymble	Nymble
+920	920	0	lokix		1	base	0	0	0	0	25	1	10	175	158	Lokix	Lokix
+921	921	0	pawmi		1	base	0	0	0	0	25	1	3	25	48	Pawmi	Pawmi
+922	922	0	pawmo		1	base	0	0	0	0	25	1	4	65	123	Pawmo	Pawmo
+923	923	0	pawmot		1	base	0	0	0	0	25	1	9	410	245	Pawmot	Pawmot
+924	924	0	tandemaus		1	base	0	0	0	0	25	1	3	18	61	Tandemaus	Tandemaus
+925	925	0	maushold-family-of-four	family-of-four	1	base	0	0	0	0	25	2	3	28	165	Family of Four	Maushold
+10257	925	1	maushold-family-of-three	family-of-three	0	form	0	0	0	0	25	1	3	23	165	Family of Three	Maushold
+926	926	0	fidough		1	base	0	0	0	0	25	1	3	109	62	Fidough	Fidough
+927	927	0	dachsbun		1	base	0	0	0	0	25	1	5	149	167	Dachsbun	Dachsbun
+928	928	0	smoliv		1	base	0	0	0	0	25	1	3	65	52	Smoliv	Smoliv
+929	929	0	dolliv		1	base	0	0	0	0	25	1	6	119	124	Dolliv	Dolliv
+930	930	0	arboliva		1	base	0	0	0	0	25	1	14	482	255	Arboliva	Arboliva
+931	931	0	squawkabilly-green-plumage	green-plumage	1	base	0	0	0	0	25	1	6	24	146	Green Plumage	Squawkabilly
+10260	931	1	squawkabilly-blue-plumage	blue-plumage	0	form	0	0	0	0	25	2	6	24	146	Blue Plumage	Squawkabilly
+10261	931	2	squawkabilly-yellow-plumage	yellow-plumage	0	form	0	0	0	0	25	3	6	24	146	Yellow Plumage	Squawkabilly
+10262	931	3	squawkabilly-white-plumage	white-plumage	0	form	0	0	0	0	25	4	6	24	146	White Plumage	Squawkabilly
+932	932	0	nacli		1	base	0	0	0	0	25	1	4	160	56	Nacli	Nacli
+933	933	0	naclstack		1	base	0	0	0	0	25	1	6	1050	124	Naclstack	Naclstack
+934	934	0	garganacl		1	base	0	0	0	0	25	1	23	2400	250	Garganacl	Garganacl
+935	935	0	charcadet		1	base	0	0	0	0	25	1	6	105	51	Charcadet	Charcadet
+936	936	0	armarouge		1	base	0	0	0	0	25	1	15	850	263	Armarouge	Armarouge
+937	937	0	ceruledge		1	base	0	0	0	0	25	1	16	620	263	Ceruledge	Ceruledge
+938	938	0	tadbulb		1	base	0	0	0	0	25	1	3	4	54	Tadbulb	Tadbulb
+939	939	0	bellibolt		1	base	0	0	0	0	25	1	12	1130	173	Bellibolt	Bellibolt
+940	940	0	wattrel		1	base	0	0	0	0	25	1	4	36	56	Wattrel	Wattrel
+941	941	0	kilowattrel		1	base	0	0	0	0	25	1	14	386	172	Kilowattrel	Kilowattrel
+942	942	0	maschiff		1	base	0	0	0	0	25	1	5	160	68	Maschiff	Maschiff
+943	943	0	mabosstiff		1	base	0	0	0	0	25	1	11	610	177	Mabosstiff	Mabosstiff
+944	944	0	shroodle		1	base	0	0	0	0	25	1	2	7	58	Shroodle	Shroodle
+945	945	0	grafaiai		1	base	0	0	0	0	25	1	7	272	170	Grafaiai	Grafaiai
+946	946	0	bramblin		1	base	0	0	0	0	25	1	6	6	55	Bramblin	Bramblin
+947	947	0	brambleghast		1	base	0	0	0	0	25	1	12	60	168	Brambleghast	Brambleghast
+948	948	0	toedscool		1	base	0	0	0	0	25	1	9	330	67	Toedscool	Toedscool
+949	949	0	toedscruel		1	base	0	0	0	0	25	1	19	580	180	Toedscruel	Toedscruel
+950	950	0	klawf		1	base	0	0	0	0	25	1	13	790	158	Klawf	Klawf
+951	951	0	capsakid		1	base	0	0	0	0	25	1	3	30	61	Capsakid	Capsakid
+952	952	0	scovillain		1	base	0	0	0	0	25	1	9	150	170	Scovillain	Scovillain
+10320	952	1	scovillain-mega	mega	0	mega	1	0	0	1	31	2	12	220	0	Mega Scovillain	Scovillain
+953	953	0	rellor		1	base	0	0	0	0	25	1	2	10	54	Rellor	Rellor
+954	954	0	rabsca		1	base	0	0	0	0	25	1	3	35	165	Rabsca	Rabsca
+955	955	0	flittle		1	base	0	0	0	0	25	1	2	15	51	Flittle	Flittle
+956	956	0	espathra		1	base	0	0	0	0	25	1	19	900	168	Espathra	Espathra
+957	957	0	tinkatink		1	base	0	0	0	0	25	1	4	89	59	Tinkatink	Tinkatink
+958	958	0	tinkatuff		1	base	0	0	0	0	25	1	7	591	133	Tinkatuff	Tinkatuff
+959	959	0	tinkaton		1	base	0	0	0	0	25	1	7	1128	253	Tinkaton	Tinkaton
+960	960	0	wiglett		1	base	0	0	0	0	25	1	12	18	49	Wiglett	Wiglett
+961	961	0	wugtrio		1	base	0	0	0	0	25	1	12	54	149	Wugtrio	Wugtrio
+962	962	0	bombirdier		1	base	0	0	0	0	25	1	15	429	243	Bombirdier	Bombirdier
+963	963	0	finizen		1	base	0	0	0	0	25	1	13	602	63	Finizen	Finizen
+964	964	0	palafin-zero	zero	1	base	0	0	0	0	25	1	13	602	160	Zero Form	Palafin
+10256	964	1	palafin-hero	hero	0	form	0	0	0	1	25	2	18	974	160	Hero Form	Palafin
+965	965	0	varoom		1	base	0	0	0	0	25	1	10	350	60	Varoom	Varoom
+966	966	0	revavroom		1	base	0	0	0	0	25	1	18	1200	175	Revavroom	Revavroom
+967	967	0	cyclizar		1	base	0	0	0	0	25	1	16	630	175	Cyclizar	Cyclizar
+968	968	0	orthworm		1	base	0	0	0	0	25	1	25	3100	240	Orthworm	Orthworm
+969	969	0	glimmet		1	base	0	0	0	0	25	1	7	80	70	Glimmet	Glimmet
+970	970	0	glimmora		1	base	0	0	0	0	25	1	15	450	184	Glimmora	Glimmora
+10321	970	1	glimmora-mega	mega	0	mega	1	0	0	1	31	2	28	770	0	Mega Glimmora	Glimmora
+971	971	0	greavard		1	base	0	0	0	0	25	1	6	350	58	Greavard	Greavard
+972	972	0	houndstone		1	base	0	0	0	0	25	1	20	150	171	Houndstone	Houndstone
+973	973	0	flamigo		1	base	0	0	0	0	25	1	16	370	175	Flamigo	Flamigo
+974	974	0	cetoddle		1	base	0	0	0	0	25	1	12	450	67	Cetoddle	Cetoddle
+975	975	0	cetitan		1	base	0	0	0	0	25	1	45	7000	182	Cetitan	Cetitan
+976	976	0	veluza		1	base	0	0	0	0	25	1	25	900	167	Veluza	Veluza
+977	977	0	dondozo		1	base	0	0	0	0	25	1	120	2200	265	Dondozo	Dondozo
+978	978	0	tatsugiri-curly	curly	1	base	0	0	0	0	25	1	3	80	166	Curly Form	Tatsugiri
+10258	978	1	tatsugiri-droopy	droopy	0	form	0	0	0	0	25	2	3	80	166	Droopy Form	Tatsugiri
+10259	978	2	tatsugiri-stretchy	stretchy	0	form	0	0	0	0	25	3	3	80	166	Stretchy Form	Tatsugiri
+10322	978	3	tatsugiri-curly-mega	mega	0	mega	1	0	0	1	31	4	6	240	0	Mega Curly Tatsugiri	Tatsugiri
+10323	978	4	tatsugiri-droopy-mega	mega	0	mega	1	0	0	1	31	5	6	240	0	Mega Droopy Tatsugiri	Tatsugiri
+10324	978	5	tatsugiri-stretchy-mega	mega	0	mega	1	0	0	1	31	6	6	240	0	Mega Stretchy Tatsugiri	Tatsugiri
+979	979	0	annihilape		1	base	0	0	0	0	25	1	12	560	268	Annihilape	Annihilape
+980	980	0	clodsire		1	base	0	0	0	0	25	1	18	2230	151	Clodsire	Clodsire
+981	981	0	farigiraf		1	base	0	0	0	0	25	1	32	1600	260	Farigiraf	Farigiraf
+982	982	0	dudunsparce-two-segment	two-segment	1	base	0	0	0	0	25	1	36	392	182	Two-Segment Form	Dudunsparce
+10255	982	1	dudunsparce-three-segment	three-segment	0	form	0	0	0	0	25	2	45	474	182	Three-Segment Form	Dudunsparce
+983	983	0	kingambit		1	base	0	0	0	0	25	1	20	1200	275	Kingambit	Kingambit
+984	984	0	great-tusk		1	base	0	0	0	0	25	1	22	3200	285	Great Tusk	Colmilargo
+985	985	0	scream-tail		1	base	0	0	0	0	25	1	12	80	285	Scream Tail	Colagrito
+986	986	0	brute-bonnet		1	base	0	0	0	0	25	1	12	210	285	Brute Bonnet	Furioseta
+987	987	0	flutter-mane		1	base	0	0	0	0	25	1	14	40	285	Flutter Mane	Melenaleteo
+988	988	0	slither-wing		1	base	0	0	0	0	25	1	32	920	285	Slither Wing	Reptalada
+989	989	0	sandy-shocks		1	base	0	0	0	0	25	1	23	600	285	Sandy Shocks	Pelarena
+990	990	0	iron-treads		1	base	0	0	0	0	25	1	9	2400	285	Iron Treads	Ferrodada
+991	991	0	iron-bundle		1	base	0	0	0	0	25	1	6	110	285	Iron Bundle	Ferrosaco
+992	992	0	iron-hands		1	base	0	0	0	0	25	1	18	3807	285	Iron Hands	Ferropalmas
+993	993	0	iron-jugulis		1	base	0	0	0	0	25	1	13	1110	285	Iron Jugulis	Ferrocuello
+994	994	0	iron-moth		1	base	0	0	0	0	25	1	12	360	285	Iron Moth	Ferropolilla
+995	995	0	iron-thorns		1	base	0	0	0	0	25	1	16	3030	285	Iron Thorns	Ferropúas
+996	996	0	frigibax		1	base	0	0	0	0	25	1	5	170	64	Frigibax	Frigibax
+997	997	0	arctibax		1	base	0	0	0	0	25	1	8	300	148	Arctibax	Arctibax
+998	998	0	baxcalibur		1	base	0	0	0	0	25	1	21	2100	300	Baxcalibur	Baxcalibur
+10325	998	1	baxcalibur-mega	mega	0	mega	1	0	0	1	31	2	21	3150	0	Mega Baxcalibur	Baxcalibur
+999	999	0	gimmighoul	chest	1	base	0	0	0	0	25	1	3	50	60	Chest Form	Gimmighoul
+10263	999	1	gimmighoul-roaming	roaming	0	form	0	0	0	0	25	2	1	10	60	Roaming Form	Gimmighoul
+1000	1000	0	gholdengo		1	base	0	0	0	0	25	1	12	300	275	Gholdengo	Gholdengo
+1001	1001	0	wo-chien		1	base	0	0	0	0	25	1	15	742	285	Wo-Chien	Wo-Chien
+1002	1002	0	chien-pao		1	base	0	0	0	0	25	1	19	1522	285	Chien-Pao	Chien-Pao
+1003	1003	0	ting-lu		1	base	0	0	0	0	25	1	27	6997	285	Ting-Lu	Ting-Lu
+1004	1004	0	chi-yu		1	base	0	0	0	0	25	1	4	49	285	Chi-Yu	Chi-Yu
+1005	1005	0	roaring-moon		1	base	0	0	0	0	25	1	20	3800	295	Roaring Moon	Bramaluna
+1006	1006	0	iron-valiant		1	base	0	0	0	0	25	1	14	350	295	Iron Valiant	Ferropaladín
+1007	1007	0	koraidon	apex-build	1	base	0	0	0	0	25	1	25	3030	335	Apex Build	Koraidon
+10264	1007	1	koraidon-limited-build	limited-build	0	form	0	0	0	0	25	2	35	3030	335	Limited Build	Koraidon
+10265	1007	2	koraidon-sprinting-build	sprinting-build	0	form	0	0	0	0	25	3	35	3030	335	Sprinting Build	Koraidon
+10266	1007	3	koraidon-swimming-build	swimming-build	0	form	0	0	0	0	25	4	35	3030	335	Swimming Build	Koraidon
+10267	1007	4	koraidon-gliding-build	gliding-build	0	form	0	0	0	0	25	5	35	3030	335	Gliding Build	Koraidon
+1008	1008	0	miraidon	ultimate-mode	1	base	0	0	0	0	25	1	35	2400	335	Ultimate Mode	Miraidon
+10268	1008	1	miraidon-low-power-mode	low-power-mode	0	form	0	0	0	0	25	2	28	2400	335	Low-Power Mode	Miraidon
+10269	1008	2	miraidon-drive-mode	drive-mode	0	form	0	0	0	0	25	3	28	2400	335	Drive Mode	Miraidon
+10270	1008	3	miraidon-aquatic-mode	aquatic-mode	0	form	0	0	0	0	25	4	28	2400	335	Aquatic Mode	Miraidon
+10271	1008	4	miraidon-glide-mode	glide-mode	0	form	0	0	0	0	25	5	28	2400	335	Glide Mode	Miraidon
+1009	1009	0	walking-wake		1	base	0	0	0	0	25	1	35	2800	295	Walking Wake	Ondulagua
+1010	1010	0	iron-leaves		1	base	0	0	0	0	25	1	15	1250	295	Iron Leaves	Ferroverdor
+1011	1011	0	dipplin		1	base	0	0	0	0	26	1	4	97	170	Dipplin	Dipplin
+1012	1012	0	poltchageist	counterfeit	1	base	0	0	0	0	26	1	1	11	62	Counterfeit Form	Forma Fraudulenta
+1013	1013	0	sinistcha	unremarkable	1	base	0	0	0	0	26	1	2	22	178	Unremarkable Form	Forma Mediocre
+1014	1014	0	okidogi		1	base	0	0	0	0	26	1	18	922	278	Okidogi	Okidogi
+1015	1015	0	munkidori		1	base	0	0	0	0	26	1	10	122	278	Munkidori	Munkidori
+1016	1016	0	fezandipiti		1	base	0	0	0	0	26	1	14	301	278	Fezandipiti	Fezandipiti
+1017	1017	0	ogerpon		1	base	0	0	0	0	26	1	12	398	275	Teal Mask	Máscara Turquesa
+10273	1017	1	ogerpon-wellspring-mask	wellspring-mask	0	form	0	0	0	0	26	2	12	398	275	Wellspring Mask	Máscara Fuente
+10274	1017	2	ogerpon-hearthflame-mask	hearthflame-mask	0	form	0	0	0	0	26	3	12	398	275	Hearthflame Mask	Máscara Horno
+10275	1017	3	ogerpon-cornerstone-mask	cornerstone-mask	0	form	0	0	0	0	26	4	12	398	275	Cornerstone Mask	Máscara Cimiento
+1018	1018	0	archaludon		1	base	0	0	0	0	27	1	20	600	300	Archaludon	Archaludon
+1019	1019	0	hydrapple		1	base	0	0	0	0	27	1	18	930	270	Hydrapple	Hydrapple
+1020	1020	0	gouging-fire		1	base	0	0	0	0	27	1	35	5900	295	Gouging Fire	Flamariete
+1021	1021	0	raging-bolt		1	base	0	0	0	0	27	1	52	4800	295	Raging Bolt	Electrofuria
+1022	1022	0	iron-boulder		1	base	0	0	0	0	27	1	15	1625	295	Iron Boulder	Ferromole
+1023	1023	0	iron-crown		1	base	0	0	0	0	27	1	16	1560	295	Iron Crown	Ferrotesta
+1024	1024	0	terapagos		1	base	0	0	0	0	27	1	2	65	90	Normal Form	Forma normal
+10276	1024	1	terapagos-terastal	terastal	0	form	0	0	0	1	27	2	3	160	90	Terastal Form	Forma teracristal
+10277	1024	2	terapagos-stellar	stellar	0	form	0	0	0	1	27	3	17	770	90	Stellar Form	Forma astral
+1025	1025	0	pecharunt		1	base	0	0	0	0	27	1	3	3	300	Pecharunt	Pecharunt
