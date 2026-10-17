@@ -280,9 +280,18 @@ fn attach_offscreen_target(
     mut commands: Commands,
     mut state: ResMut<AutomationState>,
     mut images: ResMut<Assets<Image>>,
-    cameras: Query<Entity, (With<Camera3d>, Without<OffscreenTarget>)>,
+    // Cameras that already draw into their own image (e.g. the Pokédex model preview) keep
+    // their target; only the window cameras are redirected.
+    cameras: Query<(Entity, Option<&RenderTarget>), (With<Camera3d>, Without<OffscreenTarget>)>,
 ) {
-    if cameras.is_empty() {
+    // Cameras that already draw into their own image (e.g. the Pokédex model preview) keep
+    // their target; only the window cameras are redirected.
+    let window_cameras: Vec<Entity> = cameras
+        .iter()
+        .filter(|(_, target)| !matches!(target, Some(RenderTarget::Image(_))))
+        .map(|(e, _)| e)
+        .collect();
+    if window_cameras.is_empty() {
         return;
     }
     let (w, h) = state.size;
@@ -290,7 +299,7 @@ fn attach_offscreen_target(
         .target
         .get_or_insert_with(|| images.add(Image::new_target_texture(w, h, TextureFormat::Rgba8UnormSrgb, None)))
         .clone();
-    for (i, e) in cameras.iter().enumerate() {
+    for (i, e) in window_cameras.into_iter().enumerate() {
         let mut ec = commands.entity(e);
         ec.insert((RenderTarget::Image(target.clone().into()), OffscreenTarget));
         if i == 0 {

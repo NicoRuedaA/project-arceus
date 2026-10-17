@@ -77,6 +77,8 @@ struct TrinsTreeInstance;
 #[derive(Resource)]
 struct PokemonCatalogResource {
     handles: HashMap<PokemonAssetKey, Handle<Gltf>>,
+    /// One-file national models (all clips inside) vs. the PLA batch layout.
+    single_file: HashMap<PokemonAssetKey, bool>,
     spawned: HashSet<Entity>,
 }
 
@@ -87,11 +89,18 @@ struct PokemonAssetKey {
     rare: bool,
 }
 
-/// Resolves a model path without silently substituting another form or palette. The pack
-/// name comes from the game's model catalog (`game::pokemon_resource`), never from the dex
-/// number. Spawn evidence currently falls back to form 0 and rare=false when absent.
-fn resolve_pokemon_gltf_rel(dex: u16, form: u16, rare: bool) -> Option<String> {
-    pla::game::pokemon_resource::resolve_batch_gltf_rel(dex, form, rare)
+/// Resolves a model path without silently substituting another form or palette: the game's own
+/// catalog (Legends: Arceus, `game::pokemon_resource`) always wins; the converted national
+/// models from the user collection fill the rest. Never built from the dex number.
+fn resolve_pokemon_gltf_rel(dex: u16, form: u16, rare: bool) -> Option<pla::game::pokemon_resource::ResolvedModel> {
+    use pla::game::pokemon_resource::{resolve_batch_gltf_rel, resolve_model};
+    if let Some(rel) = resolve_batch_gltf_rel(dex, form, rare) {
+        return Some(pla::game::pokemon_resource::ResolvedModel {
+            rel,
+            single_file: false,
+        });
+    }
+    resolve_model(dex, form as u8)
 }
 
 #[derive(Resource)]
@@ -1025,6 +1034,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     });
     app.insert_resource(PokemonCatalogResource {
         handles: HashMap::new(),
+        single_file: HashMap::new(),
         spawned: HashSet::new(),
     });
 
@@ -1097,6 +1107,8 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
+    // National Pokédex (Y): the selected species' real model is rendered into the panel.
+    app.add_plugins(pla::game::dex_model_preview::DexModelPreviewPlugin);
     // Debug help: `--spawn-species N[:forma]` puts one national species in front of the player
     // (converted user models included); see crates/pla/src/game/national_spawn.rs.
     if let Some(spec) = pla::game::national_spawn::NationalSpawnSpec::from_args(&cli_args) {
@@ -1434,9 +1446,10 @@ fn setup_scene(
             form: 0,
             rare: false,
         };
-        if let Some(rel_path) = resolve_pokemon_gltf_rel(dex, key.form, key.rare) {
-            let handle: Handle<Gltf> = asset_server.load(rel_path);
+        if let Some(model) = resolve_pokemon_gltf_rel(dex, key.form, key.rare) {
+            let handle: Handle<Gltf> = asset_server.load(model.rel);
             pokemon_catalog.handles.insert(key, handle);
+            pokemon_catalog.single_file.insert(key, model.single_file);
         }
     }
 
@@ -1966,11 +1979,12 @@ fn stream_wild_spawners(
             rare,
         };
         if !pokemon_catalog.handles.contains_key(&asset_key) {
-            let rel = resolve_pokemon_gltf_rel(dex, asset_key.form, asset_key.rare)
+            let model = resolve_pokemon_gltf_rel(dex, asset_key.form, asset_key.rare)
                 .or_else(|| resolve_pokemon_gltf_rel(dex, asset_key.form, false));
-            if let Some(rel_path) = rel {
-                let handle: Handle<Gltf> = asset_server.load(rel_path);
+            if let Some(model) = model {
+                let handle: Handle<Gltf> = asset_server.load(model.rel);
                 pokemon_catalog.handles.insert(asset_key, handle);
+                pokemon_catalog.single_file.insert(asset_key, model.single_file);
             }
         }
 
@@ -2080,8 +2094,13 @@ fn spawn_pokemon_models(
             .path()
             .map(|pth| pth.path().to_string_lossy().into_owned())
         {
-            // Arena creatures also load the battle clips (attack / hit / faint).
-            let source = if battle_slot.is_some() {
+            let single = catalog.single_file.get(&key).copied().unwrap_or(false);
+            // Arena creatures also load the battle clips (attack / hit / faint); one-file
+            // national models already carry every clip in the same file.
+            let source = if single {
+                pla::game::pokemon_anim::PokemonAnimSource::from_single_file(&asset_server, &idle_rel)
+                    .with_root_drop(pla::game::pokemon_anim::CREATURE_ROOT_ABOVE_GROUND)
+            } else if battle_slot.is_some() {
                 pla::game::pokemon_anim::PokemonAnimSource::from_idle_path_with_battle(
                     &asset_server,
                     &idle_rel,
@@ -2154,9 +2173,10 @@ fn setup_battle_arena(
             rare: false,
         };
         if !pokemon_catalog.handles.contains_key(&key) {
-            if let Some(rel) = resolve_pokemon_gltf_rel(dex, key.form, key.rare) {
-                let handle: Handle<Gltf> = asset_server.load(rel);
+            if let Some(model) = resolve_pokemon_gltf_rel(dex, key.form, key.rare) {
+                let handle: Handle<Gltf> = asset_server.load(model.rel);
                 pokemon_catalog.handles.insert(key, handle);
+                pokemon_catalog.single_file.insert(key, model.single_file);
             }
         }
     }
@@ -4369,9 +4389,10 @@ fn sync_arena_player_model(
             rare: false,
         };
         if !catalog.handles.contains_key(&key) {
-            if let Some(rel) = resolve_pokemon_gltf_rel(want, key.form, key.rare) {
-                let handle: Handle<Gltf> = asset_server.load(rel);
+            if let Some(model) = resolve_pokemon_gltf_rel(want, key.form, key.rare) {
+                let handle: Handle<Gltf> = asset_server.load(model.rel);
                 catalog.handles.insert(key, handle);
+                catalog.single_file.insert(key, model.single_file);
             }
         }
         catalog.spawned.remove(&entity);
@@ -5104,7 +5125,11 @@ mod alpha_spawn {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default()));
         app.init_asset::<Mesh>().init_asset::<StandardMaterial>().init_asset::<Gltf>();
-        app.insert_resource(PokemonCatalogResource { handles: HashMap::new(), spawned: HashSet::new() });
+        app.insert_resource(PokemonCatalogResource {
+            handles: HashMap::new(),
+            single_file: HashMap::new(),
+            spawned: HashSet::new(),
+        });
         app.init_resource::<ConsumedSpawners>();
         app.init_resource::<pla::game::wild::EncounterSafety>();
         app.insert_resource(PlayerProgress::default());

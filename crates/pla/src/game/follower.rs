@@ -365,24 +365,15 @@ fn slide_around_player(
     best.map_or(moved, |(_, cand)| cand)
 }
 
-/// Asset-server path of the exported batch model for `species`/`form`
-/// (`cache/pokemon_batch/<pack>/<pack>_idle.gltf`, pack from the game's model catalog, see
-/// `game::pokemon_resource`), or `None` when it was not exported. Prefers the member's form
-/// and falls back to form 0.
-fn resolve_batch_idle_rel(species: u16, form: u8) -> Option<String> {
-    use crate::game::pokemon_resource::{batch_gltf_rel_for_stem, global_table};
-    let table = global_table();
-    let mut stems = Vec::new();
-    for f in [u16::from(form), 0] {
-        if let Some(stem) = table.pack_stem(species, f) {
-            if !stems.contains(&stem) {
-                stems.push(stem);
-            }
-        }
+/// Model of `species`/`form` for the follower: the game's own catalog first, the converted
+/// national models second (`game::pokemon_resource::resolve_model`); `None` = nobody follows.
+/// Prefers the member's form and falls back to form 0.
+fn resolve_batch_idle_rel(species: u16, form: u8) -> Option<crate::game::pokemon_resource::ResolvedModel> {
+    let mut resolved = crate::game::pokemon_resource::resolve_model(species, form);
+    if resolved.is_none() && form != 0 {
+        resolved = crate::game::pokemon_resource::resolve_model(species, 0);
     }
-    stems
-        .iter()
-        .find_map(|stem| batch_gltf_rel_for_stem(stem, &["idle"]))
+    resolved
 }
 
 /// Spawns / respawns / despawns the follower entity so it shows the lead party member.
@@ -410,7 +401,7 @@ fn sync_follower(
     for (e, _) in &existing {
         commands.entity(e).despawn();
     }
-    let Some(rel) = resolve_batch_idle_rel(lead.species, lead.form) else {
+    let Some(model) = resolve_batch_idle_rel(lead.species, lead.form) else {
         if *warned != Some(lead.species) {
             eprintln!(
                 "Follower: no exported model for #{:04} form {}; nobody follows",
@@ -442,7 +433,7 @@ fn sync_follower(
             form: lead.form,
         },
         state,
-        crate::game::pokemon_anim::PokemonAnimSource::from_idle_path(&asset_server, &rel)
+        crate::game::pokemon_anim::PokemonAnimSource::from_resolved(&asset_server, &model)
             .with_root_drop(GROUND_OFFSET),
         Transform::from_xyz(behind.x, y, behind.y).with_rotation(Quat::from_rotation_y(yaw)),
         Visibility::default(),
