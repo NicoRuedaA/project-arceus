@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 269,
+    "file_count": 270,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -509,7 +509,7 @@
       },
       {
         "path": "crates/pla/src/battle.rs",
-        "sha256": "27518b0fe4c35bc5c4b7ff8c21712506c5c1eb7139512766a5586b1acd8a1f2b"
+        "sha256": "598b1f1ca64bbcf9ef40b5684c3577b0a7033e9db463a3058291f5dd111a86f9"
       },
       {
         "path": "crates/pla/src/battle_engine/abilities.rs",
@@ -521,7 +521,11 @@
       },
       {
         "path": "crates/pla/src/battle_engine/effects.rs",
-        "sha256": "29591062c3d5c12fedde868c07a2540f1a93d0dda0a672f4e1190eeac2a8fa34"
+        "sha256": "4e980af7bff337844668615bd5015cb3f60545376319a0902f0e567670063ca3"
+      },
+      {
+        "path": "crates/pla/src/battle_engine/gen9.rs",
+        "sha256": "45c3d95c196f35fc4e48ec0b06d57b2ffc7ea7f503bc5f7abf92f555b4a4f43c"
       },
       {
         "path": "crates/pla/src/battle_engine/items.rs",
@@ -545,7 +549,7 @@
       },
       {
         "path": "crates/pla/src/battle_engine.rs",
-        "sha256": "9d7329146f24621ab298b1203d71305520ec7b77a8e06817d09286227c0b58d5"
+        "sha256": "36797985d5e1b860a6e0bccfde2a17a0e4220f1700f986169b7cbcd0b05a94a4"
       },
       {
         "path": "crates/pla/src/dispatch.rs",
@@ -1153,7 +1157,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "b156ed3f1cae6536aff1b86a0d7a87d8bd324ea040e8041ef92830f7bcd6d3d9"
+    "sha256": "282ffae600a4a521efd35a25df2cf33ca446c63b52d70809dfa90cbc00f62d0a"
   },
   "state_partitions": {
     "analysis_documentation_status": {

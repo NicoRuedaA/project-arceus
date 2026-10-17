@@ -38,6 +38,33 @@ row widths and stable identifiers. From the repository root, load them with
 - `integer_base_damage` here is the main-series shape. In the game it is only the fallback when no damage callback is configured; the shipped battle config installs one that computes `floor(floor(floor(P*(A+100+15L))/(D+50))/5)` (no `+2`). `pla::battle_engine::rules::pla_base_damage` implements the game's formula. Read statically, not run in-game. Details: [battle rules report](../reports/data-progress/battle_rules_verified.md).
 - Capture: the index terms, `p = I/255` and two checks against `sqrt(1-p)` are read from code (final threshold scaling in a call the decompiler lost: LIKELY).
 
+## External generation-9 moves (EXTERNAL/PROBABLE)
+
+The PLA data stops at move id 850, so the 70 generation-9 moves (ids 851-920) that this
+project wants in the dex come from an external sheet (`data/gen9_moves.tsv`: Pokemon Showdown
+`moves.ts` at commit `bc281dae`, cross-checked with WikiDex). **Nothing in that sheet is
+verified against the game**: every value is EXTERNAL/PROBABLE and the sheet is never mixed
+with `pml_moves.tsv` rows, which always win by name.
+
+- 22 of the 70 rows fit the effect columns the engine already reads and load through
+  `battle_engine/gen9.rs`; the other 48 stay out with a per-row reason in `engine_reason`
+  (volatile statuses, weather/terrain, Tera, charge turns, stat changes on both sides, the
+  `cantusetwice` repeat lock of Gigaton Hammer and Blood Moon, ...). Class `b` is never
+  approximated.
+- The 8 Showdown/WikiDex stat disagreements were adjudicated on 2026-10-17 to the
+  Scarlet/Violet value (the one before Pokemon Champions): Showdown already carries it, the
+  WikiDex footnotes state the pre-Champions value, and PokemonDB's SV pages confirm the three
+  PP cases (Ice Spinner 15, Salt Cure 15, Hyper Drill 5). Nihil Light is absent from SV
+  (Showdown marks it `isNonstandard: "Future"`), so its 100/200 power split stays **PROBABLE**
+  and the sheet keeps Showdown's 100. Each row records its adjudication in `source_diff`.
+- Port adaptation: stat changes run on PLA's three rank states, so a generation-9 `+2`/`-2`
+  lands at `+1`/`-1`. The moves have no agile/strong rows and no `ewNNN` effect timeline, so
+  they are used in the normal style and draw no particle effect. Status lengths follow the
+  PLA rules (5 turns from status moves, 3 from secondaries), not the modern games'.
+- Regression: `cargo test -p pla --lib gen9` runs the sheet parsing plus one windowless
+  battle (Jet Punch priority, Torch Song's self boost, Bitter Blade's drain and Lumina
+  Crash's drop).
+
 ## Explicit unknowns
 
 - Capture HP-curve shape, final-rate composition/order, shake thresholds, the

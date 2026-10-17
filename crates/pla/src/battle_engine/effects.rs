@@ -109,7 +109,12 @@ impl MoveEffectsTable {
     pub fn load(data_root: impl AsRef<Path>) -> Result<Self, String> {
         let path = data_root.as_ref().join("pml_move_effects.tsv");
         let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        Self::from_tsv(&text)
+        let mut table = Self::from_tsv(&text)?;
+        // Generation-9 moves (external sheet, class `a` only); the PLA rows always win by name.
+        for mv in super::gen9::load(data_root.as_ref())? {
+            table.by_name.entry(mv.name).or_insert(mv.effects);
+        }
+        Ok(table)
     }
 
     pub fn from_tsv(text: &str) -> Result<Self, String> {
