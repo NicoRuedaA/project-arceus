@@ -322,7 +322,12 @@ impl Battle {
             changed = true;
         }
         if let Some(status) = c.status {
-            if item.cures.contains(&status) {
+            // Badly poisoned is the poison record with the 0xf01 mark: poison cures clear it
+            // too (the game has one cure flag per record).
+            if item.cures.contains(&status)
+                || (status == MajorStatus::BadlyPoisoned
+                    && item.cures.contains(&MajorStatus::Poison))
+            {
                 c.status = None;
                 out.status_cured = Some(status);
                 changed = true;
@@ -526,6 +531,15 @@ mod tests {
         b.combatants[0].status = Some(MajorStatus::Poison);
         let r = b.use_item(0, 18).unwrap();
         assert_eq!(r.status_cured, Some(MajorStatus::Poison));
+        assert_eq!(b.combatants[0].status, None);
+    }
+
+    #[test]
+    fn antidote_also_cures_the_badly_poisoned_state() {
+        let (mut b, _) = battle();
+        b.combatants[0].status = Some(MajorStatus::BadlyPoisoned);
+        let r = b.use_item(0, 18).unwrap();
+        assert_eq!(r.status_cured, Some(MajorStatus::BadlyPoisoned));
         assert_eq!(b.combatants[0].status, None);
     }
 

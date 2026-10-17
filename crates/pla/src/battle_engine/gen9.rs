@@ -25,7 +25,9 @@
 //! `remove_user_type_after_hit`), Upper Hand (`require_target_priority`) and Thunderclap
 //! (`require_target_attack`; both read the actions declared for the turn, so they are refused
 //! in the single-action PLA queue flow) and Electro Shot (`charge` flag plus `charge_boost_spa`
-//! and `charge_skip_in_rain`).
+//! and `charge_skip_in_rain`). Malignant Chain (919) loads with the sheet's `tox` secondary,
+//! mapped to the synthetic engine ailment id 15 (badly poisoned; see `effects.rs` and
+//! `reports/data-progress/sleep_toxic.md`).
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -303,6 +305,8 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             ("par", _) => 1,
             ("brn", _) => 4,
             ("psn", _) => 5,
+            // Synthetic id 15 = badly poisoned (the game's `0xf01` poison mark; see effects.rs).
+            ("tox", _) => 15,
             ("", "confusion") => 8,
             ("", _) => 0,
             (other, _) => {
@@ -435,9 +439,9 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        // 38 classic-column rows + family A (861, 866, 868, 870, 875, 877, 882) and family B
-        // (892, 894, 905, 909, 914, 918).
-        assert_eq!(moves.len(), 51);
+        // 38 classic-column rows + family A (861, 866, 868, 870, 875, 877, 882), family B
+        // (892, 894, 905, 909, 914, 918) and Malignant Chain (919).
+        assert_eq!(moves.len(), 52);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -1297,5 +1301,25 @@ mod tests {
         assert!(!b.is_charging(0));
         assert_eq!(b.stages(0).attack, 0);
         assert!(b.combatants[1].hp < b.combatants[1].max_hp);
+    }
+
+    /// Malignant Chain (919): Poison special whose secondary badly poisons 50 % of the time
+    /// (the engine's state for the game's `0xf01` poison mark).
+    #[test]
+    fn malignant_chain_badly_poisons_half_the_time() {
+        // accuracy, crit, damage roll, then the 50 % ailment roll.
+        let mut b = duel(
+            ("pikachu", &["malignant-chain"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 49]));
+        assert_eq!(b.combatants[1].status, Some(MajorStatus::BadlyPoisoned));
+
+        let mut b = duel(
+            ("pikachu", &["malignant-chain"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 50]));
+        assert_eq!(b.combatants[1].status, None);
     }
 }

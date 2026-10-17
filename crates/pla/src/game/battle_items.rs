@@ -44,6 +44,7 @@ pub fn status_tag(status: MajorStatus) -> &'static str {
         MajorStatus::Poison => "PSN",
         MajorStatus::Burn => "BRN",
         MajorStatus::Frostbite => "FRB",
+        MajorStatus::BadlyPoisoned => "TOX",
     }
 }
 

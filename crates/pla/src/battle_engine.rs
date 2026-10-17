@@ -43,6 +43,10 @@ pub enum MajorStatus {
     Poison,
     Burn,
     Frostbite,
+    /// The game's poison record (id 5) with the `0xf01` mark: same id, distinct state.
+    /// End-of-turn damage `ceil(max_hp / 16) x counter`, counter capped at 15, never expires
+    /// (VERIFIED; see `sleep_toxic.md` and `rules::TOXIC_*`).
+    BadlyPoisoned,
 }
 
 #[derive(Debug, Clone)]
@@ -290,6 +294,8 @@ pub struct Battle {
     turn_last_damage: Vec<Option<(usize, u32)>>,
     /// Turn memory: whether each combatant raised any of its stats this turn (Alluring Voice).
     turn_raised_stats: Vec<bool>,
+    /// Badly-poisoned counter (starts at 0, +1 per end of turn, capped at 15; VERIFIED).
+    toxic_counter: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -357,6 +363,7 @@ impl Battle {
             times_attacked: vec![0; combatant_count],
             turn_last_damage: vec![None; combatant_count],
             turn_raised_stats: vec![false; combatant_count],
+            toxic_counter: vec![0; combatant_count],
         })
     }
 
@@ -867,28 +874,35 @@ impl Battle {
         }
         // End-of-round status damage and status timing are conventional-series assumptions.
         let mut status_knockouts = Vec::new();
-        for side in &self.sides {
-            for &i in side {
-                if !self.combatants[i].is_alive() {
-                    continue;
-                }
-                let Some(
-                    status @ (MajorStatus::Poison | MajorStatus::Burn | MajorStatus::Frostbite),
-                ) = self.combatants[i].status
-                else {
-                    continue;
-                };
-                let damage = self.residual_damage(i, status);
-                self.combatants[i].hp = self.combatants[i].hp.saturating_sub(damage);
-                events.push(Event::Recoil {
-                    target: i,
-                    status,
-                    damage,
-                });
-                if self.combatants[i].hp == 0 {
-                    events.push(Event::KnockedOut(i));
-                    status_knockouts.push(i);
-                }
+        let members: Vec<usize> = self.sides.iter().flatten().copied().collect();
+        for i in members {
+            if !self.combatants[i].is_alive() {
+                continue;
+            }
+            let Some(
+                status @ (MajorStatus::Poison
+                | MajorStatus::Burn
+                | MajorStatus::Frostbite
+                | MajorStatus::BadlyPoisoned),
+            ) = self.combatants[i].status
+            else {
+                continue;
+            };
+            let damage = if status == MajorStatus::BadlyPoisoned {
+                // The counter grows before the damage of the same end of turn (VERIFIED).
+                self.toxic_slip_damage(i)
+            } else {
+                self.residual_damage(i, status)
+            };
+            self.combatants[i].hp = self.combatants[i].hp.saturating_sub(damage);
+            events.push(Event::Recoil {
+                target: i,
+                status,
+                damage,
+            });
+            if self.combatants[i].hp == 0 {
+                events.push(Event::KnockedOut(i));
+                status_knockouts.push(i);
             }
         }
         for index in status_knockouts {
@@ -1094,7 +1108,10 @@ impl Battle {
         let status = match c.status {
             None => data.capture_status_multiplier("None")?,
             Some(MajorStatus::Paralysis) => data.capture_status_multiplier("Paralysis")?,
-            Some(MajorStatus::Poison) => data.capture_status_multiplier("Poison")?,
+            // Badly poisoned is the same game record (id 5): the poison factor applies.
+            Some(MajorStatus::Poison | MajorStatus::BadlyPoisoned) => {
+                data.capture_status_multiplier("Poison")?
+            }
             Some(MajorStatus::Burn) => data.capture_status_multiplier("Burn")?,
             Some(MajorStatus::Drowsy) => data.capture_status_multiplier("Drowsiness / Sleep")?,
             Some(MajorStatus::Frostbite) => data.capture_status_multiplier("Frostbite / Freeze")?,

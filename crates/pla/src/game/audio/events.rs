@@ -286,6 +286,7 @@ pub fn sfx_for_event(e: &GameEvent) -> Option<SfxId> {
             MajorStatus::Burn => SfxId::StatusBurn,
             MajorStatus::Frostbite => SfxId::StatusFrostbite,
             MajorStatus::Paralysis => SfxId::StatusParalysis,
+            MajorStatus::BadlyPoisoned => SfxId::StatusPoison,
         },
         GameEvent::StatRaised => SfxId::StatUp,
         GameEvent::StatLowered => SfxId::StatDown,

@@ -235,6 +235,11 @@ impl Battle {
 
     /// Leaving the field drops volatile conditions and any trap involving the combatant.
     pub(super) fn clear_volatile_on_leave(&mut self, i: usize) {
+        // PROBABLE (series rule; the game's switch flow is UNKNOWN): the badly-poisoned
+        // counter restarts when the combatant leaves the field.
+        if rules::TOXIC_COUNTER_RESETS_ON_SWITCH && i < self.toxic_counter.len() {
+            self.toxic_counter[i] = 0;
+        }
         if self.status.vol.is_empty() {
             return;
         }
