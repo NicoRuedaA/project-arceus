@@ -176,6 +176,32 @@ impl PokemonAnimSource {
             .map(|stem| asset_server.load::<Gltf>(format!("{stem}_battle.gltf")));
         s
     }
+
+    /// One glTF holding the skin, the textures and every clip (the converted national
+    /// models): the same handle serves as idle, walk and battle, because the loader looks
+    /// clips up by name in each file.
+    pub fn from_single_file(asset_server: &AssetServer, rel: &str) -> Self {
+        let handle = asset_server.load::<Gltf>(rel.to_string());
+        Self {
+            idle: handle.clone(),
+            walk: Some(handle.clone()),
+            battle: Some(handle),
+            root_drop: 0.0,
+        }
+    }
+
+    /// Animation source for a resolved model: the PLA batch layout keeps its
+    /// `_idle`/`_walk`/`_battle` siblings, converted national models are single files.
+    pub fn from_resolved(
+        asset_server: &AssetServer,
+        model: &super::pokemon_resource::ResolvedModel,
+    ) -> Self {
+        if model.single_file {
+            Self::from_single_file(asset_server, &model.rel)
+        } else {
+            Self::from_idle_path_with_battle(asset_server, &model.rel)
+        }
+    }
 }
 
 /// Marks that the scene child has been spawned.

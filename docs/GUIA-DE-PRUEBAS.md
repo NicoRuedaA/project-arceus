@@ -122,6 +122,8 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 | `--player-variant p1\|p2` | Elige el modelo del protagonista (p1 por defecto). |
 | `--debug-view LISTA` | **Nuevo.** Enciende ya (sin pulsar teclas) una o varias vistas de depuración, para capturas automáticas: `collisions` (= encima), `collisions=only`, `models` (= sin textura), `wireframe` (= alambre), `data` (= jugador), `markers` (= marcas) y `off`. Se pueden combinar con comas: `--debug-view collisions=only,wireframe`. Ver 2.18. |
 | `--cell-size`, `--vertical-scale` | Cambian la escala del terreno. No hace falta tocarlas. |
+| `--spawn-species N[:forma]` | **Nuevo.** Pone delante de ti el modelo de la especie nacional N (forma opcional, por ejemplo `--spawn-species 911` o `6:1`). Si el juego tiene su propio modelo (las 242 especies de Leyendas: Arceus) usa ese; si no, usa el modelo convertido de tu carpeta. Sale un cartel arriba con lo que se ha puesto. Ver 2.19. |
+| `--spawn-clip idle\|attack\|special\|hit\|faint\|appear\|walk` | **Nuevo.** Con `--spawn-species`: pide ese clip al modelo colocado (por defecto, su idle). `--spawn-cycle S` lo repite cada S segundos para poder hacer una captura. Ver 2.19. |
 
 Las opciones `--headless`, `--auto-demo`, `--script`, `--screenshot`, `--ticks`, `--verify-views`
 son para pruebas automáticas sin ventana. **No las uses para jugar.**
@@ -722,6 +724,24 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     Para capturas automáticas (sin ventana) se puede arrancar ya con un modo encendido:
     `.tools/gamectl.py start -- --area 0 --debug-view collisions=only` (y `markers`, `wireframe`...),
     o pulsar las teclas de verdad con `.tools/gamectl.py key F1`.
+
+### 2.19 Modelos de la Pokédex nacional (`--spawn-species`)  [EN RAMA feat/nacional-modelos]
+
+78. **Qué es.** Colocar en el mundo, delante de ti, el modelo 3D de cualquier especie nacional
+    (1.025) usando tu carpeta de modelos convertida. Arranca con
+    `./play.sh --spawn-species 911` (Skeledirge) y mira hacia atrás: el modelo aparece a unos
+    metros detrás de la cámara (por defecto `--spawn-dist 4`; usa un número negativo, por
+    ejemplo `--spawn-dist -6`, para que quede delante de la cámara en el arranque).
+
+    - **Qué deberías ver:** el Pokémon con sus colores reales (no gris), respirando (clip idle)
+      y con el cartel «nacional: #911 forma 0 - cache/pokemon_national/...» arriba.
+    - **Animación:** añade `--spawn-clip attack --spawn-cycle 1.5` y verás el ataque repetirse
+      cada segundo y medio (también valen `special`, `hit`, `faint`, `appear`, `walk`).
+    - **Si el modelo no aparece:** el aviso dirá «nacional: sin modelo para #N:forma»; esa
+      especie aún no está emparejada en `data/national/model_map.tsv` (ver el informe
+      `reports/data-progress/national_models.md`).
+    - **Ojo:** los modelos convertidos pesan 8-16 MB cada uno y viven en `work/cache/`
+      (no van al repositorio). Si borras la caché, la bandera avisa y no coloca nada.
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 

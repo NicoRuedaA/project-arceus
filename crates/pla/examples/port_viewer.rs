@@ -1097,6 +1097,11 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
         ));
     }
     app.add_plugins(pla::game::pokemon_anim::PokemonAnimPlugin);
+    // Debug help: `--spawn-species N[:forma]` puts one national species in front of the player
+    // (converted user models included); see crates/pla/src/game/national_spawn.rs.
+    if let Some(spec) = pla::game::national_spawn::NationalSpawnSpec::from_args(&cli_args) {
+        app.add_plugins(pla::game::national_spawn::NationalSpawnPlugin { spec });
+    }
     app.add_plugins(pla::game::battle_anim::BattleAnimPlugin);
     app.add_plugins(pla::game::evolution_fx::EvolutionFxPlugin);
     app.add_plugins(pla::game::player_anim::PlayerAnimPlugin);

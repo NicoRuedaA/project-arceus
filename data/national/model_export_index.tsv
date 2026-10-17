@@ -1,0 +1,12 @@
+# sheet: data/national/model_export_index
+# version: 1
+# generator: .tools/build_national_export_index.py
+# target: converted national models under work/cache/pokemon_national (git-ignored)
+# status: ok = gltf+bin present and readable; incomplete = missing buffer/clips
+pack:string*	path:string	size_bytes:u64	bones:u16	clips:u16	textures:u16	status:enum	note:string?
+pm0006_00_00	cache/pokemon_national/pm0006_00_00/pm0006_00_00.gltf	14908015	130	58	7	ok	
+pm0006_51_00	cache/pokemon_national/pm0006_51_00/pm0006_51_00.gltf	10786281	131	40	8	ok	
+pm0026_00_11	cache/pokemon_national/pm0026_00_11/pm0026_00_11.gltf	16282828	155	57	9	ok	
+pm0445_00_00	cache/pokemon_national/pm0445_00_00/pm0445_00_00.gltf	12527141	126	57	5	ok	
+pm0841_00_00	cache/pokemon_national/pm0841_00_00/pm0841_00_00.gltf	7729605	76	46	5	ok	
+pm1015_00_00	cache/pokemon_national/pm1015_00_00/pm1015_00_00.gltf	16258343	137	54	8	ok	
