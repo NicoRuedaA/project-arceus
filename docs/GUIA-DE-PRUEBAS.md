@@ -692,8 +692,9 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     disparador y círculo de alcance), **naranja** riscos trepables, **azul** agua, **lima** puntos
     de aparición de salvajes (y punto de reaparición seguro), **magenta** objetos del suelo
     recogibles, **blanco** PNJ, **rojo** Pokémon salvajes con su radio de enfado. En F1:
-    **cian** muros de edificios/rocas, **verde** navegación caminable, **rojo oscuro** navegación
-    NO caminable (dibujada por muestreo cada 8 m), **gris oscuro** suelos y tejados de colisión.
+    **cian** muros de edificios/rocas, **verde** navegación caminable, **rojo** navegación
+    NO caminable (dibujada por muestreo cada 8 m), **gris** suelos y tejados de colisión. En el
+    modo F1 «solo» el fondo de la pantalla es **casi negro** (en lugar del cielo) para que se vean bien las líneas.
 
     Qué hacer y qué deberías ver: camina por la aldea (zona 0) y por el bosque (zona 1) con cada
     modo. **Es un fallo** que al apagarlo todo quede algo raro: un modelo sin textura que no
