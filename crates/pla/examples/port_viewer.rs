@@ -137,6 +137,11 @@ struct Reticle;
 #[derive(Component)]
 struct AimHint;
 
+/// Contextual climb prompt (bottom-centre, own node like `AimHint`, so both `--ui` modes
+/// show it): visible while a climbable is in reach or while climbing (task trepar2).
+#[derive(Component)]
+struct ClimbHint;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CameraMode {
     OrbitDefault = 0,
@@ -1133,6 +1138,8 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::input_map::InputMapPlugin);
     // Ride Pokémon (Brief 38): mount/dismount (V, gamepad Select), cycle (G), decoded speeds.
     app.add_plugins(pla::game::ride::RidePlugin);
+    // On-screen control hints: the mount's keys after summoning, "Trepar" near a cliff.
+    app.add_plugins(pla::game::ride_hints::RideHintsPlugin);
     app.add_plugins(pla::game::player_motion::PlayerMotionPlugin);
     app.add_plugins(pla::game::player_skills::PlayerSkillsPlugin);
     app.add_plugins(pla::game::blink::BlinkPlugin);
@@ -1216,7 +1223,10 @@ fn show_flag_warnings(mut toast: ResMut<pla::game::save_wire::SaveToast>) {
 fn add_viewer_systems(app: &mut App) {
     app.add_systems(Update, apply_safe_spawn_request);
     app.add_systems(PostStartup, show_flag_warnings);
-    app.add_systems(Startup, (setup_scene, setup_game_ui, spawn_aim_hint));
+    app.add_systems(
+        Startup,
+        (setup_scene, setup_game_ui, spawn_aim_hint, spawn_climb_hint),
+    );
     app.add_systems(
         Update,
         (
@@ -1268,6 +1278,8 @@ fn add_viewer_systems(app: &mut App) {
         Update,
         bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
     );
+    // The climb prompt manages its own visibility (world + not paused), like `update_aim_hud`.
+    app.add_systems(Update, update_climb_hint);
     // The customize camera override also needs its own registration (20-system limit) but must
     // land between the camera input and the transform update of the chain above.
     app.add_systems(
@@ -2280,6 +2292,17 @@ fn apply_safe_spawn_request(
 /// uses navmesh collision to block cliffs/water with smooth sliding, and samples surface height.
 /// Movement comes from [`ActionState`] (WASD/arrows or the gamepad left stick); the stick keeps
 /// its deflected magnitude so a half-pushed stick walks slower.
+/// Per-frame state [`player_locomotion`] keeps between frames (one `Local`, kept in a single
+/// parameter because the system sits at Bevy's 16-parameter limit): the anti-stuck tracker and
+/// the navmesh-slide memory (last accepted slide step and last input delta) of the 60 Hz
+/// vibration guard.
+#[derive(Default)]
+struct LocomotionMemory {
+    stuck: pla::game::spawn_point::StuckTracker,
+    last_slide_step: Option<Vec2>,
+    last_slide_input: Option<Vec2>,
+}
+
 fn player_locomotion(
     time: Res<Time>,
     input: Res<ActionState>,
@@ -2289,7 +2312,7 @@ fn player_locomotion(
     wall_collision: Option<Res<pla::game::world_collision::WorldCollision>>,
     water_bodies: Option<Res<WaterBodies>>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
-    mut stuck: Local<pla::game::spawn_point::StuckTracker>,
+    mut mem: Local<LocomotionMemory>,
     mut ledge_drop: Local<Option<pla::game::ledge::LedgeDrop>>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
     motion_query: Query<&pla::game::player_motion::PlayerMotionState, With<PlayerAvatar>>,
@@ -2368,10 +2391,13 @@ fn player_locomotion(
         let speed = if dodge.is_some() {
             pla::game::player_skills::roll_speed()
         } else if let Some(ground) = mounted_speed {
-            // A mounted glider keeps its decoded fly speed in the air; the ground mounts
-            // keep their decoded speed too (no separate air tier is decoded).
+            // A mounted glider keeps its decoded fly speed in the air (and swoops at the
+            // decoded swoop speed while sprinting); the ground mounts keep their decoded
+            // speed too (no separate air tier is decoded).
             if motion_mode == MotionMode::Airborne {
-                ride.as_ref().and_then(|r| r.air_speed()).unwrap_or(ground)
+                ride.as_ref()
+                    .and_then(|r| r.air_speed_input(is_sprinting))
+                    .unwrap_or(ground)
             } else {
                 ground
             }
@@ -2395,23 +2421,43 @@ fn player_locomotion(
         let current_xz = Vec2::new(transform.translation.x, transform.translation.z);
         let target_xz = current_xz + delta_xz;
 
-        // Stepping into water deep enough to swim bypasses the navmesh: the river edge is not a
-        // walkable face, so a walker could otherwise never reach the water at all (ASSUMED: the
-        // game's own rule for entering water is not decoded). The surface must sit on the ground
-        // (see water::SWIM_MAX_GROUND_OFFSET): the placed water planes are flat sheets and some
-        // float far above the terrain.
-        let water_entry = water_bodies
+        // Stepping into a water body bypasses the navmesh (the water edges are not walkable
+        // faces): the original game crosses shallow rivers and marsh freely and only swims when
+        // deep (chest rule, water::step_swim). Three readings, in order:
+        // * the surface sits on the ground under the target (|level - ground| <= 3 m, the
+        //   floating-sheet filter of water::SWIM_MAX_GROUND_OFFSET): the avatar wades/walks the
+        //   bed and swims once the bed drops below SWIM_ENTER_DEPTH;
+        // * walking off a low bank (measured 2026-10-16 at a Mirelands shore: surface 0.5 m below
+        //   the feet): the surface sits below the avatar within the step cap;
+        // * the navmesh blocks but the water level near the target is coherent with the feet.
+        let near_level = water_bodies
             .as_ref()
-            .and_then(|w| w.level_near(target_xz, 0.5))
-            .is_some_and(|level| {
-                terrain_res
-                    .as_ref()
-                    .and_then(|t| t.area.sample_world_height(target_xz.x, target_xz.y))
-                    .is_some_and(|ground| {
-                        (level - ground).abs() <= pla::game::water::SWIM_MAX_GROUND_OFFSET
-                            && level - ground > SWIM_ENTER_DEPTH
-                    })
-            });
+            .and_then(|w| w.level_near(target_xz, 0.5));
+        let stand_y = transform.translation.y - 0.9;
+        let water_entry = near_level.is_some_and(|level| {
+            let ground = terrain_res
+                .as_ref()
+                .and_then(|t| t.area.sample_world_height(target_xz.x, target_xz.y));
+            // Surface sits on the ground under the target (floating-sheet filter).
+            let under = ground
+                .is_some_and(|ground| (level - ground).abs() <= pla::game::water::SWIM_MAX_GROUND_OFFSET);
+            // No terrain data at the target (measured at a Mirelands shore edge): the surface is
+            // level with the feet or below within the step cap. A surface above the feet by more
+            // than a wade is refused (a decorative sheet over missing terrain).
+            let feet = stand_y - level > -0.3
+                && stand_y - level <= pla::game::water::SWIM_MAX_GROUND_OFFSET;
+            under || feet
+        });
+        // An avatar already swimming keeps the free-water rule: deep water has no navmesh faces,
+        // so pushing the swimmer through `try_move_with_slide` pinned it in place (the mount
+        // "would not swim": measured 0.9 m/s instead of the decoded 8-11). The shore still works:
+        // a target back on land is walkable, and the wall push-out below always applies.
+        let free_swim = was_swimming || water_entry;
+        // An avatar in the air is not on the navmesh either: the walkable-face constraint must
+        // not drag a jumper or a flying mount back (measured: the Braviary swoop at the decoded
+        // 16 m/s was cancelled frame by frame by `escape_step`). A ledge drop in progress keeps
+        // its corridor (it is the landing aid of the walked-off-a-cliff case).
+        let free_air = motion_mode == MotionMode::Airborne && ledge_drop.is_none();
 
         // Walking off a ledge (game::ledge): a drop already in progress keeps the player in
         // its corridor until it stands on the navmesh again; a new move off the walkable edge
@@ -2426,7 +2472,7 @@ fn player_locomotion(
         }
         let ledge_start = match (&navmesh_res, *ledge_drop) {
             (Some(nav), None)
-                if !water_entry
+                if !free_swim
                     && dodge.is_none()
                     && motion_mode == MotionMode::Grounded
                     && !nav.is_walkable(target_xz.x, target_xz.y) =>
@@ -2466,7 +2512,7 @@ fn player_locomotion(
         }
 
         // Apply navmesh collision sliding if real navmesh is loaded
-        let final_xz = if water_entry {
+        let final_xz = if free_swim || free_air {
             target_xz
         } else if let (Some(d), Some(nav)) = (ledge_drop.as_ref(), navmesh_res.as_ref()) {
             pla::game::ledge::drop_move(d, current_xz, target_xz, |p| nav.is_walkable(p.x, p.y))
@@ -2482,12 +2528,42 @@ fn player_locomotion(
             });
             // Boxed in on all 8 sides for > 1 s with input held: back to the safe spawn.
             let boxed = escape.is_none() && sp::boxed_in(current_xz, 0.3, walk);
-            match (stuck.update(dt, true, boxed), safe.as_ref()) {
+            match (mem.stuck.update(dt, true, boxed), safe.as_ref()) {
                 (true, Some(s)) => {
                     toast.show("Stuck: moved back to the safe spawn.");
                     s.0
                 }
-                _ => escape.unwrap_or_else(|| nav.try_move_with_slide(current_xz, delta_xz)),
+                _ => match escape {
+                    Some(e) => e,
+                    None => {
+                        let slid = nav.try_move_with_slide(current_xz, delta_xz);
+                        let step = slid - current_xz;
+                        // 60 Hz vibration guard (user report: the mount "pins" against walls
+                        // instead of sliding). The nav slide tries the move rotated by
+                        // +-30/60/90 deg and takes the first walkable candidate, so at a wall
+                        // whose side candidates are walkable it picks east one frame and west
+                        // the next: measured +-0.14 m / frame holding W at a navmesh edge
+                        // (user report "pinzada", 2026-10-16). When the step exactly reverses
+                        // the previous frame's slide under the same input direction it is
+                        // undoing progress: hold still instead of vibrating.
+                        let same_input = mem.last_slide_input.as_ref().is_some_and(|d| {
+                            d.length_squared() > 1e-8
+                                && d.dot(delta_xz) > d.length() * delta_xz.length() * 0.999
+                        });
+                        let reverses = mem.last_slide_step
+                            .as_ref()
+                            .is_some_and(|p| step.length() > 1e-6 && (step + *p).length() < 0.02);
+                        mem.last_slide_input = Some(delta_xz);
+                        if same_input && reverses {
+                            current_xz
+                        } else {
+                            if step.length() > 1e-6 {
+                                mem.last_slide_step = Some(step);
+                            }
+                            slid
+                        }
+                    }
+                },
             }
         } else {
             current_xz + delta_xz
@@ -2510,7 +2586,7 @@ fn player_locomotion(
             );
         }
     } else {
-        stuck.blocked_secs = 0.0;
+        mem.stuck.blocked_secs = 0.0;
     }
 
     // Keep player avatar on the real terrain or navmesh surface
@@ -2528,13 +2604,25 @@ fn player_locomotion(
     if motion_mode == MotionMode::Grounded {
         if let Some(surface_y) = nav_h.or(terrain_h) {
             // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
+            // The 3 m ground offset only gates ENTERING a body (it filters the flat planes that
+            // float far above the terrain); an avatar already swimming stays attached to the
+            // water rectangle itself, so deep water (bed > 3 m down) does not flip the state
+            // Grounded/Swimming every frame and pin the swimmer in place.
+            let pos_xz = Vec2::new(transform.translation.x, transform.translation.z);
+            let swimming_already = swim_query
+                .single()
+                .is_ok_and(|s| s.state == SwimState::Swimming);
             let level = water_bodies.as_ref().and_then(|w| {
-                pla::game::water::grounded_level_at(
-                    w,
-                    Vec2::new(transform.translation.x, transform.translation.z),
-                    surface_y,
-                    pla::game::water::SWIM_MAX_GROUND_OFFSET,
-                )
+                if swimming_already {
+                    w.level_at(pos_xz)
+                } else {
+                    pla::game::water::grounded_level_at(
+                        w,
+                        pos_xz,
+                        surface_y,
+                        pla::game::water::SWIM_MAX_GROUND_OFFSET,
+                    )
+                }
             });
             let state = pla::game::water::step_swim(
                 swim_query.single().map(|s| s.state).unwrap_or_default(),
@@ -2699,6 +2787,82 @@ fn spawn_aim_hint(mut commands: Commands) {
             TextColor(Color::srgb(1.0, 0.9, 0.5)),
         )],
     ));
+}
+
+/// The contextual climb prompt node: same bar style as the aim hint, above it.
+fn spawn_climb_hint(mut commands: Commands) {
+    commands.spawn((
+        ClimbHint,
+        Text::new(""),
+        TextFont::from_font_size(18.0),
+        TextColor(Color::srgb(1.0, 0.9, 0.5)),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Percent(50.0),
+            bottom: Val::Px(140.0),
+            margin: UiRect::left(Val::Px(-260.0)),
+            width: Val::Px(520.0),
+            padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.05, 0.08, 0.12, 0.8)),
+        Visibility::Hidden,
+    ));
+}
+
+/// Shows the climb prompt while a climbable is in reach (or while climbing) in the overworld.
+///
+/// The line itself is `game::interact::climb_hint_line`, so the prompt names exactly the keys
+/// the mechanic reads (user-report fix 2026-10-15: the climb existed but was undiscoverable).
+fn update_climb_hint(
+    paused: Res<Paused>,
+    game_state: Res<State<GameState>>,
+    player: Query<
+        (
+            &Transform,
+            Option<&pla::game::player_motion::PlayerMotionState>,
+        ),
+        With<PlayerAvatar>,
+    >,
+    climbables: Query<&pla::game::interact::Climbable>,
+    ride: Option<Res<pla::game::ride::RideState>>,
+    mut hint: Query<(&mut Text, &mut Visibility), With<ClimbHint>>,
+) {
+    use pla::game::interact::{climb_hint_line, nearest_climbable};
+    let Ok((mut text, mut vis)) = hint.single_mut() else {
+        return;
+    };
+    let line = if paused.0 || *game_state.get() != GameState::World {
+        None
+    } else {
+        player.single().ok().and_then(|(tf, motion)| {
+            let climbing = motion.is_some_and(|m| m.climbing());
+            let grounded = motion.is_none_or(|m| {
+                m.mode == pla::game::player_motion::MotionMode::Grounded
+            });
+            let in_reach = grounded
+                && nearest_climbable(
+                    climbables.iter(),
+                    tf.translation,
+                    pla::game::player_motion::GROUND_MARGIN,
+                )
+                .is_some();
+            let sneasler = ride.as_ref().is_some_and(|r| {
+                r.mounted == Some(pla::game::ride::RideKind::Sneasler)
+            });
+            climb_hint_line(climbing, in_reach, sneasler)
+        })
+    };
+    match line {
+        Some(l) => {
+            if text.0 != l {
+                text.0 = l.to_string();
+            }
+            *vis = Visibility::Visible;
+        }
+        None => *vis = Visibility::Hidden,
+    }
 }
 
 /// Cache of the battle camera placement: hit rays against placed objects are expensive, so a

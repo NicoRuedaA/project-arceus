@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 268,
+    "file_count": 269,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -197,7 +197,7 @@
       },
       {
         "path": "crates/pla/examples/npc_export.rs",
-        "sha256": "77d2825eec52e4b2bcffa232fa84d4096f590c97612e8bef91b3e7e51085af7e"
+        "sha256": "69ac39f7ec21d53bdb80839b3b284c25a6c09f56093ff4c3661ffb67b9dc1471"
       },
       {
         "path": "crates/pla/examples/npc_report.rs",
@@ -213,7 +213,7 @@
       },
       {
         "path": "crates/pla/examples/player_export.rs",
-        "sha256": "6c9fd32e3a06e734bcf9a43bcf986a5fc9e8c39066458265cba98e3fc784f311"
+        "sha256": "d7af578b95c229d5e301b0dbae6bbb0f3f4468738f0eedf7b04e03f07f32cc60"
       },
       {
         "path": "crates/pla/examples/pokemon_assemble.rs",
@@ -249,7 +249,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "d6366ef41d915f2376bd215ffae870be40125c4de62760bee32d05bccc75f92e"
+        "sha256": "56b3c4a066660125fd12e19392d0ab0323c7ca6217659c34375f2351a3ccc4b8"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -585,7 +585,7 @@
       },
       {
         "path": "crates/pla/src/game/automation.rs",
-        "sha256": "ba739565309b16f384ae2ceafd40f8bc023e59311e8ee80365ffeb263bfba5b7"
+        "sha256": "0324df84ed4eb7e1ab309feb843ddbd57805a79866b2843d6929a962260ef51e"
       },
       {
         "path": "crates/pla/src/game/bag_screen.rs",
@@ -757,11 +757,11 @@
       },
       {
         "path": "crates/pla/src/game/input_map.rs",
-        "sha256": "0636a589edcc60607f7dc3a6cda0bb5460bee4c0dc3ee9cc2bdf2a9f4ac1ce13"
+        "sha256": "f8e08863b278f1162eb1fced54d0c82b00660733f12fdf70d67accea74290b63"
       },
       {
         "path": "crates/pla/src/game/interact.rs",
-        "sha256": "b494d7ade0036bc74e0ab242d5b0810f4372875940994259ce9b1d3273d3350a"
+        "sha256": "54b8104b202a29a3329b53af5c7559989bcccc05284db12358493cba9b7ae016"
       },
       {
         "path": "crates/pla/src/game/interior.rs",
@@ -785,7 +785,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "9f864f57184016e56fdd576e5826ffe9082532759a90ad4c3aeccfe2d14368bc"
+        "sha256": "e7be446fdde9f71484d1941cef17bf47f44d309acc7811b00df93febf7f0b829"
       },
       {
         "path": "crates/pla/src/game/move_teaching.rs",
@@ -885,11 +885,11 @@
       },
       {
         "path": "crates/pla/src/game/player_anim.rs",
-        "sha256": "8dab08b3873913e37ab3ea4fa173fa0f0b0669d1b84a13c3b1b5ea7014fed549"
+        "sha256": "a13852f5720fdc7c6793bc8ba41d3346f53a3b9fd9d1b76a6c50122b16c56ae7"
       },
       {
         "path": "crates/pla/src/game/player_motion.rs",
-        "sha256": "f19386e4cd7e9fc83015b75300c54e56a6e190c626ac75c9d70b7c36868d593e"
+        "sha256": "6c5e17c0e70ed637419023fa00d64168896dcf3777658bde5a2768b684247cb8"
       },
       {
         "path": "crates/pla/src/game/player_skills.rs",
@@ -917,7 +917,11 @@
       },
       {
         "path": "crates/pla/src/game/ride.rs",
-        "sha256": "e77061049b7986e1207f403fb41a70c4c75aa94d09da038f136ae958132a8463"
+        "sha256": "ad545c9a11c023b1631b43e8539d160ceacf60d28c035a31a42402fd910ec48a"
+      },
+      {
+        "path": "crates/pla/src/game/ride_hints.rs",
+        "sha256": "82b538f058fd2dcc334f012ebc877b3ccc10f7a0a2bc5cb8bade6f3f1fc45364"
       },
       {
         "path": "crates/pla/src/game/save_game.rs",
@@ -1073,7 +1077,7 @@
       },
       {
         "path": "crates/pla/tests/creature_scale.rs",
-        "sha256": "75d5f8378dba4f73f893ca5783497407fdeee325a41e7ea79fbce2957dc13126"
+        "sha256": "9e692d978b0782ae1cad51a9d9c7106cd36233b2d5557356ecea77bdb0affdf6"
       },
       {
         "path": "crates/pla/tests/event.rs",
@@ -1149,7 +1153,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "6f47949acd0e0c760eeafa7f3f268e7c947b45dd04558d0a9632983162989b44"
+    "sha256": "b156ed3f1cae6536aff1b86a0d7a87d8bd324ea040e8041ef92830f7bcd6d3d9"
   },
   "state_partitions": {
     "analysis_documentation_status": {

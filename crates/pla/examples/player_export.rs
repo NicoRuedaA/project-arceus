@@ -59,6 +59,22 @@ const CLIPS: &[(&str, &str)] = &[
     ("02105_sqwalk01_loop", "crouch_walk"),
     ("02033_sqwait01_l_start", "crouch_start"),
     ("02034_sqwait01_l_end", "crouch_end"),
+    // Brief 38 follow-up (feat/monturas2): the mounted-rider pose while a ride Pokémon is
+    // active. Names are exact `.tranm` names from the pack's animation controller dump
+    // (`work/cache/player/dump/pc/0006.bin`); the controller groups them under the mount's
+    // own blend set (`ods_*` Wyrdeer, `hmg_*` Ursaluna, `bsr_*` Basculegion, `wgl_*`
+    // Braviary; the lone `03602_wait01_loop` is the fifth set, read as Sneasler: PROBABLE).
+    // Idle = the seated wait; move = the mount's run/walk loop (the rider's gait).
+    ("03001_wait01_loop", "ride_wyrdeer_idle"),
+    ("03021_run01_loop", "ride_wyrdeer_move"),
+    ("03202_wait01_loop", "ride_ursaluna_idle"),
+    ("03221_run01_loop", "ride_ursaluna_move"),
+    ("03402_wait01_loop", "ride_basculegion_idle"),
+    ("03421_run01_loop", "ride_basculegion_move"),
+    ("03602_wait01_loop", "ride_sneasler_idle"),
+    ("03801_wait01_loop", "ride_braviary_idle"),
+    // Braviary has no ground gait in the set (it flies): `walk01` is its airborne loop.
+    ("03811_walk01_loop", "ride_braviary_move"),
 ];
 
 fn category_dir(stem: &str) -> Result<&'static str, String> {

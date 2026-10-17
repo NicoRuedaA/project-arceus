@@ -80,9 +80,28 @@ pub const CAMERA_BONUS: f32 = 3.0;
 /// Braviary glide: horizontal speed (m/s), decoded `main_max_move_speed` = 9.5.
 pub const GLIDE_SPEED: f32 = 9.5;
 
+/// Braviary swoop (sprint held while flying): horizontal speed (m/s), decoded
+/// `swoop_max_move_speed` = 16 (VERIFIED number; when the game enters the swoop is PROBABLE).
+pub const SWOOP_SPEED: f32 = 16.0;
+
+/// Braviary swoop: fall-speed cap (m/s) while sprinting airborne, so the dive gains height
+/// instead of floating down at the glide cap. SUPUESTO (no decoded unit for the swoop fall
+/// speed); the glide cap itself is also SUPUESTO.
+pub const SWOOP_FALL_CAP: f32 = 12.0;
+
 /// Braviary glide: fall-speed cap (m/s). SUPUESTO: the decoded `main_max_fall_speed` = 0.2
 /// (unit unknown, possibly a per-frame value); the port picks a playable 2.0 m/s.
 pub const GLIDE_FALL_CAP: f32 = 2.0;
+
+/// Braviary flap (jump pressed while airborne): upward speed (m/s). The decoded
+/// `control_firstJumpPower` of whooguru is 4 and the fly-speed rates
+/// (`first_fly_move_speed_rate` 2, `plus_first_fly_move_speed_rate` 3.5) do not resolve to a
+/// speed, so the port reuses the jump power (PROBABLE reading).
+pub const FLAP_SPEED: f32 = 4.0;
+
+/// Ursaluna search/dig: seconds the search animates before the result. The decoded
+/// `dig_not_found_wait_frame_min/max` = 25 (frames of a 30 Hz tick -> 0.83 s, PROBABLE).
+pub const DIG_SEARCH_TIME: f32 = 25.0 / 30.0;
 
 // ------------------------------------------------------------------ kinds and params
 
@@ -235,6 +254,31 @@ impl RideKind {
             RideKind::Braviary => "pm0628_00_41",
         }
     }
+
+    /// Jump take-off speed (m/s) with the mount ridden: the decoded `control_firstJumpPower`
+    /// of the mount's config (VERIFIED numbers; reading them as an initial vertical speed is
+    /// PROBABLE, the unit is unproven). Wyrdeer 9, Basculegion 8, Sneasler 6.5, Ursaluna 4,
+    /// Braviary 4.
+    pub fn jump_speed(self) -> f32 {
+        match self {
+            RideKind::Wyrdeer => 9.0,
+            RideKind::Basculegion => 8.0,
+            RideKind::Sneasler => 6.5,
+            RideKind::Ursaluna => 4.0,
+            RideKind::Braviary => 4.0,
+        }
+    }
+
+    /// Upward speed of a flap (jump pressed while airborne) for a flying mount; `None` for
+    /// the ground/water mounts (their air jump does nothing).
+    pub fn flap_speed(self) -> Option<f32> {
+        (self.params().domain == RideDomain::Air).then_some(FLAP_SPEED)
+    }
+
+    /// Whether this mount has the search/dig ability (Ursaluna, decoded `dig_*` parameters).
+    pub fn can_dig(self) -> bool {
+        self == RideKind::Ursaluna
+    }
 }
 
 // ------------------------------------------------------------------ pure kinematics
@@ -383,6 +427,9 @@ pub struct RideState {
     pub transition: f32,
     /// Direction of the current transition: +1 mounting, -1 dismounting, 0 settled.
     pub transition_dir: f32,
+    /// Seconds left of an Ursaluna search/dig ([`Action::RideAbility`]); 0 when not digging.
+    /// While it runs the mount stands still (the original stops to dig: PROBABLE).
+    pub dig_timer: f32,
 }
 
 impl Default for RideState {
@@ -393,6 +440,7 @@ impl Default for RideState {
             stamina: STAMINA_MAX,
             transition: 0.0,
             transition_dir: 0.0,
+            dig_timer: 0.0,
         }
     }
 }
@@ -403,21 +451,63 @@ impl RideState {
         self.mounted.is_some()
     }
 
-    /// Speed for this frame's input (see [`mounted_speed`]); `None` on foot.
+    /// Speed for this frame's input (see [`mounted_speed`]); `None` on foot. Standing still
+    /// while an Ursaluna search/dig runs.
     pub fn mounted_speed(&self, input: f32, sprint: bool) -> Option<f32> {
+        if self.dig_timer > 0.0 && self.mounted.is_some() {
+            return Some(0.0);
+        }
         mounted_speed(self.mounted, self.stamina, input, sprint)
     }
 
     /// Glide horizontal speed while in the air on a flyer; `None` otherwise.
     pub fn air_speed(&self) -> Option<f32> {
-        self.mounted.and_then(glide_speed)
+        self.air_speed_input(false)
     }
 
-    /// Fall-speed cap while mounted on a flyer.
-    pub fn fall_cap(&self) -> Option<f32> {
+    /// Horizontal speed in the air with the sprint input: a flyer swoops at the decoded
+    /// `swoop_max_move_speed` while sprinting, glides at `main_max_move_speed` otherwise.
+    pub fn air_speed_input(&self, sprint: bool) -> Option<f32> {
+        self.mounted.and_then(|k| {
+            glide_speed(k).map(|glide| if sprint { SWOOP_SPEED } else { glide })
+        })
+    }
+
+    /// Fall-speed cap while mounted on a flyer: the swoop cap while sprinting (dive), the
+    /// glide cap otherwise.
+    pub fn fall_cap_input(&self, sprint: bool) -> Option<f32> {
         self.mounted
             .filter(|k| k.params().domain == RideDomain::Air)
-            .map(|_| GLIDE_FALL_CAP)
+            .map(|_| if sprint { SWOOP_FALL_CAP } else { GLIDE_FALL_CAP })
+    }
+
+    /// Fall-speed cap while mounted on a flyer (glide tier).
+    pub fn fall_cap(&self) -> Option<f32> {
+        self.fall_cap_input(false)
+    }
+
+    /// True while an Ursaluna search/dig runs.
+    pub fn digging(&self) -> bool {
+        self.dig_timer > 0.0
+    }
+
+    /// Starts an Ursaluna search when the mount can dig; returns `true` when it started.
+    pub fn begin_dig(&mut self) -> bool {
+        if self.mounted.is_some_and(|k| k.can_dig()) && self.dig_timer <= 0.0 {
+            self.dig_timer = DIG_SEARCH_TIME;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Advances the dig timer; returns `true` on the frame the search finishes.
+    pub fn step_dig(&mut self, dt: f32) -> bool {
+        if self.dig_timer <= 0.0 {
+            return false;
+        }
+        self.dig_timer = (self.dig_timer - dt).max(0.0);
+        self.dig_timer == 0.0
     }
 
     /// Camera pull-back in metres, eased by the mount/dismount transition (`INOUT_SINE`,
@@ -486,22 +576,68 @@ pub fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// Reads the ride keys, toggling / cycling the mount, advancing the transition and draining
-/// stamina from the speed the avatar really moved at this frame.
+/// Controls line of a mount, the single source of the on-screen ride help (the persistent
+/// hint line of `ride_hints` shows it after mounting). Every line carries the label, the run
+/// key, the ability key of the mount and the change/dismount keys.
+///
+/// Separators are `|`, not the middle dot or em dash: the default UI font has no glyph for
+/// those and they render as boxes (seen in the automation captures).
+pub fn mount_controls_line(kind: RideKind) -> String {
+    match kind {
+        RideKind::Wyrdeer => {
+            "Wyrdeer - Correr: Shift | Cambiar montura: G | Desmontar: V".to_string()
+        }
+        RideKind::Ursaluna => {
+            "Ursaluna - Correr: Shift | Buscar/cavar: H | Cambiar montura: G | Desmontar: V"
+                .to_string()
+        }
+        RideKind::Basculegion => {
+            "Basculegion - Nada rapido en el agua | Correr: Shift | Cambiar montura: G | Desmontar: V"
+                .to_string()
+        }
+        RideKind::Sneasler => {
+            "Sneasler - Correr: Shift | Trepar: camina contra una pared | Cambiar montura: G | Desmontar: V"
+                .to_string()
+        }
+        RideKind::Braviary => {
+            "Braviary - Salta con K: puedes planear | Picado: Shift en el aire | Cambiar montura: G | Desmontar: V"
+                .to_string()
+        }
+    }
+}
+
+/// Reads the ride keys, toggling / cycling the mount, running the ability, advancing the
+/// transition and draining stamina from the speed the avatar really moved at this frame.
 fn ride_input(
     time: Res<Time>,
     input: Res<ActionState>,
     avatar: Query<&Transform, With<PlayerAvatar>>,
     mut ride: ResMut<RideState>,
+    mut toast: Option<ResMut<super::save_wire::SaveToast>>,
     mut last_position: Local<Option<Vec3>>,
 ) {
     if input.just_pressed(Action::Ride) {
         ride.toggle();
+        // No toast here: the persistent on-screen controls line of `ride_hints` shows
+        // `mount_controls_line` on every mount change (it replaced the 8 s toast of the
+        // climb-discoverability fix so the keys are not shown twice at once).
     }
     if input.just_pressed(Action::RideCycle) {
         ride.cycle();
     }
     let dt = time.delta_secs();
+    // Ursaluna's search/dig (its ride ability). The loot tables are not decoded, so the
+    // result is always "nothing found" until they are: the toast says so.
+    if input.just_pressed(Action::RideAbility) && ride.begin_dig() {
+        if let Some(t) = toast.as_deref_mut() {
+            t.show("Ursaluna cava buscando algo bajo tierra...");
+        }
+    }
+    if ride.step_dig(dt) {
+        if let Some(t) = toast.as_deref_mut() {
+            t.show("Ursaluna no encuentra nada (objetos enterrados sin decodificar).");
+        }
+    }
     ride.step_transition(dt);
 
     // Measured planar speed of the avatar; a long step is a teleport (zone change, save
@@ -538,6 +674,7 @@ fn sync_mount_view(
     mut commands: Commands,
     asset_server: Option<Res<AssetServer>>,
     ride: Res<RideState>,
+    input: Res<ActionState>,
     avatar: Query<Entity, With<PlayerAvatar>>,
     views: Query<(Entity, &RideMountView)>,
     (mut scenes, glide): MountViewQueries,
@@ -588,7 +725,8 @@ fn sync_mount_view(
         }
     }
     // Glide marker on the avatar (flyers only), inserted and removed only when it changes.
-    match ride.fall_cap() {
+    // Sprinting while airborne swoops: the cap rises so the dive actually descends.
+    match ride.fall_cap_input(input.pressed(Action::Sprint)) {
         Some(cap) if glide.is_empty() => {
             commands.entity(avatar_e).insert(GlideMount { fall_cap: cap });
         }
@@ -607,6 +745,11 @@ fn sync_mount_view(
     }
 }
 
+/// Systems of [`RidePlugin`] (mount input, then view sync). Other modules that must see the
+/// ride state of the current frame (the HUD hints) order `.after(RideSystems)`.
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RideSystems;
+
 /// Registers the ride systems. Add with `app.add_plugins(RidePlugin)`.
 pub struct RidePlugin;
 
@@ -617,6 +760,7 @@ impl Plugin for RidePlugin {
             Update,
             (ride_input, sync_mount_view)
                 .chain()
+                .in_set(RideSystems)
                 .run_if(in_state(GameState::World))
                 .run_if(not_paused),
         );
@@ -752,6 +896,50 @@ mod tests {
     }
 
     #[test]
+    fn the_flyer_swoops_while_sprinting() {
+        let st = RideState { mounted: Some(RideKind::Braviary), ..default() };
+        assert_eq!(st.air_speed_input(false), Some(GLIDE_SPEED));
+        assert_eq!(st.air_speed_input(true), Some(SWOOP_SPEED));
+        assert_eq!(st.fall_cap_input(false), Some(GLIDE_FALL_CAP));
+        assert_eq!(st.fall_cap_input(true), Some(SWOOP_FALL_CAP));
+        // Ground mounts have no air tier whichever the input.
+        let st = RideState { mounted: Some(RideKind::Wyrdeer), ..default() };
+        assert_eq!(st.air_speed_input(true), None);
+        assert_eq!(st.fall_cap_input(true), None);
+    }
+
+    #[test]
+    fn jump_speeds_are_the_decoded_first_jump_powers() {
+        assert_eq!(RideKind::Wyrdeer.jump_speed(), 9.0);
+        assert_eq!(RideKind::Basculegion.jump_speed(), 8.0);
+        assert_eq!(RideKind::Sneasler.jump_speed(), 6.5);
+        assert_eq!(RideKind::Ursaluna.jump_speed(), 4.0);
+        assert_eq!(RideKind::Braviary.jump_speed(), 4.0);
+        // Every mount jumps higher than the on-foot avatar (3.25 m/s).
+        for kind in RideKind::ALL {
+            assert!(kind.jump_speed() > 3.25, "{kind:?}");
+        }
+        // Only the flyer flaps.
+        assert_eq!(RideKind::Braviary.flap_speed(), Some(FLAP_SPEED));
+        assert_eq!(RideKind::Wyrdeer.flap_speed(), None);
+        assert_eq!(RideKind::Basculegion.flap_speed(), None);
+    }
+
+    #[test]
+    fn only_ursaluna_digs_and_the_mount_stands_while_digging() {
+        let mut st = RideState { mounted: Some(RideKind::Wyrdeer), ..default() };
+        assert!(!st.begin_dig(), "Wyrdeer has no dig");
+        st.mounted = Some(RideKind::Ursaluna);
+        assert!(st.begin_dig());
+        assert!(st.digging());
+        assert_eq!(st.mounted_speed(1.0, true), Some(0.0), "stands while digging");
+        // Two seconds later the search finishes (0.83 s) and movement resumes.
+        assert!(st.step_dig(2.0));
+        assert!(!st.digging());
+        assert_eq!(st.mounted_speed(1.0, false), Some(5.0));
+    }
+
+    #[test]
     fn headless_plugin_mounts_dismounts_and_seats_the_rider() {
         use crate::game::input_map::{actions, RawInput};
         use bevy::state::app::StatesPlugin;
@@ -825,6 +1013,24 @@ mod tests {
             (seat_y + AVATAR_ROOT_ABOVE_GROUND).abs() < 1e-3,
             "seat {seat_y}"
         );
+    }
+
+    #[test]
+    fn mount_controls_line_names_the_keys_of_each_mount() {
+        // Sneasler: the climb is the ability (user-report fix 2026-10-15).
+        let sneasler = mount_controls_line(RideKind::Sneasler);
+        assert!(sneasler.contains("Sneasler"), "{sneasler}");
+        assert!(sneasler.contains("Trepar"), "{sneasler}");
+        assert!(sneasler.contains("V"), "{sneasler}");
+        // Braviary: the glide is the ability.
+        let braviary = mount_controls_line(RideKind::Braviary);
+        assert!(braviary.contains("planear"), "{braviary}");
+        // Ground mounts keep the run/jump/dismount line.
+        assert!(mount_controls_line(RideKind::Wyrdeer).contains("Shift"));
+        assert!(mount_controls_line(RideKind::Ursaluna).contains("Desmontar: V"));
+        // The ability key of each mount rides its own line (Brief 38 follow-up).
+        assert!(mount_controls_line(RideKind::Ursaluna).contains("H"), "dig key");
+        assert!(mount_controls_line(RideKind::Braviary).contains("aire"), "flap/swoop");
     }
 
     #[test]

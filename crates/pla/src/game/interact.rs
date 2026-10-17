@@ -76,9 +76,19 @@ pub enum ClimbBoundary {
 /// Horizontal distance to the base at most `radius`, and `p.y` inside the climbable span
 /// widened by `vertical_slack` (so a jump that grazes the top can still grab it).
 pub fn in_reach(c: &Climbable, p: Vec3, vertical_slack: f32) -> bool {
+    in_reach_within(c, p, vertical_slack, c.radius)
+}
+
+/// [`in_reach`] with an explicit horizontal cap: at most `max_horizontal` from the base
+/// (never more than the surface's own `radius`) and the same vertical span.
+///
+/// The approach grab (`game::player_motion`) uses a short cap so crossing the wider interact
+/// radius on foot does not pull the avatar while simply walking past.
+pub fn in_reach_within(c: &Climbable, p: Vec3, vertical_slack: f32, max_horizontal: f32) -> bool {
+    let reach = max_horizontal.min(c.radius);
     let dx = p.x - c.bottom.x;
     let dz = p.z - c.bottom.z;
-    if dx * dx + dz * dz > c.radius * c.radius {
+    if dx * dx + dz * dz > reach * reach {
         return false;
     }
     let (low, high) = c.root_range();
@@ -93,6 +103,74 @@ pub fn nearest_climbable<'a>(
 ) -> Option<&'a Climbable> {
     climbables
         .filter(|c| in_reach(c, p, vertical_slack))
+        .min_by(|a, b| {
+            let da = (a.bottom.x - p.x).powi(2) + (a.bottom.z - p.z).powi(2);
+            let db = (b.bottom.x - p.x).powi(2) + (b.bottom.z - p.z).powi(2);
+            da.total_cmp(&db)
+        })
+}
+
+/// The nearest climbable within `max_horizontal` of the base ([`in_reach_within`]).
+pub fn nearest_climbable_within<'a>(
+    climbables: impl Iterator<Item = &'a Climbable>,
+    p: Vec3,
+    vertical_slack: f32,
+    max_horizontal: f32,
+) -> Option<&'a Climbable> {
+    climbables
+        .filter(|c| in_reach_within(c, p, vertical_slack, max_horizontal))
+        .min_by(|a, b| {
+            let da = (a.bottom.x - p.x).powi(2) + (a.bottom.z - p.z).powi(2);
+            let db = (b.bottom.x - p.x).powi(2) + (b.bottom.z - p.z).powi(2);
+            da.total_cmp(&db)
+        })
+}
+
+/// Alignment (dot of unit vectors) between the frame's planar move and the *face* direction
+/// for the approach grab to fire: about a 60-degree cone in front of the walk.
+pub const APPROACH_GRAB_DOT: f32 = 0.5;
+
+/// Smallest planar move of a frame (m) that counts as "walking into" a surface.
+pub const APPROACH_GRAB_MIN_STEP: f32 = 0.004;
+
+/// Horizontal uphill direction of a surface (base -> crest), the direction a walker runs in
+/// when running into the face. Degenerate for a perfectly vertical column (base == crest in
+/// plan): `None` there, callers fall back to the direction of the base point.
+pub fn face_uphill_dir(c: &Climbable) -> Option<Vec2> {
+    let face = Vec2::new(c.top.x - c.bottom.x, c.top.z - c.bottom.z);
+    (face.length_squared() > 0.25).then(|| face.normalize())
+}
+
+/// The climbable the frame's planar `moved_xz` walks into: within `max_horizontal` of the
+/// base (vertical span like [`in_reach`]) and moving into the face
+/// ([`face_uphill_dir`] within the [`APPROACH_GRAB_DOT`] cone; a vertical column falls back
+/// to the direction of its base point).
+///
+/// This is the "advance into the wall" grab (a port reading of the original Sneasler wall
+/// grab, which fires by running into the wall). Walking beside the face or away from it never
+/// matches. Aiming at the **base point** was the first attempt and failed for wide faces: a
+/// straight run at the face passes two metres to the side of the base cell and the cone
+/// dropped below the threshold (measured on foot, 2026-10-15).
+pub fn approach_climbable<'a>(
+    climbables: impl Iterator<Item = &'a Climbable>,
+    p: Vec3,
+    moved_xz: Vec2,
+    vertical_slack: f32,
+    max_horizontal: f32,
+) -> Option<&'a Climbable> {
+    if moved_xz.length() < APPROACH_GRAB_MIN_STEP {
+        return None;
+    }
+    let dir = moved_xz.normalize();
+    climbables
+        .filter(|c| in_reach_within(c, p, vertical_slack, max_horizontal))
+        .filter(|c| match face_uphill_dir(c) {
+            Some(face) => face.dot(dir) >= APPROACH_GRAB_DOT,
+            None => {
+                let to = Vec2::new(c.bottom.x - p.x, c.bottom.z - p.z);
+                to.length_squared() < 1e-6 || to.normalize().dot(dir) >= APPROACH_GRAB_DOT
+            }
+        })
         .min_by(|a, b| {
             let da = (a.bottom.x - p.x).powi(2) + (a.bottom.z - p.z).powi(2);
             let db = (b.bottom.x - p.x).powi(2) + (b.bottom.z - p.z).powi(2);
@@ -132,6 +210,40 @@ pub fn climb_progress(c: &Climbable, y: f32) -> f32 {
         return 1.0;
     }
     ((y - low) / (high - low)).clamp(0.0, 1.0)
+}
+
+// ------------------------------------------------------------------ climb hint (on-screen)
+
+/// Contextual HUD line shown while a climbable is in reach: the key that starts the climb
+/// (user-report fix 2026-10-15: the mechanic existed but nothing told the player how to use it).
+pub const CLIMB_HINT_GRAB: &str = "TREPAR: Enter/Espacio (o camina contra la pared)";
+
+/// HUD line while attached to a surface (`|`, not the middle dot: the default UI font lacks it).
+pub const CLIMB_HINT_CLIMBING: &str = "TREPAR: W/S subir y bajar | K soltar";
+
+/// HUD line on a ride-Sneasler, whose wall grab fires by running into the wall.
+pub const CLIMB_HINT_SNEASLER: &str = "TREPAR (Sneasler): camina contra la pared";
+
+/// The hint line for one frame; `None` means "do not show the bar".
+///
+/// `in_reach` is the same condition the grab key uses (the surface's own radius), so the
+/// prompt never promises a key press that would do nothing.
+pub fn climb_hint_line(
+    climbing: bool,
+    in_reach: bool,
+    mounted_sneasler: bool,
+) -> Option<&'static str> {
+    if climbing {
+        return Some(CLIMB_HINT_CLIMBING);
+    }
+    if !in_reach {
+        return None;
+    }
+    Some(if mounted_sneasler {
+        CLIMB_HINT_SNEASLER
+    } else {
+        CLIMB_HINT_GRAB
+    })
 }
 
 /// `PLA_DEBUG_CLIMB=1` spawns one demo ladder in front of the avatar so the climb mechanic
@@ -238,6 +350,136 @@ mod tests {
         assert!(!in_reach(&c, Vec3::new(10.0, root_hi + 0.5, -3.0), 0.2));
         // Inside the slack.
         assert!(in_reach(&c, Vec3::new(10.0, root_lo - 0.1, -3.0), 0.2));
+    }
+
+    #[test]
+    fn reach_within_caps_the_horizontal_distance() {
+        // A real cliff keeps a 6 m interact radius; the approach cap only shrinks it.
+        let cliff = Climbable {
+            kind: ClimbKind::Cliff,
+            radius: 6.0,
+            ..ladder()
+        };
+        let root_lo = 5.0 + AVATAR_ROOT_ABOVE_GROUND;
+        // 2 m from the base: inside both.
+        assert!(in_reach(&cliff, Vec3::new(12.0, root_lo, -3.0), 0.2));
+        assert!(in_reach_within(&cliff, Vec3::new(12.0, root_lo, -3.0), 0.2, 2.5));
+        // 3 m from the base: the surface reach says yes, the short cap says no.
+        let p = Vec3::new(13.0, root_lo, -3.0);
+        assert!(in_reach(&cliff, p, 0.2));
+        assert!(!in_reach_within(&cliff, p, 0.2, 2.5));
+        // A 1.2 m ladder is never widened by a bigger cap.
+        let c = ladder();
+        assert!(in_reach_within(&c, Vec3::new(11.1, root_lo, -3.0), 0.2, 2.5));
+        assert!(!in_reach_within(&c, Vec3::new(11.5, root_lo, -3.0), 0.2, 2.5));
+        // Vertical span still applies.
+        assert!(!in_reach_within(
+            &cliff,
+            Vec3::new(12.0, root_lo + 10.0, -3.0),
+            0.2,
+            2.5
+        ));
+    }
+
+    #[test]
+    fn approach_grab_needs_a_move_into_the_base() {
+        // Ladder base at z = -3, radius 1.2 (the reach is the smaller of the two).
+        let c = ladder(); // base (10.0, 5.0, -3.0)
+        let root_lo = 5.0 + AVATAR_ROOT_ABOVE_GROUND;
+        let p = Vec3::new(10.0, root_lo, -1.9); // 1.1 m from the base
+        // Walking towards the base (z decreasing by 0.1): grabs.
+        let toward = approach_climbable([&c].into_iter(), p, Vec2::new(0.0, -0.1), 0.2, 2.5);
+        assert_eq!(toward.map(|c| c.bottom.z), Some(-3.0));
+        // Walking away: no grab.
+        assert!(approach_climbable([&c].into_iter(), p, Vec2::new(0.0, 0.1), 0.2, 2.5).is_none());
+        // Walking past (parallel, no dot): no grab.
+        assert!(approach_climbable([&c].into_iter(), p, Vec2::new(0.1, 0.0), 0.2, 2.5).is_none());
+        // Standing still: no grab.
+        assert!(approach_climbable([&c].into_iter(), p, Vec2::ZERO, 0.2, 2.5).is_none());
+        // Outside the effective reach (1.2 m here): no grab even walking in.
+        let far = Vec3::new(10.0, root_lo, -1.5);
+        assert!(approach_climbable([&c].into_iter(), far, Vec2::new(0.0, -0.1), 0.2, 2.5).is_none());
+        // A cliff radius 6 keeps the full 2.5 m approach reach.
+        let cliff = Climbable {
+            kind: ClimbKind::Cliff,
+            radius: 6.0,
+            ..c
+        };
+        assert!(approach_climbable(
+            [&cliff].into_iter(),
+            Vec3::new(10.0, root_lo, -0.8), // 2.2 m from the base
+            Vec2::new(0.0, -0.1),
+            0.2,
+            2.5
+        )
+        .is_some());
+        // Diagonal approach inside the 60-degree cone: grabs.
+        let diag = approach_climbable([&c].into_iter(), p, Vec2::new(-0.06, -0.08), 0.2, 2.5);
+        assert!(diag.is_some(), "diagonal walk into the base still grabs");
+    }
+
+    #[test]
+    fn approach_grab_uses_the_face_direction_for_wide_faces() {
+        // A face rising towards +z: base (0, 0, 0), crest (0, 5, 6).
+        let face = Climbable {
+            kind: ClimbKind::Cliff,
+            bottom: Vec3::new(0.0, 0.0, 0.0),
+            top: Vec3::new(0.0, 5.0, 6.0),
+            radius: 6.0,
+        };
+        assert!(face_uphill_dir(&face).is_some());
+        let root_lo = AVATAR_ROOT_ABOVE_GROUND;
+        // Running straight at the face, 2 m to the side of the base cell (the on-foot case
+        // that failed while aiming at the base point): grabs.
+        let p = Vec3::new(2.0, root_lo, -2.5);
+        assert!(
+            approach_climbable([&face].into_iter(), p, Vec2::new(0.0, 0.4), 1.5, 4.0).is_some(),
+            "a straight run into the face grabs even beside the base cell"
+        );
+        // Running across (past) the face: no grab.
+        assert!(
+            approach_climbable([&face].into_iter(), p, Vec2::new(0.4, 0.0), 1.5, 4.0).is_none()
+        );
+        // Backing away: no grab.
+        assert!(
+            approach_climbable([&face].into_iter(), p, Vec2::new(0.0, -0.4), 1.5, 4.0).is_none()
+        );
+        // A vertical column (base == crest in plan) has no face direction and keeps the
+        // aim-at-the-base fallback.
+        let column = Climbable {
+            top: Vec3::new(0.0, 5.0, 0.0),
+            ..face
+        };
+        assert!(face_uphill_dir(&column).is_none());
+        assert!(
+            approach_climbable(
+                [&column].into_iter(),
+                Vec3::new(0.0, root_lo, -2.0),
+                Vec2::new(0.0, 0.4),
+                1.5,
+                4.0
+            )
+            .is_some()
+        );
+    }
+
+    #[test]
+    fn climb_hint_line_names_the_prompt_of_the_moment() {
+        // Attached: the up/down/let-go keys.
+        assert_eq!(
+            climb_hint_line(true, false, false),
+            Some(CLIMB_HINT_CLIMBING),
+            "climbing wins even outside the reach test"
+        );
+        // In reach on foot: the grab keys.
+        assert_eq!(climb_hint_line(false, true, false), Some(CLIMB_HINT_GRAB));
+        // In reach on Sneasler: the wall-run prompt.
+        assert_eq!(
+            climb_hint_line(false, true, true),
+            Some(CLIMB_HINT_SNEASLER)
+        );
+        // Nothing near: no line at all.
+        assert_eq!(climb_hint_line(false, false, false), None);
     }
 
     #[test]

@@ -51,6 +51,9 @@ fn npc_options(id: &str, skin_rows: &[[u8; 3]]) -> PlayerExportOptions {
         skin_rgb: (!skin_rows.is_empty()).then(|| skin_rows[(h >> 11) as usize % skin_rows.len().min(4)]),
         hair_rgb: Some(hair),
         eye_rgb: Some(EYES[(h >> 17) as usize % EYES.len()]),
+        // NPCs bake the skin tone into the albedo (as before) and export no colour palettes.
+        color_variants: false,
+        skin_unbaked: false,
     }
 }
 

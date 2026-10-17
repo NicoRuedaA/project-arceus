@@ -144,6 +144,45 @@ Con el visor por automatización (área 01, `--automation`), 2026-10-15:
   modelo, `pm1006_11_41`, no del código de monturas; la forma es correcta).
 - Pruebas: 17 en `game/ride` + 1 de planeo en `game/player_motion`, todas verdes; la
   guardia de arranque del visor (`schedule_check`) pasa con el plugin registrado.
+- **Trepada de Sneasler conectada (2026-10-15, tarea trepar2):** correr contra una pared
+  trepable agarra (o pulsar Enter/Espacio) y la subida usa los 4,8 m/s descodificados
+  (`SNEASLER_CLIMB_SPEED`); medido con teclas reales: 2,08 m en 25 fotogramas = 5,0 m/s
+  frente a 1,56 m/s a pie. Al montar sale una línea con las teclas del port
+  (`mount_controls_line`; `V` desmonta). Las «habilidades» de las demás monturas siguen
+  sin tecla propia: nadar/planear son automáticos.
 - **No se guarda nada**: montura seleccionada, montura activa y estamina son solo de
   sesión; no se toca el formato de guardado (queda pendiente para un cambio de guardado
   futuro).
+
+### Seguimiento 2026-10-16 (feat/monturas2): postura, habilidades y deslizamiento
+
+- **Postura de jinete (VERIFICADO en capturas):** el jugador monta **sentado** con los clips de
+  jinete del propio juego, encontrados en el controlador `pc/0006.bin` (grupos `ods_*` Wyrdeer,
+  `hmg_*` Ursaluna, `bsr_*` Basculegion, `03602_*` Sneasler — solo espera — y `wgl_*` Braviary).
+  Se exportan 9 clips (`ride_<montura>_idle/_move`, `player_export.rs`); el export del jugador
+  pasa de 17 a 26 clips. `player_anim` elige el par de la montura y cambia a la marcha por encima
+  de 1 m/s. SUPUESTO: que `03602_wait01_loop` sea Sneasler (no comprobado contra el juego).
+- **Velocidades (VERIFICADO con teclas reales):** Wyrdeer 8,00 m/s (W) y 11,0 m/s (W+Shift);
+  Ursaluna 6,0 m/s (su dash decodificado); picado de Braviary **16,0 m/s** en el aire (0,267 m
+  por fotograma sobre 30 fotogramas), planeo 9,5 m/s; los saltos de montura usan la potencia
+  decodificada (K).
+- **Cavado de Ursaluna (VERIFICADO):** **H** inicia la búsqueda (`dig_not_found_wait` 25
+  fotogramas a 30 Hz); la montura se queda quieta mientras cava; avisos abajo («cava buscando algo
+  bajo tierra…», «no encuentra nada»). Los objetos enterrados no están decodificados: el resultado
+  siempre es vacío (declarado).
+- **Agua (VERIFICADO: cruzar montado):** Basculegion cruza el agua a velocidad de montura (medido:
+  45 m de marisma del área 02 a 8,0 m/s, vadeando un fondo somero). Nueva regla de entrada en el
+  visor: superficie dentro del filtro de 3 m del terreno del objetivo, escalón de orilla dentro del
+  paso, o —sin datos de terreno— a la altura de los pies (−0,3..3 m). El estado de **natación**
+  (fondo > `SWIM_ENTER_DEPTH` = 1,2 m) no se ha vuelto a medir en vivo: los lagos probados son
+  someros en todos sus márgenes; el camino conserva sus pruebas unitarias.
+- **Deslizamiento contra muros (VERIFICADO, arreglo):** con la dirección sostenida contra un borde
+  de la malla, `slide_move` elegía alternativamente los candidatos +90/−90 grados fotograma a
+  fotograma (±0,14 m a 60 Hz): la montura «pinzada» del informe del usuario. Guardián en
+  `player_locomotion`: si el paso invierte exactamente el deslizamiento anterior con la misma
+  entrada, se queda quieto; en diagonal sigue resbalando (medido −1,98 m en 20 fotogramas).
+- **Aviso en pantalla (VERIFICADO):** línea de controles 12 s al montar o cambiar de montura
+  (`ride_hints` + `ride::mount_controls_line`, texto único); sustituye al aviso corto para no
+  mostrar dos mensajes a la vez.
+- **Pruebas:** `cargo test -p pla --lib` 1176 verdes (38 en los módulos de montura) y los tests
+  del visor 17 verdes. Capturas en `/home/nico/work/capturas_monturas2/`.
