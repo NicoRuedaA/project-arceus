@@ -100,6 +100,7 @@ pub mod wild;
 pub mod wild_behavior;
 pub mod wild_wander;
 pub mod debug_flags;
+pub mod debug_spawn;
 pub mod debug_visual;
 pub mod door_pairs;
 pub mod world_collision;
