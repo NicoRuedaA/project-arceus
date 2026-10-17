@@ -123,6 +123,25 @@ pub const ALL_CLIPS: [PlayerClip; CLIP_SLOTS] = [
 ];
 
 impl PlayerClip {
+    /// Whether this is one of the mounted-rider clips. Those carry their whole placement in
+    /// the `origin` bone channels (the rider is authored in the ride model's frame), so the
+    /// port pins the translation to the rest pose and lets `game::ride` place the model on
+    /// the mount's seat bone instead (see `ride::seat_rider`).
+    pub fn is_ride(self) -> bool {
+        matches!(
+            self,
+            Self::RideWyrdeerIdle
+                | Self::RideWyrdeerMove
+                | Self::RideUrsalunaIdle
+                | Self::RideUrsalunaMove
+                | Self::RideBasculegionIdle
+                | Self::RideBasculegionMove
+                | Self::RideSneaslerIdle
+                | Self::RideBraviaryIdle
+                | Self::RideBraviaryMove
+        )
+    }
+
     /// Clip name inside the exported glTF.
     pub fn gltf_name(self) -> &'static str {
         match self {
@@ -364,10 +383,10 @@ pub struct PlayerSceneRef {
     pub slot: String,
 }
 
-/// The glTF scene child of the avatar (feet at the scene origin). `game::ride` moves it up
-/// onto the saddle while a mount is active, so the component marks exactly the entity whose
-/// local Y is the seat height. Every dress-up piece scene carries it too, so a mount lifts the
-/// whole dressed character.
+/// The glTF scene child of the avatar (feet at the scene origin). While a mount is active
+/// `game::ride` places it on the mount's seat bone (`ride::seat_rider`), so the component
+/// marks exactly the entities that ride along; on foot it sits at `-AVATAR_ROOT_ABOVE_GROUND`.
+/// Every dress-up piece scene carries it too, so a mount lifts the whole dressed character.
 #[derive(Component)]
 pub struct PlayerModelScene;
 
@@ -615,11 +634,15 @@ fn switch_clips(
 }
 
 /// Runs after the animation system wrote the bone transforms and before they propagate.
+/// Locomotion clips keep the vertical component (jumps, bobbing) and pin x/z to the rest pose;
+/// the mounted-rider clips pin the whole translation, because `game::ride` places the rider
+/// from the mount's seat bone (their authored `origin` translation would double that offset).
 fn pin_root_motion(q: Query<&PlayerAnimState>, mut bones: Query<&mut Transform>) {
     for st in &q {
+        let ride_clip = st.current.is_ride();
         for (bone, rest) in &st.roots {
             if let Ok(mut t) = bones.get_mut(*bone) {
-                let fixed = strip_root_motion(t.translation, *rest);
+                let fixed = if ride_clip { *rest } else { strip_root_motion(t.translation, *rest) };
                 if fixed != t.translation {
                     t.translation = fixed;
                 }
