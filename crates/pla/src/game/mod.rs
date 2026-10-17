@@ -32,6 +32,7 @@ pub mod main_menu;
 pub mod minimap;
 pub mod move_teaching;
 pub mod noble_field;
+pub mod national_spawn;
 pub mod npc;
 pub mod npc_model;
 pub mod render_look;
