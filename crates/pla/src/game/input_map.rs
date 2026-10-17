@@ -84,6 +84,8 @@ pub enum Action {
     StyleAgile,
     /// Battle: use the highlighted move in strong style (keyboard E).
     StyleStrong,
+    /// Battle: arm the battle's gimmick for the next move (keyboard Y; port extension).
+    Gimmick,
 }
 
 /// Stick movement below this magnitude is ignored.
@@ -227,6 +229,9 @@ impl RawInput {
         }
         if keys.just_pressed(KeyCode::KeyE) {
             key_pressed.push(Action::StyleStrong);
+        }
+        if keys.just_pressed(KeyCode::KeyY) {
+            key_pressed.push(Action::Gimmick);
         }
         if keys.any_just_pressed([KeyCode::KeyZ, KeyCode::Tab]) {
             key_pressed.push(Action::Aim);

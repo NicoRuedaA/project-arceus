@@ -17,6 +17,7 @@ pub mod battle_ai;
 pub mod battle_anim;
 pub mod battle_controller;
 pub mod battle_demo;
+pub mod battle_gimmick;
 #[cfg(test)]
 mod battle_flow_headless;
 pub mod battle_input;

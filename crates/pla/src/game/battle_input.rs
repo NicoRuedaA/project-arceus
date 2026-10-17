@@ -44,6 +44,8 @@ pub fn map_actions(input: &ActionState) -> Option<BattleInput> {
         Some(BattleInput::StyleAgile)
     } else if input.just_pressed(Action::StyleStrong) {
         Some(BattleInput::StyleStrong)
+    } else if input.just_pressed(Action::Gimmick) {
+        Some(BattleInput::Gimmick)
     } else {
         None
     }

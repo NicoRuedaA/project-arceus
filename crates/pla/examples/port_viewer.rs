@@ -1290,9 +1290,13 @@ fn add_viewer_systems(app: &mut App) {
             .run_if(in_state(GameState::Battle))
             .after(update_camera_transform),
     );
+    app.init_resource::<GimmickHold>();
+    app.add_systems(OnEnter(GameState::Battle), reset_gimmick_hold);
     app.add_systems(
         Update,
-        sync_arena_player_model.run_if(in_state(GameState::Battle)),
+        (track_gimmick_activations, sync_arena_player_model, show_gimmick_looks)
+            .chain()
+            .run_if(in_state(GameState::Battle)),
     );
 }
 
@@ -4175,25 +4179,51 @@ fn sync_arena_player_model(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut extents: ResMut<ArenaExtents>,
+    hold: Res<GimmickHold>,
+    time: Res<Time>,
 ) {
     let Some(sess) = session else { return };
+    let now = time.elapsed_secs_f64();
     for (entity, spawn, xf, slot, base) in &slots {
-        // slot 0: the player's active Pokemon; slot 1: the opponent's (a trainer switches).
-        let who = if slot.0 == 0 {
-            sess.active_player()
-        } else {
-            sess.opponent()
-        };
-        let Some(c) = sess.battle.combatants.get(who) else {
-            continue;
-        };
-        let want = c.species.dex;
-        if slot.0 > 1 || spawn.national_dex == want {
+        if slot.0 > 1 {
             continue;
         }
+        let shown = gimmick_model_form_shown(spawn.form);
+        let (want, form) = if let Some(g) = hold.held(slot.0, now) {
+            // A gimmick is on hold here: the next Pokemon comes out once it ends; only a
+            // converted Mega / Gigantamax model changes the model meanwhile.
+            let wanted = gimmick_model_form(Some(g), spawn.national_dex);
+            if wanted.is_none() || wanted == shown {
+                continue;
+            }
+            (spawn.national_dex, wanted.unwrap_or(0))
+        } else {
+            // slot 0: the player's active Pokemon; slot 1: the opponent's (a trainer switches).
+            let who = if slot.0 == 0 {
+                sess.active_player()
+            } else {
+                sess.opponent()
+            };
+            let Some(c) = sess.battle.combatants.get(who) else {
+                continue;
+            };
+            let want = c.species.dex;
+            let active = if sess.battle.is_mega(who) {
+                Some(pla::battle_engine::gimmicks::Gimmick::Mega)
+            } else if sess.battle.dynamax_turns(who).is_some() {
+                Some(pla::battle_engine::gimmicks::Gimmick::Dynamax)
+            } else {
+                None
+            };
+            let wanted = gimmick_model_form(active, want);
+            if spawn.national_dex == want && shown == wanted {
+                continue;
+            }
+            (want, wanted.unwrap_or(0))
+        };
         let key = PokemonAssetKey {
             dex: want,
-            form: 0,
+            form,
             rare: false,
         };
         if !catalog.handles.contains_key(&key) {
@@ -4209,7 +4239,7 @@ fn sync_arena_player_model(
                 BattleArenaMarker,
                 PokemonSpawn {
                     national_dex: want,
-                    form: 0,
+                    form,
                     rare: false,
                     alpha: false,
                     size_scale: 1.0,
@@ -4230,7 +4260,159 @@ fn sync_arena_player_model(
             });
         // The old model's size no longer applies; the new one is measured once it is loaded.
         extents.size[slot.0] = pla::game::battle_camera::ModelSize::default();
-        println!("Arena slot {} now shows #{want}", slot.0);
+        if let Some(kind) = gimmick_model_label(form) {
+            println!("Arena slot {} now shows #{want} ({kind} model)", slot.0);
+        } else {
+            println!("Arena slot {} now shows #{want}", slot.0);
+        }
+    }
+}
+
+/// Model form standing in for `gimmick` on `dex`, when it was converted into the cache: the Mega
+/// Evolution model, or the Gigantamax model while Dynamaxed (`.tools/convert_mega_models.py`).
+fn gimmick_model_form(gimmick: Option<pla::battle_engine::gimmicks::Gimmick>, dex: u16) -> Option<u16> {
+    use pla::battle_engine::gimmicks::Gimmick;
+    use pla::game::pokemon_resource as res;
+    match gimmick? {
+        Gimmick::Mega if res::mega_model_available(dex) => Some(res::MEGA_FORM),
+        Gimmick::Dynamax if res::gigantamax_model_available(dex) => Some(res::GIGANTAMAX_FORM),
+        _ => None,
+    }
+}
+
+/// The gimmick model form an arena spawn shows, if any.
+fn gimmick_model_form_shown(form: u16) -> Option<u16> {
+    gimmick_model_label(form).map(|_| form)
+}
+
+fn gimmick_model_label(form: u16) -> Option<&'static str> {
+    match form {
+        pla::game::pokemon_resource::MEGA_FORM => Some("Mega Evolution"),
+        pla::game::pokemon_resource::GIGANTAMAX_FORM => Some("Gigantamax"),
+        _ => None,
+    }
+}
+
+/// Per arena slot: the latest gimmick activation and until when (game seconds) its look stays
+/// up, so an activation is seen even if the Pokemon faints or the battle ends that turn.
+#[derive(Resource, Default)]
+struct GimmickHold {
+    seen: usize,
+    slots: [Option<(pla::battle_engine::gimmicks::Gimmick, f64)>; 2],
+}
+
+impl GimmickHold {
+    fn held(&self, slot: usize, now: f64) -> Option<pla::battle_engine::gimmicks::Gimmick> {
+        self.slots.get(slot).copied().flatten().filter(|&(_, until)| now < until).map(|(g, _)| g)
+    }
+}
+
+fn reset_gimmick_hold(mut hold: ResMut<GimmickHold>) {
+    *hold = GimmickHold::default();
+}
+
+/// Starts the hold of every new gimmick activation of the session.
+fn track_gimmick_activations(
+    session: Option<Res<ActiveBattleSession>>,
+    time: Res<Time>,
+    mut hold: ResMut<GimmickHold>,
+) {
+    let Some(sess) = session else { return };
+    let new = sess.gimmick_activations.get(hold.seen..).unwrap_or_default().to_vec();
+    if new.is_empty() {
+        return;
+    }
+    hold.seen = sess.gimmick_activations.len();
+    let until = time.elapsed_secs_f64() + pla::game::battle_gimmick::LOOK_HOLD_SECS;
+    for (combatant, gimmick) in new {
+        let slot = pla::game::battle_anim::slot_in(&sess.battle, combatant).min(1);
+        hold.slots[slot] = Some((gimmick, until));
+    }
+}
+
+/// The look a gimmick gave an arena slot: its slot scale before, and the original material of
+/// every mesh it tinted (restored when the gimmick ends).
+#[derive(Component)]
+struct GimmickLook {
+    gimmick: pla::battle_engine::gimmicks::Gimmick,
+    base_scale: Vec3,
+    tinted: Vec<(Entity, Handle<StandardMaterial>, Handle<StandardMaterial>)>,
+}
+
+/// Gimmick view on the real model (port extension): while a Pokemon is Mega Evolved, Dynamaxed
+/// or Terastallized (or used a Z-Move this turn), its arena model glows in the gimmick's colour
+/// and Dynamax makes it bigger (`battle_gimmick::look_style`). A converted Mega / Gigantamax
+/// model (`gimmick_model_form`) is shown as it is instead.
+fn show_gimmick_looks(
+    mut commands: Commands,
+    session: Option<Res<ActiveBattleSession>>,
+    mut slots: Query<
+        (
+            Entity,
+            &pla::game::pokemon_anim::PokemonBattleSlot,
+            &PokemonSpawn,
+            &mut Transform,
+            Option<&mut GimmickLook>,
+        ),
+        With<BattleArenaMarker>,
+    >,
+    children: Query<&Children>,
+    mut mesh_materials: Query<&mut MeshMaterial3d<StandardMaterial>, Without<BattleArenaMarker>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    hold: Res<GimmickHold>,
+    time: Res<Time>,
+) {
+    use pla::game::battle_gimmick::{look_style, shown_gimmick};
+    let Some(sess) = session else { return };
+    let now = time.elapsed_secs_f64();
+    for (entity, slot, spawn, mut xf, look) in &mut slots {
+        let who = if slot.0 == 0 { sess.active_player() } else { sess.opponent() };
+        let want = hold
+            .held(slot.0, now)
+            .or_else(|| shown_gimmick(&sess.battle, &sess.z_move_users, who))
+            .filter(|&g| gimmick_model_form(Some(g), spawn.national_dex) != Some(spawn.form));
+        let current = look.as_ref().map(|l| l.gimmick);
+        if current != want {
+            // Undo the old look first.
+            if let Some(old) = look {
+                xf.scale = old.base_scale;
+                for (mesh, original, _) in &old.tinted {
+                    if let Ok(mut m) = mesh_materials.get_mut(*mesh) {
+                        m.0 = original.clone();
+                    }
+                }
+                commands.entity(entity).remove::<GimmickLook>();
+                if want.is_none() {
+                    println!("[gimmick] arena slot {} shows its plain model again", slot.0);
+                }
+            }
+            if let Some(g) = want {
+                let (_, scale) = look_style(g, slot.0 == 0);
+                let base_scale = xf.scale;
+                xf.scale = base_scale * scale;
+                commands.entity(entity).insert(GimmickLook { gimmick: g, base_scale, tinted: Vec::new() });
+                println!("[gimmick] arena slot {} shows {} (x{scale} size, glowing)", slot.0, g.label());
+            }
+            continue;
+        }
+        // Same look: tint meshes that loaded (or had their material replaced) since.
+        let (Some(g), Some(mut look)) = (want, look) else { continue };
+        let ([r, gr, b], _) = look_style(g, slot.0 == 0);
+        let glow = LinearRgba::rgb(r, gr, b);
+        for d in children.iter_descendants(entity) {
+            let Ok(mut m) = mesh_materials.get_mut(d) else { continue };
+            if look.tinted.iter().any(|(e, _, t)| *e == d && *t == m.0) {
+                continue;
+            }
+            let original = m.0.clone();
+            let Some(base) = materials.get(&original).cloned() else { continue };
+            let mut tinted = base;
+            tinted.emissive = glow * 0.6;
+            let tinted = materials.add(tinted);
+            m.0 = tinted.clone();
+            look.tinted.retain(|(e, _, _)| *e != d);
+            look.tinted.push((d, original, tinted));
+        }
     }
 }
 

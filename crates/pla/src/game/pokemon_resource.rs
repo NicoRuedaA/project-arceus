@@ -116,8 +116,44 @@ pub fn batch_gltf_rel_for_stem(stem: &str, variants: &[&str]) -> Option<String> 
     None
 }
 
+/// Form value for a Mega Evolution model (port extension, not a game form): the export
+/// `pokemon_batch/pmNNNN_51_00/pmNNNN_51_00_idle.gltf`, converted locally from another
+/// game's model. Absent unless the user converted it; the battle screen then shows a cube.
+pub const MEGA_FORM: u16 = 0xFF51;
+
+/// Stem of the local Mega Evolution export of `dex`.
+pub fn mega_stem(dex: u16) -> String {
+    format!("pm{dex:04}_51_00")
+}
+
+/// A Mega Evolution model of `dex` was converted into the cache.
+pub fn mega_model_available(dex: u16) -> bool {
+    batch_gltf_rel_for_stem(&mega_stem(dex), &["idle"]).is_some()
+}
+
+/// Form value for a Gigantamax model (port extension, not a game form): the export
+/// `pokemon_batch/pmNNNN_81_00/pmNNNN_81_00_idle.gltf`, converted locally from another game's
+/// model (`.tools/convert_mega_models.py --form 81`). Shown while such a Pokemon is Dynamaxed.
+pub const GIGANTAMAX_FORM: u16 = 0xFF81;
+
+/// Stem of the local Gigantamax export of `dex`.
+pub fn gigantamax_stem(dex: u16) -> String {
+    format!("pm{dex:04}_81_00")
+}
+
+/// A Gigantamax model of `dex` was converted into the cache.
+pub fn gigantamax_model_available(dex: u16) -> bool {
+    batch_gltf_rel_for_stem(&gigantamax_stem(dex), &["idle"]).is_some()
+}
+
 /// Exact model of `(dex, form, rare)`: never substitutes another form or palette.
 pub fn resolve_batch_gltf_rel(dex: u16, form: u16, rare: bool) -> Option<String> {
+    if form == MEGA_FORM {
+        return batch_gltf_rel_for_stem(&mega_stem(dex), &["idle"]);
+    }
+    if form == GIGANTAMAX_FORM {
+        return batch_gltf_rel_for_stem(&gigantamax_stem(dex), &["idle"]);
+    }
     let stem = global_table().pack_stem(dex, form)?;
     let variants: &[&str] = if rare { &["rare_idle", "rare_static"] } else { &["idle", "static"] };
     batch_gltf_rel_for_stem(&stem, variants)
@@ -130,6 +166,15 @@ mod tests {
     fn repo_table() -> PokemonResourceTable {
         let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/pokemon_resource_table.tsv");
         PokemonResourceTable::load(&p).expect("data/pokemon_resource_table.tsv")
+    }
+
+    #[test]
+    fn mega_form_uses_its_own_stem_never_a_game_form() {
+        assert_eq!(mega_stem(94), "pm0094_51_00");
+        assert_eq!(mega_stem(448), "pm0448_51_00");
+        assert!(repo_table().pack_stem(94, MEGA_FORM).is_none(), "no game form collides with it");
+        assert_eq!(gigantamax_stem(25), "pm0025_81_00");
+        assert!(repo_table().pack_stem(25, GIGANTAMAX_FORM).is_none());
     }
 
     #[test]

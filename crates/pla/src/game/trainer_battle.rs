@@ -182,6 +182,9 @@ pub(crate) fn rebuild_battle(
     if queue {
         b.enable_action_queue();
     }
+    if old.gimmicks_enabled() {
+        b.enable_gimmicks(old.battle_gimmick());
+    }
     Ok(b)
 }
 
@@ -734,6 +737,34 @@ mod tests {
             s.battle.ended = false;
             s.rng = XorShift32(seed);
             assert!(matches!(s.opponent_choice(0), OpponentChoice::Move(_) | OpponentChoice::Switch(_)));
+        }
+    }
+
+    /// Port extension: the battles rebuilt for the trainer's party and then for the saved
+    /// party (the viewer's path) keep the `--gimmick` choice, and the player's armed gimmick
+    /// fires with the next move.
+    #[test]
+    fn trainer_battle_keeps_the_gimmick() {
+        use crate::battle_engine::gimmicks::Gimmick;
+        use crate::game::save_wire::{default_party, install_party};
+        let Some((mut a, c)) = fixtures() else { return };
+        a.gimmick = Some(Gimmick::Dynamax);
+        let t = c.get("trainer04_01").unwrap();
+        let mut s = ActiveBattleSession::start_trainer(&a, "pikachu", 25, t, Entity::PLACEHOLDER).unwrap();
+        assert!(s.battle.gimmicks_enabled());
+        install_party(&mut s, &a.data, &default_party(&a)).unwrap();
+        assert!(s.battle.gimmicks_enabled());
+        assert_eq!(s.battle.battle_gimmick(), Some(Gimmick::Dynamax));
+        let p = s.active_player();
+        let base = s.battle.combatants[p].max_hp;
+        s.gimmick_armed = true;
+        s.execute_player_attack(0);
+        assert!(s.battle.side_used_gimmick(0), "{:?}", s.log_lines);
+        assert!(s.log_lines.iter().any(|l| l.contains("Dynamaxed!")), "{:?}", s.log_lines);
+        if s.battle.combatants[p].is_alive() {
+            assert_eq!(s.battle.combatants[p].max_hp, base * 2);
+            let shown = crate::game::battle_gimmick::shown_gimmick(&s.battle, &s.z_move_users, p);
+            assert_eq!(shown, Some(Gimmick::Dynamax), "the arena shows the Dynamax look");
         }
     }
 

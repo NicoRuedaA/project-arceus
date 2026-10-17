@@ -6,6 +6,7 @@ use crate::battle::{BattleData, BattleMove, BattleSpecies, TypeChart};
 pub mod abilities;
 pub mod drops;
 pub mod effects;
+pub mod gimmicks;
 pub mod items;
 pub mod progression;
 pub mod rules;
@@ -264,6 +265,8 @@ pub struct Battle {
     styles: styles::StyleState,
     /// The two live abilities, Slow Start and Flower Gift (opt-in; see abilities.rs).
     abilities: AbilityState,
+    /// Mega Evolution, Z-Moves, Dynamax and Terastallization (opt-in; see gimmicks.rs).
+    gimmicks: gimmicks::GimmickState,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -326,6 +329,7 @@ impl Battle {
             pla_damage: false,
             styles: styles::StyleState::default(),
             abilities: AbilityState::default(),
+            gimmicks: gimmicks::GimmickState::default(),
         })
     }
 
@@ -347,6 +351,7 @@ impl Battle {
             return Err("trapped: cannot switch out".into());
         }
         self.clear_volatile_on_leave(from);
+        self.gimmick_on_leave(from);
         self.active[side] = replacement;
         Ok(Event::Switched {
             side,

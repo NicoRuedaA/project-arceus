@@ -19,6 +19,9 @@ __pycache__/
 *.pyc
 ProdKeys*/
 *.keys
+# Model archives from other games (local use only; never tracked)
+/models_*.tar
+/models_*/
 
 # ---- Collaboration hygiene -------------------------------------------------
 # Game content (copyrighted): each collaborator regenerates fixtures from their

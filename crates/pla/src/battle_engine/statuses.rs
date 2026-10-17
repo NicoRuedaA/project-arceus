@@ -40,6 +40,7 @@
 //!   longer changes turn order; the speed rank group drives accuracy/evasion instead.
 
 use super::effects::MoveEffects;
+use super::gimmicks::ProtectOutcome;
 use super::rules;
 use super::{Battle, BattleRng, BattleWeather, Event, MajorStatus};
 
@@ -302,6 +303,18 @@ impl Battle {
     ) -> bool {
         if !self.status.rules.volatile_statuses {
             return false;
+        }
+        // Z-Moves and Max Moves (gimmicks.rs): 1/4 damage through Protect, stopped by Max Guard.
+        if self.vol_ref(target).is_some_and(|v| v.protecting) {
+            match self.gimmick_protect(actor, target) {
+                ProtectOutcome::Pierced => return false,
+                ProtectOutcome::Blocked => {
+                    let event = Battle::gimmick_blocked_event(actor, target, move_name);
+                    self.status.events.push(event);
+                    return true;
+                }
+                ProtectOutcome::NotGimmick => {}
+            }
         }
         let Some(fx) = self.effects.as_ref().and_then(|t| t.get(move_name)).cloned() else {
             return false;

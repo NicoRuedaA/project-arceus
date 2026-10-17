@@ -17,7 +17,8 @@
 //! Usage: npc_export <romfs bin/archive/chara/data> <out dir> --ids id[,id..] [--recipes data/npc_appearance.tsv]
 //!        [--cc-pack <cc.gfpak>]
 //! Output: `<out>/<id>/npc.gltf` (+ PNG textures). Not applied: body-type mesh scalers (`chara_create_value_list_*`),
-//! hair/eye/skin colours, held item, hide-mesh rules, IK, spring bones.
+//! the real hair/eye/skin colour rule (a SUPPOSED colour is baked only into layered grey albedos, see `npc_options` and
+//! `all_layered`), held item, hide-mesh rules, IK, spring bones.
 
 use pla::assets::{
     gfpak::GfPak,
@@ -51,6 +52,8 @@ fn npc_options(id: &str, skin_rows: &[[u8; 3]]) -> PlayerExportOptions {
         skin_rgb: (!skin_rows.is_empty()).then(|| skin_rows[(h >> 11) as usize % skin_rows.len().min(4)]),
         hair_rgb: Some(hair),
         eye_rgb: Some(EYES[(h >> 17) as usize % EYES.len()]),
+        color_variants: false,
+        skin_unbaked: false,
     }
 }
 
@@ -78,6 +81,73 @@ fn assign_material_files(model: &mut PokemonModel, notes: &mut Vec<String>) {
         }
     }
     notes.push(format!("{} material files, {changed} meshes re-pointed", blocks.len()));
+}
+
+/// Synthetic `entry_index` base for the per-block material copies made by [`split_material_blocks`].
+const BLOCK_MATERIAL_BASE: usize = 1 << 30;
+
+/// A `.trmtr` holds several blocks (`face_skin`, `face`, `hairstyle`, `eye`...), but `texture_links` is per FILE. When a
+/// block has no layer mask (`Standard` shader without `BaseColorLayer*`, e.g. most cc faces and every tr), the material
+/// export falls back to the file's FIRST `BaseColorMap`, so hair, eyes and clothes all got one albedo (the face skin on
+/// cc faces, the eye/obj/ring albedo on tr packs). Give each mesh a copy of its material whose links are only the
+/// textures of its own block (same raw bytes, so the layer-mask and eye bakes are unchanged).
+fn split_material_blocks(model: &mut PokemonModel, notes: &mut Vec<String>) {
+    let mut copies: Vec<((usize, String), usize)> = Vec::new();
+    let mut extra: Vec<pla::assets::pokemon_model::PokemonMaterial> = Vec::new();
+    for mesh in &mut model.meshes {
+        let Some(index) = mesh.material_entry_index else { continue };
+        let binding = mesh.material_binding.to_ascii_lowercase();
+        if let Some((_, copy)) = copies.iter().find(|(k, _)| k.0 == index && k.1 == binding) {
+            mesh.material_entry_index = Some(*copy);
+            continue;
+        }
+        let Some(material) = model.materials.iter().find(|m| m.entry_index == index) else { continue };
+        let blocks = pla::assets::pokemon_material::parse_blocks(&material.raw_bytes);
+        let Some(block) = blocks.iter().find(|b| b.name.eq_ignore_ascii_case(&binding)) else { continue };
+        let links: Vec<(String, String)> = block
+            .textures
+            .iter()
+            .filter_map(|(file, slot)| {
+                let wanted = stem(file).to_ascii_lowercase();
+                material.texture_links.iter().find(|(role, name)| role == slot && name.to_ascii_lowercase() == wanted).cloned()
+            })
+            .collect();
+        if links.is_empty() || links == material.texture_links {
+            continue;
+        }
+        let mut copy = material.clone();
+        copy.entry_index = BLOCK_MATERIAL_BASE + extra.len();
+        copy.texture_links = links;
+        copies.push(((index, binding), copy.entry_index));
+        mesh.material_entry_index = Some(copy.entry_index);
+        extra.push(copy);
+    }
+    if !extra.is_empty() {
+        notes.push(format!("{} per-block material copies", extra.len()));
+    }
+    model.materials.extend(extra);
+}
+
+/// True when every block named `binding`-like (by `is`) in the models has a `LayerMaskMap` + `BaseColorLayer1..4`, i.e.
+/// a grey layered albedo like the player's; such blocks are what the SUPPOSED skin/hair colour is meant for. Blocks
+/// without layers (unique cc faces) already carry their own colours and must not be tinted again.
+/// `mask_only`: only the `LayerMaskMap` is required (the eye bake tints the iris through it).
+fn all_layered(models: &[PokemonModel], mask_only: bool, is: impl Fn(&str) -> bool) -> bool {
+    let mut any = false;
+    for m in models {
+        for mat in &m.materials {
+            for b in pla::assets::pokemon_material::parse_blocks(&mat.raw_bytes) {
+                if !is(&b.name.to_ascii_lowercase()) {
+                    continue;
+                }
+                if b.texture("LayerMaskMap").is_none() || (!mask_only && b.base_color_layers().is_none()) {
+                    return false;
+                }
+                any = true;
+            }
+        }
+    }
+    any
 }
 
 fn read_recipes(path: &str) -> Result<Vec<HashMap<String, String>>, String> {
@@ -262,6 +332,7 @@ fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>,
                 let layout = PackLayout { base: dir.clone(), mdl_dir: "", anm_dir: "", skeleton: Some(&skl), allow_ik: true };
                 let mut model = assemble_pack_with(&link, &layout).map_err(|e| format!("{part}: {e}"))?;
                 assign_material_files(&mut model, &mut notes);
+                split_material_blocks(&mut model, &mut notes);
                 if cat != "base" {
                     if let Some(ext) = entry(&bytes, &gp, &format!("{dir}/{part}.trskl"))? {
                         exts.push((part.clone(), ext));
@@ -296,6 +367,7 @@ fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>,
             let layout = PackLayout { base: dir.clone(), mdl_dir: "", anm_dir: "", skeleton: Some(&skl), allow_ik: true };
             let mut model = assemble_pack_with(&pack, &layout).map_err(|e| format!("{pack_stem}: {e}"))?;
             assign_material_files(&mut model, &mut notes);
+            split_material_blocks(&mut model, &mut notes);
             notes.push(format!("{pack_stem}: {} LOD0 meshes", model.meshes.iter().filter(|m| m.lod == Some(0)).count()));
             models.push(model);
             // tr clips are named after the first two tokens of the pack stem (`tr0023_00_02001_wait01_loop`).
@@ -339,7 +411,25 @@ fn export(chara: &Path, cc_pack: &Path, out: &Path, r: &HashMap<String, String>,
     let dir = out.join(&id);
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let refs: Vec<&PokemonModel> = models.iter().collect();
-    let options = if kind == "cc" { npc_options(&id, skin_rows) } else { PlayerExportOptions::default() };
+    let options = if kind == "cc" {
+        let mut o = npc_options(&id, skin_rows);
+        let skin = |n: &str| matches!(n, "face" | "face_skin" | "body_skin") || n.ends_with("_skin");
+        if !all_layered(&models, false, skin) {
+            o.skin_rgb = None;
+            notes.push("skin not tinted (unlayered skin albedo)".into());
+        }
+        if !all_layered(&models, false, |n| n.starts_with("hair")) {
+            o.hair_rgb = None;
+            notes.push("hair not tinted (unlayered hair albedo)".into());
+        }
+        if !all_layered(&models, true, |n| n == "eye") {
+            o.eye_rgb = None;
+            notes.push("eye not tinted (no iris layer mask)".into());
+        }
+        o
+    } else {
+        PlayerExportOptions::default()
+    };
     let gltf = dir.join("npc.gltf");
     if let Err(e) = write_player_gltf(&refs, &skel, &usable, &gltf, Some(LayerBlendFormula::MaskLerp), options) {
         if !e.contains("eye block has no LayerMaskMap") {

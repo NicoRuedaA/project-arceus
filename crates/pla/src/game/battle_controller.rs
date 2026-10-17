@@ -20,6 +20,8 @@ use super::battle_items::{self, BagEntry, ItemKind};
 use super::battle_log::{self, tail};
 use super::battle_progress::ProgressFlow;
 use super::battle_style_ai::choose_ai_style;
+use super::battle_gimmick;
+use crate::battle_engine::gimmicks::{Gimmick, GimmickRequest};
 pub use super::battle_turns::TurnMode;
 use super::battle_turns::{style_word, turn_order_lines};
 pub use super::catch_rate::{CatchRateSource, CatchRateTable, CAPTURE_CATCH_RATE_PLACEHOLDER};
@@ -77,6 +79,8 @@ pub enum BattleInput {
     StyleAgile,
     /// Use the highlighted move in strong style (key E; PLA turn flow only).
     StyleStrong,
+    /// Arm / disarm the battle's gimmick for the next move (key Y; see `battle_gimmick`).
+    Gimmick,
 }
 
 /// Per-combatant facts the engine does not keep: the form and the cumulative experience
@@ -114,6 +118,8 @@ pub struct BattleAssets {
     /// Decoded `ItemUseAI` rules (`data/ai/item_use_rules.tsv`); `None` disables the rival's
     /// item use (Brief D6).
     pub item_rules: Option<Arc<ItemUseTable>>,
+    /// The one main-series gimmick new battles use (`--gimmick` / `PLA_GIMMICK`); `None` = off.
+    pub gimmick: Option<Gimmick>,
 }
 
 impl BattleAssets {
@@ -149,6 +155,7 @@ impl BattleAssets {
             turn_mode: TurnMode::from_env_and_args(),
             drops,
             item_rules,
+            gimmick: battle_gimmick::gimmick_from_env_and_args(),
         })
     }
 }
@@ -293,6 +300,14 @@ pub struct ActiveBattleSession {
     /// Decoded `ItemUseAI` rules (`data/ai/item_use_rules.tsv`); drives the trainer's item
     /// use (Brief D6).
     pub item_rules: Option<Arc<ItemUseTable>>,
+    /// The player armed the battle's gimmick for the next move.
+    pub gimmick_armed: bool,
+    /// Combatants that used a Z-Move this turn (it has no lasting form; the battle screen
+    /// shows it until the next turn starts).
+    pub z_move_users: Vec<usize>,
+    /// Every gimmick activation so far as (combatant, gimmick), in order. The battle screen
+    /// reads the new entries to keep showing the gimmick even when the Pokemon faints that turn.
+    pub gimmick_activations: Vec<(usize, Gimmick)>,
 }
 
 impl ActiveBattleSession {
@@ -392,6 +407,9 @@ impl ActiveBattleSession {
                 if turn_mode.uses_queue() {
                     battle.enable_action_queue();
                 }
+                if let Some(g) = a.gimmick {
+                    battle.enable_gimmicks(Some(g));
+                }
                 (bag, bag_order) = battle_items::starter_bag(&a.items);
                 if let Some(p) = &a.progression {
                     battle_items::add_progress_items(&mut bag, &mut bag_order, &a.items, p);
@@ -426,10 +444,16 @@ impl ActiveBattleSession {
             progress: ProgressFlow::default(),
             trainer: None,
             item_rules: assets.and_then(|a| a.item_rules.clone()),
+            gimmick_armed: false,
+            z_move_users: Vec::new(),
+            gimmick_activations: Vec::new(),
         };
         let mut start = vec!["Battle Started!".to_string()];
         if s.turn_mode.uses_queue() {
             start.push(s.styles_hint());
+        }
+        if let Some(g) = s.battle.battle_gimmick() {
+            start.push(battle_gimmick::hint(g));
         }
         s.push_lines(start);
         Ok(s)
@@ -589,6 +613,7 @@ impl ActiveBattleSession {
         let mut lines = battle_log::format_turn(&name, &events, &effects, &statuses, &rules, status_moves);
         battle_log::insert_style_lines(&mut lines, &name, &styles);
         lines.extend(battle_log::ability_lines(&name, &abilities));
+        lines.extend(battle_gimmick::lines(&name, &self.battle.take_gimmick_events()));
         let after_active = self.active_player();
         if after_active != before_active && !self.battle.ended {
             let at = lines
@@ -619,16 +644,77 @@ impl ActiveBattleSession {
             self.push_lines(lines);
             actions.extend(action);
         }
+        self.begin_gimmicks(&actions);
         let status_moves = self.status_moves_of(&actions);
         let events = self.battle.play_turn(&actions, &mut self.rng);
+        self.battle.end_gimmick_turn(&events);
         self.record_turn(before_active, events, &status_moves)
+    }
+
+    /// Gimmick requests of this turn (the player's armed one, a trainer's), activated before
+    /// the moves; their log lines go out first.
+    fn begin_gimmicks(&mut self, actions: &[Action]) {
+        if !self.battle.gimmicks_enabled() {
+            return;
+        }
+        let player = self.active_player();
+        let trainer = self.trainer.is_some();
+        let mut requests = Vec::new();
+        for &a in actions {
+            if a.actor == player {
+                if std::mem::take(&mut self.gimmick_armed) {
+                    if let Some(gimmick) = self.battle.battle_gimmick() {
+                        battle_gimmick::equip(&mut self.battle, a);
+                        requests.push(GimmickRequest { actor: a.actor, gimmick });
+                    }
+                }
+            } else if let Some(r) = battle_gimmick::ai_request(&mut self.battle, a, trainer) {
+                requests.push(r);
+            }
+        }
+        self.battle.begin_gimmick_turn(actions, &requests);
+        let names = self.names();
+        let events = self.battle.take_gimmick_events();
+        self.z_move_users.retain(|u| !actions.iter().any(|a| a.actor == *u));
+        self.z_move_users.extend(battle_gimmick::z_move_users(&events));
+        self.gimmick_activations.extend(battle_gimmick::activations(&events));
+        let lines = battle_gimmick::lines(&|i| names[i].clone(), &events);
+        if !lines.is_empty() {
+            self.push_lines(lines);
+        }
+    }
+
+    /// Arm or disarm the gimmick for the player's next move.
+    fn toggle_gimmick(&mut self) {
+        let Some(gimmick) = self.battle.battle_gimmick() else {
+            self.push_lines(vec![battle_gimmick::refusal_text(
+                crate::battle_engine::gimmicks::Refusal::Disabled,
+            )]);
+            return;
+        };
+        if self.gimmick_armed {
+            self.gimmick_armed = false;
+            self.push_lines(vec![format!("{} disarmed.", gimmick.label())]);
+            return;
+        }
+        let action = Action { actor: self.active_player(), move_slot: self.selected_move_idx };
+        battle_gimmick::equip(&mut self.battle, action);
+        match self.battle.gimmick_refusal(action.actor, gimmick, Some(action.move_slot)) {
+            Some(reason) => self.push_lines(vec![battle_gimmick::refusal_text(reason)]),
+            None => {
+                self.gimmick_armed = true;
+                self.push_lines(vec![format!("{} armed for the next move.", gimmick.label())]);
+            }
+        }
     }
 
     /// PLA flow: one combatant acts alone with its style; the queue step follows the move.
     fn resolve_single(&mut self, action: StyledAction) -> Vec<Event> {
         let before_active = self.active_player();
+        self.begin_gimmicks(&[action.action]);
         let status_moves = self.status_moves_of(&[action.action]);
         let events = self.battle.play_turn_styled(&[action], &mut self.rng);
+        self.battle.end_gimmick_turn(&events);
         self.record_turn(before_active, events, &status_moves)
     }
 
@@ -686,6 +772,10 @@ impl ActiveBattleSession {
     /// Run the after-battle progression once the battle has ended (idempotent).
     fn check_end(&mut self) {
         if self.battle.ended {
+            // Running away or a capture ends the battle without a turn: forms revert here too.
+            self.battle.revert_gimmick_forms();
+            self.gimmick_armed = false;
+            self.z_move_users.clear();
             self.trainer_battle_end();
             self.process_battle_end();
         }
@@ -1190,6 +1280,7 @@ impl ActiveBattleSession {
                 let n = self.selected_move_idx;
                 return !self.execute_player_attack(n).is_empty();
             }
+            BattleInput::Gimmick if self.selected_move_idx < moves => self.toggle_gimmick(),
             BattleInput::StyleAgile | BattleInput::StyleStrong if self.selected_move_idx < moves => {
                 let style = if input == BattleInput::StyleAgile { Style::Agile } else { Style::Strong };
                 let n = self.selected_move_idx;

@@ -16,12 +16,13 @@ use super::battle_items;
 use super::dex::ResearchCounters;
 use super::play_time::PlayTime;
 use super::save_game::{PartyMember, PlayerSave, SaveFile, SaveGame, MAX_BOX, MAX_PARTY};
+use super::trainer_battle::rebuild_battle;
 use super::ui::ActiveZoneInfo;
 use super::PlayerAvatar;
 use crate::battle::{BattleData, BattleMove};
 use crate::battle_engine::drops::DropTable;
 use crate::battle_engine::items::{ItemBag, ItemTable};
-use crate::battle_engine::{Battle, Combatant, Event, XorShift32};
+use crate::battle_engine::{Combatant, Event, XorShift32};
 
 /// Level of the demo lead (matches `ActivePokemonState::level` in the viewer).
 pub const DEFAULT_LEAD_LEVEL: u8 = 25;
@@ -419,11 +420,6 @@ pub fn install_party(
         .map(|&i| (sess.battle.combatants[i].clone(), sess.member_meta.get(i).copied().unwrap_or_default()))
         .collect();
     let wild_meta = sess.member_meta.get(WILD).copied().unwrap_or_default();
-    let effects = sess.battle.move_effects().cloned();
-    let items = sess.battle.item_table().cloned();
-    let styles = sess.battle.move_styles().cloned();
-    let rules = sess.battle.status_rules();
-    let abilities = sess.battle.ability_rules();
     let mut combatants = Vec::with_capacity(mons.len() + 1);
     let mut side = Vec::new();
     for (j, c) in mons.into_iter().enumerate() {
@@ -443,21 +439,8 @@ pub fn install_party(
         opponent_metas.push((combatants.len(), m));
         combatants.push(c);
     }
-    let mut battle = Battle::new(combatants, vec![side, opponents], data.type_chart().clone())?;
-    if let Some(e) = effects {
-        battle.set_move_effects(e);
-    }
-    if let Some(t) = items {
-        battle.set_item_table(t);
-    }
-    battle.set_status_rules(rules);
-    battle.set_abilities(abilities);
-    if let Some(t) = styles {
-        battle.set_move_styles(t);
-    }
-    if sess.turn_mode.uses_queue() {
-        battle.enable_action_queue();
-    }
+    let queue = sess.turn_mode.uses_queue();
+    let battle = rebuild_battle(&sess.battle, data, combatants, vec![side, opponents], queue)?;
     let mut meta = vec![MemberMeta::default(); battle.combatants.len()];
     for (j, m) in metas.into_iter().enumerate() {
         meta[combatant_index(j)] = m;
