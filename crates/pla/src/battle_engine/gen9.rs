@@ -3,7 +3,7 @@
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
 //! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
-//! the sheet classifies `engine_class = a` are loaded (37 moves): moves whose whole behaviour
+//! the sheet classifies `engine_class = a` are loaded (38 moves): moves whose whole behaviour
 //! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
 //! rank, hits, drain/heal, one paralysis/burn/poison/confusion roll, stat stages on a single
 //! receiver). Rows classified `b` need new engine logic and are skipped, never approximated.
@@ -11,7 +11,8 @@
 //! through `MoveEffects::repeat_lock`; Last Respects, Rage Fist, Hard Press, Collision Course,
 //! Electro Drift and Fickle Beam load through the derived `PowerRule` callbacks; Axe Kick and
 //! Supercell Slam load through `crash_damage_pct`; Salt Cure and Syrup Bomb load through
-//! `ResidualVolatile`; Hydro Steam and Matcha Gotcha load through `thaws_target`.
+//! `ResidualVolatile`; Hydro Steam and Matcha Gotcha load through `thaws_target`; Population
+//! Bomb loads through `multi_accuracy`.
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -157,6 +158,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
     let c_class = col("engine_class")?;
     let c_crash = col("crash_damage_pct")?;
     let c_thaw = col("thaws_target")?;
+    let c_multi_acc = col("multi_accuracy")?;
 
     let mut out = Vec::new();
     for (n, line) in lines.enumerate() {
@@ -280,6 +282,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             crash_damage_pct: num(c_crash)? as u8,
             residual_volatile,
             thaws_target: num(c_thaw)? != 0,
+            multi_accuracy: num(c_multi_acc)? != 0,
         };
         out.push(Gen9Move {
             id: num(c_move)? as u16,
@@ -342,7 +345,7 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        assert_eq!(moves.len(), 37);
+        assert_eq!(moves.len(), 38);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -417,6 +420,8 @@ mod tests {
         // Thawing hits.
         assert!(find(&moves, "hydro-steam").effects.thaws_target);
         assert!(find(&moves, "matcha-gotcha").effects.thaws_target);
+        // Multi-hit accuracy.
+        assert!(find(&moves, "population-bomb").effects.multi_accuracy);
     }
 
     #[test]
@@ -814,6 +819,35 @@ mod tests {
         let before = b.combatants[0].hp;
         b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 99]));
         assert!(b.combatants[0].hp > before, "drain must heal the user");
+    }
+
+    #[test]
+    fn population_bomb_rolls_accuracy_for_every_hit() {
+        let hit_count = |b: &mut Battle| {
+            b.take_effect_events().into_iter().find_map(|e| match e {
+                EffectEvent::Hits { count, .. } => Some(count),
+                _ => None,
+            })
+        };
+        // Every one of the ten hits lands (accuracy, critical and damage roll each time).
+        let mut b = duel(
+            ("pikachu", &["population-bomb"], 20),
+            ("snorlax", &["tackle"], 100),
+        );
+        let mut rolls = vec![0, 1, 0];
+        for _ in 1..10 {
+            rolls.extend([0, 1, 0]);
+        }
+        b.play_turn(&[act(0)], &mut Fixed(rolls));
+        assert_eq!(hit_count(&mut b), Some(10));
+
+        // A miss on the second hit stops the move.
+        let mut b = duel(
+            ("pikachu", &["population-bomb"], 20),
+            ("snorlax", &["tackle"], 100),
+        );
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 99]));
+        assert_eq!(hit_count(&mut b), Some(1));
     }
 
     #[test]
