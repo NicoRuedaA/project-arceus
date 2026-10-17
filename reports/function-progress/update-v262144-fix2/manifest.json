@@ -521,11 +521,11 @@
       },
       {
         "path": "crates/pla/src/battle_engine/effects.rs",
-        "sha256": "e1926e74423dde43de1825b08f34bbba701056c9312f67da6b20e5932d1ea1ae"
+        "sha256": "0421218ca5a984847347c71671b595bfe6fcfb7461ac62b083523c02e9c532ac"
       },
       {
         "path": "crates/pla/src/battle_engine/gen9.rs",
-        "sha256": "8fa039bd7ca9a39911f56bfaee209ffd31df290a46c7d9b8a275600379d70603"
+        "sha256": "fbcc8cd73cd75b8797f29a9ef23736fa14626167fe1d0e1187cc918b9ce6ee4c"
       },
       {
         "path": "crates/pla/src/battle_engine/items.rs",
@@ -549,7 +549,7 @@
       },
       {
         "path": "crates/pla/src/battle_engine.rs",
-        "sha256": "8010512546420b59b1f44a2525eba19e8b22e26a3aa36847474573e48b89d90e"
+        "sha256": "bc08a78010ecf6891dd8385eef04e04ea7d0eeb46b0156d26ba4d22cc263006a"
       },
       {
         "path": "crates/pla/src/dispatch.rs",
@@ -1157,7 +1157,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "fee74e27a8f47e3201b25a5fa1b5770df37cb6b76a8094f7cc22e1f82f986cee"
+    "sha256": "5592b34aec3418eded86fcffa2f16a5e2d19d065997ef254ef925b39cee20e02"
   },
   "state_partitions": {
     "analysis_documentation_status": {
