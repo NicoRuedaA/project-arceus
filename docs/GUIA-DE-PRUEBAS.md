@@ -383,9 +383,15 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     mochila abierta (debe quedarse congelado).
 42. **Tiendas.** [EN MAIN] Arranca con `--debug-shop`: junto al punto de inicio pulsa **E** a menos
     de 3 m. **Nuevo:** también Esc > «Shop (test shop)» abre la misma
-    tienda sin la opción. Se abre la tienda 0 (la general) con pestañas Comprar/Vender, precios y tu dinero.
-    Comprar resta dinero y suma objetos; vender hace lo contrario. No hay tiendas reales colocadas
-    en el mapa todavía. El precio de venta es SUPUESTO.
+    tienda sin la opción. La tienda usa ya el aspecto del juego original: rejilla de objetos
+    (7 x 3 por página) con iconos, la etiqueta del objeto y cuántos tienes («xN»), título
+    Buy/Sell, tu dinero arriba a la derecha y ficha del objeto abajo con precio, venta y el
+    total de la operación. Teclas: **W/S** elegir, **A/D** cambiar Comprar/Vender,
+    **[** y **]** cantidad, **Enter** comprar/vender, **I/Esc** cerrar. Comprar resta dinero y
+    suma objetos; vender hace lo contrario. Ya no se ven ids hexadecimales en pantalla (eso
+    queda solo en la vista de depuración). No hay tiendas reales colocadas en el mapa todavía.
+    El precio de venta es SUPUESTO. Fallo: la rejilla no cambia al moverte, no se cierra con
+    Esc, o el mundo sigue moviéndose detrás.
 43. **Dinero y tiempo de juego.** [EN MAIN] Se ve en la partida y se guarda. Descansar (Esc > Rest)
     cura al equipo y avanza el reloj a la siguiente franja.
 44. **Artesanía.** [EN MAIN] Esc > «Crafting». La pantalla usa ya el aspecto del juego original:
