@@ -34,7 +34,7 @@ use std::time::{Duration, Instant};
 use bevy::app::PluginsState;
 use bevy::camera::RenderTarget;
 use bevy::input::keyboard::{Key, KeyboardInput, NativeKey};
-use bevy::input::mouse::MouseButtonInput;
+use bevy::input::mouse::{MouseButtonInput, MouseWheel};
 use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
@@ -267,6 +267,15 @@ impl Plugin for AutomationPlugin {
                 target: None,
                 camera_override: None,
             })
+            // The `mouse` command drives the port's scrollbars through this pointer instead of
+            // the OS cursor (there is no window to move one in).
+            .insert_resource(super::orig_ui::scrollbar::VirtualPointer {
+                position: None,
+                size: Vec2::new(self.config.size.0 as f32, self.config.size.1 as f32),
+                pressed: false,
+                just_pressed: false,
+                just_released: false,
+            })
             .add_systems(PostUpdate, apply_camera_override.before(TransformSystems::Propagate));
         if self.gpu {
             app.add_systems(PreUpdate, attach_offscreen_target);
@@ -398,6 +407,17 @@ pub enum EntityKind {
     Named,
 }
 
+/// Pointer action of a `mouse` command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PointerAction {
+    /// Move the pointer (and scroll, when a wheel is given).
+    Move,
+    Press,
+    Release,
+    /// Press and release with one frame in between.
+    Click,
+}
+
 /// One parsed control command.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
@@ -406,11 +426,18 @@ pub enum Command {
     Step { frames: u32 },
     WaitSeconds { seconds: f32 },
     Key { key: KeyCode, action: KeyAction, frames: u32 },
-    /// Move the (virtual) cursor to `(x, y)`: logical pixels of the primary window, or physical
-    /// pixels of the offscreen target in automation mode.
-    MouseMove { x: f32, y: f32 },
-    /// Press / release a mouse button.
-    MouseButton { button: MouseButton, action: KeyAction, frames: u32 },
+    /// Mouse: move the pointer (window pixels), press / release / click a button, or turn the
+    /// wheel. No window exists in automation mode, so the position feeds
+    /// [`super::orig_ui::scrollbar::VirtualPointer`] (there is no OS cursor to move) and, as
+    /// real `CursorMoved` / `MouseButtonInput` messages, the systems that follow the mouse.
+    Mouse {
+        x: Option<f32>,
+        y: Option<f32>,
+        wheel: f32,
+        button: Option<MouseButton>,
+        action: PointerAction,
+        frames: u32,
+    },
     Teleport { x: f32, z: f32 },
     TeleportZone { area: u8, pos: Option<(f32, f32)> },
     SetTime { time: TimeSpec, pinned: Option<bool> },
@@ -601,26 +628,35 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
             let frames = bounded(get_u64(o, "frames")?.unwrap_or(1), "frames", 10_000)?;
             Command::Key { key, action, frames }
         }
-        "mousemove" | "mouse_move" => Command::MouseMove {
-            x: need(get_f32(o, "x")?, "x")?,
-            y: need(get_f32(o, "y")?, "y")?,
-        },
-        "mouse" | "mouse_button" => {
-            let name = need(get_str(o, "button")?, "button")?;
-            let button = match name.to_ascii_lowercase().as_str() {
-                "left" => MouseButton::Left,
-                "right" => MouseButton::Right,
-                "middle" => MouseButton::Middle,
-                _ => return Err(format!("unknown mouse button '{name}' (left|right|middle)")),
+        "mouse" => {
+            let x = get_f32(o, "x")?;
+            let y = get_f32(o, "y")?;
+            if (x.is_some() != y.is_some()) && get_str(o, "action")?.is_none() {
+                return Err("give both 'x' and 'y' or neither".into());
+            }
+            let wheel = get_f32(o, "wheel")?.unwrap_or(0.0);
+            if !(-50.0..=50.0).contains(&wheel) {
+                return Err("'wheel' must be in -50..=50".into());
+            }
+            let button = match get_str(o, "button")?.map(str::to_ascii_lowercase).as_deref() {
+                None => None,
+                Some("left") => Some(MouseButton::Left),
+                Some("right") => Some(MouseButton::Right),
+                Some("middle") => Some(MouseButton::Middle),
+                Some(b) => return Err(format!("unknown mouse button '{b}' (left|right|middle)")),
             };
-            let action = match get_str(o, "action")?.unwrap_or("press") {
-                "press" => KeyAction::Press,
-                "down" => KeyAction::Down,
-                "up" => KeyAction::Up,
-                a => return Err(format!("unknown mouse action '{a}' (press|down|up)")),
+            let action = match get_str(o, "action")?.unwrap_or("move") {
+                "move" => PointerAction::Move,
+                "press" => PointerAction::Press,
+                "release" => PointerAction::Release,
+                "click" => PointerAction::Click,
+                a => return Err(format!("unknown pointer action '{a}' (move|press|release|click)")),
             };
+            if action != PointerAction::Move && button.is_none() {
+                return Err("press / release / click need a 'button'".into());
+            }
             let frames = bounded(get_u64(o, "frames")?.unwrap_or(1), "frames", 10_000)?;
-            Command::MouseButton { button, action, frames }
+            Command::Mouse { x, y, wheel, button, action, frames }
         }
         "teleport" => Command::Teleport { x: need(get_f32(o, "x")?, "x")?, z: need(get_f32(o, "z")?, "z")? },
         "teleport_zone" => {
@@ -1069,30 +1105,67 @@ fn dispatch(app: &mut App, ctx: &mut Ctx, cmd: &Command) -> Result<Value, String
             }
             Ok(json!({"key": format!("{key:?}"), "stepped": n}))
         }
-        Command::MouseMove { x, y } => {
-            send_cursor(app.world_mut(), Vec2::new(*x, *y));
-            let n = ctx.step(app, 1);
-            Ok(json!({"cursor_moved": [x, y], "stepped": n}))
-        }
-        Command::MouseButton { button, action, frames } => {
+        Command::Mouse { x, y, wheel, button, action, frames } => {
+            let world = app.world_mut();
+            // The pointer: keep the missing coordinate, or start at the middle of the virtual
+            // viewport.
+            let position = {
+                let mut vp = world.resource_mut::<super::orig_ui::scrollbar::VirtualPointer>();
+                let size = if vp.size.x > 1.0 && vp.size.y > 1.0 { vp.size } else { Vec2::new(1280.0, 720.0) };
+                let seed = vp.position.unwrap_or(size / 2.0);
+                if x.is_some() || y.is_some() {
+                    let position = Vec2::new(x.unwrap_or(seed.x), y.unwrap_or(seed.y));
+                    vp.position = Some(position);
+                    Some(position)
+                } else {
+                    None
+                }
+            };
+            if let Some(position) = position {
+                // The same move as a real message: systems that follow the cursor (not the
+                // virtual pointer) see it too.
+                send_cursor(world, position);
+            }
+            if *wheel != 0.0 {
+                world.write_message(MouseWheel {
+                    unit: bevy::input::mouse::MouseScrollUnit::Line,
+                    x: 0.0,
+                    y: *wheel,
+                    window: Entity::PLACEHOLDER,
+                    phase: bevy::input::touch::TouchPhase::Moved,
+                });
+            }
             let mut n = 0;
             match action {
-                KeyAction::Press => {
-                    send_mouse(app.world_mut(), *button, ButtonState::Pressed);
+                PointerAction::Move => {}
+                PointerAction::Press => {
+                    let b = button.unwrap_or(MouseButton::Left);
+                    set_virtual_button(world, b, ButtonState::Pressed);
+                    send_mouse(world, b, ButtonState::Pressed);
+                }
+                PointerAction::Release => {
+                    let b = button.unwrap_or(MouseButton::Left);
+                    set_virtual_button(world, b, ButtonState::Released);
+                    send_mouse(world, b, ButtonState::Released);
+                }
+                PointerAction::Click => {
+                    let b = button.unwrap_or(MouseButton::Left);
+                    set_virtual_button(world, b, ButtonState::Pressed);
+                    send_mouse(world, b, ButtonState::Pressed);
                     n += ctx.step(app, (*frames).max(1));
-                    send_mouse(app.world_mut(), *button, ButtonState::Released);
-                    n += ctx.step(app, 1);
-                }
-                KeyAction::Down => {
-                    send_mouse(app.world_mut(), *button, ButtonState::Pressed);
-                    n += ctx.step(app, *frames);
-                }
-                KeyAction::Up => {
-                    send_mouse(app.world_mut(), *button, ButtonState::Released);
-                    n += ctx.step(app, *frames);
+                    set_virtual_button(app.world_mut(), b, ButtonState::Released);
+                    send_mouse(app.world_mut(), b, ButtonState::Released);
                 }
             }
-            Ok(json!({"mouse": format!("{button:?}"), "stepped": n}))
+            n += ctx.step(app, (*frames).max(1));
+            let pos = app.world().resource::<super::orig_ui::scrollbar::VirtualPointer>().position;
+            Ok(json!({
+                "pointer": pos.map(|p| json!([p.x, p.y])),
+                "wheel": wheel,
+                "button": button.map(|b| format!("{b:?}")),
+                "action": format!("{action:?}"),
+                "stepped": n,
+            }))
         }
         Command::Teleport { x, z } => {
             let p = teleport(app.world_mut(), *x, *z)?;
@@ -1168,6 +1241,24 @@ fn send_cursor(world: &mut World, position: Vec2) {
         position,
         delta: None,
     });
+}
+
+/// Feed the port's scrollbars: only the left button drives them (see `orig_ui::scrollbar`).
+fn set_virtual_button(world: &mut World, button: MouseButton, state: ButtonState) {
+    if button != MouseButton::Left {
+        return;
+    }
+    let mut vp = world.resource_mut::<super::orig_ui::scrollbar::VirtualPointer>();
+    match state {
+        ButtonState::Pressed => {
+            vp.pressed = true;
+            vp.just_pressed = true;
+        }
+        ButtonState::Released => {
+            vp.pressed = false;
+            vp.just_released = true;
+        }
+    }
 }
 
 /// Queue a mouse button edge as a real mouse message (read by `mouse_button_input_system`).
@@ -2161,20 +2252,43 @@ mod tests {
             Ok(Command::Key { key: KeyCode::KeyW, action: KeyAction::Down, frames: 1 })
         );
         assert_eq!(
-            parse_command(r#"{"cmd":"mousemove","x":100.5,"y":-3}"#),
-            Ok(Command::MouseMove { x: 100.5, y: -3.0 })
+            parse_command(r#"{"cmd":"mouse","x":100.5,"y":-3}"#),
+            Ok(Command::Mouse {
+                x: Some(100.5),
+                y: Some(-3.0),
+                wheel: 0.0,
+                button: None,
+                action: PointerAction::Move,
+                frames: 1,
+            })
         );
         assert_eq!(
-            parse_command(r#"{"cmd":"mouse","button":"left","action":"down","frames":2}"#),
-            Ok(Command::MouseButton { button: MouseButton::Left, action: KeyAction::Down, frames: 2 })
+            parse_command(r#"{"cmd":"mouse","button":"left","action":"press","frames":2}"#),
+            Ok(Command::Mouse {
+                x: None,
+                y: None,
+                wheel: 0.0,
+                button: Some(MouseButton::Left),
+                action: PointerAction::Press,
+                frames: 2,
+            })
         );
         assert_eq!(
-            parse_command(r#"{"cmd":"mouse","button":"Right"}"#),
-            Ok(Command::MouseButton { button: MouseButton::Right, action: KeyAction::Press, frames: 1 })
+            parse_command(r#"{"cmd":"mouse","button":"Right","action":"release"}"#),
+            Ok(Command::Mouse {
+                x: None,
+                y: None,
+                wheel: 0.0,
+                button: Some(MouseButton::Right),
+                action: PointerAction::Release,
+                frames: 1,
+            })
         );
         assert!(parse_command(r#"{"cmd":"mouse","button":"thumb"}"#).is_err());
-        assert!(parse_command(r#"{"cmd":"mousemove","x":1}"#).is_err());
-        assert!(parse_command(r#"{"cmd":"mouse","button":"left","action":"click"}"#).is_err());
+        assert!(parse_command(r#"{"cmd":"mouse","x":1}"#).is_err());
+        assert!(parse_command(r#"{"cmd":"mouse","action":"down"}"#).is_err());
+        assert!(parse_command(r#"{"cmd":"mouse","action":"press"}"#).is_err(), "press needs a button");
+        assert!(parse_command(r#"{"cmd":"mouse","button":"left","action":"click"}"#).is_ok());
         assert_eq!(parse_command(r#"{"cmd":"teleport","x":10.5,"z":-3}"#), Ok(Command::Teleport { x: 10.5, z: -3.0 }));
         assert_eq!(parse_command(r#"{"cmd":"teleport_zone","area":2}"#), Ok(Command::TeleportZone { area: 2, pos: None }));
         assert_eq!(

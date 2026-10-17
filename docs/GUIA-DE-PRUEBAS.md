@@ -405,13 +405,13 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 
 ### 2.8 Menús y pantallas
 
-45. **Menú de pausa (Esc).** [EN MAIN] Opciones: Resume, Bag, invertir cámara X, invertir cámara Y,
-    Volume, Back to safe spawn, Save, **Load game**, Rest, Quit. Hay 5 filas
-    nuevas tras Bag: Party, Pokémon boxes, Pokédex, Crafting y Shop (test shop); el menú tiene 16
-    filas (Load game es nueva del 2026-10-14, ver 2.15; **Graphics...** es nueva, ver 73). Navegas con flechas o W/S + Enter, o con el
-    ratón. Congela el mundo. Volume cambia el volumen al instante y se recuerda al reiniciar.
-    «Back to safe spawn» te lleva a un punto seguro. Fallo: no se cierra con Esc, algo se
-    sigue moviendo, Quit no cierra.
+45. **Menú de pausa (Esc).** Opciones (2026-10-17: se ve la tira de iconos original, sin lista
+    de texto, ver el punto 79): Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Crafting,
+    Shop (test shop), Volume, Graphics..., Customize, Back to safe spawn, Save game, Load game,
+    Rest y Quit. Las inversiones de cámara se movieron a la pantalla Graphics (punto 80). Navegas
+    con las flechas (o A/D y W/S) + Enter, o con el ratón. Congela el mundo. Volume cambia el
+    volumen al instante y se recuerda al reiniciar. «Back to safe spawn» te lleva a un punto
+    seguro. Fallo: no se cierra con Esc, algo se sigue moviendo, Quit no cierra.
 46. **Menú principal.** [EN MAIN] `./play.sh --area 1 --menu`. Ves: Continue (gris si no hay partida
     guardada), New game, Options, Exit. Options: volumen, campo de visión, sombras y calidad.
     Fallo: Continue activo sin partida, no se guardan las opciones.
@@ -459,7 +459,9 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     - *Display*: **Anti-aliasing** auto/off/FXAA/SMAA/TAA/MSAA 2x/MSAA 4x (MSAA solo funciona con
       SSAO apagado; la fila lo dice), **Render scale** 50-200 % (más de 100 = se dibuja más grande
       y se reduce: más nítido y más caro; menos de 100 = más rápido y más borroso), **V-sync**
-      on/off y **FPS cap** unlimited/30/60/120/144/240. El tamaño de la ventana lo decide el
+      on/off, **FPS cap** unlimited/30/60/120/144/240 y **Invert camera X axis / Y axis** on/off
+      (inversión de cámara; se guarda en `settings.txt` y se aplica al instante — ver el punto 82).
+      El tamaño de la ventana lo decide el
       sistema (puedes maximizarla); Render scale multiplica ese tamaño.
     - *Distances* (antes oculta): alcance de la hierba y de las demás plantas, de los objetos
       (100 % = 200 m), de las colisiones, de los objetos recogibles (120 m), de las personas
@@ -645,16 +647,22 @@ paridad visual nativa ni binary matching.
 74. **Explorando.** Arriba a la izquierda, el Pokémon salvaje más cercano (icono y nombre; si no
     hay ninguno, el nombre de la zona). A la derecha, la Poké Ball elegida y cuántas tienes.
     Abajo a la izquierda, las guías de botones del juego junto al minimapa del port.
-75. **Esc, equipo, resumen, mochila, cajas, Pokédex y mapa (M).** Cada pantalla sale con los
-     gráficos del juego: menú de pausa con 16 filas dentro de la franja inferior y la barra de
-     iconos arriba; equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila con
-     las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5; Pokédex con la página de
-     cuaderno; el mapa de Hisui con el área actual resaltada detrás del mapa de zona. En combate,
-     la placa del rival flota sobre el Pokémon cargado y se mantiene dentro de la pantalla. La
-     tienda sigue con la interfaz provisional y algunos detalles de las pantallas siguen
-     PROBABLES o DESCONOCIDOS. Fallo: se ve a la vez la provisional y la original, un icono de
-     otro Pokémon u objeto, la selección marcada no coincide con la que mueves, una fila se sale
-     por abajo en 720p/1080p/1440p o las letras acentuadas muestran un cuadro.
+75. **Esc, equipo, resumen, mochila, cajas, Pokédex, artesanía, tienda, Personalizar y mapa (M).**
+     Cada pantalla sale con los gráficos del juego: menú de pausa con la tira de iconos del juego
+     (4 por página, el nombre de la opción en el título, sin lista de texto desde el 2026-10-17 —
+     ver el punto 81); equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila
+     con las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5; Pokédex con la página
+     de cuaderno; artesanía con la rejilla de recetas y el panel de materiales; la tienda con su
+     rejilla de objetos, título Buy/Sell, tu dinero y la ficha del objeto (sin ids hexadecimales:
+     eso queda solo en `--ui debug`); **Personalizar** (Esc > Customize) con las pestañas de
+     categoría arriba, cinco filas con el nombre y el valor actual, el panel de lo puesto abajo y
+     los cambios aplicados al modelo al momento (el look se sigue guardando en la partida, v10);
+     el mapa de Hisui con el área actual resaltada detrás del mapa de zona. En combate, la placa
+     del rival flota sobre el Pokémon cargado y se mantiene dentro de la pantalla. Algunos
+     detalles de las pantallas siguen PROBABLES o DESCONOCIDOS. Fallo: se ve a la vez la
+     provisional y la original, un icono de otro Pokémon u objeto, la selección marcada no
+     coincide con la que mueves, una fila se sale por abajo en 720p/1080p/1440p o las letras
+     acentuadas muestran un cuadro.
 
 ### 2.17 Monturas  [EN MAIN]
 
@@ -825,6 +833,51 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     `key r`, `key down`, `key enter` (y `key esc` para cerrar). También puede usarse el buscador
     desde `--automation` sin ventana: la lista y el aviso de estado salen en pantalla.
 
+### 2.21 Menú de pausa original, cámara y barras de scroll (rama `feat/ui-menu`)
+
+81. **Menú de pausa (Esc) con la piel del juego, sin lista de texto.** [EN RAMA `feat/ui-menu`]
+    Al pausar sale la **tira de iconos original** del juego con la animación de apertura del
+    propio juego (el panel se atenúa, la tira baja y el título aparece). Arriba a la izquierda,
+    **el nombre de la opción elegida**; en el centro, sus **4 iconos por página** (flechas
+    izquierda/derecha o A/D mueven la selección y la página, W/S también; **Enter** abre;
+    **Esc** vuelve al juego). Ya **no** hay lista de texto con las 16 filas: se ve el menú del
+    juego. Abajo quedan dos líneas propias del port: dinero y tiempo de juego, y las teclas.
+    Las opciones que el juego no tiene (Crafting, Shop de prueba, Graphics, Customize, Back to
+    safe spawn, Save/Load game, Rest) siguen **en la misma tira de iconos**, después de las del
+    juego, con el icono real que decodifica el port. Qué es del juego y qué es del port:
+    - Del juego (se eligen por su icono, PROBABLE): Resume, Bag, Party, Summary, Pokémon boxes,
+      Pokédex, Volume, Save, Load, Quit (el original dibuja también «report» para guardar y
+      «settings» para opciones). Las letras de los iconos no son del juego: el port no lee sus
+      textos.
+    - Del port: Crafting (la fabricación del port), Shop (test shop), Graphics (esta pantalla),
+      Customize (Brief 36), Back to safe spawn, Rest (curar el equipo). Sin ellos el menú
+      sería idéntico al del juego; se mantienen accesibles como pidió el encargo.
+    Fallo: se ve otra vez la lista de texto, la tira no pagina, el título no coincide con el
+    icono marcado, o se ve la interfaz provisional detrás.
+82. **Invertir cámara: ahora solo en Graphics.** [EN RAMA `feat/ui-menu`] Las filas «Invert
+    camera X axis» e «Invert camera Y axis» **ya no están en el menú de pausa**. Están en
+    **Esc → Graphics... → página Display** (Tab hasta Display), como dos filas más: izquierda/
+    derecha o Enter las cambia (on/off) y **se aplican al instante** a la cámara: con Invert X
+    activo, mover el ratón a la derecha gira la cámara al lado contrario; con Invert Y, mirar
+    arriba/abajo se invierte. Se guardan en `settings.txt` (junto a `graphics.toml`) y siguen
+    puestas al reiniciar. Fallo: la fila no cambia, no se recuerda al reiniciar, o la cámara
+    sigue igual con el valor cambiado.
+83. **Barra de scroll funcional en las listas largas.** [EN RAMA `feat/ui-menu`] La barra
+    vertical con el tirador crema de las pantallas originales ya **se puede usar** (antes solo
+    se dibujaba):
+    - **Rueda del ratón:** sube/baja una fila (en la mochila y las cajas, una página/una caja).
+    - **Arrastrar el tirador:** le mueves y la lista acompaña; el tirador mide la parte visible
+      (lista larga = tirador corto) y su posición marca dónde estás.
+    - **Clic en la pista (fuera del tirador):** salta una página hacia el lado del clic.
+    - El **tirador y la selección van sincronizados**: si bajas con la rueda y luego sigues con
+      las flechas, no hay saltos; la parte visible se queda donde la dejaste.
+    Dónde: **Graphics** (la barra solo aparece si la página no cabe: prueba Distances), las
+    listas de la **Pokédex** y de **mochila** y **cajas** (una página por ventana). En la
+    pantalla Graphics provisional (`--ui debug`) la rueda también funciona. La última línea de
+    cada pantalla lo recuerda («Wheel / drag the bar...»). Fallo: la barra no se mueve, el
+    tirador cambia de tamaño al azar, la lista no sigue a la barra (o al revés) o la rueda
+    mueve la cámara en vez de la lista.
+
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 
 | Qué | Qué hicimos | Por qué es una suposición |
@@ -883,7 +936,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
   DESCONOCIDOS y sin reexportación completa de modelos.
 - **Bayas y hierba que oculta de verdad:** no hechas. Agacharse y una regla básica de sigilo sí existen (Ctrl izquierdo), con volúmenes de sigilo reales sin decodificar.
 - **Monturas:** las cinco (Wyrdeer, Ursaluna, Basculegion, Sneasler, Braviary) se montan con **V** y se cambian con **G**; al montar sale abajo una **línea con las teclas** de la montura (12 s). Sus velocidades son las reales del juego y el **jinete va sentado** con las posturas del propio juego (clips de jinete). Habilidades: **Ursaluna cava con H** (avisa del resultado; los objetos enterrados no están decodificados, así que siempre «no encuentra nada»), **Braviary** vuela (salta y pulsa **K** en el aire; **Shift** en el aire es un picado a 16 m/s), **Basculegion** cruza el agua (nada o vadea según el fondo; entra desde orillas bajas), **Wyrdeer** corre y galopa (8/11 m/s) y **Sneasler** trepa paredes (4,8 m/s). El estado de montura no se guarda al cerrar el juego. Ver la prueba 76.
-- **Personalizar al protagonista** (ropa, pelo, cara, piel): no.
+- **Personalizar al protagonista** (ropa, pelo, cara, piel): existe desde el 2026-10-15 (Esc > «Customize», guardado v10) y usa la piel del juego original (ver prueba 75); los colores y estampados de la ropa no están decodificados (solo los nombres de color de pelo/cejas/ojos y el tono de piel).
 - **Pokédex con investigación, tareas y rangos:** no.
 - **Habilidades de Pokémon y objetos equipados:** en este juego casi no tienen efecto en combate
   (solo 2 habilidades), así que no hay nada que probar.

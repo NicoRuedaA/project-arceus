@@ -81,6 +81,16 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "L_money_00",
             "L_info_item_00",
         ],
+        ScreenId::Customize => &[
+            "L_dressup_tab_00",
+            "L_tab_00",
+            "L_tab_06",
+            "L_btn_list_00",
+            "L_btn_list_06",
+            "T_name_item_00",
+            "L_info_equipment_00",
+            "T_name_item_epuip_00",
+        ],
         _ => &[],
     }
 }
@@ -233,36 +243,81 @@ fn missing_data_keeps_the_debug_ui() {
     );
 }
 
-/// The pause list (every option, the money / play-time line and the key hint) ends above the
-/// bottom edge with a margin and its rows never overlap, for the current 16 options and for
-/// longer lists. The original screens are laid out in layout pixels stretched to the viewport
-/// (percent nodes, viewport-height fonts), so this one check covers 1280x720, 1920x1080 and
-/// 2560x1440 alike.
+/// The pause menu keeps the game's own distribution: the four-icon strip with the selection's
+/// title, the game's opening animations, and NO text list of options (brief ui-menu). The strip
+/// contracts with the game's own `switch_menu` animation when a page has fewer icons.
 #[test]
-fn pause_list_fits_above_the_bottom_edge() {
-    use crate::game::pause_menu::OPTIONS;
-    for rows in [OPTIONS.len(), 18, 24] {
-        let labels: Vec<String> = (0..rows).map(|i| format!("Option {i}")).collect();
-        let texts = menus::pause_list_texts(&labels, 0, "Money: 0");
-        assert_eq!(texts.len(), rows + 2);
-        let bottom = texts
-            .iter()
-            .map(|t| t.center.y + t.size.y / 2.0)
-            .fold(0.0f32, f32::max);
+fn pause_menu_uses_the_icon_strip_with_no_text_list() {
+    let Some(root) = local_root() else { return };
+    use crate::game::pause_menu::{PauseMenu, OPTIONS};
+    use crate::game::settings::UserSettings;
+    use crate::game::state::Paused;
+    let (app, e) = screen_app(&root, ScreenId::PauseMenu, |app| {
+        app.insert_resource(Paused(true));
+        app.insert_resource(PauseMenu { selected: 5 });
+        app.insert_resource(UserSettings::default());
+        app.add_systems(Update, (menus::bind_pause_menu, render_screens).chain());
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(s.shown, "the pause screen shows while paused");
+    let f = s.evaluate();
+    let texts: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    assert_eq!(texts, vec!["Pokédex"], "only the title is a scene text");
+    // The port's own footer: exactly two lines (money / play time and the keys), no option rows.
+    let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
+    assert_eq!(free.len(), 2, "only the port's two footer lines: {free:?}");
+    assert!(free[0].starts_with("Money: "), "{free:?}");
+    assert!(free[1].starts_with("Left / Right"), "{free:?}");
+    assert!(
+        !free.iter().any(|t| t.contains("> ")),
+        "no option rows on the screen: {free:?}"
+    );
+    assert!(s.free_quads().is_empty(), "no port panel over the game's layout");
+    // The strip: the four slots of the current page carry the game's icon overrides.
+    let page = 5 / 4;
+    for k in 0..4 {
+        let part = format!("L_menu_0{k}");
+        let pane = s.node_in(&part, "P_icon_menu_00").expect("slot pane");
+        let img = s
+            .overrides
+            .get(pane)
+            .and_then(|o| o.image.as_ref())
+            .unwrap_or_else(|| panic!("{part} has no icon override"));
+        assert!(img.png.contains("png/"), "{part}: {}", img.png);
+        let inst = s.scene.part_instance(&part).unwrap();
+        let want = if page * 4 + k == 5 { "_select" } else { "_unselect" };
         assert!(
-            bottom <= menus::PAUSE_LIST_BOTTOM + 0.5,
-            "{rows} rows end at {bottom}"
+            s.anim.tracks.iter().any(|t| t.instance == inst && t.anim.ends_with(want)),
+            "{part} has no {want} state"
         );
-        assert!(bottom < 1080.0 - 40.0, "{rows} rows: no bottom margin ({bottom})");
-        for pair in texts[..rows].windows(2) {
-            let a_bottom = pair[0].center.y + pair[0].size.y / 2.0;
-            let b_top = pair[1].center.y - pair[1].size.y / 2.0;
-            assert!(a_bottom <= b_top, "{rows} rows overlap");
-            assert!(pair[0].font_px * TEXT_SCALE < pair[0].size.y, "glyphs taller than a row");
-        }
-        let top = texts[0].center.y - texts[0].size.y / 2.0;
-        assert!(top >= menus::PAUSE_LIST_TOP - 0.5, "list starts under the title bar");
     }
+    // Every icon of the current page maps to an icon the archive really holds.
+    for &opt in OPTIONS.iter().take(4) {
+        let icon = menus::option_icon(opt);
+        let info = s.scene.archive().textures.get(&format!("sm_menu_icon_{icon}_00^t"));
+        assert!(
+            info.is_some_and(|i| i.width > 2 && i.height > 2 && i.png.is_some()),
+            "{opt:?} uses the missing icon {icon}"
+        );
+    }
+    // The game's opening animations are playing (f_in + menu_in + title_in).
+    for tag in ["f_in", "menu_in", "title_in"] {
+        let name = format!("slidemenu_menulist_01_{tag}");
+        assert!(
+            s.anim.tracks.iter().any(|t| t.anim == name),
+            "opening {tag} not playing"
+        );
+    }
+    // The strip sizes itself with the game's own switch_menu animation.
+    assert_eq!(menus::strip_frame(4), 0.0);
+    assert_eq!(menus::strip_frame(3), 1.0);
+    assert_eq!(menus::strip_frame(2), 2.0);
+    assert_eq!(menus::strip_frame(1), 2.0);
 }
 
 /// The corner minimap is hidden under the battle HUD and every menu screen, never under the
@@ -403,6 +458,9 @@ fn screen_app(
         mode: UiMode::Original,
         root: Some(root.clone()),
     });
+    app.init_resource::<scrollbar::ScrollBars>();
+    app.init_resource::<scrollbar::ScrollDrag>();
+    app.init_resource::<scrollbar::VirtualPointer>();
     let mut icons = icons::IconIndex::default();
     icons.scan(root);
     app.insert_resource(icons);
@@ -727,6 +785,82 @@ fn options_screen_falls_back_when_the_layout_is_missing() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// The Options screen's game scrollbar follows the list window: the knob shrinks with the
+/// visible share and travels with the scroll (brief ui-menu: the bar must work, not only draw).
+#[test]
+fn options_scrollbar_knob_follows_the_window() {
+    let Some(root) = local_root() else { return };
+    use crate::game::graphics_screen::{self, GraphicsRuntime, GraphicsScreenState, GraphicsSettings};
+    use crate::game::settings::UserSettings;
+    let (mut app, e) = screen_app(&root, ScreenId::Options, |app| {
+        let settings = GraphicsSettings::default();
+        app.insert_resource(settings.clone());
+        app.insert_resource(GraphicsRuntime {
+            saved: settings,
+            startup: GraphicsSettings::default(),
+            overridden: Vec::new(),
+            dir: PathBuf::new(),
+        });
+        let pages = graphics_screen::visible_pages();
+        let distances = pages.iter().position(|p| *p == graphics_screen::Page::Distances).unwrap();
+        app.insert_resource(GraphicsScreenState {
+            open: true,
+            selected: 0,
+            page: distances,
+            scroll: 0,
+        });
+        app.insert_resource(UserSettings::default());
+        app.add_systems(Update, (menus::bind_options_screen, render_screens).chain());
+    });
+    let knob = |app: &App| -> (Vec2, Vec2) {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        let inst = s.scene.part_instance("L_scrollbar_00").unwrap();
+        let n = s.scene.find_in(inst, "W_box_00").unwrap();
+        let g = s.last.as_ref().unwrap().geoms[n];
+        (g.center, g.size)
+    };
+    let total = crate::game::graphics_screen::rows_of(crate::game::graphics_screen::Page::Distances).len();
+    let bar = app.world().resource::<scrollbar::ScrollBars>().get(ScreenId::Options).copied().expect("bar published");
+    assert_eq!((bar.visible, bar.total, bar.scroll), (9, total, 0));
+    assert!(bar.track.len > 0.0);
+    let (top_center, top_size) = knob(&app);
+    assert!(
+        (top_size.x - bar.track.len * 9.0 / total as f32).abs() < 2.0,
+        "knob length is the visible share: {top_size:?} of {total} rows"
+    );
+    // Scrolled to the last rows the knob is shorter than the track and sits lower.
+    {
+        let mut state = app.world_mut().resource_mut::<GraphicsScreenState>();
+        state.selected = total - 1;
+    }
+    app.update();
+    let bar = app.world().resource::<scrollbar::ScrollBars>().get(ScreenId::Options).copied().unwrap();
+    assert_eq!(bar.scroll, total - 9);
+    let (bottom_center, bottom_size) = knob(&app);
+    assert!(
+        (bottom_size.x - top_size.x).abs() < 0.5 && (bottom_size.y - top_size.y).abs() < 0.5,
+        "the knob keeps its length: {top_size:?} -> {bottom_size:?}"
+    );
+    assert!(
+        bottom_center.y > top_center.y,
+        "the knob moves down with the scroll: {top_center:?} -> {bottom_center:?}"
+    );
+    // The whole page fits on the Look page: the scrollbar hides itself.
+    {
+        let mut state = app.world_mut().resource_mut::<GraphicsScreenState>();
+        state.page = 0;
+        state.selected = 0;
+        state.scroll = 0;
+    }
+    app.update();
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(
+        s.overrides.get(s.node("L_scrollbar_00").unwrap()).and_then(|o| o.visible) == Some(false),
+        "no overflow -> hidden bar"
+    );
+    assert!(app.world().resource::<scrollbar::ScrollBars>().get(ScreenId::Options).is_none());
+}
+
 /// Arbitrary font paths are rejected; only the pre-verified free-font candidates are eligible.
 #[test]
 fn ui_font_lookup_prefers_the_env_path_and_skips_missing_files() {
@@ -1013,5 +1147,116 @@ fn shop_binding_fills_the_item_grid_and_money() {
     assert!(
         !f.geoms[s.scene.find_in(grid, "L_btn_main_01").unwrap()].visible,
         "second sell cell hidden"
+    );
+}
+
+/// The customize screen fills the game's seven row slots from the port's thirteen rows (window
+/// follows the selection), marks the category tab of the selected row and shows its value in the
+/// equipment strip; the game's buy side, fitting strip and key guide stay hidden.
+#[test]
+fn customize_binding_fills_rows_tabs_and_equipment() {
+    let Some(root) = local_root() else { return };
+    use crate::game::customize_screen::CustomizeScreenState;
+    use crate::game::dressup::{LookCatalog, PlayerLookState};
+    let (mut app, e) = screen_app(&root, ScreenId::Customize, |app| {
+        app.insert_resource(CustomizeScreenState {
+            open: true,
+            selected: 0,
+            scroll: 0,
+        });
+        app.insert_resource(PlayerLookState::default());
+        app.insert_resource(LookCatalog::builtin());
+        app.add_systems(
+            Update,
+            (dressup_screen::bind_dressup_screen, render_screens).chain(),
+        );
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(s.shown, "open customize must show");
+    let f = s.last.clone().expect("evaluated");
+    let text_in = |inst: usize, name: &str| {
+        let n = s.scene.find_in(inst, name).unwrap();
+        f.texts
+            .iter()
+            .find(|t| t.node == n)
+            .map(|t| t.text.clone())
+    };
+    // Hidden branches: the game's buy side, fitting strip and key guide.
+    for name in ["N_buy_00", "N_fitting_00", "L_guide_00"] {
+        let n = s.scene.find(name).unwrap();
+        assert!(!f.geoms[n].visible, "{name} hidden");
+    }
+    // The off-box scroller rows stay hidden; the five on-box slots show the first window.
+    for k in [0usize, 6] {
+        let n = s.scene.find(&format!("L_btn_list_{k:02}")).unwrap();
+        assert!(!f.geoms[n].visible, "off-box row part {k} hidden");
+    }
+    let row0 = s.scene.part_instance("L_btn_list_01").unwrap();
+    assert_eq!(
+        text_in(row0, "T_name_item_00").as_deref(),
+        Some("Protagonist")
+    );
+    assert_eq!(text_in(row0, "T_name_color_00").as_deref(), Some("P1 (Rei)"));
+    let row5 = s.scene.part_instance("L_btn_list_05").unwrap();
+    assert_eq!(
+        text_in(row5, "T_name_item_00").as_deref(),
+        Some("Eye colour"),
+        "fifth slot of the first window"
+    );
+    let anim = |inst: usize, tag: &str| {
+        s.anim
+            .tracks
+            .iter()
+            .any(|t| t.instance == inst && t.anim.ends_with(tag))
+    };
+    assert!(anim(row0, "_select"), "cursor row carries the select state");
+    assert!(!anim(row0, "_unselect"));
+    assert!(anim(s.scene.part_instance("L_btn_list_02").unwrap(), "_unselect"));
+    // Tab 0 (protagonist) selected, tab 1 not.
+    assert!(anim(s.scene.part_instance("L_tab_00").unwrap(), "_select"));
+    assert!(anim(s.scene.part_instance("L_tab_01").unwrap(), "_unselect"));
+    // Equipment strip shows the selected row's value.
+    let eq = s.scene.part_instance("L_info_equipment_00").unwrap();
+    assert_eq!(text_in(eq, "T_name_item_epuip_00").as_deref(), Some("P1 (Rei)"));
+    assert_eq!(text_in(eq, "T_name_color_equip_00").as_deref(), Some("Protagonist"));
+
+    // Jump to the last row: the window scrolls to 6 and the bag tab lights up.
+    app.world_mut()
+        .resource_mut::<CustomizeScreenState>()
+        .selected = 12;
+    app.update();
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    let f = s.last.clone().expect("evaluated");
+    let text_in = |inst: usize, name: &str| {
+        let n = s.scene.find_in(inst, name).unwrap();
+        f.texts
+            .iter()
+            .find(|t| t.node == n)
+            .map(|t| t.text.clone())
+    };
+    let row1 = s.scene.part_instance("L_btn_list_01").unwrap();
+    assert_eq!(
+        text_in(row1, "T_name_item_00").as_deref(),
+        Some("Bottom"),
+        "the window scrolled to row 8"
+    );
+    let row5 = s.scene.part_instance("L_btn_list_05").unwrap();
+    assert_eq!(text_in(row5, "T_name_item_00").as_deref(), Some("Bag"));
+    assert!(
+        s.anim.tracks.iter().any(|t| {
+            t.instance == row5 && t.label == "sel" && t.anim.ends_with("_select")
+        }),
+        "the bag row carries the select state"
+    );
+    assert!(s.anim.tracks.iter().any(|t| {
+        let inst = s.scene.part_instance("L_tab_06").unwrap();
+        t.instance == inst && t.anim.ends_with("_select")
+    }));
+    let eq = s.scene.part_instance("L_info_equipment_00").unwrap();
+    assert_eq!(text_in(eq, "T_name_color_equip_00").as_deref(), Some("Bag"));
+    let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
+    assert!(
+        free.iter().any(|t| t.contains("13 / 13") && t.contains("Esc: back")),
+        "key hint: {free:?}"
     );
 }

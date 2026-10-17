@@ -207,10 +207,10 @@ def run(args: argparse.Namespace) -> int:
             return (r.get("dex_preview") or {}).get("yaw_deg")
 
         before = yaw_of(s.cmd({"cmd": "state"}))
-        s.step("mouse down inside the photo frame", {"cmd": "mouse", "button": "left", "action": "down"})
-        s.step("cursor into the photo frame", {"cmd": "mousemove", "x": 320, "y": 320})
-        s.step("drag 120 px to the right", {"cmd": "mousemove", "x": 440, "y": 320})
-        s.step("mouse up", {"cmd": "mouse", "button": "left", "action": "up"})
+        s.step("cursor into the photo frame", {"cmd": "mouse", "x": 320, "y": 320})
+        s.step("mouse press inside the photo frame", {"cmd": "mouse", "button": "left", "action": "press"})
+        s.step("drag 120 px to the right", {"cmd": "mouse", "x": 440, "y": 320})
+        s.step("mouse release", {"cmd": "mouse", "button": "left", "action": "release"})
         turned = yaw_of(s.cmd({"cmd": "state"}))
         ok_turn = before is not None and turned is not None and 40.0 < (turned - before) % 360.0 < 60.0
         s.record("mouse drag turns the model about 41 degrees", ok_turn, f"yaw {before} -> {turned}")
