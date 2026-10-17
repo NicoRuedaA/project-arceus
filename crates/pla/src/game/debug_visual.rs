@@ -119,7 +119,8 @@ pub mod colors {
     pub const WALL: Color = Color::srgb(0.10, 0.85, 1.00);
     pub const FLOOR: Color = Color::srgb(0.45, 0.48, 0.52);
     pub const NAV_WALK: Color = Color::srgb(0.20, 1.00, 0.35);
-    pub const NAV_BLOCKED: Color = Color::srgb(0.55, 0.06, 0.06);
+    // Brighter than the first version: dark red vanished on the near-black `only` backdrop.
+    pub const NAV_BLOCKED: Color = Color::srgb(0.80, 0.10, 0.10);
     pub const DOOR: Color = Color::srgb(1.00, 0.85, 0.10);
     pub const CLIMB: Color = Color::srgb(1.00, 0.55, 0.10);
     pub const WATER: Color = Color::srgb(0.25, 0.55, 1.00);
@@ -264,7 +265,7 @@ impl DebugViewState {
             CollisionView::Only => {
                 parts.push("cian=muros");
                 parts.push("verde=navegacion");
-                parts.push("rojo oscuro=no caminable");
+                parts.push("rojo=no caminable");
             }
             CollisionView::Off => {}
         }
@@ -664,6 +665,14 @@ struct NavVisual {
     last_nav: usize,
 }
 
+/// Screen background of `collisions = only`: nearly black, so the thin cyan/green/red lines read
+/// well (the game's own clear colour is the sky colour of the current time of day).
+const ONLY_BACKDROP: Color = Color::srgb(0.02, 0.025, 0.04);
+
+/// The game clear colour saved while `collisions = only` paints [`ONLY_BACKDROP`].
+#[derive(Resource, Default)]
+struct BackdropSaved(Option<Color>);
+
 /// World-hiding bookkeeping of `collisions = only` (previous visibility per entity).
 #[derive(Resource, Default)]
 struct WorldHide {
@@ -959,6 +968,34 @@ fn sync_world_hiding(
         }
         hide.saved.insert(entity, *visibility);
         *visibility = Visibility::Hidden;
+    }
+}
+
+/// `collisions = only`: paint a dark screen background so the lines stand out, and give the game
+/// colour back when the mode leaves `only`.
+///
+/// The sky dome and clouds are already hidden by [`sync_world_hiding`]; what is left behind is the
+/// `ClearColor`, which the lighting module rewrites whenever the time of day or weather blends to a
+/// new key. Running in `Last` (right before extraction) keeps the dark colour on screen even then,
+/// and a colour the game wrote in between is the one that is saved and restored.
+fn sync_dark_backdrop(
+    state: Res<DebugViewState>,
+    clear: Option<ResMut<ClearColor>>,
+    mut saved: ResMut<BackdropSaved>,
+) {
+    // Headless test apps (no camera plugin) have no `ClearColor`: nothing to paint.
+    let Some(mut clear) = clear else {
+        return;
+    };
+    if state.collisions == CollisionView::Only {
+        if clear.0 != ONLY_BACKDROP {
+            saved.0 = Some(clear.0);
+            clear.0 = ONLY_BACKDROP;
+        }
+    } else if let Some(game) = saved.0.take() {
+        if clear.0 == ONLY_BACKDROP {
+            clear.0 = game;
+        }
     }
 }
 
@@ -1607,6 +1644,7 @@ impl Plugin for DebugVisualPlugin {
             .init_resource::<CollisionVisual>()
             .init_resource::<NavVisual>()
             .init_resource::<WorldHide>()
+            .init_resource::<BackdropSaved>()
             .init_resource::<FlatShade>()
             .init_resource::<DataMarkers>()
             .init_resource::<PlayerProbe>();
@@ -1615,6 +1653,8 @@ impl Plugin for DebugVisualPlugin {
         // nothing instead of failing).
         app.add_plugins(bevy::pbr::wireframe::WireframePlugin::default());
         app.add_systems(Startup, spawn_debug_ui);
+        // `ClearColor` is what the renderer extracts after `Last`: override it there.
+        app.add_systems(Last, sync_dark_backdrop);
         app.add_systems(
             Update,
             (
@@ -1791,7 +1831,7 @@ mod tests {
         for needle in [
             "cian=muros",
             "verde=navegacion",
-            "rojo oscuro=no caminable",
+            "rojo=no caminable",
             "amarillo=puertas+viaje",
             "naranja=trepables",
             "azul=agua",
@@ -1985,6 +2025,31 @@ mod tests {
             "nothing was hidden"
         );
         assert!(app.world().resource::<FlatShade>().saved.is_empty());
+    }
+
+    #[test]
+    fn only_mode_paints_a_dark_backdrop_and_gives_the_game_colour_back() {
+        let mut app = headless_app();
+        let sky = Color::linear_rgb(0.40, 0.62, 0.95);
+        app.insert_resource(ClearColor(sky));
+        app.update();
+        assert_eq!(app.world().resource::<ClearColor>().0, sky, "off: untouched");
+
+        app.world_mut().resource_mut::<DebugViewState>().collisions = CollisionView::Only;
+        app.update();
+        assert_eq!(app.world().resource::<ClearColor>().0, ONLY_BACKDROP, "only: dark");
+
+        // The lighting module rewrites the clear colour when the time of day blends to a new key:
+        // the dark backdrop is painted again and the new game colour is the one that comes back.
+        let dusk = Color::linear_rgb(0.80, 0.45, 0.30);
+        app.world_mut().resource_mut::<ClearColor>().0 = dusk;
+        app.update();
+        assert_eq!(app.world().resource::<ClearColor>().0, ONLY_BACKDROP);
+
+        app.world_mut().resource_mut::<DebugViewState>().collisions = CollisionView::Off;
+        app.update();
+        assert_eq!(app.world().resource::<ClearColor>().0, dusk, "leaving only restores the game colour");
+        assert!(app.world().resource::<BackdropSaved>().0.is_none());
     }
 
     #[test]

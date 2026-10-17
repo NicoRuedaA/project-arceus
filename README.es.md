@@ -218,7 +218,7 @@ colores. **F5 (guardar) no se toca**; F4 y F6..F12 siguen libres.
 
 | Tecla | Ciclo (cada pulsación avanza y vuelve al inicio) | Qué enseña |
 |---|---|---|
-| `F1` | apagado → encima → solo | Líneas de colisión de los objetos colocados sobre el mundo; `solo` esconde todos los modelos y el terreno y deja colisiones + navegación (caras caminables en verde, celdas no caminables por muestreo en rojo oscuro) |
+| `F1` | apagado → encima → solo | Líneas de colisión de los objetos colocados sobre el mundo; `solo` esconde todos los modelos y el terreno y deja colisiones + navegación (caras caminables en verde, celdas no caminables por muestreo en rojo; fondo de pantalla casi negro) |
 | `F2` | normal → sin texturas → alambre | Cambio a un material gris liso en los modelos, los personajes, el terreno (incluido el suelo en tiempo real) y el agua (restaura después los materiales originales exactos) y el modo alambre de Bevy |
 | `F3` | apagado → jugador → jugador + marcas | Línea del jugador (posición, velocidad, estado de movimiento, zona, subárea, hora de juego, FPS) y marcas de colores: puertas+alcance (amarillo), riscos trepables (naranja), agua (azul), apariciones/punto seguro (lima), objetos recogibles (magenta), cápsulas de PNJ (blanco), salvajes + radio de enfado (rojo) |
 
