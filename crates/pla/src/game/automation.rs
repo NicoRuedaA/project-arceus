@@ -34,12 +34,14 @@ use std::time::{Duration, Instant};
 use bevy::app::PluginsState;
 use bevy::camera::RenderTarget;
 use bevy::input::keyboard::{Key, KeyboardInput, NativeKey};
+use bevy::input::mouse::MouseButtonInput;
 use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use bevy::time::TimeUpdateStrategy;
 use bevy::transform::TransformSystems;
+use bevy::window::CursorMoved;
 use serde_json::{json, Map, Value};
 
 use super::battle_controller::{ActiveBattleSession, BattleAssets};
@@ -404,6 +406,11 @@ pub enum Command {
     Step { frames: u32 },
     WaitSeconds { seconds: f32 },
     Key { key: KeyCode, action: KeyAction, frames: u32 },
+    /// Move the (virtual) cursor to `(x, y)`: logical pixels of the primary window, or physical
+    /// pixels of the offscreen target in automation mode.
+    MouseMove { x: f32, y: f32 },
+    /// Press / release a mouse button.
+    MouseButton { button: MouseButton, action: KeyAction, frames: u32 },
     Teleport { x: f32, z: f32 },
     TeleportZone { area: u8, pos: Option<(f32, f32)> },
     SetTime { time: TimeSpec, pinned: Option<bool> },
@@ -583,6 +590,27 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
             };
             let frames = bounded(get_u64(o, "frames")?.unwrap_or(1), "frames", 10_000)?;
             Command::Key { key, action, frames }
+        }
+        "mousemove" | "mouse_move" => Command::MouseMove {
+            x: need(get_f32(o, "x")?, "x")?,
+            y: need(get_f32(o, "y")?, "y")?,
+        },
+        "mouse" | "mouse_button" => {
+            let name = need(get_str(o, "button")?, "button")?;
+            let button = match name.to_ascii_lowercase().as_str() {
+                "left" => MouseButton::Left,
+                "right" => MouseButton::Right,
+                "middle" => MouseButton::Middle,
+                _ => return Err(format!("unknown mouse button '{name}' (left|right|middle)")),
+            };
+            let action = match get_str(o, "action")?.unwrap_or("press") {
+                "press" => KeyAction::Press,
+                "down" => KeyAction::Down,
+                "up" => KeyAction::Up,
+                a => return Err(format!("unknown mouse action '{a}' (press|down|up)")),
+            };
+            let frames = bounded(get_u64(o, "frames")?.unwrap_or(1), "frames", 10_000)?;
+            Command::MouseButton { button, action, frames }
         }
         "teleport" => Command::Teleport { x: need(get_f32(o, "x")?, "x")?, z: need(get_f32(o, "z")?, "z")? },
         "teleport_zone" => {
@@ -1031,6 +1059,31 @@ fn dispatch(app: &mut App, ctx: &mut Ctx, cmd: &Command) -> Result<Value, String
             }
             Ok(json!({"key": format!("{key:?}"), "stepped": n}))
         }
+        Command::MouseMove { x, y } => {
+            send_cursor(app.world_mut(), Vec2::new(*x, *y));
+            let n = ctx.step(app, 1);
+            Ok(json!({"cursor_moved": [x, y], "stepped": n}))
+        }
+        Command::MouseButton { button, action, frames } => {
+            let mut n = 0;
+            match action {
+                KeyAction::Press => {
+                    send_mouse(app.world_mut(), *button, ButtonState::Pressed);
+                    n += ctx.step(app, (*frames).max(1));
+                    send_mouse(app.world_mut(), *button, ButtonState::Released);
+                    n += ctx.step(app, 1);
+                }
+                KeyAction::Down => {
+                    send_mouse(app.world_mut(), *button, ButtonState::Pressed);
+                    n += ctx.step(app, *frames);
+                }
+                KeyAction::Up => {
+                    send_mouse(app.world_mut(), *button, ButtonState::Released);
+                    n += ctx.step(app, *frames);
+                }
+            }
+            Ok(json!({"mouse": format!("{button:?}"), "stepped": n}))
+        }
         Command::Teleport { x, z } => {
             let p = teleport(app.world_mut(), *x, *z)?;
             Ok(json!({"position": p}))
@@ -1093,6 +1146,25 @@ fn send_key(world: &mut World, key: KeyCode, state: ButtonState) {
         state,
         text: None,
         repeat: false,
+        window: Entity::PLACEHOLDER,
+    });
+}
+
+/// Queue a cursor move at `position`: logical pixels in a windowed run, physical pixels of the
+/// offscreen target in automation mode (there is no window to scale by).
+fn send_cursor(world: &mut World, position: Vec2) {
+    world.write_message(CursorMoved {
+        window: Entity::PLACEHOLDER,
+        position,
+        delta: None,
+    });
+}
+
+/// Queue a mouse button edge as a real mouse message (read by `mouse_button_input_system`).
+fn send_mouse(world: &mut World, button: MouseButton, state: ButtonState) {
+    world.write_message(MouseButtonInput {
+        button,
+        state,
         window: Entity::PLACEHOLDER,
     });
 }
@@ -2052,6 +2124,21 @@ mod tests {
             parse_command(r#"{"cmd":"key","key":"w","action":"down"}"#),
             Ok(Command::Key { key: KeyCode::KeyW, action: KeyAction::Down, frames: 1 })
         );
+        assert_eq!(
+            parse_command(r#"{"cmd":"mousemove","x":100.5,"y":-3}"#),
+            Ok(Command::MouseMove { x: 100.5, y: -3.0 })
+        );
+        assert_eq!(
+            parse_command(r#"{"cmd":"mouse","button":"left","action":"down","frames":2}"#),
+            Ok(Command::MouseButton { button: MouseButton::Left, action: KeyAction::Down, frames: 2 })
+        );
+        assert_eq!(
+            parse_command(r#"{"cmd":"mouse","button":"Right"}"#),
+            Ok(Command::MouseButton { button: MouseButton::Right, action: KeyAction::Press, frames: 1 })
+        );
+        assert!(parse_command(r#"{"cmd":"mouse","button":"thumb"}"#).is_err());
+        assert!(parse_command(r#"{"cmd":"mousemove","x":1}"#).is_err());
+        assert!(parse_command(r#"{"cmd":"mouse","button":"left","action":"click"}"#).is_err());
         assert_eq!(parse_command(r#"{"cmd":"teleport","x":10.5,"z":-3}"#), Ok(Command::Teleport { x: 10.5, z: -3.0 }));
         assert_eq!(parse_command(r#"{"cmd":"teleport_zone","area":2}"#), Ok(Command::TeleportZone { area: 2, pos: None }));
         assert_eq!(
