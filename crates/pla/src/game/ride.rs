@@ -181,6 +181,10 @@ pub struct RiderSeat {
     /// Rotation of the rider's model root in mount space (identity: the rider clips' own
     /// `origin` rotation carries the body tilt).
     pub rider_rot: [f32; 4],
+    /// Mount-space floor (m) for the rider's model root while the mount is on the ground;
+    /// `None` keeps the authored placement (used by the flyer, whose clip hangs the rider
+    /// *below* the mount root and would otherwise sink under the terrain while it stands).
+    pub grounded_floor: Option<f32>,
 }
 
 impl RiderSeat {
@@ -240,6 +244,7 @@ impl RideKind {
                     rest_rot: [0.3800, -0.3800, 0.5963, 0.5963],
                     rider_pos: [0.0, 1.05, -0.18],
                     rider_rot: [0.0, 0.0, 0.0, 1.0],
+                    grounded_floor: None,
                 },
                 domain: RideDomain::Ground,
                 input_walk: 0.01,
@@ -263,6 +268,7 @@ impl RideKind {
                     rest_rot: [0.5747, 0.5747, 0.4120, -0.4120],
                     rider_pos: [0.008, 1.760, -0.348],
                     rider_rot: [0.0, 0.0, 0.0, 1.0],
+                    grounded_floor: None,
                 },
                 domain: RideDomain::Ground,
                 input_walk: 0.35,
@@ -287,6 +293,7 @@ impl RideKind {
                     rest_rot: [-0.0, -0.7071, 0.0, 0.7071],
                     rider_pos: [0.0, 0.38, 0.60],
                     rider_rot: [0.0, 0.0, 0.0, 1.0],
+                    grounded_floor: None,
                 },
                 domain: RideDomain::Water,
                 input_walk: 0.01,
@@ -311,6 +318,7 @@ impl RideKind {
                     rest_rot: [-0.0, -0.0, 0.7071, 0.7071],
                     rider_pos: [0.0, 0.18, -0.05],
                     rider_rot: [0.0, 0.0, 0.0, 1.0],
+                    grounded_floor: None,
                 },
                 domain: RideDomain::Ground,
                 input_walk: 0.01,
@@ -336,6 +344,7 @@ impl RideKind {
                     rest_rot: [-0.5531, -0.5531, -0.4405, 0.4405],
                     rider_pos: [0.083, -0.530, 0.382],
                     rider_rot: [0.0, 0.0, 0.0, 1.0],
+                    grounded_floor: Some(0.30),
                 },
                 domain: RideDomain::Air,
                 input_walk: 0.01,
@@ -908,6 +917,7 @@ fn find_mount_seat(
 /// mount's animation exactly on the frame it moves.
 fn seat_rider(
     ride: Res<RideState>,
+    flight: Query<&super::player_motion::PlayerMotionState, With<PlayerAvatar>>,
     seats: Query<(Entity, &MountSeat, &Transform), Without<PlayerModelScene>>,
     parents: Query<&ChildOf>,
     bones: Query<&Transform, (Without<PlayerModelScene>, Without<MountSeat>)>,
@@ -915,6 +925,9 @@ fn seat_rider(
 ) {
     let on_foot = rider_on_foot_transform();
     let eased = ride.seat_ease();
+    let airborne = flight
+        .iter()
+        .any(|m| m.mode == super::player_motion::MotionMode::Airborne);
     let mut target = on_foot;
     if eased > 0.0 {
         if let Some((view, seat, mount_tf)) = seats.iter().next() {
@@ -932,9 +945,20 @@ fn seat_rider(
                     rel = parent_tf.mul_transform(rel);
                     cur = parent;
                 }
+                // Mount-space placement of the rider's model root (the anchor bone's live
+                // transform times the constant bone-frame offset), then the floor of mounts
+                // whose clip hangs the rider below their root while they stand on the ground.
+                // The mount view itself is a plain offset (no rotation), so composing in this
+                // order keeps the clamp in the mount's own vertical axis.
+                let mut placed = rider_attached_transform(&Transform::IDENTITY, &rel, &seat.local);
+                if let Some(floor) = seat.kind.params().seat.grounded_floor {
+                    if !airborne && placed.translation.y < floor {
+                        placed.translation.y = floor;
+                    }
+                }
                 target = blend_rider_transform(
                     &on_foot,
-                    &rider_attached_transform(mount_tf, &rel, &seat.local),
+                    &rider_attached_transform(mount_tf, &placed, &Transform::IDENTITY),
                     eased,
                 );
             }
