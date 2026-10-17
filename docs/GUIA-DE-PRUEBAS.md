@@ -385,12 +385,14 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     en el mapa todavía. El precio de venta es SUPUESTO.
 43. **Dinero y tiempo de juego.** [EN MAIN] Se ve en la partida y se guarda. Descansar (Esc > Rest)
     cura al equipo y avanza el reloj a la siguiente franja.
-44. **Artesanía.** [EN MAIN] Esc > «Crafting». Ves una lista
-    de 43 recetas («Unknown recipe -> item NNNN x1»). Flechas arriba/abajo, Enter intenta fabricar,
-    Esc cierra. **Lo esperado** es que diga «Condition unknown; crafting refused.» en todas: el
-    juego no guarda en esa tabla cuándo se desbloquea cada receta, así que por ahora ninguna se
-    puede fabricar. Fallo: la lista se sale de la pantalla (avísame del tamaño de tu ventana), no
-    se cierra con Esc, o el mundo sigue moviéndose detrás.
+44. **Artesanía.** [EN MAIN] Esc > «Crafting». La pantalla usa ya el aspecto del juego original:
+    rejilla de recetas con el icono del objeto (5 x 4 por página; al bajar de la página 1 se pasa
+    solo), panel «Required materials» con la cantidad que pide cada material y la que tienes
+    (en rojo si te falta), ficha de la receta abajo y franja de mensajes. Flechas arriba/abajo,
+    Enter intenta fabricar, Esc cierra. Como cada receta se desbloquea con su objeto de receta,
+    lo normal al empezar es leer «You don't own this recipe.»; si tienes el objeto pero te falta
+    material, «Missing materials.». Fallo: la rejilla no cambia al moverte, no se cierra con Esc,
+    o el mundo sigue moviéndose detrás.
 
 ### 2.8 Menús y pantallas
 

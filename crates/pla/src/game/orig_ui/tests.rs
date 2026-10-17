@@ -63,6 +63,16 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "N_switch_slider_00",
             "T_slider_current_param",
         ],
+        ScreenId::Crafting => &[
+            "L_inventory_parts_00",
+            "P_deco_base_icon_item_00",
+            "P_deco_base_icon_item_19",
+            "L_info_material_00",
+            "L_info_material_04",
+            "T_h_required_material_00",
+            "T_msg_guid_00",
+            "L_info_item_00",
+        ],
         _ => &[],
     }
 }
@@ -786,4 +796,113 @@ fn options_slider_rows_drive_the_game_gauge() {
     assert!(knob_full.0 > back.0 + 200.0, "the knob moves to the right end");
     let (_, empty, _, _) = bar(&mut app, e, 0);
     assert!(empty.1 < 0.3 * back.1, "the bar shrinks towards the minimum: {empty:?}");
+}
+
+/// The crafting screen fills the game's own grid and material rows from the port's crafting
+/// state: recipe buttons on the slot circles, the selected recipe's materials with required /
+/// owned counts (the "not enough" state on a short row), the info panel and the message strip.
+#[test]
+fn crafting_binding_fills_the_recipe_grid_and_materials() {
+    let Some(root) = local_root() else { return };
+    use crate::game::bag_screen::BagItemTable;
+    use crate::game::crafting::{MaterialCost, Recipe, RecipeCondition, RecipeName};
+    use crate::game::crafting_ui::{CraftingBag, CraftingCatalog, CraftingUi};
+    let Ok(table) = crate::battle_engine::items::ItemTable::load(data_dir()) else {
+        println!("[skip] item table missing");
+        return;
+    };
+    let recipe = Recipe {
+        id: "1".into(),
+        name: RecipeName::Unknown,
+        product: 1710,
+        product_quantity: 1,
+        materials: vec![
+            MaterialCost {
+                item_id: 1613,
+                quantity: 1,
+            },
+            MaterialCost {
+                item_id: 1628,
+                quantity: 2,
+            },
+        ],
+        condition: RecipeCondition::OwnItem(1640),
+    };
+    let (app, e) = screen_app(&root, ScreenId::Crafting, |app| {
+        app.insert_resource(CraftingCatalog(vec![recipe.clone()]));
+        app.insert_resource(CraftingBag(crate::game::crafting::Bag::from([
+            (1613, 3),
+            (1628, 1),
+            (1640, 1),
+        ])));
+        app.insert_resource(CraftingUi {
+            open: true,
+            selected: 0,
+            message: String::new(),
+        });
+        app.insert_resource(BagItemTable(Some(table)));
+        app.add_systems(
+            Update,
+            (crafting_screen::bind_crafting_screen, render_screens).chain(),
+        );
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(s.shown, "open crafting screen must show");
+    let f = s.last.clone().expect("evaluated");
+    // The first recipe button sits on the game's own first slot circle.
+    let grid = s.scene.part_instance("L_inventory_parts_00").unwrap();
+    let btn = s.scene.find_in(grid, "L_btn_main_00").unwrap();
+    let slot = s.scene.find("P_deco_base_icon_item_00").unwrap();
+    assert!(f.geoms[btn].visible, "recipe cell 0 shown");
+    assert!(
+        (f.geoms[btn].center - f.geoms[slot].center).length() < 2.0,
+        "button at {:?}, slot at {:?}",
+        f.geoms[btn].center,
+        f.geoms[slot].center
+    );
+    assert!(
+        !f.geoms[s.scene.find_in(grid, "L_btn_main_20").unwrap()].visible,
+        "cells past the 20-slot page stay hidden"
+    );
+    // Material rows: row 0 ready (3 owned of 1), row 1 short (1 owned of 2 -> not enough).
+    let row = s.scene.part_instance("L_info_material_00").unwrap();
+    let pair = |inst: usize, name: &str| {
+        let n = s.scene.find_in(inst, name).unwrap();
+        f.texts
+            .iter()
+            .find(|t| t.node == n)
+            .map(|t| t.text.clone())
+    };
+    assert_eq!(pair(row, "T_param_required_num_00").as_deref(), Some("1"));
+    assert_eq!(pair(row, "T_in_storage_all_00").as_deref(), Some("3"));
+    assert!(pair(row, "T_name_item_00").unwrap().contains("#1613"));
+    let row1 = s.scene.part_instance("L_info_material_01").unwrap();
+    assert_eq!(pair(row1, "T_param_required_num_00").as_deref(), Some("2"));
+    assert_eq!(pair(row1, "T_in_storage_all_00").as_deref(), Some("1"));
+    assert!(
+        s.anim.tracks.iter().any(|t| {
+            t.instance == row1 && t.label == "not_enough" && t.anim == "making_info_material_00_item_not_enough"
+        }),
+        "the short row carries the game's not-enough state"
+    );
+    assert!(
+        !s.anim.tracks.iter().any(|t| t.instance == row && t.label == "not_enough"),
+        "the ready row does not"
+    );
+    assert!(
+        !f.geoms[s.scene.find("L_info_material_02").unwrap()].visible,
+        "rows past the recipe's materials stay hidden"
+    );
+    let texts: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    assert!(texts.contains(&"Required materials"), "{texts:?}");
+    assert!(texts.iter().any(|t| t.starts_with("Recipe 1:")), "{texts:?}");
+    assert!(
+        texts.iter().any(|t| t.contains("1 / 1") && t.contains("Enter: craft")),
+        "the message strip shows the hint: {texts:?}"
+    );
 }
