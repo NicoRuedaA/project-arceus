@@ -46,14 +46,15 @@ project wants in the dex come from an external sheet (`data/gen9_moves.tsv`: Pok
 verified against the game**: every value is EXTERNAL/PROBABLE and the sheet is never mixed
 with `pml_moves.tsv` rows, which always win by name.
 
-- 30 of the 70 rows now load through `battle_engine/gen9.rs`: 22 fit the effect columns,
+- 33 of the 70 rows now load through `battle_engine/gen9.rs`: 22 fit the effect columns,
   Gigaton Hammer and Blood Moon add the `cantusetwice` flag (`MoveEffects::repeat_lock`: the
-  move fails and spends no PP on the turn right after it was used), and Last Respects, Rage
-  Fist, Hard Press, Collision Course, Electro Drift and Fickle Beam add their Showdown
-  base-power callbacks (`PowerRule`: fainted allies, hits taken, target HP, super-effective
-  x1.333 and the 30 % double). The other 40 stay out with a per-row reason in
-  `engine_reason` (volatile statuses, weather/terrain, Tera, charge turns, stat changes on
-  both sides, ...). Class `b` is never approximated.
+  move fails and spends no PP on the turn right after it was used), Last Respects, Rage Fist,
+  Hard Press, Collision Course, Electro Drift and Fickle Beam add their Showdown base-power
+  callbacks (`PowerRule`), and Axe Kick, Supercell Slam and Magical Torque add miss crash
+  damage (`crash_damage_pct`) and the confusion secondary (ailment id 8, handled by the
+  status module). The other 37 stay out with a per-row reason in `engine_reason` (volatile
+  statuses, weather/terrain, Tera, charge turns, stat changes on both sides, ...). Class `b`
+  is never approximated.
 - The 8 Showdown/WikiDex stat disagreements were adjudicated on 2026-10-17 to the
   Scarlet/Violet value (the one before Pokemon Champions): Showdown already carries it, the
   WikiDex footnotes state the pre-Champions value, and PokemonDB's SV pages confirm the three
@@ -66,7 +67,8 @@ with `pml_moves.tsv` rows, which always win by name.
   PLA rules (5 turns from status moves, 3 from secondaries), not the modern games'.
 - Regression: `cargo test -p pla --lib gen9` runs the sheet parsing plus windowless battles
   (Jet Punch priority, Torch Song's self boost, Bitter Blade's drain, Lumina Crash's drop,
-  the repeat lock of Gigaton Hammer and the six base-power rules).
+  the repeat lock of Gigaton Hammer, the six base-power rules, Axe Kick's crash damage and
+  Magical Torque's confusion).
 
 ## Explicit unknowns
 

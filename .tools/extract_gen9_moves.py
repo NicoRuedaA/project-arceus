@@ -174,6 +174,11 @@ def parse_move(num: int, ident: str, body: str) -> dict[str, str]:
             continue
         (callbacks if is_callback(k, v) else others).append(k if is_callback(k, v) else f"{k}={scalar(v)[:30]}")
     row["callbacks"] = ";".join(callbacks)
+    if "hasCrashDamage=true" in others:
+        others.remove("hasCrashDamage=true")
+        row["crash_damage_pct"] = "50"  # Showdown onMoveFail: half the user's max HP
+    else:
+        row["crash_damage_pct"] = "0"
     row["other_props"] = ";".join(others)
     row["is_nonstandard"] = scalar(p["isNonstandard"]) if "isNonstandard" in p else ""
     return row
@@ -183,8 +188,9 @@ def classify(row: dict[str, str]) -> tuple[str, str]:
     reasons: list[str] = []
     if row["callbacks"]:
         callbacks = set(row["callbacks"].split(";"))
-        implemented = int(row["move"]) in POWER_RULE_MOVES and callbacks <= POWER_RULE_CALLBACKS
-        if not implemented:
+        power_rule = int(row["move"]) in POWER_RULE_MOVES and callbacks <= POWER_RULE_CALLBACKS
+        crash = row["crash_damage_pct"] != "0" and callbacks <= {"onMoveFail"}
+        if not (power_rule or crash):
             reasons.append("callback:" + row["callbacks"])
     if row["other_props"]:
         reasons.append("prop:" + row["other_props"])
@@ -194,7 +200,7 @@ def classify(row: dict[str, str]) -> tuple[str, str]:
         reasons.append("status:" + row["status"])
     if row["sec_status"] and row["sec_status"] not in STAGE_STATUS:
         reasons.append("secondary.status:" + row["sec_status"])
-    if row["sec_volatile"] and row["sec_volatile"] != "flinch":
+    if row["sec_volatile"] and row["sec_volatile"] not in ("flinch", "confusion"):
         reasons.append("secondary.volatileStatus:" + row["sec_volatile"])
     if row["self_other"]:
         reasons.append("self:" + row["self_other"])
@@ -282,6 +288,7 @@ COLUMNS = [
     ("status", "string"), ("volatile_status", "string"), ("boosts", "string"), ("self_boosts", "string"),
     ("self_other", "string"), ("sec_chance", "u8"), ("sec_status", "string"), ("sec_volatile", "string"),
     ("sec_boosts", "string"), ("sec_self_boosts", "string"), ("callbacks", "string"),
+    ("crash_damage_pct", "u8"),
     ("other_props", "string"), ("is_nonstandard", "string"), ("source_diff", "string"), ("engine_class", "enum"),
     ("engine_reason", "string"),
 ]
@@ -298,7 +305,8 @@ def write_sheet(path: Path, rows: list[dict[str, str]], counts: dict[str, int]) 
         "# semantics: one row per move; numeric fields as published by Showdown (accuracy 101 = never misses, as in",
         "#   data/pml_moves.tsv). drain/recoil/heal are percents; recoil_pct is kept apart from drain_pct.",
         "#   sec_* = secondary effect of the hit, self_boosts = boosts the user gets, boosts = status-move boosts",
-        "#   (stat keys atk/def/spa/spd/spe/accuracy/evasion). callbacks = behaviour hooks Showdown attaches;",
+        "#   (stat keys atk/def/spa/spd/spe/accuracy/evasion); crash_damage_pct = percent of the user's max",
+        "#   HP lost on a miss (Showdown hasCrashDamage). callbacks = behaviour hooks Showdown attaches;",
         "#   other_props = remaining Showdown properties with no engine column. source_diff = stat values where",
         "#   WikiDex disagrees with Showdown (a WikiDex footnote states the pre-Champions value; each row keeps",
         "#   the Scarlet/Violet value and records how the disagreement was adjudicated, PROBABLE if undecidable).",

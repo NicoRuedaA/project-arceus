@@ -3,13 +3,14 @@
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
 //! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
-//! the sheet classifies `engine_class = a` are loaded (30 moves): moves whose whole behaviour
+//! the sheet classifies `engine_class = a` are loaded (33 moves): moves whose whole behaviour
 //! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
-//! rank, hits, drain/heal, one paralysis/burn/poison roll, stat stages on a single receiver).
-//! Rows classified `b` need new engine logic and are skipped, never approximated. Gigaton
-//! Hammer and Blood Moon load because the engine now honours their `cantusetwice` flag through
-//! `MoveEffects::repeat_lock`; Last Respects, Rage Fist, Hard Press, Collision Course, Electro
-//! Drift and Fickle Beam load through the derived `PowerRule` callbacks.
+//! rank, hits, drain/heal, one paralysis/burn/poison/confusion roll, stat stages on a single
+//! receiver). Rows classified `b` need new engine logic and are skipped, never approximated.
+//! Gigaton Hammer and Blood Moon load because the engine now honours their `cantusetwice` flag
+//! through `MoveEffects::repeat_lock`; Last Respects, Rage Fist, Hard Press, Collision Course,
+//! Electro Drift and Fickle Beam load through the derived `PowerRule` callbacks; Axe Kick and
+//! Supercell Slam load through `crash_damage_pct`.
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -153,6 +154,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
         (col("sec_chance")?, col("sec_status")?, col("sec_volatile")?);
     let (c_sec_boosts, c_sec_self) = (col("sec_boosts")?, col("sec_self_boosts")?);
     let c_class = col("engine_class")?;
+    let c_crash = col("crash_damage_pct")?;
 
     let mut out = Vec::new();
     for (n, line) in lines.enumerate() {
@@ -213,12 +215,15 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             return Err(format!("gen9 moves {name}: more than 3 stat changes"));
         }
 
-        let ailment_id: u16 = match v[c_sec_status] {
-            "par" => 1,
-            "brn" => 4,
-            "psn" => 5,
-            "" => 0,
-            other => {
+        // Confusion is not a major status: the status module handles ailment id 8 when the
+        // volatile-status rules are on, exactly as it does for the PLA rows.
+        let ailment_id: u16 = match (v[c_sec_status], v[c_sec_vol]) {
+            ("par", _) => 1,
+            ("brn", _) => 4,
+            ("psn", _) => 5,
+            ("", "confusion") => 8,
+            ("", _) => 0,
+            (other, _) => {
                 return Err(format!(
                     "gen9 moves {name}: ailment {other:?} is not class a"
                 ))
@@ -261,6 +266,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             protectable: flags.contains(&"protect"),
             repeat_lock: flags.contains(&"cantusetwice"),
             power_rule: power_rule(&name),
+            crash_damage_pct: num(c_crash)? as u8,
         };
         out.push(Gen9Move {
             id: num(c_move)? as u16,
@@ -281,7 +287,7 @@ mod tests {
     use super::*;
     use crate::battle::BattleData;
     use crate::battle_engine::effects::{EffectEvent, MoveEffectsTable, PowerRule};
-    use crate::battle_engine::statuses::StatusEvent;
+    use crate::battle_engine::statuses::{StatusEvent, StatusRules};
     use crate::battle_engine::{Action, Battle, BattleRng, Combatant, Event, MajorStatus};
     use std::path::PathBuf;
 
@@ -321,7 +327,7 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        assert_eq!(moves.len(), 30);
+        assert_eq!(moves.len(), 33);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -376,6 +382,14 @@ mod tests {
             find(&moves, "noxious-torque").effects.ailment,
             Some(MajorStatus::Poison)
         );
+        // Confusion secondaries use the status module's ailment id 8 (no major status).
+        let magical = &find(&moves, "magical-torque").effects;
+        assert_eq!(magical.ailment, None);
+        assert_eq!(magical.ailment_id, 8);
+        assert_eq!(magical.ailment_chance, 30);
+        // Crash damage: half the user's max HP on a miss.
+        assert_eq!(find(&moves, "axe-kick").effects.crash_damage_pct, 50);
+        assert_eq!(find(&moves, "supercell-slam").effects.crash_damage_pct, 50);
     }
 
     #[test]
@@ -653,6 +667,32 @@ mod tests {
             b.effective_power(0, 1, 50, PowerRule::RageFist, "Ghost", &mut Fixed(vec![])),
             100
         );
+    }
+
+    #[test]
+    fn crash_damage_and_confusion_secondaries() {
+        // Axe Kick miss: half the user's max HP is lost and a crash event is logged.
+        let mut b = duel(("pikachu", &["axe-kick"], 50), ("snorlax", &["tackle"], 80));
+        let before = b.combatants[0].hp;
+        let ev = b.play_turn(&[act(0)], &mut Fixed(vec![95]));
+        assert!(ev.iter().any(|e| matches!(e, Event::Missed { .. })));
+        assert_eq!(b.combatants[0].hp, before - before / 2);
+        assert!(b
+            .take_effect_events()
+            .iter()
+            .any(|e| matches!(e, EffectEvent::CrashDamage { actor: 0, .. })));
+
+        // Magical Torque's 30 % confusion runs through the status module.
+        let mut b = duel(
+            ("pikachu", &["magical-torque"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.set_status_rules(StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        });
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 29, 0]));
+        assert!(b.is_confused(1));
     }
 
     #[test]
