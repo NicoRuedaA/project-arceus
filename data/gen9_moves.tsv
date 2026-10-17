@@ -11,7 +11,7 @@
 #   WikiDex disagrees with Showdown (a WikiDex footnote states the pre-Champions value; each row keeps
 #   the Scarlet/Violet value and records how the disagreement was adjudicated, PROBABLE if undecidable).
 # classification (DERIVED, not data): engine_class a = expressible with the existing pml_move_effects
-#   columns (22 moves), b = needs new engine logic (48 moves); engine_reason lists why.
+#   columns (24 moves), b = needs new engine logic (46 moves); engine_reason lists why.
 # confidence: EXTERNAL/PROBABLE; not verified against the game. Do not mix with pml_moves rows.
 move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:string	power:u8	accuracy:u8	pp:u8	priority:i32	target:string	flags:string	crit_ratio:u8	min_hits:u8	max_hits:u8	drain_pct:i32	recoil_pct:i32	heal_pct:i32	status:string	volatile_status:string	boosts:string	self_boosts:string	self_other:string	sec_chance:u8	sec_status:string	sec_volatile:string	sec_boosts:string	sec_self_boosts:string	callbacks:string	other_props:string	is_nonstandard:string	source_diff:string	engine_class:enum	engine_reason:string
 851	terablast	Tera Blast	Teraexplosión	Normal	Special	80	100	10	0	normal	metronome;mirror;mustpressure;protect	0	0	0	0	0	0											basePowerCallback;onPrepareHit;onModifyType;onModifyMove				b	callback:basePowerCallback;onPrepareHit;onModifyType;onModifyMove
@@ -56,7 +56,7 @@ move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:st
 890	armorcannon	Armor Cannon	Cañón Armadura	Fire	Special	120	100	5	0	normal	mirror;protect	0	0	0	0	0	0				def:-1,spd:-1											a	
 891	bitterblade	Bitter Blade	Espada Lamento	Fire	Physical	90	100	10	0	normal	contact;heal;metronome;mirror;protect;slicing	0	0	0	50	0	0															a	
 892	doubleshock	Double Shock	Electropalmas	Electric	Physical	120	100	5	0	normal	contact;mirror;protect	0	0	0	0	0	0											onTryMove;self.onHit				b	callback:onTryMove;self.onHit
-893	gigatonhammer	Gigaton Hammer	Martillo Colosal	Steel	Physical	160	100	5	0	normal	cantusetwice;metronome;mirror;protect	0	0	0	0	0	0															b	cannot be used twice in a row (no engine state)
+893	gigatonhammer	Gigaton Hammer	Martillo Colosal	Steel	Physical	160	100	5	0	normal	cantusetwice;metronome;mirror;protect	0	0	0	0	0	0															a	
 894	comeuppance	Comeuppance	Resarcimiento	Dark	Physical	0	100	10	0	scripted	contact;failmefirst;mirror;protect	0	0	0	0	0	0											damageCallback;onTry;onModifyTarget				b	callback:damageCallback;onTry;onModifyTarget
 895	aquacutter	Aqua Cutter	Corte Acuático/Tajo Acuático	Water	Physical	70	100	20	0	normal	metronome;mirror;protect;slicing	2	0	0	0	0	0															a	
 896	blazingtorque	Blazing Torque	Pirochoque	Fire	Physical	80	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	brn						Unobtainable		a	
@@ -64,7 +64,7 @@ move:u16*	move_name:string	name_en:string	name_es:string	type:string	category:st
 898	noxioustorque	Noxious Torque	Ponzochoque	Poison	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	psn						Unobtainable		a	
 899	combattorque	Combat Torque	Pugnachoque	Fighting	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30	par						Unobtainable		a	
 900	magicaltorque	Magical Torque	Feerichoque	Fairy	Physical	100	100	10	0	normal	failcopycat;failencore;failinstruct;failmefirst;failmimic;noassist;nosketch;nosleeptalk;protect	0	0	0	0	0	0						30		confusion					Unobtainable		b	secondary.volatileStatus:confusion
-901	bloodmoon	Blood Moon	Luna Roja	Normal	Special	140	100	5	0	normal	cantusetwice;metronome;mirror;protect	0	0	0	0	0	0														power: showdown 140 / wikidex 130 (wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept)	b	cannot be used twice in a row (no engine state)
+901	bloodmoon	Blood Moon	Luna Roja	Normal	Special	140	100	5	0	normal	cantusetwice;metronome;mirror;protect	0	0	0	0	0	0														power: showdown 140 / wikidex 130 (wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept)	a	
 902	matchagotcha	Matcha Gotcha	Cañón Batidor	Grass	Special	80	90	15	0	allAdjacentFoes	defrost;heal;metronome;mirror;protect	0	0	0	50	0	0						20	brn					thawsTarget=true			b	prop:thawsTarget=true
 903	syrupbomb	Syrup Bomb	Bomba Caramelo	Grass	Special	60	85	10	0	normal	bullet;metronome;mirror;protect	0	0	0	0	0	0						100		syrupbomb			condition			accuracy: showdown 85 / wikidex 90 (wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept)	b	callback:condition; secondary.volatileStatus:syrupbomb
 904	ivycudgel	Ivy Cudgel	Garrote Liana	Grass	Physical	100	100	10	0	normal	metronome;mirror;protect	2	0	0	0	0	0											onPrepareHit;onModifyType				b	callback:onPrepareHit;onModifyType

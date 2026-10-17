@@ -265,6 +265,8 @@ pub struct Battle {
     styles: styles::StyleState,
     /// The two live abilities, Slow Start and Flower Gift (opt-in; see abilities.rs).
     abilities: AbilityState,
+    /// Last move each combatant used (repeat-lock moves read it; cleared on switch).
+    last_move: Vec<Option<String>>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -305,6 +307,7 @@ impl Battle {
                     .unwrap()
             })
             .collect();
+        let combatant_count = combatants.len();
         Ok(Self {
             combatants,
             sides,
@@ -327,6 +330,7 @@ impl Battle {
             pla_damage: false,
             styles: styles::StyleState::default(),
             abilities: AbilityState::default(),
+            last_move: vec![None; combatant_count],
         })
     }
 
@@ -348,6 +352,9 @@ impl Battle {
             return Err("trapped: cannot switch out".into());
         }
         self.clear_volatile_on_leave(from);
+        if let Some(last) = self.last_move.get_mut(from) {
+            *last = None;
+        }
         self.active[side] = replacement;
         Ok(Event::Switched {
             side,
@@ -529,6 +536,26 @@ impl Battle {
                 continue;
             }
             let move_name = movement.data.name.clone();
+            // `cantusetwice`: the move is disabled on the turn right after it was used.
+            // Showdown disables the slot at the start of the turn; here the action fails and
+            // spends no PP, and `last_move` is only replaced by a move that is really used.
+            let repeat_locked = !releasing
+                && self
+                    .effects
+                    .as_ref()
+                    .and_then(|t| t.get(&move_name))
+                    .is_some_and(|fx| fx.repeat_lock)
+                && self
+                    .last_move
+                    .get(action.actor)
+                    .is_some_and(|last| last.as_deref() == Some(move_name.as_str()));
+            if repeat_locked {
+                self.note_status_event(statuses::StatusEvent::MoveLocked {
+                    actor: action.actor,
+                    move_name,
+                });
+                continue;
+            }
             let category = movement.data.category.clone();
             let power = movement.data.power;
             let accuracy = movement.data.accuracy;
@@ -536,6 +563,9 @@ impl Battle {
             let move_type = movement.data.move_type.clone();
             if !releasing {
                 self.combatants[action.actor].moves[action.move_slot].pp -= 1;
+            }
+            if let Some(last) = self.last_move.get_mut(action.actor) {
+                *last = Some(move_name.clone());
             }
             let rules = self.status_rules();
             if let Some(status) = self.combatants[action.actor].status {

@@ -89,6 +89,8 @@ pub enum StatusEvent {
     ProtectUp { actor: usize },
     ProtectFailed { actor: usize },
     ProtectedFrom { target: usize, attacker: usize, move_name: String },
+    /// The move is disabled this turn because it was used on the previous turn.
+    MoveLocked { actor: usize, move_name: String },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -151,6 +153,11 @@ impl Battle {
 
     pub fn take_status_events(&mut self) -> Vec<StatusEvent> {
         std::mem::take(&mut self.status.events)
+    }
+
+    /// Record a status event from the core turn loop.
+    pub(super) fn note_status_event(&mut self, event: StatusEvent) {
+        self.status.events.push(event);
     }
 
     fn vol(&mut self, i: usize) -> &mut Volatile {
