@@ -463,6 +463,7 @@ mod tests {
                 true,
                 true,
                 false,
+                false,
                 &mut Fixed(vec![1, 15]),
             )
             .0

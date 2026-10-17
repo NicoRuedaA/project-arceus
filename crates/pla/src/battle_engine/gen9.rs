@@ -3,7 +3,7 @@
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
 //! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
-//! the sheet classifies `engine_class = a` are loaded (45 moves): moves whose whole behaviour
+//! the sheet classifies `engine_class = a` are loaded (55 moves): moves whose whole behaviour
 //! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
 //! rank, hits, drain/heal, one paralysis/burn/poison/confusion roll, stat stages on a single
 //! receiver) or a named hook in [`hooks`]. Rows classified `b` need new engine logic and are
@@ -29,6 +29,17 @@
 //! mapped to the synthetic engine ailment id 15 (badly poisoned; see `effects.rs` and
 //! `reports/data-progress/sleep_toxic.md`), and Wicked Torque (897) with its 10 % `slp`
 //! secondary, which loads as the game's real sleep (record id 2, distinct from drowsiness).
+//! Family E (2026-10-17) adds the previous-move and ignore rows: Temper Flare (915) through
+//! [`PowerRule::TemperFlare`] (75 -> 150 while the user's last move failed; the engine keeps one
+//! `last_move_failed` flag per combatant that mirrors Showdown's `moveLastTurnResult ===
+//! false`, cleared at battle start and when the combatant changes) and Nihil Light (920)
+//! through the sheet's `other_props` hooks: `ignore_evasion` (the accuracy check drops the
+//! target's evasion ranks; in Hisui evasion and accuracy share one rank state, so only the
+//! target's contribution is dropped), `ignore_defensive` (the damage step drops the target's
+//! Def/SpD ranks) and `ignore_immunity_move_type` (the 0x type-chart immunity of the move's own
+//! type, Dragon vs Fairy, counts as neutral). Nihil Light's sheet power stays 100 (Showdown's
+//! value; the move is absent from Scarlet/Violet and WikiDex's 200 has no footnote, so the
+//! 100/200 disagreement stays PROBABLE).
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -102,8 +113,8 @@ fn stat_from_key(key: &str) -> Result<Stat, String> {
 }
 
 /// Base-power callback of the sheet, DERIVED from Showdown (`basePowerCallback`/`onBasePower`).
-/// Temper Flare is absent: it needs the previous move's failure state, which the engine does
-/// not model yet, so it stays class b.
+/// Temper Flare reads the per-combatant failure memory in `battle_engine.rs`
+/// (`moveLastTurnResult === false`).
 fn power_rule(name: &str) -> PowerRule {
     match name {
         "last-respects" => PowerRule::LastRespects,
@@ -111,7 +122,30 @@ fn power_rule(name: &str) -> PowerRule {
         "hard-press" => PowerRule::HardPress,
         "collision-course" | "electro-drift" => PowerRule::SuperEffectiveBoost,
         "fickle-beam" => PowerRule::FickleBeam,
+        "temper-flare" => PowerRule::TemperFlare,
         _ => PowerRule::None,
+    }
+}
+
+/// Hooks that come from the sheet's `other_props` column (the remaining Showdown properties
+/// with no engine column). Today only Nihil Light (920) carries any; the parse is
+/// whitespace-insensitive text matching so the sheet stays the source of truth. DERIVED from
+/// the pinned Showdown source:
+/// - `ignoreEvasion=true` -> the target's evasion ranks are dropped from the accuracy check.
+/// - `ignoreDefensive=true` -> the target's Def/SpD ranks are dropped from the damage step.
+/// - `ignoreImmunity={ '<move type>': true }` -> the 0x type-chart immunity of the move's own
+///   type counts as neutral (Showdown ignores immunity when `ignoreImmunity[move.type]`).
+fn apply_other_props(hook: &mut MoveHooks, other_props: &str, move_type: &str) {
+    let compact: String = other_props.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("ignoreEvasion=true") {
+        hook.ignore_evasion = true;
+    }
+    if compact.contains("ignoreDefensive=true") {
+        hook.ignore_defensive = true;
+    }
+    let immunity_key = format!("ignoreImmunity={{'{move_type}':true}}");
+    if compact.contains(&immunity_key) {
+        hook.ignore_immunity_move_type = true;
     }
 }
 
@@ -239,6 +273,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
     let c_crash = col("crash_damage_pct")?;
     let c_thaw = col("thaws_target")?;
     let c_multi_acc = col("multi_accuracy")?;
+    let c_other_props = col("other_props")?;
 
     let mut out = Vec::new();
     for (n, line) in lines.enumerate() {
@@ -261,7 +296,10 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
         let self_target = v[c_target] == "self";
         let flags: Vec<&str> = v[c_flags].split(';').collect();
         let secondary_chance = num(c_sec_chance)? as u8;
-        let hook = hooks(&name);
+        let mut hook = hooks(&name);
+        // Showdown properties with no engine column (sheet `other_props`); see
+        // `apply_other_props` for each hook arm.
+        apply_other_props(&mut hook, v[c_other_props], v[c_type]);
 
         // Stat changes with the receiver they imply. The sheet only marks as `a` the moves
         // whose changes all go to one receiver, so the first non-empty source decides it.
@@ -443,18 +481,15 @@ mod tests {
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
         // 38 classic-column rows + family A (861, 866, 868, 870, 875, 877, 882), family B
-        // (892, 894, 905, 909, 914, 918), Malignant Chain (919) and Wicked Torque (897).
-        assert_eq!(moves.len(), 53);
+        // (892, 894, 905, 909, 914, 918), Malignant Chain (919), Wicked Torque (897) and
+        // family E (915, 920).
+        assert_eq!(moves.len(), 55);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
+        for loaded in ["temper-flare", "nihil-light"] {
+            assert!(moves.iter().any(|m| m.name == loaded), "{loaded} must load");
+        }
         // Class b needs engine logic that does not exist: never approximated.
-        for skipped in [
-            "tera-blast",
-            "psychic-noise",
-            "revival-blessing",
-            "temper-flare",
-            "doodle",
-            "nihil-light",
-        ] {
+        for skipped in ["tera-blast", "psychic-noise", "revival-blessing", "doodle"] {
             assert!(
                 moves.iter().all(|m| m.name != skipped),
                 "{skipped} must not load"
@@ -1350,5 +1385,217 @@ mod tests {
         b.set_status_rules(rules);
         b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0, 10]));
         assert_eq!(b.combatants[1].status, None);
+    }
+
+    /// Temper Flare (915): its 75 power doubles (150) while the user's previous move failed.
+    /// The memory follows Showdown's `moveLastTurnResult === false`: a miss sets it, a landed
+    /// move clears it, and it survives turns.
+    #[test]
+    fn temper_flare_doubles_after_a_failed_move() {
+        let moves = all();
+        assert_eq!(find(&moves, "temper-flare").power, 75);
+        assert_eq!(
+            find(&moves, "temper-flare").effects.power_rule,
+            PowerRule::TemperFlare
+        );
+        let mut b = duel(
+            ("pikachu", &["axe-kick", "temper-flare"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        assert!(!b.last_move_failed(0));
+        // Turn 1: Axe Kick misses (accuracy 90, roll 95) and crashes for half the user's HP.
+        b.play_turn(&[act(0)], &mut Fixed(vec![95]));
+        assert!(b.last_move_failed(0), "a miss is a failed move");
+        assert_eq!(
+            b.effective_power(0, 1, 75, PowerRule::TemperFlare, "Fire", &mut Fixed(vec![])),
+            150
+        );
+        // Turn 2: Temper Flare hits (accuracy roll, no crit, lowest damage roll) and clears
+        // the memory.
+        let ev = b.play_turn(
+            &[Action {
+                actor: 0,
+                move_slot: 1,
+            }],
+            &mut Fixed(vec![0, 1, 0]),
+        );
+        assert!(ev
+            .iter()
+            .any(|e| matches!(e, Event::UsedMove { name, .. } if name == "temper-flare")));
+        assert!(!b.last_move_failed(0));
+        assert_eq!(
+            b.effective_power(0, 1, 75, PowerRule::TemperFlare, "Fire", &mut Fixed(vec![])),
+            75
+        );
+
+        // The doubled hit deals more damage than the same Temper Flare after a landed move.
+        let temper_flare_damage = |first_move: &str, first_rolls: Vec<u32>| {
+            let mut b = duel(
+                ("pikachu", &[first_move, "temper-flare"], 50),
+                ("snorlax", &["tackle"], 80),
+            );
+            b.play_turn(&[act(0)], &mut Fixed(first_rolls));
+            b.play_turn(
+                &[Action {
+                    actor: 0,
+                    move_slot: 1,
+                }],
+                &mut Fixed(vec![0, 1, 0]),
+            )
+            .iter()
+            .find_map(|e| match e {
+                Event::UsedMove { name, damage, .. } if name == "temper-flare" => Some(*damage),
+                _ => None,
+            })
+            .unwrap()
+        };
+        let doubled = temper_flare_damage("axe-kick", vec![95]);
+        let normal = temper_flare_damage("tackle", vec![0, 1, 0]);
+        assert!(
+            doubled > normal,
+            "150 power must deal more than 75: {doubled} vs {normal}"
+        );
+    }
+
+    /// A turn lost to a status still counts as a failed move (Showdown's flinch/paralysis/
+    /// sleep handlers fail `BeforeMove`), so the next Temper Flare is doubled.
+    #[test]
+    fn temper_flare_counts_a_flinched_turn_as_failed() {
+        // Starly's Fake Out (+3) flinches the slower Bidoof's chosen action.
+        let mut b = duel(
+            ("bidoof", &["temper-flare"], 30),
+            ("starly", &["fake-out"], 30),
+        );
+        let ev = b.play_turn(&[act(0), act(1)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(ev[1], Event::ActedFirst(1));
+        assert!(b
+            .take_effect_events()
+            .contains(&EffectEvent::FlinchedAndSkipped { actor: 0 }));
+        assert!(b.last_move_failed(0), "a flinched turn counts for Showdown");
+        assert_eq!(
+            b.effective_power(0, 1, 75, PowerRule::TemperFlare, "Fire", &mut Fixed(vec![])),
+            150
+        );
+    }
+
+    /// A hit blocked by the target's Protect does NOT count as a failed move: Showdown's
+    /// Protect returns NOT_FAIL, so `moveThisTurnResult` stays null (Bulbapedia states the
+    /// same for Stomping Tantrum), unlike a miss or a status-lost turn.
+    #[test]
+    fn temper_flare_does_not_count_a_protect_block() {
+        let mut b = duel(
+            ("bidoof", &["temper-flare"], 30),
+            ("pikachu", &["protect"], 60),
+        );
+        b.set_status_rules(StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        });
+        // Pikachu protects (+4) first; Bidoof's Temper Flare is blocked with no damage.
+        let hp = b.combatants[1].hp;
+        let ev = b.play_turn(&[act(0), act(1)], &mut Fixed(vec![]));
+        assert!(ev.iter().all(|e| !matches!(e, Event::UsedMove { .. })));
+        assert_eq!(b.combatants[1].hp, hp);
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::ProtectedFrom { attacker: 0, .. })));
+        assert!(
+            !b.last_move_failed(0),
+            "a Protect block keeps the null result: no doubling"
+        );
+        assert_eq!(
+            b.effective_power(0, 1, 75, PowerRule::TemperFlare, "Fire", &mut Fixed(vec![])),
+            75
+        );
+    }
+
+    /// The failure memory is per stay on the field: switching out clears it.
+    #[test]
+    fn temper_flare_memory_resets_on_switch() {
+        let data = BattleData::load(root()).unwrap();
+        let mut b = Battle::new(
+            vec![
+                mon(&data, "pikachu", &["axe-kick"], 50),
+                mon(&data, "bidoof", &["tackle"], 20),
+                mon(&data, "snorlax", &["tackle"], 80),
+            ],
+            vec![vec![0, 1], vec![2]],
+            data.type_chart().clone(),
+        )
+        .unwrap();
+        b.set_move_effects(MoveEffectsTable::load(root()).unwrap());
+        b.play_turn(&[act(0)], &mut Fixed(vec![95]));
+        assert!(b.last_move_failed(0));
+        b.switch(0, 1).unwrap();
+        assert!(
+            !b.last_move_failed(0),
+            "leaving the field forgets the result"
+        );
+        assert!(!b.last_move_failed(1));
+        b.switch(0, 0).unwrap();
+        assert!(!b.last_move_failed(0));
+    }
+
+    /// Nihil Light (920): ignores the target's evasion and Def/SpD ranks and the type-chart
+    /// immunity of its own type. Sheet power stays 100 (Showdown; PROBABLE, absent from SV).
+    #[test]
+    fn nihil_light_ignores_evasion_defense_and_dragon_immunity() {
+        use crate::battle_engine::{accuracy_hits, type_effectiveness};
+        let moves = all();
+        let fx = &find(&moves, "nihil-light").effects;
+        assert_eq!(find(&moves, "nihil-light").power, 100);
+        assert!(fx.hooks.ignore_evasion);
+        assert!(fx.hooks.ignore_defensive);
+        assert!(fx.hooks.ignore_immunity_move_type);
+        assert!(!find(&moves, "temper-flare").effects.hooks.ignore_evasion);
+
+        // The evasion ranks are ignored: with the target's evasion at +1 the move still
+        // passes a 75 accuracy roll (the shared rank state would cut its 100 to 70 %).
+        assert!(!accuracy_hits(100, 0, 1, 4096, &mut Fixed(vec![75])));
+        let mut b = duel(
+            ("pikachu", &["nihil-light"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.combatants[1].evasion_stage = 1;
+        let ev = b.play_turn(&[act(0)], &mut Fixed(vec![75, 1, 0]));
+        assert!(ev
+            .iter()
+            .any(|e| matches!(e, Event::UsedMove { name, .. } if name == "nihil-light")));
+
+        // The defensive ranks are ignored: the target's +1 Def/SpD state leaves the damage
+        // untouched (a move without the hook loses x0.66 to it).
+        let damage = |def_stage: i8, move_name: &str| {
+            let mut b = duel(("pikachu", &[move_name], 50), ("snorlax", &["tackle"], 80));
+            b.set_stage_multipliers_enabled(true);
+            b.stages_mut(1).defense = def_stage;
+            b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]))
+                .iter()
+                .find_map(|e| match e {
+                    Event::UsedMove { damage, .. } => Some(*damage),
+                    _ => None,
+                })
+                .unwrap()
+        };
+        assert_eq!(damage(1, "nihil-light"), damage(0, "nihil-light"));
+        assert!(damage(1, "dragon-pulse") < damage(0, "dragon-pulse"));
+
+        // The immunity of the move's own type is ignored: Dragon does nothing to a Fairy
+        // type, but Nihil Light hits it for normal damage.
+        let data = BattleData::load(root()).unwrap();
+        assert_eq!(
+            type_effectiveness(data.type_chart(), "Dragon", &["Fairy".into()]),
+            0.0
+        );
+        let mut b = duel(
+            ("pikachu", &["nihil-light"], 50),
+            ("clefairy", &["tackle"], 50),
+        );
+        let ev = b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert!(ev.iter().any(|e| matches!(
+            e,
+            Event::UsedMove { name, damage, effectiveness, .. }
+                if name == "nihil-light" && *damage > 0 && effectiveness == "normal"
+        )));
     }
 }

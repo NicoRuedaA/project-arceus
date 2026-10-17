@@ -149,9 +149,27 @@ pub(super) struct StatusState {
 }
 
 pub(super) enum PreAction {
-    Skip,
+    /// The combatant cannot act this turn. `failed` mirrors Showdown's `BeforeMove` result:
+    /// the paralysis, sleep, confusion and drowsiness handlers return `false` (the turn counts
+    /// as a failed move for the external Temper Flare memory), while the recharge turn returns
+    /// `null` and does not count.
+    Skip { failed: bool },
     /// Proceed; `Some(slot)` = release a stored charge using that move slot.
     Act(Option<usize>),
+}
+
+/// Outcome of the charge/Protect gate ([`Battle::status_pre_move`]).
+pub(super) enum PreMove {
+    /// The move proceeds.
+    Continue,
+    /// The action ends with a `null` move result: the charge turn (Showdown's `onTryMove`
+    /// returns `null`) and a move blocked by the target's Protect (Protect's `onTryHit`
+    /// returns `NOT_FAIL`, so `moveThisTurnResult` stays `null` and Temper Flare does NOT
+    /// double; Bulbapedia states the same for Stomping Tantrum), plus a successful Protect.
+    Ended,
+    /// The action ends in a failed move (Showdown `moveThisTurnResult = false`): the user's
+    /// own Protect lost its chain roll (`PrepareHit` failed). Counts for Temper Flare.
+    Failed,
 }
 
 const PROTECT_EFFECT_IDS: [u16; 5] = [111, 355, 361, 383, 441];
@@ -274,7 +292,8 @@ impl Battle {
         if rules.volatile_statuses && self.vol(actor).recharge {
             self.vol(actor).recharge = false;
             self.status.events.push(StatusEvent::Recharging { actor });
-            return PreAction::Skip;
+            // Showdown's `mustrecharge` returns null from `BeforeMove`: no failed move.
+            return PreAction::Skip { failed: false };
         }
         // VERIFIED real sleep (record id 2): every attempt to act advances the counter; when it
         // reaches the rolled duration the combatant wakes and acts that same turn. Only the
@@ -301,7 +320,8 @@ impl Battle {
                     actor,
                     status: MajorStatus::Sleep,
                 });
-                return PreAction::Skip;
+                // Showdown's sleep handler returns false from `BeforeMove`.
+                return PreAction::Skip { failed: true };
             }
         }
         if rules.volatile_statuses && self.vol(actor).confusion > 0 {
@@ -322,7 +342,8 @@ impl Battle {
                     events.push(Event::KnockedOut(actor));
                     self.advance_active_for(actor);
                 }
-                return PreAction::Skip;
+                // Showdown's confusion self-hit returns false from `BeforeMove`.
+                return PreAction::Skip { failed: true };
             }
         }
         if rules.notes_rates
@@ -333,7 +354,8 @@ impl Battle {
                 actor,
                 status: MajorStatus::Paralysis,
             });
-            return PreAction::Skip;
+            // Showdown's paralysis handler returns false from `BeforeMove`.
+            return PreAction::Skip { failed: true };
         }
         if rules.sleep_duration && self.combatants[actor].status == Some(MajorStatus::Drowsy) {
             let fail = if self.weather == BattleWeather::Snow {
@@ -346,7 +368,9 @@ impl Battle {
                     actor,
                     status: MajorStatus::Drowsy,
                 });
-                return PreAction::Skip;
+                // Drowsiness is a PLA-only state; its full-turn failure maps to Showdown's
+                // sleep handler (false), so the turn counts as a failed move (PROBABLE).
+                return PreAction::Skip { failed: true };
             }
         }
         if rules.volatile_statuses {
@@ -371,7 +395,9 @@ impl Battle {
         (base * (85 + rng.below(16)) / 100).max(1)
     }
 
-    /// Charge / Protect handling once the move is chosen. Returns true when the action ends here.
+    /// Charge / Protect handling once the move is chosen. `PreMove::Continue` lets the move
+    /// proceed; the other variants end the action and tell the caller whether it was a failed
+    /// move (the external Temper Flare memory reads that).
     pub(super) fn status_pre_move(
         &mut self,
         actor: usize,
@@ -380,17 +406,17 @@ impl Battle {
         move_name: &str,
         releasing: bool,
         rng: &mut impl BattleRng,
-    ) -> bool {
+    ) -> PreMove {
         if !self.status.rules.volatile_statuses {
-            return false;
+            return PreMove::Continue;
         }
         let Some(fx) = self.effects.as_ref().and_then(|t| t.get(move_name)).cloned() else {
-            return false;
+            return PreMove::Continue;
         };
         if self.effects_flag(move_name, Flag::Charge) && !releasing {
             // Electro Shot (external row): rain skips the charge turn (and its boost).
             if fx.hooks.charge_skip_in_rain && self.weather == BattleWeather::Rain {
-                return false;
+                return PreMove::Continue;
             }
             self.vol(actor).charging = Some(slot);
             // Electro Shot: the charge turn raises the user's Sp. Atk one rank.
@@ -401,7 +427,8 @@ impl Battle {
                 actor,
                 move_name: move_name.to_owned(),
             });
-            return true;
+            // The charge turn is Showdown's `null`: the move is preparing, not failing.
+            return PreMove::Ended;
         }
         if is_protect_move(&fx) {
             let chain = self.vol(actor).protect_chain.min(6);
@@ -412,11 +439,13 @@ impl Battle {
                 v.protect_used_now = true;
                 v.protect_chain = chain + 1;
                 self.status.events.push(StatusEvent::ProtectUp { actor });
-            } else {
-                self.vol(actor).protect_chain = 0;
-                self.status.events.push(StatusEvent::ProtectFailed { actor });
+                // The protect move itself succeeded.
+                return PreMove::Ended;
             }
-            return true;
+            self.vol(actor).protect_chain = 0;
+            self.status.events.push(StatusEvent::ProtectFailed { actor });
+            // A lost chain roll fails the move (Showdown's failed `PrepareHit`).
+            return PreMove::Failed;
         }
         let aimed_at_target = !matches!(fx.target_raw, 7 | 10 | 12 | 13);
         if aimed_at_target
@@ -428,9 +457,12 @@ impl Battle {
                 attacker: actor,
                 move_name: move_name.to_owned(),
             });
-            return true;
+            // Blocked by Protect: Showdown's Protect returns NOT_FAIL, so the attacker's
+            // `moveThisTurnResult` stays null. It is NOT a failed move (no Temper Flare
+            // doubling; the journal states the same).
+            return PreMove::Ended;
         }
-        false
+        PreMove::Continue
     }
 
     fn effects_flag(&self, move_name: &str, flag: Flag) -> bool {

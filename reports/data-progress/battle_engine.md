@@ -116,10 +116,11 @@ Opt-in (brief 29, [styles report](battle_styles.md)). VERIFIED by static reading
 ## Generation-9 moves: implemented families (2026-10-17)
 
 The external sheet `data/gen9_moves.tsv` (70 rows, EXTERNAL/PROBABLE, never checked against the
-game) now loads **53 rows** into `BattleData` and the effects table: the 38 whose behaviour fits
+game) now loads **55 rows** into `BattleData` and the effects table: the 38 whose behaviour fits
 the classic effect columns (see the `gen9.rs` module doc) plus the 7 of **family A**, the 6 of
-**family B**, Malignant Chain and Wicked Torque, implemented as named hooks derived from the
-same pinned Showdown source (`gen9.rs::hooks` → `MoveHooks` in `effects.rs`). Nothing here is
+**family B**, the 2 of **family E**, Malignant Chain and Wicked Torque, implemented as power
+rules or named hooks derived from the same pinned Showdown source (`gen9.rs::power_rule` and
+`gen9.rs::hooks`, plus the sheet's `other_props` → `MoveHooks` in `effects.rs`). Nothing here is
 game-derived; the PLA rows always win by name.
 
 | Move | Behaviour | Source | Confidence |
@@ -149,6 +150,25 @@ engine does not know the rival's next move (the AI picks it when its turn comes)
 moves are refused in that flow — the table notes it. A target that already spent its action also
 makes them fail (`willMove` semantics). The sleep counter of the game's real sleep and other
 turn-memory details are documented in [sleep_toxic.md](sleep_toxic.md).
+
+**Family E (previous-move memory and ignore properties, external)** adds the two rows that need
+state the engine did not keep:
+
+| Move | Behaviour | Source | Confidence |
+|---|---|---|---|
+| Temper Flare (915) | Physical Fire 75 whose power doubles (150) while the user's previous move failed. The engine keeps one `last_move_failed` flag per combatant (Showdown's `moveLastTurnResult === false`), cleaned at battle start and whenever the active combatant changes. A failed move is: an accuracy miss, a hit with no effect (type immunity), a refused use condition, a lost Protect chain roll (the user's own Protect failed to activate), and — per Showdown's `BeforeMove` handlers, which `return false` — a turn lost to full paralysis, real sleep, drowsiness, confusion self-hit or flinch (Bulbapedia states the miss, no-effect and paralysis cases for Stomping Tantrum). The charge and recharge turns return `null` in Showdown and do NOT count, and neither does a hit blocked by the target's Protect (Protect's `onTryHit` returns `NOT_FAIL`, so `moveThisTurnResult` stays `null`; Bulbapedia says the same); a move that is merely skipped (disabled by `cantusetwice`, no PP, no target) leaves the memory untouched. | Showdown `basePowerCallback` + `sim/battle-actions.ts` / `data/conditions.ts` + Bulbapedia (Stomping Tantrum) | EXTERNAL/PROBABLE |
+| Nihil Light (920) | Dragon special (`allAdjacentFoes`; 1v1 here) that ignores the target's evasion ranks (`ignoreEvasion`), the target's Def/SpD ranks (`ignoreDefensive`) and the type-chart immunity of its own type (`ignoreImmunity = {'Dragon': true}`: Fairy takes neutral damage instead of zero, while every other defender type keeps its multiplier). Hisui shares one rank state between accuracy and evasion, so the engine drops the target's contribution to that shared state and keeps the user's accuracy rank. Power stays 100 (Showdown; WikiDex says 200 without a footnote and the move is absent from SV, so the sheet value stays PROBABLE). | Showdown `ignoreEvasion` / `ignoreDefensive` / `ignoreImmunity` | EXTERNAL/PROBABLE |
+
+The failure memory lives next to the turn memory in `battle_engine.rs` but is not turn-scoped:
+`turn_last_damage` and `turn_raised_stats` reset every turn, `last_move_failed` survives turns
+and resets in `Battle::new`, in `Battle::switch` (both combatants) and in `advance_active_for`
+(the incoming combatant after a knockout). Nihil Light's three ignores are read where they
+apply: evasion in the accuracy check, the defensive ranks in the damage ranks and the immunity
+in the effectiveness lookup (`type_effectiveness_ignoring_immunity`). Each move has its own
+headless rules test in `battle_engine/gen9.rs` (a miss and a flinched turn double Temper Flare,
+a landed move and a switch reset the memory, a Protect block does not set it; Nihil Light
+passes a 75 roll against +1 evasion, keeps the damage against +1 Def/SpD and hits a Fairy for
+normal damage).
 
 **Family C (badly poisoned, game-derived)** turns the static reading of
 [sleep_toxic.md](sleep_toxic.md) into engine rules. The state is the game's poison record (id 5)
@@ -183,11 +203,13 @@ Awakening cures both sleep-like states; capture reuses the existing "Drowsiness 
 (no new capture values); the save format is untouched (sleep saves as drowsy).
 
 Mechanics: `Battle::apply_use_hooks` (HP cost, trap clear, type removal) and
-`Battle::gen9_use_refused` (use conditions) run inside the normal turn; turn-scoped memory
-(`turn_last_damage`, `turn_raised_stats`) resets every turn; `StatusEvent::MoveFailed` and
-`StatusEvent::LostType` carry the new log lines. Each move has its own headless rules test in
-`battle_engine/gen9.rs`. The sheet's `engine_class` column is regenerated by
-`.tools/extract_gen9_moves.py` (a=53, b=17); the 17 remaining rows keep their per-row reason.
+`Battle::gen9_use_refused` (use conditions) run inside the normal turn; the turn-scoped memory
+(`turn_last_damage`, `turn_raised_stats`) resets every turn, while the failure memory
+(`last_move_failed`, Temper Flare) resets only at battle start and on a change of active
+combatant; `StatusEvent::MoveFailed` and `StatusEvent::LostType` carry the new log lines. Each
+move has its own headless rules test in `battle_engine/gen9.rs`. The sheet's `engine_class`
+column is regenerated by `.tools/extract_gen9_moves.py` (a=55, b=15); the 15 remaining rows
+keep their per-row reason.
 
 ## Items
 

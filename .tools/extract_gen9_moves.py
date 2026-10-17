@@ -45,8 +45,9 @@ STAGE_STATUS = {"par", "brn", "psn", "tox", "slp"}
 STAT_KEYS = {"atk", "def", "spa", "spd", "spe", "accuracy", "evasion"}
 # Moves whose only callback is a base-power rule the engine implements (gen9.rs `power_rule`):
 # Last Respects 854, Collision Course 878, Electro Drift 879, Rage Fist 889, Fickle Beam 907,
-# Hard Press 912. Temper Flare (915) is NOT here: it needs the previous move's failure state.
-POWER_RULE_MOVES = {854, 878, 879, 889, 907, 912}
+# Hard Press 912 and Temper Flare 915 (doubles while the user's previous move failed; the
+# engine keeps `last_move_failed`, Showdown's `moveLastTurnResult === false`).
+POWER_RULE_MOVES = {854, 878, 879, 889, 907, 912, 915}
 POWER_RULE_CALLBACKS = {"basePowerCallback", "onBasePower"}
 
 # Moves whose behaviour the engine now implements with a named hook
@@ -83,6 +84,10 @@ HOOK_MOVES: dict[int, tuple[set[str], set[str], str]] = {
     919: (set(), set(), "sec tox -> badly poisoned (engine id 15)"),
     # secondary.status slp -> the engine's real-sleep state (game record id 2), 10 %.
     897: (set(), set(), "sec slp -> real sleep (engine id 2)"),
+    # ignoreEvasion/ignoreDefensive/ignoreImmunity: the engine drops the target's evasion and
+    # defensive ranks and treats the 0x immunity of the move's own type (Dragon) as neutral.
+    920: (set(), {"ignoreEvasion=true", "ignoreDefensive=true", "ignoreImmunity={ 'Dragon': true }"},
+          "hook:ignore evasion + defensive ranks and the own-type immunity"),
 }
 
 # Self boosts Showdown applies from a callback instead of a `self.boosts`/`boosts` block;
