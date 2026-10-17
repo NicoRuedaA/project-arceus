@@ -105,6 +105,23 @@ pub struct MoveHooks {
     pub half_hp_cost: bool,
     /// Ruination: fixed damage, floor(target current HP / 2), minimum 1.
     pub half_current_hp_damage: bool,
+    /// Comeuppance: fixed damage, 3/2 of the last hit the user took this turn; the use is
+    /// refused when the user took no damage yet.
+    pub return_last_damage: bool,
+    /// Upper Hand: refused unless the target's chosen action uses a move with priority > 0.
+    pub require_target_priority: bool,
+    /// Thunderclap: refused unless the target's chosen action is an attack (category != Status).
+    pub require_target_attack: bool,
+    /// Alluring Voice: the hit confuses a target that raised any stat this turn.
+    pub confuse_if_target_raised: bool,
+    /// Double Shock: refused unless the user has the move's own type.
+    pub fail_unless_user_has_move_type: bool,
+    /// Double Shock: the hit removes the move's own type from the user.
+    pub remove_user_type_after_hit: bool,
+    /// Electro Shot: the charge turn raises the user's Sp. Atk one rank.
+    pub charge_boost_spa: bool,
+    /// Electro Shot: rain skips the charge turn (and its boost).
+    pub charge_skip_in_rain: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -457,6 +474,10 @@ impl Battle {
             self.effect_events
                 .push(EffectEvent::StageAlreadyAtLimit { target, stat });
         } else {
+            // Turn memory for Alluring Voice: any raise this turn is remembered.
+            if new > old && target < self.turn_raised_stats.len() {
+                self.turn_raised_stats[target] = true;
+            }
             self.effect_events.push(EffectEvent::StagesChanged {
                 target,
                 stat,
@@ -492,6 +513,7 @@ impl Battle {
     pub(super) fn apply_use_hooks(
         &mut self,
         actor: usize,
+        move_type: &str,
         fx: &MoveEffects,
         damage_dealt: u32,
     ) {
@@ -509,6 +531,16 @@ impl Battle {
         // Mortal Spin: the hit frees the user from a partial trap.
         if fx.hooks.clear_user_trap && damage_dealt > 0 {
             self.clear_own_trap(actor);
+        }
+        // Double Shock: the hit removes the move's own type from the user (`self.onHit`).
+        if fx.hooks.remove_user_type_after_hit
+            && damage_dealt > 0
+            && self.combatants[actor].remove_type(move_type)
+        {
+            self.note_status_event(super::statuses::StatusEvent::LostType {
+                actor,
+                type_name: move_type.to_owned(),
+            });
         }
     }
 

@@ -65,6 +65,18 @@ HOOK_MOVES: dict[int, tuple[set[str], set[str], str]] = {
     882: ({"onHit"}, set(), "hook:self boosts (hazards/Substitute not modelled)"),
     # onTry/onTryHit/onHit: half-max-HP cost at above half HP, then Atk/SpA/Spe +2.
     868: ({"onTry", "onTryHit", "onHit"}, set(), "hook:half_hp_cost; self boosts +2 collapse to +1 per PLA rank group"),
+    # onTryMove (user must have the move's type) + self.onHit (the hit removes it).
+    892: ({"onTryMove", "self.onHit"}, set(), "hook:fail without the move's own type; the hit removes it"),
+    # damageCallback + onTry: 3/2 of the last hit taken this turn, refused without one.
+    894: ({"damageCallback", "onTry", "onModifyTarget"}, set(), "hook:return_last_damage (rounds down)"),
+    # onTryMove: charge turn boosts Sp. Atk one rank; rain skips the charge. `charge` flag read.
+    905: ({"onTryMove"}, set(), "charge (flag) + hook:charge_boost_spa; hook:skip charge in rain"),
+    # onTry: refused unless the target's chosen action is an attack move.
+    909: ({"onTry"}, set(), "hook:require_target_attack (turn action)"),
+    # secondary.onHit: confuses a target that raised a stat this turn.
+    914: ({"secondary.onHit"}, set(), "hook:confuse_if_target_raised"),
+    # onTry: refused unless the target's chosen action has priority > 0.
+    918: ({"onTry"}, set(), "hook:require_target_priority (turn action)"),
 }
 
 # Self boosts Showdown applies from a callback instead of a `self.boosts`/`boosts` block;

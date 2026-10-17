@@ -161,6 +161,22 @@ impl Combatant {
     pub fn is_alive(&self) -> bool {
         self.hp > 0 && !self.caught
     }
+
+    /// Remove a type from this combatant (Double Shock's `self.onHit`); returns whether any
+    /// slot changed. A combatant left with no types is neutral to every attacking type and
+    /// gets no STAB (the chart treats empty names as neutral, and an empty name never equals
+    /// an attack type). The change lasts until the battle object is rebuilt: switching out
+    /// and back in does not restore it in this engine.
+    pub fn remove_type(&mut self, type_name: &str) -> bool {
+        let mut removed = false;
+        for slot in &mut self.species.types {
+            if slot == type_name {
+                slot.clear();
+                removed = true;
+            }
+        }
+        removed
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,6 +285,11 @@ pub struct Battle {
     last_move: Vec<Option<String>>,
     /// Times each combatant has been hit by a damaging move (Rage Fist; persists on switch).
     times_attacked: Vec<u16>,
+    /// Turn memory (external generation-9 rows, reset every turn): the last hit each combatant
+    /// took, with who dealt it and the HP removed (Comeuppance).
+    turn_last_damage: Vec<Option<(usize, u32)>>,
+    /// Turn memory: whether each combatant raised any of its stats this turn (Alluring Voice).
+    turn_raised_stats: Vec<bool>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -334,6 +355,8 @@ impl Battle {
             abilities: AbilityState::default(),
             last_move: vec![None; combatant_count],
             times_attacked: vec![0; combatant_count],
+            turn_last_damage: vec![None; combatant_count],
+            turn_raised_stats: vec![false; combatant_count],
         })
     }
 
@@ -454,6 +477,14 @@ impl Battle {
         }
         self.turn += 1;
         events.push(Event::TurnStarted(self.turn));
+        // Turn memory of the external generation-9 rows (Comeuppance, Alluring Voice): forget
+        // last turn's damage and stat raises.
+        for v in &mut self.turn_last_damage {
+            *v = None;
+        }
+        for v in &mut self.turn_raised_stats {
+            *v = false;
+        }
         self.ability_turn_start();
         let order = actions
             .iter()
@@ -506,6 +537,9 @@ impl Battle {
         // actor's action, so those two moves fail there, as they do in the game when the
         // target's plan is not the required one (see gen9.rs).
         let planned: Vec<Action> = order.clone();
+        // Actors that already spent their action this turn: Upper Hand and Thunderclap read the
+        // target's pending action only (Showdown's `willMove`), so they fail once it acted.
+        let mut acted: Vec<usize> = Vec::new();
         if let Some(first) = order.first() {
             events.push(Event::ActedFirst(first.actor));
         }
@@ -516,6 +550,7 @@ impl Battle {
             if !self.combatants[action.actor].is_alive() {
                 continue;
             }
+            acted.push(action.actor);
             if flinched.contains(&action.actor) {
                 self.effect_events.push(EffectEvent::FlinchedAndSkipped {
                     actor: action.actor,
@@ -605,7 +640,15 @@ impl Battle {
             // External generation-9 use conditions (`onTry`/`onTryMove`): the move is refused
             // before it can land.
             if let Some(fx) = &fx {
-                if self.gen9_use_refused(action.actor, target, &move_name, fx, &planned) {
+                if self.gen9_use_refused(
+                    action.actor,
+                    target,
+                    &move_name,
+                    &move_type,
+                    fx,
+                    &planned,
+                    &acted,
+                ) {
                     continue;
                 }
             }
@@ -656,24 +699,38 @@ impl Battle {
             }
             if power == 0 {
                 if let Some(fx) = &fx {
-                    // Fixed-damage callbacks (Ruination): the hit ignores the type chart,
-                    // the stats and the damage roll (DERIVED from Showdown's damageCallback).
-                    if fx.hooks.half_current_hp_damage {
-                        let dealt = (self.combatants[target].hp / 2)
-                            .max(1)
-                            .min(self.combatants[target].hp);
-                        self.combatants[target].hp -= dealt;
+                    // Fixed-damage callbacks (Ruination, Comeuppance): the hit ignores the type
+                    // chart, the stats and the damage roll (DERIVED from Showdown's
+                    // damageCallback).
+                    let fixed = if fx.hooks.half_current_hp_damage {
+                        Some((target, (self.combatants[target].hp / 2).max(1)))
+                    } else if fx.hooks.return_last_damage {
+                        // 3/2 of the last hit the user took this turn, back at its author.
+                        self.turn_last_damage
+                            .get(action.actor)
+                            .copied()
+                            .flatten()
+                            .map(|(by, taken)| (by, (taken * 3 / 2).max(1)))
+                    } else {
+                        None
+                    };
+                    if let Some((receiver, damage)) = fixed {
+                        let dealt = damage.min(self.combatants[receiver].hp);
+                        self.combatants[receiver].hp -= dealt;
+                        if receiver < self.turn_last_damage.len() {
+                            self.turn_last_damage[receiver] = Some((action.actor, dealt));
+                        }
                         events.push(Event::UsedMove {
                             actor: action.actor,
-                            target,
+                            target: receiver,
                             name: move_name,
                             damage: dealt,
                             critical: false,
                             effectiveness: "normal".into(),
                         });
-                        if self.combatants[target].hp == 0 {
-                            events.push(Event::KnockedOut(target));
-                            self.advance_active_for(target);
+                        if self.combatants[receiver].hp == 0 {
+                            events.push(Event::KnockedOut(receiver));
+                            self.advance_active_for(receiver);
                         }
                         continue;
                     }
@@ -687,7 +744,7 @@ impl Battle {
                         rng,
                     );
                     self.status_post_effects(action.actor, target, fx, false, rng);
-                    self.apply_use_hooks(action.actor, fx, 0);
+                    self.apply_use_hooks(action.actor, &move_type, fx, 0);
                     for (t, status) in std::mem::take(&mut self.pending_status) {
                         events.push(Event::StatusApplied { target: t, status });
                     }
@@ -761,6 +818,10 @@ impl Battle {
                 if let Some(times) = self.times_attacked.get_mut(target) {
                     *times = times.saturating_add(landed as u16);
                 }
+                // Turn memory: the last hit this combatant took (Comeuppance).
+                if target < self.turn_last_damage.len() {
+                    self.turn_last_damage[target] = Some((action.actor, dealt));
+                }
             }
             if hits > 1 {
                 self.effect_events.push(EffectEvent::Hits {
@@ -794,7 +855,7 @@ impl Battle {
                     rng,
                 );
                 self.status_post_effects(action.actor, target, fx, true, rng);
-                self.apply_use_hooks(action.actor, fx, dealt);
+                self.apply_use_hooks(action.actor, &move_type, fx, dealt);
                 for (t, status) in std::mem::take(&mut self.pending_status) {
                     events.push(Event::StatusApplied { target: t, status });
                 }
@@ -909,18 +970,61 @@ impl Battle {
 
     /// External generation-9 use conditions, DERIVED from Showdown's `onTry`/`onTryMove`
     /// callbacks. Returns true when the move is refused for this action (the log gets a
-    /// `MoveFailed` line). `planned` holds the actions chosen for this turn.
+    /// `MoveFailed` line). `planned` holds the actions chosen for this turn and `acted` the
+    /// actors that already spent theirs.
+    #[allow(clippy::too_many_arguments)]
     fn gen9_use_refused(
         &mut self,
         actor: usize,
-        _target: usize,
+        target: usize,
         move_name: &str,
+        move_type: &str,
         fx: &MoveEffects,
-        _planned: &[Action],
+        planned: &[Action],
+        acted: &[usize],
     ) -> bool {
         let refused = if fx.hooks.half_hp_cost {
             // Fillet Away fails at or below half HP (Showdown `hp <= maxhp / 2`).
             self.combatants[actor].hp * 2 <= self.combatants[actor].max_hp
+        } else if fx.hooks.fail_unless_user_has_move_type {
+            // Double Shock fails unless the user has the move's own type (`hasType('Electric')`).
+            !self.combatants[actor]
+                .species
+                .types
+                .iter()
+                .any(|t| t == move_type)
+        } else if (fx.hooks.require_target_priority || fx.hooks.require_target_attack)
+            && acted.contains(&target)
+        {
+            // The target already spent its action: `willMove` has nothing queued.
+            true
+        } else if fx.hooks.require_target_priority || fx.hooks.require_target_attack {
+            // The target's chosen action for this turn, when the engine knows it (a classic
+            // round carries every action; a single-action PLA queue turn does not).
+            let movement = planned
+                .iter()
+                .find(|a| a.actor == target)
+                .and_then(|a| self.combatants[target].moves.get(a.move_slot));
+            let Some(movement) = movement else {
+                self.note_status_event(statuses::StatusEvent::MoveFailed {
+                    actor,
+                    move_name: move_name.to_owned(),
+                });
+                return true;
+            };
+            if fx.hooks.require_target_priority {
+                movement.priority <= 0
+            } else {
+                // Thunderclap only works against an attack (`move.category === 'Status'` fails).
+                movement.data.category == "Status"
+            }
+        } else if fx.hooks.return_last_damage {
+            // Comeuppance fails when the user has not been hit this turn (`getLastDamagedBy`),
+            // or when whoever hit it is no longer able to battle.
+            match self.turn_last_damage.get(actor).copied().flatten() {
+                Some((by, _)) if self.combatants[by].is_alive() => false,
+                _ => true,
+            }
         } else {
             false
         };
