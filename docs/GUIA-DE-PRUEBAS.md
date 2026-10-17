@@ -645,16 +645,21 @@ paridad visual nativa ni binary matching.
 74. **Explorando.** Arriba a la izquierda, el Pokémon salvaje más cercano (icono y nombre; si no
     hay ninguno, el nombre de la zona). A la derecha, la Poké Ball elegida y cuántas tienes.
     Abajo a la izquierda, las guías de botones del juego junto al minimapa del port.
-75. **Esc, equipo, resumen, mochila, cajas, Pokédex y mapa (M).** Cada pantalla sale con los
-     gráficos del juego: menú de pausa con 16 filas dentro de la franja inferior y la barra de
-     iconos arriba; equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila con
-     las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5; Pokédex con la página de
-     cuaderno; el mapa de Hisui con el área actual resaltada detrás del mapa de zona. En combate,
-     la placa del rival flota sobre el Pokémon cargado y se mantiene dentro de la pantalla. La
-     tienda sigue con la interfaz provisional y algunos detalles de las pantallas siguen
-     PROBABLES o DESCONOCIDOS. Fallo: se ve a la vez la provisional y la original, un icono de
-     otro Pokémon u objeto, la selección marcada no coincide con la que mueves, una fila se sale
-     por abajo en 720p/1080p/1440p o las letras acentuadas muestran un cuadro.
+75. **Esc, equipo, resumen, mochila, cajas, Pokédex, artesanía, tienda, Personalizar y mapa (M).**
+     Cada pantalla sale con los gráficos del juego: menú de pausa con 16 filas dentro de la franja
+     inferior y la barra de iconos arriba; equipo y resumen con los iconos, datos y movimientos del
+     Pokémon; mochila con las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5;
+     Pokédex con la página de cuaderno; artesanía con la rejilla de recetas y el panel de
+     materiales; la tienda con su rejilla de objetos, título Buy/Sell, tu dinero y la ficha del
+     objeto (sin ids hexadecimales: eso queda solo en `--ui debug`); **Personalizar** (Esc >
+     Customize) con las pestañas de categoría arriba, cinco filas con el nombre y el valor actual,
+     el panel de lo puesto abajo y los cambios aplicados al modelo al momento (el look se sigue
+     guardando en la partida, v10); el mapa de Hisui con el área actual resaltada detrás del mapa
+     de zona. En combate, la placa del rival flota sobre el Pokémon cargado y se mantiene dentro
+     de la pantalla. Algunos detalles de las pantallas siguen PROBABLES o DESCONOCIDOS. Fallo: se
+     ve a la vez la provisional y la original, un icono de otro Pokémon u objeto, la selección
+     marcada no coincide con la que mueves, una fila se sale por abajo en 720p/1080p/1440p o las
+     letras acentuadas muestran un cuadro.
 
 ### 2.17 Monturas  [EN MAIN]
 
@@ -876,7 +881,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
   DESCONOCIDOS y sin reexportación completa de modelos.
 - **Bayas y hierba que oculta de verdad:** no hechas. Agacharse y una regla básica de sigilo sí existen (Ctrl izquierdo), con volúmenes de sigilo reales sin decodificar.
 - **Monturas:** las cinco (Wyrdeer, Ursaluna, Basculegion, Sneasler, Braviary) se montan con **V** y se cambian con **G**; al montar sale abajo una **línea con las teclas** de la montura (12 s). Sus velocidades son las reales del juego y el **jinete va sentado** con las posturas del propio juego (clips de jinete). Habilidades: **Ursaluna cava con H** (avisa del resultado; los objetos enterrados no están decodificados, así que siempre «no encuentra nada»), **Braviary** vuela (salta y pulsa **K** en el aire; **Shift** en el aire es un picado a 16 m/s), **Basculegion** cruza el agua (nada o vadea según el fondo; entra desde orillas bajas), **Wyrdeer** corre y galopa (8/11 m/s) y **Sneasler** trepa paredes (4,8 m/s). El estado de montura no se guarda al cerrar el juego. Ver la prueba 76.
-- **Personalizar al protagonista** (ropa, pelo, cara, piel): no.
+- **Personalizar al protagonista** (ropa, pelo, cara, piel): existe desde el 2026-10-15 (Esc > «Customize», guardado v10) y usa la piel del juego original (ver prueba 75); los colores y estampados de la ropa no están decodificados (solo los nombres de color de pelo/cejas/ojos y el tono de piel).
 - **Pokédex con investigación, tareas y rangos:** no.
 - **Habilidades de Pokémon y objetos equipados:** en este juego casi no tienen efecto en combate
   (solo 2 habilidades), así que no hay nada que probar.
