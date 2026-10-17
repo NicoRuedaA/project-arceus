@@ -1,0 +1,1699 @@
+# sheet: data/national/model_map
+# version: 1
+# generator: .tools/build_model_map.py
+# target: user model collection (Blender packs) -> national dex species/forms
+# confidence: VERIFICADO | PROBABLE | DESCONOCIDO (see .tools/build_model_map.py)
+# kind: base|regional|mega|gigamax|cosmetica|variante-color|otro
+# note: the pack id pmNNNN_FF_VV is the game's own model id; NNNN is NOT the
+#       national number above 649 (pm0749 is Bergmite #712, pm0841 is Rowlet #722)
+model:string*	species:u16	form_index:u8	form_name:string	kind:string	confidence:enum	reason:string?
+pm0000_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_16_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_17_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_18_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_19_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0701_20_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0705_01_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0707_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_16_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_17_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_18_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_19_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_20_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_21_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_22_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_23_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_24_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_25_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_26_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_27_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_28_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_29_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0708_30_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0709_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0710_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0710_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0713_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0713_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0713_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0713_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0713_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0714_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0714_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0714_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0714_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0714_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0714_16_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0715_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0715_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0715_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0715_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0715_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0716_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0725_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0726_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0727_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0727_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0731_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0732_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0733_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0734_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0734_01_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0734_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0735_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0735_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0735_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0735_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0736_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0736_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0736_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0736_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0746_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0746_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0751_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0758_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0759_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0760_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0761_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0761_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0762_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0764_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0765_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0766_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0770_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0770_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0770_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0770_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0770_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0773_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0774_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0774_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0801_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0802_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0803_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0804_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0805_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0806_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0807_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0808_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0809_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0810_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0811_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0812_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0813_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0814_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0815_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0816_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0817_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0818_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0819_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0819_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0820_11	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0820_12	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0821_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0822_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0823_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0824_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0824_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0825_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0825_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0825_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0825_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0826_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0827_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0828_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0829_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0829_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0829_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0830_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0831_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0832_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0833_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0834_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0835_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0836_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0837_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0838_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0839_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0840_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0843_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0844_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0850_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0851_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0852_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0853_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0854_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0855_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0856_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0856_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0857_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0858_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0859_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0860_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0860_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0861_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_11	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_12	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_13	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_14	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_15	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_16	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_17	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_18	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_19	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_20	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_21	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_22	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_23	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_24	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_25	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_26	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_27	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0862_28	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0863_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0865_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0865_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0865_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0866_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0867_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0867_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0868_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0869_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0871_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0872_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0873_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0874_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0875_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0876_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0877_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0878_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0879_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0880_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0881_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0882_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0882_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0882_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0882_52_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0883_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0884_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0885_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0886_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0887_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0888_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0888_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0891_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0891_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0892_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0892_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0892_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0901_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0901_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0902_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0902_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0903_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0903_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0904_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0904_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0904_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0905_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0906_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0907_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0908_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0909_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0909_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0910_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0910_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0911_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0912_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0913_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0913_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0914_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0914_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0915_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0916_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0916_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0917_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0917_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0917_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0917_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0917_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0917_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0920_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0920_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0920_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0921_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0921_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0922_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0922_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0922_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0922_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0922_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0923_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0923_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0923_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0924_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0924_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_16_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_16_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_17_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_17_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_18_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_18_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_19_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_19_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0925_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0926_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0926_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0927_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0927_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0927_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0928_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0929_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0929_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0929_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0930_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0931_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0932_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0932_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0933_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0933_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0934_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0934_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0935_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0935_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0935_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0936_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0936_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0937_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0937_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0937_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0938_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0938_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0938_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0938_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0939_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0939_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0939_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0939_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0940_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0940_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0940_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0941_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0941_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0941_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0941_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0942_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0942_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0942_01_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0942_01_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0943_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0943_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0944_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0944_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0945_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0945_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0946_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0946_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0947_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0948_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0948_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0949_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0949_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0950_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0950_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0950_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0951_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0951_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0952_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0952_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0953_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0953_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0953_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0954_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0954_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0955_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0955_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0956_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0956_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0956_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0957_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0957_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0958_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0958_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0959_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0959_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0959_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0960_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0961_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0962_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0963_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0964_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0964_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0965_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0965_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0966_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0966_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0967_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0967_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0967_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0968_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0968_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0968_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0969_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0969_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0970_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0970_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0971_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0971_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0971_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0972_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0972_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0972_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0972_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0973_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0973_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0973_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0973_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0974_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0974_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0975_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0975_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0975_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0975_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0976_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0976_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0977_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0977_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0978_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0978_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0979_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0979_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0980_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0980_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0981_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0981_00_31	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0982_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0982_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0983_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0983_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0983_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0983_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0983_81_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0983_82_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0984_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0984_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0985_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0985_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0986_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0986_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0986_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0986_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0986_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0986_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0988_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0988_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0988_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0988_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0989_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0989_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0990_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0990_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1007_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1020_01_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1021_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1021_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1025_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1026_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1027_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1028_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1029_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1030_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1031_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1032_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1033_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1034_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1035_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1036_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1037_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1038_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1038_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1039_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1040_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1041_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1042_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1043_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1043_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1044_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1045_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1046_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1047_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1048_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1049_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1050_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1050_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1051_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1052_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1053_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1054_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1055_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1055_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1056_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1056_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1056_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1056_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1057_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1058_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1059_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1060_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1061_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1062_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1063_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1064_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1065_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1066_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1067_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1068_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1069_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1070_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1071_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1071_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1072_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1073_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1074_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1075_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1076_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1077_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1078_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1079_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1080_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1080_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1081_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1082_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1083_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1084_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1085_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1086_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1087_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1088_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1089_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1090_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1091_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1092_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1093_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1094_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1095_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1096_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1097_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1098_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1099_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1100_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1101_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1102_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1102_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1103_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1103_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1104_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1105_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1106_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1107_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1108_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1109_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1110_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1111_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1112_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1113_00_51	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1114_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1120_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1120_11_99	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1120_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1120_12_99	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1120_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1120_13_99	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1120_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1120_14_99	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1121_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1122_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1123_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1124_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1125_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1126_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1127_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1128_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1129_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1130_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1130_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1130_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1131_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1132_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1133_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1133_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1134_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm1134_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm9999_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0001_00_00	1	0	Bulbasaur	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0002_00_00	2	0	Ivysaur	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0003_00_00	3	0	Venusaur	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0003_01_00	3	0	Venusaur	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0003_81_00	3	0	Venusaur	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0003_51_00	3	1	Mega Venusaur	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0004_00_00	4	0	Charmander	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0005_00_00	5	0	Charmeleon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0006_00_00	6	0	Charizard	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0006_81_00	6	0	Charizard	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0006_51_00	6	1	Mega Charizard X	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0006_52_00	6	2	Mega Charizard Y	mega	PROBABLE	FF=52 = mega 2 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0007_00_00	7	0	Squirtle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0008_00_00	8	0	Wartortle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0009_00_00	9	0	Blastoise	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0009_81_00	9	0	Blastoise	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0009_51_00	9	1	Mega Blastoise	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0010_00	10	0	Caterpie	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0011_00	11	0	Metapod	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0012_00	12	0	Butterfree	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0012_01	12	0	Butterfree	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0012_81_00	12	0	Butterfree	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0013_00_00	13	0	Weedle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0014_00_00	14	0	Kakuna	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0015_00_00	15	0	Beedrill	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0015_51_00	15	1	Mega Beedrill	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0016_00_00	16	0	Pidgey	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0017_00_00	17	0	Pidgeotto	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0018_00_00	18	0	Pidgeot	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0018_51_00	18	1	Mega Pidgeot	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0019_00_00	19	0	Rattata	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0019_00_01	19	0	Rattata	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0019_01_00	19	0	Rattata	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0019_01_01	19	0	Rattata	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0020_00_00	20	0	Raticate	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0020_00_01	20	0	Raticate	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0020_01_00	20	0	Raticate	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0020_01_01	20	0	Raticate	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0021_00_00	21	0	Spearow	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0021_00_01	21	0	Spearow	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0022_00_00	22	0	Fearow	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0022_00_01	22	0	Fearow	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0023_00_00	23	0	Ekans	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0024_00_00	24	0	Arbok	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0025_00_00	25	0	Pikachu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0025_01_00	25	0	Pikachu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0025_81_00	25	0	Pikachu	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0026_00_00	26	0	Raichu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0026_01_00	26	0	Raichu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0026_00_11	26	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0026_51_00	26	1	Alolan Form	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0026_52_00	26	2	Mega Raichu X	mega	PROBABLE	FF=52 = mega 2 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0027_00_00	27	0	Sandshrew	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0027_00_11	27	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0028_00_00	28	0	Sandslash	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0028_00_11	28	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0029_00	29	0	Nidoran♀	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0030_00	30	0	Nidorina	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0031_00	31	0	Nidoqueen	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0032_00	32	0	Nidoran♂	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0033_00	33	0	Nidorino	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0034_00	34	0	Nidoking	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0035_00_00	35	0	Clefairy	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0036_00_00	36	0	Clefable	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0036_51_00	36	1	Mega Clefable	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0037_00_00	37	0	Vulpix	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0037_00_11	37	1	Alolan Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0038_00_00	38	0	Ninetales	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0038_00_11	38	1	Alolan Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0039_00_00	39	0	Jigglypuff	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0040_00_00	40	0	Wigglytuff	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0041_00_00	41	0	Zubat	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0041_01_00	41	0	Zubat	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0042_00_00	42	0	Golbat	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0042_01_00	42	0	Golbat	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0043_00_00	43	0	Oddish	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0044_00_00	44	0	Gloom	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0044_01_00	44	0	Gloom	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0045_00_00	45	0	Vileplume	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0045_01_00	45	0	Vileplume	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0046_00_00	46	0	Paras	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0046_00_01	46	0	Paras	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0047_00_00	47	0	Parasect	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0047_00_01	47	0	Parasect	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0048_00_00	48	0	Venonat	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0049_00_00	49	0	Venomoth	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0050_00_00	50	0	Diglett	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0050_00_11	50	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0051_00_00	51	0	Dugtrio	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0051_00_11	51	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0052_00_00	52	0	Meowth	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0052_81_00	52	0	Meowth	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0052_00_11	52	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0052_00_31	52	2	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0052_00_31	52	2	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0053_00_00	53	0	Persian	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0053_00_11	53	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0054_00_00	54	0	Psyduck	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0055_00_00	55	0	Golduck	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0056_00_00	56	0	Mankey	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0057_00_00	57	0	Primeape	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0058_00_00	58	0	Growlithe	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0058_00_41	58	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0059_00_00	59	0	Arcanine	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0059_00_41	59	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0060_00_00	60	0	Poliwag	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0061_00_00	61	0	Poliwhirl	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0062_00_00	62	0	Poliwrath	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0063_00_00	63	0	Abra	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0064_00_00	64	0	Kadabra	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0064_01_00	64	0	Kadabra	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0065_00_00	65	0	Alakazam	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0065_01_00	65	0	Alakazam	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0065_51_00	65	1	Mega Alakazam	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0066_00_00	66	0	Machop	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0067_00_00	67	0	Machoke	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0068_00_00	68	0	Machamp	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0068_81_00	68	0	Machamp	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0069_00_00	69	0	Bellsprout	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0070_00_00	70	0	Weepinbell	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0071_00_00	71	0	Victreebel	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0071_51_00	71	1	Mega Victreebel	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0072_00_00	72	0	Tentacool	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0073_00_00	73	0	Tentacruel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0074_00_00	74	0	Geodude	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0074_00_11	74	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0075_00_00	75	0	Graveler	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0075_00_11	75	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0076_00_00	76	0	Golem	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0076_00_11	76	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0077_00	77	0	Ponyta	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0077_00_31	77	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0078_00	78	0	Rapidash	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0078_00_31	78	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0079_00_00	79	0	Slowpoke	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0079_00_31	79	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0079_00_31	79	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0080_00_00	80	0	Slowbro	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0080_51_00	80	1	Mega Slowbro	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0080_00_31	80	2	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0080_00_31	80	2	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0081_00_00	81	0	Magnemite	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0082_00_00	82	0	Magneton	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0083_00_00	83	0	Farfetch’d	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0083_00_31	83	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0083_00_31	83	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0084_00_00	84	0	Doduo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0084_01_00	84	0	Doduo	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0085_00_00	85	0	Dodrio	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0085_01_00	85	0	Dodrio	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0086_00_00	86	0	Seel	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0087_00_00	87	0	Dewgong	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0088_00_00	88	0	Grimer	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0088_00_11	88	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0089_00_00	89	0	Muk	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0089_00_11	89	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0090_00_00	90	0	Shellder	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0091_00_00	91	0	Cloyster	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0092_00_00	92	0	Gastly	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0093_00_00	93	0	Haunter	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0094_00_00	94	0	Gengar	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0094_81_00	94	0	Gengar	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0094_51_00	94	1	Mega Gengar	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0095_00_00	95	0	Onix	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0096_00_00	96	0	Drowzee	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0097_00_00	97	0	Hypno	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0097_01_00	97	0	Hypno	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0098_00	98	0	Krabby	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0099_00	99	0	Kingler	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0099_81_00	99	0	Kingler	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0100_00_00	100	0	Voltorb	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0100_00_41	100	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0101_00_00	101	0	Electrode	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0101_00_41	101	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0102_00_00	102	0	Exeggcute	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0103_00_00	103	0	Exeggutor	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0103_00_11	103	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0104_00_00	104	0	Cubone	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0105_00_00	105	0	Marowak	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0105_00_11	105	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
+pm0106_00_00	106	0	Hitmonlee	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0107_00_00	107	0	Hitmonchan	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0108_00	108	0	Lickitung	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0109_00_00	109	0	Koffing	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0110_00_00	110	0	Weezing	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0110_00_31	110	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0110_00_31	110	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0111_00_00	111	0	Rhyhorn	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0111_01_00	111	0	Rhyhorn	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0112_00_00	112	0	Rhydon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0112_01_00	112	0	Rhydon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0113_00_00	113	0	Chansey	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0114_00	114	0	Tangela	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0115_00_00	115	0	Kangaskhan	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0115_51_00	115	1	Mega Kangaskhan	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0116_00_00	116	0	Horsea	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0117_00_00	117	0	Seadra	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0118_00	118	0	Goldeen	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0118_01	118	0	Goldeen	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0119_00	119	0	Seaking	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0119_01	119	0	Seaking	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0120_00_00	120	0	Staryu	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0121_00_00	121	0	Starmie	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0121_51_00	121	1	Mega Starmie	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0122_00_00	122	0	Mr. Mime	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0122_00_31	122	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0122_00_31	122	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0123_00_00	123	0	Scyther	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0123_01_00	123	0	Scyther	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0124_00	124	0	Jynx	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0125_00_00	125	0	Electabuzz	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0126_00_00	126	0	Magmar	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0127_00_00	127	0	Pinsir	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0127_51_00	127	1	Mega Pinsir	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0128_00_00	128	0	Tauros	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0128_11_51	128	0	Tauros	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0128_12_51	128	1	Paldean Form (Combat Breed)	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0128_13_51	128	2	Paldean Form (Blaze Breed)	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0129_00_00	129	0	Magikarp	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0129_01_00	129	0	Magikarp	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0130_00_00	130	0	Gyarados	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0130_01_00	130	0	Gyarados	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0130_51_00	130	1	Mega Gyarados	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0131_00_00	131	0	Lapras	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0131_81_00	131	0	Lapras	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0132_00_00	132	0	Ditto	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0133_00_00	133	0	Eevee	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0133_01_00	133	0	Eevee	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0133_81_00	133	0	Eevee	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0134_00_00	134	0	Vaporeon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0135_00_00	135	0	Jolteon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0136_00_00	136	0	Flareon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0137_00_00	137	0	Porygon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0138_00	138	0	Omanyte	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0139_00	139	0	Omastar	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0140_00	140	0	Kabuto	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0141_00	141	0	Kabutops	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0142_00_00	142	0	Aerodactyl	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0142_51_00	142	1	Mega Aerodactyl	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0143_00_00	143	0	Snorlax	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0143_81_00	143	0	Snorlax	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0144_00_00	144	0	Articuno	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0144_00_31	144	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0144_00_31	144	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0145_00_00	145	0	Zapdos	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0145_00_31	145	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0145_00_31	145	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0146_00_00	146	0	Moltres	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0146_00_31	146	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0146_00_31	146	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0147_00_00	147	0	Dratini	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0148_00_00	148	0	Dragonair	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0149_00_00	149	0	Dragonite	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0149_51_00	149	1	Mega Dragonite	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0150_00_00	150	0	Mewtwo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0150_51_00	150	1	Mega Mewtwo X	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0150_52_00	150	2	Mega Mewtwo Y	mega	PROBABLE	FF=52 = mega 2 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0151_00_00	151	0	Mew	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0152_00_00	152	0	Chikorita	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0153_00_00	153	0	Bayleef	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0154_00_00	154	0	Meganium	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0154_01_00	154	0	Meganium	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0154_51_00	154	1	Mega Meganium	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0155_00_00	155	0	Cyndaquil	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0156_00_00	156	0	Quilava	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0157_00_00	157	0	Typhlosion	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0157_00_41	157	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0158_00_00	158	0	Totodile	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0159_00_00	159	0	Croconaw	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0160_00_00	160	0	Feraligatr	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0160_51_00	160	1	Mega Feraligatr	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0161_00_00	161	0	Sentret	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0162_00_00	162	0	Furret	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0163_00_00	163	0	Hoothoot	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0164_00_00	164	0	Noctowl	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0165_00_00	165	0	Ledyba	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0165_00_01	165	0	Ledyba	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0165_01_00	165	0	Ledyba	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0165_01_01	165	0	Ledyba	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0166_00_00	166	0	Ledian	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0166_00_01	166	0	Ledian	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0166_01_00	166	0	Ledian	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0166_01_01	166	0	Ledian	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0167_00_00	167	0	Spinarak	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0168_00_00	168	0	Ariados	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0169_00_00	169	0	Crobat	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0170_00_00	170	0	Chinchou	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0171_00_00	171	0	Lanturn	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0172_00_00	172	0	Pichu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0173_00_00	173	0	Cleffa	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0174_00_00	174	0	Igglybuff	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0175_00	175	0	Togepi	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0176_00	176	0	Togetic	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0177_00	177	0	Natu	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0178_00	178	0	Xatu	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0178_01	178	0	Xatu	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0179_00_00	179	0	Mareep	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0180_00_00	180	0	Flaaffy	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0181_00_00	181	0	Ampharos	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0181_51_00	181	1	Mega Ampharos	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0182_00_00	182	0	Bellossom	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0183_00_00	183	0	Marill	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0184_00_00	184	0	Azumarill	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0185_00_00	185	0	Sudowoodo	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0185_01_00	185	0	Sudowoodo	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0186_00_00	186	0	Politoed	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0186_01_00	186	0	Politoed	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0187_00_00	187	0	Hoppip	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0188_00_00	188	0	Skiploom	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0189_00_00	189	0	Jumpluff	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0190_00_00	190	0	Aipom	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0190_01_00	190	0	Aipom	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0191_00_00	191	0	Sunkern	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0192_00_00	192	0	Sunflora	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0193_00_00	193	0	Yanma	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0194_00_00	194	0	Wooper	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0194_01_00	194	0	Wooper	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0194_00_51	194	1	Paldean Form	regional	VERIFICADO	VV=51 = forma regional de Paldea (lista exacta de formas + anclas PLA)
+pm0195_00_00	195	0	Quagsire	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0195_01_00	195	0	Quagsire	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0196_00_00	196	0	Espeon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0197_00_00	197	0	Umbreon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0198_00_00	198	0	Murkrow	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0198_01_00	198	0	Murkrow	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0199_00_00	199	0	Slowking	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0199_00_31	199	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0199_00_31	199	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0200_00_00	200	0	Misdreavus	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_11_00	201	0	A	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_11_01	201	0	A	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_12_00	201	1	forma 1	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_12_01	201	1	forma 1	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_13_00	201	2	forma 2	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_13_01	201	2	forma 2	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_14_00	201	3	forma 3	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_14_01	201	3	forma 3	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_15_00	201	4	forma 4	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_15_01	201	4	forma 4	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_16_00	201	5	forma 5	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_16_01	201	5	forma 5	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_17_00	201	6	forma 6	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_17_01	201	6	forma 6	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_18_00	201	7	forma 7	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_18_01	201	7	forma 7	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_19_00	201	8	forma 8	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_19_01	201	8	forma 8	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_20_00	201	9	forma 9	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_20_01	201	9	forma 9	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_21_00	201	10	forma 10	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_21_01	201	10	forma 10	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_22_00	201	11	forma 11	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_22_01	201	11	forma 11	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_23_00	201	12	forma 12	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_23_01	201	12	forma 12	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_24_00	201	13	forma 13	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_24_01	201	13	forma 13	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_25_00	201	14	forma 14	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_25_01	201	14	forma 14	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_26_00	201	15	forma 15	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_26_01	201	15	forma 15	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_27_00	201	16	forma 16	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_27_01	201	16	forma 16	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_28_00	201	17	forma 17	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_28_01	201	17	forma 17	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_29_00	201	18	forma 18	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_29_01	201	18	forma 18	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_30_00	201	19	forma 19	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_30_01	201	19	forma 19	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_31_00	201	20	forma 20	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_31_01	201	20	forma 20	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_32_00	201	21	forma 21	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_32_01	201	21	forma 21	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_33_00	201	22	forma 22	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_33_01	201	22	forma 22	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_34_00	201	23	forma 23	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_34_01	201	23	forma 23	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_35_00	201	24	forma 24	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_35_01	201	24	forma 24	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_36_00	201	25	forma 25	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_36_01	201	25	forma 25	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_37_00	201	26	forma 26	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_37_01	201	26	forma 26	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0201_38_00	201	27	forma 27	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0201_38_01	201	27	forma 27	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0202_00	202	0	Wobbuffet	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0202_01	202	0	Wobbuffet	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0203_00_00	203	0	Girafarig	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0203_01_00	203	0	Girafarig	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0204_00_00	204	0	Pineco	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0205_00_00	205	0	Forretress	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0206_00_00	206	0	Dunsparce	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0207_00_00	207	0	Gligar	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0207_01_00	207	0	Gligar	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0208_00_00	208	0	Steelix	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0208_01_00	208	0	Steelix	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0208_51_00	208	1	Mega Steelix	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0209_00_00	209	0	Snubbull	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0210_00_00	210	0	Granbull	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0211_00_00	211	0	Qwilfish	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0211_00_41	211	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0212_00_00	212	0	Scizor	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0212_01_00	212	0	Scizor	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0212_51_00	212	1	Mega Scizor	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0213_00	213	0	Shuckle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0214_00_00	214	0	Heracross	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0214_01_00	214	0	Heracross	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0214_51_00	214	1	Mega Heracross	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0215_00_00	215	0	Sneasel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0215_01_00	215	0	Sneasel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0215_00_41	215	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0215_01_41	215	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0216_00_00	216	0	Teddiursa	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0217_00_00	217	0	Ursaring	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0217_01_00	217	0	Ursaring	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0218_00_00	218	0	Slugma	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0219_00_00	219	0	Magcargo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0220_00_00	220	0	Swinub	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0221_00_00	221	0	Piloswine	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0221_01_00	221	0	Piloswine	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0222_00	222	0	Corsola	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0222_00_31	222	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0223_00	223	0	Remoraid	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0224_00	224	0	Octillery	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0224_01	224	0	Octillery	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0225_00_00	225	0	Delibird	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0226_00	226	0	Mantine	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0227_00_00	227	0	Skarmory	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0227_51_00	227	1	Mega Skarmory	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0228_00_00	228	0	Houndour	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0229_00_00	229	0	Houndoom	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0229_01_00	229	0	Houndoom	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0229_51_00	229	1	Mega Houndoom	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0230_00_00	230	0	Kingdra	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0231_00_00	231	0	Phanpy	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0232_00_00	232	0	Donphan	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0232_01_00	232	0	Donphan	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0233_00_00	233	0	Porygon2	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0234_00_00	234	0	Stantler	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0235_00_00	235	0	Smeargle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0236_00_00	236	0	Tyrogue	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0237_00_00	237	0	Hitmontop	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0238_00	238	0	Smoochum	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0239_00_00	239	0	Elekid	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0240_00_00	240	0	Magby	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0241_00	241	0	Miltank	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0242_00_00	242	0	Blissey	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0243_00_00	243	0	Raikou	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0244_00_00	244	0	Entei	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0245_00_00	245	0	Suicune	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0246_00_00	246	0	Larvitar	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0247_00_00	247	0	Pupitar	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0248_00_00	248	0	Tyranitar	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0248_51_00	248	1	Mega Tyranitar	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0249_00_00	249	0	Lugia	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0250_00_00	250	0	Ho-Oh	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0251_00	251	0	Celebi	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0252_00_00	252	0	Treecko	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0253_00_00	253	0	Grovyle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0254_00_00	254	0	Sceptile	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0254_51_00	254	1	Mega Sceptile	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0255_00_00	255	0	Torchic	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0255_01_00	255	0	Torchic	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0256_00_00	256	0	Combusken	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0256_01_00	256	0	Combusken	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0257_00_00	257	0	Blaziken	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0257_01_00	257	0	Blaziken	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0257_51_00	257	1	Mega Blaziken	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0258_00_00	258	0	Mudkip	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0259_00_00	259	0	Marshtomp	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0260_00_00	260	0	Swampert	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0260_51_00	260	1	Mega Swampert	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0261_00_00	261	0	Poochyena	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0262_00_00	262	0	Mightyena	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0263_00	263	0	Zigzagoon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0263_00_31	263	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0264_00	264	0	Linoone	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0264_00_31	264	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0265_00_00	265	0	Wurmple	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0265_00_01	265	0	Wurmple	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0266_00_00	266	0	Silcoon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0266_00_01	266	0	Silcoon	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0267_00_00	267	0	Beautifly	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0267_00_01	267	0	Beautifly	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0267_01_00	267	0	Beautifly	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0267_01_01	267	0	Beautifly	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0268_00_00	268	0	Cascoon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0268_00_01	268	0	Cascoon	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0269_00_00	269	0	Dustox	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0269_00_01	269	0	Dustox	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0269_01_00	269	0	Dustox	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0269_01_01	269	0	Dustox	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0270_00_00	270	0	Lotad	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0271_00_00	271	0	Lombre	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0272_00_00	272	0	Ludicolo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0272_01_00	272	0	Ludicolo	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0273_00_00	273	0	Seedot	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0274_00_00	274	0	Nuzleaf	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0274_01_00	274	0	Nuzleaf	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0275_00_00	275	0	Shiftry	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0275_01_00	275	0	Shiftry	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0276_00_00	276	0	Taillow	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0276_00_01	276	0	Taillow	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0277_00_00	277	0	Swellow	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0277_00_01	277	0	Swellow	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0278_00_00	278	0	Wingull	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0279_00_00	279	0	Pelipper	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0280_00_00	280	0	Ralts	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0281_00_00	281	0	Kirlia	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0282_00_00	282	0	Gardevoir	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0282_51_00	282	1	Mega Gardevoir	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0283_00_00	283	0	Surskit	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0284_00_00	284	0	Masquerain	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0285_00_00	285	0	Shroomish	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0286_00_00	286	0	Breloom	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0287_00_00	287	0	Slakoth	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0288_00_00	288	0	Vigoroth	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0289_00_00	289	0	Slaking	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0290_00	290	0	Nincada	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0291_00	291	0	Ninjask	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0292_00	292	0	Shedinja	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0293_00	293	0	Whismur	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0294_00	294	0	Loudred	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0295_00	295	0	Exploud	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0296_00_00	296	0	Makuhita	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0297_00_00	297	0	Hariyama	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0298_00_00	298	0	Azurill	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0299_00_00	299	0	Nosepass	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0300_00_00	300	0	Skitty	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0300_00_01	300	0	Skitty	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0301_00_00	301	0	Delcatty	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0301_00_01	301	0	Delcatty	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0302_00_00	302	0	Sableye	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0302_51_00	302	1	Mega Sableye	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0303_00_00	303	0	Mawile	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0303_51_00	303	1	Mega Mawile	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0304_00_00	304	0	Aron	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0305_00_00	305	0	Lairon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0306_00_00	306	0	Aggron	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0306_51_00	306	1	Mega Aggron	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0307_00_00	307	0	Meditite	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0307_01_00	307	0	Meditite	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0308_00_00	308	0	Medicham	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0308_01_00	308	0	Medicham	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0308_51_00	308	1	Mega Medicham	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0309_00_00	309	0	Electrike	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0310_00_00	310	0	Manectric	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0310_51_00	310	1	Mega Manectric	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0311_00_00	311	0	Plusle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0312_00_00	312	0	Minun	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0313_00_00	313	0	Volbeat	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0314_00_00	314	0	Illumise	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0315_00_00	315	0	Roselia	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0315_01_00	315	0	Roselia	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0316_00_00	316	0	Gulpin	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0316_01_00	316	0	Gulpin	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0317_00_00	317	0	Swalot	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0317_01_00	317	0	Swalot	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0318_00_00	318	0	Carvanha	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0319_00_00	319	0	Sharpedo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0319_51_00	319	1	Mega Sharpedo	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0320_00	320	0	Wailmer	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0321_00	321	0	Wailord	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0322_00_00	322	0	Numel	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0322_01_00	322	0	Numel	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0323_00_00	323	0	Camerupt	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0323_01_00	323	0	Camerupt	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0323_51_00	323	1	Mega Camerupt	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0324_00_00	324	0	Torkoal	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0325_00_00	325	0	Spoink	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0326_00_00	326	0	Grumpig	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0327_00_00	327	0	Spinda	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0327_00_01	327	0	Spinda	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0328_00_00	328	0	Trapinch	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0329_00_00	329	0	Vibrava	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0330_00_00	330	0	Flygon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0331_00_00	331	0	Cacnea	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0332_00_00	332	0	Cacturne	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0332_01_00	332	0	Cacturne	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0333_00_00	333	0	Swablu	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0334_00_00	334	0	Altaria	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0334_51_00	334	1	Mega Altaria	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0335_00_00	335	0	Zangoose	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0336_00_00	336	0	Seviper	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0337_00	337	0	Lunatone	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0338_00	338	0	Solrock	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0339_00_00	339	0	Barboach	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0340_00_00	340	0	Whiscash	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0341_00_00	341	0	Corphish	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0342_00_00	342	0	Crawdaunt	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0343_00	343	0	Baltoy	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0344_00	344	0	Claydol	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0345_00	345	0	Lileep	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0346_00	346	0	Cradily	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0347_00	347	0	Anorith	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0348_00	348	0	Armaldo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0349_00_00	349	0	Feebas	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0350_00_00	350	0	Milotic	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0350_01_00	350	0	Milotic	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0351_11_00	351	0	Normal	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0351_11_01	351	0	Normal	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0351_12_00	351	1	Sunny Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0351_12_01	351	1	Sunny Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0351_13_00	351	2	Rainy Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0351_13_01	351	2	Rainy Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0351_14_00	351	3	Snowy Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0351_14_01	351	3	Snowy Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0352_00_00	352	0	Kecleon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0353_00_00	353	0	Shuppet	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0354_00_00	354	0	Banette	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0354_51_00	354	1	Mega Banette	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0355_00_00	355	0	Duskull	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0356_00_00	356	0	Dusclops	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0357_00_00	357	0	Tropius	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0358_00_00	358	0	Chimecho	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0358_51_00	358	1	Mega Chimecho	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0359_00_00	359	0	Absol	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0359_51_00	359	1	Mega Absol	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0359_52_00	359	2	Mega Absol Z	mega	PROBABLE	FF=52 = mega 2 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0360_00	360	0	Wynaut	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0361_00_00	361	0	Snorunt	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0362_00_00	362	0	Glalie	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0362_51_00	362	1	Mega Glalie	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0363_00	363	0	Spheal	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0364_00	364	0	Sealeo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0365_00	365	0	Walrein	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0366_00_00	366	0	Clamperl	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0366_00_01	366	0	Clamperl	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0367_00_00	367	0	Huntail	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0367_00_01	367	0	Huntail	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0368_00_00	368	0	Gorebyss	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0368_00_01	368	0	Gorebyss	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0369_00	369	0	Relicanth	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0369_01	369	0	Relicanth	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0370_00_00	370	0	Luvdisc	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0371_00_00	371	0	Bagon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0372_00_00	372	0	Shelgon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0373_00_00	373	0	Salamence	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0373_51_00	373	1	Mega Salamence	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0374_00_00	374	0	Beldum	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0375_00_00	375	0	Metang	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0376_00_00	376	0	Metagross	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0376_51_00	376	1	Mega Metagross	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0377_00_00	377	0	Regirock	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0378_00_00	378	0	Regice	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0379_00_00	379	0	Registeel	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0380_00_00	380	0	Latias	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0380_51_00	380	1	Mega Latias	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0381_00_00	381	0	Latios	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0381_51_00	381	1	Mega Latios	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0382_00_00	382	0	Kyogre	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0382_51_00	382	1	Primal Reversion	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0383_00_00	383	0	Groudon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0383_51_00	383	1	Primal Reversion	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0384_00_00	384	0	Rayquaza	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0384_51_00	384	1	Mega Rayquaza	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0385_00_00	385	0	Jirachi	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0386_11_00	386	0	Normal Forme	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0386_12_00	386	1	Attack Forme	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0386_13_00	386	2	Defense Forme	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0386_14_00	386	3	Speed Forme	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0387_00_00	387	0	Turtwig	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0388_00_00	388	0	Grotle	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0389_00_00	389	0	Torterra	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0390_00_00	390	0	Chimchar	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0391_00_00	391	0	Monferno	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0392_00_00	392	0	Infernape	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0393_00_00	393	0	Piplup	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0394_00_00	394	0	Prinplup	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0395_00_00	395	0	Empoleon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0396_00_00	396	0	Starly	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0396_01_00	396	0	Starly	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0397_00_00	397	0	Staravia	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0397_01_00	397	0	Staravia	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0398_00_00	398	0	Staraptor	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0398_01_00	398	0	Staraptor	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0398_51_00	398	1	Mega Staraptor	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0399_00_00	399	0	Bidoof	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0399_00_01	399	0	Bidoof	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0399_01_00	399	0	Bidoof	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0399_01_01	399	0	Bidoof	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0400_00_00	400	0	Bibarel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0400_00_01	400	0	Bibarel	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0400_01_00	400	0	Bibarel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0400_01_01	400	0	Bibarel	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0401_00_00	401	0	Kricketot	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0401_01_00	401	0	Kricketot	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0402_00_00	402	0	Kricketune	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0402_01_00	402	0	Kricketune	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0403_00_00	403	0	Shinx	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0403_01_00	403	0	Shinx	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0404_00_00	404	0	Luxio	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0404_01_00	404	0	Luxio	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0405_00_00	405	0	Luxray	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0405_01_00	405	0	Luxray	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0406_00_00	406	0	Budew	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0407_00_00	407	0	Roserade	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0407_01_00	407	0	Roserade	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0408_00_00	408	0	Cranidos	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0409_00_00	409	0	Rampardos	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0410_00_00	410	0	Shieldon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0411_00_00	411	0	Bastiodon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0412_11_00	412	0	Plant Cloak	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0412_11_01	412	0	Plant Cloak	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0412_12_00	412	1	forma 1	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0412_12_01	412	1	forma 1	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0412_13_00	412	2	forma 2	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0412_13_01	412	2	forma 2	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0413_11_00	413	0	Plant Cloak	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0413_11_01	413	0	Plant Cloak	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0413_12_00	413	1	Sandy Cloak	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0413_12_01	413	1	Sandy Cloak	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0413_13_00	413	2	Trash Cloak	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0413_13_01	413	2	Trash Cloak	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0414_00_00	414	0	Mothim	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0414_00_01	414	0	Mothim	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0415_00_00	415	0	Combee	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0415_01_00	415	0	Combee	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0416_00_00	416	0	Vespiquen	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0417_00_00	417	0	Pachirisu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0417_01_00	417	0	Pachirisu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0418_00_00	418	0	Buizel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0418_01_00	418	0	Buizel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0419_00_00	419	0	Floatzel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0419_01_00	419	0	Floatzel	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0420_00	420	0	Cherubi	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0421_11	421	0	Overcast Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0421_12	421	1	forma 1	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0422_11_00	422	0	West Sea	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0422_12_00	422	1	forma 1	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0423_11_00	423	0	West Sea	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0423_12_00	423	1	forma 1	otro	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0424_00_00	424	0	Ambipom	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0424_01_00	424	0	Ambipom	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0425_00_00	425	0	Drifloon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0426_00_00	426	0	Drifblim	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0427_00_00	427	0	Buneary	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0428_00_00	428	0	Lopunny	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0428_51_00	428	1	Mega Lopunny	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0429_00_00	429	0	Mismagius	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0430_00_00	430	0	Honchkrow	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0431_00_00	431	0	Glameow	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0431_00_01	431	0	Glameow	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0432_00_00	432	0	Purugly	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0432_00_01	432	0	Purugly	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0433_00_00	433	0	Chingling	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0434_00_00	434	0	Stunky	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0435_00_00	435	0	Skuntank	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0436_00_00	436	0	Bronzor	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0437_00_00	437	0	Bronzong	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0438_00_00	438	0	Bonsly	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0439_00_00	439	0	Mime Jr.	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0440_00_00	440	0	Happiny	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0441_00_00	441	0	Chatot	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0441_00_01	441	0	Chatot	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0442_00_00	442	0	Spiritomb	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0443_00_00	443	0	Gible	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0443_01_00	443	0	Gible	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0444_00_00	444	0	Gabite	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0444_01_00	444	0	Gabite	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0445_00_00	445	0	Garchomp	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0445_01_00	445	0	Garchomp	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0445_51_00	445	1	Mega Garchomp	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0445_52_00	445	2	Mega Garchomp Z	mega	PROBABLE	FF=52 = mega 2 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0446_00_00	446	0	Munchlax	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0447_00_00	447	0	Riolu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0448_00_00	448	0	Lucario	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0448_51_00	448	1	Mega Lucario	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0448_52_00	448	2	Mega Lucario Z	mega	PROBABLE	FF=52 = mega 2 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0449_00_00	449	0	Hippopotas	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0449_01_00	449	0	Hippopotas	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0450_00_00	450	0	Hippowdon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0450_01_00	450	0	Hippowdon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0451_00	451	0	Skorupi	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0452_00	452	0	Drapion	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0453_00_00	453	0	Croagunk	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0453_01_00	453	0	Croagunk	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0454_00_00	454	0	Toxicroak	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0454_01_00	454	0	Toxicroak	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0455_00_00	455	0	Carnivine	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0455_00_01	455	0	Carnivine	variante-color	VERIFICADO	VV=01 = variante rara/brillante (texturas _col_rare en el propio modelo)
+pm0456_00_00	456	0	Finneon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0456_01_00	456	0	Finneon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0457_00_00	457	0	Lumineon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0457_01_00	457	0	Lumineon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0458_00	458	0	Mantyke	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0459_00_00	459	0	Snover	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0459_01_00	459	0	Snover	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0460_00_00	460	0	Abomasnow	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0460_01_00	460	0	Abomasnow	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0460_51_00	460	1	Mega Abomasnow	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0461_00_00	461	0	Weavile	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0461_01_00	461	0	Weavile	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0462_00_00	462	0	Magnezone	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0463_00	463	0	Lickilicky	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0464_00_00	464	0	Rhyperior	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0464_01_00	464	0	Rhyperior	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0465_00	465	0	Tangrowth	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0465_01	465	0	Tangrowth	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0466_00_00	466	0	Electivire	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0467_00_00	467	0	Magmortar	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0468_00	468	0	Togekiss	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0469_00_00	469	0	Yanmega	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0470_00_00	470	0	Leafeon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0471_00_00	471	0	Glaceon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0472_00_00	472	0	Gliscor	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0473_00_00	473	0	Mamoswine	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0473_01_00	473	0	Mamoswine	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
+pm0474_00_00	474	0	Porygon-Z	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0475_00_00	475	0	Gallade	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0475_51_00	475	1	Mega Gallade	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0476_00_00	476	0	Probopass	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0477_00_00	477	0	Dusknoir	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0478_00_00	478	0	Froslass	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0478_51_00	478	1	Mega Froslass	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0479_11_00	479	0	Rotom	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0479_12_00	479	1	Heat Rotom	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0479_13_00	479	2	Wash Rotom	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0479_14_00	479	3	Frost Rotom	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0479_15_00	479	4	Fan Rotom	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0479_16_00	479	5	Mow Rotom	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0480_00_00	480	0	Uxie	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0481_00_00	481	0	Mesprit	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0482_00_00	482	0	Azelf	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0483_11_00	483	0	Dialga	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0483_12_00	483	1	Origin Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0484_11_00	484	0	Palkia	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0484_12_00	484	1	Origin Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0485_00_00	485	0	Heatran	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0485_51_00	485	1	Mega Heatran	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0486_00_00	486	0	Regigigas	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0487_11_00	487	0	Altered Forme	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0487_12_00	487	1	Origin Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0488_00_00	488	0	Cresselia	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0489_00_00	489	0	Phione	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0490_00_00	490	0	Manaphy	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0491_00_00	491	0	Darkrai	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0491_51_00	491	1	Mega Darkrai	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0492_11_00	492	0	Land Forme	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0492_12_00	492	1	Sky Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0493_11_00	493	0	Normal Type	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0494_00	494	0	Victini	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0495_00_00	495	0	Snivy	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0496_00_00	496	0	Servine	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0497_00_00	497	0	Serperior	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0498_00_00	498	0	Tepig	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0499_00_00	499	0	Pignite	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0500_00_00	500	0	Emboar	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0500_51_00	500	1	Mega Emboar	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0501_00_00	501	0	Oshawott	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0502_00_00	502	0	Dewott	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0503_00_00	503	0	Samurott	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0503_00_41	503	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0504_00_00	504	0	Patrat	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0505_00_00	505	0	Watchog	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0506_00	506	0	Lillipup	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0507_00	507	0	Herdier	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0508_00	508	0	Stoutland	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0509_00_00	509	0	Purrloin	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0510_00_00	510	0	Liepard	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0511_00_00	511	0	Pansage	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0512_00_00	512	0	Simisage	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0513_00_00	513	0	Pansear	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0514_00_00	514	0	Simisear	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0515_00_00	515	0	Panpour	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0516_00_00	516	0	Simipour	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0517_00_00	517	0	Munna	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0518_00_00	518	0	Musharna	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0519_00	519	0	Pidove	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0520_00	520	0	Tranquill	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0521_00	521	0	Unfezant	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0521_01	521	0	Unfezant	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0522_00_00	522	0	Blitzle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0523_00_00	523	0	Zebstrika	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0524_00	524	0	Roggenrola	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0525_00	525	0	Boldore	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0526_00	526	0	Gigalith	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0527_00	527	0	Woobat	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0528_00	528	0	Swoobat	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0529_00_00	529	0	Drilbur	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0530_00_00	530	0	Excadrill	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0530_51_00	530	1	Mega Excadrill	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0531_00_00	531	0	Audino	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0531_51_00	531	1	Mega Audino	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0532_00_00	532	0	Timburr	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0533_00_00	533	0	Gurdurr	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0534_00_00	534	0	Conkeldurr	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0535_00	535	0	Tympole	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0536_00	536	0	Palpitoad	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0537_00	537	0	Seismitoad	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0538_00_00	538	0	Throh	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0539_00_00	539	0	Sawk	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0540_00_00	540	0	Sewaddle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0541_00_00	541	0	Swadloon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0542_00_00	542	0	Leavanny	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0543_00_00	543	0	Venipede	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0544_00_00	544	0	Whirlipede	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0545_00_00	545	0	Scolipede	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0545_51_00	545	1	Mega Scolipede	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0546_00_00	546	0	Cottonee	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0547_00_00	547	0	Whimsicott	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0548_00_00	548	0	Petilil	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0549_00_00	549	0	Lilligant	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0549_00_41	549	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0550_00_41	550	0	Red-Striped Form	regional	VERIFICADO	VV=41 = forma regional de Hisui (lista exacta de formas + anclas PLA)
+pm0550_11_00	550	0	Red-Striped Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0550_12_00	550	1	Blue-Striped Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0551_00_00	551	0	Sandile	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0552_00_00	552	0	Krokorok	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0553_00_00	553	0	Krookodile	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0554_00	554	0	Darumaka	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0554_00_31	554	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0555_11	555	0	Standard Mode	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0555_11_31	555	0	Standard Mode	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0555_12	555	1	Zen Mode	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0555_12_31	555	1	Zen Mode	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0556_00	556	0	Maractus	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0557_00	557	0	Dwebble	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0558_00	558	0	Crustle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0559_00_00	559	0	Scraggy	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0560_00_00	560	0	Scrafty	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0560_51_00	560	1	Mega Scrafty	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0561_00	561	0	Sigilyph	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0562_00_00	562	0	Yamask	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0562_00_31	562	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0562_00_31	562	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0563_00_00	563	0	Cofagrigus	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0564_00	564	0	Tirtouga	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0565_00	565	0	Carracosta	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0566_00	566	0	Archen	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0567_00	567	0	Archeops	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0568_00_00	568	0	Trubbish	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0569_00_00	569	0	Garbodor	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0569_81_00	569	0	Garbodor	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
+pm0570_00_00	570	0	Zorua	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0570_00_41	570	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0571_00_00	571	0	Zoroark	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0571_00_41	571	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0572_00_00	572	0	Minccino	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0573_00_00	573	0	Cinccino	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0574_00_00	574	0	Gothita	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0575_00_00	575	0	Gothorita	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0576_00_00	576	0	Gothitelle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0577_00_00	577	0	Solosis	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0578_00_00	578	0	Duosion	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0579_00_00	579	0	Reuniclus	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0580_00_00	580	0	Ducklett	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0581_00_00	581	0	Swanna	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0582_00_00	582	0	Vanillite	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0583_00_00	583	0	Vanillish	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0584_00_00	584	0	Vanilluxe	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0585_11_00	585	0	Spring Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0585_12_00	585	1	forma 1	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0585_13_00	585	2	forma 2	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0585_14_00	585	3	forma 3	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0586_11_00	586	0	Spring Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0586_12_00	586	1	forma 1	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0586_13_00	586	2	forma 2	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0586_14_00	586	3	forma 3	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0587_00_00	587	0	Emolga	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0588_00	588	0	Karrablast	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0589_00	589	0	Escavalier	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0590_00_00	590	0	Foongus	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0591_00_00	591	0	Amoonguss	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0592_00	592	0	Male	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0592_01	592	0	Male	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0593_00	593	0	Male	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0593_01	593	0	Male	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
+pm0594_00_00	594	0	Alomomola	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0595_00_00	595	0	Joltik	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0596_00_00	596	0	Galvantula	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0597_00	597	0	Ferroseed	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0598_00	598	0	Ferrothorn	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0599_00	599	0	Klink	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0600_00	600	0	Klang	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0601_00	601	0	Klinklang	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0602_00_00	602	0	Tynamo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0603_00_00	603	0	Eelektrik	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0604_00_00	604	0	Eelektross	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0604_51_00	604	1	Mega Eelektross	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0605_00	605	0	Elgyem	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0606_00	606	0	Beheeyem	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0607_00_00	607	0	Litwick	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0608_00_00	608	0	Lampent	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0609_00_00	609	0	Chandelure	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0609_51_00	609	1	Mega Chandelure	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0610_00_00	610	0	Axew	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0611_00_00	611	0	Fraxure	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0612_00_00	612	0	Haxorus	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0613_00_00	613	0	Cubchoo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0614_00_00	614	0	Beartic	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0615_00_00	615	0	Cryogonal	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0616_00	616	0	Shelmet	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0617_00	617	0	Accelgor	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0618_00_00	618	0	Stunfisk	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0618_00_31	618	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0618_00_31	618	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
+pm0619_00_00	619	0	Mienfoo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0620_00_00	620	0	Mienshao	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0621_00	621	0	Druddigon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0622_00_00	622	0	Golett	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0623_00_00	623	0	Golurk	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0623_51_00	623	1	Mega Golurk	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0624_00_00	624	0	Pawniard	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0625_00_00	625	0	Bisharp	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0626_00	626	0	Bouffalant	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0627_00_00	627	0	Rufflet	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0628_00_00	628	0	Braviary	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0628_00_41	628	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0629_00_00	629	0	Vullaby	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0630_00_00	630	0	Mandibuzz	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0631_00	631	0	Heatmor	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0632_00	632	0	Durant	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0633_00_00	633	0	Deino	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0634_00_00	634	0	Zweilous	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0635_00_00	635	0	Hydreigon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0636_00_00	636	0	Larvesta	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0637_00_00	637	0	Volcarona	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0638_00_00	638	0	Cobalion	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0639_00_00	639	0	Terrakion	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0640_00_00	640	0	Virizion	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0641_11_00	641	0	Incarnate Forme	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0641_12_00	641	1	Therian Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0642_11_00	642	0	Incarnate Forme	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0642_12_00	642	1	Therian Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0643_00_00	643	0	Reshiram	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0644_00_00	644	0	Zekrom	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
+pm0645_11_00	645	0	Incarnate Forme	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0645_12_00	645	1	Therian Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0646_11_00	646	0	Kyurem	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0646_12_00	646	1	Black Kyurem	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0646_13_00	646	2	White Kyurem	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0647_11_00	647	0	Ordinary Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0647_12_00	647	1	Resolute Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0648_11_00	648	0	Aria Forme	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0648_12_00	648	1	Pirouette Forme	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0649_11_00	649	0	Genesect	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0649_12_00	649	1	forma 1	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0649_13_00	649	2	forma 2	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0649_14_00	649	3	forma 3	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0649_15_00	649	4	forma 4	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0720_00_00	650	0	Chespin	base	PROBABLE	icono: erizo verde con rama (Chespin)
+pm0721_00_00	651	0	Quilladin	base	PROBABLE	icono: armadura verde sonriente (Quilladin)
+pm0717_00_00	653	0	Fennekin	base	PROBABLE	icono: zorro amarillo (Fennekin)
+pm0718_00_00	654	0	Braixen	base	PROBABLE	icono: zorro blanco/naranja (Braixen)
+pm0719_00_00	655	0	Delphox	base	PROBABLE	icono: zorro rojo con baston (Delphox)
+pm0719_51_00	655	1	Mega Delphox	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0723_00_00	656	0	Froakie	base	PROBABLE	icono: rana azul (Froakie)
+pm0724_00_00	657	0	Frogadier	base	PROBABLE	icono: rana azul (Frogadier)
+pm0725_51_00	658	1	Battle Bond Greninja	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0711_00_00	659	0	Bunnelby	base	PROBABLE	icono: conejo gris (Bunnelby)
+pm0712_00_00	660	0	Diggersby	base	PROBABLE	icono: conejo pardo sonriente (Diggersby)
+pm0753_00_00	661	0	Fletchling	base	PROBABLE	icono: pajaro naranja (Fletchling)
+pm0754_00_00	662	0	Fletchinder	base	PROBABLE	icono: pajaro con cresta (Fletchinder)
+pm0755_00_00	663	0	Talonflame	base	PROBABLE	icono: halcon rojo (Talonflame)
+pm0704_00_00	667	0	Litleo	base	PROBABLE	icono: cachorro leon con melena roja (Litleo)
+pm0705_00_00	668	0	Pyroar	base	PROBABLE	icono: leon con melena (Pyroar)
+pm0705_51_00	668	1	Mega Pyroar	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0714_51_00	670	1	Eternal Flower	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0728_00_00	673	0	Gogoat	base	PROBABLE	icono: cabra con cuernos (Gogoat)
+pm0752_00_00	674	0	Pancham	base	PROBABLE	icono: panda con hoja (Pancham)
+pm0706_00_00	677	0	Espurr	base	PROBABLE	icono: gato gris de ojos grandes (Espurr)
+pm0744_00_00	679	0	Honedge	base	PROBABLE	icono: espada azul (Honedge)
+pm0745_00_00	680	0	Doublade	base	PROBABLE	icono: espadas gemelas (Doublade)
+pm0742_00_00	684	0	Swirlix	base	PROBABLE	icono: algodon rosa (Swirlix)
+pm0743_00_00	685	0	Slurpuff	base	PROBABLE	icono: dulce rosa (Slurpuff)
+pm0747_00_00	688	0	Binacle	base	PROBABLE	icono: percebes (Binacle)
+pm0748_00_00	689	0	Barbaracle	base	PROBABLE	icono: roca con brazos (Barbaracle)
+pm0748_51_00	689	1	Mega Barbaracle	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0756_00_00	692	0	Clauncher	base	PROBABLE	icono: crustaceo azul (Clauncher)
+pm0757_00_00	693	0	Clawitzer	base	PROBABLE	icono: crustaceo azul grande (Clawitzer)
+pm0737_00_00	696	0	Tyrunt	base	PROBABLE	icono: dinosaurio pardo (Tyrunt)
+pm0738_00_00	697	0	Tyrantrum	base	PROBABLE	icono: dinosaurio rojo (Tyrantrum)
+pm0739_00_00	698	0	Amaura	base	PROBABLE	icono: dinosaurio azul (Amaura)
+pm0740_00_00	699	0	Aurorus	base	PROBABLE	icono: dinosaurio cuello largo (Aurorus)
+pm0767_00_00	700	0	Sylveon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0741_00_00	702	0	Dedenne	base	PROBABLE	icono: raton naranja (Dedenne)
+pm0763_00_00	704	0	Goomy	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0764_00_41	705	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0765_00_41	706	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0702_00_00	708	0	Phantump	base	PROBABLE	icono: tocon con hojas (Phantump)
+pm0703_00_00	709	0	Trevenant	base	PROBABLE	icono: arbol fantasma (Trevenant)
+pm0749_00_00	712	0	Bergmite	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0751_00_41	713	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0768_00_00	716	0	Xerneas	base	PROBABLE	icono: ciervo azul con astas (Xerneas)
+pm0769_00_00	717	0	Yveltal	base	PROBABLE	icono: pajaro rojo oscuro (Yveltal)
+pm0770_51_00	718	1	10% Forme	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0772_00_00	719	0	Diancie	base	PROBABLE	icono: hada cristal; 2 subcarpetas (Diancie + Mega)
+pm0772_51_00	719	1	Mega Diancie	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0841_00_00	722	0	Rowlet	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0842_00_00	723	0	Dartrix	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0843_00_41	724	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm0845_00_00	726	0	Torracat	base	PROBABLE	icono: gato naranja (Torracat)
+pm0846_00_00	727	0	Incineroar	base	PROBABLE	icono: gato grande rojo (Incineroar)
+pm0847_00_00	728	0	Popplio	base	PROBABLE	icono: foca azul (Popplio)
+pm0848_00_00	729	0	Brionne	base	PROBABLE	icono: foca con volantes (Brionne)
+pm0849_00_00	730	0	Primarina	base	PROBABLE	icono: foca cantante (Primarina)
+pm0729_00_00	759	0	Stufful	base	PROBABLE	icono: oso bicolor con etiqueta (Stufful)
+pm0730_00_00	760	0	Bewear	base	PROBABLE	icono: oso grande (Bewear)
+pm0722_00_00	781	0	Dhelmise	base	PROBABLE	render sin texturas: timon verde + algas + ancla (Dhelmise, #781)
+pm0722_51_00	781	1	forma 1	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0918_00_00	822	0	Corvisquire	base	PROBABLE	icono: cuervo azul (Corvisquire)
+pm0918_00_00	822	0	Corvisquire	base	PROBABLE	icono: cuervo azul (Corvisquire)
+pm0919_00_00	823	0	Corviknight	base	PROBABLE	icono: cuervo acorazado (Corviknight)
+pm0919_00_00	823	0	Corviknight	base	PROBABLE	icono: cuervo acorazado (Corviknight)
+pm1001_00_00	899	0	Wyrdeer	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1002_00_00	900	0	Kleavor	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1007_00_00	901	0	Ursaluna	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1006_11_41	902	0	Male	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1006_12_41	902	1	Female	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1003_00_41	903	0	Sneasler	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1005_00_41	904	0	Overqwil	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1004_11_00	905	0	Incarnate Forme	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1004_12_00	905	1	Therian Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
+pm1010_00_00	906	0	Sprigatito	base	PROBABLE	icono: felino verde (Sprigatito)
+pm1011_00_00	907	0	Floragato	base	PROBABLE	icono: felino verde (Floragato)
+pm1012_00_00	908	0	Meowscarada	base	PROBABLE	icono: felino enmascarado (Meowscarada)
+pm1013_00_00	909	0	Fuecoco	base	PROBABLE	icono: cocodrilo rojo (Fuecoco)
+pm1014_00_00	910	0	Crocalor	base	PROBABLE	icono: cocodrilo con fuego (Crocalor)
+pm1015_00_00	911	0	Skeledirge	base	PROBABLE	icono: cocodrilo con calavera (Skeledirge)
+pm1016_00_00	912	0	Quaxly	base	PROBABLE	icono: pato azul (Quaxly)
+pm1017_00_00	913	0	Quaxwell	base	PROBABLE	icono: pato azul (Quaxwell)
+pm1018_00_00	914	0	Quaquaval	base	PROBABLE	icono: pavo real azul (Quaquaval)
+pm1019_00_00	915	0	Lechonk	base	PROBABLE	icono: cochinillo negro (Lechonk)
+pm1020_00_00	916	0	Oinkologne	base	PROBABLE	icono: cerdo; 2 subcarpetas = macho/hembra
+pm1022_00_00	918	0	Spidops	base	PROBABLE	icono: arana gris (Spidops)
+pm1023_00_00	919	0	Nymble	base	PROBABLE	icono: saltamontes verde (Nymble)
+pm1024_00_00	920	0	Lokix	base	PROBABLE	icono: saltamontes oscuro (Lokix)
