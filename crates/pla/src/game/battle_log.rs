@@ -18,6 +18,8 @@ pub fn status_name(status: MajorStatus) -> &'static str {
         MajorStatus::Frostbite => "frostbitten",
         // The game has a distinct line for the badly-poisoned state (text 79 poison, 80 toxic).
         MajorStatus::BadlyPoisoned => "badly poisoned",
+        // Real sleep (record id 2), distinct from drowsiness (id 6).
+        MajorStatus::Sleep => "asleep",
     }
 }
 

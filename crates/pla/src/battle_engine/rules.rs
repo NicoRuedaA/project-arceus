@@ -44,6 +44,9 @@ pub const TOXIC_COUNTER_CAP: u8 = 15;
 /// PROBABLE: the badly-poisoned counter resets when the combatant leaves the field. Series
 /// convention; the game's switch flow was not located (report `sleep_toxic.md`, UNKNOWN).
 pub const TOXIC_COUNTER_RESETS_ON_SWITCH: bool = true;
+/// VERIFIED: real sleep (record id 2) rolls its duration when applied: `2 + uniform{0,1,2}` in
+/// the game, i.e. `2..=4`; the PLA sleep rows carry the same range in their fields.
+pub const SLEEP_DEFAULT_TURNS: (u8, u8) = (2, 4);
 /// VERIFIED: partial-trap damage denominator per end of turn, rounded up.
 pub const TRAP_SLIP_DENOM: u32 = 8;
 /// VERIFIED: confusion self-hit chance (hard-coded, not a config value).
@@ -210,6 +213,30 @@ impl Battle {
         self.toxic_counter.get(i).copied().unwrap_or(0)
     }
 
+    /// Start the real sleep state (record id 2): the duration is rolled from the move's fields
+    /// on apply and the attempts-to-act counter starts at 0 (VERIFIED; see `sleep_toxic.md`).
+    pub(super) fn start_sleep(
+        &mut self,
+        target: usize,
+        fx: &MoveEffects,
+        rng: &mut impl BattleRng,
+    ) {
+        let (lo, hi) = match fx.ailment_turns {
+            Some((_, lo, hi)) if hi.max(lo) > 0 => (lo, hi),
+            _ => SLEEP_DEFAULT_TURNS,
+        };
+        let duration = roll_turns(lo, hi, rng);
+        if self.sleep.len() <= target {
+            self.sleep.resize(target + 1, None);
+        }
+        self.sleep[target] = Some((duration, 0));
+    }
+
+    /// Remaining real-sleep state of a combatant: `(duration, attempts to act)`.
+    pub fn sleep_state(&self, i: usize) -> Option<(u8, u8)> {
+        self.sleep.get(i).copied().flatten()
+    }
+
     /// Record the data-driven duration of a freshly applied major status (move columns
     /// `raw_f13` kind, `raw_f14` min, `raw_f15` max; kinds 2 and 4 are turn-limited).
     pub(super) fn start_status_turns(
@@ -220,6 +247,12 @@ impl Battle {
     ) {
         if self.status_turns.len() <= target {
             self.status_turns.resize(target + 1, None);
+        }
+        // Real sleep never expires at the end of a turn (VERIFIED): its counter is advanced by
+        // the attempts to act, not by end-of-turn ticks.
+        if self.combatants[target].status == Some(MajorStatus::Sleep) {
+            self.status_turns[target] = None;
+            return;
         }
         self.status_turns[target] = match fx.ailment_turns {
             Some((kind, min, max)) if matches!(kind, 2 | 4) && max.max(min) > 0 => {
@@ -444,6 +477,16 @@ mod tests {
             assert_eq!(hit(&b, (0, 1), false), 58); // 88 * 0.66 = 58.08
             assert_eq!(hit(&b, (1, 1), false), 88); // equal states cancel
             assert_eq!(hit(&b, (0, 0), true), 117); // 88 * 133 / 100 = 117.04
+        }
+
+        /// Real sleep (record id 2) has NO damage bonus: the x1.33 is drowsiness only
+        /// (VERIFIED, `sleep_toxic.md`).
+        #[test]
+        fn real_sleep_has_no_damage_bonus() {
+            let mut b = duel(&["tackle"], &["tackle"]);
+            let plain = hit(&b, (0, 0), false);
+            b.combatants[1].status = Some(MajorStatus::Sleep);
+            assert_eq!(hit(&b, (0, 0), false), plain);
         }
 
         #[test]

@@ -23,6 +23,12 @@
 //! * Drowsy (VERIFIED, `sleep_duration` switch): no forced sleep; each action fails 33 %
 //!   (66 % in snow); it lasts the move's turn count (see `rules.rs`). The franchise model of
 //!   1..=3 skipped actions was REFUTED.
+//! * Real sleep (VERIFIED, `real_sleep` switch; record id 2, distinct from drowsy id 6): the
+//!   duration is rolled on apply (2..=4 from the move's fields, `SLEEP_DEFAULT_TURNS` when
+//!   absent); every attempt to act advances a counter and the combatant wakes — and acts that
+//!   same turn — when the counter reaches the duration. The counter only advances on the field
+//!   and survives a switch (PROBABLE: the game's switch flow is UNKNOWN). No wake-on-damage,
+//!   no damage bonus and no snow interaction (those belong to drowsiness).
 //! * Paralysis action failure 33 % (VERIFIED, `notes_rates`); poison 1/6, burn 1/12, frostbite
 //!   1/12 of max HP per end of turn, rounded up (VERIFIED). Off keeps the old 25 % / 1/8.
 //! * Order of the pre-action checks (VERIFIED): confusion, then paralysis, then drowsiness.
@@ -50,6 +56,10 @@ pub struct StatusRules {
     pub volatile_statuses: bool,
     /// Drowsy follows the game's rule (33 % fail, 66 % in snow) instead of a 50 % coin flip.
     pub sleep_duration: bool,
+    /// Real sleep (record id 2, distinct from drowsiness): a rolled 2-4 duration and a counter
+    /// of attempts to act that wakes the combatant when it reaches the duration (VERIFIED,
+    /// `sleep_toxic.md`). Off by default like the other recovered rules.
+    pub real_sleep: bool,
     /// Game rates: paralysis 33 %, slip damage 1/6, 1/12, 1/12 rounded up, drowsy defender
     /// x1.33 damage taken, and turn-limited major statuses.
     pub notes_rates: bool,
@@ -65,6 +75,7 @@ impl StatusRules {
         Self {
             volatile_statuses: true,
             sleep_duration: true,
+            real_sleep: true,
             notes_rates: true,
             speed_stages: true,
             stage_multipliers: true,
@@ -264,6 +275,34 @@ impl Battle {
             self.vol(actor).recharge = false;
             self.status.events.push(StatusEvent::Recharging { actor });
             return PreAction::Skip;
+        }
+        // VERIFIED real sleep (record id 2): every attempt to act advances the counter; when it
+        // reaches the rolled duration the combatant wakes and acts that same turn. Only the
+        // field counts (this runs for actors); there is no per-turn wake roll, no damage
+        // multiplier and no snow interaction (that is the drowsy state, id 6). The engine
+        // checks it before confusion; the exact interleave is not in the report (ASSUMED).
+        if rules.real_sleep && self.combatants[actor].status == Some(MajorStatus::Sleep) {
+            let (duration, attempts) = self.sleep.get(actor).copied().flatten().unwrap_or((2, 0));
+            let attempts = attempts.saturating_add(1);
+            if attempts >= duration.max(1) {
+                if self.sleep.len() > actor {
+                    self.sleep[actor] = None;
+                }
+                self.combatants[actor].status = None;
+                self.status
+                    .events
+                    .push(StatusEvent::WokeUp { target: actor });
+            } else {
+                if self.sleep.len() <= actor {
+                    self.sleep.resize(actor + 1, None);
+                }
+                self.sleep[actor] = Some((duration, attempts));
+                events.push(Event::UnableToAct {
+                    actor,
+                    status: MajorStatus::Sleep,
+                });
+                return PreAction::Skip;
+            }
         }
         if rules.volatile_statuses && self.vol(actor).confusion > 0 {
             self.vol(actor).confusion -= 1;
@@ -722,6 +761,91 @@ mod tests {
         assert_eq!(b.confusion_damage(1, &mut rng), base);
         let mut rng = Seq(vec![0], 0); // roll 85 %
         assert_eq!(b.confusion_damage(1, &mut rng), (base * 85 / 100).max(1));
+    }
+
+    /// Real sleep (record id 2, VERIFIED): duration rolled on apply, wake by a counter of
+    /// attempts to act, wakes and acts on the turn the counter reaches the duration.
+    #[test]
+    fn real_sleep_last_its_attempt_counter_and_wakes_acting() {
+        let rules = StatusRules {
+            real_sleep: true,
+            notes_rates: true,
+            ..StatusRules::default()
+        };
+        let mut b = duel(&["tackle"], &["sing"], rules);
+        // Sing hits (accuracy roll 0) and rolls duration 2 (2 + 0).
+        b.play_turn(&[act(1)], &mut Seq(vec![0, 0], 0));
+        assert_eq!(b.combatants[0].status, Some(MajorStatus::Sleep));
+        assert_eq!(b.sleep_state(0), Some((2, 0)));
+        // The end of turn neither advances nor expires the sleep (the counter only advances
+        // when the combatant tries to act).
+        assert!(b.take_rule_events().is_empty());
+        assert_eq!(b.sleep_state(0), Some((2, 0)));
+        // First attempt: still asleep, the action fails and the counter is 1.
+        let pp_before = b.combatants[0].moves[0].pp;
+        let ev = b.play_turn(&[act(0)], &mut Seq(vec![], 0));
+        assert!(ev.iter().any(|e| matches!(
+            e,
+            Event::UnableToAct {
+                actor: 0,
+                status: MajorStatus::Sleep
+            }
+        )));
+        assert_eq!(b.sleep_state(0), Some((2, 1)));
+        assert_eq!(b.combatants[0].moves[0].pp, pp_before, "a lost action spends no PP");
+        assert_eq!(b.combatants[0].hp, b.combatants[0].max_hp, "no damage involved");
+        // Second attempt: wakes and acts that same turn (the tackle lands).
+        let hp = b.combatants[1].hp;
+        let ev = b.play_turn(&[act(0)], &mut Seq(vec![0, 1, 0], 0));
+        assert_eq!(b.combatants[0].status, None);
+        assert_eq!(b.sleep_state(0), None);
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::WokeUp { target: 0 })));
+        assert!(b.combatants[1].hp < hp);
+        assert!(ev.iter().any(|e| matches!(e, Event::UsedMove { actor: 0, .. })));
+    }
+
+    /// Real sleep: a four-turn roll keeps failing for three attempts; the counter KEEPS its
+    /// value when the combatant leaves the field and comes back (PROBABLE: the game's switch
+    /// flow is UNKNOWN; the series keeps it).
+    #[test]
+    fn real_sleep_counter_survives_a_switch() {
+        let d = BattleData::load(root()).unwrap();
+        let mon = |s: &str, m: &[&str]| {
+            let sp = d.species_row(s).unwrap().unwrap();
+            let mv = m.iter().map(|n| d.move_row(n).unwrap().unwrap()).collect();
+            Combatant::from_base(sp, 30, mv)
+        };
+        let mut b = Battle::new(
+            vec![
+                mon("bidoof", &["tackle"]),
+                mon("pikachu", &["sing"]),
+                mon("bidoof", &["tackle"]),
+            ],
+            vec![vec![0, 2], vec![1]],
+            d.type_chart().clone(),
+        )
+        .unwrap();
+        b.set_move_effects(MoveEffectsTable::load(root()).unwrap());
+        b.set_status_rules(StatusRules {
+            real_sleep: true,
+            ..StatusRules::default()
+        });
+        // Sing sleeps the lead with duration 4 (roll 2).
+        b.play_turn(&[act(1)], &mut Seq(vec![0, 2], 0));
+        assert_eq!(b.sleep_state(0), Some((4, 0)));
+        b.play_turn(&[act(0)], &mut Seq(vec![], 0));
+        assert_eq!(b.sleep_state(0), Some((4, 1)));
+        // Switch out and back: the counter is kept.
+        b.switch(0, 2).unwrap();
+        b.switch(0, 0).unwrap();
+        assert_eq!(b.sleep_state(0), Some((4, 1)));
+        // Still asleep after the next attempt (2 < 4).
+        b.play_turn(&[act(0)], &mut Seq(vec![], 0));
+        assert_eq!(b.sleep_state(0), Some((4, 2)));
+        assert_eq!(b.combatants[0].status, Some(MajorStatus::Sleep));
     }
 
     #[test]

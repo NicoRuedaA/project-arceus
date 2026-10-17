@@ -132,9 +132,10 @@ impl From<MajorStatus> for SavedStatus {
         match s {
             MajorStatus::Drowsy => Self::Drowsy,
             MajorStatus::Paralysis => Self::Paralysis,
-            // Badly poisoned saves as plain poison: the port's save format is untouched
-            // (the counter is battle state, not saved data).
+            // Badly poisoned saves as plain poison and real sleep as drowsiness: the port's
+            // save format is untouched (the counters are battle state, not saved data).
             MajorStatus::Poison | MajorStatus::BadlyPoisoned => Self::Poison,
+            MajorStatus::Sleep => Self::Drowsy,
             MajorStatus::Burn => Self::Burn,
             MajorStatus::Frostbite => Self::Frostbite,
         }

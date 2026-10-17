@@ -234,7 +234,7 @@ pub fn capture_preview(
         // Badly poisoned is the same game record (id 5): the poison factor applies.
         Some(MajorStatus::Poison | MajorStatus::BadlyPoisoned) => "Poison",
         Some(MajorStatus::Burn) => "Burn",
-        Some(MajorStatus::Drowsy) => "Drowsiness / Sleep",
+        Some(MajorStatus::Drowsy | MajorStatus::Sleep) => "Drowsiness / Sleep",
         Some(MajorStatus::Frostbite) => "Frostbite / Freeze",
     })?;
     let context = data

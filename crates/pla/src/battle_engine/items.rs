@@ -164,10 +164,20 @@ impl ItemTable {
                     s => Some(s.to_owned()),
                 },
                 hp_heal: HpHeal::from_raw(hp_raw),
-                cures: c_cures
-                    .iter()
-                    .filter_map(|&(c, s)| num(c).map(|x| (x != 0).then_some(s)).transpose())
-                    .collect::<Result<Vec<_>, _>>()?,
+                cures: {
+                    let mut cures: Vec<MajorStatus> = Vec::new();
+                    for &(c, s) in &c_cures {
+                        if num(c)? != 0 {
+                            cures.push(s);
+                            // A sleep cure clears both sleep-like states: drowsiness (id 6)
+                            // and the real sleep (id 2).
+                            if s == MajorStatus::Drowsy {
+                                cures.push(MajorStatus::Sleep);
+                            }
+                        }
+                    }
+                    cures
+                },
                 cures_confusion: num(c_conf)? != 0,
                 revives: num(c_rev)? != 0 && hp_raw > 0,
                 pp_restore_one: num(c_ppone)? != 0,
@@ -309,6 +319,11 @@ impl Battle {
             out.hp_restored = c.hp;
             out.revived = true;
             c.status = None;
+            // A revive clears the real-sleep attempt counter too (field-level access: the
+            // combatant borrow above only covers `self.combatants`).
+            if target < self.sleep.len() {
+                self.sleep[target] = None;
+            }
             return Ok(out);
         }
         if item.revives {
@@ -354,6 +369,10 @@ impl Battle {
         }
         if !changed {
             return Err("the item would have no effect".into());
+        }
+        if out.status_cured.is_some() && target < self.sleep.len() {
+            // A sleep state cleared by an item drops its attempt counter.
+            self.sleep[target] = None;
         }
         Ok(out)
     }
@@ -544,13 +563,20 @@ mod tests {
     }
 
     #[test]
-    fn awakening_cures_drowsy() {
+    fn awakening_cures_drowsy_and_real_sleep() {
         let (mut b, _) = battle();
         b.combatants[0].status = Some(MajorStatus::Drowsy);
         assert_eq!(
             b.use_item(0, 21).unwrap().status_cured,
             Some(MajorStatus::Drowsy)
         );
+        let (mut b, _) = battle();
+        b.combatants[0].status = Some(MajorStatus::Sleep);
+        assert_eq!(
+            b.use_item(0, 21).unwrap().status_cured,
+            Some(MajorStatus::Sleep)
+        );
+        assert_eq!(b.combatants[0].status, None);
     }
 
     #[test]
