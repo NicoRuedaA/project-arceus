@@ -13,7 +13,7 @@ pub mod rules;
 pub mod statuses;
 pub mod styles;
 use abilities::AbilityState;
-use effects::{EffectEvent, MoveEffectsTable, PowerRule, Stages};
+use effects::{EffectEvent, MoveEffects, MoveEffectsTable, PowerRule, Stages};
 use items::ItemTable;
 
 pub trait BattleRng {
@@ -501,6 +501,11 @@ impl Battle {
             .map(|(action, _)| action)
             .collect::<Vec<_>>();
         let mut flinched: Vec<usize> = Vec::new();
+        // The actions chosen for this turn (external generation-9 rows read the target's one:
+        // Upper Hand, Thunderclap). Single-action turns (the PLA queue flow) carry only the
+        // actor's action, so those two moves fail there, as they do in the game when the
+        // target's plan is not the required one (see gen9.rs).
+        let planned: Vec<Action> = order.clone();
         if let Some(first) = order.first() {
             events.push(Event::ActedFirst(first.actor));
         }
@@ -592,6 +597,18 @@ impl Battle {
             ) {
                 continue;
             }
+            let fx = self
+                .effects
+                .as_ref()
+                .and_then(|t| t.get(&move_name))
+                .cloned();
+            // External generation-9 use conditions (`onTry`/`onTryMove`): the move is refused
+            // before it can land.
+            if let Some(fx) = &fx {
+                if self.gen9_use_refused(action.actor, target, &move_name, fx, &planned) {
+                    continue;
+                }
+            }
             // VERIFIED: accuracy and evasion read the shared Spe/Acc/Eva rank group.
             let acc_stage = (self.combatants[action.actor].accuracy_stage
                 + self.stages(action.actor).speed)
@@ -625,11 +642,6 @@ impl Battle {
                 }
                 continue;
             }
-            let fx = self
-                .effects
-                .as_ref()
-                .and_then(|t| t.get(&move_name))
-                .cloned();
             // External generation-9 base-power callbacks (Last Respects, Rage Fist, Hard
             // Press, Collision Course/Electro Drift, Fickle Beam); no-op for PLA rows.
             if let Some(fx) = &fx {
@@ -644,6 +656,27 @@ impl Battle {
             }
             if power == 0 {
                 if let Some(fx) = &fx {
+                    // Fixed-damage callbacks (Ruination): the hit ignores the type chart,
+                    // the stats and the damage roll (DERIVED from Showdown's damageCallback).
+                    if fx.hooks.half_current_hp_damage {
+                        let dealt = (self.combatants[target].hp / 2)
+                            .max(1)
+                            .min(self.combatants[target].hp);
+                        self.combatants[target].hp -= dealt;
+                        events.push(Event::UsedMove {
+                            actor: action.actor,
+                            target,
+                            name: move_name,
+                            damage: dealt,
+                            critical: false,
+                            effectiveness: "normal".into(),
+                        });
+                        if self.combatants[target].hp == 0 {
+                            events.push(Event::KnockedOut(target));
+                            self.advance_active_for(target);
+                        }
+                        continue;
+                    }
                     let ko = self.apply_move_effects(
                         action.actor,
                         target,
@@ -654,6 +687,7 @@ impl Battle {
                         rng,
                     );
                     self.status_post_effects(action.actor, target, fx, false, rng);
+                    self.apply_use_hooks(action.actor, fx, 0);
                     for (t, status) in std::mem::take(&mut self.pending_status) {
                         events.push(Event::StatusApplied { target: t, status });
                     }
@@ -747,7 +781,7 @@ impl Battle {
                 events.push(Event::KnockedOut(target));
                 self.advance_active_for(target);
             }
-            self.status_post_hit(action.actor, &move_name_for_hook);
+                self.status_post_hit(action.actor, &move_name_for_hook);
             if let Some(fx) = &fx {
                 self.status_thaw_target(target, fx);
                 let ko = self.apply_move_effects(
@@ -760,6 +794,7 @@ impl Battle {
                     rng,
                 );
                 self.status_post_effects(action.actor, target, fx, true, rng);
+                self.apply_use_hooks(action.actor, fx, dealt);
                 for (t, status) in std::mem::take(&mut self.pending_status) {
                     events.push(Event::StatusApplied { target: t, status });
                 }
@@ -870,6 +905,32 @@ impl Battle {
                 }
             }
         }
+    }
+
+    /// External generation-9 use conditions, DERIVED from Showdown's `onTry`/`onTryMove`
+    /// callbacks. Returns true when the move is refused for this action (the log gets a
+    /// `MoveFailed` line). `planned` holds the actions chosen for this turn.
+    fn gen9_use_refused(
+        &mut self,
+        actor: usize,
+        _target: usize,
+        move_name: &str,
+        fx: &MoveEffects,
+        _planned: &[Action],
+    ) -> bool {
+        let refused = if fx.hooks.half_hp_cost {
+            // Fillet Away fails at or below half HP (Showdown `hp <= maxhp / 2`).
+            self.combatants[actor].hp * 2 <= self.combatants[actor].max_hp
+        } else {
+            false
+        };
+        if refused {
+            self.note_status_event(statuses::StatusEvent::MoveFailed {
+                actor,
+                move_name: move_name.to_owned(),
+            });
+        }
+        refused
     }
 
     fn target_for(&self, actor: usize) -> Option<usize> {

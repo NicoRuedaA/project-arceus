@@ -101,6 +101,10 @@ pub enum StatusEvent {
     SyrupBombEnded { target: usize },
     /// The target's frostbite was removed by a thawing move (Hydro Steam, Matcha Gotcha).
     Thawed { target: usize },
+    /// The move's own use condition failed (external generation-9 rows: Fillet Away at or
+    /// below half HP, Double Shock without the Electric type, Comeuppance without damage
+    /// taken, Upper Hand / Thunderclap against the wrong planned action).
+    MoveFailed { actor: usize, move_name: String },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -215,6 +219,16 @@ impl Battle {
             return false;
         }
         true
+    }
+
+    /// Mortal Spin (external row hook `clear_user_trap`): free the user from its own trap.
+    pub(super) fn clear_own_trap(&mut self, actor: usize) {
+        if self.status.vol.get(actor).is_some_and(|v| v.trap.is_some()) {
+            self.vol(actor).trap = None;
+            self.status
+                .events
+                .push(StatusEvent::TrapEnded { target: actor });
+        }
     }
 
     /// Leaving the field drops volatile conditions and any trap involving the combatant.
