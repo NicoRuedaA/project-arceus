@@ -29,6 +29,7 @@ pub mod layout;
 pub mod material;
 pub mod menus;
 pub mod scene;
+pub mod scrollbar;
 pub mod shop_screen;
 pub mod summary;
 
@@ -675,6 +676,9 @@ impl Plugin for OrigUiPlugin {
             .insert_resource(config)
             .init_resource::<OrigScreens>()
             .init_resource::<icons::IconIndex>()
+            .init_resource::<scrollbar::ScrollBars>()
+            .init_resource::<scrollbar::ScrollDrag>()
+            .init_resource::<scrollbar::VirtualPointer>()
             .configure_sets(Update, OrigUiSystems::Bind)
             .configure_sets(
                 PostUpdate,
@@ -684,6 +688,10 @@ impl Plugin for OrigUiPlugin {
             )
             .init_resource::<OrigUiFont>()
             .add_systems(Startup, (load_ui_font, spawn_screens).chain())
+            .add_systems(
+                Update,
+                scrollbar::scrollbar_input.after(OrigUiSystems::Bind),
+            )
             .add_systems(
                 PostUpdate,
                 (render_screens, hide_provisional, minimap_off_under_screens)
