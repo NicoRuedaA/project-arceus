@@ -192,6 +192,8 @@ def classify(row: dict[str, str]) -> tuple[str, str]:
         reasons.append("self:" + row["self_other"])
     if row["recoil_pct"] != "0":
         reasons.append("recoil (engine expresses it as negative drain_pct only)")
+    if "cantusetwice" in row["flags"].split(";"):
+        reasons.append("cannot be used twice in a row (no engine state)")
     user_side = row["self_boosts"] or row["sec_self_boosts"] or (row["boosts"] if row["target"] == "self" else "")
     target_side = row["sec_boosts"] or (row["boosts"] if row["target"] != "self" else "")
     if user_side and target_side:
@@ -231,13 +233,34 @@ def wikidex_rows(html: str) -> dict[int, dict[str, str]]:
     return out
 
 
+# Adjudication of the 2026-10-17 Showdown/WikiDex disagreements. The rule is: use the
+# Scarlet/Violet value, i.e. the one *before* Pokemon Champions. A WikiDex footnote that
+# states the pre-Champions value confirms Showdown; the three PP cases were checked against
+# PokemonDB's Scarlet/Violet pages. Nihil Light does not exist in SV (Showdown marks it
+# isNonstandard "Future"), so its value stays PROBABLE, never verified.
+SV_CHECK = {
+    (861, "pp"): "SV PP 15 (PokemonDB): WikiDex 10 is post-Champions; showdown kept",
+    (864, "pp"): "SV PP 15 (PokemonDB): WikiDex 10 is post-Champions; showdown kept",
+    (887, "pp"): "SV PP 5 (PokemonDB); showdown kept",
+    (920, "power"): "absent from SV (Showdown isNonstandard Future); undecidable -> PROBABLE, showdown kept",
+}
+
+
 def source_diff(row: dict[str, str], wiki: dict[str, str]) -> str:
-    """Stat disagreements between Showdown and WikiDex; a footnoted cell is a known revision."""
+    """Stat disagreements between Showdown and WikiDex, with the SV adjudication recorded."""
     parts = []
     for key in ("power", "accuracy", "pp"):
         if row[key] != wiki[key]:
-            tag = "footnoted (pre-Champions value differs)" if wiki[key + "_note"] else "no footnote"
-            parts.append(f"{key}: showdown {row[key]} / wikidex {wiki[key]} ({tag})")
+            if wiki[key + "_note"]:
+                tag = "wikidex table is post-Champions; footnote gives the pre-Champions value; showdown kept"
+            else:
+                tag = "no footnote"
+            note = SV_CHECK.get((int(row["move"]), key))
+            parts.append(
+                f"{key}: showdown {row[key]} / wikidex {wiki[key]} ({tag}"
+                + (f"; {note}" if note else "")
+                + ")"
+            )
     return "; ".join(parts)
 
 
@@ -269,10 +292,11 @@ def write_sheet(path: Path, rows: list[dict[str, str]], counts: dict[str, int]) 
         "#   sec_* = secondary effect of the hit, self_boosts = boosts the user gets, boosts = status-move boosts",
         "#   (stat keys atk/def/spa/spd/spe/accuracy/evasion). callbacks = behaviour hooks Showdown attaches;",
         "#   other_props = remaining Showdown properties with no engine column. source_diff = stat values where",
-        "#   WikiDex disagrees with Showdown (WikiDex footnotes give the value before Pokemon Champions).",
+        "#   WikiDex disagrees with Showdown (a WikiDex footnote states the pre-Champions value; each row keeps",
+        "#   the Scarlet/Violet value and records how the disagreement was adjudicated, PROBABLE if undecidable).",
         f"# classification (DERIVED, not data): engine_class a = expressible with the existing pml_move_effects",
         f"#   columns ({counts['a']} moves), b = needs new engine logic ({counts['b']} moves); engine_reason lists why.",
-        "# confidence: EXTERNAL; not verified against PLA. Do not mix with pml_moves rows.",
+        "# confidence: EXTERNAL/PROBABLE; not verified against the game. Do not mix with pml_moves rows.",
         "\t".join(f"{n}:{t}" for n, t in COLUMNS),
     ]
     body = ["\t".join(r.get(n, "").replace("\t", " ") for n, _ in COLUMNS) for r in rows]

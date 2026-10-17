@@ -2,18 +2,24 @@
 //!
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
-//! files. Only the rows the sheet classifies `engine_class = a` are loaded: moves whose whole
-//! behaviour fits the columns the engine already reads from `data/pml_move_effects.tsv`
-//! (priority, crit rank, hits, drain/heal, one paralysis/burn/poison roll, stat stages on a
-//! single receiver). Rows classified `b` need new engine logic and are skipped, never
-//! approximated.
+//! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
+//! the sheet classifies `engine_class = a` are loaded (22 moves): moves whose whole behaviour
+//! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
+//! rank, hits, drain/heal, one paralysis/burn/poison roll, stat stages on a single receiver).
+//! Rows classified `b` need new engine logic and are skipped, never approximated; that includes
+//! Gigaton Hammer and Blood Moon, whose "cannot be used twice in a row" rule has no engine state.
+//!
+//! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
+//! back to the normal style and the effects layer draws nothing for them.
 //!
 //! The mapping to [`MoveEffects`] follows the conventions of the PLA rows (checked against
 //! Close Combat, Swords Dance, Acid Spray, Flamethrower, Thunder Wave and Slash):
 //! `meta_category` 7 = damage + user stat change, 6 = damage + target stat change,
 //! 4 = damage + ailment, 2 = status stat change, 0 = plain damage; `target_raw` 7 = self.
 //! The numeric ids of the three supported ailments are those of [`ailment_status`]
-//! (1 paralysis, 4 burn, 5 poison). The mapping is DERIVED, not data from the game.
+//! (1 paralysis, 4 burn, 5 poison). The mapping is DERIVED, not data from the game. Stat stages
+//! run on the PLA three-state rank groups, so a Generation-9 `-2`/`+2` change lands at `-1`/`+1`
+//! (the game whose moves these are is not the game whose battle engine this is).
 
 use std::fs;
 use std::path::Path;
@@ -256,9 +262,20 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
 mod tests {
     use super::*;
     use crate::battle::BattleData;
-    use crate::battle_engine::effects::MoveEffectsTable;
-    use crate::battle_engine::MajorStatus;
+    use crate::battle_engine::effects::{EffectEvent, MoveEffectsTable};
+    use crate::battle_engine::{Action, Battle, BattleRng, Combatant, Event, MajorStatus};
     use std::path::PathBuf;
+
+    struct Fixed(Vec<u32>);
+    impl BattleRng for Fixed {
+        fn next_u32(&mut self) -> u32 {
+            if self.0.is_empty() {
+                1
+            } else {
+                self.0.remove(0)
+            }
+        }
+    }
 
     fn root() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
@@ -285,7 +302,7 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        assert_eq!(moves.len(), 24);
+        assert_eq!(moves.len(), 22);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -293,6 +310,8 @@ mod tests {
             "psychic-noise",
             "last-respects",
             "revival-blessing",
+            "gigaton-hammer",
+            "blood-moon",
         ] {
             assert!(
                 moves.iter().all(|m| m.name != skipped),
@@ -391,5 +410,91 @@ mod tests {
         assert_eq!(table.get("jet-punch").unwrap().priority, 1);
         assert_eq!(table.get("quick-attack").unwrap().priority, 1);
         assert!(table.get("tera-blast").is_none());
+        // Class b after the cantusetwice fix: absent from the table too.
+        assert!(table.get("gigaton-hammer").is_none());
+        assert!(table.get("blood-moon").is_none());
+    }
+
+    fn mon(data: &BattleData, species: &str, moves: &[&str], level: u8) -> Combatant {
+        let sp = data.species_row(species).unwrap().unwrap();
+        let mv = moves
+            .iter()
+            .map(|n| data.move_row(n).unwrap().unwrap())
+            .collect();
+        Combatant::from_base(sp, level, mv)
+    }
+
+    fn duel(a: (&str, &[&str], u8), b: (&str, &[&str], u8)) -> Battle {
+        let data = BattleData::load(root()).unwrap();
+        let mut battle = Battle::new(
+            vec![mon(&data, a.0, a.1, a.2), mon(&data, b.0, b.1, b.2)],
+            vec![vec![0], vec![1]],
+            data.type_chart().clone(),
+        )
+        .unwrap();
+        battle.set_move_effects(MoveEffectsTable::load(root()).unwrap());
+        battle
+    }
+
+    fn act(actor: usize) -> Action {
+        Action {
+            actor,
+            move_slot: 0,
+        }
+    }
+
+    /// Windowless battle check for the class-a rows: priority, a 100 % self boost, a 50 %
+    /// drain and an opponent drop, all through the normal engine turn.
+    #[test]
+    fn class_a_moves_play_a_headless_battle() {
+        // Jet Punch (priority 1): the slower user acts first and spends one PP.
+        let mut b = duel(("bidoof", &["jet-punch"], 20), ("starly", &["tackle"], 20));
+        assert!(b.combatants[0].speed < b.combatants[1].speed);
+        let ev = b.play_turn(&[act(0), act(1)], &mut Fixed(vec![]));
+        assert_eq!(ev[1], Event::ActedFirst(0));
+        assert!(b.combatants[1].hp < b.combatants[1].max_hp);
+        assert_eq!(b.combatants[0].moves[0].pp, 14);
+        assert!(ev
+            .iter()
+            .any(|e| matches!(e, Event::UsedMove { name, .. } if name == "jet-punch")));
+
+        // Torch Song: 100 % self Special Attack +1 on PLA's shared attack rank.
+        let mut b = duel(
+            ("pikachu", &["torch-song"], 40),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(b.stages(0).attack, 1);
+
+        // Bitter Blade: heals 50 % of the damage dealt.
+        let mut b = duel(
+            ("pikachu", &["bitter-blade"], 50),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.combatants[0].hp = b.combatants[0].max_hp - 40;
+        let before = b.combatants[0].hp;
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert!(b.combatants[0].hp > before, "drain must heal the user");
+        assert!(b
+            .take_effect_events()
+            .iter()
+            .any(|e| matches!(e, EffectEvent::Drained { .. } | EffectEvent::Healed { .. })));
+
+        // Lumina Crash: target Defense/SpD down. PLA has three rank states, so the
+        // Generation-9 -2 lands at -1 (documented port adaptation).
+        let mut b = duel(
+            ("pikachu", &["lumina-crash"], 60),
+            ("snorlax", &["tackle"], 80),
+        );
+        b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert_eq!(b.stages(1).defense, -1);
+        assert!(b.take_effect_events().iter().any(|e| matches!(
+            e,
+            EffectEvent::StagesChanged {
+                target: 1,
+                stat: Stat::SpecialDefense,
+                new_state: -1
+            }
+        )));
     }
 }
