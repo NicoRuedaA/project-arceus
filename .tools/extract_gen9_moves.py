@@ -47,6 +47,31 @@ STAT_KEYS = {"atk", "def", "spa", "spd", "spe", "accuracy", "evasion"}
 POWER_RULE_MOVES = {854, 878, 879, 889, 907, 912}
 POWER_RULE_CALLBACKS = {"basePowerCallback", "onBasePower"}
 
+# Moves whose behaviour the engine now implements with a named hook
+# (`crates/pla/src/battle_engine/gen9.rs::hooks`), DERIVED from the same Showdown source.
+# id -> (callbacks the hook honours, other properties it honours, note written to engine_reason).
+HOOK_MOVES: dict[int, tuple[set[str], set[str], str]] = {
+    # onAfterHit/onAfterSubDamage clear terrain; Hisui has no terrain, so only the damage runs.
+    861: ({"onAfterHit", "onAfterSubDamage"}, set(), "hook:none (terrain clear omitted: Hisui has no terrain)"),
+    # The hit frees the user from partial trapping (the engine models traps).
+    866: ({"onAfterHit", "onAfterSubDamage"}, set(), "hook:clear_user_trap"),
+    # willCrit=true -> the engine's guaranteed critical rank.
+    870: (set(), {"willCrit=true"}, "hook:always_crit (willCrit)"),
+    # onBasePower doubles in Electric Terrain; Hisui has no terrain, so the damage is normal.
+    875: ({"onBasePower"}, set(), "hook:none (terrain boost omitted: Hisui has no terrain)"),
+    # damageCallback -> fixed floor(target HP / 2), minimum 1.
+    877: ({"damageCallback"}, set(), "hook:half_current_hp_damage"),
+    # onHit raises Atk and Spe (the hazards/Substitute part is not modelled).
+    882: ({"onHit"}, set(), "hook:self boosts (hazards/Substitute not modelled)"),
+    # onTry/onTryHit/onHit: half-max-HP cost at above half HP, then Atk/SpA/Spe +2.
+    868: ({"onTry", "onTryHit", "onHit"}, set(), "hook:half_hp_cost; self boosts +2 collapse to +1 per PLA rank group"),
+}
+
+# Self boosts Showdown applies from a callback instead of a `self.boosts`/`boosts` block;
+# filled into the self_boosts column so the generic loader reads them. Fillet Away (868)
+# already carries `boosts` with target self, so it is not listed here.
+DERIVED_SELF_BOOSTS = {882: "atk:1,spe:1"}
+
 
 def fetch(url: str, path: Path) -> str:
     if not path.exists():
@@ -196,15 +221,22 @@ def parse_move(num: int, ident: str, body: str) -> dict[str, str]:
 
 def classify(row: dict[str, str]) -> tuple[str, str]:
     reasons: list[str] = []
+    notes: list[str] = []
+    hook = HOOK_MOVES.get(int(row["move"]))
+    if hook:
+        notes.append(hook[2])
     if row["callbacks"]:
         callbacks = set(row["callbacks"].split(";"))
         power_rule = int(row["move"]) in POWER_RULE_MOVES and callbacks <= POWER_RULE_CALLBACKS
         crash = row["crash_damage_pct"] != "0" and callbacks <= {"onMoveFail"}
         residual = row["sec_volatile"] in ("saltcure", "syrupbomb") and callbacks <= {"condition"}
-        if not (power_rule or crash or residual):
+        hooked = hook is not None and callbacks <= hook[0]
+        if not (power_rule or crash or residual or hooked):
             reasons.append("callback:" + row["callbacks"])
     if row["other_props"]:
-        reasons.append("prop:" + row["other_props"])
+        props = set(row["other_props"].split(";"))
+        if not (hook is not None and props <= hook[1]):
+            reasons.append("prop:" + row["other_props"])
     if row["volatile_status"]:
         reasons.append("volatileStatus:" + row["volatile_status"])
     if row["status"] and row["status"] not in STAGE_STATUS:
@@ -229,7 +261,9 @@ def classify(row: dict[str, str]) -> tuple[str, str]:
     for col in ("boosts", "self_boosts", "sec_boosts", "sec_self_boosts"):
         if any(k not in STAT_KEYS for k, _ in re.findall(r"(\w+):(-?\d+)", row.get(col, ""))):
             reasons.append(f"{col}: unknown stat")
-    return ("b", "; ".join(reasons)) if reasons else ("a", "")
+    if reasons:
+        return ("b", "; ".join(reasons))
+    return ("a", "; ".join(notes))
 
 
 # ------------------------------------------------------------------ WikiDex parsing
@@ -323,8 +357,9 @@ def write_sheet(path: Path, rows: list[dict[str, str]], counts: dict[str, int]) 
         "#   no engine column. source_diff = stat values where",
         "#   WikiDex disagrees with Showdown (a WikiDex footnote states the pre-Champions value; each row keeps",
         "#   the Scarlet/Violet value and records how the disagreement was adjudicated, PROBABLE if undecidable).",
-        f"# classification (DERIVED, not data): engine_class a = expressible with the existing pml_move_effects",
-        f"#   columns ({counts['a']} moves), b = needs new engine logic ({counts['b']} moves); engine_reason lists why.",
+        f"# classification (DERIVED, not data): engine_class a = the engine implements it (the classic pml_move_effects",
+        f"#   columns or a named hook in battle_engine/gen9.rs; {counts['a']} moves), b = needs new engine logic",
+        f"#   ({counts['b']} moves); engine_reason lists why (hook notes are DERIVED from the same source).",
         "# confidence: EXTERNAL/PROBABLE; not verified against the game. Do not mix with pml_moves rows.",
         "\t".join(f"{n}:{t}" for n, t in COLUMNS),
     ]
@@ -357,6 +392,8 @@ def main() -> int:
             print(f"[warn] id {num}: WikiDex '{w['name_en']}' != Showdown '{row['name_en']}'", file=sys.stderr)
         row["name_es"] = w["name_es"]
         row["source_diff"] = source_diff(row, w)
+        if num in DERIVED_SELF_BOOSTS:
+            row["self_boosts"] = DERIVED_SELF_BOOSTS[num]
         row["engine_class"], row["engine_reason"] = classify(row)
         rows.append(row)
 

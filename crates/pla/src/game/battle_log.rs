@@ -185,6 +185,9 @@ pub fn format_status(name: &dyn Fn(usize) -> String, e: &StatusEvent) -> Option<
         StatusEvent::SyrupBomb { target } => format!("{} was covered in syrup!", name(*target)),
         StatusEvent::SyrupBombEnded { target } => format!("{} shook off the syrup!", name(*target)),
         StatusEvent::Thawed { target } => format!("{} thawed out!", name(*target)),
+        StatusEvent::MoveFailed { actor, move_name } => {
+            format!("{}'s {move_name} failed!", name(*actor))
+        }
     })
 }
 

@@ -90,6 +90,23 @@ pub enum ResidualVolatile {
     SyrupBomb,
 }
 
+/// Behaviour hooks of the external generation-9 rows (DERIVED from Showdown's callbacks in
+/// `gen9.rs::hooks`, not from game-data columns). Every hook is off for PLA rows, so a battle
+/// without the external sheet behaves exactly as before.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MoveHooks {
+    /// Flower Trick: the hit always criticals (`willCrit`); `gen9.rs` maps it to the engine's
+    /// guaranteed critical rank (6).
+    pub always_crit: bool,
+    /// Mortal Spin: after the hit, the user is freed from a partial trap.
+    pub clear_user_trap: bool,
+    /// Fillet Away: the user loses half its max HP when the move resolves (the engine refuses
+    /// the use at or below half HP first).
+    pub half_hp_cost: bool,
+    /// Ruination: fixed damage, floor(target current HP / 2), minimum 1.
+    pub half_current_hp_damage: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MoveEffects {
     pub name: String,
@@ -129,6 +146,8 @@ pub struct MoveEffects {
     pub thaws_target: bool,
     /// Every hit of a multi-hit move rolls accuracy again (Population Bomb).
     pub multi_accuracy: bool,
+    /// Behaviour hooks of the external generation-9 rows; all off for PLA rows.
+    pub hooks: MoveHooks,
 }
 
 impl MoveEffects {
@@ -268,6 +287,7 @@ impl MoveEffectsTable {
                 residual_volatile: ResidualVolatile::None,
                 thaws_target: false,
                 multi_accuracy: false,
+                hooks: MoveHooks::default(),
             };
             // Source has a duplicate move id 1 (two files); first occurrence wins by name.
             by_name.entry(fx.name.clone()).or_insert(fx);
@@ -463,6 +483,32 @@ impl Battle {
             u32::from(lo)
         } else {
             u32::from(lo) + rng.below(u32::from(hi - lo) + 1)
+        }
+    }
+
+    /// Hooks of the external generation-9 rows that run once the move resolves (after PP and
+    /// accuracy). `damage_dealt` is the HP the hit actually removed (0 when it did not land or
+    /// the move has no power). See [`MoveHooks`] for each hook's source.
+    pub(super) fn apply_use_hooks(
+        &mut self,
+        actor: usize,
+        fx: &MoveEffects,
+        damage_dealt: u32,
+    ) {
+        // Fillet Away: half the user's max HP, after the generic effects applied the boosts.
+        // `/2` truncates (Showdown `directDamage(source.maxhp / 2)`), never below 0.
+        if fx.hooks.half_hp_cost {
+            let c = &mut self.combatants[actor];
+            let lost = (c.max_hp / 2).min(c.hp);
+            c.hp -= lost;
+            self.effect_events.push(EffectEvent::HpCost {
+                actor,
+                amount: lost,
+            });
+        }
+        // Mortal Spin: the hit frees the user from a partial trap.
+        if fx.hooks.clear_user_trap && damage_dealt > 0 {
+            self.clear_own_trap(actor);
         }
     }
 

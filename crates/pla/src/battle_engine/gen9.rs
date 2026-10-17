@@ -3,16 +3,23 @@
 //! The PLA move data stops at id 850, so these 70 moves come from an EXTERNAL source (see the
 //! sheet manifest: Pokemon Showdown `moves.ts` cross-checked with WikiDex), not from the game
 //! files: every value here is EXTERNAL/PROBABLE, never VERIFIED against the game. Only the rows
-//! the sheet classifies `engine_class = a` are loaded (38 moves): moves whose whole behaviour
+//! the sheet classifies `engine_class = a` are loaded (45 moves): moves whose whole behaviour
 //! fits the columns the engine already reads from `data/pml_move_effects.tsv` (priority, crit
 //! rank, hits, drain/heal, one paralysis/burn/poison/confusion roll, stat stages on a single
-//! receiver). Rows classified `b` need new engine logic and are skipped, never approximated.
+//! receiver) or a named hook in [`hooks`]. Rows classified `b` need new engine logic and are
+//! skipped, never approximated.
 //! Gigaton Hammer and Blood Moon load because the engine now honours their `cantusetwice` flag
 //! through `MoveEffects::repeat_lock`; Last Respects, Rage Fist, Hard Press, Collision Course,
 //! Electro Drift and Fickle Beam load through the derived `PowerRule` callbacks; Axe Kick and
 //! Supercell Slam load through `crash_damage_pct`; Salt Cure and Syrup Bomb load through
 //! `ResidualVolatile`; Hydro Steam and Matcha Gotcha load through `thaws_target`; Population
 //! Bomb loads through `multi_accuracy`.
+//! Family A (2026-10-17) loads through derived hooks: Flower Trick (`always_crit`), Ice Spinner
+//! and Psyblade (plain damage: the terrain callbacks are omitted, Hisui has no terrain), Mortal
+//! Spin (`clear_user_trap`; its poison is an ordinary secondary), Tidy Up (its `onHit` self
+//! boosts are filled into the sheet's `self_boosts` column), Fillet Away (`half_hp_cost` plus
+//! its boosts; the Generation-9 +2 collapses to +1 per PLA rank group) and Ruination
+//! (`half_current_hp_damage`).
 //!
 //! Gen-9 moves have no agile/strong style rows and no effect timeline, so the style table falls
 //! back to the normal style and the effects layer draws nothing for them.
@@ -29,7 +36,9 @@
 use std::fs;
 use std::path::Path;
 
-use super::effects::{ailment_status, MoveEffects, PowerRule, ResidualVolatile, Stat, StatChange};
+use super::effects::{
+    ailment_status, MoveEffects, MoveHooks, PowerRule, ResidualVolatile, Stat, StatChange,
+};
 
 /// One loadable generation-9 move: the base row and its effects.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,6 +103,36 @@ fn power_rule(name: &str) -> PowerRule {
         "collision-course" | "electro-drift" => PowerRule::SuperEffectiveBoost,
         "fickle-beam" => PowerRule::FickleBeam,
         _ => PowerRule::None,
+    }
+}
+
+/// Behaviour hooks of the sheet, DERIVED from the pinned Showdown source (the sheet's
+/// `callbacks`/`other_props` columns name them; none of this is game data). PLA rows never
+/// reach this function. Each hook's confidence is EXTERNAL/PROBABLE; the engine's meaning for
+/// it is in `MoveHooks`.
+fn hooks(name: &str) -> MoveHooks {
+    match name {
+        // willCrit=true -> the engine's guaranteed critical rank (6).
+        "flower-trick" => MoveHooks {
+            always_crit: true,
+            ..MoveHooks::default()
+        },
+        // onAfterHit/onAfterSubDamage -> the user leaves partial trapping behind.
+        "mortal-spin" => MoveHooks {
+            clear_user_trap: true,
+            ..MoveHooks::default()
+        },
+        // onTry/onTryHit/onHit -> half-max-HP cost; refuses at or below half HP.
+        "fillet-away" => MoveHooks {
+            half_hp_cost: true,
+            ..MoveHooks::default()
+        },
+        // damageCallback -> fixed floor(target HP / 2), minimum 1, typeless.
+        "ruination" => MoveHooks {
+            half_current_hp_damage: true,
+            ..MoveHooks::default()
+        },
+        _ => MoveHooks::default(),
     }
 }
 
@@ -181,6 +220,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
         let self_target = v[c_target] == "self";
         let flags: Vec<&str> = v[c_flags].split(';').collect();
         let secondary_chance = num(c_sec_chance)? as u8;
+        let hook = hooks(&name);
 
         // Stat changes with the receiver they imply. The sheet only marks as `a` the moves
         // whose changes all go to one receiver, so the first non-empty source decides it.
@@ -244,6 +284,13 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             _ => ResidualVolatile::None,
         };
         let crit = num(c_crit)?;
+        // Flower Trick carries `willCrit=true` instead of a crit ratio: the engine's rank 6
+        // means "always critical" (see `critical_hit`).
+        let crit_rank = if hook.always_crit {
+            6
+        } else {
+            crit.saturating_sub(1).max(0) as u8
+        };
         let meta_category = match (damaging, !changes.is_empty(), ailment_id != 0) {
             (true, true, _) if to_user => 7,
             (true, true, _) => 6,
@@ -255,7 +302,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
         let effects = MoveEffects {
             name: name.clone(),
             priority: num(c_prio)? as i8,
-            crit_rank: crit.saturating_sub(1).max(0) as u8,
+            crit_rank,
             flinch_chance,
             min_hits: num(c_minh)? as u8,
             max_hits: num(c_maxh)? as u8,
@@ -283,6 +330,7 @@ pub fn from_tsv(text: &str) -> Result<Vec<Gen9Move>, String> {
             residual_volatile,
             thaws_target: num(c_thaw)? != 0,
             multi_accuracy: num(c_multi_acc)? != 0,
+            hooks: hook,
         };
         out.push(Gen9Move {
             id: num(c_move)? as u16,
@@ -345,7 +393,8 @@ mod tests {
     #[test]
     fn only_the_class_a_rows_are_loaded() {
         let moves = all();
-        assert_eq!(moves.len(), 38);
+        // 38 classic-column rows + family A (861, 866, 868, 870, 875, 877, 882).
+        assert_eq!(moves.len(), 45);
         assert!(moves.iter().all(|m| (851..=920).contains(&m.id)));
         // Class b needs engine logic that does not exist: never approximated.
         for skipped in [
@@ -353,7 +402,8 @@ mod tests {
             "psychic-noise",
             "revival-blessing",
             "temper-flare",
-            "ice-spinner",
+            "wicked-torque",
+            "nihil-light",
         ] {
             assert!(
                 moves.iter().all(|m| m.name != skipped),
@@ -879,5 +929,142 @@ mod tests {
         );
         b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
         assert_eq!(b.combatants[0].moves[0].pp, 3);
+    }
+
+    /// Flower Trick (870): the hit is always critical (`willCrit`), mapped to the engine's
+    /// guaranteed critical rank. EXTERNAL/PROBABLE.
+    #[test]
+    fn flower_trick_always_crits() {
+        let moves = all();
+        assert_eq!(find(&moves, "flower-trick").effects.crit_rank, 6);
+        let mut b = duel(
+            ("pikachu", &["flower-trick"], 40),
+            ("snorlax", &["tackle"], 80),
+        );
+        // accuracy 101 never rolls; the crit rank 6 consumes no roll either (only the 85-100 %
+        // damage roll is drawn).
+        let ev = b.play_turn(&[act(0)], &mut Fixed(vec![0]));
+        assert!(ev.iter().any(|e| matches!(
+            e,
+            Event::UsedMove {
+                name,
+                critical: true,
+                ..
+            } if name == "flower-trick"
+        )));
+    }
+
+    /// Ice Spinner (861) and Psyblade (875): Hisui has no terrain, so only the plain damage
+    /// runs (the Showdown terrain callbacks are omitted, noted in the sheet).
+    #[test]
+    fn ice_spinner_and_psyblade_are_plain_damage() {
+        let moves = all();
+        for name in ["ice-spinner", "psyblade"] {
+            let fx = &find(&moves, name).effects;
+            assert_eq!(fx.hooks, crate::battle_engine::effects::MoveHooks::default());
+        }
+        for name in ["ice-spinner", "psyblade"] {
+            let mut b = duel(("pikachu", &[name], 40), ("snorlax", &["tackle"], 80));
+            b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+            assert!(b.combatants[1].hp < b.combatants[1].max_hp, "{name} must hit");
+        }
+    }
+
+    /// Mortal Spin (866): damage + 100 % poison + frees the user from a partial trap.
+    #[test]
+    fn mortal_spin_poisons_and_frees_the_user() {
+        let mut b = duel(
+            ("bidoof", &["mortal-spin"], 30),
+            ("pikachu", &["bind"], 30),
+        );
+        b.set_status_rules(StatusRules {
+            volatile_statuses: true,
+            ..StatusRules::default()
+        });
+        b.combatants[0].max_hp = 500;
+        b.combatants[0].hp = 500;
+        // Pikachu binds Bidoof first: accuracy roll, crit, damage roll, then the 5..=6 duration.
+        b.play_turn(&[act(1)], &mut Fixed(vec![0, 0, 0, 0]));
+        assert!(b.is_trapped(0));
+
+        // Mortal Spin: accuracy roll, crit, damage roll; the poison has a 100 % chance.
+        let ev = b.play_turn(&[act(0)], &mut Fixed(vec![0, 1, 0]));
+        assert!(!b.is_trapped(0), "the user must be freed");
+        assert_eq!(b.combatants[1].status, Some(MajorStatus::Poison));
+        assert!(ev.iter().any(|e| matches!(
+            e,
+            Event::StatusApplied {
+                target: 1,
+                status: MajorStatus::Poison
+            }
+        )));
+        assert!(b
+            .take_status_events()
+            .iter()
+            .any(|e| matches!(e, StatusEvent::TrapEnded { target: 0 })));
+    }
+
+    /// Tidy Up (882): raises the user's Attack and Speed one state each (the hazards and
+    /// Substitute part of the move is not modelled: no such concepts in the engine).
+    #[test]
+    fn tidy_up_raises_attack_and_speed() {
+        let mut b = duel(("pikachu", &["tidy-up"], 30), ("snorlax", &["tackle"], 80));
+        b.play_turn(&[act(0)], &mut Fixed(vec![]));
+        assert_eq!(b.stages(0).attack, 1);
+        assert_eq!(b.stages(0).speed, 1);
+        assert_eq!(b.combatants[0].hp, b.combatants[0].max_hp);
+    }
+
+    /// Fillet Away (868): half the user's max HP, then Atk/SpA and Spe up. PLA has three rank
+    /// states and Atk/SpA share one, so the Generation-9 +2 lands at +1 per group (documented
+    /// consequence). At or below half HP the move fails and costs nothing.
+    #[test]
+    fn fillet_away_costs_half_and_collapses_the_boosts() {
+        let mut b = duel(
+            ("pikachu", &["fillet-away"], 30),
+            ("snorlax", &["tackle"], 80),
+        );
+        let max = b.combatants[0].max_hp;
+        b.play_turn(&[act(0)], &mut Fixed(vec![]));
+        assert_eq!(b.combatants[0].hp, max - max / 2);
+        assert_eq!(b.stages(0).attack, 1, "Atk and SpA share the first group");
+        assert_eq!(b.stages(0).speed, 1);
+        assert!(b.take_effect_events().iter().any(|e| matches!(
+            e,
+            EffectEvent::StageAlreadyAtLimit {
+                target: 0,
+                stat: Stat::SpecialAttack
+            }
+        )));
+
+        // At exactly half HP the move is refused: no cost, no new boosts, a failed log line.
+        b.combatants[0].hp = max / 2;
+        let hp = b.combatants[0].hp;
+        b.play_turn(&[act(0)], &mut Fixed(vec![]));
+        assert_eq!(b.combatants[0].hp, hp);
+        assert!(b.take_status_events().iter().any(|e| matches!(
+            e,
+            StatusEvent::MoveFailed { actor: 0, move_name } if move_name == "fillet-away"
+        )));
+    }
+
+    /// Ruination (877): fixed damage, floor(target current HP / 2), minimum 1, typeless and
+    /// with no damage roll.
+    #[test]
+    fn ruination_cuts_the_target_hp_in_half() {
+        let mut b = duel(("pikachu", &["ruination"], 30), ("snorlax", &["tackle"], 80));
+        b.combatants[1].hp = 201;
+        // Only the 90 % accuracy roll is drawn; the damage is fixed.
+        let ev = b.play_turn(&[act(0)], &mut Fixed(vec![0]));
+        assert_eq!(b.combatants[1].hp, 201 - 100);
+        assert!(ev.iter().any(|e| matches!(
+            e,
+            Event::UsedMove {
+                name,
+                damage: 100,
+                critical: false,
+                ..
+            } if name == "ruination"
+        )));
     }
 }
