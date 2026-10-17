@@ -31,6 +31,14 @@ pub fn force_spawn_rare() -> bool {
     enabled_from(std::env::var_os("PLA_DEBUG_FORCE_SPAWN_RARE"))
 }
 
+/// `PLA_DEBUG_DEX_PREVIEW`: keep the Pokédex model preview caption (species name and model path)
+/// over the original screen. The original page already shows the name and number in its own
+/// header, so the caption is debug clutter and stays off unless the variable is set to anything
+/// other than `0`.
+pub fn dex_preview() -> bool {
+    enabled_from(std::env::var_os("PLA_DEBUG_DEX_PREVIEW"))
+}
+
 /// Pure part of [`placeholders`] (the env is process-global; tests check this directly).
 fn enabled_from(value: Option<std::ffi::OsString>) -> bool {
     value.is_some_and(|v| v != "0")

@@ -1302,6 +1302,8 @@ pub fn bind_dex_screen(
             }
         }
     }
+    // The national listing draws the species model in the photo frame: its keys are spelled
+    // out here (rule: every action the port adds must show its key on screen).
     s.set_free_texts(vec![free_text(
         60.0,
         1020.0,
@@ -1310,7 +1312,11 @@ pub fn bind_dex_screen(
         26.0,
         [0.92, 0.9, 0.82, 1.0],
         TextAlign::Left,
-        "Up / Down: select   Esc: close",
+        if national {
+            "Up / Down: select   Q / E: turn model   drag: turn   R: reset   Esc: close"
+        } else {
+            "Up / Down: select   Esc: close"
+        },
     )]);
 }
 
