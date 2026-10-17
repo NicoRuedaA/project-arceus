@@ -88,6 +88,9 @@ pub enum Action {
     StyleAgile,
     /// Battle: use the highlighted move in strong style (keyboard E).
     StyleStrong,
+    /// Pokédex screen: toggle the Hisui list / national list (keyboard Y; a gamepad binding is
+    /// not assigned). Port choice added with the national data layer.
+    DexMode,
 }
 
 /// Stick movement below this magnitude is ignored.
@@ -255,6 +258,11 @@ impl RawInput {
         }
         if keys.just_pressed(KeyCode::KeyG) {
             key_pressed.push(Action::RideCycle);
+        }
+        // Y: free key (the ball shortcuts use B/G/U/F/N/J/L/T); the Pokédex screen toggles
+        // Hisui/national with it. A gamepad binding is not assigned yet.
+        if keys.just_pressed(KeyCode::KeyY) {
+            key_pressed.push(Action::DexMode);
         }
 
         Self {
