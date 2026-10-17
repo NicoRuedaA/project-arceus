@@ -17,12 +17,12 @@ Generado por `.tools/build_national_dex.py` (2026-10-17) a partir de las fuentes
 - `evolutions.tsv`: 676 enlaces con método, nivel, objeto y condición legible.
 - `names.tsv`: 1025 filas.
 - `learnsets.tsv`: 84373 filas de movimientos aprendidos.
-- `moves_not_in_engine.tsv`: 14 movimientos fuera del motor.
+- `moves_not_in_engine.tsv`: 13 movimientos fuera del motor.
 - `manifest.json`: commit y sha256 de cada fuente (reproducibilidad).
 
 ## Cobertura de movimientos por fuente
 
-El motor puede cargar hoy **903 movimientos** (850 de PLA + 53 de la clase `a` de gen9). La cadena acordada es Z-A > Escarlata/Púrpura (vg25) > Sword/Shield (vg20) > la versión anterior más reciente. La cobertura por especie (forma base) y por entrada de forma:
+El motor puede cargar hoy **905 movimientos** (850 de PLA + 53 de la clase `a` de gen9). La cadena acordada es Z-A > Escarlata/Púrpura (vg25) > Sword/Shield (vg20) > la versión anterior más reciente. La cobertura por especie (forma base) y por entrada de forma:
 
 | Fuente | Especies (forma base) | Entradas con lista propia | Entradas que heredan |
 |---|---|---|---|
@@ -47,14 +47,13 @@ Sin lista de Z-A ni de Escarlata/Púrpura quedan **183** especies: 11 con bdsp, 
 
 ## Movimientos fuera del motor
 
-14 movimientos distintos aparecen en las listas resueltas y no existen hoy en el motor. No se descartan: quedan en `learnsets.tsv` con `in_engine=0`. Los 20 más pedidos (filas × especies):
+13 movimientos distintos aparecen en las listas resueltas y no existen hoy en el motor. No se descartan: quedan en `learnsets.tsv` con `in_engine=0`. Los 20 más pedidos (filas × especies):
 
 | Movimiento | Fuentes | Filas | Especies |
 |---|---|---|---|
 | tera-blast | sv | 700 | 485 |
 | snowscape | sv | 88 | 63 |
 | psychic-noise | sv | 51 | 45 |
-| temper-flare | sv | 51 | 46 |
 | dragon-cheer | sv | 39 | 34 |
 | shed-tail | sv;za | 5 | 5 |
 | ivy-cudgel | sv | 4 | 1 |

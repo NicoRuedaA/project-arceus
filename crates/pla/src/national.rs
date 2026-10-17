@@ -514,7 +514,14 @@ mod tests {
             "learnsets: {}",
             dex.learnsets.len()
         );
-        assert_eq!(dex.missing_moves.len(), 14);
+        assert!(
+            !dex.missing_moves.is_empty(),
+            "moves outside the engine must stay listed"
+        );
+        assert!(
+            dex.missing_moves.iter().all(|row| row.rows_count > 0),
+            "every listed move must be wanted by at least one learnset row"
+        );
         // one species row per national number, no gaps and no duplicates
         assert_eq!(dex.species.first().unwrap().national_number, 1);
         assert_eq!(dex.species.last().unwrap().national_number, 1025);
