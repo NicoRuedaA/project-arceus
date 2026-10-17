@@ -37,6 +37,23 @@ def arg(name, default=None):
 
 OUT = arg("--out")
 STEM = arg("--stem")
+# `--clips engine` keeps only the clip suffixes the engine looks up (idle, walk, battle
+# stance, attack, ranged attack, damage, faint, appear); `all` (default) exports every action.
+CLIP_MODE = arg("--clips", "all")
+ENGINE_CLIPS = (
+    "defaultwait01_loop",
+    "walk01_loop",
+    "battlewait01_loop",
+    "attack01",
+    "rangeattack01",
+    "rangeattack01_start",
+    "rangeattack01_end",
+    "damage01",
+    "damage01_start",
+    "damage01_end",
+    "down01_start",
+    "notice01",
+)
 if not OUT or not STEM:
     print("EXPORT_ERROR missing --out/--stem", file=sys.stderr)
     sys.exit(1)
@@ -194,17 +211,31 @@ def keep_primary_rig():
 
 
 def rename_actions():
-    """Drop the duplicate rig's action set (20000+) and prefix the rest."""
+    """Drop the duplicate rig's action set (20000+), filter, and prefix the rest.
+
+    Some packs name every action with the 20000+ block; the duplicate set is only dropped
+    when a lower-numbered set exists, otherwise those clips are the model's only ones."""
+    numbers = [
+        int(m.group(1))
+        for a in bpy.data.actions
+        if (m := re.match(r"^(\d{5})_(.+)$", a.name))
+    ]
+    has_primary_set = any(n < 20000 for n in numbers)
     dropped = 0
+    kept = 0
     for action in list(bpy.data.actions):
         m = re.match(r"^(\d{5})_(.+)$", action.name)
-        if m and int(m.group(1)) >= 20000:
+        if m and int(m.group(1)) >= 20000 and has_primary_set:
             bpy.data.actions.remove(action)
             dropped += 1
             continue
+        if m and CLIP_MODE == "engine" and m.group(2) not in ENGINE_CLIPS:
+            bpy.data.actions.remove(action)
+            continue
         if m:
             action.name = f"{STEM}_{m.group(1)}_{m.group(2)}"
-    print(f"EXPORT_NOTE dropped_duplicate_actions={dropped}")
+            kept += 1
+    print(f"EXPORT_NOTE dropped_duplicate_actions={dropped} kept={kept} clips={CLIP_MODE}")
     return dropped
 
 
@@ -237,7 +268,7 @@ def main():
         export_apply=False,
         export_animations=True,
         export_animation_mode="ACTIONS",
-        export_force_sampling=True,
+        export_force_sampling=False,
         export_skins=True,
         export_yup=True,
         export_texture_dir="",

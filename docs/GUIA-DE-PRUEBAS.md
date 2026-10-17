@@ -740,8 +740,15 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     - **Si el modelo no aparece:** el aviso dirá «nacional: sin modelo para #N:forma»; esa
       especie aún no está emparejada en `data/national/model_map.tsv` (ver el informe
       `reports/data-progress/national_models.md`).
-    - **Ojo:** los modelos convertidos pesan 8-16 MB cada uno y viven en `work/cache/`
+    - **Ojo:** los modelos convertidos pesan 2-4 MB cada uno y viven en `work/cache/`
       (no van al repositorio). Si borras la caché, la bandera avisa y no coloca nada.
+    - **Pokédex (Y):** abre la Pokédex con el menú de pausa, pulsa `Y` para pasar a la lista
+      nacional y el modelo real de la especie seleccionada sale dibujado en el hueco del panel
+      (si esa especie aún no tiene modelo, el hueco queda vacío y el texto lo dice).
+    - **Combate:** las especies sin modelo en el juego ya pelean con su modelo convertido
+      (por ejemplo, un combate salvaje contra Skeledirge).
+    - **Cobertura actual:** 727 de las 1.025 especies tienen modelo; la lista de las que no y el
+      motivo están en `reports/data-progress/national_models.md`.
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 
