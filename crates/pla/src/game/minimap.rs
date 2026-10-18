@@ -2,10 +2,15 @@
 //!
 //! The area map is generated from data that is already in the engine: the baked terrain
 //! albedo (`work/cache/terrain_albedo/areaNN.png`) plus the area heightmap, shaded with a
-//! fixed hill-shading light and with the sea (height 0) painted blue. An optional
-//! `--game-map` mode loads the game's own `map_lmap_pic_NN.bntx` instead (areas 00-04 and
-//! 06; area 05 is split in six tiles whose tiling is unknown, so it falls back to the
-//! generated map).
+//! fixed hill-shading light and with the sea (height 0) painted blue. The generated map is
+//! finished with a **toon (cell-shading) pass**: the relief light is posterised to
+//! [`TOON_BANDS`] flat bands, the colours get a small saturation boost, band edges and the
+//! water shore draw a thin dark outline and the land side of the water gets a clear bank
+//! (`apply_toon_outlines`). **Buildings** (houses, shops, gates, stone walls and the big
+//! building, [`is_building_model`]) are painted as flat warm blocks with a dark outline from
+//! their collision-shape footprint ([`load_building_footprints`]). An optional `--game-map`
+//! mode loads the game's own `map_lmap_pic_NN.bntx` instead (areas 00-04 and 06; area 05 is
+//! split in six tiles whose tiling is unknown, so it falls back to the generated map).
 //!
 //! # Axis / orientation convention (ASSUMED, declared explicitly)
 //!
@@ -23,10 +28,13 @@
 //! east and west are mirrored relative to a geographic map. This is kept as it is (it is
 //! the existing HUD behaviour) and documented as UNKNOWN in the report.
 //!
-//! The minimap keeps north up and rotates the player marker ([`marker_rotation_deg`]);
-//! the crop window follows the player ([`crop_window`]) and the compass strip shows which
-//! of the eight directions the player is facing.
+//! The minimap keeps north up and rotates the player marker ([`marker_rotation_deg`]); the
+//! marker is the generated **arrow** ([`player_arrow_texture`]) pointing where the player is
+//! looking - the same facing the compass strip reads, so both can never disagree. The crop
+//! window follows the player ([`crop_window`]) and the compass strip shows which of the eight
+//! directions the player is facing.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use bevy::asset::RenderAssetUsages;
@@ -39,9 +47,12 @@ use crate::assets::terrain::{sample_height, TerrainArea};
 use crate::assets::terrain_albedo::{load_baked_albedo, BakeOutcome};
 use crate::game::state::{not_paused, GameState};
 use crate::game::ui::WorldHudRoot;
+use crate::game::world_collision::{placement_transform, CollisionPacks};
+use crate::game::world_objects::{Placement, RotMode};
 
-/// Version of the generation algorithm; part of the cache signature (2: data-driven water level).
-pub const MINIMAP_VERSION: u32 = 2;
+/// Version of the generation algorithm; part of the cache signature (3: toon finish and
+/// building footprints; every look change must bump it so the old caches invalidate).
+pub const MINIMAP_VERSION: u32 = 3;
 
 /// Default map texture size (square, texels).
 pub const DEFAULT_MAP_SIZE: u32 = 1024;
@@ -68,6 +79,55 @@ pub const WATER_RGB: [u8; 3] = [42, 84, 140];
 
 /// Shading floor: flat ground keeps this fraction of the albedo brightness.
 pub const SHADE_AMBIENT: f32 = 0.55;
+
+// ------------------------------------------------------------------ toon (cell-shading) finish
+
+/// Flat light bands the relief is posterised to. Three or four flat steps read as the painted
+/// cell-shading style of the game's own map, instead of a smooth gradient. Presentation choice.
+pub const TOON_BANDS: usize = 4;
+
+/// Flat bands of the water shading (its own, darker-to-brighter sea steps).
+pub const TOON_WATER_BANDS: usize = 3;
+
+/// Band id offset of the water bands, so land and water ids never collide in one `u8`.
+pub const WATER_BAND_BASE: u8 = 8;
+
+/// Saturation multiplier applied after the banding (1.0 keeps the albedo's own colours).
+pub const TOON_SATURATION: f32 = 1.3;
+
+/// Dark ink of the toon outline (edges between bands and the water shore).
+pub const TOON_OUTLINE_RGB: [u8; 3] = [38, 32, 30];
+
+/// Clear line painted on the land side of a water edge (the water's "orilla clara").
+pub const TOON_SHORE_RGB: [u8; 3] = [222, 232, 236];
+
+// ------------------------------------------------------------------ buildings on the map
+
+/// Roof colour of a building block: warm and muted, so the paths between houses stay readable.
+pub const BUILDING_ROOF_RGB: [u8; 3] = [178, 118, 88];
+
+/// Ink of the building block outline.
+pub const BUILDING_OUTLINE_RGB: [u8; 3] = [34, 28, 24];
+
+/// Thickness of the building outline, map texels (the outline is painted inside the block).
+pub const BUILDING_OUTLINE_TEXELS: f32 = 0.8;
+
+// ------------------------------------------------------------------ player arrow
+
+/// Side of the player arrow on the minimap, logical pixels (square: a rotation cannot deform it).
+pub const PLAYER_ARROW_PX: f32 = 18.0;
+
+/// Side of the player arrow on the full-screen map, logical pixels.
+pub const FULL_MAP_ARROW_PX: f32 = 16.0;
+
+/// Fill of the player arrow (cream-yellow accent, legible over land and water).
+pub const ARROW_FILL_RGB: [u8; 3] = [255, 226, 92];
+
+/// Thin dark border of the player arrow.
+pub const ARROW_INK_RGB: [u8; 3] = [58, 42, 10];
+
+/// Supersampling factor of the generated arrow texture (smooth edges without a PNG asset).
+pub const ARROW_SUPERSAMPLE: u32 = 4;
 
 /// Default cache root (the main checkout's shared work dir, like the terrain bakes).
 pub const DEFAULT_CACHE_ROOT: &str = "/home/nico/work/decompilacion/work/cache";
@@ -270,32 +330,119 @@ pub fn normal_from_neighbours(hx0: f32, hx1: f32, hz0: f32, hz1: f32, dx: f32, d
     Vec3::new(-gx, 1.0, -gz).normalize()
 }
 
-/// One minimap pixel: water near the area water level (blue, modulated by the albedo
-/// luminance), otherwise the albedo with the hill-shading factor applied.
+/// Toon band of one pixel, the id [`apply_toon_outlines`] compares between neighbours:
+/// `0..TOON_BANDS` on land (the quantised relief light) and `WATER_BAND_BASE..+TOON_WATER_BANDS`
+/// on water (quantised from the albedo luminance, the old sea modulation).
+pub fn toon_band_index(
+    albedo: [u8; 3],
+    height_m: f32,
+    water_level_m: Option<f32>,
+    normal: Vec3,
+) -> u8 {
+    if water_level_m.is_some_and(|level| height_m <= level + WATER_BAND_M) {
+        let luma =
+            (0.2126 * albedo[0] as f32 + 0.7152 * albedo[1] as f32 + 0.0722 * albedo[2] as f32)
+                / 255.0;
+        let band = (luma * TOON_WATER_BANDS as f32).floor() as usize;
+        return WATER_BAND_BASE
+            + band.min(TOON_WATER_BANDS.saturating_sub(1)) as u8;
+    }
+    let diffuse = normal.dot(light_dir()).max(0.0);
+    let band = (diffuse * TOON_BANDS as f32).floor() as usize;
+    band.min(TOON_BANDS.saturating_sub(1)) as u8
+}
+
+/// Colour with the toon saturation boost applied around its own luminance.
+pub fn saturate_rgb(rgb: [f32; 3], factor: f32) -> [u8; 3] {
+    let luma = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+    let mut out = [0u8; 3];
+    for i in 0..3 {
+        out[i] = (luma + (rgb[i] - luma) * factor).clamp(0.0, 255.0) as u8;
+    }
+    out
+}
+
+/// One minimap pixel in the toon finish: water near the area water level (blue, in flat bands
+/// from the albedo luminance), otherwise the albedo with the posterised hill-shading applied
+/// and the saturation boost on top.
 pub fn shade_pixel(
     albedo: [u8; 3],
     height_m: f32,
     water_level_m: Option<f32>,
     normal: Vec3,
 ) -> [u8; 3] {
-    if water_level_m.is_some_and(|level| height_m <= level + WATER_BAND_M) {
-        let luma =
-            (0.2126 * albedo[0] as f32 + 0.7152 * albedo[1] as f32 + 0.0722 * albedo[2] as f32)
-                / 255.0;
-        let k = 0.75 + 0.45 * luma;
-        return [
-            (WATER_RGB[0] as f32 * k).clamp(0.0, 255.0) as u8,
-            (WATER_RGB[1] as f32 * k).clamp(0.0, 255.0) as u8,
-            (WATER_RGB[2] as f32 * k).clamp(0.0, 255.0) as u8,
-        ];
+    let band = toon_band_index(albedo, height_m, water_level_m, normal);
+    if band >= WATER_BAND_BASE {
+        let n = (band - WATER_BAND_BASE) as f32 / (TOON_WATER_BANDS - 1).max(1) as f32;
+        let k = 0.75 + 0.45 * n;
+        return saturate_rgb(
+            [
+                WATER_RGB[0] as f32 * k,
+                WATER_RGB[1] as f32 * k,
+                WATER_RGB[2] as f32 * k,
+            ],
+            TOON_SATURATION,
+        );
     }
-    let diffuse = normal.dot(light_dir()).max(0.0);
-    let k = SHADE_AMBIENT + (1.0 - SHADE_AMBIENT) * diffuse;
-    [
-        (albedo[0] as f32 * k).clamp(0.0, 255.0) as u8,
-        (albedo[1] as f32 * k).clamp(0.0, 255.0) as u8,
-        (albedo[2] as f32 * k).clamp(0.0, 255.0) as u8,
-    ]
+    let n = band as f32 / (TOON_BANDS - 1).max(1) as f32;
+    let k = SHADE_AMBIENT + (1.0 - SHADE_AMBIENT) * n;
+    saturate_rgb(
+        [
+            albedo[0] as f32 * k,
+            albedo[1] as f32 * k,
+            albedo[2] as f32 * k,
+        ],
+        TOON_SATURATION,
+    )
+}
+
+/// Toon line pass over a finished map: every pixel whose toon band ([`toon_band_index`]) differs
+/// from a neighbour's gets ink - the darker side of a land band edge, the water side of the
+/// shore - and the land side of a water edge gets the clear bank instead. One texel wide, so it
+/// reads as a drawn contour and not as a smear.
+pub fn apply_toon_outlines(rgba: &mut [u8], bands: &[u8], size: usize) {
+    if size == 0 || rgba.len() < size * size * 4 || bands.len() < size * size {
+        return;
+    }
+    let is_water = |b: u8| b >= WATER_BAND_BASE;
+    let at = |x: usize, y: usize| y * size + x;
+    let mut edits: Vec<(usize, [u8; 3])> = Vec::new();
+    for y in 0..size {
+        for x in 0..size {
+            let b = bands[at(x, y)];
+            let mut dark = false;
+            let mut shore = false;
+            let neighbours = [
+                (x > 0).then(|| at(x - 1, y)),
+                (x + 1 < size).then(|| at(x + 1, y)),
+                (y > 0).then(|| at(x, y - 1)),
+                (y + 1 < size).then(|| at(x, y + 1)),
+            ];
+            for nb in neighbours.into_iter().flatten() {
+                let n = bands[nb];
+                if n == b {
+                    continue;
+                }
+                if is_water(b) {
+                    dark = true; // the water side of any edge (other band or the shore) is ink
+                } else if is_water(n) {
+                    shore = true; // the land side of the water is the clear bank
+                } else if b < n {
+                    dark = true; // land band edge: ink the darker side
+                }
+            }
+            if shore {
+                edits.push((at(x, y), TOON_SHORE_RGB));
+            } else if dark {
+                edits.push((at(x, y), TOON_OUTLINE_RGB));
+            }
+        }
+    }
+    for (i, rgb) in edits {
+        rgba[i * 4] = rgb[0];
+        rgba[i * 4 + 1] = rgb[1];
+        rgba[i * 4 + 2] = rgb[2];
+    }
 }
 
 /// Bilinear albedo sample at `(u, v)` in `0..=1`, clamped at the edges (wrap around the
@@ -365,9 +512,20 @@ pub fn build_map_from_heightmap(
             * world_height
     };
     let mut rgba = vec![255u8; n * n * 4];
-    for (py, row) in rgba.chunks_exact_mut(n * 4).enumerate() {
+    let mut bands = vec![0u8; n * n];
+    for (py, (row, band_row)) in rgba
+        .chunks_exact_mut(n * 4)
+        .zip(bands.chunks_exact_mut(n))
+        .enumerate()
+    {
         let z = (py as f32 + 0.5) * step.y;
-        for (px, pixel) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+        for (px, (pixel, band)) in row
+            .as_chunks_mut::<4>()
+            .0
+            .iter_mut()
+            .zip(band_row.iter_mut())
+            .enumerate()
+        {
             let x = (px as f32 + 0.5) * step.x;
             let h = height_at(x, z);
             let base = match albedo {
@@ -386,12 +544,14 @@ pub fn build_map_from_heightmap(
                 step.x,
                 step.y,
             );
+            *band = toon_band_index(base, h, water_level, normal);
             let rgb = shade_pixel(base, h, water_level, normal);
             pixel[0] = rgb[0];
             pixel[1] = rgb[1];
             pixel[2] = rgb[2];
         }
     }
+    apply_toon_outlines(&mut rgba, &bands, n);
     Ok(TextureData {
         width: size,
         height: size,
@@ -399,7 +559,7 @@ pub fn build_map_from_heightmap(
     })
 }
 
-/// [`build_map_from_heightmap`] for a loaded [`TerrainArea`].
+/// [`build_map_from_heightmap`] for a loaded [`TerrainArea`] (terrain only, no buildings).
 pub fn build_area_map(
     area: &TerrainArea,
     albedo: Option<&TextureData>,
@@ -412,6 +572,316 @@ pub fn build_area_map(
         albedo,
         size,
     )
+}
+
+/// [`build_area_map`] plus the building blocks painted on top. Main areas use origin
+/// `(0, 0)`, the same frame the placement sheet's world coordinates live in.
+pub fn build_area_map_with_buildings(
+    area: &TerrainArea,
+    albedo: Option<&TextureData>,
+    size: u32,
+    footprints: &[BuildingFootprint],
+) -> Result<TextureData, String> {
+    let mut image = build_area_map(area, albedo, size)?;
+    let extent = Vec2::new(area.world_extent[0], area.world_extent[1]);
+    paint_buildings(&mut image.rgba, image.width, Vec2::ZERO, extent, footprints);
+    Ok(image)
+}
+
+// ------------------------------------------------------------------ buildings on the map
+
+/// One building footprint on the map: the model's collision-shape XZ rectangle (local `lo`/`hi`
+/// bounds from its `_col.trcol` shape) placed in world metres with the visual spawner's own
+/// transform (yaw about Y = `rot_y`, [`RotMode::YawY`], and the row's scale).
+#[derive(Debug, Clone, PartialEq)]
+pub struct BuildingFootprint {
+    /// Model of the placement the footprint comes from (e.g. `objects_area00_house12`).
+    pub model: String,
+    /// World `(x, z)` of the four rectangle corners, in local `lo`/`hi` order.
+    pub corners: [Vec2; 4],
+}
+
+/// True for the model names that are painted as building blocks, decided on the decoded
+/// placement sheet's model list (documented, VERIFIED against the names it holds):
+///
+/// - houses (`objects_*_houseNN`), the village shop (`sshop`), the village gates (`gateNN`),
+///   stone walls (`stonewallNN`) and the big building (`objects_area04_building01`) are
+///   structures with a closed collision footprint;
+/// - state flags and flag poles (`*_flag`) are small props, fences (`fenceNN`), tents
+///   (`genyatentNN`), trees, rocks, fields (`plants_*`, `ground_*`) and the numbered
+///   `objects_*_objNN` props are NOT buildings and stay off the map;
+/// - `wall_areaNN_*` rows are terrain wall pieces (several ship no valid geometry at all).
+pub fn is_building_model(model: &str) -> bool {
+    let tokens: Vec<&str> = model.split('_').collect();
+    if tokens.iter().any(|t| *t == "flag") {
+        return false;
+    }
+    tokens.iter().any(|t| {
+        t.starts_with("building")
+            || t.starts_with("house")
+            || t.starts_with("sshop")
+            || t.starts_with("gate")
+            || t.starts_with("stonewall")
+    })
+}
+
+/// Footprint of one placement whose shape bounds are `(lo, hi)` (model-local metres): the four
+/// local XZ rectangle corners through the placement's transform.
+pub fn footprint_of_placement(
+    model: &str,
+    placement: &Placement,
+    bounds: ([f32; 3], [f32; 3]),
+    rot: RotMode,
+) -> BuildingFootprint {
+    let (lo, hi) = bounds;
+    let m = placement_transform(placement, rot);
+    let mut corners = [Vec2::ZERO; 4];
+    let local = [
+        (lo[0], lo[2]),
+        (hi[0], lo[2]),
+        (hi[0], hi[2]),
+        (lo[0], hi[2]),
+    ];
+    for (k, (cx, cz)) in local.into_iter().enumerate() {
+        let w = m.transform_point3(Vec3::new(cx, 0.0, cz));
+        corners[k] = Vec2::new(w.x, w.z);
+    }
+    BuildingFootprint {
+        model: model.to_string(),
+        corners,
+    }
+}
+
+/// Footprints of every building placement (`is_building_model`) in `placements`, four corners in
+/// world metres; the shape bounds are read once per model from the collision packs (the same
+/// `_col.trcol` shapes the world walls use). Returns the footprints and how many placements
+/// were skipped for having no collision shape.
+pub fn building_footprints(
+    placements: &[Placement],
+    packs: &CollisionPacks,
+    rot: RotMode,
+) -> (Vec<BuildingFootprint>, usize) {
+    let mut bounds: HashMap<&str, Option<([f32; 3], [f32; 3])>> = HashMap::new();
+    let mut out = Vec::new();
+    let mut skipped = 0usize;
+    for p in placements.iter().filter(|p| is_building_model(&p.model)) {
+        let b = *bounds
+            .entry(p.model.as_str())
+            .or_insert_with(|| packs.mesh_for_model(&p.model).ok().and_then(|m| m.bounds()));
+        match b {
+            Some(bounds) => out.push(footprint_of_placement(&p.model, p, bounds, rot)),
+            None => skipped += 1,
+        }
+    }
+    (out, skipped)
+}
+
+/// Building footprints of main area `area_idx`, from the placement sheet plus the collision
+/// packs under `bin_root`. A missing sheet or unreadable packs are reported and yield no
+/// blocks (the map is terrain-only), never an error: the map must still build.
+pub fn load_building_footprints(area_idx: u8, bin_root: &Path) -> Vec<BuildingFootprint> {
+    let area = format!("ha_area{area_idx:02}");
+    let Some(text) = crate::game::world_objects::find_data_file("field_object_placements.tsv")
+        .and_then(|p| std::fs::read_to_string(p).ok())
+    else {
+        eprintln!("Minimap: data/field_object_placements.tsv not found; no buildings on the map");
+        return Vec::new();
+    };
+    // The sheet's own `model_status` snapshot lags the export index (it marks the Jubilife
+    // houses `blocked` while the index exports them `ok`); what a footprint needs is the
+    // collision shape, checked per model below.
+    let placements = crate::game::world_objects::parse_placements_for_spawn(&text, &area);
+    let packs = match CollisionPacks::load(bin_root) {
+        Ok(packs) => packs,
+        Err(e) => {
+            eprintln!("Minimap: collision packs unreadable ({e}); no buildings on the map");
+            return Vec::new();
+        }
+    };
+    let considered = placements
+        .iter()
+        .filter(|p| is_building_model(&p.model))
+        .count();
+    let (footprints, skipped) = building_footprints(&placements, &packs, RotMode::YawY);
+    println!(
+        "Minimap: {area}: {} building footprints of {considered} building placements ({skipped} without a collision shape)",
+        footprints.len()
+    );
+    footprints
+}
+
+/// Stamp distance from `p` to segment `a`-`b` (map texels).
+pub fn segment_distance(p: Vec2, a: Vec2, b: Vec2) -> f32 {
+    let ab = b - a;
+    let len2 = ab.length_squared();
+    let t = if len2 <= 1e-12 {
+        0.0
+    } else {
+        ((p - a).dot(ab) / len2).clamp(0.0, 1.0)
+    };
+    p.distance(a + ab * t)
+}
+
+/// True when `p` is inside (or on) the convex quad of `corners` (orientation-independent).
+pub fn point_in_quad(p: Vec2, corners: &[Vec2; 4]) -> bool {
+    let cross = |a: Vec2, b: Vec2, p: Vec2| (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    let mut positive = 0usize;
+    let mut negative = 0usize;
+    for k in 0..4 {
+        let c = cross(corners[k], corners[(k + 1) % 4], p);
+        if c > 1e-6 {
+            positive += 1;
+        } else if c < -1e-6 {
+            negative += 1;
+        }
+    }
+    positive == 0 || negative == 0
+}
+
+/// Paint the building blocks over a finished map: flat warm roofs with a thin dark outline
+/// inside the block (`BUILDING_OUTLINE_TEXELS`). The blocks sit on their real footprints, so
+/// the paths between the houses stay visible.
+pub fn paint_buildings(
+    rgba: &mut [u8],
+    size: u32,
+    origin: Vec2,
+    extent: Vec2,
+    footprints: &[BuildingFootprint],
+) {
+    let side = size as i64;
+    if side <= 0 || rgba.len() < (side * side * 4) as usize {
+        return;
+    }
+    for fp in footprints {
+        let px: [Vec2; 4] = fp
+            .corners
+            .map(|c| world_to_uv(c.x, c.y, origin, extent) * size as f32);
+        if !px.iter().all(|p| p.is_finite()) {
+            continue;
+        }
+        let mut lo = Vec2::splat(f32::INFINITY);
+        let mut hi = Vec2::splat(f32::NEG_INFINITY);
+        for p in px {
+            lo = lo.min(p);
+            hi = hi.max(p);
+        }
+        let min_x = lo.x.floor().max(0.0) as i64;
+        let min_y = lo.y.floor().max(0.0) as i64;
+        let max_x = hi.x.ceil().min(size as f32) as i64;
+        let max_y = hi.y.ceil().min(size as f32) as i64;
+        for y in min_y..max_y {
+            for x in min_x..max_x {
+                let p = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
+                if !point_in_quad(p, &px) {
+                    continue;
+                }
+                let edge = (0..4)
+                    .map(|k| segment_distance(p, px[k], px[(k + 1) % 4]))
+                    .fold(f32::INFINITY, f32::min);
+                let rgb = if edge < BUILDING_OUTLINE_TEXELS {
+                    BUILDING_OUTLINE_RGB
+                } else {
+                    BUILDING_ROOF_RGB
+                };
+                let at = ((y * side + x) * 4) as usize;
+                rgba[at] = rgb[0];
+                rgba[at + 1] = rgb[1];
+                rgba[at + 2] = rgb[2];
+                rgba[at + 3] = 255;
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ player arrow texture
+
+/// Generate the player-arrow texture: a triangle pointing **up** - `-z` is up on the map, which
+/// is the marker rotation 0 ([`marker_rotation_deg`]) - with a thin dark ink border and the
+/// cream-yellow fill. Drawn in code (the game's font has no triangles and the port ships no PNG
+/// assets), supersampled [`ARROW_SUPERSAMPLE`] times so the edges stay smooth when it rotates.
+pub fn player_arrow_texture(px: u32) -> TextureData {
+    let size = px.clamp(4, 256);
+    let s = ARROW_SUPERSAMPLE.max(1);
+    let w = (size * s) as f32;
+    // Triangle in supersampled texels: tip at the top centre, base along the bottom.
+    let tip = Vec2::new(w * 0.5, w * 0.06);
+    let left = Vec2::new(w * 0.10, w * 0.94);
+    let right = Vec2::new(w * 0.90, w * 0.94);
+    let border = 1.1 * s as f32; // the "thin" outline, in supersampled texels
+    let cross = |a: Vec2, b: Vec2, p: Vec2| (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    let mut rgba = vec![0u8; (size * size * 4) as usize];
+    for oy in 0..size {
+        for ox in 0..size {
+            let mut fill = 0u32;
+            let mut ink = 0u32;
+            for sy in 0..s {
+                for sx in 0..s {
+                    let p = Vec2::new(
+                        (ox * s + sx) as f32 + 0.5,
+                        (oy * s + sy) as f32 + 0.5,
+                    );
+                    let e0 = cross(tip, right, p);
+                    let e1 = cross(right, left, p);
+                    let e2 = cross(left, tip, p);
+                    let inside = (e0 >= 0.0 && e1 >= 0.0 && e2 >= 0.0)
+                        || (e0 <= 0.0 && e1 <= 0.0 && e2 <= 0.0);
+                    if !inside {
+                        continue;
+                    }
+                    let d = [
+                        segment_distance(p, tip, right),
+                        segment_distance(p, right, left),
+                        segment_distance(p, left, tip),
+                    ]
+                    .into_iter()
+                    .fold(f32::INFINITY, f32::min);
+                    if d < border {
+                        ink += 1;
+                    } else {
+                        fill += 1;
+                    }
+                }
+            }
+            let total = (s * s) as f32;
+            let covered = (fill + ink) as f32;
+            if covered <= 0.0 {
+                continue;
+            }
+            // Weighted colour of the sample: ink and fill blended by how many sub-texels each
+            // gained, so the border keeps the supersampled smoothness at small sizes.
+            let (wf, wi) = (fill as f32, ink as f32);
+            let mix = |k: usize| {
+                ((ARROW_FILL_RGB[k] as f32 * wf + ARROW_INK_RGB[k] as f32 * wi) / covered)
+                    .clamp(0.0, 255.0) as u8
+            };
+            let at = (((oy * size + ox) * 4) as usize).min(rgba.len() - 4);
+            rgba[at] = mix(0);
+            rgba[at + 1] = mix(1);
+            rgba[at + 2] = mix(2);
+            rgba[at + 3] = (covered / total * 255.0).clamp(0.0, 255.0) as u8;
+        }
+    }
+    TextureData {
+        width: size,
+        height: size,
+        rgba,
+    }
+}
+
+/// The arrow as a Bevy image (RGBA8 sRGB), ready for an `ImageNode`.
+pub fn arrow_image_handle(images: &mut Assets<Image>, px: u32) -> Handle<Image> {
+    let tex = player_arrow_texture(px);
+    images.add(Image::new(
+        Extent3d {
+            width: tex.width,
+            height: tex.height,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        tex.rgba,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
+    ))
 }
 
 // ------------------------------------------------------------------ interior maps
@@ -598,10 +1068,13 @@ pub fn map_signature(
 
 /// Bake `area`'s map into `work_root/minimap/areaNN.png` plus its sidecar. With
 /// `skip_if_unchanged` the bake is skipped when the PNG exists and the stored sidecar
-/// equals the current signature.
+/// equals the current signature (the building footprints are only read when the map really
+/// has to be generated: they do not enter the signature, so a look change that alters them
+/// must bump [`MINIMAP_VERSION`]).
 pub fn bake_map_to_cache(
     area: &TerrainArea,
     albedo: Option<&TextureData>,
+    bin_root: Option<&Path>,
     work_root: &Path,
     size: u32,
     skip_if_unchanged: bool,
@@ -630,7 +1103,10 @@ pub fn bake_map_to_cache(
             }
         }
     }
-    let image = build_area_map(area, albedo, size)?;
+    let footprints = bin_root
+        .map(|root| load_building_footprints(area.area, root))
+        .unwrap_or_default();
+    let image = build_area_map_with_buildings(area, albedo, size, &footprints)?;
     image
         .save_png(&png_path)
         .map_err(|e| format!("write {}: {e}", png_path.display()))?;
@@ -722,7 +1198,10 @@ pub fn resolve_area_map(
         }
     }
     let started = std::time::Instant::now();
-    let image = build_area_map(area, albedo, size)?;
+    let footprints = bin_root
+        .map(|root| load_building_footprints(area_idx, root))
+        .unwrap_or_default();
+    let image = build_area_map_with_buildings(area, albedo, size, &footprints)?;
     Ok(ResolvedMap {
         image,
         source: MapSource::Generated,
@@ -856,10 +1335,18 @@ impl Plugin for MinimapPlugin {
 }
 
 /// Spawn the HUD nodes under the world HUD root (no-op without one, e.g. headless apps).
-pub fn setup_minimap_ui(mut commands: Commands, hud: Query<Entity, With<WorldHudRoot>>) {
+/// Without an image store (logic-only tests) the markers fall back to a plain accent square.
+pub fn setup_minimap_ui(
+    mut commands: Commands,
+    hud: Query<Entity, With<WorldHudRoot>>,
+    mut images: Option<ResMut<Assets<Image>>>,
+) {
     let Ok(hud) = hud.single() else {
         return;
     };
+    let arrow = images
+        .as_mut()
+        .map(|images| arrow_image_handle(images, PLAYER_ARROW_PX as u32 * ARROW_SUPERSAMPLE));
     commands.entity(hud).with_children(|root| {
         root.spawn((
             MinimapRoot,
@@ -901,20 +1388,29 @@ pub fn setup_minimap_ui(mut commands: Commands, hud: Query<Entity, With<WorldHud
                     ..default()
                 },
             ));
-            frame.spawn((
+            // The player arrow: a square node (a rotation cannot deform it) showing the
+            // generated arrow texture, pointing where the player looks (rotated in
+            // `update_minimap_hud`, the same facing the compass strip reads).
+            let mut marker = frame.spawn((
                 MinimapPlayerMarker,
                 Node {
                     position_type: PositionType::Absolute,
-                    left: Val::Px(FRAME_PX * 0.5 - 3.0),
-                    top: Val::Px(FRAME_PX * 0.5 - 7.0),
-                    width: Val::Px(6.0),
-                    height: Val::Px(14.0),
-                    border_radius: BorderRadius::all(Val::Px(2.0)),
+                    left: Val::Px(FRAME_PX * 0.5 - PLAYER_ARROW_PX * 0.5),
+                    top: Val::Px(FRAME_PX * 0.5 - PLAYER_ARROW_PX * 0.5),
+                    width: Val::Px(PLAYER_ARROW_PX),
+                    height: Val::Px(PLAYER_ARROW_PX),
                     ..default()
                 },
-                BackgroundColor(Color::srgb(1.0, 0.90, 0.25)),
+                BackgroundColor(Color::NONE),
                 UiTransform::default(),
             ));
+            if let Some(handle) = arrow.clone() {
+                marker.insert(ImageNode {
+                    image: handle,
+                    image_mode: NodeImageMode::Stretch,
+                    ..default()
+                });
+            }
             frame.spawn((
                 NorthMark,
                 Text::new("N"),
@@ -1001,20 +1497,33 @@ pub fn setup_minimap_ui(mut commands: Commands, hud: Query<Entity, With<WorldHud
                             ..default()
                         },
                     ));
-                    panel.spawn((
+                    // The port's own player arrow on the full-screen map (the original UI path
+                    // hides it and draws the game's own arrow instead).
+                    let mut marker = panel.spawn((
                         FullMapMarker,
                         Node {
                             position_type: PositionType::Absolute,
                             left: Val::Percent(50.0),
                             top: Val::Percent(50.0),
-                            width: Val::Px(8.0),
-                            height: Val::Px(8.0),
-                            border_radius: BorderRadius::all(Val::Px(2.0)),
+                            width: Val::Px(FULL_MAP_ARROW_PX),
+                            height: Val::Px(FULL_MAP_ARROW_PX),
+                            margin: UiRect {
+                                left: Val::Px(-FULL_MAP_ARROW_PX * 0.5),
+                                top: Val::Px(-FULL_MAP_ARROW_PX * 0.5),
+                                ..default()
+                            },
                             ..default()
                         },
-                        BackgroundColor(Color::srgb(1.0, 0.90, 0.25)),
+                        BackgroundColor(Color::NONE),
                         UiTransform::default(),
                     ));
+                    if let Some(handle) = arrow.clone() {
+                        marker.insert(ImageNode {
+                            image: handle,
+                            image_mode: NodeImageMode::Stretch,
+                            ..default()
+                        });
+                    }
                     panel.spawn((
                         NorthMark,
                         Text::new("N"),
@@ -1251,12 +1760,12 @@ pub fn update_minimap_hud(
         node.rect = Some(rect);
     }
     for (mut node, mut ui) in &mut marker_q {
-        node.left = Val::Px(FRAME_PX * 0.5 - 3.0 + offset.x);
-        node.top = Val::Px(FRAME_PX * 0.5 - 7.0 + offset.y);
+        node.left = Val::Px(FRAME_PX * 0.5 - PLAYER_ARROW_PX * 0.5 + offset.x);
+        node.top = Val::Px(FRAME_PX * 0.5 - PLAYER_ARROW_PX * 0.5 + offset.y);
         *ui = UiTransform::from_rotation(rotation);
     }
-    // The port's own dot on the full-screen map: place it with the current map's origin and
-    // spin it with the facing (the original-UI path hides it and draws its own arrow instead).
+    // The port's own arrow on the full-screen map: place it with the current map's origin and
+    // spin it with the facing (the original-UI path hides it and draws the game's arrow instead).
     let uv = full_map_marker_uv(x, z, state.origin, state.extent);
     for (mut node, mut ui) in &mut full_marker_q {
         node.left = Val::Percent(uv.x * 100.0);
@@ -1491,6 +2000,208 @@ mod tests {
         assert!((f - Vec2::new(0.0, 1.0)).length() < 1e-5);
         let f = facing_from_yaw(std::f32::consts::FRAC_PI_2);
         assert!((f - Vec2::new(1.0, 0.0)).length() < 1e-5);
+    }
+
+    #[test]
+    fn toon_finish_posterises_the_relief_to_flat_bands() {
+        // Any normal: the relief light must fall into exactly TOON_BANDS flat shades (white
+        // albedo makes the shade a pure function of the band), each visibly apart.
+        let mut shades = std::collections::HashSet::new();
+        for i in 0..=32 {
+            for j in 0..=32 {
+                let n = Vec3::new(-1.0 + i as f32 / 16.0, 1.0, -1.0 + j as f32 / 16.0).normalize();
+                let band = toon_band_index([255, 255, 255], 50.0, None, n);
+                assert!((band as usize) < TOON_BANDS, "land band in range: {band}");
+                shades.insert(shade_pixel([255, 255, 255], 50.0, None, n));
+            }
+        }
+        assert_eq!(
+            shades.len(),
+            TOON_BANDS,
+            "posterised to flat shades: {shades:?}"
+        );
+        let mut sorted: Vec<[u8; 3]> = shades.into_iter().collect();
+        sorted.sort_by_key(|c| c[0]);
+        for w in sorted.windows(2) {
+            assert!(
+                w[1][0] as i32 - w[0][0] as i32 >= 8,
+                "flat shades are visibly apart: {sorted:?}"
+            );
+        }
+        // Water: its own band range, quantised from the albedo luminance.
+        let mut water = std::collections::HashSet::new();
+        for luma in [0u8, 90, 200, 255] {
+            let band = toon_band_index([luma, luma, luma], 0.0, Some(0.0), Vec3::Y);
+            assert!(band >= WATER_BAND_BASE, "water id range: {band}");
+            water.insert(band);
+        }
+        assert_eq!(water.len(), TOON_WATER_BANDS, "flat water bands: {water:?}");
+    }
+
+    #[test]
+    fn toon_saturation_boosts_colour_around_its_luminance() {
+        // Grey stays grey (no tint invented).
+        assert_eq!(saturate_rgb([128.0, 128.0, 128.0], TOON_SATURATION), [128, 128, 128]);
+        // The dominant channel grows away from the luminance, the others shrink towards it.
+        let red = saturate_rgb([200.0, 100.0, 100.0], TOON_SATURATION);
+        assert!(red[0] > 200 && red[1] < 100, "{red:?}");
+        let blue = saturate_rgb([60.0, 90.0, 180.0], TOON_SATURATION);
+        assert!(blue[2] > 180 && blue[0] < 60, "{blue:?}");
+    }
+
+    #[test]
+    fn toon_outlines_ink_band_edges_and_mark_the_shore() {
+        // 4x4 map, same columns on every row: land band 0 | land band 2 | water band 2 |
+        // water band 0.
+        let size = 4usize;
+        let row: [u8; 4] = [0, 2, WATER_BAND_BASE + 2, WATER_BAND_BASE];
+        let bands: Vec<u8> = row.iter().copied().cycle().take(size * size).collect();
+        let mut rgba = vec![200u8; size * size * 4];
+        apply_toon_outlines(&mut rgba, &bands, size);
+        let px = |x: usize, y: usize| {
+            let i = (y * size + x) * 4;
+            [rgba[i], rgba[i + 1], rgba[i + 2]]
+        };
+        // The darker side of the land band edge is inked.
+        assert_eq!(px(0, 1), TOON_OUTLINE_RGB);
+        // The land side of the water edge is the clear bank, not ink.
+        assert_eq!(px(1, 1), TOON_SHORE_RGB);
+        // The water side of the shore is ink, and so is a darker water band next to a lighter one.
+        assert_eq!(px(2, 1), TOON_OUTLINE_RGB);
+        assert_eq!(px(3, 1), TOON_OUTLINE_RGB);
+        // A uniform map keeps every pixel untouched.
+        let mut flat = vec![200u8; size * size * 4];
+        apply_toon_outlines(&mut flat, &vec![0u8; size * size], size);
+        assert!(flat
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .all(|p| p == &[200, 200, 200, 200]));
+    }
+
+    #[test]
+    fn building_model_filter_follows_the_documented_list() {
+        for m in [
+            "objects_area00_house01",
+            "objects_area00_house12",
+            "objects_area00_sshop01",
+            "objects_area00_gate01",
+            "objects_stonewall02",
+            "objects_area04_building01",
+        ] {
+            assert!(is_building_model(m), "{m} is a building");
+        }
+        for m in [
+            "objects_area00_house06_b_flag",
+            "objects_area00_fence01",
+            "objects_area00_obj09",
+            "objects_genyatent01_black",
+            "objects_genyatent01_white",
+            "ground_rock13_gray",
+            "ground_area00_fallentree01",
+            "plants_area00_farm01",
+            "wall_area00_02",
+            "ground_area04_rock_wall02",
+        ] {
+            assert!(!is_building_model(m), "{m} is not a building");
+        }
+    }
+
+    #[test]
+    fn footprint_of_placement_rotates_scales_and_places_the_shape_box() {
+        // A 2x4 m local box (x -1..1, z -2..2), scaled x2, yawed 90 degrees, at (10, 20).
+        let p = Placement {
+            model: "objects_area00_house01".into(),
+            pos: [10.0, 0.0, 20.0],
+            rot_deg: [0.0, 90.0, 0.0],
+            scale: [2.0, 1.0, 2.0],
+        };
+        let fp = footprint_of_placement(&p.model, &p, ([-1.0, 0.0, -2.0], [1.0, 3.0, 2.0]), RotMode::YawY);
+        // Yaw 90: local +x maps to world -z and local +z to world +x; scale doubles both.
+        let want = [
+            Vec2::new(6.0, 22.0),
+            Vec2::new(6.0, 18.0),
+            Vec2::new(14.0, 18.0),
+            Vec2::new(14.0, 22.0),
+        ];
+        for (got, want) in fp.corners.iter().zip(want) {
+            assert!((*got - want).length() < 1e-4, "{got:?} != {want:?}");
+        }
+        assert_eq!(fp.model, "objects_area00_house01");
+    }
+
+    #[test]
+    fn paint_buildings_paints_a_known_rectangle_with_its_outline() {
+        // 32x32 map, 2 m per texel: a block from (4, 8) to (12, 16) m covers texels x 2..6,
+        // y 4..8, its outline painted inside the block.
+        let size = 32u32;
+        let mut rgba = vec![0u8; (size * size * 4) as usize];
+        let fp = BuildingFootprint {
+            model: "objects_area00_house01".into(),
+            corners: [
+                Vec2::new(4.0, 8.0),
+                Vec2::new(12.0, 8.0),
+                Vec2::new(12.0, 16.0),
+                Vec2::new(4.0, 16.0),
+            ],
+        };
+        paint_buildings(&mut rgba, size, Vec2::ZERO, Vec2::splat(64.0), &[fp]);
+        let px = |x: u32, y: u32| {
+            let i = ((y * size + x) * 4) as usize;
+            [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]]
+        };
+        let roof = [BUILDING_ROOF_RGB[0], BUILDING_ROOF_RGB[1], BUILDING_ROOF_RGB[2], 255];
+        let ink = [BUILDING_OUTLINE_RGB[0], BUILDING_OUTLINE_RGB[1], BUILDING_OUTLINE_RGB[2], 255];
+        assert_eq!(px(3, 6), roof, "interior is the roof colour");
+        assert_eq!(px(4, 6), roof);
+        assert_eq!(px(2, 6), ink, "left edge is inked");
+        assert_eq!(px(5, 6), ink, "right edge is inked");
+        assert_eq!(px(3, 4), ink, "top edge is inked");
+        assert_eq!(px(3, 7), ink, "bottom edge is inked");
+        assert_eq!(px(1, 6), [0, 0, 0, 0], "outside stays untouched");
+        assert_eq!(px(6, 6), [0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn player_arrow_texture_points_up_with_an_ink_border() {
+        let tex = player_arrow_texture(16);
+        assert_eq!((tex.width, tex.height), (16, 16));
+        let px = |x: u32, y: u32| {
+            let i = ((y * 16 + x) * 4) as usize;
+            [tex.rgba[i], tex.rgba[i + 1], tex.rgba[i + 2], tex.rgba[i + 3]]
+        };
+        // The tip (top centre) and the base (bottom centre) are covered; the corners are not.
+        assert!(px(8, 2)[3] > 0, "tip covered: {:?}", px(8, 2));
+        assert!(px(8, 14)[3] > 0, "base covered: {:?}", px(8, 14));
+        assert_eq!(px(0, 0)[3], 0);
+        assert_eq!(px(15, 15)[3], 0);
+        // The centre is the pure fill.
+        assert_eq!(px(8, 9), [ARROW_FILL_RGB[0], ARROW_FILL_RGB[1], ARROW_FILL_RGB[2], 255]);
+        // There is a darker (ink) border: several opaque dark pixels exist and the darkest
+        // one is clearly ink (the tip's whole interior lies within the border width).
+        let luma = |p: [u8; 4]| 0.2126 * p[0] as f32 + 0.7152 * p[1] as f32 + 0.0722 * p[2] as f32;
+        let dark: Vec<f32> = (0..16)
+            .flat_map(|y| (0..16).map(move |x| (x, y)))
+            .map(|(x, y)| px(x, y))
+            .filter(|p| p[3] > 200 && luma(*p) < 160.0)
+            .map(luma)
+            .collect();
+        assert!(dark.len() > 4, "ink border pixels: {}", dark.len());
+        let darkest = dark.iter().copied().fold(f32::INFINITY, f32::min);
+        assert!(darkest < 80.0, "a clearly ink pixel exists: {darkest}");
+        // Mirror symmetry about the vertical axis (the arrow points straight up).
+        for y in 0..16 {
+            for x in 0..8 {
+                let a = px(x, y);
+                let b = px(15 - x, y);
+                for k in 0..3 {
+                    assert!(
+                        (a[k] as i32 - b[k] as i32).abs() <= 2,
+                        "symmetric at ({x},{y}): {a:?} vs {b:?}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -2080,6 +2791,59 @@ mod tests {
             "the game data root exists but no area map was built"
         );
         assert!(total_ms > 0.0);
+    }
+
+    #[test]
+    fn real_jubilife_footprints_and_blocks_come_from_the_game_data() {
+        let Some(root) = game_bin_root() else {
+            eprintln!("[skip] game bin root not found (set PLA_BIN_ROOT)");
+            return;
+        };
+        let Ok(area) = TerrainArea::load(&root, 0) else {
+            eprintln!("[skip] area 00 terrain not loadable");
+            return;
+        };
+        let footprints = load_building_footprints(0, &root);
+        assert!(
+            footprints.len() >= 20,
+            "the village is full of houses: {} footprints",
+            footprints.len()
+        );
+        let (w, d) = (area.world_extent[0], area.world_extent[1]);
+        for fp in &footprints {
+            for c in fp.corners {
+                assert!(c.is_finite(), "{}: finite corners", fp.model);
+                assert!(
+                    c.x > -2.0 && c.x < w + 2.0 && c.y > -2.0 && c.y < d + 2.0,
+                    "{}: corner {c:?} inside the area {w}x{d}",
+                    fp.model
+                );
+            }
+            let side = (fp.corners[1] - fp.corners[0])
+                .length()
+                .max((fp.corners[2] - fp.corners[1]).length());
+            assert!(side > 0.5 && side < 120.0, "{}: box side {side} m", fp.model);
+        }
+        // The blocks reach the finished map: the roof colour has to appear on it.
+        let albedo = cached_albedo(0);
+        let map = build_area_map_with_buildings(&area, albedo.as_ref(), 512, &footprints)
+            .expect("area 00 map");
+        let roof = map
+            .rgba
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|p| p[..3] == BUILDING_ROOF_RGB)
+            .count();
+        assert!(
+            roof > 100,
+            "building blocks painted: {roof} roof texels of {} footprints",
+            footprints.len()
+        );
+        println!(
+            "area 00: {} building footprints, {roof} roof texels on the 512 map",
+            footprints.len()
+        );
     }
 
     #[test]

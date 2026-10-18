@@ -1,0 +1,42 @@
+{
+ "description": "Area 0 at x=726.8 z=479.9 (stream bed; the player is NOT swimming there, no water is visible), plain and with F1 collisions.",
+ "args": [
+  "--area",
+  "0",
+  "--player-pos",
+  "726.8,479.9"
+ ],
+ "steps": [
+  {
+   "cmd": "set_weather",
+   "weather": "sunny"
+  },
+  {
+   "cmd": "set_time",
+   "slot": 1,
+   "pinned": true
+  },
+  {
+   "cmd": "step",
+   "frames": 120,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "river_plain"
+  },
+  {
+   "cmd": "key",
+   "key": "F1"
+  },
+  {
+   "cmd": "step",
+   "frames": 10,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "river_collisions"
+  }
+ ]
+}

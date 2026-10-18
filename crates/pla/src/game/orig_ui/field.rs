@@ -3,7 +3,7 @@
 //!
 //! | Part of the layout | Shows (port data, port text) |
 //! |---|---|
-//! | `L_zninfo_00` (top-left research bar) | nearest wild Pokémon: icon and name (else the zone name) |
+//! | `L_zninfo_00` (top-left research bar) | nearest wild Pokémon: icon and name; when there is none, nothing - except during the welcome window after a zone change, when the zone name shows for [`super::zone_banner::ZONE_BANNER_SECS`] s and fades out (`zone_banner`) |
 //! | `L_item_00` (ball shortcut, right) | selected ball name and count in the bag |
 //! | `L_command_00` (button guides, bottom left) | the game's menu / Pokédex / map guide icons, in the game's own place |
 //!
@@ -101,6 +101,7 @@ pub fn bind_field_hud(
     state: Res<State<GameState>>,
     paused: Option<Res<Paused>>,
     zone: Option<Res<ActiveZoneInfo>>,
+    banner: Option<Res<super::zone_banner::ZoneBanner>>,
     progress: Option<Res<PlayerProgress>>,
     balls: Option<Res<BallInventory>>,
     selector: Option<Res<FieldSelector>>,
@@ -120,7 +121,9 @@ pub fn bind_field_hud(
     if !show {
         return;
     }
-    // Research bar: the nearest wild Pokémon within 60 m (the provisional radar's data).
+    // Research bar: the nearest wild Pokémon within 60 m (the provisional radar's data). While
+    // the zone welcome banner is on screen (`zone_banner`) the zone name owns the panel: the
+    // banner shows for a few seconds on every zone change and then hands the panel back.
     let nearest = player.single().ok().and_then(|p| {
         wild.iter()
             .filter(|(_, w)| !w.defeated)
@@ -128,18 +131,26 @@ pub fn bind_field_hud(
             .filter(|(d, _)| *d < 60.0)
             .min_by(|a, b| a.0.total_cmp(&b.0))
     });
-    let (header, icon) = match nearest {
-        Some((_, w)) => (
-            title_case(&w.species_name),
-            icons.pokemon(w.national_dex, 0),
-        ),
-        None => (
+    let banner_shows_name = banner.as_ref().is_some_and(|b| b.shows_zone_name());
+    let (header, icon, show_panel) = if banner_shows_name {
+        (
             zone.as_ref()
                 .map(|z| zone_label(&z.name))
                 .unwrap_or_default(),
             None,
-        ),
+            true,
+        )
+    } else {
+        match nearest {
+            Some((_, w)) => (
+                title_case(&w.species_name),
+                icons.pokemon(w.national_dex, 0),
+                true,
+            ),
+            None => (String::new(), None, false),
+        }
     };
+    s.set_visible("L_zninfo_00", show_panel);
     s.set_in("L_zninfo_00", "T_header_zninfo_00", |o| {
         o.text = Some(header);
         o.text_color = Some(BAR_TEXT);
