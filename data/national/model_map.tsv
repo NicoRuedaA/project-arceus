@@ -8,96 +8,11 @@
 #       national number above 649 (pm0749 is Bergmite #712, pm0841 is Rowlet #722)
 model:string*	species:u16	form_index:u8	form_name:string	kind:string	confidence:enum	reason:string?
 pm0000_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_16_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_17_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_18_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_19_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0701_20_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0705_01_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0707_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_16_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_17_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_18_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_19_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_20_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_21_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_22_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_23_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_24_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_25_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_26_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_27_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_28_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_29_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0708_30_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0709_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0710_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0710_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0713_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0713_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0713_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0713_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0713_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0714_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0714_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0714_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0714_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0714_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0714_16_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0715_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0715_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0715_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0715_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0715_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0716_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0725_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0726_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0727_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0727_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0731_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0732_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0733_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0734_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0734_01_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0734_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0735_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0735_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0735_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0735_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0736_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0736_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0736_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0736_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0746_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0746_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0751_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0758_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0759_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0760_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0761_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0761_51_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0762_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0764_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0765_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0766_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
 pm0770_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
 pm0770_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
 pm0770_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
 pm0770_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
 pm0770_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0773_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0774_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0774_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
 pm0801_00_00	747	0	Mareanie	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
 pm0802_00_00	748	0	Toxapex	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
 pm0803_00	755	0	Morelull	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
@@ -211,9 +126,7 @@ pm0886_00	803	0	Poipole	base	PROBABLE	icono/render del pack identificado como la
 pm0887_00	804	0	Naganadel	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
 pm0888_00_00	807	0	Zeraora	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
 pm0888_51_00	807	1	Mega Zeraora	mega	PROBABLE	FF=51 mega (convencion); especie por render (revision-gen7)
-pm0891_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
 pm0891_00_00	808	0	Meltan	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
-pm0892_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
 pm0892_00_00	809	0	Melmetal	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
 pm0892_81_00	809	1	Gigantamax Melmetal	gigamax	PROBABLE	VV/FF=81 Gigamax (convencion); especie por render (revision-gen7)
 pm0901_00_00	827	0	Nickit	base	PROBABLE	render: zorro rojizo con orejas grandes (Nickit)
@@ -1525,9 +1438,9 @@ pm0704_00_00	667	0	Litleo	base	PROBABLE	icono: cachorro leon con melena roja (Li
 pm0705_00_00	668	0	Pyroar	base	PROBABLE	icono: leon con melena (Pyroar)
 pm0705_51_00	668	1	Mega Pyroar	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
 pm0714_51_00	670	1	Eternal Flower	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
-pm0728_00_00	673	0	Gogoat	base	PROBABLE	icono: cabra con cuernos (Gogoat)
+pm0728_00_00	672	0	Skiddo	base	PROBABLE	render: cabrita marron con hojas verdes (Skiddo); altura del modelo 0.6-0.9 m frente a 1.7 m del pm0729; antes Gogoat (corregido en revision gen6)
 pm0752_00_00	674	0	Pancham	base	PROBABLE	icono: panda con hoja (Pancham)
-pm0706_00_00	677	0	Espurr	base	PROBABLE	icono: gato gris de ojos grandes (Espurr)
+pm0706_00_00	664	0	Scatterbug	base	PROBABLE	render: oruga gris con cara beige; orden interno Scatterbug 706 / Spewpa 707 / Vivillon 708; antes Espurr (corregido en revision gen6)
 pm0744_00_00	679	0	Honedge	base	PROBABLE	icono: espada azul (Honedge)
 pm0745_00_00	680	0	Doublade	base	PROBABLE	icono: espadas gemelas (Doublade)
 pm0742_00_00	684	0	Swirlix	base	PROBABLE	icono: algodon rosa (Swirlix)
@@ -1563,7 +1476,7 @@ pm0846_00_00	727	0	Incineroar	base	PROBABLE	icono: gato grande rojo (Incineroar)
 pm0847_00_00	728	0	Popplio	base	PROBABLE	icono: foca azul (Popplio)
 pm0848_00_00	729	0	Brionne	base	PROBABLE	icono: foca con volantes (Brionne)
 pm0849_00_00	730	0	Primarina	base	PROBABLE	icono: foca cantante (Primarina)
-pm0729_00_00	672	0	Skiddo	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional (corrige Stufful/Bewear: son Skiddo/Pangoro; Stufful/Bewear son pm0852/0853)
+pm0729_00_00	673	0	Gogoat	base	PROBABLE	render: cabra grande con hojas y vara verde; altura del modelo 1.7 m (Gogoat mide 1.7 m, Skiddo 0.9 m); orden pre-evolucion primero como Chespin 720/Quilladin 721/Chesnaught 722; revision gen6 corrige el Skiddo asignado por gen7
 pm0730_00_00	675	0	Pangoro	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional (corrige Stufful/Bewear: son Skiddo/Pangoro; Stufful/Bewear son pm0852/0853)
 pm0722_00_00	652	0	Chesnaught	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional (corrige Dhelmise: el modelo es Chesnaught; Dhelmise es pm0857)
 pm0722_51_00	652	1	Mega Chesnaught	mega	PROBABLE	FF=51 mega (convencion); especie por render (revision-gen7) (corrige Dhelmise: el modelo es Chesnaught; Dhelmise es pm0857)
@@ -1592,3 +1505,88 @@ pm1020_00_00	916	0	Oinkologne	base	PROBABLE	icono: cerdo; 2 subcarpetas = macho/
 pm1022_00_00	917	0	Tarountula	base	PROBABLE	icono: arana con abdomen de lana blanca (Tarountula); corregido desde Spidops
 pm1023_00_00	918	0	Spidops	base	PROBABLE	icono: arana verde (Spidops); corregido desde Nymble
 pm1024_00_00	919	0	Nymble	base	PROBABLE	icono: insecto oscuro pequeno (Nymble); corregido desde Lokix
+pm0707_00_00	665	0	Spewpa	base	PROBABLE	revision gen6: render: capullo blanco/gris con pinchos (Spewpa), sigue a Scatterbug pm0706
+pm0708_11_00	666	0	Vivillon Icy Snow	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_12_00	666	1	Vivillon Polar	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_13_00	666	2	Vivillon Tundra	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_14_00	666	3	Vivillon Continental	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_15_00	666	4	Vivillon Garden	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_16_00	666	5	Vivillon Elegant	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_17_00	666	6	Vivillon Meadow	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_18_00	666	7	Vivillon Modern	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_19_00	666	8	Vivillon Marine	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_20_00	666	9	Vivillon Archipelago	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_21_00	666	10	Vivillon High Plains	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_22_00	666	11	Vivillon Sandstorm	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_23_00	666	12	Vivillon River	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_24_00	666	13	Vivillon Monsoon	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_25_00	666	14	Vivillon Savanna	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_26_00	666	15	Vivillon Sun	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_27_00	666	16	Vivillon Ocean	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_28_00	666	17	Vivillon Jungle	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_29_00	666	18	Vivillon Fancy	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0708_30_00	666	19	Vivillon Poke Ball	cosmetica	PROBABLE	revision gen6: render pm0708_11: mariposa blanca (Vivillon); FF=11+n por convencion, nombre del patron por el orden oficial (no comprobado salvo el 11)
+pm0713_11_00	669	0	Flabebe Red	cosmetica	PROBABLE	revision gen6: render pm0713_11: flor roja pequena (Flabebe); FF=11+n, color por el orden oficial
+pm0713_12_00	669	1	Flabebe Yellow	cosmetica	PROBABLE	revision gen6: render pm0713_11: flor roja pequena (Flabebe); FF=11+n, color por el orden oficial
+pm0713_13_00	669	2	Flabebe Orange	cosmetica	PROBABLE	revision gen6: render pm0713_11: flor roja pequena (Flabebe); FF=11+n, color por el orden oficial
+pm0713_14_00	669	3	Flabebe Blue	cosmetica	PROBABLE	revision gen6: render pm0713_11: flor roja pequena (Flabebe); FF=11+n, color por el orden oficial
+pm0713_15_00	669	4	Flabebe White	cosmetica	PROBABLE	revision gen6: render pm0713_11: flor roja pequena (Flabebe); FF=11+n, color por el orden oficial
+pm0714_11_00	670	0	Floette Red	cosmetica	PROBABLE	revision gen6: render pm0714_11: flor roja con petalos (Floette); FF=11+n, color por el orden oficial
+pm0714_12_00	670	1	Floette Yellow	cosmetica	PROBABLE	revision gen6: render pm0714_11: flor roja con petalos (Floette); FF=11+n, color por el orden oficial
+pm0714_13_00	670	2	Floette Orange	cosmetica	PROBABLE	revision gen6: render pm0714_11: flor roja con petalos (Floette); FF=11+n, color por el orden oficial
+pm0714_14_00	670	3	Floette Blue	cosmetica	PROBABLE	revision gen6: render pm0714_11: flor roja con petalos (Floette); FF=11+n, color por el orden oficial
+pm0714_15_00	670	4	Floette White	cosmetica	PROBABLE	revision gen6: render pm0714_11: flor roja con petalos (Floette); FF=11+n, color por el orden oficial
+pm0714_16_00	670	5	Floette Eternal Flower	cosmetica	PROBABLE	revision gen6: Floette forma 16 (sexta del pack pm0714, junto a la 51 Mega); nombre por conjetura, no comprobado
+pm0715_11_00	671	0	Florges Red	cosmetica	PROBABLE	revision gen6: render pm0715_11: flor alta con corola (Florges); FF=11+n, color por el orden oficial
+pm0715_12_00	671	1	Florges Yellow	cosmetica	PROBABLE	revision gen6: render pm0715_11: flor alta con corola (Florges); FF=11+n, color por el orden oficial
+pm0715_13_00	671	2	Florges Orange	cosmetica	PROBABLE	revision gen6: render pm0715_11: flor alta con corola (Florges); FF=11+n, color por el orden oficial
+pm0715_14_00	671	3	Florges Blue	cosmetica	PROBABLE	revision gen6: render pm0715_11: flor alta con corola (Florges); FF=11+n, color por el orden oficial
+pm0715_15_00	671	4	Florges White	cosmetica	PROBABLE	revision gen6: render pm0715_11: flor alta con corola (Florges); FF=11+n, color por el orden oficial
+pm0705_01_00	668	2	Pyroar Female	cosmetica	PROBABLE	revision gen6: render: leon con llama roja erguida; FF=01 = hembra por convencion del catalogo
+pm0701_11_00	676	0	Furfrou Natural	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_12_00	676	1	Furfrou Heart	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_13_00	676	2	Furfrou Star	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_14_00	676	3	Furfrou Diamond	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_15_00	676	4	Furfrou Debutante	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_16_00	676	5	Furfrou Matron	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_17_00	676	6	Furfrou Dandy	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_18_00	676	7	Furfrou La Reine	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_19_00	676	8	Furfrou Kabuki	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0701_20_00	676	9	Furfrou Pharaoh	cosmetica	PROBABLE	revision gen6: render pm0701_11: caniche blanco (Furfrou); FF=11+n, corte por el orden oficial (no comprobado salvo el 11)
+pm0733_00_00	677	0	Espurr	base	PROBABLE	revision gen6: render: gato claro de orejas enormes y ojos grandes (Espurr), sigue a Meowstic pm0734
+pm0734_00_00	678	0	Meowstic	base	PROBABLE	revision gen6: render: gato azul con orejas verdes (macho)
+pm0734_01_00	678	1	Meowstic Female	cosmetica	PROBABLE	revision gen6: FF=01 = hembra por convencion del catalogo
+pm0734_51_00	678	2	Mega Meowstic	mega	PROBABLE	FF=51 Mega (convencion verificada); revision gen6: misma carpeta pm0734
+pm0746_11_00	681	0	Aegislash Shield	cosmetica	PROBABLE	revision gen6: render: empunadura amarilla con tela morada (Aegislash); FF=11+n = escudo
+pm0746_12_00	681	1	Aegislash Blade	cosmetica	PROBABLE	revision gen6: render parecido al 11; FF=12 = espada por convencion
+pm0758_00_00	682	0	Spritzee	base	PROBABLE	revision gen6: render: pajaro rosa con espiral en la cabeza (Spritzee)
+pm0759_00_00	683	0	Aromatisse	base	PROBABLE	revision gen6: render: rosa grande con cuernos de pelo y mascara oscura (Aromatisse)
+pm0726_00_00	686	0	Inkay	base	PROBABLE	revision gen6: render: calamar con sombrero blanco y cuerpo azul (Inkay); sigue a Greninja pm0725
+pm0727_00_00	687	0	Malamar	base	PROBABLE	revision gen6: render: calamar con capucha rosa, espiral y tentaculos largos (Malamar)
+pm0727_51_00	687	1	Mega Malamar	mega	PROBABLE	FF=51 Mega (convencion verificada); revision gen6: misma carpeta pm0727
+pm0709_00_00	690	0	Skrelp	base	PROBABLE	revision gen6: render: dragon de mar marron con ojo rojo y hojas (Skrelp)
+pm0710_00_00	691	0	Dragalge	base	PROBABLE	revision gen6: render: dragon de mar marron con hojas largas (Dragalge); su pack tiene Mega 51
+pm0710_51_00	691	1	Mega Dragalge	mega	PROBABLE	FF=51 Mega (convencion verificada); revision gen6: misma carpeta pm0710
+pm0731_00_00	694	0	Helioptile	base	PROBABLE	revision gen6: render: lagarto amarillo con golilla gris (Helioptile)
+pm0732_00_00	695	0	Heliolisk	base	PROBABLE	revision gen6: render: lagarto amarillo con golilla naranja grande (Heliolisk)
+pm0761_00_00	701	0	Hawlucha	base	PROBABLE	revision gen6: render: luchador verde/rojo/blanco con alas (Hawlucha)
+pm0761_51_00	701	1	Mega Hawlucha	mega	PROBABLE	FF=51 Mega (convencion verificada); revision gen6: misma carpeta pm0761
+pm0766_00_00	703	0	Carbink	base	PROBABLE	revision gen6: render: roca gris con corona blanca y gemas azules (Carbink)
+pm0760_00_00	707	0	Klefki	base	PROBABLE	revision gen6: render: anilla con llaves (Klefki)
+pm0735_11_00	710	0	Pumpkaboo Small	cosmetica	PROBABLE	revision gen6: render pm0735_11: calabaza con pelo marron (Pumpkaboo); FF=11+n, tamano por el orden oficial
+pm0736_11_00	711	0	Gourgeist Small	cosmetica	PROBABLE	revision gen6: render pm0736_11: calabaza alta con brazos rosas (Gourgeist); FF=11+n, tamano por el orden oficial
+pm0735_12_00	710	1	Pumpkaboo Average	cosmetica	PROBABLE	revision gen6: render pm0735_11: calabaza con pelo marron (Pumpkaboo); FF=11+n, tamano por el orden oficial
+pm0736_12_00	711	1	Gourgeist Average	cosmetica	PROBABLE	revision gen6: render pm0736_11: calabaza alta con brazos rosas (Gourgeist); FF=11+n, tamano por el orden oficial
+pm0735_13_00	710	2	Pumpkaboo Large	cosmetica	PROBABLE	revision gen6: render pm0735_11: calabaza con pelo marron (Pumpkaboo); FF=11+n, tamano por el orden oficial
+pm0736_13_00	711	2	Gourgeist Large	cosmetica	PROBABLE	revision gen6: render pm0736_11: calabaza alta con brazos rosas (Gourgeist); FF=11+n, tamano por el orden oficial
+pm0735_14_00	710	3	Pumpkaboo Super	cosmetica	PROBABLE	revision gen6: render pm0735_11: calabaza con pelo marron (Pumpkaboo); FF=11+n, tamano por el orden oficial
+pm0736_14_00	711	3	Gourgeist Super	cosmetica	PROBABLE	revision gen6: render pm0736_11: calabaza alta con brazos rosas (Gourgeist); FF=11+n, tamano por el orden oficial
+pm0716_00_00	714	0	Noibat	base	PROBABLE	revision gen6: render: murcielago morado de orejas grandes (Noibat)
+pm0762_00_00	715	0	Noivern	base	PROBABLE	revision gen6: render: dragon murcielago de alas verdes (Noivern)
+pm0751_00_00	713	0	Avalugg	base	PROBABLE	revision gen6: render: tortuga de hielo azul claro (Avalugg); sigue a Bergmite pm0749
+pm0764_00_00	705	0	Sliggoo	base	PROBABLE	revision gen6: render: babosa lila de antenas largas (Sliggoo)
+pm0765_00_00	706	0	Goodra	base	PROBABLE	revision gen6: render: dragon lila con antenas largas (Goodra)
+pm0773_00_00	721	0	Volcanion	base	PROBABLE	revision gen6: render: tortuga/crustaceo rojo con cañones de vapor (Volcanion)
+pm0774_11_00	720	0	Hoopa Confined	cosmetica	PROBABLE	revision gen6: render: Hoopa rosa/amarillo pequeno (Confined)
+pm0774_12_00	720	1	Hoopa Unbound	cosmetica	PROBABLE	revision gen6: render: Hoopa alto con seis anillos sueltos (Unbound)
+pm0725_11_00	658	0	Greninja	base	PROBABLE	revision gen6: render: rana azul con bufanda rosa (Greninja); no existe pm0725_00_00 en la coleccion

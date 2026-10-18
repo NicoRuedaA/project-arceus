@@ -1,0 +1,209 @@
+# sheet: reports/data-progress/model_review/gen3
+# generation: 3 (national 252-386)
+# generator: revision-gen3 session (Claude Sonnet); renders CPU lavapipe, contact sheets checked by eye
+# labels: VERIFICADO = comprobado mirando el render; PROBABLE = juicio por colores/forma
+national_number	name	pack	form	form_name	source	status	severity	note
+252	Treecko	pm0252_00_00	0	Treecko	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+253	Grovyle	pm0253_00_00	0	Grovyle	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+254	Sceptile	pm0254_00_00	0	Sceptile	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+254	Sceptile	pm0254_51_00	1	Mega Sceptile	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+255	Torchic	pm0255_00_00	0	Torchic	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+255	Torchic	pm0255_01_00	0	Torchic	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+256	Combusken	pm0256_00_00	0	Combusken	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+256	Combusken	pm0256_01_00	0	Combusken	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+257	Blaziken	pm0257_00_00	0	Blaziken	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+257	Blaziken	pm0257_01_00	0	Blaziken	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+257	Blaziken	pm0257_51_00	1	Mega Blaziken	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+258	Mudkip	pm0258_00_00	0	Mudkip	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+259	Marshtomp	pm0259_00_00	0	Marshtomp	CONVERTIDO	BAD_COLOR	1	[PROBABLE] cuerpo turquesa/verdoso; Marshtomp real es azul con mejillas naranjas
+260	Swampert	pm0260_00_00	0	Swampert	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+260	Swampert	pm0260_51_00	1	Mega Swampert	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+261	Poochyena	pm0261_00_00	0	Poochyena	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+262	Mightyena	pm0262_00_00	0	Mightyena	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+263	Zigzagoon	pm0263_00	0	Zigzagoon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+263	Zigzagoon	pm0263_00_31	1	Galarian Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+264	Linoone	pm0264_00	0	Linoone	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+264	Linoone	pm0264_00_31	1	Galarian Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+265	Wurmple	pm0265_00_00	0	Wurmple	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+265	Wurmple	pm0265_00_01	0	Wurmple	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+266	Silcoon	pm0266_00_00	0	Silcoon	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+266	Silcoon	pm0266_00_01	0	Silcoon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+267	Beautifly	pm0267_00_00	0	Beautifly	PLA	BAD_TEXTURE	1	[PROBABLE] alas con transparencia/parches apagados; cuerpo correcto. Causa probable: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+267	Beautifly	pm0267_00_01	0	Beautifly	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] alas con transparencia/parches apagados; cuerpo correcto. Causa probable: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+267	Beautifly	pm0267_01_00	0	Beautifly	PLA	BAD_TEXTURE	1	[PROBABLE] alas con transparencia/parches apagados; cuerpo correcto. Causa probable: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+267	Beautifly	pm0267_01_01	0	Beautifly	PLA	BAD_TEXTURE	1	[PROBABLE] alas con transparencia/parches apagados; cuerpo correcto. Causa probable: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+268	Cascoon	pm0268_00_00	0	Cascoon	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+268	Cascoon	pm0268_00_01	0	Cascoon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+269	Dustox	pm0269_00_00	0	Dustox	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+269	Dustox	pm0269_00_01	0	Dustox	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+269	Dustox	pm0269_01_00	0	Dustox	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+269	Dustox	pm0269_01_01	0	Dustox	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+270	Lotad	pm0270_00_00	0	Lotad	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+271	Lombre	pm0271_00_00	0	Lombre	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+272	Ludicolo	pm0272_00_00	0	Ludicolo	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+272	Ludicolo	pm0272_01_00	0	Ludicolo	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+273	Seedot	pm0273_00_00	0	Seedot	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+274	Nuzleaf	pm0274_00_00	0	Nuzleaf	CONVERTIDO	BAD_COLOR	1	[PROBABLE] cuerpo casi crema/rosado apagado (Nuzleaf real es marron); falta saturacion
+274	Nuzleaf	pm0274_01_00	0	Nuzleaf	PLA	BAD_COLOR	1	[PROBABLE] cuerpo casi crema/rosado apagado (Nuzleaf real es marron); falta saturacion
+275	Shiftry	pm0275_00_00	0	Shiftry	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+275	Shiftry	pm0275_01_00	0	Shiftry	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+276	Taillow	pm0276_00_00	0	Taillow	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+276	Taillow	pm0276_00_01	0	Taillow	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+277	Swellow	pm0277_00_00	0	Swellow	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+277	Swellow	pm0277_00_01	0	Swellow	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+278	Wingull	pm0278_00_00	0	Wingull	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+279	Pelipper	pm0279_00_00	0	Pelipper	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+280	Ralts	pm0280_00_00	0	Ralts	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+281	Kirlia	pm0281_00_00	0	Kirlia	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+282	Gardevoir	pm0282_00_00	0	Gardevoir	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+282	Gardevoir	pm0282_51_00	1	Mega Gardevoir	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+283	Surskit	pm0283_00_00	0	Surskit	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+284	Masquerain	pm0284_00_00	0	Masquerain	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+285	Shroomish	pm0285_00_00	0	Shroomish	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+286	Breloom	pm0286_00_00	0	Breloom	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+287	Slakoth	pm0287_00_00	0	Slakoth	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+288	Vigoroth	pm0288_00_00	0	Vigoroth	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+289	Slaking	pm0289_00_00	0	Slaking	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+290	Nincada	pm0290_00	0	Nincada	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] cuerpo con manchas negras y brillos; forma correcta. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+291	Ninjask	pm0291_00	0	Ninjask	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] alas con ruido rojo/blanco en cuadros; cuerpo con brillos. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+292	Shedinja	pm0292_00	0	Shedinja	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] cuerpo dorado con brillos metalicos y parches; forma correcta. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+293	Whismur	pm0293_00	0	Whismur	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] colores lavanda con parches negros brillantes (Whismur/Loudred/Exploud reales son rosa/granate y crema). Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+294	Loudred	pm0294_00	0	Loudred	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] colores lavanda con parches negros brillantes (Whismur/Loudred/Exploud reales son rosa/granate y crema). Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+295	Exploud	pm0295_00	0	Exploud	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] colores lavanda con parches negros brillantes (Whismur/Loudred/Exploud reales son rosa/granate y crema). Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+296	Makuhita	pm0296_00_00	0	Makuhita	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+297	Hariyama	pm0297_00_00	0	Hariyama	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+298	Azurill	pm0298_00_00	0	Azurill	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+299	Nosepass	pm0299_00_00	0	Nosepass	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+300	Skitty	pm0300_00_00	0	Skitty	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Skitty con parches marrones/dorados en vez de rosa y crema; oreja y cola sueltas con color cruzado. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+300	Skitty	pm0300_00_01	0	Skitty	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Skitty con parches marrones/dorados en vez de rosa y crema; oreja y cola sueltas con color cruzado. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+301	Delcatty	pm0301_00_00	0	Delcatty	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Delcatty con parches desordenados (morado/crema); forma correcta. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+301	Delcatty	pm0301_00_01	0	Delcatty	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Delcatty con parches desordenados (morado/crema); forma correcta. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+302	Sableye	pm0302_00_00	0	Sableye	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+302	Sableye	pm0302_51_00	1	Mega Sableye	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+303	Mawile	pm0303_00_00	0	Mawile	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+303	Mawile	pm0303_51_00	1	Mega Mawile	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] Mega Mawile con parches rosas/amarillos sobre cuerpo gris; texturas de partes cruzadas
+304	Aron	pm0304_00_00	0	Aron	CONVERTIDO	BAD_COLOR	2	[PROBABLE] Aron con patron blanco y negro tipo vaca (real: gris acero con casco oscuro); texturas _baked de cuerpo cruzadas
+305	Lairon	pm0305_00_00	0	Lairon	CONVERTIDO	BAD_COLOR	1	[PROBABLE] Lairon casi blanco, sin el gris acero real
+306	Aggron	pm0306_00_00	0	Aggron	CONVERTIDO	BAD_COLOR	1	[PROBABLE] Aggron/Mega Aggron casi blancos y apagados (real: gris acero oscuro)
+306	Aggron	pm0306_51_00	1	Mega Aggron	CONVERTIDO	BAD_COLOR	1	[PROBABLE] Aggron/Mega Aggron casi blancos y apagados (real: gris acero oscuro)
+307	Meditite	pm0307_00_00	0	Meditite	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+307	Meditite	pm0307_01_00	0	Meditite	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+308	Medicham	pm0308_00_00	0	Medicham	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+308	Medicham	pm0308_01_00	0	Medicham	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+308	Medicham	pm0308_51_00	1	Mega Medicham	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+309	Electrike	pm0309_00_00	0	Electrike	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+310	Manectric	pm0310_00_00	0	Manectric	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+310	Manectric	pm0310_51_00	1	Mega Manectric	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+311	Plusle	pm0311_00_00	0	Plusle	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+312	Minun	pm0312_00_00	0	Minun	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+313	Volbeat	pm0313_00_00	0	Volbeat	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+314	Illumise	pm0314_00_00	0	Illumise	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+315	Roselia	pm0315_00_00	0	Roselia	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+315	Roselia	pm0315_01_00	0	Roselia	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+316	Gulpin	pm0316_00_00	0	Gulpin	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+316	Gulpin	pm0316_01_00	0	Gulpin	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+317	Swalot	pm0317_00_00	0	Swalot	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] zona gris plana bajo la boca sin textura; resto correcto
+317	Swalot	pm0317_01_00	0	Swalot	PLA	BAD_TEXTURE	1	[PROBABLE] zona gris plana bajo la boca sin textura; resto correcto
+318	Carvanha	pm0318_00_00	0	Carvanha	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+319	Sharpedo	pm0319_00_00	0	Sharpedo	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+319	Sharpedo	pm0319_51_00	1	Mega Sharpedo	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+320	Wailmer	pm0320_00	0	Wailmer	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Wailmer con parches rosas/negros en cara y cuerpo (real: azul con vientre crema). Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+321	Wailord	pm0321_00	0	Wailord	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+322	Numel	pm0322_00_00	0	Numel	CONVERTIDO	BAD_COLOR	1	[PROBABLE] joroba con parche verde dudoso (Numel real: amarillo con joroba oscura)
+322	Numel	pm0322_01_00	0	Numel	PLA	BAD_COLOR	1	[PROBABLE] joroba con parche verde dudoso (Numel real: amarillo con joroba oscura)
+323	Camerupt	pm0323_00_00	0	Camerupt	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+323	Camerupt	pm0323_01_00	0	Camerupt	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+323	Camerupt	pm0323_51_00	1	Mega Camerupt	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+324	Torkoal	pm0324_00_00	0	Torkoal	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+325	Spoink	pm0325_00_00	0	Spoink	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+326	Grumpig	pm0326_00_00	0	Grumpig	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+327	Spinda	pm0327_00_00	0	Spinda	CONVERTIDO	BAD_COLOR	2	[VERIFICADO] Spinda con cabeza azul y orejas azules, cuerpo blanco y negro (real: marron claro con cara blanca); el color azul parece una mascara sin texturizar. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+327	Spinda	pm0327_00_01	0	Spinda	CONVERTIDO	BAD_COLOR	2	[VERIFICADO] Spinda con cabeza azul y orejas azules, cuerpo blanco y negro (real: marron claro con cara blanca); el color azul parece una mascara sin texturizar. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+328	Trapinch	pm0328_00_00	0	Trapinch	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+329	Vibrava	pm0329_00_00	0	Vibrava	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+330	Flygon	pm0330_00_00	0	Flygon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+331	Cacnea	pm0331_00_00	0	Cacnea	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+332	Cacturne	pm0332_00_00	0	Cacturne	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+332	Cacturne	pm0332_01_00	0	Cacturne	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+333	Swablu	pm0333_00_00	0	Swablu	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+334	Altaria	pm0334_00_00	0	Altaria	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+334	Altaria	pm0334_51_00	1	Mega Altaria	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+335	Zangoose	pm0335_00_00	0	Zangoose	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+336	Seviper	pm0336_00_00	0	Seviper	CONVERTIDO	BAD_COLOR	1	[PROBABLE] Seviper gris azulado (real: negro con rojo y morado)
+337	Lunatone	pm0337_00	0	Lunatone	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+338	Solrock	pm0338_00	0	Solrock	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+339	Barboach	pm0339_00_00	0	Barboach	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+340	Whiscash	pm0340_00_00	0	Whiscash	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+341	Corphish	pm0341_00_00	0	Corphish	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+342	Crawdaunt	pm0342_00_00	0	Crawdaunt	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+343	Baltoy	pm0343_00	0	Baltoy	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+344	Claydol	pm0344_00	0	Claydol	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Claydol con parches negros/rosas/plateados brillantes. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+345	Lileep	pm0345_00	0	Lileep	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Lileep violeta con brillos plateados en el cuerpo; forma correcta. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+346	Cradily	pm0346_00	0	Cradily	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Cradily con parches verdes/rosas/negros y brillo metalico. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+347	Anorith	pm0347_00	0	Anorith	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Anorith con parches negros/blancos brillantes y alas cruzadas. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+348	Armaldo	pm0348_00	0	Armaldo	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+349	Feebas	pm0349_00_00	0	Feebas	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+350	Milotic	pm0350_00_00	0	Milotic	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+350	Milotic	pm0350_01_00	0	Milotic	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+351	Castform	pm0351_11_00	0	Normal	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Castform normal con parches negros brillantes sobre blanco/rosa. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+351	Castform	pm0351_11_01	0	Normal	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Castform normal con parches negros brillantes sobre blanco/rosa. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+351	Castform	pm0351_12_00	1	Sunny Form	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Castform Sol con esferas de colores cruzados y brillo; forma plausible. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+351	Castform	pm0351_12_01	1	Sunny Form	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Castform Sol con esferas de colores cruzados y brillo; forma plausible. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+351	Castform	pm0351_13_00	2	Rainy Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+351	Castform	pm0351_13_01	2	Rainy Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+351	Castform	pm0351_14_00	3	Snowy Form	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Castform Nieve con parches negros/azules brillantes. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+351	Castform	pm0351_14_01	3	Snowy Form	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Castform Nieve con parches negros/azules brillantes. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+352	Kecleon	pm0352_00_00	0	Kecleon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+353	Shuppet	pm0353_00_00	0	Shuppet	CONVERTIDO	BAD_COLOR	1	[PROBABLE] Shuppet azul grisaceo (real: gris oscuro/negro con rojo)
+354	Banette	pm0354_00_00	0	Banette	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+354	Banette	pm0354_51_00	1	Mega Banette	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+355	Duskull	pm0355_00_00	0	Duskull	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+356	Dusclops	pm0356_00_00	0	Dusclops	PLA	BAD_COLOR	1	[PROBABLE] Dusclops muy claro/blanquecino (real: gris oscuro)
+357	Tropius	pm0357_00_00	0	Tropius	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+358	Chimecho	pm0358_00_00	0	Chimecho	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+358	Chimecho	pm0358_51_00	1	Mega Chimecho	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+359	Absol	pm0359_00_00	0	Absol	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+359	Absol	pm0359_51_00	1	Mega Absol	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+359	Absol	pm0359_52_00	2	Mega Absol Z	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+360	Wynaut	pm0360_00	0	Wynaut	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+361	Snorunt	pm0361_00_00	0	Snorunt	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+362	Glalie	pm0362_00_00	0	Glalie	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+362	Glalie	pm0362_51_00	1	Mega Glalie	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+363	Spheal	pm0363_00	0	Spheal	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Spheal con manchas negras y brillos. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+364	Sealeo	pm0364_00	0	Sealeo	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Sealeo con parche negro; forma correcta. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+365	Walrein	pm0365_00	0	Walrein	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Walrein con manchas blancas/negras sueltas en la cabeza. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+366	Clamperl	pm0366_00_00	0	Clamperl	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] concha con rayas negras y parches; colores azul/morado correctos. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+366	Clamperl	pm0366_00_01	0	Clamperl	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] concha con rayas negras y parches; colores azul/morado correctos. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+367	Huntail	pm0367_00_00	0	Huntail	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Huntail con parches marrones/rosas/verdes en vez de azul y crema. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+367	Huntail	pm0367_00_01	0	Huntail	CONVERTIDO	BAD_TEXTURE	2	[VERIFICADO] Huntail con parches marrones/rosas/verdes en vez de azul y crema. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+368	Gorebyss	pm0368_00_00	0	Gorebyss	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Gorebyss con parches oscuros; forma correcta. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+368	Gorebyss	pm0368_00_01	0	Gorebyss	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Gorebyss con parches oscuros; forma correcta. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+369	Relicanth	pm0369_00	0	Relicanth	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] Relicanth con parches rosas y negros; identidad probable por forma. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+369	Relicanth	pm0369_01	0	Relicanth	PLA	BAD_TEXTURE	1	[PROBABLE] Relicanth con parches rosas y negros; identidad probable por forma. Causa: mapeo de texturas _col/_nor del exportador (parches metalicos/colores cruzados)
+370	Luvdisc	pm0370_00_00	0	Luvdisc	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+371	Bagon	pm0371_00_00	0	Bagon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+372	Shelgon	pm0372_00_00	0	Shelgon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+373	Salamence	pm0373_00_00	0	Salamence	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+373	Salamence	pm0373_51_00	1	Mega Salamence	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+374	Beldum	pm0374_00_00	0	Beldum	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+375	Metang	pm0375_00_00	0	Metang	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+376	Metagross	pm0376_00_00	0	Metagross	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+376	Metagross	pm0376_51_00	1	Mega Metagross	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+377	Regirock	pm0377_00_00	0	Regirock	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+378	Regice	pm0378_00_00	0	Regice	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+379	Registeel	pm0379_00_00	0	Registeel	CONVERTIDO	BAD_COLOR	1	[PROBABLE] Registeel casi blanco/gris claro (real: gris acero)
+380	Latias	pm0380_00_00	0	Latias	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+380	Latias	pm0380_51_00	1	Mega Latias	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+381	Latios	pm0381_00_00	0	Latios	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+381	Latios	pm0381_51_00	1	Mega Latios	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+382	Kyogre	pm0382_00_00	0	Kyogre	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+382	Kyogre	pm0382_51_00	1	Primal Reversion	CONVERTIDO	BAD_COLOR	2	[PROBABLE] Kyogre Primigenio lila (real: azul muy oscuro con rojo brillante); textura equivocada o apagada
+383	Groudon	pm0383_00_00	0	Groudon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+383	Groudon	pm0383_51_00	1	Primal Reversion	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+384	Rayquaza	pm0384_00_00	0	Rayquaza	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+384	Rayquaza	pm0384_51_00	1	Mega Rayquaza	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+385	Jirachi	pm0385_00_00	0	Jirachi	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+386	Deoxys	pm0386_11_00	0	Normal Forme	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+386	Deoxys	pm0386_12_00	1	Attack Forme	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+386	Deoxys	pm0386_13_00	2	Defense Forme	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+386	Deoxys	pm0386_14_00	3	Speed Forme	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
