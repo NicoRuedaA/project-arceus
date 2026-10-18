@@ -1,0 +1,32 @@
+{
+ "description": "Full-screen map (M).",
+ "args": [
+  "--area",
+  "0"
+ ],
+ "steps": [
+  {
+   "cmd": "set_time",
+   "slot": 1,
+   "pinned": true
+  },
+  {
+   "cmd": "step",
+   "frames": 60,
+   "render": "last"
+  },
+  {
+   "cmd": "key",
+   "key": "M"
+  },
+  {
+   "cmd": "step",
+   "frames": 30,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "full_map"
+  }
+ ]
+}

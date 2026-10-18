@@ -1,0 +1,126 @@
+{
+ "description": "Esc menu (opens on the bag), E for the next tab: bag, party, Pokedex (4 E), System (8 E).",
+ "args": [
+  "--area",
+  "0"
+ ],
+ "steps": [
+  {
+   "cmd": "give_item",
+   "id": 17,
+   "count": 5
+  },
+  {
+   "cmd": "add_pokemon",
+   "species": "shinx",
+   "level": 12
+  },
+  {
+   "cmd": "step",
+   "frames": 60,
+   "render": "last"
+  },
+  {
+   "cmd": "key",
+   "key": "Escape"
+  },
+  {
+   "cmd": "step",
+   "frames": 20,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "pause_bag"
+  },
+  {
+   "cmd": "key",
+   "key": "E"
+  },
+  {
+   "cmd": "step",
+   "frames": 10,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "pause_party"
+  },
+  {
+   "cmd": "key",
+   "key": "E"
+  },
+  {
+   "cmd": "step",
+   "frames": 5,
+   "render": "last"
+  },
+  {
+   "cmd": "key",
+   "key": "E"
+  },
+  {
+   "cmd": "step",
+   "frames": 5,
+   "render": "last"
+  },
+  {
+   "cmd": "key",
+   "key": "E"
+  },
+  {
+   "cmd": "step",
+   "frames": 5,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "pause_pokedex"
+  },
+  {
+   "cmd": "key",
+   "key": "E"
+  },
+  {
+   "cmd": "step",
+   "frames": 5,
+   "render": "last"
+  },
+  {
+   "cmd": "key",
+   "key": "E"
+  },
+  {
+   "cmd": "step",
+   "frames": 5,
+   "render": "last"
+  },
+  {
+   "cmd": "key",
+   "key": "E"
+  },
+  {
+   "cmd": "step",
+   "frames": 5,
+   "render": "last"
+  },
+  {
+   "cmd": "key",
+   "key": "E"
+  },
+  {
+   "cmd": "step",
+   "frames": 5,
+   "render": "last"
+  },
+  {
+   "cmd": "step",
+   "frames": 10,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "pause_system"
+  }
+ ]
+}

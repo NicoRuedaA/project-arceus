@@ -105,6 +105,9 @@ fn socket_session_ping_step_state_quit() {
             r#"{"cmd":"mouse","button":"left","action":"release"}"#,
             r#"{"cmd":"fly"}"#,
             r#"{"cmd":"screenshot","path":"x.png"}"#,
+            r#"{"cmd":"step","frames":5,"render":"last"}"#,
+            r#"{"cmd":"wait_seconds","seconds":0.1,"render":"last"}"#,
+            r#"{"cmd":"step","frames":2,"render":"never"}"#,
             r#"{"cmd":"quit"}"#,
         ] {
             replies.push(send(&mut stream, &mut reader, line));
@@ -114,7 +117,7 @@ fn socket_session_ping_step_state_quit() {
     let exit = app.run();
     let replies = client.join().expect("client thread");
     assert_eq!(exit, AppExit::Success);
-    let [ping, step, state, moved, pressed, released, bad, shot, quit] = &replies[..] else {
+    let [ping, step, state, moved, pressed, released, bad, shot, fast_step, fast_wait, bad_render, quit] = &replies[..] else {
         panic!("{replies:?}")
     };
     // The mouse commands answer their pointer state and run frames, and the move / press edges
@@ -138,6 +141,11 @@ fn socket_session_ping_step_state_quit() {
     assert!(bad["error"].as_str().unwrap().contains("unknown command"), "{bad}");
     assert_eq!(shot["ok"], false);
     assert!(shot["error"].as_str().unwrap().starts_with("unavailable"), "{shot}");
+    // `render:last` simulates every frame (only the drawing is skipped, nothing to skip here).
+    assert_eq!(fast_step["stepped"], 5, "{fast_step}");
+    assert_eq!(fast_wait["stepped"], 6, "{fast_wait}");
+    assert_eq!(fast_wait["frame"].as_u64().unwrap(), fast_step["frame"].as_u64().unwrap() + 6);
+    assert_eq!(bad_render["ok"], false, "{bad_render}");
     assert_eq!(quit["ok"], true);
     assert!(!socket.exists(), "the socket file is removed on quit");
     let _ = std::fs::remove_dir_all(&dir);
