@@ -51,7 +51,7 @@ use pla::game::main_menu::MainMenuPlugin;
 use pla::game::pause_menu::PauseMenuPlugin;
 use pla::game::settings::UserSettings;
 use pla::game::state::{not_paused, Paused};
-use pla::game::water::{PlayerSwim, SwimState, WaterBodies, SWIM_ENTER_DEPTH, SWIM_SPEED};
+use pla::game::water::{PlayerSwim, SwimState, WaterBodies, SWIM_SPEED};
 use pla::game::zone::{TerrainChunkMarker, TerrainResource};
 use pla::game::{
     battle_input_system, load_spawners_for_area, roll_spawner_variant, setup_game_ui,
@@ -514,10 +514,12 @@ fn main() -> ExitCode {
 
     let navmesh_res = load_navmesh(&bin_root, area_idx);
 
-    // Safe start (largest walkable island, gentle slope, clearance; see game/spawn_point.rs):
-    // `--player-pos` is honoured, a valid saved position too, otherwise the safe start is used.
+    // Safe start on the port's terrain rule (gentle slope, clearance; see game/spawn_point.rs):
+    // `--player-pos` is honoured, a walkable saved position too, otherwise the safe start is
+    // used. The decoded navmesh resource above is kept only for the interior minimap and the
+    // report examples; movement does not read it.
     let (player_spawn_pos, safe_spawn_xz, spawn_notice) = choose_player_spawn(
-        navmesh_res.as_ref(),
+        terrain_res.as_ref(),
         area_idx,
         initial_player_pos,
         pos_from_cli,
@@ -794,58 +796,48 @@ fn load_navmesh(bin_root: &std::path::Path, area_idx: u8) -> Option<GameNavmeshR
     }
 }
 
-/// Start position: `--player-pos` is honoured, a valid saved position too, otherwise the safe
-/// start. Returns the position, the safe start (if any) and a notice for the player.
+/// Start position: `--player-pos` is honoured, a walkable saved position too, otherwise the
+/// safe start. Returns the position, the safe start (if any) and a notice for the player.
+///
+/// Since the user decision of 2026-10-17 the decision uses the terrain walk rule
+/// (`game::terrain_collision`) and not the decoded navmesh; without terrain data the position
+/// is kept as given.
 fn choose_player_spawn(
-    navmesh_res: Option<&GameNavmeshResource>,
+    terrain_res: Option<&TerrainResource>,
     area_idx: u8,
     initial_player_pos: Option<Vec2>,
     pos_from_cli: bool,
     player_spawn_pos: Vec2,
 ) -> (Vec2, Option<Vec2>, Option<&'static str>) {
     use pla::game::spawn_point as sp;
+    use pla::game::terrain_collision::WalkContext;
     let mut safe_spawn_xz: Option<Vec2> = None;
     let mut spawn_notice: Option<&str> = None;
-    let player_spawn_pos = if let Some(nr) = navmesh_res {
-        let nav = nr.nav.primary();
-        let comps = sp::components(nav);
+    let player_spawn_pos = if let Some(terrain) = terrain_res {
+        let ctx = WalkContext::player(Some(terrain), None, None, false, 0.0);
         let rd = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
         let marks = sp::landmarks_for_area(
             area_idx,
             &rd("data/field_spawn_table.tsv"),
             &rd("data/field_object_placements.tsv"),
         );
-        let safe = sp::choose_safe_spawn(nav, &comps, &marks, &sp::SpawnConfig::default());
+        let safe = sp::safe_start(&ctx, &marks, &sp::SpawnConfig::default());
         safe_spawn_xz = safe.map(|s| s.xz);
         let (explicit, saved) = if pos_from_cli {
             (initial_player_pos, None)
         } else {
             (None, initial_player_pos)
         };
-        let snap = |p: Vec2| {
-            if nav.is_walkable(p.x, p.y) {
-                p
-            } else if let Some(hit) = nav.nearest(p.x, p.y, 400.0) {
-                let c = sp::face_centroid(nav, hit.face);
-                println!(
-                    "Adjusted initial spawn position to walkable navmesh face: ({:.1}, {:.1})",
-                    c[0], c[2]
-                );
-                Vec2::new(c[0], c[2])
-            } else {
-                p
-            }
-        };
-        match sp::choose_start(nav, &comps, explicit, saved, safe) {
-            sp::StartChoice::Explicit(p) | sp::StartChoice::Saved(p) => snap(p),
+        match sp::choose_start(&ctx, explicit, saved, safe) {
+            sp::StartChoice::Explicit(p) | sp::StartChoice::Saved(p) => p,
             sp::StartChoice::Safe(p) => p,
             sp::StartChoice::SafeReplacingSaved(p) => {
                 spawn_notice = Some(
-                    "Saved position was not on the main walkable area: moved to the safe start.",
+                    "Saved position was not on walkable ground: moved to the safe start.",
                 );
                 p
             }
-            sp::StartChoice::NoSafe => snap(player_spawn_pos),
+            sp::StartChoice::NoSafe => player_spawn_pos,
         }
     } else {
         player_spawn_pos
@@ -2297,7 +2289,8 @@ fn get_species_color(dex: u16) -> Color {
 fn apply_safe_spawn_request(
     mut request: ResMut<pla::game::pause_menu::SafeSpawnRequested>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
-    navmesh_res: Option<Res<GameNavmeshResource>>,
+    terrain_res: Option<Res<TerrainResource>>,
+    wall_collision: Option<Res<pla::game::world_collision::WorldCollision>>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
     mut player_query: Query<&mut Transform, With<PlayerAvatar>>,
 ) {
@@ -2310,22 +2303,27 @@ fn apply_safe_spawn_request(
     };
     t.translation.x = safe.0.x;
     t.translation.z = safe.0.y;
-    if let Some(y) = navmesh_res
-        .as_ref()
-        .and_then(|n| n.height_at(safe.0.x, safe.0.y))
-    {
+    if let Some(y) = pla::game::terrain_collision::ground_y(
+        terrain_res.as_deref(),
+        wall_collision.as_deref(),
+        safe.0.x,
+        safe.0.y,
+        t.translation.y,
+    ) {
         t.translation.y = y + 0.9;
     }
     toast.show("Back at the safe spawn.");
 }
 
 /// Player locomotion system: translates input along camera relative vectors,
-/// uses navmesh collision to block cliffs/water with smooth sliding, and samples surface height.
+/// uses the terrain walk rule (`game::terrain_collision`: heightmap + placed-object colliders)
+/// to block walls with smooth sliding, and samples the surface height (terrain, else collider
+/// floors in interiors). Walking off a drop is allowed: `game::player_motion` falls by gravity
+/// and applies the decoded fall damage.
 /// Movement comes from [`ActionState`] (WASD/arrows or the gamepad left stick); the stick keeps
 /// its deflected magnitude so a half-pushed stick walks slower.
-/// Per-frame state [`player_locomotion`] keeps between frames (one `Local`, kept in a single
-/// parameter because the system sits at Bevy's 16-parameter limit): the anti-stuck tracker and
-/// the navmesh-slide memory (last accepted slide step and last input delta) of the 60 Hz
+/// Per-frame state [`player_locomotion`] keeps between frames (one `Local`): the anti-stuck
+/// tracker and the slide memory (last accepted slide step and last input delta) of the 60 Hz
 /// vibration guard.
 #[derive(Default)]
 struct LocomotionMemory {
@@ -2339,12 +2337,10 @@ fn player_locomotion(
     input: Res<ActionState>,
     camera_ctrl: Res<CameraController>,
     terrain_res: Option<Res<TerrainResource>>,
-    navmesh_res: Option<Res<GameNavmeshResource>>,
     wall_collision: Option<Res<pla::game::world_collision::WorldCollision>>,
     water_bodies: Option<Res<WaterBodies>>,
     safe: Option<Res<pla::game::spawn_point::SafeSpawnPoint>>,
     mut mem: Local<LocomotionMemory>,
-    mut ledge_drop: Local<Option<pla::game::ledge::LedgeDrop>>,
     mut toast: ResMut<pla::game::save_wire::SaveToast>,
     motion_query: Query<&pla::game::player_motion::PlayerMotionState, With<PlayerAvatar>>,
     mut skills_query: Query<&mut pla::game::player_skills::PlayerSkillState, With<PlayerAvatar>>,
@@ -2460,7 +2456,7 @@ fn player_locomotion(
         //   bed and swims once the bed drops below SWIM_ENTER_DEPTH;
         // * walking off a low bank (measured 2026-10-16 at a Mirelands shore: surface 0.5 m below
         //   the feet): the surface sits below the avatar within the step cap;
-        // * the navmesh blocks but the water level near the target is coherent with the feet.
+        // * the walk rule blocks but the water level near the target is coherent with the feet.
         let near_level = water_bodies
             .as_ref()
             .and_then(|w| w.level_near(target_xz, 0.5));
@@ -2479,127 +2475,73 @@ fn player_locomotion(
                 && stand_y - level <= pla::game::water::SWIM_MAX_GROUND_OFFSET;
             under || feet
         });
-        // An avatar already swimming keeps the free-water rule: deep water has no navmesh faces,
-        // so pushing the swimmer through `try_move_with_slide` pinned it in place (the mount
+        // An avatar already swimming keeps the free-water rule: deep water is not walkable
+        // on foot, so pushing the swimmer through the walk rule pinned it in place (the mount
         // "would not swim": measured 0.9 m/s instead of the decoded 8-11). The shore still works:
         // a target back on land is walkable, and the wall push-out below always applies.
         let free_swim = was_swimming || water_entry;
-        // An avatar in the air is not on the navmesh either: the walkable-face constraint must
-        // not drag a jumper or a flying mount back (measured: the Braviary swoop at the decoded
-        // 16 m/s was cancelled frame by frame by `escape_step`). A ledge drop in progress keeps
-        // its corridor (it is the landing aid of the walked-off-a-cliff case).
-        let free_air = motion_mode == MotionMode::Airborne && ledge_drop.is_none();
+        // An avatar in the air is not on the ground either: the walk rule must not drag a
+        // jumper or a flying mount back (measured: the Braviary swoop at the decoded 16 m/s
+        // was cancelled frame by frame by the old off-mesh escape step).
+        let free_air = motion_mode == MotionMode::Airborne;
 
-        // Walking off a ledge (game::ledge): a drop already in progress keeps the player in
-        // its corridor until it stands on the navmesh again; a new move off the walkable edge
-        // starts one when the ground below is a legal drop (1 step .. 6 m, no wall, no water).
-        if let (Some(d), Some(nav)) = (ledge_drop.as_mut(), navmesh_res.as_ref()) {
-            d.elapsed += dt;
-            let back_on_mesh = motion_mode == MotionMode::Grounded
-                && nav.is_walkable(current_xz.x, current_xz.y);
-            if back_on_mesh || d.elapsed > pla::game::ledge::DROP_TIMEOUT {
-                *ledge_drop = None;
-            }
-        }
-        let ledge_start = match (&navmesh_res, *ledge_drop) {
-            (Some(nav), None)
-                if !free_swim
-                    && dodge.is_none()
-                    && motion_mode == MotionMode::Grounded
-                    && !nav.is_walkable(target_xz.x, target_xz.y) =>
-            {
-                nav.height_at(current_xz.x, current_xz.y).and_then(|start_y| {
-                    pla::game::ledge::find_ledge_drop(
-                        current_xz,
-                        start_y,
-                        delta_xz,
-                        |p| nav.height_at(p.x, p.y),
-                        |p| terrain_res.as_ref().and_then(|t| t.area.sample_world_height(p.x, p.y)),
-                        |p| {
-                            let ground = terrain_res
-                                .as_ref()
-                                .and_then(|t| t.area.sample_world_height(p.x, p.y));
-                            water_bodies
-                                .as_ref()
-                                .and_then(|w| w.level_near(p, 0.5))
-                                .zip(ground)
-                                .is_some_and(|(level, g)| level - g > SWIM_ENTER_DEPTH)
-                        },
-                    )
-                })
-            }
-            _ => None,
-        };
-        if let Some(d) = ledge_start {
-            println!(
-                "Ledge drop: {:.1} m from ({:.1}, {:.1}) toward ({:.1}, {:.1})",
-                d.drop_height(),
-                d.start.x,
-                d.start.y,
-                d.landing.x,
-                d.landing.y
-            );
-            *ledge_drop = Some(d);
-        }
-
-        // Apply navmesh collision sliding if real navmesh is loaded
+        // The walk rule of `game::terrain_collision`: the terrain heightmap and the placed-object
+        // colliders (interiors ground on collider floors). Walking off a drop is allowed; the
+        // vertical system falls by gravity and applies the decoded fall damage.
         let final_xz = if free_swim || free_air {
             target_xz
-        } else if let (Some(d), Some(nav)) = (ledge_drop.as_ref(), navmesh_res.as_ref()) {
-            pla::game::ledge::drop_move(d, current_xz, target_xz, |p| nav.is_walkable(p.x, p.y))
-        } else if let Some(ref nav) = navmesh_res {
+        } else if terrain_res.is_none() && wall_collision.is_none() {
+            // No ground source at all (no extracted terrain): free movement fallback.
+            current_xz + delta_xz
+        } else {
             use pla::game::spawn_point as sp;
-            let walk = |p: Vec2| nav.is_walkable(p.x, p.y);
-            // Off the navmesh: walk toward the nearest walkable point instead of rejecting every move.
-            let escape = sp::escape_step(current_xz, delta_xz, walk, |p| {
-                nav.nearest(p.x, p.y, 60.0).map(|h| {
-                    let c = sp::face_centroid(nav.nav.primary(), h.face);
-                    Vec2::new(c[0], c[2])
-                })
-            });
+            let mounted = ride.as_ref().is_some_and(|r| r.is_mounted());
+            let ctx = pla::game::terrain_collision::WalkContext::player(
+                terrain_res.as_deref(),
+                wall_collision.as_deref(),
+                water_bodies.as_deref(),
+                mounted,
+                stand_y,
+            );
+            let walk = |p: Vec2| ctx.is_walkable(p.x, p.y);
             // Boxed in on all 8 sides for > 1 s with input held: back to the safe spawn.
-            let boxed = escape.is_none() && sp::boxed_in(current_xz, 0.3, walk);
+            let boxed = sp::boxed_in(current_xz, 0.3, walk);
             match (mem.stuck.update(dt, true, boxed), safe.as_ref()) {
                 (true, Some(s)) => {
                     toast.show("Stuck: moved back to the safe spawn.");
                     s.0
                 }
-                _ => match escape {
-                    Some(e) => e,
-                    None => {
-                        let slid = nav.try_move_with_slide(current_xz, delta_xz);
-                        let step = slid - current_xz;
-                        // 60 Hz vibration guard (user report: the mount "pins" against walls
-                        // instead of sliding). The nav slide tries the move rotated by
-                        // +-30/60/90 deg and takes the first walkable candidate, so at a wall
-                        // whose side candidates are walkable it picks east one frame and west
-                        // the next: measured +-0.14 m / frame holding W at a navmesh edge
-                        // (user report "pinzada", 2026-10-16). When the step exactly reverses
-                        // the previous frame's slide under the same input direction it is
-                        // undoing progress: hold still instead of vibrating.
-                        let same_input = mem.last_slide_input.as_ref().is_some_and(|d| {
-                            d.length_squared() > 1e-8
-                                && d.dot(delta_xz) > d.length() * delta_xz.length() * 0.999
-                        });
-                        let reverses = mem.last_slide_step
-                            .as_ref()
-                            .is_some_and(|p| step.length() > 1e-6 && (step + *p).length() < 0.02);
-                        mem.last_slide_input = Some(delta_xz);
-                        if same_input && reverses {
-                            current_xz
-                        } else {
-                            if step.length() > 1e-6 {
-                                mem.last_slide_step = Some(step);
-                            }
-                            slid
+                _ => {
+                    let slid = sp::slide_move(current_xz, delta_xz, walk);
+                    let step = slid - current_xz;
+                    // 60 Hz vibration guard (user report: the mount "pins" against walls
+                    // instead of sliding). The slide tries the move rotated by
+                    // +-30/60/90 deg and takes the first walkable candidate, so at a wall
+                    // whose side candidates are walkable it picks east one frame and west
+                    // the next: measured +-0.14 m / frame holding W at a navmesh edge
+                    // (user report "pinzada", 2026-10-16). When the step exactly reverses
+                    // the previous frame's slide under the same input direction it is
+                    // undoing progress: hold still instead of vibrating.
+                    let same_input = mem.last_slide_input.as_ref().is_some_and(|d| {
+                        d.length_squared() > 1e-8
+                            && d.dot(delta_xz) > d.length() * delta_xz.length() * 0.999
+                    });
+                    let reverses = mem.last_slide_step
+                        .as_ref()
+                        .is_some_and(|p| step.length() > 1e-6 && (step + *p).length() < 0.02);
+                    mem.last_slide_input = Some(delta_xz);
+                    if same_input && reverses {
+                        current_xz
+                    } else {
+                        if step.length() > 1e-6 {
+                            mem.last_slide_step = Some(step);
                         }
+                        slid
                     }
-                },
+                }
             }
-        } else {
-            current_xz + delta_xz
         };
-        // Wall collision of placed objects (houses, fences, rocks) after the navmesh slide.
+        // Wall collision of placed objects (houses, fences, rocks) after the terrain slide.
         let final_xz = wall_collision.as_ref().map_or(final_xz, |w| {
             w.push_player_out(final_xz, transform.translation.y)
         });
@@ -2620,20 +2562,21 @@ fn player_locomotion(
         mem.stuck.blocked_secs = 0.0;
     }
 
-    // Keep player avatar on the real terrain or navmesh surface
-    let nav_h = navmesh_res
-        .as_ref()
-        .and_then(|n| n.height_at(transform.translation.x, transform.translation.z));
-    let terrain_h = terrain_res.as_ref().and_then(|t| {
-        t.area
-            .sample_world_height(transform.translation.x, transform.translation.z)
-    });
+    // Keep the player avatar on the real surface: the terrain heightmap, else the placed-object
+    // collider floors (interiors). No navmesh (user decision 2026-10-17).
+    let surface_y = pla::game::terrain_collision::ground_y(
+        terrain_res.as_deref(),
+        wall_collision.as_deref(),
+        transform.translation.x,
+        transform.translation.z,
+        transform.translation.y,
+    );
 
     // Ground snapping (and the water probe) only run while grounded: in the air or on a
     // climbable the vertical system (game::player_motion) owns Y, and a jump over water
     // must not snap the avatar down to the surface mid-flight.
     if motion_mode == MotionMode::Grounded {
-        if let Some(surface_y) = nav_h.or(terrain_h) {
+        if let Some(surface_y) = surface_y {
             // Swimming: the chest-height rule with hysteresis lives in game::water (unit-tested there).
             // The 3 m ground offset only gates ENTERING a body (it filters the flat planes that
             // float far above the terrain); an avatar already swimming stays attached to the
@@ -4793,7 +4736,7 @@ mod startup_schedule_guard {
         let navmesh_res = load_navmesh(&bin_root, area_idx);
         let fallback = if area_idx == 0 { Vec2::new(448.0, 652.0) } else { Vec2::new(512.5, 512.5) };
         let (player_spawn_pos, safe_spawn_xz, spawn_notice) =
-            choose_player_spawn(navmesh_res.as_ref(), area_idx, None, false, fallback);
+            choose_player_spawn(terrain_res.as_ref(), area_idx, None, false, fallback);
 
         // Always a new game in a scratch directory: the player's save is never read or written.
         let mut wire_cli = pla::game::save_wire::WireCli::from_args(&cli_args);

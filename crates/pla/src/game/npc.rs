@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use bevy::prelude::*;
 
 use super::clock::GameClock;
-use super::navigation::GameNavmeshResource;
+use super::world_collision::WorldCollision;
 use super::player_motion::ground_surface_y;
 use super::zone::TerrainResource;
 use super::npc_model::{
@@ -635,8 +635,9 @@ pub fn step_bounded_look(current_yaw: f32, target_yaw: f32, rate_deg_s: f32, dt:
     }
 }
 
-/// Standing height for a placement: the surface the player walks on (navmesh, then terrain heightmap) when it is
-/// within 3 m of the sheet's Y; otherwise the sheet's Y (interiors, roofs and platforms are not on that surface).
+/// Standing height for a placement: the surface the player walks on (the terrain heightmap,
+/// then the placed-object collider floors) when it is within 3 m of the sheet's Y; otherwise
+/// the sheet's Y (a wrong sheet height is not overridden).
 pub fn snap_ground_y(position: [f32; 3], surface: Option<f32>) -> f32 {
     surface.filter(|y| y.is_finite() && (y - position[1]).abs() <= 3.0).unwrap_or(position[1])
 }
@@ -700,7 +701,7 @@ fn stream_npcs(
     mut commands: Commands,
     mut world: ResMut<NpcWorld>,
     player: Query<&Transform, With<PlayerAvatar>>,
-    nav: Option<Res<GameNavmeshResource>>,
+    collision: Option<Res<WorldCollision>>,
     terrain: Option<Res<TerrainResource>>,
     trainers: Option<Res<TrainerWorld>>,
     asset_server: Option<Res<AssetServer>>,
@@ -781,7 +782,7 @@ fn stream_npcs(
             &mut commands,
             &world,
             &placement,
-            nav.as_deref(),
+            collision.as_deref(),
             terrain.as_deref(),
             asset_server.as_deref(),
             &mut models,
@@ -796,14 +797,23 @@ fn spawn_npc(
     commands: &mut Commands,
     world: &NpcWorld,
     placement: &NpcPlacement,
-    nav: Option<&GameNavmeshResource>,
+    collision: Option<&WorldCollision>,
     terrain: Option<&TerrainResource>,
     asset_server: Option<&AssetServer>,
     models: &mut NpcModelCache,
     mut meshes: Option<&mut Assets<Mesh>>,
     mut materials: Option<&mut Assets<StandardMaterial>>,
 ) -> Entity {
-    let ground_y = snap_ground_y(placement.position, ground_surface_y(terrain, nav, placement.position[0], placement.position[2]));
+    let ground_y = snap_ground_y(
+        placement.position,
+        ground_surface_y(
+            terrain,
+            collision,
+            placement.position[0],
+            placement.position[2],
+            placement.position[1],
+        ),
+    );
     let base_yaw = placement.yaw_deg.to_radians();
     let appearance = world.appearances.get(&placement.chara_hash);
     let idle_clip = appearance.and_then(|appearance| {

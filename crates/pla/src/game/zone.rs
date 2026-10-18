@@ -37,7 +37,6 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::assets::bntx::TextureData;
-use crate::assets::navmesh::NavMesh;
 use crate::assets::terrain::{
     build_mesh_chunks, TerrainArea, TerrainMeshChunk, TerrainMeshSettings, TerrainScaleOverride,
 };
@@ -57,19 +56,19 @@ pub const WARP_LINKS_SHEET: &str = "data/warp_links.tsv";
 /// Extra margin (metres) of the door trigger box: the port's base interaction reach.
 ///
 /// The sheet box (`trigger_w x trigger_d`) is the door record's own box; this base margin covers
-/// the player capsule and the common threshold gap. The decoded navmesh excludes the door
-/// openings (indoor and outdoor surfaces are separate islands in the original data), so some
-/// doors keep their walkable island farther away: [`DoorReachIndex`] extends the reach per door
-/// with the measured distance to the nearest walkable point, so every door works from the closest
-/// spot a player can stand (2026-10-15: found while the Jubilife houses were unreachable on foot
-/// with the earlier fixed 0.35 margin).
+/// the player capsule and the common threshold gap. The threshold itself sits on the ground the
+/// player walks (terrain rule, `game::terrain_collision`); where the exact door centre is not
+/// standable (a wall or a step), [`DoorReachIndex`] extends the reach per door with the measured
+/// distance to the nearest walkable point, so every door works from the closest spot a player
+/// can stand (2026-10-15: found while the Jubilife houses were unreachable on foot with the
+/// earlier fixed 0.35 margin).
 pub const DOOR_TRIGGER_PAD: f32 = 0.75;
 
 /// Per-door interaction reach of the active area (see [`DOOR_TRIGGER_PAD`]).
 ///
-/// Built once per area change from the area's navmesh: for each door, the reach is the base pad or
-/// the distance from the door centre to the closest walkable point plus 0.1 m, whichever is
-/// larger. Doors whose centre sits on the navmesh keep the tight base reach.
+/// Built once per area change with the terrain walk rule: for each door, the reach is the base
+/// pad or the distance from the door centre to the closest walkable point plus 0.1 m, whichever
+/// is larger. Doors whose centre sits on walkable ground keep the tight base reach.
 #[derive(Resource, Debug, Default, Clone)]
 pub struct DoorReachIndex {
     pub area: String,
@@ -77,14 +76,29 @@ pub struct DoorReachIndex {
 }
 
 impl DoorReachIndex {
-    /// Measure every door of `area` against the area's `navmesh`.
-    pub fn build(area: &str, links: &ZoneLinks, navmesh: &crate::assets::navmesh::NavMesh) -> Self {
+    /// Measure every door of `area` against the terrain walk rule.
+    pub fn build(
+        area: &str,
+        links: &ZoneLinks,
+        terrain: Option<&TerrainResource>,
+        collision: Option<&crate::game::world_collision::WorldCollision>,
+        water: Option<&crate::game::water::WaterBodies>,
+    ) -> Self {
         let mut reach = HashMap::new();
         for l in links.doors_in(area) {
-            let d = navmesh
-                .nearest(l.pos.x, l.pos.z, 400.0)
-                .map(|hit| hit.distance)
-                .unwrap_or(0.0);
+            let ctx = crate::game::terrain_collision::WalkContext::player(
+                terrain,
+                collision,
+                water,
+                false,
+                l.pos.y,
+            );
+            let d = if ctx.is_walkable(l.pos.x, l.pos.z) {
+                0.0
+            } else {
+                crate::game::terrain_collision::nearest_walkable(&ctx, l.pos.x, l.pos.z, 60.0)
+                    .map_or(0.0, |(_, d)| d)
+            };
             reach.insert(l.name.clone(), DOOR_TRIGGER_PAD.max(d + 0.1));
         }
         Self { area: area.to_string(), reach }
@@ -97,21 +111,34 @@ impl DoorReachIndex {
     }
 }
 
-/// (Re)build [`DoorReachIndex`] when the active area's navmesh changes (start-up and every zone
-/// change). Cheap: one nearest-face query per door of the area, once.
+/// (Re)build [`DoorReachIndex`] when the active area's terrain changes (start-up and every zone
+/// change). Cheap: one walk query per door of the area, once.
 pub fn refresh_door_reach_system(
     links: Res<ZoneLinks>,
     zone: Option<Res<ActiveZoneInfo>>,
-    nav: Option<Res<GameNavmeshResource>>,
+    terrain: Option<Res<TerrainResource>>,
+    collision: Option<Res<crate::game::world_collision::WorldCollision>>,
+    water: Option<Res<crate::game::water::WaterBodies>>,
     mut reach: ResMut<DoorReachIndex>,
 ) {
-    let (Some(zone), Some(nav)) = (zone, nav) else {
+    let Some(zone) = zone else {
         return;
     };
+    // Wait for the ground source of the new area before measuring (the walk rule is a free
+    // world without any, which would give every door the tight pad).
+    if terrain.is_none() && collision.is_none() {
+        return;
+    }
     if reach.area == zone.area {
         return;
     }
-    *reach = DoorReachIndex::build(&zone.area, &links, nav.nav.primary());
+    *reach = DoorReachIndex::build(
+        &zone.area,
+        &links,
+        terrain.as_deref(),
+        collision.as_deref(),
+        water.as_deref(),
+    );
 }
 
 /// One fade half (out and in) of a zone change, seconds.
@@ -491,36 +518,48 @@ pub fn trins_reload_step(spawned_area: Option<u8>, active_area: u8) -> TrinsRelo
 
 // ------------------------------------------------------------------ safe landing
 
-/// Final landing point for a decoded arrival: the point when it is walkable in the largest
-/// component, otherwise the area's safe start (`choose_start`, Brief 8 acceptance), snapped to
-/// the nearest navmesh face when the chosen point is off-mesh. `None` without a usable face.
+/// Walk context of the active scene (terrain rule of `game::terrain_collision`): the caller
+/// keeps the resources alive while the context is used.
+pub fn scene_walk_context<'a>(
+    terrain: Option<&'a TerrainResource>,
+    collision: Option<&'a crate::game::world_collision::WorldCollision>,
+    water: Option<&'a crate::game::water::WaterBodies>,
+    from_y: f32,
+) -> crate::game::terrain_collision::WalkContext<'a> {
+    crate::game::terrain_collision::WalkContext::player(terrain, collision, water, false, from_y)
+}
+
+/// Final landing point for a decoded arrival: the point when it is walkable, otherwise the
+/// area's safe start (`choose_start`) or the nearest walkable point within 60 m. `None` when
+/// nothing walkable is near.
 pub fn landing_point(
-    mesh: &NavMesh,
-    comps: &sp::Components,
+    ctx: &crate::game::terrain_collision::WalkContext,
     wanted: Vec2,
     safe: Option<sp::SafeSpawn>,
 ) -> Option<(Vec2, f32)> {
-    let point = match sp::choose_start(mesh, comps, None, Some(wanted), safe) {
+    let point = match sp::choose_start(ctx, None, Some(wanted), safe) {
         sp::StartChoice::Saved(p)
         | sp::StartChoice::Safe(p)
         | sp::StartChoice::SafeReplacingSaved(p)
         | sp::StartChoice::Explicit(p) => p,
         sp::StartChoice::NoSafe => wanted,
     };
-    if sp::in_main_component(mesh, comps, point.x, point.y) {
-        let y = match sp::classify_point(mesh, comps, point.x, point.y) {
-            sp::PointStatus::Walkable { y, .. } => y,
-            sp::PointStatus::NotWalkable => return None,
-        };
+    if ctx.is_walkable(point.x, point.y) {
+        let y = ctx.ground_y(point.x, point.y)?;
         return Some((point, y));
     }
-    let hit = mesh.nearest(point.x, point.y, 60.0)?;
-    let c = sp::face_centroid(mesh, hit.face);
-    Some((Vec2::new(c[0], c[2]), c[1]))
+    let (p, _) = crate::game::terrain_collision::nearest_walkable(ctx, point.x, point.y, 60.0)?;
+    let y = ctx.ground_y(p.x, p.y)?;
+    Some((p, y))
 }
 
 /// Safe start of a main area from the spawn table and the object placements (landmarks).
-fn safe_start_for(area_idx: u8, mesh: &NavMesh, comps: &sp::Components) -> Option<sp::SafeSpawn> {
+fn safe_start_for(
+    area_idx: u8,
+    terrain: Option<&TerrainResource>,
+    collision: Option<&crate::game::world_collision::WorldCollision>,
+    water: Option<&crate::game::water::WaterBodies>,
+) -> Option<sp::SafeSpawn> {
     let read = |name: &str| {
         find_data_file(name)
             .and_then(|p| std::fs::read_to_string(p).ok())
@@ -531,7 +570,8 @@ fn safe_start_for(area_idx: u8, mesh: &NavMesh, comps: &sp::Components) -> Optio
         &read("field_spawn_table.tsv"),
         &read("field_object_placements.tsv"),
     );
-    sp::choose_safe_spawn(mesh, comps, &marks, &sp::SpawnConfig::default())
+    let ctx = scene_walk_context(terrain, collision, water, 0.0);
+    sp::safe_start(&ctx, &marks, &sp::SpawnConfig::default())
 }
 
 // ------------------------------------------------------------------ terrain swap (moved)
@@ -1042,6 +1082,8 @@ pub fn apply_zone_change(
     if let Some(mut walls) =
         world.get_resource_mut::<crate::game::world_collision::WorldCollision>()
     {
+        // Scaffold colliders of a previous interior (fallback room) never survive a change.
+        walls.clear_extras();
         if let Err(e) = walls.switch_area(area_idx) {
             eprintln!("zone: no placed-object walls in ha_area{area_idx:02}: {e}");
         }
@@ -1078,26 +1120,45 @@ pub fn apply_zone_change(
         info.name = zone_display_name(&request.zone);
     }
     let wanted = Vec2::new(request.spawn.x, request.spawn.z);
-    let landing = world.get_resource::<GameNavmeshResource>().and_then(|nav| {
-        let mesh = nav.nav.primary();
-        let comps = sp::components(mesh);
-        let safe = safe_start_for(area_idx, mesh, &comps);
-        landing_point(mesh, &comps, wanted, safe)
-    });
+    // Stream the new area's placed collision around the arrival before probing: a zone change
+    // leaves the grid empty until the next stream step, and the landing height of an interior
+    // comes from collider floors (`game::terrain_collision`).
+    if let Some(mut walls) = world.get_resource_mut::<crate::game::world_collision::WorldCollision>()
+    {
+        walls.stream_to_scaled(wanted, 1.0);
+    }
+    let landing = {
+        let terrain = world.get_resource::<TerrainResource>();
+        let collision = world.get_resource::<crate::game::world_collision::WorldCollision>();
+        let water = world.get_resource::<crate::game::water::WaterBodies>();
+        let ctx = scene_walk_context(
+            terrain.as_deref(),
+            collision.as_deref(),
+            water.as_deref(),
+            request.spawn.y,
+        );
+        let safe = safe_start_for(area_idx, terrain.as_deref(), collision.as_deref(), water.as_deref());
+        landing_point(&ctx, wanted, safe)
+    };
     let (mut xz, mut y) = landing.unwrap_or((wanted, request.spawn.y));
     // The decoded arrival can coincide with an NPC placement (the capture showed the player fused
     // into the area 00 elder): nudge the landing out of the nearest active spot, re-reading the
-    // navmesh height under the nudged point when it is still walkable.
+    // ground height under the nudged point when it is still walkable.
     if let Some(npcs) = world.get_resource::<crate::game::npc::NpcWorld>() {
         if let Some(clear) =
             crate::game::npc::landing_clear_of_npcs(xz, npcs.spots_in_area(&request.zone))
         {
-            if let Some(nav) = world.get_resource::<GameNavmeshResource>() {
-                let mesh = nav.nav.primary();
-                let comps = sp::components(mesh);
-                if let sp::PointStatus::Walkable { y: clear_y, .. } =
-                    sp::classify_point(mesh, &comps, clear.x, clear.y)
-                {
+            let terrain = world.get_resource::<TerrainResource>();
+            let collision = world.get_resource::<crate::game::world_collision::WorldCollision>();
+            let water = world.get_resource::<crate::game::water::WaterBodies>();
+            let ctx = scene_walk_context(
+                terrain.as_deref(),
+                collision.as_deref(),
+                water.as_deref(),
+                y,
+            );
+            if ctx.is_walkable(clear.x, clear.y) {
+                if let Some(clear_y) = ctx.ground_y(clear.x, clear.y) {
                     y = clear_y;
                 }
             }
@@ -1144,6 +1205,8 @@ fn apply_interior_change(
     if let Some(mut walls) =
         world.get_resource_mut::<crate::game::world_collision::WorldCollision>()
     {
+        // Scaffold colliders of a previous interior (fallback room) never survive a change.
+        walls.clear_extras();
         if let Err(e) = walls.switch_zone(&request.zone) {
             eprintln!("zone: no placed-object walls in {}: {e}", request.zone);
         }
@@ -1163,12 +1226,26 @@ fn apply_interior_change(
         info.name = zone_display_name(&request.zone);
     }
     let wanted = Vec2::new(request.spawn.x, request.spawn.z);
-    let landing = world.get_resource::<GameNavmeshResource>().and_then(|nav| {
-        let mesh = nav.nav.primary();
-        let comps = sp::components(mesh);
-        // The main-area safe start is in another frame: off-mesh arrivals take the nearest face.
-        landing_point(mesh, &comps, wanted, None)
-    });
+    // The room shells are the interior's floor: stream them around the arrival before probing
+    // (the landing height comes from collider floors, not from the navmesh).
+    if let Some(mut walls) = world.get_resource_mut::<crate::game::world_collision::WorldCollision>()
+    {
+        walls.stream_to_scaled(wanted, 1.0);
+    }
+    let landing = {
+        let terrain = world.get_resource::<TerrainResource>();
+        let collision = world.get_resource::<crate::game::world_collision::WorldCollision>();
+        let water = world.get_resource::<crate::game::water::WaterBodies>();
+        let ctx = scene_walk_context(
+            terrain.as_deref(),
+            collision.as_deref(),
+            water.as_deref(),
+            request.spawn.y,
+        );
+        // The main-area safe start is in another frame: off-ground arrivals take the nearest
+        // walkable point.
+        landing_point(&ctx, wanted, None)
+    };
     let (xz, y) = landing.unwrap_or((wanted, request.spawn.y));
     if let Some(reason) = &plan.notice {
         notice(world, format!("[SUPUESTO] {reason}: only the placed models are shown."));
@@ -1655,6 +1732,21 @@ mod tests {
         );
     }
 
+    /// Terrain resource for tests (real area data, no baked albedo).
+    fn terrain_resource(bin_root: &Path, area: u8) -> TerrainResource {
+        let initial = TerrainArea::load(bin_root, area).expect("terrain");
+        let settings = initial
+            .mesh_settings(TerrainScaleOverride::default(), 64)
+            .expect("mesh settings");
+        let chunks = build_mesh_chunks(&initial.heightmap, settings).expect("chunks");
+        TerrainResource {
+            area: Arc::new(initial),
+            chunks,
+            blended_albedo: None,
+            settings,
+        }
+    }
+
     #[test]
     fn decoded_arrivals_land_safely_in_every_area() {
         if game_bin_root().is_none() {
@@ -1667,22 +1759,24 @@ mod tests {
         let mut replaced = 0;
         for area in 0u8..=6 {
             let zone = format!("ha_area{area:02}");
-            let Ok(nav) = crate::assets::navmesh::AreaNavigation::load(&bin_root, area) else {
-                eprintln!("[skip] area {area:02}: navmesh not loadable");
+            let Ok(area_data) = TerrainArea::load(&bin_root, area) else {
+                eprintln!("[skip] area {area:02}: terrain not loadable");
                 continue;
             };
-            let mesh = nav.primary();
-            let comps = sp::components(mesh);
-            let safe = safe_start_for(area, mesh, &comps);
+            let terrain = terrain_resource(&bin_root, area);
+            let _ = area_data;
+            let ctx = scene_walk_context(Some(&terrain), None, None, 0.0);
+            let safe = safe_start_for(area, Some(&terrain), None, None);
             for ft in links.fast_travel_in(&zone) {
                 let wanted = Vec2::new(ft.arrival.x, ft.arrival.z);
-                let (point, _y) = landing_point(mesh, &comps, wanted, safe)
+                let (point, y) = landing_point(&ctx, wanted, safe)
                     .unwrap_or_else(|| panic!("{}: no landing point at all", ft.name));
                 assert!(
-                    sp::in_main_component(mesh, &comps, point.x, point.y),
-                    "{}: landing {point:?} is not in the main component",
+                    ctx.is_walkable(point.x, point.y),
+                    "{}: landing {point:?} is not walkable ground",
                     ft.name
                 );
+                assert!(y.is_finite(), "{}: landing height is finite", ft.name);
                 if point.distance(wanted) < 0.5 {
                     saved += 1;
                 } else {
@@ -1699,90 +1793,55 @@ mod tests {
     }
 
     #[test]
-    fn landing_replaces_an_off_mesh_arrival() {
+    fn landing_replaces_an_off_map_arrival() {
         if game_bin_root().is_none() {
             eprintln!("[skip] game bin root not found (set PLA_BIN_ROOT)");
             return;
         }
         let bin_root = game_bin_root().unwrap();
-        let nav =
-            crate::assets::navmesh::AreaNavigation::load(&bin_root, 0).expect("area 00 navmesh");
-        let mesh = nav.primary();
-        let comps = sp::components(mesh);
-        let safe = safe_start_for(0, mesh, &comps);
-        let (point, _y) = landing_point(mesh, &comps, Vec2::new(2000.0, 2000.0), safe)
+        let terrain = terrain_resource(&bin_root, 0);
+        let ctx = scene_walk_context(Some(&terrain), None, None, 0.0);
+        let safe = safe_start_for(0, Some(&terrain), None, None);
+        let (point, _y) = landing_point(&ctx, Vec2::new(2000.0, 2000.0), safe)
             .expect("safe start available");
-        assert!(sp::in_main_component(mesh, &comps, point.x, point.y));
+        assert!(ctx.is_walkable(point.x, point.y));
         assert!(point.distance(Vec2::new(2000.0, 2000.0)) > 100.0);
     }
 
     #[test]
-    fn door_reach_covers_the_empirical_walk_points() {
+    fn door_reach_covers_every_doors_standable_point() {
         if game_bin_root().is_none() {
             eprintln!("[skip] game bin root not found (set PLA_BIN_ROOT)");
             return;
         }
         let bin_root = game_bin_root().unwrap();
         let links = sheet();
-        // Outside the s12_a house: the automation teleport snapped here and the player pressed E.
-        let nav = crate::assets::navmesh::AreaNavigation::load(&bin_root, 0).expect("area 00 navmesh");
-        let reach = DoorReachIndex::build("ha_area00", &links, nav.primary());
-        let s12 = links
-            .door_at_with_reach("ha_area00", 505.74, 522.46, &reach)
-            .expect("s12_a door reachable from its snap point");
-        assert_eq!(s12.name, "DOOR_AREA00_S12_A_TO_AREA00");
-        // Outside s03_a the player walked to (514.79, 451.74) and the entry fired.
-        let s03 = links
-            .door_at_with_reach("ha_area00", 514.79, 451.74, &reach)
-            .expect("s03_a door reachable where the walker stopped");
-        assert_eq!(s03.name, "DOOR_AREA00_S03_A_TO_AREA00");
-        // The S09 hall door keeps its walkable island ~2 m away; the measured reach must cover it.
-        let s09 = links.by_name("DOOR_AREA00_S09_TO_AREA00").unwrap();
-        assert!(
-            reach.of(s09) >= 1.8,
-            "s09 needs the measured wide reach, got {:.2}",
-            reach.of(s09)
-        );
-        // The reach guarantees the closest walkable point fires; find it by sampling (the
-        // automation teleport snaps to a face centroid, which can sit farther away).
-        let mut closest = s09.pos;
-        let mut best = f32::INFINITY;
-        let mut steps = 0i32;
-        while steps <= 60 {
-            let off = steps as f32 * 0.05;
-            for (dx, dz) in [(0.0, off), (0.0, -off), (off, 0.0), (-off, 0.0), (off, off), (-off, -off), (off, -off), (-off, off)] {
-                let (x, z) = (s09.pos.x + dx, s09.pos.z + dz);
-                if !nav.primary().is_walkable(x, z) {
-                    continue;
-                }
-                let d = (x - s09.pos.x).powi(2) + (z - s09.pos.z).powi(2);
-                if d < best {
-                    best = d;
-                    closest = bevy::math::Vec3::new(x, 0.0, z);
-                }
-            }
-            steps += 1;
+        let terrain = terrain_resource(&bin_root, 0);
+        let reach = DoorReachIndex::build("ha_area00", &links, Some(&terrain), None, None);
+        // The contract: from the closest standable (terrain-rule) spot to each door, the door
+        // fires with its measured reach (2026-10-15: the fixed 0.35 m margin left the Jubilife
+        // houses unreachable on foot).
+        for name in [
+            "DOOR_AREA00_S12_A_TO_AREA00",
+            "DOOR_AREA00_S03_A_TO_AREA00",
+            "DOOR_AREA00_S09_TO_AREA00",
+        ] {
+            let l = links.by_name(name).expect("real door");
+            let ctx = scene_walk_context(Some(&terrain), None, None, l.pos.y);
+            let (p, d) = crate::game::terrain_collision::nearest_walkable(&ctx, l.pos.x, l.pos.z, 60.0)
+                .unwrap_or_else(|| panic!("{name}: no walkable point within 60 m"));
+            assert!(
+                reach.of(l) >= DOOR_TRIGGER_PAD && reach.of(l) + 1e-3 >= d + 0.1 || d < 0.05,
+                "{name}: reach {:.2} does not cover its standable point at {d:.2} m",
+                reach.of(l)
+            );
+            assert!(
+                links
+                    .door_at_with_reach("ha_area00", p.x, p.y, &reach)
+                    .is_some_and(|hit| hit.name == name),
+                "{name}: the door fires from its closest standable point {p:?}"
+            );
         }
-        assert!(best.is_finite(), "s09 has a walkable point within 3 m");
-        assert!(
-            in_trigger(s09, closest.x, closest.z, reach.of(s09)),
-            "the closest walkable point of s09 ({:.2}, {:.2}) must fire (reach {:.3})",
-            closest.x,
-            closest.z,
-            reach.of(s09)
-        );
-        // Inside s03_a the player walked to (10.12, 10.32) and could leave.
-        let nav = crate::assets::navmesh::AreaNavigation::load_named(&bin_root, "ha_area00_s03_a", 255)
-            .expect("s03_a navmesh");
-        let reach = DoorReachIndex::build("ha_area00_s03_a", &links, nav.primary());
-        let exit = links
-            .by_name("DOOR_AREA00_TO_AREA00_S03_A")
-            .expect("exit row");
-        assert!(
-            in_trigger(exit, 10.12, 10.32, reach.of(exit)),
-            "the exit door of s03_a fires from the walked-to point (reach {:.2})",
-            reach.of(exit)
-        );
     }
 
     #[test]
@@ -1934,6 +1993,17 @@ mod tests {
         world.insert_resource(Assets::<Mesh>::default());
         world.insert_resource(Assets::<StandardMaterial>::default());
         world.insert_resource(Assets::<Image>::default());
+        // The room shells are the interior floor: their collision shapes must stream in, exactly
+        // like the viewer's `WorldCollisionPlugin` does (the landing height comes from them).
+        world.insert_resource(
+            crate::game::world_collision::WorldCollision::load(
+                &bin_root,
+                0,
+                RotMode::YawY,
+                &cache_root,
+            )
+            .expect("collision world"),
+        );
         world.insert_resource(WorldObjects::for_tests_with_cache(
             Vec::new(),
             RotMode::YawY,
@@ -2008,11 +2078,17 @@ mod tests {
         );
         let xf = *world.entity(player).get::<Transform>().unwrap();
         let landing = Vec2::new(xf.translation.x, xf.translation.z);
-        let mesh = nav.nav.primary();
-        let comps = sp::components(mesh);
+        // The house floor is the room shell's collider floor (terrain rule), not the navmesh.
+        let terrain = world.resource::<TerrainResource>();
+        let collision = world.resource::<crate::game::world_collision::WorldCollision>();
+        let ctx = scene_walk_context(Some(terrain), Some(collision), None, xf.translation.y);
         assert!(
-            sp::in_main_component(mesh, &comps, landing.x, landing.y),
-            "player landed on the house floor at {landing:?}"
+            ctx.is_walkable(landing.x, landing.y),
+            "player landed on walkable house floor at {landing:?}"
+        );
+        assert!(
+            ctx.ground_y(landing.x, landing.y).is_some(),
+            "the house floor grounds the player at {landing:?}"
         );
 
         // Leave through the exit door: the main area's terrain comes back.
@@ -2081,6 +2157,17 @@ mod tests {
         world.insert_resource(Assets::<Mesh>::default());
         world.insert_resource(Assets::<StandardMaterial>::default());
         world.insert_resource(Assets::<Image>::default());
+        // The fallback room registers its boxes as collision: it is the interior's floor now
+        // that movement grounds on colliders, not on the navmesh.
+        world.insert_resource(
+            crate::game::world_collision::WorldCollision::load(
+                &bin_root,
+                5,
+                crate::game::world_objects::RotMode::YawY,
+                &cache_root,
+            )
+            .expect("collision world"),
+        );
         let player = world.spawn((PlayerAvatar, Transform::default())).id();
         world.insert_resource(Messages::<ZoneChangeRequest>::default());
         world
@@ -2113,15 +2200,37 @@ mod tests {
             "the empty scene gets a floor slab (no walls on a whole-field navmesh)"
         );
         let xf = world.entity(player).get::<Transform>().unwrap();
-        let nav = world.resource::<GameNavmeshResource>();
-        let mesh = nav.nav.primary();
-        let comps = sp::components(mesh);
-        assert!(sp::in_main_component(
-            mesh,
-            &comps,
-            xf.translation.x,
-            xf.translation.z
-        ));
+        // The fallback floor slab is registered as collision: the terrain rule grounds walkers on
+        // it although the placeholder terrain is not samplable and the navmesh is not read.
+        let collision = world.resource::<crate::game::world_collision::WorldCollision>();
+        assert!(
+            collision.instance_count() > 0,
+            "the fallback room registers its collision boxes"
+        );
+        let (min, max) = world
+            .resource::<GameNavmeshResource>()
+            .nav
+            .primary()
+            .bounds()
+            .expect("interior navmesh bounds");
+        let mid = Vec2::new((min[0] + max[0]) * 0.5, (min[2] + max[2]) * 0.5);
+        let terrain = world.resource::<TerrainResource>();
+        let ctx = scene_walk_context(Some(terrain), Some(collision), None, min[1] + 3.0);
+        assert!(
+            ctx.ground_y(mid.x, mid.y).is_some(),
+            "the fallback floor grounds the room centre {mid:?}"
+        );
+        assert!(
+            ctx.is_walkable(mid.x, mid.y),
+            "the fallback floor is walkable ground at the room centre {mid:?}"
+        );
+        // The scaffold sits on the navmesh bounds, not on the requested arrival (the request
+        // points outside it): with nothing under it the landing keeps the requested point.
+        assert!(
+            Vec2::new(xf.translation.x, xf.translation.z).distance(Vec2::new(20.0, 20.0)) < 0.5,
+            "the landing kept the requested point: {:?}",
+            xf.translation
+        );
 
         // Any later change removes the fallback room.
         world
@@ -2250,12 +2359,13 @@ mod tests {
             landing.distance(wanted) < 60.0,
             "player at {landing:?} (wanted {wanted:?})"
         );
-        let nav = world.resource::<GameNavmeshResource>();
-        let mesh = nav.nav.primary();
-        let comps = sp::components(mesh);
+        // The landing is chosen on the terrain rule (heightmap + collider floors), not the
+        // navmesh: the moved player must stand on walkable area 01 ground.
+        let terrain = world.resource::<TerrainResource>();
+        let ctx = scene_walk_context(Some(terrain), None, None, xf.translation.y);
         assert!(
-            sp::in_main_component(mesh, &comps, landing.x, landing.y),
-            "player landed on the area 01 navmesh"
+            ctx.is_walkable(landing.x, landing.y),
+            "player landed on walkable area 01 terrain at {landing:?}"
         );
     }
 

@@ -590,7 +590,7 @@ fn setup_render_scene(
             if !nav.is_walkable(anchor.x, anchor.y) {
                 if let Some(hit) = nav.nearest(anchor.x, anchor.y, 200.0) {
                     let centroid =
-                        pla::game::spawn_point::face_centroid(nav.nav.primary(), hit.face);
+                        pla::game::nav_report::face_centroid(nav.nav.primary(), hit.face);
                     anchor = Vec2::new(centroid[0], centroid[2]);
                 }
             }
