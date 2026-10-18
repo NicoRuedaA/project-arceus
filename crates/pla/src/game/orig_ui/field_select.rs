@@ -23,8 +23,9 @@
 //! settles) shows the item / Pokémon panel.
 //!
 //! Hidden, no port data: the sick banners (`N_icon_sick_00…04`: the game's own icon art carries
-//! Japanese status text, which the port never draws), the max-count box (`L_boxmax_00`) and the
-//! thickness gauge (`L_gauge_00`, only filled for a caught Pokémon in the original).
+//! Japanese status text, which the port never draws), the max-count box (`L_boxmax_00`: its
+//! `_keep` loop blinks it and its text is the game's own) and the gauge (`L_gauge_00`, only
+//! filled for a caught Pokémon in the original).
 //!
 //! State: [`FieldSelector`], plain memory (nothing is written to the save; the v10 format and
 //! the party are untouched). Keys (also in `docs/GUIA-DE-PRUEBAS.md`): `X` opens the wheel and
@@ -324,6 +325,11 @@ pub fn bind_field_select(
         s.set(part, |o| o.visible = Some(false));
     }
     s.set_visible("P_icon_infinity_00", false);
+    // The "registered" gauge under the name has no port data: hidden, never drawn half filled.
+    s.set_visible("N_gauge_00", false);
+    // The max-count box blinks in its `_keep` loop and holds the game's own text, which the port
+    // never fills: an empty blinking rectangle is worse than no box.
+    s.set_visible("L_boxmax_00", false);
     show_r_badge(&mut s);
 
     let party: &[crate::game::save_game::PartyMember] = progress
@@ -412,6 +418,8 @@ fn bind_item_slots(
             .map(|i| item_id(entries[i]))
             .and_then(|id| icons.item_or_dummy(id));
         s.set(node, |o| o.visible = Some(entry.is_some()));
+        let shown = image.is_some();
+        s.set(pane, |o| o.visible = Some(shown));
         if let Some(image) = image {
             s.set(pane, move |o| o.image = Some(image));
         }
@@ -429,6 +437,8 @@ fn bind_poke_slots(
         let member = neighbour(current, party.len(), offset).map(|i| &party[i]);
         let image = member.and_then(|m| icons.pokemon(m.species, u16::from(m.form)));
         s.set(node, |o| o.visible = Some(member.is_some()));
+        let shown = image.is_some();
+        s.set(pane, |o| o.visible = Some(shown));
         if let Some(image) = image {
             s.set(pane, move |o| o.image = Some(image));
         }

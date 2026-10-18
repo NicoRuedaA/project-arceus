@@ -173,6 +173,14 @@ pub fn bind_field_hud(
         s.set_in("L_item_00", "T_count_01", |o| {
             o.text = Some(count.to_string())
         });
+        // The real icon of the selected ball (the pane ships with the game's dummy texture,
+        // which `OrigScreen::new` hides): the same art the wheel and the bag use.
+        let icon = icons.item_or_dummy(id);
+        let shown = icon.is_some();
+        s.set_in("L_item_00", "P_item_00", |o| o.visible = Some(shown));
+        if let Some(icon) = icon {
+            s.set_in("L_item_00", "P_item_00", move |o| o.image = Some(icon));
+        }
     }
     // Button guides right of the port's minimap (bottom-left corner, about 230 px wide).
     s.set("L_command_00", |o| o.translate = Some([230.0, 0.0]));
