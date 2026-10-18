@@ -1,0 +1,129 @@
+# sheet: reports/data-progress/model_review/gen7
+# generation: 7 (national 722-809)
+# generator: revision-gen7 session (Claude Sonnet); renders CPU lavapipe, contact sheets reviewed by eye
+# labels: VERIFICADO = comprobado mirando el render; PROBABLE = identidad por forma/icono/eliminacion
+national_number	name	pack	form	source	status	severity	note
+722	Rowlet	pm0841_00_00	base	PLA	OK	0	[VERIFICADO] catalogo PLA del juego; Pokedex no abierta en esta sesion
+723	Dartrix	pm0842_00_00	base	PLA	OK	0	[VERIFICADO] catalogo PLA del juego; Pokedex no abierta en esta sesion
+724	Decidueye	pm0843_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+724	Decidueye	pm0843_00_41	Hisuian Form	PLA	OK	0	[VERIFICADO] catalogo PLA del juego; Pokedex no abierta en esta sesion
+725	Litten	pm0844_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+726	Torracat	pm0845_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+727	Incineroar	pm0846_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+728	Popplio	pm0847_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+729	Brionne	pm0848_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+730	Primarina	pm0849_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+731	Pikipek	pm0807_00_00	base	CONVERTIDO	OK	1	[PROBABLE] en el render aparece en pose de reposo/T o con varillas finas sueltas que agrandan el encuadre; no es fallo del modelo
+732	Trumbeak	pm0808_00_00	base	CONVERTIDO	OK	1	[PROBABLE] en el render aparece en pose de reposo/T o con varillas finas sueltas que agrandan el encuadre; no es fallo del modelo
+733	Toucannon	pm0809_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+734	Yungoos	pm0826_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+735	Gumshoos	pm0827_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+736	Grubbin	pm0836_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+737	Charjabug	pm0837_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+738	Vikavolt	pm0838_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+739	Crabrawler	pm0859_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+740	Crabominable	pm0860_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+740	Crabominable	pm0860_51_00	Mega Crabominable	CONVERTIDO	OK	0	[PROBABLE] render correcto
+741	Baile Style	pm0825_11_00	Baile Style	CONVERTIDO	OK	0	[PROBABLE] render correcto
+741	Pom-Pom Style	pm0825_12_00	Pom-Pom Style	CONVERTIDO	OK	0	[PROBABLE] render correcto
+741	Pa'u Style	pm0825_13_00	Pa'u Style	CONVERTIDO	OK	0	[PROBABLE] render correcto
+741	Sensu Style	pm0825_14_00	Sensu Style	CONVERTIDO	OK	0	[PROBABLE] render correcto
+742	Cutiefly	pm0834_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+743	Ribombee	pm0835_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+744	Rockruff	pm0828_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+745	Midday Form	pm0829_11_00	Midday Form	CONVERTIDO	OK	0	[PROBABLE] render correcto
+745	Midnight Form	pm0829_12_00	Midnight Form	CONVERTIDO	OK	0	[PROBABLE] render correcto
+745	Dusk Form	pm0829_13_00	Dusk Form	CONVERTIDO	OK	0	[PROBABLE] render correcto
+746	Solo Form	pm0820_11	Solo Form	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] sombreado facetado/colores algo irregulares (formato _col/_nor del pack)
+746	School Form	pm0820_12	School Form	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+747	Mareanie	pm0801_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+748	Toxapex	pm0802_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+749	Mudbray	pm0839_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+750	Mudsdale	pm0840_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+751	Dewpider	pm0850_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+752	Araquanid	pm0851_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+753	Fomantis	pm0868_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+754	Lurantis	pm0869_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+755	Morelull	pm0803_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+756	Shiinotic	pm0804_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+757	Salandit	pm0805_00_00	base	CONVERTIDO	OK	1	[PROBABLE] en el render aparece en pose de reposo/T o con varillas finas sueltas que agrandan el encuadre; no es fallo del modelo
+758	Salazzle	pm0806_00_00	base	CONVERTIDO	OK	1	[PROBABLE] en el render aparece en pose de reposo/T o con varillas finas sueltas que agrandan el encuadre; no es fallo del modelo
+759	Stufful	pm0852_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+760	Bewear	pm0853_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+761	Bounsweet	pm0812_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+762	Steenee	pm0813_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+763	Tsareena	pm0814_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+764	Comfey	pm0863_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+765	Oranguru	pm0810_00_00	base	CONVERTIDO	OK	1	[PROBABLE] en el render aparece en pose de reposo/T o con varillas finas sueltas que agrandan el encuadre; no es fallo del modelo
+766	Passimian	pm0815_00_00	base	CONVERTIDO	OK	1	[PROBABLE] en el render aparece en pose de reposo/T o con varillas finas sueltas que agrandan el encuadre; no es fallo del modelo
+767	Wimpod	pm0866_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+768	Golisopod	pm0867_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+768	Golisopod	pm0867_51_00	Mega Golisopod	CONVERTIDO	OK	0	[PROBABLE] render correcto
+769	Sandygast	pm0822_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+770	Palossand	pm0823_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+771	Pyukumuku	pm0821_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+772	Type: Null	pm0861_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+773	forma 0	pm0862_11	forma 0	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 1	pm0862_12	forma 1	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 2	pm0862_13	forma 2	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 3	pm0862_14	forma 3	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 4	pm0862_15	forma 4	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 5	pm0862_16	forma 5	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 6	pm0862_17	forma 6	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 7	pm0862_18	forma 7	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 8	pm0862_19	forma 8	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 9	pm0862_20	forma 9	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 10	pm0862_21	forma 10	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 11	pm0862_22	forma 11	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 12	pm0862_23	forma 12	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 13	pm0862_24	forma 13	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 14	pm0862_25	forma 14	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 15	pm0862_26	forma 15	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 16	pm0862_27	forma 16	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+773	forma 17	pm0862_28	forma 17	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+774	Meteor Form	pm0824_11_00	Meteor Form	CONVERTIDO	OK	0	[PROBABLE] render correcto
+774	forma 1	pm0824_12_00	forma 1	CONVERTIDO	NO_ANIMS	2	[PROBABLE] el glTF no trae ningun clip de animacion
+775	Komala	pm0811_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+776	Turtonator	pm0854_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+777	Togedemaru	pm0858_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+778	Disguised Form	pm0819_11_00	Disguised Form	CONVERTIDO	OK	0	[PROBABLE] render correcto
+778	Busted Form	pm0819_12_00	Busted Form	CONVERTIDO	OK	0	[PROBABLE] render correcto
+779	Bruxish	pm0855_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+780	Drampa	pm0856_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+780	Drampa	pm0856_51_00	Mega Drampa	CONVERTIDO	OK	0	[PROBABLE] render correcto
+781	Dhelmise	pm0857_00	base	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] sombreado facetado/colores algo irregulares (formato _col/_nor del pack)
+782	Jangmo-o	pm0816_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+783	Hakamo-o	pm0817_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+784	Kommo-o	pm0818_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+785	Tapu Koko	pm0830_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+786	Tapu Lele	pm0831_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+787	Tapu Bulu	pm0832_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+788	Tapu Fini	pm0833_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+789	Cosmog	pm0871_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+790	Cosmoem	pm0872_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+791	Solgaleo	pm0873_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+792	Lunala	pm0874_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+793	Nihilego	pm0875_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+794	Buzzwole	pm0877_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+795	Pheromosa	pm0880_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+796	Xurkitree	pm0876_00	base	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] colores en parches/bloques o negro: texturas mal asignadas a las piezas (pack con nombres _col/_nor/_amb, no _alb/_lym); causa probable: el exportador no sabe mapear este formato de pack
+797	Celesteela	pm0881_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+798	Kartana	pm0879_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+799	Guzzlord	pm0878_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+800	Necrozma	pm0865_11_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+800	Necrozma	pm0865_12_00	Dusk Mane Necrozma	CONVERTIDO	OK	0	[PROBABLE] render correcto
+800	Necrozma	pm0865_13_00	Dawn Wings Necrozma	CONVERTIDO	OK	0	[PROBABLE] render correcto
+801	Magearna	pm0882_11_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+801	Magearna	pm0882_12_00	Original Color	CONVERTIDO	OK	0	[PROBABLE] render correcto
+801	Magearna	pm0882_51_00	forma 51	CONVERTIDO	OK	0	[PROBABLE] render correcto
+801	Magearna	pm0882_52_00	forma 52	CONVERTIDO	OK	0	[PROBABLE] render correcto
+802	Marshadow	pm0883_00_00	base	CONVERTIDO	BAD_COLOR	1	[PROBABLE] gris sin color propio (Marshadow deberia ser negro/gris con ojos rojos; parche verde azulado)
+803	Poipole	pm0886_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+804	Naganadel	pm0887_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+805	Stakataka	pm0884_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+806	Blacephalon	pm0885_00	base	CONVERTIDO	OK	0	[PROBABLE] clips con nombres ba10_waitA01/fi20_walk01 (no pmNNNN_..._wait01_loop): comprobar que el motor localiza idle/walk
+807	Zeraora	pm0888_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+807	Zeraora	pm0888_51_00	Mega Zeraora	CONVERTIDO	OK	0	[PROBABLE] render correcto
+808	Meltan	pm0891_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+809	Melmetal	pm0892_00_00	base	CONVERTIDO	OK	0	[PROBABLE] render correcto
+809	Melmetal	pm0892_81_00	Gigantamax Melmetal	CONVERTIDO	BAD_COLOR	1	[PROBABLE] gris oscuro casi sin color
