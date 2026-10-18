@@ -764,6 +764,9 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     - Capturas de referencia, en la aldea y en el bosque: apagado, colisiones (encima y solo),
       sin textura, alambre, jugador y marcas, más tres de detalle (salvaje con su radio, puerta
       y agua): `/home/nico/work/capturas_debug_visual/` (con `LEEME.txt`).
+    - Capturas de los **colliders de criatura** (F1 con las líneas nuevas), hechas con teclas
+      reales: jugador, seguidor, PNJ, salvaje, entrenador y el Pokémon colocado con F7:
+      `/home/nico/work/capturas_debug_colliders/` (con `LEEME.txt`).
 
     Para capturas automáticas (sin ventana) se puede arrancar ya con un modo encendido:
     `.tools/gamectl.py start -- --area 0 --debug-view collisions=only` (y `markers`, `wireframe`,
