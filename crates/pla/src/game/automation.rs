@@ -1129,7 +1129,9 @@ fn dispatch(app: &mut App, ctx: &mut Ctx, cmd: &Command) -> Result<Value, String
                 world.write_message(MouseWheel {
                     unit: bevy::input::mouse::MouseScrollUnit::Line,
                     x: 0.0,
-                    y: *wheel,
+                    // The command counts notches DOWN (positive = down); a real wheel message
+                    // carries `y > 0` for "up", so the sign flips.
+                    y: -*wheel,
                     window: Entity::PLACEHOLDER,
                     phase: bevy::input::touch::TouchPhase::Moved,
                 });

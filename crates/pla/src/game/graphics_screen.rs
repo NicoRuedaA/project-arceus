@@ -1388,9 +1388,10 @@ fn graphics_input(
     // with the wheel). With the original Options skin the game's own bar is drawn and
     // `orig_ui::scrollbar` owns the mouse, so this path stays out of the way there.
     if !orig.as_ref().is_some_and(|c| c.enabled()) {
+        // A real wheel reports `y > 0` for "scrolled up"; `scroll_wheel` counts notches down.
         let notches: f32 = mouse_wheel
             .as_mut()
-            .map(|r| r.read().map(|e| e.y).sum())
+            .map(|r| -r.read().map(|e| e.y).sum::<f32>())
             .unwrap_or(0.0);
         if notches != 0.0 {
             state.scroll = crate::game::orig_ui::scrollbar::scroll_wheel(

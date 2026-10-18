@@ -86,6 +86,16 @@ const PROVISIONAL_BOX: (f32, f32, f32) = (168.0, 152.0, 330.0);
 
 /// Pane of the original Pokédex page that holds the species photo (`pokedex_detail_00`).
 const PHOTO_FRAME_PANE: &str = "N_poke_picture_00";
+/// The retro-photo picture of the game (two halves of `N_poke_picture_00`) is ONE texture: a cream
+/// border with corner tape around a grey gradient. The 3D picture must fill only the grey part, so
+/// the border stays visible around it; the grey starts about 4.6 % of the side in from each edge
+/// (measured on the game's own picture).
+const PHOTO_GREY_INSET: f32 = 0.046;
+/// Background of the preview inside the retro photo: fully transparent, so the picture's own grey
+/// gradient shows behind the creature. Outside the original screen (provisional box) a soft
+/// grey-blue.
+const PREVIEW_CLEAR_PHOTO: Color = Color::srgba(0.0, 0.0, 0.0, 0.0);
+const PREVIEW_CLEAR_BOX: Color = Color::srgb(0.62, 0.68, 0.72);
 
 /// Offscreen image the preview camera renders into.
 #[derive(Resource, Debug, Clone)]
@@ -295,7 +305,7 @@ fn create_preview(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         Camera {
             order: 20,
             is_active: false,
-            clear_color: ClearColorConfig::Custom(Color::srgb(0.62, 0.68, 0.72)),
+            clear_color: ClearColorConfig::Custom(PREVIEW_CLEAR_BOX),
             ..default()
         },
         // Placed for real by `sync_preview_frame` once the model is measured.
@@ -726,6 +736,7 @@ fn place_preview_frame(
     screens: Query<&OrigScreen>,
     mut frame: Query<&mut Node, (With<DexPreviewRoot>, Without<DexPreviewCaption>)>,
     mut caption: Query<&mut Visibility, With<DexPreviewCaption>>,
+    mut camera: Query<&mut Camera, With<DexPreviewCamera>>,
     mut placed: Local<u8>,
 ) {
     let original = config.as_ref().is_some_and(|c| c.enabled());
@@ -749,14 +760,18 @@ fn place_preview_frame(
     }
     for mut node in &mut frame {
         let next = match photo {
-            Some((center, size, width, height)) => Node {
-                position_type: PositionType::Absolute,
-                left: Val::Percent((center.x - size.x / 2.0) / width * 100.0),
-                top: Val::Percent((center.y - size.y / 2.0) / height * 100.0),
-                width: Val::Percent(size.x / width * 100.0),
-                height: Val::Percent(size.y / height * 100.0),
-                ..default()
-            },
+            Some((center, size, width, height)) => {
+                // Only the grey part of the retro photo, not its cream border.
+                let size = size * (1.0 - 2.0 * PHOTO_GREY_INSET);
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: Val::Percent((center.x - size.x / 2.0) / width * 100.0),
+                    top: Val::Percent((center.y - size.y / 2.0) / height * 100.0),
+                    width: Val::Percent(size.x / width * 100.0),
+                    height: Val::Percent(size.y / height * 100.0),
+                    ..default()
+                }
+            }
             None => {
                 let (left, top, side) = PROVISIONAL_BOX;
                 Node {
@@ -771,6 +786,12 @@ fn place_preview_frame(
         };
         if *node != next {
             *node = next;
+        }
+    }
+    let clear = if photo.is_some() { PREVIEW_CLEAR_PHOTO } else { PREVIEW_CLEAR_BOX };
+    for mut cam in &mut camera {
+        if !matches!(cam.clear_color, ClearColorConfig::Custom(c) if c == clear) {
+            cam.clear_color = ClearColorConfig::Custom(clear);
         }
     }
     let want = if original && !super::debug_flags::dex_preview() {
@@ -1141,11 +1162,14 @@ mod tests {
         app.add_systems(Update, place_preview_frame);
         app.update();
         let placed = app.world().get::<Node>(node).unwrap();
-        // The pane sits at x 232..744, y 222..734 of 1920×1080: 12.08 %, 20.56 %, 26.67 %, 47.41 %.
-        assert!((val_f32(placed.left) - 232.0 / 1920.0 * 100.0).abs() < 1e-3, "{:?}", placed.left);
-        assert!((val_f32(placed.top) - 222.0 / 1080.0 * 100.0).abs() < 1e-3, "{:?}", placed.top);
-        assert!((val_f32(placed.width) - 512.0 / 1920.0 * 100.0).abs() < 1e-3, "{:?}", placed.width);
-        assert!((val_f32(placed.height) - 512.0 / 1080.0 * 100.0).abs() < 1e-3, "{:?}", placed.height);
+        // The pane sits at x 232..744, y 222..734 of 1920×1080; the 3D picture fills only its grey
+        // part, inset by `PHOTO_GREY_INSET` on every side (the cream border stays visible).
+        let inset = 512.0 * PHOTO_GREY_INSET;
+        let side = 512.0 - 2.0 * inset;
+        assert!((val_f32(placed.left) - (232.0 + inset) / 1920.0 * 100.0).abs() < 1e-3, "{:?}", placed.left);
+        assert!((val_f32(placed.top) - (222.0 + inset) / 1080.0 * 100.0).abs() < 1e-3, "{:?}", placed.top);
+        assert!((val_f32(placed.width) - side / 1920.0 * 100.0).abs() < 1e-3, "{:?}", placed.width);
+        assert!((val_f32(placed.height) - side / 1080.0 * 100.0).abs() < 1e-3, "{:?}", placed.height);
         // The caption is debug clutter over the original page.
         let mut caption = app.world_mut().query_filtered::<&Visibility, With<DexPreviewCaption>>();
         let hidden = caption.iter(app.world()).all(|v| *v == Visibility::Hidden);
