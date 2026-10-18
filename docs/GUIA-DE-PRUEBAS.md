@@ -1048,7 +1048,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
   tarde/noche por zona (solo una compartida de noche).
 - Nada se ha comprobado jugando con teclado o ratón reales: **tú eres la primera prueba**.
 
-84. **Vista previa de la Pokédex nacional con luz propia.** [EN RAMA `feat/orq-ajustes`] En la
+86. **Vista previa de la Pokédex nacional con luz propia.** [EN RAMA `feat/orq-ajustes`] En la
     Pokédex (Y; luego Y otra vez para la lista nacional) el Pokémon del marco se ve **bien
     iluminado y con sus colores** (ya no oscuro, aunque sea de noche en el juego), sobre un fondo
     gris azulado claro. Fallo: la silueta sigue casi negra o los colores salen apagados.
@@ -1056,7 +1056,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
     retro del juego (el degradado gris original se ve detrás, sin fondo propio), y el borde crema
     de la foto con sus esquinas queda visible alrededor. Fallo: el modelo tapa el borde crema o
     sale sobre un recuadro de otro color.
-85. **F1 dibuja también el agua.** [EN RAMA `feat/orq-ajustes`] En los modos ENCIMA y SOLO de F1
+87. **F1 dibuja también el agua.** [EN RAMA `feat/orq-ajustes`] En los modos ENCIMA y SOLO de F1
     el agua sale en **azul** (los triángulos de cada río o lago a la altura de su superficie, hasta
     64 m de ti) y la leyenda dice «azul=agua». Pruébalo junto al río de Jubilife Village.
     Fallo: junto a agua no se ve ninguna línea azul.
