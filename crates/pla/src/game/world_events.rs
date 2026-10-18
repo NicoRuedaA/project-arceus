@@ -1165,12 +1165,15 @@ fn track_area_and_day(
 }
 
 /// `--distortion-now` / `--outbreak N`: the first cue of the forced event moves the player
-/// [`EVENT_APPROACH_DISTANCE`] m from it on walkable ground, facing it (once per session;
-/// `--no-teleport-to-event` turns it off). Without a navmesh only the coordinates are shown.
+/// [`EVENT_APPROACH_DISTANCE`] m from it on walkable ground (terrain rule, no navmesh), facing
+/// it (once per session; `--no-teleport-to-event` turns it off). Without terrain data only the
+/// coordinates are shown.
+#[allow(clippy::too_many_arguments)]
 fn teleport_to_forced_event(
     mut ev: ResMut<WorldEvents>,
     mut cues: MessageReader<WorldEventCue>,
-    nav: Option<Res<super::navigation::GameNavmeshResource>>,
+    terrain: Option<Res<super::zone::TerrainResource>>,
+    collision: Option<Res<super::world_collision::WorldCollision>>,
     mut player: Query<&mut Transform, With<PlayerAvatar>>,
     mut toast: Option<ResMut<SaveToast>>,
 ) {
@@ -1190,9 +1193,23 @@ fn teleport_to_forced_event(
     ev.teleported_to_event = true;
     let Ok(mut tf) = player.single_mut() else { return };
     let from = Vec2::new(tf.translation.x, tf.translation.z);
-    let spot = nav.as_ref().and_then(|n| {
-        approach_point(pos, from, EVENT_APPROACH_DISTANCE, |p| n.height_at(p.x, p.y))
-    });
+    let spot = if terrain.is_some() || collision.is_some() {
+        let feet = tf.translation.y - super::player_anim::AVATAR_ROOT_ABOVE_GROUND;
+        let ctx = super::terrain_collision::WalkContext::player(
+            terrain.as_deref(),
+            collision.as_deref(),
+            None,
+            false,
+            feet,
+        );
+        approach_point(pos, from, EVENT_APPROACH_DISTANCE, |p| {
+            let ground = ctx.ground_y(p.x, p.y)?;
+            // Only standable spots: a steep face or a wall is not an approach point.
+            ctx.is_walkable(p.x, p.y).then_some(ground)
+        })
+    } else {
+        None
+    };
     let msg = match spot {
         Some((p, yaw)) => {
             tf.translation = p + Vec3::Y * super::player_anim::AVATAR_ROOT_ABOVE_GROUND;
@@ -1688,19 +1705,29 @@ mod tests {
     }
 
     /// `--distortion-now` in area 01: the player starting ~300 m away (play-test, x 511 z 409)
-    /// ends up ~40 m from the forming distortion on the real navmesh, facing it.
+    /// ends up ~40 m from the forming distortion on the real terrain, facing it.
     #[test]
     fn distortion_now_places_the_player_next_to_the_site() {
         let root = std::env::var_os("PLA_BIN_ROOT")
             .map(std::path::PathBuf::from)
             .unwrap_or_else(|| "/home/nico/work/decompilacion/work/pla/pk2/romfs_patched/bin".into());
-        let (Some(_), Some(active), Ok(nav)) = (
+        let (Some(_), Some(active), Some(area01)) = (
             real_events(WorldEventsConfig::default()),
             area01_spawners(),
-            crate::game::navigation::GameNavmeshResource::load(&root, 1),
+            crate::assets::terrain::TerrainArea::load(&root, 1).ok(),
         ) else {
             eprintln!("[skip] game data not present");
             return;
+        };
+        let terrain = crate::game::zone::TerrainResource {
+            area: std::sync::Arc::new(area01),
+            chunks: vec![],
+            blended_albedo: None,
+            settings: crate::assets::terrain::TerrainMeshSettings {
+                horizontal_cell_size: 1.0,
+                vertical_scale: 1.0,
+                chunk_cells: 64,
+            },
         };
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, StatesPlugin));
@@ -1710,7 +1737,7 @@ mod tests {
         app.insert_resource(ConsumedSpawners::default());
         app.insert_resource(ActiveZoneInfo { area: "ha_area01".into(), name: "x".into() });
         app.insert_resource(GameClock::pinned_at_slot(1));
-        app.insert_resource(nav.clone());
+        app.insert_resource(terrain);
         app.init_resource::<SaveToast>();
         let player = app.world_mut().spawn((PlayerAvatar, Transform::from_xyz(511.0, 30.0, 409.0))).id();
         app.add_plugins(WorldEventsPlugin {
@@ -1733,7 +1760,15 @@ mod tests {
         let p = Vec2::new(tf.translation.x, tf.translation.z);
         let d = p.distance(Vec2::new(site.x, site.z));
         assert!((29.0..=51.0).contains(&d), "placed {d:.1} m from the site");
-        assert!(nav.is_walkable(p.x, p.y), "on walkable ground");
+        let terrain = app.world().resource::<crate::game::zone::TerrainResource>();
+        let ctx = crate::game::terrain_collision::WalkContext::player(
+            Some(terrain),
+            None,
+            None,
+            false,
+            tf.translation.y - crate::game::player_anim::AVATAR_ROOT_ABOVE_GROUND,
+        );
+        assert!(ctx.is_walkable(p.x, p.y), "on walkable ground");
         let facing = tf.rotation * Vec3::Z;
         let to_site = (Vec2::new(site.x, site.z) - p).normalize();
         assert!(Vec2::new(facing.x, facing.z).dot(to_site) > 0.99, "facing the site");

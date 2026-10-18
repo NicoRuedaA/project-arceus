@@ -24,7 +24,9 @@ use std::path::{Path, PathBuf};
 use bevy::prelude::*;
 
 use crate::assets::bntx::{FloatTextureData, TextureData};
+use crate::assets::collision::CollisionMesh;
 use crate::assets::terrain::{TerrainArea, TerrainMeshSettings};
+use crate::game::world_collision::WorldCollision;
 use crate::game::world_objects::{
     find_data_file, model_paths_for_pack, model_paths_from_text, parse_placements_for_spawn,
     Placement,
@@ -391,6 +393,48 @@ pub fn spawn_fallback_room(world: &mut World, bounds: ([f32; 3], [f32; 3]), kind
             MeshMaterial3d(material.clone()),
             Transform::from_translation(pos),
         ));
+    }
+    // The movement and placement code ground on colliders, not on the navmesh: the fallback
+    // scaffold registers its boxes as always-live collision instances (SUPUESTO port geometry,
+    // like the visible slabs themselves; a room with real exported shells uses their shapes).
+    if let Some(mut collision) = world.get_resource_mut::<WorldCollision>() {
+        for (size, pos) in &parts {
+            collision.add_extra(
+                std::sync::Arc::new(box_collision_mesh(*size)),
+                Mat4::from_translation(*pos),
+            );
+        }
+    }
+}
+
+/// Axis-aligned box collision mesh centred at the origin (12 triangles), for scaffold boxes.
+fn box_collision_mesh(size: Vec3) -> CollisionMesh {
+    let h = size * 0.5;
+    let v = [
+        [-h.x, -h.y, -h.z],
+        [h.x, -h.y, -h.z],
+        [h.x, h.y, -h.z],
+        [-h.x, h.y, -h.z],
+        [-h.x, -h.y, h.z],
+        [h.x, -h.y, h.z],
+        [h.x, h.y, h.z],
+        [-h.x, h.y, h.z],
+    ];
+    let vertices = v.iter().map(|p| *p).collect();
+    let triangles = vec![
+        [0u32, 1, 2], [0, 2, 3], // -z
+        [4, 6, 5], [4, 7, 6], // +z
+        [0, 4, 5], [0, 5, 1], // -y
+        [3, 2, 6], [3, 6, 7], // +y
+        [0, 3, 7], [0, 7, 4], // -x
+        [1, 5, 6], [1, 6, 2], // +x
+    ];
+    CollisionMesh {
+        vertices,
+        triangles,
+        quad_count: 6,
+        section_count: 1,
+        material_names: vec!["fallback_room".into()],
     }
 }
 

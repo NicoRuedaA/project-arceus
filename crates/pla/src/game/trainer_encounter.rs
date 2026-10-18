@@ -29,7 +29,7 @@ use super::save_wire::{PlayerProgress, SaveToast};
 use super::state::{not_paused, GameState};
 use super::trainer_data::{NobleCatalog, TrainerCatalog};
 use super::ui::ActiveZoneInfo;
-use super::navigation::GameNavmeshResource;
+use super::world_collision::WorldCollision;
 use super::npc::{snap_ground_y, NpcLookState, NpcWorld};
 use super::player_motion::ground_surface_y;
 use super::zone::TerrainResource;
@@ -329,7 +329,7 @@ pub fn spawn_zone_trainers(
     npc_world: Option<Res<NpcWorld>>,
     progress: Option<Res<PlayerProgress>>,
     terrain: Option<Res<TerrainResource>>,
-    nav: Option<Res<GameNavmeshResource>>,
+    collision: Option<Res<WorldCollision>>,
 ) {
     let mut models = models;
     if !world.markers {
@@ -346,7 +346,16 @@ pub fn spawn_zone_trainers(
     let mut n = 0;
     for p in world.in_area(&zone.area) {
         let beaten = progress.as_deref().is_some_and(|progress| progress.defeated_trainers.contains(&p.trainer_id));
-        let ground = snap_ground_y(p.position, ground_surface_y(terrain.as_deref(), nav.as_deref(), p.position[0], p.position[2]));
+        let ground = snap_ground_y(
+            p.position,
+            ground_surface_y(
+                terrain.as_deref(),
+                collision.as_deref(),
+                p.position[0],
+                p.position[2],
+                p.position[1],
+            ),
+        );
         let xf = Transform::from_translation(Vec3::new(p.position[0], ground + 0.9, p.position[2]))
             .with_rotation(Quat::from_rotation_y(p.yaw_deg.to_radians()));
         let mut e = commands.spawn((

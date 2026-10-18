@@ -1,5 +1,7 @@
 //! Headless report (no window): navmesh walkable components per area, where the OLD default
-//! start lands, and the new safe start (`pla::game::spawn_point`).
+//! start lands, and the navmesh-based safe start of the REPORT helpers
+//! (`pla::game::nav_report`; since 2026-10-17 the game's own movement and spawn use the
+//! terrain rule of `pla::game::terrain_collision`, not the navmesh).
 //!
 //! Usage: spawn_report   (PLA_BIN_ROOT overrides the game root; run from the repo root for data/)
 
@@ -7,7 +9,8 @@ use std::path::PathBuf;
 
 use bevy::math::Vec2;
 use pla::assets::navmesh::AreaNavigation;
-use pla::game::spawn_point::*;
+use pla::game::nav_report::*;
+use pla::game::spawn_point::{landmarks_for_area, SpawnConfig};
 
 fn describe(mesh: &pla::assets::navmesh::NavMesh, c: &Components, p: Vec2) -> String {
     match classify_point(mesh, c, p.x, p.y) {

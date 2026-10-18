@@ -2,7 +2,8 @@
 //!
 //! All decisions live in plain functions on [`WanderState`] (no Bevy types) so they are
 //! unit-tested deterministically. The Bevy plugin at the bottom only feeds positions,
-//! the navmesh and the player position into [`step`] and writes back the transform.
+//! the terrain walk rule (`game::terrain_collision`) and the player position into [`step`]
+//! and writes back the transform.
 //! Verified by unit tests only; never checked visually.
 //!
 //! Reactions ([`WildBehaviorSettings`], viewer flag `--wild-behavior`): when enabled (the
@@ -11,14 +12,15 @@
 //! / running). Idle and Wander keep the wander loop above; Alert and Attack stop and face the
 //! player, Flee walks away, Chase walks towards the player (the existing proximity encounter of
 //! the viewer then starts the battle), Sleep stands still. Every movement stays inside the
-//! spawner radius and on the navmesh. With `--wild-behavior off` the plain wander loop (stop and
+//! spawner radius and on walkable terrain. With `--wild-behavior off` the plain wander loop (stop and
 //! face within [`ALERT_RANGE`]) runs exactly as before. Archetype per creature, flee/chase
 //! speeds and noise thresholds are SUPPOSED port policy (no species data is decoded).
 
 use bevy::prelude::*;
 
-use super::navigation::GameNavmeshResource;
 use super::state::{GameState, Paused};
+use super::terrain_collision::{ground_y, WalkContext};
+use super::zone::TerrainResource;
 use super::wild::{hash_str, splitmix64, ActiveAreaSpawners, WildCreature};
 use super::wild_behavior::{
     sleep_capable, Archetype, BehaviorParams, Machine, Noise, Perception,
@@ -209,7 +211,7 @@ pub struct WanderState {
 #[derive(Component, Debug, Clone, Copy)]
 pub struct WanderHome {
     pub params: WanderParams,
-    /// Height of the creature above the navmesh surface at spawn time.
+    /// Height of the creature above the ground surface at spawn time.
     pub y_offset: Option<f32>,
 }
 
@@ -345,7 +347,7 @@ pub fn step(
 }
 
 /// Moves `st` along `heading` by up to `max_adv` metres after turning towards it; refuses
-/// (stays put) when the next point leaves the spawner radius or the navmesh. Returns the
+/// (stays put) when the next point leaves the spawner radius or the walkable ground. Returns the
 /// distance moved.
 fn move_heading(
     st: &mut WanderState,
@@ -461,7 +463,8 @@ fn attach_wander(
     mut commands: Commands,
     settings: Option<Res<WildBehaviorSettings>>,
     spawners: Option<Res<ActiveAreaSpawners>>,
-    nav: Option<Res<GameNavmeshResource>>,
+    terrain: Option<Res<TerrainResource>>,
+    collision: Option<Res<super::world_collision::WorldCollision>>,
     q: Query<(Entity, &WildCreature, &Transform, Option<&WanderSizeHint>), Without<WanderState>>,
 ) {
     for (e, wild, tf, hint) in &q {
@@ -471,10 +474,14 @@ fn attach_wander(
             .map_or(8.0, |d| d.radius);
         let home = (wild.spawn_pos.x, wild.spawn_pos.z);
         let params = WanderParams::new(home, radius, hint.map_or(1.0, |h| h.0));
-        let y_offset = nav
-            .as_ref()
-            .and_then(|n| n.height_at(tf.translation.x, tf.translation.z))
-            .map(|h| tf.translation.y - h);
+        let y_offset = ground_y(
+            terrain.as_deref(),
+            collision.as_deref(),
+            tf.translation.x,
+            tf.translation.z,
+            tf.translation.y,
+        )
+        .map(|h| tf.translation.y - h);
         let seed = wander_seed(&wild.spawner_id, wild.national_dex);
         let behavior = match settings.as_deref() {
             Some(s) if s.enabled => {
@@ -507,8 +514,9 @@ fn wander_system(
     time: Res<Time>,
     settings: Option<Res<WildBehaviorSettings>>,
     mut last_player: Local<Option<(f32, f32)>>,
-    nav: Option<Res<GameNavmeshResource>>,
+    terrain: Option<Res<TerrainResource>>,
     wall_collision: Option<Res<super::world_collision::WorldCollision>>,
+    water: Option<Res<super::water::WaterBodies>>,
     player: Query<&Transform, (With<PlayerAvatar>, Without<WanderState>)>,
     stealth: Option<Res<super::player_skills::PlayerStealth>>,
     safety: Option<Res<super::wild::EncounterSafety>>,
@@ -520,8 +528,11 @@ fn wander_system(
         Option<&mut WildBehavior>,
     )>,
 ) {
-    // Without a navmesh walkability is unknown: stay put rather than risk walking off the map.
-    let Some(nav) = nav else { return };
+    // Without any ground source walkability is unknown: stay put rather than risk walking off
+    // the map (the real viewer always has the terrain).
+    if terrain.is_none() && wall_collision.is_none() {
+        return;
+    }
     let dt = time.delta_secs().min(0.1);
     // A hidden player (tall grass, or crouching in a stealth volume) is not noticed: the
     // creatures wander as if nobody were there (game::player_skills::PlayerStealth).
@@ -539,11 +550,21 @@ fn wander_system(
     *last_player = raw_player;
     let sense = pl.map(|pos| PlayerSense { pos, noise: noise_from_speed(player_speed) });
     let reactions = settings.is_none_or(|s| s.enabled);
-    let walkable = |x: f32, z: f32| nav.is_walkable(x, z);
     for (mut tf, mut st, home, wild, behavior) in &mut q {
         if wild.in_battle || wild.defeated {
             continue;
         }
+        // The walk rule sees the creature's own feet and capsule (smaller than the player's).
+        let mut ctx = WalkContext::player(
+            terrain.as_deref(),
+            wall_collision.as_deref(),
+            water.as_deref(),
+            false,
+            tf.translation.y - home.y_offset.unwrap_or(0.0),
+        );
+        ctx.capsule_radius = 0.4;
+        ctx.capsule_height = 1.2;
+        let walkable = |x: f32, z: f32| ctx.is_walkable(x, z);
         match behavior {
             Some(mut behavior) if reactions => {
                 let WildBehavior { machine, params } = &mut *behavior;
@@ -557,16 +578,16 @@ fn wander_system(
                 }
             }
         }
-        // Placed-object collision after the wander step, keeping the creature on the navmesh.
+        // Placed-object collision after the wander step, keeping the creature off walls.
         if let Some(wc) = wall_collision.as_ref() {
             let pushed = wc.push_out_xz(st.pos.0, tf.translation.y + 0.6, st.pos.1, 0.4, 1.2);
-            if nav.is_walkable(pushed.x, pushed.y) {
+            if walkable(pushed.x, pushed.y) {
                 st.pos = (pushed.x, pushed.y);
             }
         }
         tf.translation.x = st.pos.0;
         tf.translation.z = st.pos.1;
-        if let (Some(off), Some(h)) = (home.y_offset, nav.height_at(st.pos.0, st.pos.1)) {
+        if let (Some(off), Some(h)) = (home.y_offset, ctx.ground_y(st.pos.0, st.pos.1)) {
             tf.translation.y = h + off;
         }
         tf.rotation = Quat::from_rotation_y(st.yaw);
@@ -880,7 +901,7 @@ mod tests {
             for _ in 0..120 {
                 behavior_step(&mut st, &p, &mut m, params, DT, Some(player), &blocked);
             }
-            assert_eq!(st.pos, before, "{archetype:?} must not leave the navmesh");
+            assert_eq!(st.pos, before, "{archetype:?} must not leave the walkable ground");
         }
     }
 

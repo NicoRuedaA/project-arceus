@@ -244,10 +244,13 @@ Cada punto: **qué hacer**, **qué deberías ver** y **qué sería un fallo**. M
     nada, atraviesas el suelo al aterrizar, te quedas pegado a una pared, la voltereta parece un
     muelle o agacharse no cambia nada (si sale el aviso «Player model export is outdated», ejecuta
     `./install.sh`).
-    **Bajar cornisas** (arreglado el 2026-10-14): anda hacia el borde de un desnivel de hasta 6 m
-    (por ejemplo la loma de tierra junto al inicio de la zona 1): caes y aterrizas abajo. Los
-    acantilados más altos, las paredes, el agua y el borde del mapa siguen bloqueados. El límite
-    de 6 m es SUPUESTO (justo por debajo de los 7 m donde el juego empieza a contar daño por caída).
+    **Bajar cornisas** (cambiado el 2026-10-17: el movimiento ya no usa la «zona caminable» del
+    juego original): anda hacia el borde de cualquier desnivel (por ejemplo la loma de tierra
+    junto al inicio de la zona 1) y caes por gravedad. Ya no hay un límite de 6 m: desde un
+    acantilado alto también caes, y a partir de 7 m el juego empieza a contar daño por caída
+    (tramos 7/10/14/19 m, decodificados). Lo que sigue bloqueado es **subir** una pared: una
+    pendiente de más de 45° (valor SUPUESTO) que suba más de un escalón (0,4 m) frena el avance;
+    el agua profunda a pie y el borde del mapa también frenan.
 
     **Trepar riscos** (añadido el 2026-10-15; teclas en 1.4). Las paredes trepables
     son las laderas de roca con inclinación de 50° a 150° del mapa real (las 8.538 superficies de
@@ -706,7 +709,7 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 
     | Tecla | Estados (en orden, vuelve al primero) |
     |---|---|
-    | **F1 colisiones** | APAGADO → **ENCIMA** (líneas de colisión por encima del mundo) → **SOLO** (se esconden los modelos y el terreno: solo se ven colisiones y navegación) |
+    | **F1 colisiones** | APAGADO → **ENCIMA** (líneas de colisión y la rejilla del terreno por encima del mundo) → **SOLO** (se esconden los modelos y el terreno: solo se ven colisiones y la rejilla del terreno) |
     | **F2 modelos** | NORMAL → **SIN TEXTURA** (material gris liso, para ver la forma) → **ALAMBRE** (líneas de los triángulos) |
     | **F3 datos** | APAGADO → **JUGADOR** (posición, velocidad, estado, zona, subárea, hora de juego, FPS) → **JUGADOR+MARCAS** (además, marcas de colores) |
     | **F6 pokedex** | REAL → **TODAS** (todas las listas de la Pokédex como vistas y capturadas; ver 2.20) |
@@ -715,9 +718,12 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     disparador y círculo de alcance), **naranja** riscos trepables, **azul** agua, **lima** puntos
     de aparición de salvajes (y punto de reaparición seguro), **magenta** objetos del suelo
     recogibles, **blanco** PNJ, **rojo** Pokémon salvajes con su radio de enfado. En F1:
-    **cian** muros de edificios/rocas, **verde** navegación caminable, **rojo** navegación
-    NO caminable (dibujada por muestreo cada 8 m), **gris** suelos y tejados de colisión. En el
-    modo F1 «solo» el fondo de la pantalla es **casi negro** (en lugar del cielo) para que se vean bien las líneas.
+    **cian** muros de edificios/rocas, **gris** suelos y tejados de colisión, **verde claro** la
+    rejilla del terreno (el mapa de alturas, pegada al suelo, unos 64 m alrededor del jugador) y,
+    en el modo «solo», **rojo** los tramos de pendiente por los que no se puede subir (más de 45°,
+    valor SUPUESTO). Antes de esta rama la rejilla verde era la «zona caminable» del juego
+    original (la malla de navegación); ya no se dibuja. En el modo F1 «solo» el fondo de la
+    pantalla es **casi negro** (en lugar del cielo) para que se vean bien las líneas.
 
     **Colliders de criaturas (F1).** Con F1 encendido (tanto en ENCIMA como en SOLO) también se
     dibuja el collider **real** de cada personaje y Pokémon a menos de 40 m del protagonista:
@@ -745,8 +751,8 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     También es un fallo que el aviso de arriba no salga con algún modo encendido.
 
     Notas honestas:
-    - El dibujo de colisiones se limita a unos 70 m alrededor del protagonista y la navegación a
-      unos 64 m; más lejos no se dibuja (para no ir lento). Las marcas de F3, a unos 160 m.
+    - El dibujo de colisiones se limita a unos 70 m alrededor del protagonista y la rejilla del
+      terreno a unos 64 m; más lejos no se dibuja (para no ir lento). Las marcas de F3, a unos 160 m.
     - Los **colliders de criatura** (violeta/turquesa/blanco/rojo/ámbar, ver arriba) se redibujan
       cada fotograma siguiendo a los personajes que se mueven, solo hasta 40 m y con un límite de
       líneas (si se recorta, queda avisado en la consola).
@@ -759,11 +765,15 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     - El aviso y la línea del jugador usan texto sin tildes («navegacion», «subarea») porque la
       fuente por defecto del motor no trae esos caracteres; con tilde saldrían cuadros.
     - Las colisiones de los **interiores** se ven igual que las de fuera (entran en el mismo
-      sistema); las salas de relleno de un interior sin datos son solo dibujo, no tienen colisión.
+      sistema); desde esta rama el suelo de los interiores sale de los colliders de las salas
+      (ya no de la malla de navegación) y las salas de relleno de un interior sin datos registran
+      su loseta como suelo de colisión.
     - No es una ayuda para jugar: es para que tú (y el asistente) puedan mirar y comprobar el port.
     - Capturas de referencia, en la aldea y en el bosque: apagado, colisiones (encima y solo),
       sin textura, alambre, jugador y marcas, más tres de detalle (salvaje con su radio, puerta
-      y agua): `/home/nico/work/capturas_debug_visual/` (con `LEEME.txt`).
+      y agua): `/home/nico/work/capturas_debug_visual/` (con `LEEME.txt`). Capturas de la regla
+      de terreno (2026-10-18, teclas reales F1 una y dos veces, muros de casas, puerta de casa
+      y el muro de roca que frena y ofrece TREPAR): `/home/nico/work/capturas_terreno_colision/`.
     - Capturas de los **colliders de criatura** (F1 con las líneas nuevas), hechas con teclas
       reales: jugador, seguidor, PNJ, salvaje, entrenador y el Pokémon colocado con F7:
       `/home/nico/work/capturas_debug_colliders/` (con `LEEME.txt`).
@@ -912,6 +922,7 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 | Ropa, pelo y piel de los PNJ | Claros / blanco-grisáceo / piel pálida; lo conocido es la forma | La regla de colores no se ha encontrado |
 | Aura de los Pokémon alfa | Borde rojo que respira, humo negro-rojizo, chispas y una luz roja suave; colores y cantidades elegidos mirando una imagen de referencia | Lo único decodificado es la marca de alfa y la escala 2,5x; el aspecto del aura no está en los archivos extraídos |
 | Suelo en tiempo real | Tamaño de las baldosas (32 por defecto), mezcla de capas en los bordes, roca a partir de 57-68 grados, paso al color horneado entre 70 y 220 m, el truco anti-repetición y el relieve | Lo decodificado son las 8 capas, sus pesos, su escala relativa y qué capas son roca; cómo las mezcla el juego no se ha leído |
+| Regla de terreno para andar (2026-10-17) | El movimiento deja la «zona caminable» del original y usa el mapa de alturas: se anda donde el terreno no supere 45° de pendiente al subir, no sea agua profunda a pie y no lo bloqueen los colliders de los objetos; el suelo de los interiores sale de los colliders de las salas | El límite de 45° es nuestro (SUPUESTO); el juego original dibujaba sus propias barreras a mano en la malla de navegación (acantilados, bordes) y con esta regla se puede andar por terreno que el original bloqueaba (cuantificado en `reports/terreno-colision/terrain-walk-vs-navmesh.md`) |
 | Horas de cada franja | 4 franjas de 6 horas; 0 = mañana (9:00), 1 = día (15:00), 2 = atardecer (21:00), 3 = noche (3:00) | Solo se sabe que la 3 es noche; el resto se supone |
 | Velocidad del reloj | 1 minuto de juego por segundo real | No se conoce la del juego |
 | Duración del clima | Entre 2 y 6 horas de juego | Las unidades de esos números son una suposición |

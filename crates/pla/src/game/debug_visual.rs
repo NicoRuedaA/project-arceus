@@ -8,7 +8,7 @@
 //!
 //! | Key | Mode | Cycle |
 //! |---|---|---|
-//! | `F1` | Collisions | off -> **overlay** (collision lines over the world) -> **only** (world models hidden, only collisions + navigation) -> off |
+//! | `F1` | Collisions | off -> **overlay** (collision lines + terrain grid over the world) -> **only** (world models hidden, plus steep cells in red) -> off |
 //! | `F2` | Models | normal -> **flat** (plain grey material, no textures) -> **wireframe** (Bevy wireframe pass) -> normal |
 //! | `F3` | Data | off -> **player** (position, zone, time, speed, state, FPS) -> **player + markers** (coloured interest zones) -> off |
 //! | `F5` | Save game | already used by `game::save_wire`; this module does not touch it |
@@ -36,8 +36,8 @@
 //! |---|---|---|
 //! | cyan | placed-object walls (building/rock collision triangles, non-floor) | `game::world_collision` (`CollisionGrid`) |
 //! | dim grey | floor/roof collision triangles of the same instances | `game::world_collision` |
-//! | green | walkable navigation faces | `assets::navmesh::AreaNavigation` |
-//! | dark red | navigation cells that are NOT walkable (**sampled** on a 8 m grid, drawn in `only` mode) | `AreaNavigation::is_walkable` |
+//! | green | terrain grid glued to the heightmap (`game::terrain_collision` rule) | `game::zone::TerrainResource` |
+//! | dark red | grid segments on ground steeper than the walk limit (SUPUESTO 45 deg, drawn in `only` mode) | `game::terrain_collision::MAX_WALK_SLOPE_DEG` |
 //! | yellow | doors AND fast-travel points of the active area: trigger box + reach circle + beacon | `game::zone::{ZoneLinks, DoorReachIndex}` |
 //! | orange | climbable cliff surfaces (marker column + grasp radius) | `game::climb_surfaces::ClimbSurfaces` |
 //! | blue | water body footprints at their surface height | `game::water::WaterBodies` |
@@ -47,8 +47,8 @@
 //! | red | wild creature capsules + their aggro radius ring | `game::wild::WildCreature` |
 //!
 //! Interiors (sub-areas, Brief 37) load their walls into the same `WorldCollision` grid on a zone
-//! change, so F1 shows them without extra code; the fallback rooms of `game::interior` are plain
-//! meshes, not collision entries (they are the visual stand-in when a room shell is missing).
+//! change, so F1 shows them without extra code; the fallback rooms of `game::interior` register
+//! their boxes as extra collision instances too (the movement grounds on collider floors).
 //!
 //! F1 also draws every nearby character's real collider or push/interaction radius (player,
 //! follower, NPCs, trainers, wild creatures and the debug-placed models) through
@@ -58,10 +58,11 @@
 //!
 //! # Wiring notes
 //!
-//! * F1 `overlay` draws the collision triangles within 70 m of the player; `only` additionally
-//!   hides every `Mesh3d` entity that is not a debug-visual entity (models, terrain, water,
-//!   vegetation) by saving its previous `Visibility` and restoring it exactly when the mode
-//!   leaves `only`.
+//! * F1 always draws the collision triangles within 70 m of the player plus the terrain grid
+//!   within 64 m (the decoded navmesh is not drawn anymore, user decision 2026-10-17); `only`
+//!   additionally turns the steep grid segments red and hides every `Mesh3d` entity that is not
+//!   a debug-visual entity (models, terrain, water, vegetation) by saving its previous
+//!   `Visibility` and restoring it exactly when the mode leaves `only`.
 //! * F2 `flat` swaps the material of every mesh for a shared grey `StandardMaterial` and restores
 //!   the exact original handles when it leaves `flat`. Four material types are covered:
 //!   `StandardMaterial` (world, pickups, fallback meshes...), the art-style `ToonMaterial` that
@@ -81,7 +82,6 @@ use bevy::ecs::system::SystemParam;
 use bevy::mesh::PrimitiveTopology;
 use bevy::prelude::*;
 
-use crate::assets::navmesh::{AreaNavigation, NavMesh};
 use crate::game::climb_surfaces::ClimbSurfaces;
 use crate::game::clock::GameClock;
 use crate::game::interact::Climbable;
@@ -94,7 +94,7 @@ use crate::game::water::{PlayerSwim, SwimState, WaterBodies};
 use crate::game::wild::ActiveAreaSpawners;
 use crate::game::world_collision::{CollisionInstance, WorldCollision, WALL_NORMAL_Y};
 use crate::game::zone::{DoorReachIndex, TerrainResource, ZoneLinks};
-use crate::game::{ActiveZoneInfo, GameNavmeshResource, PlayerAvatar, WildCreature};
+use crate::game::{ActiveZoneInfo, PlayerAvatar, WildCreature};
 
 // ------------------------------------------------------------------ tuning
 
@@ -127,9 +127,9 @@ pub mod colors {
 
     pub const WALL: Color = Color::srgb(0.10, 0.85, 1.00);
     pub const FLOOR: Color = Color::srgb(0.45, 0.48, 0.52);
-    pub const NAV_WALK: Color = Color::srgb(0.20, 1.00, 0.35);
+    pub const TERRAIN_GRID: Color = Color::srgb(0.20, 1.00, 0.35);
     // Brighter than the first version: dark red vanished on the near-black `only` backdrop.
-    pub const NAV_BLOCKED: Color = Color::srgb(0.80, 0.10, 0.10);
+    pub const TERRAIN_BLOCKED: Color = Color::srgb(0.80, 0.10, 0.10);
     pub const DOOR: Color = Color::srgb(1.00, 0.85, 0.10);
     pub const CLIMB: Color = Color::srgb(1.00, 0.55, 0.10);
     pub const WATER: Color = Color::srgb(0.25, 0.55, 1.00);
@@ -281,11 +281,12 @@ impl DebugViewState {
             CollisionView::Overlay => {
                 parts.push("cian=muros");
                 parts.push("gris oscuro=suelos");
+                parts.push("verde=terreno");
             }
             CollisionView::Only => {
                 parts.push("cian=muros");
-                parts.push("verde=navegacion");
-                parts.push("rojo=no caminable");
+                parts.push("verde=terreno");
+                parts.push("rojo=pendiente no transitable");
             }
             CollisionView::Off => {}
         }
@@ -604,76 +605,83 @@ pub fn add_collision_lines<'a>(
     }
 }
 
-/// Add the walkable navigation faces near `player` to `lines` (green), and when `sampled_blocked`
-/// also the NOT-walkable sampled grid cells (dark red). `ground` supplies a height for the
-/// sampled marks (terrain or navmesh).
-pub fn add_nav_lines(
+/// Add the terrain grid near `player` to `lines`, glued to the heightmap (green). With
+/// `blocked_red` the segments over ground steeper than the walk limit are drawn in dark red
+/// (band `only` mode; the limit is `game::terrain_collision::MAX_WALK_SLOPE_DEG`, SUPUESTO).
+///
+/// The grid follows the heightmap's own cell size (1 m in the real areas): lines along z at
+/// every x step and lines along x at every z step, each segment coloured by the slope at its
+/// midpoint. Only the cells inside `radius` of `player` are drawn.
+pub fn add_terrain_lines(
     lines: &mut LineSet,
-    nav: &NavMesh,
+    terrain: &TerrainResource,
     player: Vec2,
     radius: f32,
-    sampled_blocked: bool,
-    ground: impl Fn(f32, f32) -> Option<f32>,
+    blocked_red: bool,
 ) {
-    let radius2 = radius * radius;
-    for face in &nav.faces {
-        if lines.clipped() {
-            return;
+    let area = &terrain.area;
+    let width = area.heightmap.width.max(2);
+    let cell = (area.world_extent[0] / (width - 1) as f32).max(1.0);
+    let (ex, ez) = (area.world_extent[0], area.world_extent[1]);
+    let x0 = (player.x - radius).max(0.0);
+    let x1 = (player.x + radius).min(ex);
+    let z0 = (player.y - radius).max(0.0);
+    let z1 = (player.y + radius).min(ez);
+    let color_of = |x: f32, z: f32| -> Color {
+        if blocked_red
+            && crate::game::terrain_collision::terrain_slope_deg(Some(terrain), x, z)
+                .is_some_and(|s| s > crate::game::terrain_collision::MAX_WALK_SLOPE_DEG)
+        {
+            colors::TERRAIN_BLOCKED
+        } else {
+            colors::TERRAIN_GRID
         }
-        let start = face.start_edge;
-        let end = start + face.num_edges as u32;
-        if start >= nav.edges.len() as u32 || end > nav.edges.len() as u32 {
-            continue;
-        }
-        // Cheap reject: the face's first vertex decides (faces are small convex islands).
-        let first = nav.vertices[nav.edges[start as usize].a as usize];
-        let center = Vec2::new(first[0], first[2]);
-        if center.distance_squared(player) > radius2 {
-            continue;
-        }
-        for e in start..end {
-            let edge = nav.edges[e as usize];
-            let a = nav.vertices[edge.a as usize];
-            let b = nav.vertices[edge.b as usize];
-            lines.line(Vec3::from(a), Vec3::from(b), colors::NAV_WALK);
-        }
-    }
-    if !sampled_blocked {
-        return;
-    }
-    let step = NAV_SAMPLE_STEP;
-    let half = (radius / step).ceil() as i32;
-    let (cx0, cz0) = (
-        (player.x / step).floor() as i32,
-        (player.y / step).floor() as i32,
-    );
-    for dx in -half..=half {
-        for dz in -half..=half {
+    };
+    // Lines along z, one per x step.
+    let mut x = (x0 / cell).floor() * cell;
+    while x <= x1 {
+        let mut z = z0;
+        while z < z1 {
             if lines.clipped() {
                 return;
             }
-            let (cx, cz) = (cx0 + dx, cz0 + dz);
-            let (x, z) = ((cx as f32 + 0.5) * step, (cz as f32 + 0.5) * step);
-            if Vec2::new(x, z).distance_squared(player) > radius2 {
-                continue;
+            let zb = (z + cell).min(z1);
+            if let (Some(ya), Some(yb)) = (
+                area.sample_world_height(x, z),
+                area.sample_world_height(x, zb),
+            ) {
+                lines.line(
+                    Vec3::new(x, ya + 0.05, z),
+                    Vec3::new(x, yb + 0.05, zb),
+                    color_of(x, (z + zb) * 0.5),
+                );
             }
-            if nav.is_walkable(x, z) {
-                continue;
-            }
-            let y = ground(x, z).unwrap_or(0.0);
-            let center = Vec3::new(x, y + 0.05, z);
-            let s = step * 0.25;
-            lines.line(
-                center - Vec3::X * s,
-                center + Vec3::X * s,
-                colors::NAV_BLOCKED,
-            );
-            lines.line(
-                center - Vec3::Z * s,
-                center + Vec3::Z * s,
-                colors::NAV_BLOCKED,
-            );
+            z += cell;
         }
+        x += cell;
+    }
+    // Lines along x, one per z step.
+    let mut z = (z0 / cell).floor() * cell;
+    while z <= z1 {
+        let mut x = x0;
+        while x < x1 {
+            if lines.clipped() {
+                return;
+            }
+            let xb = (x + cell).min(x1);
+            if let (Some(ya), Some(yb)) = (
+                area.sample_world_height(x, z),
+                area.sample_world_height(xb, z),
+            ) {
+                lines.line(
+                    Vec3::new(x, ya + 0.05, z),
+                    Vec3::new(xb, yb + 0.05, z),
+                    color_of((x + xb) * 0.5, z),
+                );
+            }
+            x += cell;
+        }
+        z += cell;
     }
 }
 
@@ -704,15 +712,17 @@ struct CollisionVisual {
     last_mode: Option<CollisionView>,
 }
 
-/// Navigation-overlay entity bookkeeping.
+/// Terrain-grid overlay entity bookkeeping.
 #[derive(Resource, Default)]
-struct NavVisual {
+struct TerrainVisual {
     entity: Option<Entity>,
     mesh: Option<Handle<Mesh>>,
     material: Option<Handle<StandardMaterial>>,
     last_player: Vec2,
-    /// Pointer to the loaded `AreaNavigation` the last mesh was built from (zone-change detect).
-    last_nav: usize,
+    /// Pointer to the loaded `TerrainArea` the last mesh was built from (zone-change detect).
+    last_terrain: usize,
+    /// Whether the last build painted the steep segments red (`only` mode).
+    last_red: bool,
 }
 
 /// Screen background of `collisions = only`: nearly black, so the thin cyan/green/red lines read
@@ -782,7 +792,7 @@ struct MarkerWorld<'w> {
     reach: Option<Res<'w, DoorReachIndex>>,
     zone: Option<Res<'w, ActiveZoneInfo>>,
     spawners: Option<Res<'w, ActiveAreaSpawners>>,
-    nav: Option<Res<'w, GameNavmeshResource>>,
+    collision: Option<Res<'w, WorldCollision>>,
     terrain: Option<Res<'w, TerrainResource>>,
     safe_spawn: Option<Res<'w, SafeSpawnPoint>>,
 }
@@ -803,19 +813,17 @@ struct InfoSources<'w> {
     ride: Option<Res<'w, RideState>>,
 }
 
-/// Ground height under `(x, z)`: navmesh first, terrain second, `fallback` when neither knows.
+/// Ground height under `(x, z)` on the terrain rule (heightmap, then collider floors),
+/// `fallback` when neither knows.
 fn ground_height(world: &MarkerWorld, x: f32, z: f32, fallback: f32) -> f32 {
-    world
-        .nav
-        .as_ref()
-        .and_then(|n| n.height_at(x, z))
-        .or_else(|| {
-            world
-                .terrain
-                .as_ref()
-                .and_then(|t| t.area.sample_world_height(x, z))
-        })
-        .unwrap_or(fallback)
+    crate::game::terrain_collision::ground_y(
+        world.terrain.as_deref(),
+        world.collision.as_deref(),
+        x,
+        z,
+        fallback,
+    )
+    .unwrap_or(fallback)
 }
 
 // ------------------------------------------------------------------ systems
@@ -925,19 +933,18 @@ fn sync_collision_lines(
     }
 }
 
-/// Keep the navigation overlay in sync (drawn in `collisions = only`, with the sampled
-/// not-walkable grid).
-fn sync_nav_lines(
+/// Keep the terrain-grid overlay in sync: drawn the whole time F1 is active (overlay and only),
+/// with the steep segments in dark red in `only` mode.
+fn sync_terrain_lines(
     mut commands: Commands,
     state: Res<DebugViewState>,
-    mut visual: ResMut<NavVisual>,
+    mut visual: ResMut<TerrainVisual>,
     mut meshes: Option<ResMut<Assets<Mesh>>>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
-    nav: Option<Res<GameNavmeshResource>>,
     terrain: Option<Res<TerrainResource>>,
     player: Query<&GlobalTransform, With<PlayerAvatar>>,
 ) {
-    let want = state.collisions == CollisionView::Only;
+    let want = state.collisions != CollisionView::Off;
     if !want {
         if let Some(entity) = visual.entity.take() {
             commands.entity(entity).despawn();
@@ -949,7 +956,7 @@ fn sync_nav_lines(
     let (Some(meshes), Some(materials)) = (meshes.as_deref_mut(), materials.as_deref_mut()) else {
         return;
     };
-    let Some(nav) = nav else {
+    let Some(terrain) = terrain else {
         return;
     };
     let player_pos = player
@@ -971,32 +978,21 @@ fn sync_nav_lines(
         visual.entity = Some(entity);
         visual.mesh = Some(mesh);
         visual.material = Some(material);
-        visual.last_nav = 0;
+        visual.last_terrain = 0;
     }
-    let nav_ptr = std::sync::Arc::as_ptr(&nav.nav) as *const AreaNavigation as usize;
+    let terrain_ptr = std::sync::Arc::as_ptr(&terrain.area) as *const crate::assets::terrain::TerrainArea as usize;
+    let red = state.collisions == CollisionView::Only;
     let moved = visual.last_player.distance(player_pos) > REBUILD_MOVE * 2.0;
-    if !moved && nav_ptr == visual.last_nav {
+    if !moved && terrain_ptr == visual.last_terrain && red == visual.last_red {
         return;
     }
     visual.last_player = player_pos;
-    visual.last_nav = nav_ptr;
+    visual.last_terrain = terrain_ptr;
+    visual.last_red = red;
     let mut lines = LineSet::new(MAX_VIEW_VERTICES);
-    add_nav_lines(
-        &mut lines,
-        nav.nav.primary(),
-        player_pos,
-        NAV_RADIUS,
-        true,
-        |x, z| {
-            nav.height_at(x, z).or_else(|| {
-                terrain
-                    .as_ref()
-                    .and_then(|t| t.area.sample_world_height(x, z))
-            })
-        },
-    );
+    add_terrain_lines(&mut lines, &terrain, player_pos, NAV_RADIUS, red);
     if lines.clipped() {
-        debug!("debug view: nav lines clipped at {} lines", lines.len());
+        debug!("debug view: terrain grid clipped at {} lines", lines.len());
     }
     if let Some(handle) = &visual.mesh {
         if let Some(mut mesh) = meshes.get_mut(handle) {
@@ -1707,7 +1703,7 @@ impl Plugin for DebugVisualPlugin {
             // F1/F2/F3 reader valid when the plugin is used on its own (tests, small examples).
             .init_resource::<ButtonInput<KeyCode>>()
             .init_resource::<CollisionVisual>()
-            .init_resource::<NavVisual>()
+            .init_resource::<TerrainVisual>()
             .init_resource::<WorldHide>()
             .init_resource::<BackdropSaved>()
             .init_resource::<FlatShade>()
@@ -1728,7 +1724,7 @@ impl Plugin for DebugVisualPlugin {
             (
                 cycle_modes,
                 sync_collision_lines,
-                sync_nav_lines,
+                sync_terrain_lines,
                 sync_world_hiding,
                 sync_flat_materials,
                 sync_wireframe,
@@ -1948,8 +1944,8 @@ mod tests {
         let colors = state.colors_line();
         for needle in [
             "cian=muros",
-            "verde=navegacion",
-            "rojo=no caminable",
+            "verde=terreno",
+            "rojo=pendiente no transitable",
             "amarillo=puertas+viaje",
             "naranja=trepables",
             "azul=agua",
