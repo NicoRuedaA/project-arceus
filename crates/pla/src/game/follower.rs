@@ -846,15 +846,19 @@ mod tests {
             DT,
         )));
         app.init_state::<GameState>();
+        // The synthetic terrain covers [0, 128] x [0, 128]: the circle runs around its centre
+        // (the flat test terrain of the old navmesh quad surrounded the origin).
+        const CX: f32 = 64.0;
+        const CZ: f32 = 64.0;
         app.insert_resource(crate::game::terrain_collision::test_terrain(129, |_, _| 0.0));
         let player = app
             .world_mut()
-            .spawn((PlayerAvatar, Transform::from_xyz(0.0, 0.0, 0.0)))
+            .spawn((PlayerAvatar, Transform::from_xyz(CX, 0.0, CZ)))
             .id();
-        let mut state = FollowerState::new((-FOLLOW_DISTANCE, 0.0), std::f32::consts::FRAC_PI_2);
+        let mut state = FollowerState::new((CX - FOLLOW_DISTANCE, CZ), std::f32::consts::FRAC_PI_2);
         state
             .trail
-            .seed([Vec2::new(-FOLLOW_DISTANCE, 0.0), Vec2::ZERO]);
+            .seed([Vec2::new(CX - FOLLOW_DISTANCE, CZ), Vec2::new(CX, CZ)]);
         let follower = app
             .world_mut()
             .spawn((
@@ -863,7 +867,7 @@ mod tests {
                     form: 0,
                 },
                 state,
-                Transform::from_xyz(-FOLLOW_DISTANCE, 0.0, 0.0),
+                Transform::from_xyz(CX - FOLLOW_DISTANCE, 0.0, CZ),
             ))
             .id();
         app.add_systems(Update, drive_follower);
@@ -873,7 +877,7 @@ mod tests {
         let mut max_y = 0.0f32;
         for i in 0..2400 {
             let t = i as f32 * DT;
-            let (x, z) = (6.0 * (t * 0.75).cos(), 6.0 * (t * 0.75).sin());
+            let (x, z) = (CX + 6.0 * (t * 0.75).cos(), CZ + 6.0 * (t * 0.75).sin());
             app.world_mut()
                 .get_mut::<Transform>(player)
                 .unwrap()

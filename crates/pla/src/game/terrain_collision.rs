@@ -257,25 +257,33 @@ pub fn walkable_near(ctx: &WalkContext, anchor: Vec2, max_dist: f32) -> Option<V
 
 // ------------------------------------------------------------------ tests
 
-/// Synthetic `size` x `size` terrain over `size - 1` metres with a height function (test
-/// helper shared by other modules' tests).
+/// Synthetic `size` x `size` terrain over `size - 1` metres with a height function in metres
+/// (test helper shared by other modules' tests).
+///
+/// Heightmap samples are normalized like the decoded ones: `sample_world_height` multiplies
+/// them by `world_height`, so the helper stores `height / max` and `world_height = max`.
 #[cfg(test)]
 pub fn test_terrain(size: u32, height: impl Fn(f32, f32) -> f32) -> TerrainResource {
     use crate::assets::bntx::{FloatTextureData, TextureData};
     use crate::assets::terrain::{TerrainArea, TerrainMeshSettings};
     use std::sync::Arc;
 
-    let mut samples = Vec::new();
+    let mut raw = Vec::new();
+    let mut max_abs = 0.0f32;
     for zi in 0..size {
         for xi in 0..size {
-            samples.push(height(xi as f32, zi as f32));
+            let h = height(xi as f32, zi as f32);
+            max_abs = max_abs.max(h.abs());
+            raw.push(h);
         }
     }
+    let scale = max_abs.max(1.0);
+    let samples: Vec<f32> = raw.iter().map(|h| h / scale).collect();
     let area = TerrainArea {
         area: 1,
         source_path: std::path::PathBuf::new(),
         world_extent: [(size - 1) as f32, (size - 1) as f32],
-        world_height: height(0.0, 0.0).abs().max(1.0),
+        world_height: scale,
         heightmap_brti_name: "h".into(),
         navmesh_bounds: None,
         heightmap: FloatTextureData {
@@ -362,11 +370,13 @@ mod tests {
         let ctx = WalkContext::player(Some(&ramp), None, None, false, 0.0);
         assert!(ctx.is_walkable(20.0, 10.0), "30 deg slope is walkable");
 
-        // 60 deg step-face: rises > 1 step within the slope window -> wall.
+        // 60 deg step-face: rises > 1 step within the slope window -> wall. The probe sits at
+        // the face (the step is one cell wide at x = 16): 1.5 m in, the window no longer
+        // straddles it and the point is the plateau top.
         let wall = smooth_terrain(33, |x, _| if x < 16.0 { 0.0 } else { 20.0 });
         let ctx = WalkContext::player(Some(&wall), None, None, false, 0.0);
         assert!(
-            !ctx.is_walkable(17.5, 10.0),
+            !ctx.is_walkable(16.5, 10.0),
             "a 20 m step face rising over the feet is blocked"
         );
     }
@@ -468,7 +478,9 @@ mod tests {
         });
         let mut water = WaterBodies::default();
         water.insert(water_rect(0.0, 0.0, 64.0, 64.0, 4.0));
-        let ctx = WalkContext::player(Some(&t), None, Some(&water), true, 10.0);
+        // On foot: the anchor is deep water, so the scan has to run outward to the island
+        // (a mount crosses deep water and the anchor itself would be walkable).
+        let ctx = WalkContext::player(Some(&t), None, Some(&water), false, 10.0);
         let p = walkable_near(&ctx, Vec2::new(0.0, 0.0), 40.0).expect("the island");
         assert!(p.distance(Vec2::new(32.0, 32.0)) < 24.5, "{p:?}");
     }

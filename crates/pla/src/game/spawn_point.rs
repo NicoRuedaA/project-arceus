@@ -306,12 +306,13 @@ mod tests {
 
     #[test]
     fn saved_position_off_the_walkable_ground_is_replaced() {
-        // Deep water everywhere except a raised plateau around (30, 30).
+        // Deep water everywhere except a plateau around (30, 30) standing 1 m above the 4 m
+        // surface: walkable ground inside, swimming depth outside.
         use crate::game::water::WaterBody;
         let t = test_terrain(65, |x, z| {
             let d = ((x - 30.0).powi(2) + (z - 30.0).powi(2)).sqrt();
             if d <= 12.0 {
-                1.0
+                5.0
             } else {
                 0.0
             }
