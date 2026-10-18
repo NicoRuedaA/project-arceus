@@ -261,11 +261,12 @@ impl DebugViewState {
             CollisionView::Overlay => {
                 parts.push("cian=muros");
                 parts.push("gris oscuro=suelos");
+                parts.push("verde=terreno");
             }
             CollisionView::Only => {
                 parts.push("cian=muros");
-                parts.push("verde=navegacion");
-                parts.push("rojo=no caminable");
+                parts.push("verde=terreno");
+                parts.push("rojo=pendiente no transitable");
             }
             CollisionView::Off => {}
         }
@@ -1825,8 +1826,8 @@ mod tests {
         let colors = state.colors_line();
         for needle in [
             "cian=muros",
-            "verde=navegacion",
-            "rojo=no caminable",
+            "verde=terreno",
+            "rojo=pendiente no transitable",
             "amarillo=puertas+viaje",
             "naranja=trepables",
             "azul=agua",

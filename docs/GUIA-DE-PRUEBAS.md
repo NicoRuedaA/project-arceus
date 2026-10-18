@@ -727,7 +727,9 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     - No es una ayuda para jugar: es para que tú (y el asistente) puedan mirar y comprobar el port.
     - Capturas de referencia, en la aldea y en el bosque: apagado, colisiones (encima y solo),
       sin textura, alambre, jugador y marcas, más tres de detalle (salvaje con su radio, puerta
-      y agua): `/home/nico/work/capturas_debug_visual/` (con `LEEME.txt`).
+      y agua): `/home/nico/work/capturas_debug_visual/` (con `LEEME.txt`). Capturas de la regla
+      de terreno (2026-10-18, teclas reales F1 una y dos veces, muros de casas, puerta de casa
+      y el muro de roca que frena y ofrece TREPAR): `/home/nico/work/capturas_terreno_colision/`.
 
     Para capturas automáticas (sin ventana) se puede arrancar ya con un modo encendido:
     `.tools/gamectl.py start -- --area 0 --debug-view collisions=only` (y `markers`, `wireframe`...),
