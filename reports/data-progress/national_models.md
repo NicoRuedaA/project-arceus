@@ -97,13 +97,16 @@ python3 .tools/build_model_map.py            # regenera data/national/model_map.
 El script es de solo lectura sobre la carpeta del usuario. No copia nada a git.
 
 
-## Conversión y uso en el juego (2026-10-17)
+## Conversión y uso en el juego (2026-10-17, texturas revisadas el 2026-10-18)
 
 - **Conversor:** `.tools/blender_export_pokemon.py` (Blender sin ventana) escribe un glTF por
   pack con malla, esqueleto, texturas y los clips renombrados al esquema del motor
-  (`<pack>_NNNNN_<sufijo>`). El color base se hornea desde las capas Trinity del propio
-  material (`BaseColorLayer1..4` x canales de `_lym`), la misma fórmula que el exportador de
-  PLA; sin ese horneado el albedo viene en blanco y el modelo sale gris.
+  (`<pack>_NNNNN_<sufijo>`). Las texturas se resuelven desde el propio grafo del material (los
+  enlaces del grupo `PokemonShader` o los enlaces `Principled` de los packs `_col/_nor/_amb`),
+  con el heurístico de nombres solo como respaldo. El color base se hornea desde las capas
+  Trinity del material (`BaseColorLayer1..4` x canales R,G,B,A de `_lym`) mezclando en luz
+  lineal con la regla secuencial del propio material (`c = mix(c, albedo·capa_i, w_i)`); sin ese
+  horneado el albedo viene en blanco y el modelo sale gris.
 - **Lote:** `.tools/convert_national_batch.py` (2 procesos Blender a la vez, `systemd-run`
   con 6 GB por proceso, resumible, para si el disco baja de 40 GB).
   **1.092 packs convertidos, 1.092 correctos, 0 fallos, 3,18 GB** en
@@ -122,6 +125,25 @@ El script es de solo lectura sobre la carpeta del usuario. No copia nada a git.
 - **Comprobado por capturas** (miradas una a una): los 6 modelos del piloto, el panel de la
   Pokédex con Bulbasaur, el combate salvaje contra Skeledirge y Zubat/Beedrill tras corregir el
   caso de packs cuyos clips solo existen en el bloque 20000+.
-- **Límites:** color plano horneado (sin shaders de capas/emisión), 12 clips por modelo del
+- **Texturas y color (corregido el 2026-10-18):** el conversor elegía las texturas por el nombre
+  del material; cuando el nombre no contenía el de la imagen (`body_01` frente a `body_alb`,
+  `l_eye` frente a `eye_alb`) ganaba el primer archivo de la carpeta, así que 1.047 de los 1.092
+  packs llevaban alguna textura de otra parte del cuerpo (2.867 albedos, 1.813 máscaras `_lym` y
+  2.684 normales mal asignados; solo 45 packs estaban bien). Ahora las texturas se leen del
+  grafo del material, se buscan las compartidas en la carpeta base de los packs variante
+  (`pmNNNN_01_00` → `pmNNNN_00_00`) y el respaldo por nombre rechaza elecciones ambiguas en vez
+  de inventarlas. El horneado pasó a mezclar en luz lineal con la regla secuencial del material
+  (antes multiplicaba valores sRGB por colores lineales: todo salía más oscuro de lo debido) y
+  los mapas de normales se reconstruyen cuando el azul sale del alfa (`_nrm` con B = 0; 823
+  packs), porque el motor decodifica B = 0 como z = -1. Auditoría de la colección: 823 packs con
+  el grupo Trinity (con horneado) y 269 con materiales planos `_col/_nor/_amb` (sin horneado),
+  3.155 materiales horneados en total, 33 packs con algún material de efectos (fuego,
+  proyector) sin textura propia (se deja sin textura en vez de adivinar) y 23 materiales de 10
+  packs con capas de color pero sin máscara `_lym` con la que hornear. Los 1.092 packs se
+  reconvirtieron con el exportador corregido y se compararon 28 modelos variados antes/después
+  (Jigglypuff rosa entero, Kadabra amarillo con la estrella rosada; muestrario en
+  `/home/nico/work/capturas_modelos_texturas/`, fuera de git).
+- **Límites:** color plano horneado (sin emisión ni rugosidad por capa; los 33 packs de efectos
+  y los 23 materiales sin `_lym` quedan sin color horneado), 12 clips por modelo del
   lote, 298 especies sin modelo emparejado, y la postura/fidelidad de los modelos no está
   revisada por el usuario.

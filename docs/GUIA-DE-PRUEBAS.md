@@ -809,6 +809,18 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       `R` vuelve al ángulo inicial, y al cambiar de especie el ángulo se reinicia solo. Abajo,
       en el pie de la página, salen las teclas. El aviso de la ruta del modelo sobre la página
       solo aparece con `PLA_DEBUG_DEX_PREVIEW=1` (es información de desarrollo).
+    - **Colores y texturas (corregido el 2026-10-18).** Hasta esa fecha algunos modelos salían
+      con la textura de otra parte del cuerpo — Jigglypuff con el cuerpo oscuro y Kadabra con
+      manchas verdes y rosas — porque el conversor elegía las imágenes por el nombre del material
+      y, cuando no coincidía, cogía la primera de la carpeta. Ahora las texturas se leen del
+      propio archivo del modelo (los enlaces de cada material), el color base se mezcla por capas
+      como en el material original (en luz lineal, sin oscurecer) y los mapas de normales se
+      reconstruyen para que el motor los lea bien. **Cómo comprobarlo:** abre la Pokédex
+      (Esc → Pokédex), pulsa `Y` (lista nacional) y busca la 039 (Jigglypuff: cuerpo rosa entero
+      y ojos azules con aro) y la 064 (Kadabra: amarillo, con la estrella rosada en la frente y
+      las bandas marrones). En el mundo: `./play.sh --spawn-species 39` (o F7 y escribe
+      «jiggly») lo coloca entero delante. Capturas de antes y después en
+      `/home/nico/work/capturas_modelos_texturas/` (con `LEEME.txt`; fuera de git).
     - **Combate:** las especies sin modelo en el juego ya pelean con su modelo convertido
       (por ejemplo, un combate salvaje contra Skeledirge).
     - **Cobertura actual:** 727 de las 1.025 especies tienen modelo; la lista de las que no y el
