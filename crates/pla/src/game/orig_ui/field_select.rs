@@ -84,7 +84,8 @@ pub struct FieldSelector {
 impl Default for FieldSelector {
     fn default() -> Self {
         Self {
-            open: false,
+            // The game's HUD always shows the wheel: it starts open on the items.
+            open: true,
             panel: PanelKind::Items,
             pokemon_index: 0,
         }
@@ -571,6 +572,6 @@ mod tests {
         assert_eq!(PanelKind::Items.other(), PanelKind::Pokemon);
         assert_eq!(PanelKind::Pokemon.other().other(), PanelKind::Pokemon);
         assert_eq!(FieldSelector::default().panel, PanelKind::Items);
-        assert!(!FieldSelector::default().open);
+        assert!(FieldSelector::default().open, "the wheel starts open, like the game's HUD");
     }
 }
