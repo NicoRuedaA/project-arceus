@@ -157,7 +157,7 @@ pm0922_11_00	849	0	Amped Form	base	PROBABLE	icono y render: Toxtricity (forma Am
 pm0922_12_00	849	1	Low Key Form	cosmetica	PROBABLE	icono y render: Toxtricity (forma Low Key); FF=11+n forma n
 pm0922_81_00	849	0	Amped Form	gigamax	PROBABLE	FF=81 = Gigamax (Toxtricity)
 pm0923_00_00	870	0	Falinks	base	PROBABLE	icono y render: seis soldados en fila (Falinks)
-pm0923_51_00	870	1	Mega Falinks	mega	PROBABLE	render: formacion con disco rojo (Mega Falinks de Z-A); FF=51 = mega 1
+pm0923_51_00	870	1	Mega Falinks	mega	VERIFICADO	render: formacion con disco rojo (Mega Falinks de Z-A); FF=51 = mega 1 | confirmado por el usuario en F7 (2026-10-18)
 pm0924_00_00	868	0	Milcery	base	PROBABLE	icono y render: nata crema (Milcery)
 pm0925_11_00	869	0	Vanilla Cream	base	PROBABLE	icono y render: Alcremie crema vainilla; FF=11+n forma n
 pm0925_12_00	869	1	Ruby Cream	cosmetica	PROBABLE	icono y render: Alcremie rosa; FF=11+n forma n
@@ -318,7 +318,7 @@ pm1069_00_00	934	0	Garganacl	base	PROBABLE	icono (textura del propio pack): gole
 pm1070_00_00	969	0	Glimmet	base	PROBABLE	icono: flor de cristal azul (Glimmet)
 pm1071_00_00	970	0	Glimmora	base	PROBABLE	icono: flor de cristal azul grande (Glimmora)
 pm1071_51_00	970	1	Mega Glimmora	mega	PROBABLE	icono (textura del propio pack): flor de cristal azul; FF=51 = Mega (convencion verificada; megas de Legends Z-A)
-pm1072_00_00	944	0	Shroodle	base	PROBABLE	icono (textura del propio pack): criatura negra con parche verde menta y lengua morada (Shroodle; identificacion mas debil, por descarte con Grafaiai)
+pm1072_00_00	944	0	Shroodle	base	VERIFICADO	icono (textura del propio pack): criatura negra con parche verde menta y lengua morada (Shroodle; identificacion mas debil, por descarte con Grafaiai) | confirmado por el usuario en F7 (2026-10-18)
 pm1073_00_00	945	0	Grafaiai	base	PROBABLE	icono (textura del propio pack): mono oscuro de cara clara con dedos rosas y azules (Grafaiai)
 pm1074_00_00	926	0	Fidough	base	PROBABLE	icono: perro de masa crema (Fidough)
 pm1075_00_00	927	0	Dachsbun	base	PROBABLE	icono: perro dorado (Dachsbun)
