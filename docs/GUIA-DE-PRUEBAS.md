@@ -725,6 +725,26 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     original (la malla de navegación); ya no se dibuja. En el modo F1 «solo» el fondo de la
     pantalla es **casi negro** (en lugar del cielo) para que se vean bien las líneas.
 
+    **Colliders de criaturas (F1).** Con F1 encendido (tanto en ENCIMA como en SOLO) también se
+    dibuja el collider **real** de cada personaje y Pokémon a menos de 40 m del protagonista:
+
+    - **violeta**: el **jugador**, una cápsula de 0,35 m de radio y 1,8 m de alto; es exactamente
+      la que usa el choque contra muros y rocas. (VERIFICADO)
+    - **turquesa**: el **seguidor**, un anillo de 1,4 m: la separación mínima entre jugador y
+      seguidor (no se dibuja cápsula porque el seguidor no choca contra nada; su única regla es
+      esa distancia). (VERIFICADO)
+    - **blanco**: **PNJ** (anillo de 1,6 m: la distancia que el juego respeta al colocar al
+      jugador junto a un PNJ) y **entrenadores** (anillo de 3 m: su alcance de reto). Tampoco
+      tienen cápsula: se puede pasar por delante de ellos. (VERIFICADO)
+    - **rojo**: **Pokémon salvajes**, una cápsula de 0,4 m de radio y 1,2 m de alto; es la misma
+      con la que el salvaje choca contra muros y rocas al pasear. (VERIFICADO)
+    - **ámbar**: el Pokémon **colocado** con F7 o `--spawn-species`; como ese modelo no tiene
+      collider propio, se dibuja el del salvaje como referencia de tamaño. (SUPUESTO)
+
+    Las **cápsulas** son el cuerpo; los **anillos** van pegados al suelo con una cruz en el
+    centro (para poder leerlos en el modo SOLO, donde no se ven los modelos). Los personajes en
+    batalla (ocultos) y los salvajes ya derrotados no se dibujan.
+
     Qué hacer y qué deberías ver: camina por la aldea (zona 0) y por el bosque (zona 1) con cada
     modo. **Es un fallo** que al apagarlo todo quede algo raro: un modelo sin textura que no
     vuelve, un trozo de mundo que se queda invisible o colores que no correspondan con la lista.
@@ -733,6 +753,9 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     Notas honestas:
     - El dibujo de colisiones se limita a unos 70 m alrededor del protagonista y la rejilla del
       terreno a unos 64 m; más lejos no se dibuja (para no ir lento). Las marcas de F3, a unos 160 m.
+    - Los **colliders de criatura** (violeta/turquesa/blanco/rojo/ámbar, ver arriba) se redibujan
+      cada fotograma siguiendo a los personajes que se mueven, solo hasta 40 m y con un límite de
+      líneas (si se recorta, queda avisado en la consola).
     - El modo **ALAMBRE** usa la pieza de dibujo de Bevy; si tu tarjeta gráfica no la soportara,
       Bevy lo avisa en la consola y el modo simplemente no dibuja líneas (nada se rompe).
     - El modo **SIN TEXTURA** cambia el material de los modelos, del terreno (tanto el normal
@@ -751,6 +774,9 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       y agua): `/home/nico/work/capturas_debug_visual/` (con `LEEME.txt`). Capturas de la regla
       de terreno (2026-10-18, teclas reales F1 una y dos veces, muros de casas, puerta de casa
       y el muro de roca que frena y ofrece TREPAR): `/home/nico/work/capturas_terreno_colision/`.
+    - Capturas de los **colliders de criatura** (F1 con las líneas nuevas), hechas con teclas
+      reales: jugador, seguidor, PNJ, salvaje, entrenador y el Pokémon colocado con F7:
+      `/home/nico/work/capturas_debug_colliders/` (con `LEEME.txt`).
 
     Para capturas automáticas (sin ventana) se puede arrancar ya con un modo encendido:
     `.tools/gamectl.py start -- --area 0 --debug-view collisions=only` (y `markers`, `wireframe`,

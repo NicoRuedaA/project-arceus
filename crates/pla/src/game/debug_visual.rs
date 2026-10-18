@@ -50,6 +50,12 @@
 //! change, so F1 shows them without extra code; the fallback rooms of `game::interior` register
 //! their boxes as extra collision instances too (the movement grounds on collider floors).
 //!
+//! F1 also draws every nearby character's real collider or push/interaction radius (player,
+//! follower, NPCs, trainers, wild creatures and the debug-placed models) through
+//! `game::debug_colliders`; that module's table is the source for its shapes, values and colours
+//! (violet player capsule, turquoise follower ring, white NPC/trainer rings, red wild capsule,
+//! amber placed reference).
+//!
 //! # Wiring notes
 //!
 //! * F1 always draws the collision triangles within 70 m of the player plus the terrain grid
@@ -283,6 +289,11 @@ impl DebugViewState {
                 parts.push("rojo=pendiente no transitable");
             }
             CollisionView::Off => {}
+        }
+        if self.collisions != CollisionView::Off {
+            // The creature colliders of `game::debug_colliders` (player, follower, NPCs,
+            // trainers, wild creatures and debug-placed models).
+            parts.extend(crate::game::debug_colliders::legend_entries());
         }
         if self.data == DataView::Markers {
             parts.push("amarillo=puertas+viaje");
@@ -1617,7 +1628,7 @@ fn update_legend(
 /// (`Depth bias is not compatible with non-triangle topology`), which killed the viewer while
 /// drawing the first overlay frame. The debug geometry offsets itself by a few centimetres
 /// instead (`+0.05`/`+0.08` in the builders).
-fn line_material() -> StandardMaterial {
+pub(crate) fn line_material() -> StandardMaterial {
     StandardMaterial {
         base_color: Color::WHITE,
         unlit: true,
@@ -1702,6 +1713,9 @@ impl Plugin for DebugVisualPlugin {
         // GPUs without POLYGON_MODE_LINE/IMMEDIATES Bevy logs a warning and the mode draws
         // nothing instead of failing).
         app.add_plugins(bevy::pbr::wireframe::WireframePlugin::default());
+        // The F1 creature colliders (player, follower, NPCs, trainers, wild creatures and
+        // debug-placed models) live in their own module; it only draws while F1 is on.
+        app.add_plugins(super::debug_colliders::DebugCollidersPlugin);
         app.add_systems(Startup, spawn_debug_ui);
         // `ClearColor` is what the renderer extracts after `Last`: override it there.
         app.add_systems(Last, sync_dark_backdrop);
