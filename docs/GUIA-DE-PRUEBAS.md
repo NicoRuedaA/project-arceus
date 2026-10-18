@@ -908,6 +908,8 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     vertical con el tirador crema de las pantallas originales ya **se puede usar** (antes solo
     se dibujaba):
     - **Rueda del ratón:** sube/baja una fila (en la mochila y las cajas, una página/una caja).
+      Rueda **hacia ti = baja** (la lista avanza a números mayores) y hacia delante = sube, como
+      en cualquier lista (antes iba al revés en todas las listas con barra).
     - **Arrastrar el tirador:** le mueves y la lista acompaña; el tirador mide la parte visible
       (lista larga = tirador corto) y su posición marca dónde estás.
     - **Clic en la pista (fuera del tirador):** salta una página hacia el lado del clic.
@@ -1010,6 +1012,10 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
     Pokédex (Y; luego Y otra vez para la lista nacional) el Pokémon del marco se ve **bien
     iluminado y con sus colores** (ya no oscuro, aunque sea de noche en el juego), sobre un fondo
     gris azulado claro. Fallo: la silueta sigue casi negra o los colores salen apagados.
+    **Dentro del marco de foto:** el Pokémon se dibuja solo sobre la parte **gris** de la foto
+    retro del juego (el degradado gris original se ve detrás, sin fondo propio), y el borde crema
+    de la foto con sus esquinas queda visible alrededor. Fallo: el modelo tapa el borde crema o
+    sale sobre un recuadro de otro color.
 85. **F1 dibuja también el agua.** [EN RAMA `feat/orq-ajustes`] En los modos ENCIMA y SOLO de F1
     el agua sale en **azul** (los triángulos de cada río o lago a la altura de su superficie, hasta
     64 m de ti) y la leyenda dice «azul=agua». Pruébalo junto al río de Jubilife Village.
