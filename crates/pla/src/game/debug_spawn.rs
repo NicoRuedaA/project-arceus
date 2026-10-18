@@ -1283,6 +1283,32 @@ national_number:u16\tidentifier:string\tname_en:string\tname_es:string\tname_ja_
         assert!(problems.is_empty(), "F7 gaps: {problems:#?}");
     }
 
+    /// Zygarde's folders pm0770_11..15 and _51 are assigned to the official forms.
+    #[test]
+    fn zygarde_forms_are_all_listed() {
+        let cache = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../work/cache/pokemon_national");
+        let have_cache = std::env::var("PLA_CACHE_ROOT")
+            .map(|root| PathBuf::from(root).join("pokemon_national").is_dir())
+            .unwrap_or(false)
+            || cache.is_dir();
+        if !have_cache {
+            eprintln!("[skip] no pokemon_national cache");
+            return;
+        }
+        let forms = resolve_forms(718);
+        let names: Vec<(u8, &str)> = forms.iter().map(|(f, n)| (*f, n.as_str())).collect();
+        for expected in [
+            (0, "50% Forme"),
+            (3, "Complete Forme"),
+            (4, "10% Forme"),
+            (5, "Mega Zygarde"),
+            (6, "Zygarde Cell"),
+            (7, "Zygarde Core"),
+        ] {
+            assert!(names.contains(&expected), "missing {expected:?} in {names:?}");
+        }
+    }
+
     /// App with the REAL names sheet, the real model cache and a player at the origin. `None`
     /// (and a `[skip]` note) when the converted collection is not installed.
     fn real_data_app_with_player() -> Option<App> {
