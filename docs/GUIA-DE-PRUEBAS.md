@@ -154,6 +154,9 @@ valor por defecto.
 | V | **Montura: subir o bajarse** de la montura elegida (al montar sale una línea con sus teclas). Sin montar, además cambia el cebo, y también empieza un combate de entrenador si hay una cápsula roja cerca (o si usas `--trainer`) |
 | G | **Cambiar de montura** (Wyrdeer → Ursaluna → Basculegion → Sneasler → Braviary). Ojo: **G comparte tecla con la Gran Ball** (también la elige) |
 | X (apuntando) | Lanzar el cebo elegido |
+| **X** (a pie, sin apuntar) | **Selector de objetos y Pokémon**: abre abajo a la derecha la rueda del juego (objeto actual en el centro con su cantidad, el anterior y el siguiente a los lados). Con la rueda abierta, **X** cambia entre el panel de objetos y el de Pokémon (los iconos X y de cambio que salen encima). Ver 2.22 |
+| **[** / **]** (con la rueda abierta) | Objeto o Pokémon **anterior / siguiente** (da la vuelta a la lista) |
+| **Retroceso** (con la rueda abierta) | Cerrar la rueda |
 | E o Enter | Entrar en una puerta; acercarte a un Pokémon salvaje y retarlo si estás a menos de 4 m; abrir una tienda cercana |
 | Espacio o Enter | Recoger un objeto del suelo cercano |
 | I | Mochila |
@@ -915,6 +918,33 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     tirador cambia de tamaño al azar, la lista no sigue a la barra (o al revés) o la rueda
     mueve la cámara en vez de la lista.
 
+### 2.22 Selector de objetos y Pokémon en el campo  [EN RAMA `feat/hud-selectores`]
+
+84. **La rueda de objetos y Pokémon (tecla X).** [EN RAMA `feat/hud-selectores`] En el mundo,
+    sin apuntar, pulsa **X**: en la esquina de abajo a la derecha aparece la **rueda del juego**
+    (el mismo panel decodificado de la pantalla de apuntar: `pokeget/pokeget_item_change_00`):
+    - En el centro, el **objeto actual** grande con su **cantidad** debajo (p. ej. «59»), y a los
+      lados el **anterior** y el **siguiente** más pequeños.
+    - Encima del objeto, el icono del botón **X** y el de **cambio** (las flechas circulares).
+    - Abajo, la barra oscura con la **L**, el **nombre** del objeto y la **R**.
+    - **X** cambia al panel de **Pokémon**: el Pokémon del equipo elegido en el centro (retrato
+      real) con su **Lv.** y su nombre; a los lados el anterior y el siguiente del equipo. **X**
+      otra vez vuelve a los objetos.
+    - **[** y **]** cambian al anterior / siguiente (dan la vuelta); al cambiar de objeto, la
+      bola que se lanza con clic izquierdo/Espacio (apuntando) es la que quedó en la rueda, y
+      las teclas de bola de siempre (B/G/U/F/N/J/L/T) mueven la rueda igual. Con **[** / **]** en
+      la lista de objetos también salen los **cebos** que llevas en la mochila (después de las
+      9 bolas; la V sigue cambiándolos).
+    - **Retroceso** cierra la rueda. Mientras está abierta, el atajo de bola de la esquina
+      (el de antes) se oculta: la rueda muestra lo mismo más grande.
+    - **El Pokémon que elijas es el que te acompaña**: al cambiar de Pokémon en la rueda, el
+      Pokémon que anda detrás de ti cambia a ese. Arriba sale una línea con las teclas
+      (`X: … [ ] … Backspace …`). Con la rueda cerrada, abajo en el centro se recuerda
+      «X: open the item / Pokémon selector».
+    Fallo: X no abre nada, sale la ventana de texto provisional, no hay iconos ni cantidades,
+    los lados no cambian, la X no alterna objetos/Pokémon, el Pokémon elegido no es el que
+    camina contigo, o la rueda tapa el minimapa.
+
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 
 | Qué | Qué hicimos | Por qué es una suposición |
@@ -954,6 +984,8 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 | Animaciones de ataque en combate | Físico = ataque cuerpo a cuerpo, otros = ataque a distancia | Asignación supuesta |
 | Rotación de objetos del mapa | Giro sobre el eje vertical, en grados | Sin comprobar a ojo |
 | Mensajes e interfaz | Textos y diseño propios (en inglés) | No se usa texto del juego |
+| Rueda de objetos/Pokémon (2026-10-18) | Se abre a pie con **X**, **X** alterna los paneles, **cerrar con Retroceso**, la lista de objetos son las 9 bolas y luego los cebos de la mochila, y el Pokémon elegido es el que camina contigo | El panel, los iconos, las cantidades, las teclas L/R de la barra y las animaciones de cambio son del juego (`pokeget_item_change_00`); **cuál** tecla abre/cierra la rueda en el juego real y qué lista exacta muestra no se ha leído del binario. La captura 30/31 del usuario no enseña la tecla de cerrar. El Pokémon elegido en el original sale al lanzarlo en combate; el combate del port todavía arma su equipo de demostración (Pikachu), así que aquí el elegido es el que sale contigo (seguidor) |
+| Estado (veneno, sueño…) en la rueda | No se dibuja | El juego lo enseña con una barra que lleva texto japonés; el port no usa texto del juego. El dato existe (`status` del equipo) y la marca sin texto (`iconSickMark_*`) queda para otra pasada |
 
 ---
 

@@ -42,10 +42,15 @@ use super::{free_text, OrigScreen, OrigUiConfig, OrigUiSystems, ScreenId};
 use crate::game::bag_screen::BagItemTable;
 use crate::game::battle_controller::BattleAssets;
 use crate::game::capture_world::BaitTable;
-use crate::game::input_map::{Action, ActionState};
 use crate::game::save_wire::PlayerProgress;
 use crate::game::state::{GameState, Paused};
 use crate::game::throwing::{BallInventory, BallKind, ALL_BALL_KINDS};
+
+/// Whether the viewer's camera is in the over-the-shoulder aim mode. The camera controller
+/// lives in the viewer example, so the viewer mirrors its mode here: while aiming `X` throws the
+/// selected bait (the viewer's own binding) and must not open the wheel; on foot it opens it.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct AimOverShoulder(pub bool);
 
 /// Which of the two panels the wheel shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -191,6 +196,7 @@ const STATE_POKE: &str = "switch_poke_state";
 
 pub fn install(app: &mut App) {
     app.init_resource::<FieldSelector>();
+    app.init_resource::<AimOverShoulder>();
     app.add_systems(
         Update,
         (field_select_input, bind_field_select)
@@ -206,7 +212,7 @@ pub fn field_select_input(
     mut selector: ResMut<FieldSelector>,
     state: Res<State<GameState>>,
     paused: Option<Res<Paused>>,
-    input: Option<Res<ActionState>>,
+    aim: Option<Res<AimOverShoulder>>,
     progress: Option<Res<PlayerProgress>>,
     balls: Option<ResMut<BallInventory>>,
     baits: Option<Res<BaitTable>>,
@@ -214,19 +220,23 @@ pub fn field_select_input(
     if *state.get() != GameState::World || paused.as_ref().is_some_and(|p| p.0) {
         return;
     }
-    // While aiming, `X` throws the selected bait (the viewer's own binding): the wheel only
-    // opens on foot.
-    let aiming = input.as_ref().is_some_and(|i| i.pressed(Action::Aim));
+    // `X` is the game's own key for the wheel (its badge sits above the centre slot). While
+    // aiming it throws the selected bait instead (the viewer's binding): the wheel is a key of
+    // the on-foot screen.
+    let aiming = aim.as_ref().is_some_and(|a| a.0);
     if keys.just_pressed(KeyCode::KeyX) && !aiming {
         if selector.open {
             selector.panel = selector.panel.other();
+            info!("field selector: {:?} panel", selector.panel);
         } else {
             selector.open = true;
             selector.panel = PanelKind::Items;
+            info!("field selector: open (items); [ ] change, X switches, Backspace closes");
         }
     }
-    if keys.just_pressed(KeyCode::Backspace) {
+    if keys.just_pressed(KeyCode::Backspace) && selector.open {
         selector.open = false;
+        info!("field selector: closed");
     }
     if !selector.open {
         return;
@@ -250,12 +260,19 @@ pub fn field_select_input(
             let current = current_entry(&entries, &inventory).unwrap_or(0);
             if let Some(next) = step(current, entries.len(), forward) {
                 apply_entry(&entries, next, &mut inventory);
+                info!(
+                    "field selector: item {} of {} ({})",
+                    next + 1,
+                    entries.len(),
+                    item_id(entries[next])
+                );
             }
         }
         PanelKind::Pokemon => {
             let len = progress.as_ref().map_or(0, |p| p.party.len());
             if let Some(next) = step(selector.pokemon_index, len, forward) {
                 selector.pokemon_index = next;
+                info!("field selector: party member {} of {}", next + 1, len);
             }
         }
     }

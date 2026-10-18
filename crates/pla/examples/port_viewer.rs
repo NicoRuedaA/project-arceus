@@ -1293,6 +1293,7 @@ fn add_viewer_systems(app: &mut App) {
         Update,
         bait_throw_input.run_if(in_state(GameState::World)).run_if(not_paused),
     );
+    app.add_systems(Update, mirror_aim_state);
     // The climb prompt manages its own visibility (world + not paused), like `update_aim_hud`.
     app.add_systems(Update, update_climb_hint);
     // The customize camera override also needs its own registration (20-system limit) but must
@@ -3218,6 +3219,15 @@ fn ball_throw_input(
     );
 }
 
+/// Mirrors the camera's aim mode into the library (`orig_ui::field_select::AimOverShoulder`):
+/// while aiming `X` throws the bait, on foot it opens the field wheel (both read the mirror).
+fn mirror_aim_state(
+    camera_ctrl: Res<CameraController>,
+    mut aim: ResMut<pla::game::orig_ui::field_select::AimOverShoulder>,
+) {
+    aim.0 = camera_ctrl.mode == CameraMode::AimOverShoulder;
+}
+
 /// Throws the selected bait (V cycles the selection) towards the aim point while aiming.
 fn bait_throw_input(
     mut commands: Commands,
@@ -3239,8 +3249,13 @@ fn bait_throw_input(
     >,
     pokemon_query: Query<&Transform, (With<PokemonSpawn>, Without<PlayerAvatar>, Without<Camera3d>)>,
     camera_ctrl: Res<CameraController>,
+    // While the field wheel is open (X) that key switches its panels: no bait is thrown then.
+    field_selector: Option<Res<pla::game::orig_ui::field_select::FieldSelector>>,
 ) {
     if camera_ctrl.mode != CameraMode::AimOverShoulder || !keys.just_pressed(KeyCode::KeyX) {
+        return;
+    }
+    if field_selector.as_ref().is_some_and(|s| s.open) {
         return;
     }
     let Some(item_id) = inventory.selected_bait else {
