@@ -28,8 +28,8 @@ use super::zone::TerrainResource;
 // ------------------------------------------------------------------ tuning
 
 /// Maximum walkable terrain slope (degrees, SUPUESTO — the game's own slope limit is not
-/// decoded; the port's value is tuned against the decoded navmesh coverage in
-/// `reports/terreno-colision/`).
+/// decoded; the port's value is checked against the decoded navmesh coverage in
+/// `reports/terreno-colision/terrain-walk-vs-navmesh.md`).
 pub const MAX_WALK_SLOPE_DEG: f32 = 45.0;
 
 /// Distance of the finite-difference slope samples (m).
