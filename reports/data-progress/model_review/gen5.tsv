@@ -1,0 +1,203 @@
+# sheet: reports/data-progress/model_review/gen5
+# generation: 5 (national 494-649)
+# generator: revision-gen5 session (Claude Sonnet); renders CPU lavapipe, contact sheets checked by eye
+# labels: VERIFICADO = comprobado mirando el render; PROBABLE = juicio por colores/forma
+national_number	name	pack	form	form_name	source	status	severity	note
+494	Victini	pm0494_00	0	Victini	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] malla de efecto (AuraEf_col, alfa 0.5) sale como masa negra sobre el cuerpo; el cuerpo es correcto. Causa: el exportador no trata el material de aura/efecto
+495	Snivy	pm0495_00_00	0	Snivy	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+496	Servine	pm0496_00_00	0	Servine	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+497	Serperior	pm0497_00_00	0	Serperior	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+498	Tepig	pm0498_00_00	0	Tepig	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+499	Pignite	pm0499_00_00	0	Pignite	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+500	Emboar	pm0500_00_00	0	Emboar	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+500	Emboar	pm0500_51_00	1	Mega Emboar	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+501	Oshawott	pm0501_00_00	0	Oshawott	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+502	Dewott	pm0502_00_00	0	Dewott	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+503	Samurott	pm0503_00_00	0	Samurott	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+503	Samurott	pm0503_00_41	1	Hisuian Form	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+504	Patrat	pm0504_00_00	0	Patrat	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+505	Watchog	pm0505_00_00	0	Watchog	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+506	Lillipup	pm0506_00	0	Lillipup	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+507	Herdier	pm0507_00	0	Herdier	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+508	Stoutland	pm0508_00	0	Stoutland	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+509	Purrloin	pm0509_00_00	0	Purrloin	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+510	Liepard	pm0510_00_00	0	Liepard	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+511	Pansage	pm0511_00_00	0	Pansage	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+512	Simisage	pm0512_00_00	0	Simisage	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+513	Pansear	pm0513_00_00	0	Pansear	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+514	Simisear	pm0514_00_00	0	Simisear	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+515	Panpour	pm0515_00_00	0	Panpour	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+516	Simipour	pm0516_00_00	0	Simipour	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+517	Munna	pm0517_00_00	0	Munna	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+518	Musharna	pm0518_00_00	0	Musharna	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+519	Pidove	pm0519_00	0	Pidove	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+520	Tranquill	pm0520_00	0	Tranquill	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+521	Unfezant	pm0521_00	0	Unfezant	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+521	Unfezant	pm0521_01	0	Unfezant	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+522	Blitzle	pm0522_00_00	0	Blitzle	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+523	Zebstrika	pm0523_00_00	0	Zebstrika	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+524	Roggenrola	pm0524_00	0	Roggenrola	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+525	Boldore	pm0525_00	0	Boldore	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+526	Gigalith	pm0526_00	0	Gigalith	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+527	Woobat	pm0527_00	0	Woobat	CONVERTIDO	BAD_COLOR	1	[PROBABLE] cuerpo blanco; Woobat es azul claro (dudoso)
+528	Swoobat	pm0528_00	0	Swoobat	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+529	Drilbur	pm0529_00_00	0	Drilbur	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+530	Excadrill	pm0530_00_00	0	Excadrill	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+530	Excadrill	pm0530_51_00	1	Mega Excadrill	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+531	Audino	pm0531_00_00	0	Audino	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+531	Audino	pm0531_51_00	1	Mega Audino	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+532	Timburr	pm0532_00_00	0	Timburr	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+533	Gurdurr	pm0533_00_00	0	Gurdurr	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+534	Conkeldurr	pm0534_00_00	0	Conkeldurr	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+535	Tympole	pm0535_00	0	Tympole	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] bloques de color negro/blanco/azul en el cuerpo: textura _col/_nor mal mapeada (UV o mascara)
+536	Palpitoad	pm0536_00	0	Palpitoad	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] bloques de color negro/blanco/azul mal repartidos: textura _col/_nor mal mapeada
+537	Seismitoad	pm0537_00	0	Seismitoad	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] manchas negras y blancas en el cuerpo azul: textura _col/_nor mal mapeada
+538	Throh	pm0538_00_00	0	Throh	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+539	Sawk	pm0539_00_00	0	Sawk	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+540	Sewaddle	pm0540_00_00	0	Sewaddle	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+541	Swadloon	pm0541_00_00	0	Swadloon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+542	Leavanny	pm0542_00_00	0	Leavanny	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+543	Venipede	pm0543_00_00	0	Venipede	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+544	Whirlipede	pm0544_00_00	0	Whirlipede	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+545	Scolipede	pm0545_00_00	0	Scolipede	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+545	Scolipede	pm0545_51_00	1	Mega Scolipede	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+546	Cottonee	pm0546_00_00	0	Cottonee	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+547	Whimsicott	pm0547_00_00	0	Whimsicott	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+548	Petilil	pm0548_00_00	0	Petilil	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+549	Lilligant	pm0549_00_00	0	Lilligant	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+549	Lilligant	pm0549_00_41	1	Hisuian Form	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+550	Basculin	pm0550_00_41	2	White-Striped Form	CONVERTIDO	OK	0	[VERIFICADO] corregido: es Basculin de raya blanca (Hisui)
+550	Basculin	pm0550_11_00	0	Red-Striped Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+550	Basculin	pm0550_12_00	1	Blue-Striped Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+551	Sandile	pm0551_00_00	0	Sandile	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+552	Krokorok	pm0552_00_00	0	Krokorok	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+553	Krookodile	pm0553_00_00	0	Krookodile	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+554	Darumaka	pm0554_00	0	Darumaka	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+554	Darumaka	pm0554_00_31	1	Galarian Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+555	Darmanitan	pm0555_11	0	Standard Mode	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+555	Darmanitan	pm0555_11_31	2	Galarian Form	CONVERTIDO	OK	0	[VERIFICADO] corregido: Darmanitan de Galar
+555	Darmanitan	pm0555_12	1	Zen Mode	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+555	Darmanitan	pm0555_12_31	3	Galarian Zen Mode	CONVERTIDO	OK	0	[VERIFICADO] corregido: Darmanitan de Galar Modo Daruma; sin clip de caminar (solo batalla)
+556	Maractus	pm0556_00	0	Maractus	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+557	Dwebble	pm0557_00	0	Dwebble	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+558	Crustle	pm0558_00	0	Crustle	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+559	Scraggy	pm0559_00_00	0	Scraggy	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+560	Scrafty	pm0560_00_00	0	Scrafty	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+560	Scrafty	pm0560_51_00	1	Mega Scrafty	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+561	Sigilyph	pm0561_00	0	Sigilyph	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+562	Yamask	pm0562_00_00	0	Yamask	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+562	Yamask	pm0562_00_31	1	Galarian Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+563	Cofagrigus	pm0563_00_00	0	Cofagrigus	CONVERTIDO	BAD_COLOR	2	[PROBABLE] todo gris, faltan los dorados de Cofagrigus
+564	Tirtouga	pm0564_00	0	Tirtouga	CONVERTIDO	BAD_COLOR	1	[PROBABLE] tonos azules muy oscuros y con manchas
+565	Carracosta	pm0565_00	0	Carracosta	CONVERTIDO	BAD_COLOR	1	[PROBABLE] tonos azul grisaceo apagados
+566	Archen	pm0566_00	0	Archen	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+567	Archeops	pm0567_00	0	Archeops	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+568	Trubbish	pm0568_00_00	0	Trubbish	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+569	Garbodor	pm0569_00_00	0	Garbodor	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+569	Garbodor	pm0569_81_00	0	Garbodor	CONVERTIDO	OK	0	[VERIFICADO] Garbodor Gigamax; sin clip de caminar (solo batalla)
+570	Zorua	pm0570_00_00	0	Zorua	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+570	Zorua	pm0570_00_41	1	Hisuian Form	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+571	Zoroark	pm0571_00_00	0	Zoroark	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+571	Zoroark	pm0571_00_41	1	Hisuian Form	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+572	Minccino	pm0572_00_00	0	Minccino	CONVERTIDO	BAD_COLOR	1	[PROBABLE] cuerpo casi blanco; Minccino es gris crema (textura posiblemente lavada)
+573	Cinccino	pm0573_00_00	0	Cinccino	CONVERTIDO	BAD_COLOR	1	[PROBABLE] cuerpo casi blanco; Cinccino es gris crema
+574	Gothita	pm0574_00_00	0	Gothita	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+575	Gothorita	pm0575_00_00	0	Gothorita	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+576	Gothitelle	pm0576_00_00	0	Gothitelle	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+577	Solosis	pm0577_00_00	0	Solosis	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] esfera verde lisa sin ojos ni cara visibles (hay texturas de ojos baked); material de ojos/cara no aplicado
+578	Duosion	pm0578_00_00	0	Duosion	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] cuerpo verde liso sin ojos ni cara visibles; mismo fallo que Solosis
+579	Reuniclus	pm0579_00_00	0	Reuniclus	CONVERTIDO	BAD_TEXTURE	2	[PROBABLE] cuerpo verde liso sin ojos ni cara visibles; mismo fallo que Solosis
+580	Ducklett	pm0580_00_00	0	Ducklett	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+581	Swanna	pm0581_00_00	0	Swanna	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+582	Vanillite	pm0582_00_00	0	Vanillite	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+583	Vanillish	pm0583_00_00	0	Vanillish	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+584	Vanilluxe	pm0584_00_00	0	Vanilluxe	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+585	Deerling	pm0585_11_00	0	Spring Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+585	Deerling	pm0585_12_00	1	forma 1	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+585	Deerling	pm0585_13_00	2	forma 2	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+585	Deerling	pm0585_14_00	3	forma 3	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+586	Sawsbuck	pm0586_11_00	0	Spring Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+586	Sawsbuck	pm0586_12_00	1	forma 1	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+586	Sawsbuck	pm0586_13_00	2	forma 2	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+586	Sawsbuck	pm0586_14_00	3	forma 3	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+587	Emolga	pm0587_00_00	0	Emolga	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+588	Karrablast	pm0588_00	0	Karrablast	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+589	Escavalier	pm0589_00	0	Escavalier	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+590	Foongus	pm0590_00_00	0	Foongus	CONVERTIDO	BAD_COLOR	1	[PROBABLE] patron marron/beige; Foongus lleva patron de Poke Ball (rojo/blanco). Identidad correcta
+591	Amoonguss	pm0591_00_00	0	Amoonguss	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+592	Frillish	pm0592_00	0	Male	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+592	Frillish	pm0592_01	0	Male	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+593	Jellicent	pm0593_00	0	Male	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+593	Jellicent	pm0593_01	0	Male	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+594	Alomomola	pm0594_00_00	0	Alomomola	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+595	Joltik	pm0595_00_00	0	Joltik	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+596	Galvantula	pm0596_00_00	0	Galvantula	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+597	Ferroseed	pm0597_00	0	Ferroseed	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+598	Ferrothorn	pm0598_00	0	Ferrothorn	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+599	Klink	pm0599_00	0	Klink	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+600	Klang	pm0600_00	0	Klang	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+601	Klinklang	pm0601_00	0	Klinklang	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+602	Tynamo	pm0602_00_00	0	Tynamo	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+603	Eelektrik	pm0603_00_00	0	Eelektrik	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+604	Eelektross	pm0604_00_00	0	Eelektross	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+604	Eelektross	pm0604_51_00	1	Mega Eelektross	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+605	Elgyem	pm0605_00	0	Elgyem	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+606	Beheeyem	pm0606_00	0	Beheeyem	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+607	Litwick	pm0607_00_00	0	Litwick	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+608	Lampent	pm0608_00_00	0	Lampent	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+609	Chandelure	pm0609_00_00	0	Chandelure	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+609	Chandelure	pm0609_51_00	1	Mega Chandelure	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+610	Axew	pm0610_00_00	0	Axew	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+611	Fraxure	pm0611_00_00	0	Fraxure	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+612	Haxorus	pm0612_00_00	0	Haxorus	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+613	Cubchoo	pm0613_00_00	0	Cubchoo	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+614	Beartic	pm0614_00_00	0	Beartic	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+615	Cryogonal	pm0615_00_00	0	Cryogonal	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+616	Shelmet	pm0616_00	0	Shelmet	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] bloques negros en la concha/cara: textura _col/_nor mal mapeada
+617	Accelgor	pm0617_00	0	Accelgor	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+618	Stunfisk	pm0618_00_00	0	Stunfisk	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+618	Stunfisk	pm0618_00_31	1	Galarian Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+619	Mienfoo	pm0619_00_00	0	Mienfoo	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+620	Mienshao	pm0620_00_00	0	Mienshao	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+621	Druddigon	pm0621_00	0	Druddigon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+622	Golett	pm0622_00_00	0	Golett	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+623	Golurk	pm0623_00_00	0	Golurk	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+623	Golurk	pm0623_51_00	1	Mega Golurk	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+624	Pawniard	pm0624_00_00	0	Pawniard	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+625	Bisharp	pm0625_00_00	0	Bisharp	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+626	Bouffalant	pm0626_00	0	Bouffalant	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] cara y cuerno con zonas oscuras mal mapeadas
+627	Rufflet	pm0627_00_00	0	Rufflet	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+628	Braviary	pm0628_00_00	0	Braviary	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+628	Braviary	pm0628_00_41	1	Hisuian Form	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+629	Vullaby	pm0629_00_00	0	Vullaby	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+630	Mandibuzz	pm0630_00_00	0	Mandibuzz	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+631	Heatmor	pm0631_00	0	Heatmor	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+632	Durant	pm0632_00	0	Durant	CONVERTIDO	BAD_COLOR	1	[PROBABLE] blanco y gris; faltan los acentos de color de Durant
+633	Deino	pm0633_00_00	0	Deino	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+634	Zweilous	pm0634_00_00	0	Zweilous	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+635	Hydreigon	pm0635_00_00	0	Hydreigon	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+636	Larvesta	pm0636_00_00	0	Larvesta	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+637	Volcarona	pm0637_00_00	0	Volcarona	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+638	Cobalion	pm0638_00_00	0	Cobalion	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+639	Terrakion	pm0639_00_00	0	Terrakion	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+640	Virizion	pm0640_00_00	0	Virizion	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+641	Tornadus	pm0641_11_00	0	Incarnate Forme	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+641	Tornadus	pm0641_12_00	1	Therian Forme	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+642	Thundurus	pm0642_11_00	0	Incarnate Forme	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+642	Thundurus	pm0642_12_00	1	Therian Forme	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+643	Reshiram	pm0643_00_00	0	Reshiram	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+644	Zekrom	pm0644_00_00	0	Zekrom	CONVERTIDO	BAD_COLOR	1	[PROBABLE] cuerpo gris; Zekrom es negro (textura lavada)
+645	Landorus	pm0645_11_00	0	Incarnate Forme	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+645	Landorus	pm0645_12_00	1	Therian Forme	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+646	Kyurem	pm0646_11_00	0	Kyurem	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+646	Kyurem	pm0646_12_00	2	White Kyurem	CONVERTIDO	OK	0	[VERIFICADO] corregido: es Kyurem Blanco (antes etiquetado Negro); ver model_map
+646	Kyurem	pm0646_13_00	1	Black Kyurem	CONVERTIDO	OK	0	[VERIFICADO] corregido: es Kyurem Negro (antes etiquetado Blanco); ver model_map
+647	Keldeo	pm0647_11_00	0	Ordinary Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+647	Keldeo	pm0647_12_00	1	Resolute Form	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+648	Meloetta	pm0648_11_00	0	Aria Forme	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+648	Meloetta	pm0648_12_00	1	Pirouette Forme	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+649	Genesect	pm0649_11_00	0	Genesect	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+649	Genesect	pm0649_12_00	1	forma 1	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+649	Genesect	pm0649_13_00	2	forma 2	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+649	Genesect	pm0649_14_00	3	forma 3	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+649	Genesect	pm0649_15_00	4	forma 4	CONVERTIDO	OK		[VERIFICADO] render revisado: identidad y colores coherentes

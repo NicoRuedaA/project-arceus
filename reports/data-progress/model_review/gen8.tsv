@@ -1,0 +1,143 @@
+national_number	name	pack	form	source	status	severity	note
+810	Grookey	pm0948_00_00	0:Grookey	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+811	Thwackey	pm0949_00_00	0:Thwackey	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+812	Rillaboom	pm0950_00_00	0:Rillaboom	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+812	Rillaboom	pm0950_81_00	0:Rillaboom	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+813	Scorbunny	pm0954_00_00	0:Scorbunny	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+814	Raboot	pm0955_00_00	0:Raboot	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+815	Cinderace	pm0956_00_00	0:Cinderace	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+815	Cinderace	pm0956_81_00	0:Cinderace	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+816	Sobble	pm0951_00_00	0:Sobble	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+817	Drizzile	pm0952_00_00	0:Drizzile	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+818	Inteleon	pm0953_00_00	0:Inteleon	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+818	Inteleon	pm0953_81_00	0:Inteleon	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+819	Skwovet	pm0909_00_00	0:Skwovet	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+820	Greedent	pm0910_00_00	0:Greedent	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+821	Rookidee	pm0918_00_00	0:Rookidee	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+822	Corvisquire	pm0919_00_00	0:Corvisquire	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+823	Corviknight	pm0920_00_00	0:Corviknight	CONVERTIDO	BAD_COLOR	1	PROBABLE: se ve mas plateado/pálido que el Corviknight real (negro con placas gris acero); PROBABLE mascara de color _lym o textura de armadura; identidad confirmada por su gigamax pm0920_81
+823	Corviknight	pm0920_81_00	0:Corviknight	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+824	Blipbug	pm0930_00_00	0:Blipbug	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+825	Dottler	pm0931_00_00	0:Dottler	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+826	Orbeetle	pm0932_00_00	0:Orbeetle	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+826	Orbeetle	pm0932_81_00	0:Orbeetle	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+827	Nickit	pm0901_00_00	0:Nickit	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+828	Thievul	pm0902_00_00	0:Thievul	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+829	Gossifleur	pm0905_00_00	0:Gossifleur	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+830	Eldegoss	pm0906_00_00	0:Eldegoss	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+831	Wooloo	pm0911_00_00	0:Wooloo	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+832	Dubwool	pm0912_00_00	0:Dubwool	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+833	Chewtle	pm0903_00_00	0:Chewtle	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+834	Drednaw	pm0904_00_00	0:Drednaw	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+834	Drednaw	pm0904_81_00	0:Drednaw	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+835	Yamper	pm0907_00_00	0:Yamper	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+836	Boltund	pm0908_00_00	0:Boltund	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+837	Rolycoly	pm0933_00_00	0:Rolycoly	CONVERTIDO	BAD_MESH	1	VERIFICADO: en pose base la cadena de piedras del cuerpo sale separada de la cabeza (piezas flotando); PROBABLE pose base sin animar, comprobar en juego
+838	Carkol	pm0934_00_00	0:Carkol	CONVERTIDO	BAD_MESH	1	VERIFICADO: cola de piedras estirada en pose base; PROBABLE pose base sin animar, comprobar en juego
+839	Coalossal	pm0935_00_00	0:Coalossal	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+839	Coalossal	pm0935_81_00	0:Coalossal	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+840	Applin	pm0966_00_00	0:Applin	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+841	Flapple	pm0967_00_00	0:Flapple	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+841	Flapple	pm0967_81_00	0:Flapple	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+842	Appletun	pm0968_00_00	0:Appletun	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+842	Appletun	pm0968_81_00	0:Appletun	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+843	Silicobra	pm0936_00_00	0:Silicobra	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+844	Sandaconda	pm0937_00_00	0:Sandaconda	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+844	Sandaconda	pm0937_81_00	0:Sandaconda	CONVERTIDO/gigamax	BAD_TEXTURE	1	PROBABLE: 2 materiales sin textura (bodyb, bodycvco); sin clip defaultwait01
+845	Cramorant	pm0917_11_00	0:Cramorant	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+845	Cramorant	pm0917_12_00	1:Gulping Form	CONVERTIDO/cosmetica	BAD_MESH	1	PROBABLE: idéntico a pm0917_11 en la hoja: falta la presa (Arrokuda) de la forma Gulping, malla oculta o ausente; PROBABLE
+845	Cramorant	pm0917_13_00	2:Gorging Form	CONVERTIDO/cosmetica	BAD_MESH	1	PROBABLE: idéntico a pm0917_11: falta la presa (Pikachu) de la forma Gorging; PROBABLE
+846	Arrokuda	pm0913_00_00	0:Arrokuda	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+847	Barraskewda	pm0914_00_00	0:Barraskewda	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+848	Toxel	pm0921_00_00	0:Toxel	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+849	Amped Form	pm0922_11_00	0:Amped Form	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+849	Amped Form	pm0922_12_00	1:Low Key Form	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+849	Amped Form	pm0922_81_00	0:Amped Form	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+850	Sizzlipede	pm0915_00_00	0:Sizzlipede	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+851	Centiskorch	pm0916_00_00	0:Centiskorch	CONVERTIDO	BAD_TEXTURE	2	PROBABLE: 16 de 22 materiales de efectos (simple_firecore*) sin textura; ademas sin clip defaultwait01 (idle = ba01_landA01)
+851	Centiskorch	pm0916_81_00	0:Centiskorch	CONVERTIDO/gigamax	BAD_TEXTURE	1	PROBABLE: 16 materiales de fuego sin textura; sin clip defaultwait01
+852	Clobbopus	pm0964_00_00	0:Clobbopus	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+853	Grapploct	pm0965_00_00	0:Grapploct	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+854	Phony Form	pm0972_11_00	0:Phony Form	CONVERTIDO	NO_ANIMS	2	PROBABLE: 0 clips de animacion en el glTF (indice lo marca incomplete); modelo bien
+854	Phony Form	pm0972_12_00	1:Antique Form	CONVERTIDO/cosmetica	NO_ANIMS	2	PROBABLE: 0 clips; ademas se ve igual que Phony pm0972_11 (PROBABLE)
+855	Phony Form	pm0973_11_00	0:Phony Form	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+855	Phony Form	pm0973_12_00	1:Antique Form	CONVERTIDO/cosmetica	BAD_TEXTURE	1	PROBABLE: se ve igual que la forma Phony pm0973_11 (la autentica es mas oscura); PROBABLE
+856	Hatenna	pm0969_00_00	0:Hatenna	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+857	Hattrem	pm0970_00_00	0:Hattrem	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+858	Hatterene	pm0971_00_00	0:Hatterene	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+858	Hatterene	pm0971_81_00	0:Hatterene	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+859	Impidimp	pm0957_00_00	0:Impidimp	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+860	Morgrem	pm0958_00_00	0:Morgrem	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+861	Grimmsnarl	pm0959_00_00	0:Grimmsnarl	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+861	Grimmsnarl	pm0959_81_00	0:Grimmsnarl	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+862	Obstagoon	pm0928_00_31	0:Obstagoon	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+863	Perrserker	pm0943_00_31	0:Perrserker	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+864	Cursola	pm0947_00_31	0:Cursola	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+865	Sirfetch’d	pm0981_00_31	0:Sirfetch'd	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+866	Mr. Rime	pm0980_00_31	0:Mr. Rime	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+867	Runerigus	pm0979_00_31	0:Runerigus	CONVERTIDO	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+868	Milcery	pm0924_00_00	0:Milcery	CONVERTIDO	BAD_MESH	1	VERIFICADO: las bolitas de nata flotan sobre el cuerpo en pose base; PROBABLE pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_11_00	0:Vanilla Cream	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_12_00	1:Ruby Cream	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_13_00	2:Matcha Cream	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_14_00	3:Mint Cream	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_15_00	4:Lemon Cream	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_16_00	5:Salted Cream	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_17_00	6:Ruby Swirl	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_18_00	7:Caramel Swirl	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_19_00	8:Rainbow Swirl	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+869	Vanilla Cream Strawberry Sweet	pm0925_81_00	0:Vanilla Cream	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+870	Falinks	pm0923_00_00	0:Falinks	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+870	Falinks	pm0923_51_00	1:Mega Falinks	CONVERTIDO/mega	OK	0	PROBABLE: identidad por icono y render (VERIFICADO visual); pose base sin animar
+871	Pincurchin	pm0944_00_00	0:Pincurchin	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+872	Snom	pm0945_00_00	0:Snom	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+873	Frosmoth	pm0946_00_00	0:Frosmoth	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+874	Stonjourner	pm0974_00_00	0:Stonjourner	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+875	Ice Face	pm0975_11_00	0:Ice Face	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+875	Ice Face	pm0975_12_00	1:Noice Face	CONVERTIDO/cosmetica	BAD_MESH	2	VERIFICADO: Noice Face sigue mostrando el cubo de hielo (el icono no lo tiene): el exportador deja visibles mallas que el juego oculta por animacion/visibilidad; PROBABLE
+876	Male	pm0942_00_00	1:Female	CONVERTIDO/cosmetica	OK	1	VERIFICADO: asignacion Female (cuernos de carnero) dudosa: choca con FF=01=hembra del catalogo PLA; revisar en juego
+876	Male	pm0942_01_00	0:Male	CONVERTIDO	OK	1	VERIFICADO: asignacion Male dudosa (ver pm0942_00)
+877	Full Belly Mode	pm0941_11_00	0:Full Belly Mode	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+877	Full Belly Mode	pm0941_12_00	1:Hangry Mode	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+878	Cufant	pm0926_00_00	0:Cufant	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+879	Copperajah	pm0927_00_00	0:Copperajah	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+879	Copperajah	pm0927_81_00	0:Copperajah	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+880	Dracozolt	pm0960_00_00	0:Dracozolt	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+881	Arctozolt	pm0961_00_00	0:Arctozolt	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+882	Dracovish	pm0962_00_00	0:Dracovish	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+883	Arctovish	pm0963_00_00	0:Arctovish	CONVERTIDO	NO_ANIMS	2	PROBABLE: el glTF solo trae clips de combate SwSh (ba10_waitA01...) y no 'defaultwait01': el motor usa la primera animacion (ba01_landA01, aterrizaje) como reposo; si trae fi20_walk01 el paseo si funciona. Modelo e identidad bien (VERIFICADO visual)
+884	Duraludon	pm0929_00_00	0:Duraludon	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+884	Duraludon	pm0929_81_00	0:Duraludon	CONVERTIDO/gigamax	BAD_TEXTURE	1	PROBABLE: 2 materiales de efecto (smoke) sin textura; sin clip defaultwait01
+885	Dreepy	pm0976_00_00	0:Dreepy	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+886	Drakloak	pm0977_00_00	0:Drakloak	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+887	Dragapult	pm0978_00_00	0:Dragapult	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+888	Hero of Many Battles	pm0938_11_00	0:Hero of Many Battles	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+888	Hero of Many Battles	pm0938_12_00	1:Crowned Sword	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+889	Hero of Many Battles	pm0939_11_00	0:Hero of Many Battles	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+889	Hero of Many Battles	pm0939_12_00	1:Crowned Shield	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+890	Eternatus	pm0940_00_00	0:Eternatus	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+890	Eternatus	pm0940_81_00	0:Eternatus	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+891	Kubfu	pm0982_00_00	0:Kubfu	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+892	Single Strike Style	pm0983_11_00	0:Single Strike Style	CONVERTIDO	BAD_TEXTURE	1	VERIFICADO: se ve igual que pm0983_12 (mismo gris); en los gigamax _81/_82 si difieren (rojo/azul); PROBABLE textura de estilo no aplicada
+892	Single Strike Style	pm0983_12_00	1:Rapid Strike Style	CONVERTIDO/cosmetica	BAD_TEXTURE	1	VERIFICADO: se ve igual que pm0983_11 (mismo gris); PROBABLE textura de estilo no aplicada
+892	Single Strike Style	pm0983_81_00	0:Single Strike Style	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+892	Single Strike Style	pm0983_82_00	1:Rapid Strike Style	CONVERTIDO/gigamax	NO_ANIMS	1	PROBABLE: gigamax: sin clip defaultwait01 (clips ba..); modelo reconocible; no se usa en juego salvo combate gigamax
+893	Zarude	pm0988_11_00	0:Zarude	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+893	Zarude	pm0988_12_00	1:Dada	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+894	Regieleki	pm0989_00_00	0:Regieleki	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+895	Regidrago	pm0990_00_00	0:Regidrago	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+896	Glastrier	pm0984_00_00	0:Glastrier	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+897	Spectrier	pm0985_00_00	0:Spectrier	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+898	Calyrex	pm0986_11_00	0:Calyrex	CONVERTIDO	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+898	Calyrex	pm0986_12_00	1:Ice Rider	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+898	Calyrex	pm0986_13_00	2:Shadow Rider	CONVERTIDO/cosmetica	OK	0	VERIFICADO: identidad por icono y render (VERIFICADO visual); pose base sin animar
+899	Wyrdeer	pm1001_00_00	0:Wyrdeer	PLA	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
+900	Kleavor	pm1002_00_00	0:Kleavor	PLA	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
+901	Ursaluna	pm1007_00_00	0:Ursaluna	PLA	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
+901	Ursaluna	pm1007_11_00	1:Bloodmoon	CONVERTIDO/cosmetica	OK	1	PROBABLE: Ursaluna Bloodmoon (forma 1 de 901): se ve bien en render
+902	Male	pm1006_11_41	0:Male	PLA	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
+902	Male	pm1006_12_41	1:Female	PLA/cosmetica	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
+903	Sneasler	pm1003_00_41	0:Sneasler	PLA	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
+904	Overqwil	pm1005_00_41	0:Overqwil	PLA	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
+905	Incarnate Forme	pm1004_11_00	0:Incarnate Forme	PLA	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
+905	Incarnate Forme	pm1004_12_00	1:Therian Forme	PLA/cosmetica	OK	0	VERIFICADO: modelo propio del juego; render del glTF convertido se ve correcto (VERIFICADO visual); no comprobado en la Pokedex del juego
