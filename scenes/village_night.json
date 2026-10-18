@@ -1,0 +1,27 @@
+{
+ "description": "Area 0 at the start position, night, clear sky.",
+ "args": [
+  "--area",
+  "0"
+ ],
+ "steps": [
+  {
+   "cmd": "set_weather",
+   "weather": "sunny"
+  },
+  {
+   "cmd": "set_time",
+   "slot": 3,
+   "pinned": true
+  },
+  {
+   "cmd": "step",
+   "frames": 180,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "night"
+  }
+ ]
+}
