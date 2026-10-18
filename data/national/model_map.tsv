@@ -1381,7 +1381,7 @@ pm0547_00_00	547	0	Whimsicott	base	VERIFICADO	pmNNNN base con NNNN<=649: el indi
 pm0548_00_00	548	0	Petilil	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0549_00_00	549	0	Lilligant	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0549_00_41	549	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
-pm0550_00_41	550	0	Red-Striped Form	regional	VERIFICADO	VV=41 = forma regional de Hisui (lista exacta de formas + anclas PLA)
+pm0550_00_41	550	2	White-Striped Form	regional	PROBABLE	revision-gen5: VV=41 forma regional de Hisui; el render es Basculin de raya blanca (afi 2 en forms.tsv). El nombre anterior (Red-Striped Form) era erroneo
 pm0550_11_00	550	0	Red-Striped Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
 pm0550_12_00	550	1	Blue-Striped Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
 pm0551_00_00	551	0	Sandile	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
@@ -1390,9 +1390,9 @@ pm0553_00_00	553	0	Krookodile	base	VERIFICADO	pmNNNN base con NNNN<=649: el indi
 pm0554_00	554	0	Darumaka	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0554_00_31	554	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0555_11	555	0	Standard Mode	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
-pm0555_11_31	555	0	Standard Mode	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0555_11_31	555	2	Galarian Form	regional	PROBABLE	revision-gen5: FF=31 forma de Galar; el render es Darmanitan de Galar Normal (afi 2 en forms.tsv)
 pm0555_12	555	1	Zen Mode	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
-pm0555_12_31	555	1	Zen Mode	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0555_12_31	555	3	Galarian Zen Mode	regional	PROBABLE	revision-gen5: FF=31 forma de Galar; el render es Darmanitan de Galar Modo Daruma (afi 3 en forms.tsv)
 pm0556_00	556	0	Maractus	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0557_00	557	0	Dwebble	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0558_00	558	0	Crustle	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
@@ -1401,7 +1401,6 @@ pm0560_00_00	560	0	Scrafty	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice 
 pm0560_51_00	560	1	Mega Scrafty	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
 pm0561_00	561	0	Sigilyph	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0562_00_00	562	0	Yamask	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
-pm0562_00_31	562	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0562_00_31	562	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0563_00_00	563	0	Cofagrigus	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0564_00	564	0	Tirtouga	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
@@ -1473,7 +1472,6 @@ pm0616_00	616	0	Shelmet	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del
 pm0617_00	617	0	Accelgor	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0618_00_00	618	0	Stunfisk	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0618_00_31	618	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
-pm0618_00_31	618	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0619_00_00	619	0	Mienfoo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0620_00_00	620	0	Mienshao	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0621_00	621	0	Druddigon	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
@@ -1507,8 +1505,8 @@ pm0644_00_00	644	0	Zekrom	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice d
 pm0645_11_00	645	0	Incarnate Forme	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0645_12_00	645	1	Therian Forme	cosmetica	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0646_11_00	646	0	Kyurem	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
-pm0646_12_00	646	1	Black Kyurem	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
-pm0646_13_00	646	2	White Kyurem	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0646_12_00	646	2	White Kyurem	cosmetica	PROBABLE	revision-gen5: el render de FF=12 es Kyurem Blanco (cuerpo blanco); estaba como Black (afi 2 en forms.tsv)
+pm0646_13_00	646	1	Black Kyurem	cosmetica	PROBABLE	revision-gen5: el render de FF=13 es Kyurem Negro (cuerpo negro); estaba como White (afi 1 en forms.tsv)
 pm0647_11_00	647	0	Ordinary Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
 pm0647_12_00	647	1	Resolute Form	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
 pm0648_11_00	648	0	Aria Forme	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
