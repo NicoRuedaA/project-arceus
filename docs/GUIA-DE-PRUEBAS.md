@@ -921,8 +921,10 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 
 ### 2.22 Selector de objetos y Pokémon en el campo  [EN MAIN]
 
-84. **La rueda de objetos y Pokémon (tecla X).** [EN MAIN] En el mundo,
-    sin apuntar, pulsa **X**: en la esquina de abajo a la derecha aparece la **rueda del juego**
+84. **La rueda de objetos y Pokémon (tecla X).** [EN MAIN] En el mundo, **nada más empezar** (ya
+    no hace falta pulsar nada) y sin apuntar, en la esquina de abajo a la derecha está la **rueda
+    del juego** abierta en los objetos; **X** alterna objetos / Pokémon y **Retroceso** la cierra
+    (con **X** se vuelve a abrir). La rueda
     (el mismo panel decodificado de la pantalla de apuntar: `pokeget/pokeget_item_change_00`):
     - En el centro, el **objeto actual** grande con su **cantidad** debajo (p. ej. «59»), y a los
       lados el **anterior** y el **siguiente** más pequeños.
