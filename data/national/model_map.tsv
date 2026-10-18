@@ -528,7 +528,7 @@ pm0025_81_00	25	0	Pikachu	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son
 pm0026_00_00	26	0	Raichu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0026_01_00	26	0	Raichu	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
 pm0026_00_11	26	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
-pm0026_51_00	26	1	Alolan Form	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
+pm0026_51_00	26	1	Mega Raichu X	mega	PROBABLE	FF=51 = mega 1; form label was "Alolan Form" by mistake, the render shows a Mega Raichu (revision-gen1 2026-10-18)
 pm0026_52_00	26	2	Mega Raichu X	mega	PROBABLE	FF=52 = mega 2 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
 pm0027_00_00	27	0	Sandshrew	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0027_00_11	27	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
@@ -572,7 +572,6 @@ pm0052_00_00	52	0	Meowth	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice de
 pm0052_81_00	52	0	Meowth	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
 pm0052_00_11	52	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
 pm0052_00_31	52	2	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
-pm0052_00_31	52	2	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0053_00_00	53	0	Persian	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0053_00_11	53	1	Alolan Form	regional	VERIFICADO	VV=11 = forma regional de Alola (lista exacta de formas + anclas PLA)
 pm0054_00_00	54	0	Psyduck	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
@@ -614,15 +613,12 @@ pm0078_00	78	0	Rapidash	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del
 pm0078_00_31	78	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0079_00_00	79	0	Slowpoke	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0079_00_31	79	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
-pm0079_00_31	79	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0080_00_00	80	0	Slowbro	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0080_51_00	80	1	Mega Slowbro	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
-pm0080_00_31	80	2	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0080_00_31	80	2	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0081_00_00	81	0	Magnemite	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0082_00_00	82	0	Magneton	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0083_00_00	83	0	Farfetch’d	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
-pm0083_00_31	83	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0083_00_31	83	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0084_00_00	84	0	Doduo	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0084_01_00	84	0	Doduo	otro	PROBABLE	FF=01 = modelo hembra (convencion del catalogo PLA: columna female=1)
@@ -664,7 +660,6 @@ pm0108_00	108	0	Lickitung	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice d
 pm0109_00_00	109	0	Koffing	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0110_00_00	110	0	Weezing	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0110_00_31	110	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
-pm0110_00_31	110	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0111_00_00	111	0	Rhyhorn	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0111_01_00	111	0	Rhyhorn	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
 pm0112_00_00	112	0	Rhydon	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
@@ -684,7 +679,6 @@ pm0121_00_00	121	0	Starmie	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice 
 pm0121_51_00	121	1	Mega Starmie	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
 pm0122_00_00	122	0	Mr. Mime	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0122_00_31	122	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
-pm0122_00_31	122	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0123_00_00	123	0	Scyther	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0123_01_00	123	0	Scyther	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
 pm0124_00	124	0	Jynx	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
@@ -693,9 +687,9 @@ pm0126_00_00	126	0	Magmar	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0127_00_00	127	0	Pinsir	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0127_51_00	127	1	Mega Pinsir	mega	PROBABLE	FF=51 = mega 1 (anclas: pm0006_51_00 Mega Charizard X, pm0006_52_00 Mega Y, pm0445_51_00 Mega Garchomp)
 pm0128_00_00	128	0	Tauros	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
-pm0128_11_51	128	0	Tauros	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
-pm0128_12_51	128	1	Paldean Form (Combat Breed)	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
-pm0128_13_51	128	2	Paldean Form (Blaze Breed)	cosmetica	PROBABLE	FF=11+n = forma n del juego (anclas PLA: Unown, Burmy, Shellos, Rotom)
+pm0128_11_51	128	1	Paldean Form (Combat Breed)	regional	PROBABLE	FF=11 = first Paldean breed; render is the black Combat Breed (revision-gen1 2026-10-18, was Tauros form 0)
+pm0128_12_51	128	2	Paldean Form (Blaze Breed)	regional	PROBABLE	FF=12 = second Paldean breed; render has red flame marks = Blaze Breed (revision-gen1 2026-10-18, was Combat)
+pm0128_13_51	128	3	Paldean Form (Aqua Breed)	regional	PROBABLE	FF=13 = third Paldean breed = Aqua Breed (revision-gen1 2026-10-18, was Blaze)
 pm0129_00_00	129	0	Magikarp	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0129_01_00	129	0	Magikarp	base	VERIFICADO	catalogo PLA del juego (VERIFICADO) (hembra)
 pm0130_00_00	130	0	Gyarados	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
@@ -721,12 +715,9 @@ pm0143_00_00	143	0	Snorlax	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0143_81_00	143	0	Snorlax	gigamax	PROBABLE	FF=81 = Gigamax (los 33 packs _81 son exactamente la lista de Gigamax)
 pm0144_00_00	144	0	Articuno	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0144_00_31	144	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
-pm0144_00_31	144	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0145_00_00	145	0	Zapdos	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0145_00_31	145	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
-pm0145_00_31	145	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0146_00_00	146	0	Moltres	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
-pm0146_00_31	146	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0146_00_31	146	1	Galarian Form	regional	VERIFICADO	VV=31 = forma regional de Galar (lista exacta de formas + anclas PLA)
 pm0147_00_00	147	0	Dratini	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
 pm0148_00_00	148	0	Dragonair	base	VERIFICADO	pmNNNN base con NNNN<=649: el indice del modelo es el nº nacional
