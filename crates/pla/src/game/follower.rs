@@ -1,4 +1,5 @@
-//! Overworld follower: the lead party Pokémon walks behind the player.
+//! Overworld follower: the party's field partner walks behind the player — the member the field
+//! selector chose ([`crate::game::orig_ui::field_select::FieldSelector`]), the lead by default.
 //!
 //! All decisions live in plain functions ([`step`], [`FollowerTrail`]) so they are
 //! unit-tested deterministically; the Bevy systems at the bottom only feed the player
@@ -376,18 +377,24 @@ fn resolve_batch_idle_rel(species: u16, form: u8) -> Option<crate::game::pokemon
     resolved
 }
 
-/// Spawns / respawns / despawns the follower entity so it shows the lead party member.
+/// Spawns / respawns / despawns the follower entity so it shows the party's field partner: the
+/// one the field selector chose ([`crate::game::orig_ui::field_select::FieldSelector`]), else
+/// the lead member.
 fn sync_follower(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     progress: Option<Res<PlayerProgress>>,
+    selector: Option<Res<super::orig_ui::field_select::FieldSelector>>,
     player: Query<&Transform, With<PlayerAvatar>>,
     terrain: Option<Res<super::zone::TerrainResource>>,
     collision: Option<Res<super::world_collision::WorldCollision>>,
     existing: Query<(Entity, &Follower)>,
     mut warned: Local<Option<u16>>,
 ) {
-    let Some(lead) = progress.as_ref().and_then(|p| p.party.first()) else {
+    let Some(lead) = progress.as_ref().and_then(|p| {
+        let chosen = selector.as_ref().map_or(0, |s| s.pokemon_index);
+        p.party.get(chosen).or_else(|| p.party.first())
+    }) else {
         for (e, _) in &existing {
             commands.entity(e).despawn();
         }
