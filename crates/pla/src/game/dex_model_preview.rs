@@ -454,7 +454,7 @@ struct PreviewDrag {
     from: Option<Vec2>,
 }
 
-/// Keyboard (Q/E held, R reset) and mouse drag (left button inside the frame) turning of the
+/// Keyboard (Z/C held, R reset) and mouse drag (left button inside the frame) turning of the
 /// previewed model.
 #[allow(clippy::too_many_arguments)]
 fn preview_spin_input(
@@ -501,8 +501,15 @@ fn preview_spin_input(
     if delta != Vec2::ZERO {
         apply_drag(&mut spin, delta);
     }
-    // Q / E held: continuous, smooth turn (the world camera does not use the look axis).
-    let turn = actions.look_axis().x;
+    // Z / C held: continuous, smooth turn. Q / E belong to the pause menu's tabs and the arrows
+    // (and A / D) move the list, so the turn takes two free keys.
+    let mut turn = 0.0;
+    if keys.pressed(KeyCode::KeyC) {
+        turn += 1.0;
+    }
+    if keys.pressed(KeyCode::KeyZ) {
+        turn -= 1.0;
+    }
     if turn != 0.0 {
         spin.yaw += turn * PREVIEW_KEY_TURN_RATE * time.delta_secs();
     }
@@ -1043,7 +1050,7 @@ mod tests {
         assert!(merged.contains_with(&merged, 1e-3));
     }
 
-    /// The real systems in a headless app: held Q/E turn, a drag inside the frame turns with
+    /// The real systems in a headless app: held Z/C turn, a drag inside the frame turns with
     /// the mouse, R restarts the angle.
     #[test]
     fn keys_and_drag_turn_the_preview_in_a_headless_app() {
@@ -1077,17 +1084,17 @@ mod tests {
         let start = app.world().resource::<DexPreviewSpin>().yaw;
         app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
-            .press(KeyCode::KeyE);
+            .press(KeyCode::KeyC);
         app.update();
         let turned = app.world().resource::<DexPreviewSpin>().yaw;
         let expected = start + PREVIEW_KEY_TURN_RATE * 0.02;
         assert!(
             (turned - expected).abs() < 1e-4,
-            "E turns the model right at {PREVIEW_KEY_TURN_RATE} rad/s ({start} -> {turned}, expected {expected})"
+            "C turns the model right at {PREVIEW_KEY_TURN_RATE} rad/s ({start} -> {turned}, expected {expected})"
         );
         app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
-            .release(KeyCode::KeyE);
+            .release(KeyCode::KeyC);
 
         // Left button pressed inside the frame, then a drag to the right.
         app.world_mut()

@@ -1,17 +1,18 @@
-//! Pause menu (Esc or gamepad +): a Bevy UI overlay navigable with the keyboard
-//! (arrows, W/S or A/D, D-pad, Enter/A) and the mouse (hover + click).
-//!
-//! Options: Resume, Bag, Party, Summary, Boxes, Pokédex, Crafting, Shop (test shop 0), Volume
-//! (master, cycles 100/75/50/25/0 %), Graphics..., Customize, Back to safe spawn, Save
-//! game, Load game (the file Save writes), Rest (heals the party), Quit. The camera-axis
-//! inversions live in the Graphics screen ("Invert camera X / Y axis"), not here (brief
-//! ui-menu: the pause menu keeps the game's own distribution). The screen rows only raise a request resource
-//! ([`BagOpenRequested`], [`PartyOpenRequested`], [`BoxOpenRequested`], [`DexOpenRequested`],
-//! [`ShopOpenRequested`], [`crate::game::crafting_ui::CraftingOpenRequested`]); each screen plugin
-//! consumes its own request, freezes the world and owns the input until it closes. A screen whose
-//! plugin is not installed shows a toast instead. Party, Boxes, Pokédex, Crafting and Shop open
-//! only in the overworld (never during a battle or a zone change).
-//! The panel also shows the player's money and play time (from `PlayerProgress` and `PlayTime`).
+//! Pause menu (Esc or gamepad +): the game's tabbed menu. Esc opens the first tab (the bag) at once;
+//! **Q / E** pivot between the tabs (Bag, Party, Summary, Boxes, Pokédex, Crafting, Shop,
+//! Customize and a System page) while the arrows, W/S/A/D and Enter keep working INSIDE the open
+//! page; Esc closes the whole menu. The System page is a list: Volume (master, cycles
+//! 100/75/50/25/0 %), Graphics..., Back to safe spawn, Save game, Load game (the file Save
+//! writes), Rest (heals the party) and Quit; Graphics opens its own screen and Esc comes back to
+//! that list. The camera-axis inversions live in the Graphics screen. A tab only raises a request
+//! resource ([`BagOpenRequested`], [`PartyOpenRequested`], [`BoxOpenRequested`],
+//! [`DexOpenRequested`], [`ShopOpenRequested`],
+//! [`crate::game::crafting_ui::CraftingOpenRequested`], ...); each screen plugin consumes its own
+//! request, freezes the world and owns the input until it closes. A screen whose plugin is not
+//! installed shows a toast instead. Party, Boxes, Pokédex, Crafting and Shop open only in the
+//! overworld (never during a battle or a zone change).
+//! The System page also shows the player's money and play time (from `PlayerProgress` and
+//! `PlayTime`).
 //!
 //! While [`Paused`] is `true` the plugin freezes the world by contract: every gameplay system must
 //! carry `.run_if(pla::game::state::not_paused)` (the opposite condition is
@@ -77,6 +78,81 @@ pub const OPTIONS: [MenuOption; 16] = [
     MenuOption::Quit,
 ];
 
+/// A tab of the pause menu: eight pages that are the game's own screens, and the System list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tab {
+    Bag,
+    Party,
+    Summary,
+    Boxes,
+    Pokedex,
+    Crafting,
+    Shop,
+    Customize,
+    /// The list of the port's own actions ([`SYSTEM_OPTIONS`]).
+    System,
+}
+
+/// Tabs in display order (Q / E walk this list, wrapping around).
+pub const TABS: [Tab; 9] = [
+    Tab::Bag,
+    Tab::Party,
+    Tab::Summary,
+    Tab::Boxes,
+    Tab::Pokedex,
+    Tab::Crafting,
+    Tab::Shop,
+    Tab::Customize,
+    Tab::System,
+];
+
+/// Rows of the System tab.
+pub const SYSTEM_OPTIONS: [MenuOption; 7] = [
+    MenuOption::Volume,
+    MenuOption::Graphics,
+    MenuOption::SafeSpawn,
+    MenuOption::Save,
+    MenuOption::Load,
+    MenuOption::Rest,
+    MenuOption::Quit,
+];
+
+impl Tab {
+    /// Title of the tab (the strip's header text).
+    pub fn label(self) -> &'static str {
+        match self {
+            Tab::Bag => "Bag",
+            Tab::Party => "Party",
+            Tab::Summary => "Summary",
+            Tab::Boxes => "Pokémon boxes",
+            Tab::Pokedex => "Pokédex",
+            Tab::Crafting => "Crafting",
+            Tab::Shop => "Shop",
+            Tab::Customize => "Customize",
+            Tab::System => "System",
+        }
+    }
+
+    /// The fullscreen screen this tab shows; `None` for the bag (own request) and the System list.
+    pub fn screen(self) -> Option<Screen> {
+        match self {
+            Tab::Party => Some(Screen::Party),
+            Tab::Summary => Some(Screen::Summary),
+            Tab::Boxes => Some(Screen::Boxes),
+            Tab::Pokedex => Some(Screen::Pokedex),
+            Tab::Crafting => Some(Screen::Crafting),
+            Tab::Shop => Some(Screen::Shop),
+            Tab::Customize => Some(Screen::Customize),
+            Tab::Bag | Tab::System => None,
+        }
+    }
+}
+
+/// Tab reached from `tab` after `delta` presses of Q (-1) / E (+1), wrapping around both ends.
+pub fn step_tab(tab: usize, delta: i32) -> usize {
+    (tab as i32 + delta).rem_euclid(TABS.len() as i32) as usize
+}
+
 /// What the caller must do after an option was activated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuAction {
@@ -117,9 +193,9 @@ pub enum Screen {
     Shop,
 }
 
-/// Move the highlighted row by `delta`, wrapping around both ends.
+/// Move the highlighted row of the System list by `delta`, wrapping around both ends.
 pub fn move_selection(selected: usize, delta: i32) -> usize {
-    let n = OPTIONS.len() as i32;
+    let n = SYSTEM_OPTIONS.len() as i32;
     (selected as i32 + delta).rem_euclid(n) as usize
 }
 
@@ -317,6 +393,21 @@ pub struct PauseMenu {
     pub scroll: usize,
 }
 
+/// The open tab of the pause menu. `active` is on from the Esc that opens the menu until the world
+/// runs again; `tab` indexes [`TABS`].
+#[derive(Resource, Debug, Default)]
+pub struct PauseTabs {
+    pub active: bool,
+    pub tab: usize,
+}
+
+impl PauseTabs {
+    /// The tab being shown.
+    pub fn current(&self) -> Tab {
+        TABS[self.tab.min(TABS.len() - 1)]
+    }
+}
+
 /// Directory of `settings.txt`.
 #[derive(Resource, Debug, Clone)]
 pub struct SettingsDir(pub std::path::PathBuf);
@@ -340,6 +431,7 @@ impl PauseMenuPlugin {
             .insert_resource(SettingsDir(dir))
             .init_resource::<Paused>()
             .init_resource::<PauseMenu>()
+            .init_resource::<PauseTabs>()
             .init_resource::<SaveToast>()
             .init_resource::<SaveRequested>()
             .init_resource::<LoadRequested>()
@@ -356,7 +448,8 @@ impl PauseMenuPlugin {
             // observe the new paused flag.
             .add_systems(
                 PreUpdate,
-                pause_input
+                (pause_input, pause_tab_switch)
+                    .chain()
                     .after(bevy::input::InputSystems)
                     .after(super::input_map::fill_action_state),
             )
@@ -398,7 +491,7 @@ fn spawn_menu(mut commands: Commands) {
                     TextFont::from_font_size(28.0),
                     TextColor(Color::srgb(0.95, 0.9, 0.6)),
                 ));
-                for (i, _) in OPTIONS.iter().enumerate() {
+                for (i, _) in SYSTEM_OPTIONS.iter().enumerate() {
                     panel
                         .spawn((
                             Button,
@@ -442,6 +535,7 @@ fn pause_input(
     mut actions: ResMut<ActionState>,
     mut paused: ResMut<Paused>,
     mut menu: ResMut<PauseMenu>,
+    mut tabs: ResMut<PauseTabs>,
     mut settings: ResMut<UserSettings>,
     dir: Res<SettingsDir>,
     mut requests: ActionRequests,
@@ -467,14 +561,37 @@ fn pause_input(
     if actions.just_pressed(Action::Menu) {
         actions.consume(Action::Menu);
         actions.consume(Action::Cancel);
+        // The page that opens with the menu reads Esc as its own "close" key: it must not see
+        // the press that opened it.
+        keys.clear_just_pressed(KeyCode::Escape);
         paused.0 = toggle_paused(paused.0);
+        tabs.active = paused.0;
         if paused.0 {
             menu.selected = 0;
             menu.scroll = 0;
+            // The menu opens on its first page (the bag) at once; outside the overworld only the
+            // System list is available.
+            let in_world = state.as_ref().is_none_or(|s| *s.get() == GameState::World);
+            if in_world {
+                tabs.tab = 0;
+                screens.bag.0 = true;
+            } else {
+                tabs.tab = TABS.len() - 1;
+            }
         }
         return;
     }
     if !paused.0 {
+        tabs.active = false;
+        return;
+    }
+    // A pause opened by another path (a test, an automation command) is the System list.
+    if !tabs.active {
+        tabs.active = true;
+        tabs.tab = TABS.len() - 1;
+    }
+    // The screen tabs are owned by their screens; only the System list answers here.
+    if tabs.current() != Tab::System {
         return;
     }
 
@@ -524,7 +641,7 @@ fn pause_input(
     for key in [KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space] {
         keys.clear_just_pressed(key);
     }
-    match activate(OPTIONS[i], &mut settings) {
+    match activate(SYSTEM_OPTIONS[i.min(SYSTEM_OPTIONS.len() - 1)], &mut settings) {
         MenuAction::Resume => paused.0 = false,
         MenuAction::OpenBag => {
             screens.bag.0 = true;
@@ -560,9 +677,107 @@ fn pause_input(
     }
 }
 
+/// The screens a tab can show, so Q / E can close the open one without releasing the frozen world.
+#[derive(SystemParam)]
+pub struct TabScreens<'w> {
+    bag: Option<ResMut<'w, super::bag_screen::BagUi>>,
+    party: Option<ResMut<'w, super::party_screen::PartyScreenState>>,
+    party_ops: Option<ResMut<'w, super::party_screen::PartyOpsState>>,
+    summary: Option<ResMut<'w, super::summary_screen::SummaryState>>,
+    boxes: Option<ResMut<'w, super::box_screen::BoxScreenState>>,
+    dex: Option<ResMut<'w, super::dex_screen::DexUi>>,
+    crafting: Option<ResMut<'w, super::crafting_ui::CraftingUi>>,
+    customize: Option<ResMut<'w, super::customize_screen::CustomizeScreenState>>,
+    graphics: Option<ResMut<'w, super::graphics_screen::GraphicsScreenState>>,
+}
+
+impl TabScreens<'_> {
+    /// Whether the Graphics screen (opened from the System list) owns the input.
+    fn graphics_open(&self) -> bool {
+        self.graphics.as_deref().is_some_and(|g| g.open)
+    }
+
+    /// Close every tab screen. The world stays frozen: only their `open` flags change.
+    fn close_all(&mut self) {
+        if let Some(s) = self.bag.as_deref_mut() {
+            s.open = false;
+        }
+        if let Some(s) = self.party.as_deref_mut() {
+            s.open = false;
+        }
+        if let Some(s) = self.party_ops.as_deref_mut() {
+            s.open = false;
+        }
+        if let Some(s) = self.summary.as_deref_mut() {
+            s.open = false;
+        }
+        if let Some(s) = self.boxes.as_deref_mut() {
+            s.open = false;
+        }
+        if let Some(s) = self.dex.as_deref_mut() {
+            s.open = false;
+        }
+        if let Some(s) = self.crafting.as_deref_mut() {
+            s.open = false;
+        }
+        if let Some(s) = self.customize.as_deref_mut() {
+            s.open = false;
+        }
+    }
+}
+
+/// Q / E pivot between the tabs of the open pause menu: the open page closes (the world stays
+/// frozen) and the next one opens through its usual request. Runs right after [`pause_input`] and
+/// consumes the two keys so the page underneath never sees them.
+#[allow(clippy::too_many_arguments)]
+fn pause_tab_switch(
+    mut keys: ResMut<ButtonInput<KeyCode>>,
+    paused: Res<Paused>,
+    mut tabs: ResMut<PauseTabs>,
+    mut suppressed: ResMut<PauseMenuSuppressed>,
+    mut screens: ScreenRequests,
+    mut open: TabScreens,
+    mut toast: ResMut<SaveToast>,
+    state: Option<Res<State<GameState>>>,
+) {
+    if !tabs.active || !paused.0 {
+        return;
+    }
+    // The tabs are the overworld's pages; the Graphics screen (opened from the System list) keeps
+    // Q / E for itself.
+    if state.as_ref().is_some_and(|s| *s.get() != GameState::World) || open.graphics_open() {
+        return;
+    }
+    let delta = if keys.just_pressed(KeyCode::KeyQ) {
+        -1
+    } else if keys.just_pressed(KeyCode::KeyE) {
+        1
+    } else {
+        return;
+    };
+    keys.clear_just_pressed(KeyCode::KeyQ);
+    keys.clear_just_pressed(KeyCode::KeyE);
+    let next = step_tab(tabs.tab, delta);
+    open.close_all();
+    tabs.tab = next;
+    match TABS[next] {
+        Tab::System => suppressed.0 = false,
+        Tab::Bag => screens.bag.0 = true,
+        tab => {
+            if let Some(screen) = tab.screen() {
+                if !screens.request(screen) {
+                    toast.show(screen_unavailable_text(screen, true));
+                    suppressed.0 = false;
+                }
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn sync_menu(
     paused: Res<Paused>,
+    tabs: Res<PauseTabs>,
     menu: Res<PauseMenu>,
     settings: Res<UserSettings>,
     progress: Option<Res<PlayerProgress>>,
@@ -574,12 +789,16 @@ fn sync_menu(
     mut info: Query<&mut Text, (With<PauseInfoText>, Without<PauseButtonText>)>,
 ) {
     for mut v in &mut root {
-        let want = if paused.0 && !suppressed.0 { Visibility::Visible } else { Visibility::Hidden };
+        let want = if paused.0 && !suppressed.0 && tabs.current() == Tab::System {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
         if *v != want {
             *v = want;
         }
     }
-    if !paused.0 || suppressed.0 {
+    if !paused.0 || suppressed.0 || tabs.current() != Tab::System {
         return;
     }
     for (b, mut bg) in &mut buttons {
@@ -590,7 +809,7 @@ fn sync_menu(
         };
     }
     for (t, mut text) in &mut texts {
-        let label = option_label(OPTIONS[t.0], &settings);
+        let label = option_label(SYSTEM_OPTIONS[t.0], &settings);
         if text.0 != label {
             text.0 = label;
         }
@@ -612,8 +831,8 @@ mod tests {
 
     #[test]
     fn selection_wraps_both_ways() {
-        assert_eq!(move_selection(0, -1), OPTIONS.len() - 1);
-        assert_eq!(move_selection(OPTIONS.len() - 1, 1), 0);
+        assert_eq!(move_selection(0, -1), SYSTEM_OPTIONS.len() - 1);
+        assert_eq!(move_selection(SYSTEM_OPTIONS.len() - 1, 1), 0);
         assert_eq!(move_selection(1, 1), 2);
         assert_eq!(move_selection(2, -1), 1);
     }
@@ -837,80 +1056,115 @@ mod tests {
     }
 
     #[test]
-    fn headless_every_screen_row_opens_its_screen_and_esc_returns_to_the_world() {
-        let rows = [
-            MenuOption::Party,
-            MenuOption::Summary,
-            MenuOption::Boxes,
-            MenuOption::Pokedex,
-            MenuOption::Crafting,
-            MenuOption::Shop,
-        ];
-        for row in rows {
-            let mut app = screens_app("screens");
-            step(&mut app, &[KeyCode::Escape], &[]);
-            assert!(app.world().resource::<Paused>().0, "{row:?}: menu open");
-            app.world_mut().resource_mut::<PauseMenu>().selected =
-                OPTIONS.iter().position(|o| *o == row).unwrap();
-            step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
-            assert!(screen_open(&app, row), "{row:?} must open from the pause menu");
-            assert!(app.world().resource::<Paused>().0, "{row:?}: world stays frozen");
-            assert!(app.world().resource::<PauseMenuSuppressed>().0, "{row:?}: owns input");
-            step(&mut app, &[], &[KeyCode::Enter]);
-            assert!(screen_open(&app, row), "{row:?} stays open");
-            assert!(!pause_root_visible(&mut app), "{row:?}: pause overlay hidden");
-
-            step(&mut app, &[KeyCode::Escape], &[]);
-            assert!(!screen_open(&app, row), "{row:?} must close on Esc");
-            assert!(!app.world().resource::<Paused>().0, "{row:?}: world resumes");
-            assert!(!app.world().resource::<PauseMenuSuppressed>().0);
-            step(&mut app, &[], &[KeyCode::Escape]);
-            assert!(!app.world().resource::<Paused>().0, "{row:?}: Esc did not reopen the menu");
+    fn step_tab_wraps_both_ways_and_tabs_cover_the_game_pages() {
+        assert_eq!(step_tab(0, -1), TABS.len() - 1);
+        assert_eq!(step_tab(TABS.len() - 1, 1), 0);
+        assert_eq!(step_tab(2, 1), 3);
+        assert_eq!(TABS[0], Tab::Bag, "the menu opens on the bag");
+        assert_eq!(*TABS.last().unwrap(), Tab::System);
+        // Every tab but the bag and the System list is a request-driven screen.
+        for t in TABS {
+            assert_eq!(t.screen().is_some(), !matches!(t, Tab::Bag | Tab::System), "{t:?}");
         }
+        assert!(!SYSTEM_OPTIONS.contains(&MenuOption::Resume), "Esc closes the menu: no Resume row");
+    }
+
+    #[test]
+    fn headless_menu_opens_the_bag_and_q_e_pivot_between_the_game_pages() {
+        let pages = [
+            (Tab::Party, MenuOption::Party),
+            (Tab::Summary, MenuOption::Summary),
+            (Tab::Boxes, MenuOption::Boxes),
+            (Tab::Pokedex, MenuOption::Pokedex),
+            (Tab::Crafting, MenuOption::Crafting),
+            (Tab::Shop, MenuOption::Shop),
+        ];
+        let mut app = screens_app("tabs");
+        step(&mut app, &[KeyCode::Escape], &[]);
+        assert!(app.world().resource::<Paused>().0, "Esc opens the menu");
+        assert!(app.world().resource::<PauseTabs>().active);
+        step(&mut app, &[], &[KeyCode::Escape]);
+        let bag = app.world().resource::<crate::game::bag_screen::BagUi>();
+        assert!(bag.open && bag.mode == crate::game::bag_screen::BagMode::Bag, "the bag opens at once");
+        assert!(app.world().resource::<PauseMenuSuppressed>().0, "the page owns the input");
+        assert!(!pause_root_visible(&mut app), "the list stays hidden over a page");
+
+        // E walks forward through the pages; the previous page closes, the world stays frozen.
+        for (tab, row) in pages {
+            step(&mut app, &[KeyCode::KeyE], &[]);
+            step(&mut app, &[], &[KeyCode::KeyE]);
+            assert_eq!(app.world().resource::<PauseTabs>().current(), tab);
+            assert!(screen_open(&app, row), "{tab:?} must open with E");
+            assert!(app.world().resource::<Paused>().0, "{tab:?}: world stays frozen");
+            assert!(app.world().resource::<PauseMenuSuppressed>().0, "{tab:?}: owns input");
+            assert!(!app.world().resource::<crate::game::bag_screen::BagUi>().open
+                || tab == Tab::Shop, "the bag closed when leaving its tab");
+        }
+        // Q goes back one page: Shop -> Crafting.
+        step(&mut app, &[KeyCode::KeyQ], &[]);
+        step(&mut app, &[], &[KeyCode::KeyQ]);
+        assert_eq!(app.world().resource::<PauseTabs>().current(), Tab::Crafting);
+        assert!(screen_open(&app, MenuOption::Crafting));
+        assert!(!screen_open(&app, MenuOption::Shop));
+        // Q / E never reach the page underneath as raw edges.
+        step(&mut app, &[KeyCode::KeyE], &[]);
+        assert!(!app.world().resource::<ButtonInput<KeyCode>>().just_pressed(KeyCode::KeyE));
+
+        // Esc inside a page closes the whole menu.
+        step(&mut app, &[], &[KeyCode::KeyE]);
+        step(&mut app, &[KeyCode::Escape], &[]);
+        step(&mut app, &[], &[KeyCode::Escape]);
+        assert!(!app.world().resource::<Paused>().0, "the world resumes");
+        assert!(!app.world().resource::<PauseTabs>().active);
+        assert!(!app.world().resource::<PauseMenuSuppressed>().0);
+        step(&mut app, &[KeyCode::Escape], &[]);
+        assert!(app.world().resource::<Paused>().0, "Esc reopens it on the first page");
+        assert_eq!(app.world().resource::<PauseTabs>().current(), Tab::Bag);
     }
 
     #[test]
     fn headless_screens_show_live_progress_and_refuse_outside_the_world() {
         let mut app = screens_app("live");
         step(&mut app, &[KeyCode::Escape], &[]);
-        app.world_mut().resource_mut::<PauseMenu>().selected =
-            OPTIONS.iter().position(|o| *o == MenuOption::Party).unwrap();
-        step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
+        step(&mut app, &[], &[KeyCode::Escape]);
+        // Party is the second tab.
+        step(&mut app, &[KeyCode::KeyE], &[]);
+        step(&mut app, &[], &[KeyCode::KeyE]);
         assert_eq!(
             app.world().resource::<crate::game::party_screen::PartyScreenData>().party[0].species,
             25,
             "the party screen mirrors PlayerProgress"
         );
-        step(&mut app, &[KeyCode::Escape], &[KeyCode::Enter]);
-        step(&mut app, &[], &[KeyCode::Escape]);
-
-        // Crafting copies the player's bag when it opens.
-        step(&mut app, &[KeyCode::Escape], &[]);
-        app.world_mut().resource_mut::<PauseMenu>().selected =
-            OPTIONS.iter().position(|o| *o == MenuOption::Crafting).unwrap();
-        step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
+        // Crafting (tab 5) copies the player's bag when it opens.
+        for _ in 0..4 {
+            step(&mut app, &[KeyCode::KeyE], &[]);
+            step(&mut app, &[], &[KeyCode::KeyE]);
+        }
+        assert_eq!(app.world().resource::<PauseTabs>().current(), Tab::Crafting);
         assert_eq!(
             app.world().resource::<crate::game::crafting_ui::CraftingBag>().0.get(&1613),
             Some(&2)
         );
         assert_eq!(app.world().resource::<crate::game::crafting_ui::CraftingCatalog>().0.len(), 43);
-        step(&mut app, &[KeyCode::Escape], &[KeyCode::Enter]);
+        step(&mut app, &[KeyCode::Escape], &[]);
         step(&mut app, &[], &[KeyCode::Escape]);
+        assert!(!app.world().resource::<Paused>().0);
 
-        // During a battle the boxes row only shows a toast and the menu stays up.
+        // During a battle only the System list opens and Q / E do not leave it.
         app.insert_resource(State::new(GameState::Battle));
         step(&mut app, &[KeyCode::Escape], &[]);
-        app.world_mut().resource_mut::<PauseMenu>().selected =
-            OPTIONS.iter().position(|o| *o == MenuOption::Boxes).unwrap();
-        step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
-        assert!(!screen_open(&app, MenuOption::Boxes));
+        step(&mut app, &[], &[KeyCode::Escape]);
         assert!(app.world().resource::<Paused>().0);
+        assert_eq!(app.world().resource::<PauseTabs>().current(), Tab::System);
         assert!(!app.world().resource::<PauseMenuSuppressed>().0);
-        assert!(app.world().resource::<SaveToast>().text.contains("only while exploring"));
+        step(&mut app, &[KeyCode::KeyE], &[]);
+        step(&mut app, &[], &[KeyCode::KeyE]);
+        assert_eq!(app.world().resource::<PauseTabs>().current(), Tab::System);
+        assert!(!screen_open(&app, MenuOption::Boxes));
     }
 
     #[test]
-    fn screen_row_without_its_plugin_shows_a_toast() {
+    fn page_without_its_plugin_shows_a_toast() {
         let dir = std::env::temp_dir().join(format!("pla_pause_noscreen_{}", std::process::id()));
         let mut app = App::new();
         app.init_resource::<ButtonInput<MouseButton>>();
@@ -918,15 +1172,13 @@ mod tests {
         PauseMenuPlugin::install(&mut app, UserSettings::default(), dir);
         step(&mut app, &[], &[]);
         step(&mut app, &[KeyCode::Escape], &[]);
-        app.world_mut().resource_mut::<PauseMenu>().selected =
-            OPTIONS.iter().position(|o| *o == MenuOption::Pokedex).unwrap();
-        step(&mut app, &[KeyCode::Enter], &[KeyCode::Escape]);
+        step(&mut app, &[KeyCode::KeyE], &[KeyCode::Escape]);
         assert!(app.world().resource::<Paused>().0, "the menu stays open");
         assert!(app.world().resource::<SaveToast>().text.contains("not available"));
     }
 
     #[test]
-    fn headless_app_navigates_and_confirms_with_consumed_edges() {
+    fn headless_system_list_navigates_and_confirms_with_consumed_edges() {
         let dir = std::env::temp_dir().join(format!("pla_pause_nav_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let mut app = App::new();
@@ -937,39 +1189,27 @@ mod tests {
 
         step(&mut app, &[KeyCode::Escape], &[]);
         assert_eq!(app.world().resource::<PauseMenu>().selected, 0);
+        assert_eq!(app.world().resource::<PauseTabs>().current(), Tab::Bag, "opens on the bag");
+        // Q wraps back to the last tab: the System list.
+        step(&mut app, &[KeyCode::KeyQ], &[KeyCode::Escape]);
+        assert_eq!(app.world().resource::<PauseTabs>().current(), Tab::System);
+        assert!(!app.world().resource::<PauseMenuSuppressed>().0, "the list owns the input");
 
-        // D-pad/A-D/arrow navigation passes the Bag and screen rows and reaches the Volume row
-        // (the only setting the pause menu still owns; the camera inversions are in Graphics).
-        let volume = OPTIONS.iter().position(|o| *o == MenuOption::Volume).unwrap();
-        step(&mut app, &[KeyCode::ArrowDown], &[]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
-        for expected in 2..=volume {
-            step(&mut app, &[], &[KeyCode::ArrowDown]);
-            step(&mut app, &[KeyCode::ArrowDown], &[]);
-            assert_eq!(app.world().resource::<PauseMenu>().selected, expected);
-        }
-
-        step(&mut app, &[KeyCode::Enter], &[]);
+        // Volume is the first System row: Enter steps it down and keeps the menu open.
+        step(&mut app, &[KeyCode::Enter], &[KeyCode::KeyQ]);
         assert_eq!(app.world().resource::<UserSettings>().master_volume, 75);
-        assert!(
-            app.world().resource::<Paused>().0,
-            "a toggle row keeps the menu open"
-        );
+        assert!(app.world().resource::<Paused>().0, "a toggle row keeps the menu open");
         // Enter is consumed for the raw world readers (creature encounter reads it directly).
-        assert!(!app
-            .world()
-            .resource::<ButtonInput<KeyCode>>()
-            .just_pressed(KeyCode::Enter));
+        assert!(!app.world().resource::<ButtonInput<KeyCode>>().just_pressed(KeyCode::Enter));
 
-        // W/S still move through the vertical menu; S does not leak as the battle Switch.
-        step(&mut app, &[KeyCode::KeyS], &[KeyCode::ArrowDown, KeyCode::Enter]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, volume + 1);
-        assert!(!app
-            .world()
-            .resource::<ActionState>()
-            .just_pressed(Action::OpenSwitch));
+        // Arrows, W and S move through the vertical list; S does not leak as the battle Switch.
+        step(&mut app, &[KeyCode::ArrowDown], &[KeyCode::Enter]);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
+        step(&mut app, &[KeyCode::KeyS], &[KeyCode::ArrowDown]);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 2);
+        assert!(!app.world().resource::<ActionState>().just_pressed(Action::OpenSwitch));
         step(&mut app, &[KeyCode::KeyW], &[KeyCode::KeyS]);
-        assert_eq!(app.world().resource::<PauseMenu>().selected, volume);
+        assert_eq!(app.world().resource::<PauseMenu>().selected, 1);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

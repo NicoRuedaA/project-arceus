@@ -53,6 +53,22 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "L_item_pokemon_00",
             "L_item_00",
         ],
+        ScreenId::FieldSelect => &[
+            "N_icon_item_00",
+            "P_icon_current_00",
+            "N_icon_item_01",
+            "P_icon_left_00",
+            "N_icon_item_04",
+            "P_icon_right_02",
+            "N_icon_poke_00",
+            "P_icon_poke_00",
+            "T_item_name_00",
+            "T_item_num_00",
+            "T_poke_lv_00",
+            "L_icon_key_l_00",
+            "L_icon_key_r_00",
+            "L_btn_zr_00",
+        ],
         ScreenId::PauseStrip => &["T_title_00", "L_menu_00", "L_menu_03"],
         ScreenId::PauseMenu => &[
             "L_settings_list_00",
@@ -251,25 +267,26 @@ fn missing_data_keeps_the_debug_ui() {
     );
 }
 
-/// The pause menu is the game's settings list (`option_settings_00`) filled with the menu's rows:
-/// every option of the window readable at once, the cursor row on the game's select state, the
-/// Volume row as the game's slider, the game's scrollbar while the sixteen rows do not fit, and the
-/// port's own header, help, footer and key lines.
+/// The System page of the pause menu is the game's settings list (`option_settings_00`) filled
+/// with the port's actions: every row readable at once (they all fit the nine slots, so no
+/// scrollbar), the cursor row on the game's select state, and the port's own help, footer and key
+/// lines.
 #[test]
-fn pause_menu_is_the_game_settings_list_with_every_option_readable() {
+fn pause_system_page_is_the_game_settings_list_with_every_row_readable() {
     let Some(root) = local_root() else { return };
-    use crate::game::pause_menu::{option_label, PauseMenu, OPTIONS};
+    use crate::game::pause_menu::{option_label, PauseMenu, PauseTabs, SYSTEM_OPTIONS, TABS};
     use crate::game::settings::UserSettings;
     use crate::game::state::Paused;
     let (app, e) = screen_app(&root, ScreenId::PauseMenu, |app| {
         app.insert_resource(Paused(true));
         app.insert_resource(PauseMenu { selected: 3, scroll: 0 });
+        app.insert_resource(PauseTabs { active: true, tab: TABS.len() - 1 });
         app.insert_resource(UserSettings::default());
         app.init_resource::<super::scrollbar::ScrollBars>();
         app.add_systems(Update, (menus::bind_pause_menu, render_screens).chain());
     });
     let s = app.world().get::<OrigScreen>(e).unwrap();
-    assert!(s.shown, "the pause screen shows while paused");
+    assert!(s.shown, "the System page shows while it is the open tab");
     let f = s.evaluate();
     let texts: Vec<&str> = f
         .texts
@@ -277,36 +294,29 @@ fn pause_menu_is_the_game_settings_list_with_every_option_readable() {
         .filter(|t| t.visible)
         .map(|t| t.text.as_str())
         .collect();
-    // The first nine options are all readable at once (Volume shows its name and its number).
     let settings = UserSettings::default();
-    for &opt in OPTIONS.iter().take(menus::OPTION_FULL_ROWS) {
+    for &opt in SYSTEM_OPTIONS.iter() {
         let want = match opt {
             crate::game::pause_menu::MenuOption::Volume => "Volume".to_string(),
             other => option_label(other, &settings),
         };
         assert!(texts.contains(&want.as_str()), "{want} is not on screen: {texts:?}");
     }
-    // The rest sit below the window and the game's scrollbar is published for them.
     assert!(
-        !texts.contains(&"Quit"),
-        "the last row is below the window until scrolled: {texts:?}"
+        app.world()
+            .resource::<super::scrollbar::ScrollBars>()
+            .get(ScreenId::PauseMenu)
+            .is_none(),
+        "seven rows fit the nine slots: no scrollbar"
     );
-    let bar = app
-        .world()
-        .resource::<super::scrollbar::ScrollBars>()
-        .get(ScreenId::PauseMenu)
-        .copied()
-        .expect("sixteen rows overflow the nine slots, so the bar is published");
-    assert_eq!((bar.visible, bar.total, bar.scroll), (menus::OPTION_FULL_ROWS, OPTIONS.len(), 0));
-    // The port's own lines: header, the selected row's help, footer and keys.
+    // The port's own lines: the selected row's help, footer and keys.
     let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
     assert_eq!(free.len(), 3, "{free:?}");
-    assert_eq!(free[0], menus::option_help(OPTIONS[3]));
+    assert_eq!(free[0], menus::option_help(SYSTEM_OPTIONS[3]));
     assert!(free[1].contains("Money: "), "{free:?}");
-    assert!(free[2].contains("Esc: resume"), "{free:?}");
-    // The cursor row (index 3) carries the game's select state and every other visible row the
-    // unselect one.
-    for slot in 0..menus::OPTION_FULL_ROWS {
+    assert!(free[2].contains("Q / E"), "{free:?}");
+    // The cursor row (index 3) carries the game's select state, the others the unselect one.
+    for slot in 0..SYSTEM_OPTIONS.len() {
         let part = format!("L_settings_list_{slot:02}");
         let inst = s.scene.part_instance(&part).expect("row part");
         let want = if slot == 3 { "select_state" } else { "unselect_state" };
@@ -317,23 +327,42 @@ fn pause_menu_is_the_game_settings_list_with_every_option_readable() {
     }
 }
 
-/// The top of the pause menu is the game's own icon strip: the four icons of the selection's
-/// page (each with its real icon and the select / unselect state), the selected option as the
-/// title, the game's opening animations, and no port text of its own.
+/// While a screen tab is the open one the System list is hidden (the page owns the screen).
 #[test]
-fn pause_strip_shows_the_icons_of_the_selection_page_and_its_title() {
+fn pause_list_hides_while_another_tab_is_open() {
     let Some(root) = local_root() else { return };
-    use crate::game::pause_menu::{PauseMenu, OPTIONS};
+    use crate::game::pause_menu::{PauseMenu, PauseTabs};
     use crate::game::settings::UserSettings;
     use crate::game::state::Paused;
+    let (app, e) = screen_app(&root, ScreenId::PauseMenu, |app| {
+        app.insert_resource(Paused(true));
+        app.insert_resource(PauseMenu::default());
+        app.insert_resource(PauseTabs { active: true, tab: 0 });
+        app.insert_resource(UserSettings::default());
+        app.init_resource::<super::scrollbar::ScrollBars>();
+        app.add_systems(Update, (menus::bind_pause_menu, render_screens).chain());
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(!s.shown, "the bag tab is open: the System list stays hidden");
+}
+
+/// The header of the pause menu is the game's own icon strip: the four tab icons of the open
+/// tab's page (each with its real icon and the select / unselect state), the open tab as the
+/// title, the game's opening animations, and no port text of its own. It stays shown over every
+/// tab (the pages hide the list, never the strip).
+#[test]
+fn pause_strip_shows_the_tab_icons_of_the_open_page_and_its_title() {
+    let Some(root) = local_root() else { return };
+    use crate::game::pause_menu::{PauseTabs, Tab, TABS};
+    use crate::game::state::Paused;
+    let open_tab = 4; // Pokédex: the second page of the strip (tabs 4..8)
     let (app, e) = screen_app(&root, ScreenId::PauseStrip, |app| {
         app.insert_resource(Paused(true));
-        app.insert_resource(PauseMenu { selected: 5, scroll: 0 });
-        app.insert_resource(UserSettings::default());
+        app.insert_resource(PauseTabs { active: true, tab: open_tab });
         app.add_systems(Update, (menus::bind_pause_strip, render_screens).chain());
     });
     let s = app.world().get::<OrigScreen>(e).unwrap();
-    assert!(s.shown, "the strip shows while paused");
+    assert!(s.shown, "the strip shows while the menu is open, whatever the tab");
     let f = s.evaluate();
     let texts: Vec<&str> = f
         .texts
@@ -341,9 +370,9 @@ fn pause_strip_shows_the_icons_of_the_selection_page_and_its_title() {
         .filter(|t| t.visible)
         .map(|t| t.text.as_str())
         .collect();
-    assert_eq!(texts, vec!["Pokédex"], "only the title is a scene text");
+    assert_eq!(texts, vec![Tab::Pokedex.label()], "only the title is a scene text");
     assert!(s.free_texts().is_empty(), "the strip carries no port text");
-    let page = 5 / 4;
+    let page = open_tab / 4;
     for k in 0..4 {
         let part = format!("L_menu_0{k}");
         let pane = s.node_in(&part, "P_icon_menu_00").expect("slot pane");
@@ -354,18 +383,19 @@ fn pause_strip_shows_the_icons_of_the_selection_page_and_its_title() {
             .unwrap_or_else(|| panic!("{part} has no icon override"));
         assert!(img.png.contains("png/"), "{part}: {}", img.png);
         let inst = s.scene.part_instance(&part).unwrap();
-        let want = if page * 4 + k == 5 { "_select" } else { "_unselect" };
+        let want = if page * 4 + k == open_tab { "_select" } else { "_unselect" };
         assert!(
             s.anim.tracks.iter().any(|t| t.instance == inst && t.anim.ends_with(want)),
             "{part} has no {want} state"
         );
     }
-    for &opt in OPTIONS.iter().take(4) {
-        let icon = menus::option_icon(opt);
+    // Every tab maps to an icon the archive really holds.
+    for &tab in TABS.iter() {
+        let icon = menus::tab_icon(tab);
         let info = s.scene.archive().textures.get(&format!("sm_menu_icon_{icon}_00^t"));
         assert!(
             info.is_some_and(|i| i.width > 2 && i.height > 2 && i.png.is_some()),
-            "{opt:?} uses the missing icon {icon}"
+            "{tab:?} uses the missing icon {icon}"
         );
     }
     for tag in ["f_in", "menu_in", "title_in"] {
@@ -378,43 +408,6 @@ fn pause_strip_shows_the_icons_of_the_selection_page_and_its_title() {
     assert_eq!(menus::strip_frame(4), 0.0);
     assert_eq!(menus::strip_frame(3), 1.0);
     assert_eq!(menus::strip_frame(2), 2.0);
-}
-
-/// With the selection past the ninth row the window scrolls, the last options appear and the bar
-/// follows.
-#[test]
-fn pause_menu_scrolls_to_the_last_options() {
-    let Some(root) = local_root() else { return };
-    use crate::game::pause_menu::{PauseMenu, OPTIONS};
-    use crate::game::settings::UserSettings;
-    use crate::game::state::Paused;
-    let last = OPTIONS.len() - 1;
-    let (app, e) = screen_app(&root, ScreenId::PauseMenu, |app| {
-        app.insert_resource(Paused(true));
-        app.insert_resource(PauseMenu { selected: last, scroll: 0 });
-        app.insert_resource(UserSettings::default());
-        app.init_resource::<super::scrollbar::ScrollBars>();
-        app.add_systems(Update, (menus::bind_pause_menu, render_screens).chain());
-    });
-    let s = app.world().get::<OrigScreen>(e).unwrap();
-    let f = s.evaluate();
-    let texts: Vec<&str> = f
-        .texts
-        .iter()
-        .filter(|t| t.visible)
-        .map(|t| t.text.as_str())
-        .collect();
-    assert!(texts.contains(&"Quit"), "{texts:?}");
-    assert!(!texts.contains(&"Resume"), "the first row scrolled out: {texts:?}");
-    let menu = app.world().resource::<PauseMenu>();
-    assert_eq!(menu.scroll, OPTIONS.len() - menus::OPTION_FULL_ROWS);
-    let bar = app
-        .world()
-        .resource::<super::scrollbar::ScrollBars>()
-        .get(ScreenId::PauseMenu)
-        .copied()
-        .unwrap();
-    assert_eq!(bar.scroll, menu.scroll);
 }
 
 /// The corner minimap is hidden under the battle HUD and every menu screen, never under the
@@ -1474,4 +1467,115 @@ fn customize_binding_fills_rows_tabs_and_equipment() {
         free.iter().any(|t| t.contains("13 / 13") && t.contains("Esc: back")),
         "key hint: {free:?}"
     );
+}
+
+/// The field wheel shows the current ball with its bag count, the neighbours of the item list,
+/// the `R` badge the layout does not carry and the party's Pokémon with their level when the
+/// Pokémon panel is on.
+#[test]
+fn field_select_binding_fills_the_wheel_and_switches_panels() {
+    let Some(root) = local_root() else { return };
+    use crate::game::save_game::PartyMember;
+    use crate::game::save_wire::PlayerProgress;
+    use crate::game::throwing::{BallInventory, BallKind};
+    use crate::game::GameState;
+    use field_select::{bind_field_select, FieldSelector, PanelKind};
+    let (mut app, e) = screen_app(&root, ScreenId::FieldSelect, |app| {
+        app.insert_resource(State::new(GameState::World));
+        let mut p = PlayerProgress::new_game();
+        p.party = vec![
+            PartyMember {
+                species: 25,
+                level: 9,
+                hp: 20,
+                ..Default::default()
+            },
+            PartyMember {
+                species: 475,
+                level: 70,
+                hp: 200,
+                ..Default::default()
+            },
+        ];
+        p.bag.insert(1712, 7);
+        app.insert_resource(p);
+        app.insert_resource(BallInventory {
+            selected: BallKind::UltraBall,
+            ..Default::default()
+        });
+        app.insert_resource(FieldSelector {
+            open: true,
+            panel: PanelKind::Items,
+            pokemon_index: 1,
+        });
+        app.init_resource::<icons::IconIndex>();
+        app.add_systems(
+            Update,
+            (bind_field_select, render_screens).chain(),
+        );
+    });
+    let text = |app: &App, name: &str| -> Option<String> {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        s.overrides
+            .get(s.scene.find(name)?)
+            .and_then(|o| o.text.clone())
+    };
+    let image_of = |app: &App, pane: &str| -> Option<String> {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        let n = s.scene.find(pane)?;
+        s.overrides.get(n).and_then(|o| o.image.clone()).map(|i| i.png)
+    };
+    {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        assert!(s.shown, "the open wheel must show");
+        assert!(
+            s.anim.has_label(0, "panel_state"),
+            "the settled item panel state is frozen"
+        );
+        assert_eq!(text(&app, "T_item_name_00").as_deref(), Some("Ultra Ball"));
+        assert_eq!(text(&app, "T_item_num_00").as_deref(), Some("7"));
+        // Both neighbours of the nine-ball list carry an icon (the list wraps).
+        assert!(image_of(&app, "P_icon_current_00").is_some(), "centre item icon");
+        assert!(image_of(&app, "P_icon_left_00").is_some());
+        assert!(image_of(&app, "P_icon_right_02").is_some());
+        // The right badge shows the R art the layout does not hold; the left keeps its own.
+        let badge = |part: &str| -> Option<String> {
+            let n = s.node_in(part, "P_icon_key_00")?;
+            s.overrides.get(n).and_then(|o| o.image.clone()).map(|i| i.png)
+        };
+        let r = badge("L_icon_key_r_00").expect("right badge image");
+        assert!(r.ends_with("button_icon_R_round_00^t.png"), "{r}");
+        assert!(badge("L_icon_key_l_00").is_none(), "left badge untouched");
+    }
+    // Pokémon panel: the party member at `pokemon_index` with its level.
+    app.world_mut()
+        .resource_mut::<FieldSelector>()
+        .panel = PanelKind::Pokemon;
+    for _ in 0..2 {
+        app.update();
+    }
+    {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        assert!(s.anim.has_label(0, "panel_state"));
+        assert!(text(&app, "T_item_name_00").is_some());
+        assert_eq!(text(&app, "T_poke_lv_00").as_deref(), Some("Lv. 70"));
+        assert!(image_of(&app, "P_icon_poke_00").is_some(), "centre party icon");
+        assert!(image_of(&app, "P_icon_poke_01").is_some());
+        let f = s.last.clone().expect("evaluated");
+        let hint = s
+            .free_texts()
+            .iter()
+            .map(|t| t.text.clone())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(hint.contains("Backspace"), "key hint: {hint}");
+        assert!(f.quads.iter().any(|q| q.visible), "the wheel draws quads");
+    }
+    // Closing hides the screen again.
+    app.world_mut()
+        .resource_mut::<FieldSelector>()
+        .open = false;
+    app.update();
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(!s.shown, "closed wheel must hide");
 }

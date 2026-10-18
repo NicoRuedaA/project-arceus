@@ -154,6 +154,9 @@ valor por defecto.
 | V | **Montura: subir o bajarse** de la montura elegida (al montar sale una línea con sus teclas). Sin montar, además cambia el cebo, y también empieza un combate de entrenador si hay una cápsula roja cerca (o si usas `--trainer`) |
 | G | **Cambiar de montura** (Wyrdeer → Ursaluna → Basculegion → Sneasler → Braviary). Ojo: **G comparte tecla con la Gran Ball** (también la elige) |
 | X (apuntando) | Lanzar el cebo elegido |
+| **X** (a pie, sin apuntar) | **Selector de objetos y Pokémon**: abre abajo a la derecha la rueda del juego (objeto actual en el centro con su cantidad, el anterior y el siguiente a los lados). Con la rueda abierta, **X** cambia entre el panel de objetos y el de Pokémon (los iconos X y de cambio que salen encima). Ver 2.22 |
+| **[** / **]** (con la rueda abierta) | Objeto o Pokémon **anterior / siguiente** (da la vuelta a la lista) |
+| **Retroceso** (con la rueda abierta) | Cerrar la rueda |
 | E o Enter | Entrar en una puerta; acercarte a un Pokémon salvaje y retarlo si estás a menos de 4 m; abrir una tienda cercana |
 | Espacio o Enter | Recoger un objeto del suelo cercano |
 | I | Mochila |
@@ -410,13 +413,16 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 
 ### 2.8 Menús y pantallas
 
-45. **Menú de pausa (Esc).** Opciones (2026-10-18: lista con los componentes de la pantalla de
-    Ajustes del juego, todas las opciones con su nombre, ver el punto 81): Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Crafting,
-    Shop (test shop), Volume, Graphics..., Customize, Back to safe spawn, Save game, Load game,
-    Rest y Quit. Las inversiones de cámara se movieron a la pantalla Graphics (punto 80). Navegas
-    con las flechas (o A/D y W/S) + Enter, o con el ratón. Congela el mundo. Volume cambia el
-    volumen al instante y se recuerda al reiniciar. «Back to safe spawn» te lleva a un punto
-    seguro. Fallo: no se cierra con Esc, algo se sigue moviendo, Quit no cierra.
+45. **Menú de pausa (Esc), por pestañas.** Al pulsar Esc se abre **directamente la mochila** (la
+    primera página) con la **tira de iconos del juego arriba como cabecera**. **Q y E** cambian de
+    pestaña (con vuelta al final): Bag, Party, Summary, Pokémon boxes, Pokédex, Crafting, Shop,
+    Customize y **System**. Dentro de cada pantalla las flechas (o A/D, W/S) y Enter siguen
+    moviéndose por dentro, como siempre. **Esc cierra todo el menú** (no hay fila «Resume»).
+    **System** es una lista: Volume (Enter baja un paso: 100, 75, 50, 25, 0), Graphics...,
+    Back to safe spawn, Save game, Load game, Rest (heal party) y Quit; Graphics abre su pantalla
+    y Esc vuelve a esta lista. Congela el mundo. Fallo: Esc abre una lista en vez de la mochila,
+    Q/E no cambian de página o la pantalla de debajo también reacciona a Q/E, no se cierra con Esc,
+    algo se sigue moviendo, Quit no cierra. En combate solo se abre System.
 46. **Menú principal.** [EN MAIN] `./play.sh --area 1 --menu`. Ves: Continue (gris si no hay partida
     guardada), New game, Options, Exit. Options: volumen, campo de visión, sombras y calidad.
     Fallo: Continue activo sin partida, no se guardan las opciones.
@@ -807,7 +813,7 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       del panel central (si esa especie aún no tiene modelo, el hueco queda vacío y el texto lo
       dice). El modelo se ve de frente, entero y con un margen alrededor (da igual que sea
       diminuto como Joltik #595 o enorme como Wailord #321), y **se puede girar**:
-      `Q`/`E` (mantenidas) lo giran a izquierda/derecha, arrastrar con el botón izquierdo del
+      `Z`/`C` (mantenidas) lo giran a izquierda/derecha, arrastrar con el botón izquierdo del
       ratón **dentro del hueco** lo gira libremente (y lo inclina un poco hacia arriba/abajo),
       `R` vuelve al ángulo inicial, y al cambiar de especie el ángulo se reinicia solo. Abajo,
       en el pie de la página, salen las teclas. El aviso de la ruta del modelo sobre la página
@@ -873,29 +879,20 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 
 ### 2.21 Menú de pausa original, cámara y barras de scroll
 
-81. **Menú de pausa (Esc) como lista con la piel del juego.** [EN MAIN]
-    Arriba sigue **la tira de iconos del juego** (4 iconos por página, el icono de la fila elegida
-    marcado y el **nombre de la opción como título**, con la animación de apertura del juego).
-    Debajo sale una **lista vertical** hecha con los mismos componentes que la pantalla de
-    Ajustes del juego (la que usa Graphics): una fila por opción con su **nombre visible**, la
-    fila elegida resaltada en crema con el texto oscuro (como en el juego), y a la derecha **la
-    barra de scroll** del juego (rueda, arrastrar el tirador y clic en la pista, como en
-    Graphics). Se ven **9 filas a la vez**; las 16 opciones están en este orden: Resume, Bag,
-    Party, Summary, Pokémon boxes, Pokédex, Crafting, Shop (test shop), Volume, Graphics...,
-    Customize, Back to safe spawn, Save game, Load game, Rest (heal party), Quit.
-    - **Volume** sale como el deslizador del juego con su número (100 %, 75 %, 50 %, 25 %,
-      0 %); **Enter** lo baja un paso y al llegar a 0 vuelve a 100.
-    - **Abajo**, una línea de ayuda de la fila elegida, el
-      dinero y el tiempo de juego, y las teclas (arriba/abajo o W/S eligen, **Enter** abre,
-      **Esc** vuelve al juego). Cuando hay filas fuera de la ventana sale «(more above)» y/o
-      «(more below)».
-    - Al abrir Bag, Party, Pokédex, Crafting, Shop, Graphics o Customize y cerrar con Esc, vuelves
-      al menú en la misma fila.
-    - Del juego: Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Volume, Quit. Del port:
-      Crafting, Shop (test shop), Graphics, Customize, Back to safe spawn, Save/Load game, Rest.
-    Fallo: Esc no abre nada, falta la tira de iconos de arriba, se ve la lista de texto provisional,
-    la fila elegida tiene el texto blanco sobre crema (ilegible), el tirador no responde a la
-    rueda, o al volver de una pantalla el menú se abre en otra fila.
+81. **Menú de pausa por pestañas con la piel del juego.** [EN RAMA `feat/menu-pestanas`]
+    Arriba siempre **la tira de iconos del juego** (4 iconos por página, el icono de la pestaña
+    abierta marcado y su **nombre como título**, con la animación de apertura del juego). Debajo,
+    la pantalla de la pestaña: **mochila, equipo, resumen, cajas, Pokédex, artesanía, tienda,
+    personalizar** (son las pantallas del juego de siempre) o **System**, una **lista** hecha con
+    los componentes de la pantalla de Ajustes del juego (fila elegida en crema con el texto
+    oscuro, ayuda de la fila y dinero/tiempo de juego abajo).
+    - **Q / E** = pestaña anterior / siguiente. **Esc** = cerrar el menú. Las flechas, A/D, W/S y
+      Enter actúan dentro de la pantalla abierta (en la Pokédex, además, **Z / C** giran el
+      modelo; Q y E ya no, porque cambian de pestaña).
+    - Esc abre siempre en la **mochila**; al reabrir no recuerda la última pestaña.
+    - Al abrir Graphics desde System y cerrar con Esc vuelves a la lista System.
+    Fallo: falta la tira de arriba, el título no coincide con la pantalla, Q/E giran o cambian
+    algo en la pantalla de debajo, o el menú se queda abierto tras Esc.
 82. **Invertir cámara: ahora solo en Graphics.** [EN RAMA `feat/ui-menu`] Las filas «Invert
     camera X axis» e «Invert camera Y axis» **ya no están en el menú de pausa**. Están en
     **Esc → Graphics... → página Display** (Tab hasta Display), como dos filas más: izquierda/
@@ -921,6 +918,33 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     cada pantalla lo recuerda («Wheel / drag the bar...»). Fallo: la barra no se mueve, el
     tirador cambia de tamaño al azar, la lista no sigue a la barra (o al revés) o la rueda
     mueve la cámara en vez de la lista.
+
+### 2.22 Selector de objetos y Pokémon en el campo  [EN MAIN]
+
+84. **La rueda de objetos y Pokémon (tecla X).** [EN MAIN] En el mundo,
+    sin apuntar, pulsa **X**: en la esquina de abajo a la derecha aparece la **rueda del juego**
+    (el mismo panel decodificado de la pantalla de apuntar: `pokeget/pokeget_item_change_00`):
+    - En el centro, el **objeto actual** grande con su **cantidad** debajo (p. ej. «59»), y a los
+      lados el **anterior** y el **siguiente** más pequeños.
+    - Encima del objeto, el icono del botón **X** y el de **cambio** (las flechas circulares).
+    - Abajo, la barra oscura con la **L**, el **nombre** del objeto y la **R**.
+    - **X** cambia al panel de **Pokémon**: el Pokémon del equipo elegido en el centro (retrato
+      real) con su **Lv.** y su nombre; a los lados el anterior y el siguiente del equipo. **X**
+      otra vez vuelve a los objetos.
+    - **[** y **]** cambian al anterior / siguiente (dan la vuelta); al cambiar de objeto, la
+      bola que se lanza con clic izquierdo/Espacio (apuntando) es la que quedó en la rueda, y
+      las teclas de bola de siempre (B/G/U/F/N/J/L/T) mueven la rueda igual. Con **[** / **]** en
+      la lista de objetos también salen los **cebos** que llevas en la mochila (después de las
+      9 bolas; la V sigue cambiándolos).
+    - **Retroceso** cierra la rueda. Mientras está abierta, el atajo de bola de la esquina
+      (el de antes) se oculta: la rueda muestra lo mismo más grande.
+    - **El Pokémon que elijas es el que te acompaña**: al cambiar de Pokémon en la rueda, el
+      Pokémon que anda detrás de ti cambia a ese. Arriba sale una línea con las teclas
+      (`X: … [ ] … Backspace …`). Con la rueda cerrada, abajo en el centro se recuerda
+      «X: open the item / Pokémon selector».
+    Fallo: X no abre nada, sale la ventana de texto provisional, no hay iconos ni cantidades,
+    los lados no cambian, la X no alterna objetos/Pokémon, el Pokémon elegido no es el que
+    camina contigo, o la rueda tapa el minimapa.
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 
@@ -961,6 +985,8 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 | Animaciones de ataque en combate | Físico = ataque cuerpo a cuerpo, otros = ataque a distancia | Asignación supuesta |
 | Rotación de objetos del mapa | Giro sobre el eje vertical, en grados | Sin comprobar a ojo |
 | Mensajes e interfaz | Textos y diseño propios (en inglés) | No se usa texto del juego |
+| Rueda de objetos/Pokémon (2026-10-18) | Se abre a pie con **X**, **X** alterna los paneles, **cerrar con Retroceso**, la lista de objetos son las 9 bolas y luego los cebos de la mochila, y el Pokémon elegido es el que camina contigo | El panel, los iconos, las cantidades, las teclas L/R de la barra y las animaciones de cambio son del juego (`pokeget_item_change_00`); **cuál** tecla abre/cierra la rueda en el juego real y qué lista exacta muestra no se ha leído del binario. La captura 30/31 del usuario no enseña la tecla de cerrar. El Pokémon elegido en el original sale al lanzarlo en combate; el combate del port todavía arma su equipo de demostración (Pikachu), así que aquí el elegido es el que sale contigo (seguidor) |
+| Estado (veneno, sueño…) en la rueda | No se dibuja | El juego lo enseña con una barra que lleva texto japonés; el port no usa texto del juego. El dato existe (`status` del equipo) y la marca sin texto (`iconSickMark_*`) queda para otra pasada |
 
 ---
 
