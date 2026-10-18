@@ -602,6 +602,12 @@ pub fn resolve_terrain_albedo(area_idx: u8, area_data: &TerrainArea) -> Option<T
         .map(|t| super::quality::limit_texture(t, super::quality::terrain_texture_max(), true))
 }
 
+/// The baked terrain albedo exactly as baked, ignoring the "Terrain texture" size cap. The
+/// minimap reads this one so its look never depends on that graphics option.
+pub fn resolve_terrain_albedo_uncapped(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
+    resolve_terrain_albedo_full(area_idx, area_data)
+}
+
 fn resolve_terrain_albedo_full(area_idx: u8, area_data: &TerrainArea) -> Option<TextureData> {
     let candidate_dirs = [
         std::env::var("PLA_CACHE_ROOT").map(PathBuf::from).ok(),
