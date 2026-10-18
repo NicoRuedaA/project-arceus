@@ -887,8 +887,11 @@ pm0551_00_00	cache/pokemon_national/pm0551_00_00/pm0551_00_00.gltf	2741391	84	15
 pm0552_00_00	cache/pokemon_national/pm0552_00_00/pm0552_00_00.gltf	4069276	83	15	8	ok	
 pm0553_00_00	cache/pokemon_national/pm0553_00_00/pm0553_00_00.gltf	5933010	109	15	10	ok	
 pm0554_00	cache/pokemon_national/pm0554_00/pm0554_00.gltf	2099667	50	25	6	ok	
+pm0554_00_31	cache/pokemon_national/pm0554_00_31/pm0554_00_31.gltf	3323649	51	25	4	ok	
 pm0555_11	cache/pokemon_national/pm0555_11/pm0555_11.gltf	3193989	64	24	6	ok	
+pm0555_11_31	cache/pokemon_national/pm0555_11_31/pm0555_11_31.gltf	5570893	79	23	4	ok	
 pm0555_12	cache/pokemon_national/pm0555_12/pm0555_12.gltf	479713	17	13	2	ok	
+pm0555_12_31	cache/pokemon_national/pm0555_12_31/pm0555_12_31.gltf	1052372	34	10	3	ok	
 pm0556_00	cache/pokemon_national/pm0556_00/pm0556_00.gltf	3877254	67	26	2	ok	
 pm0557_00	cache/pokemon_national/pm0557_00/pm0557_00.gltf	1847131	40	24	6	ok	
 pm0558_00	cache/pokemon_national/pm0558_00/pm0558_00.gltf	2378389	52	23	6	ok	
@@ -905,6 +908,7 @@ pm0566_00	cache/pokemon_national/pm0566_00/pm0566_00.gltf	5487042	80	26	6	ok
 pm0567_00	cache/pokemon_national/pm0567_00/pm0567_00.gltf	7298721	117	22	6	ok	
 pm0568_00_00	cache/pokemon_national/pm0568_00_00/pm0568_00_00.gltf	2608455	131	8	8	ok	
 pm0569_00_00	cache/pokemon_national/pm0569_00_00/pm0569_00_00.gltf	5062271	95	8	12	ok	
+pm0569_81_00	cache/pokemon_national/pm0569_81_00/pm0569_81_00.gltf	4184057	103	12	8	ok	
 pm0570_00_00	cache/pokemon_national/pm0570_00_00/pm0570_00_00.gltf	3578813	64	8	8	ok	
 pm0570_00_41	cache/pokemon_national/pm0570_00_41/pm0570_00_41.gltf	6671246	92	8	10	ok	
 pm0571_00_00	cache/pokemon_national/pm0571_00_00/pm0571_00_00.gltf	4758850	85	8	8	ok	
