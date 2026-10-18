@@ -925,9 +925,9 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     tirador cambia de tamaño al azar, la lista no sigue a la barra (o al revés) o la rueda
     mueve la cámara en vez de la lista.
 
-### 2.22 Selector de objetos y Pokémon en el campo  [EN RAMA `feat/hud-selectores`]
+### 2.22 Selector de objetos y Pokémon en el campo  [EN MAIN]
 
-84. **La rueda de objetos y Pokémon (tecla X).** [EN RAMA `feat/hud-selectores`] En el mundo,
+84. **La rueda de objetos y Pokémon (tecla X).** [EN MAIN] En el mundo,
     sin apuntar, pulsa **X**: en la esquina de abajo a la derecha aparece la **rueda del juego**
     (el mismo panel decodificado de la pantalla de apuntar: `pokeget/pokeget_item_change_00`):
     - En el centro, el **objeto actual** grande con su **cantidad** debajo (p. ej. «59»), y a los
