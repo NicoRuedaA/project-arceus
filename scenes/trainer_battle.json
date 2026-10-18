@@ -1,0 +1,29 @@
+{
+ "description": "Trainer battle against giratina01 in area 1 (V key).",
+ "args": [
+  "--area",
+  "1",
+  "--trainer",
+  "giratina01"
+ ],
+ "steps": [
+  {
+   "cmd": "step",
+   "frames": 120,
+   "render": "last"
+  },
+  {
+   "cmd": "start_battle",
+   "trainer": "giratina01"
+  },
+  {
+   "cmd": "step",
+   "frames": 180,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "trainer_battle"
+  }
+ ]
+}

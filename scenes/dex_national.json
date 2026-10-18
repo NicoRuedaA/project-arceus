@@ -1,0 +1,142 @@
+{
+ "description": "Pokedex open on the national list (Y), scrolled down to species 25 (Pikachu).",
+ "args": [
+  "--area",
+  "0",
+  "--debug-pokedex"
+ ],
+ "steps": [
+  {
+   "cmd": "step",
+   "frames": 60,
+   "render": "last"
+  },
+  {
+   "cmd": "open_screen",
+   "screen": "dex"
+  },
+  {
+   "cmd": "step",
+   "frames": 30,
+   "render": "last"
+  },
+  {
+   "cmd": "key",
+   "key": "Y"
+  },
+  {
+   "cmd": "step",
+   "frames": 30,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "dex_national_list"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "key",
+   "key": "Down"
+  },
+  {
+   "cmd": "step",
+   "frames": 60,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "dex_species_25"
+  }
+ ]
+}
