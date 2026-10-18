@@ -732,7 +732,7 @@ pub fn resolve_area_map(
 
 // ------------------------------------------------------------------ Bevy integration
 
-/// The minimap frame (bottom-left), child of the world HUD root so the battle screen hides it.
+/// The minimap frame (top-right), child of the world HUD root so the battle screen hides it.
 #[derive(Component)]
 pub struct MinimapRoot;
 
@@ -763,6 +763,17 @@ pub struct FullMapImage;
 /// The player dot inside the overlay.
 #[derive(Component)]
 pub struct FullMapMarker;
+
+/// Whether the player wants the corner minimap on screen (Graphics > Display > Minimap). The
+/// compass and the full-screen map stay either way.
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MinimapShown(pub bool);
+
+impl Default for MinimapShown {
+    fn default() -> Self {
+        Self(true)
+    }
+}
 
 /// What the minimap currently shows.
 #[derive(Resource, Debug, Default)]
@@ -837,6 +848,7 @@ impl Plugin for MinimapPlugin {
                     .run_if(in_state(GameState::World)),
                 update_minimap_hud,
                 full_map_visibility_system,
+                apply_minimap_setting,
             )
                 .chain(),
         );
@@ -853,17 +865,19 @@ pub fn setup_minimap_ui(mut commands: Commands, hud: Query<Entity, With<WorldHud
             MinimapRoot,
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Px(16.0),
-                bottom: Val::Px(16.0),
+                right: Val::Px(16.0),
+                top: Val::Px(16.0),
                 width: Val::Px(FRAME_PX),
                 height: Val::Px(FRAME_PX),
-                border: UiRect::all(Val::Px(2.0)),
-                border_radius: BorderRadius::all(Val::Px(8.0)),
+                // A round frame (fully rounded corners) with a cream ring, like the game's own
+                // field map.
+                border: UiRect::all(Val::Px(4.0)),
+                border_radius: BorderRadius::all(Val::Percent(50.0)),
                 overflow: Overflow::clip(),
                 ..default()
             },
             BackgroundColor(Color::srgba(0.04, 0.06, 0.10, 0.92)),
-            BorderColor::all(Color::srgba(0.35, 0.50, 0.70, 0.85)),
+            BorderColor::all(Color::srgba(0.96, 0.93, 0.82, 0.95)),
             // Inherited (not Visible): an explicit Visible would stay on screen in battle and
             // overlap the battle log, ignoring the hidden world HUD parent.
             Visibility::Inherited,
@@ -877,6 +891,9 @@ pub fn setup_minimap_ui(mut commands: Commands, hud: Query<Entity, With<WorldHud
                     top: Val::Px(0.0),
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
+                    // The overflow clip of the frame is a rectangle: the picture rounds its own
+                    // corners so the map fills the circular ring.
+                    border_radius: BorderRadius::all(Val::Percent(50.0)),
                     ..default()
                 },
                 ImageNode {
@@ -1177,6 +1194,30 @@ fn show_minimap_frame(root_q: &mut Query<&mut Visibility, With<MinimapRoot>>, sh
     for mut visibility in root_q.iter_mut() {
         if *visibility != wanted {
             *visibility = wanted;
+        }
+    }
+}
+
+/// Keep the corner frame hidden while the player turned the minimap off (it runs last in the
+/// minimap chain, so the zone-change logic can never bring it back) and give the frame back to
+/// the other systems once it is turned on again.
+pub fn apply_minimap_setting(
+    shown: Option<Res<MinimapShown>>,
+    mut root_q: Query<&mut Visibility, With<MinimapRoot>>,
+    mut forced: Local<bool>,
+) {
+    let wanted = shown.is_none_or(|s| s.0);
+    if !wanted {
+        *forced = true;
+        for mut visibility in root_q.iter_mut() {
+            if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+        }
+    } else if *forced {
+        *forced = false;
+        for mut visibility in root_q.iter_mut() {
+            *visibility = Visibility::Inherited;
         }
     }
 }

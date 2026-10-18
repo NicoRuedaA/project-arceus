@@ -46,6 +46,10 @@ pub const PREVIEW_SIZE: u32 = 512;
 const PREVIEW_ORIGIN: Vec3 = Vec3::new(0.0, -100.0, 0.0);
 /// Render layer of the preview scene (the world uses the default layer 0).
 const PREVIEW_LAYER: Layer = 1;
+/// Fill light and key light of the preview layer (the world's own lights follow the clock and
+/// never reach this layer). Brightness in the same units the world's ambient uses.
+const PREVIEW_AMBIENT: f32 = 3000.0;
+const PREVIEW_SUN_LUX: f32 = 30000.0;
 
 /// Vertical field of view of the preview camera (the square target keeps both axes equal).
 pub const PREVIEW_FOV_Y: f32 = std::f32::consts::FRAC_PI_4;
@@ -291,11 +295,31 @@ fn create_preview(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         Camera {
             order: 20,
             is_active: false,
-            clear_color: ClearColorConfig::Custom(Color::srgb(0.08, 0.10, 0.14)),
+            clear_color: ClearColorConfig::Custom(Color::srgb(0.62, 0.68, 0.72)),
             ..default()
         },
         // Placed for real by `sync_preview_frame` once the model is measured.
         preview_camera_transform(3.0),
+        // The world's ambient level follows the clock (dark at night) and its sun lives on the
+        // default render layer, so the preview needs its own fill light level and its own key
+        // light, whatever the time of day.
+        AmbientLight {
+            color: Color::WHITE,
+            brightness: PREVIEW_AMBIENT,
+            ..default()
+        },
+    ));
+    // Key light of the preview layer: from the camera side, a little above and to the left, so
+    // the creature is lit from the front like the game's own dex picture.
+    commands.spawn((
+        DirectionalLight {
+            color: Color::WHITE,
+            illuminance: PREVIEW_SUN_LUX,
+            shadow_maps_enabled: false,
+            ..default()
+        },
+        Transform::IDENTITY.looking_to(Vec3::new(0.45, -0.55, -1.0).normalize(), Vec3::Y),
+        RenderLayers::layer(PREVIEW_LAYER),
     ));
     let (left, top, side) = PROVISIONAL_BOX;
     commands
