@@ -1,0 +1,276 @@
+# sheet: reports/data-progress/model_review/gen2
+# version: 1
+# generator: work/model-review-gen2/gen_report.py
+# target: Gen 2 (national 152-251) 3D model review
+national_number	name	pack	form	form_name	source	status	severity	note
+152	Chikorita	pm0152_00_00	0	Chikorita	CONVERTIDO	BAD_MESH	1	VERIFICADO: antena/hoja sale como una vara larguisima atravesando el modelo (pose de reposo)
+153	Bayleef	pm0153_00_00	0	Bayleef	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+154	Meganium	pm0154_00_00	0	Meganium	CONVERTIDO	BAD_MESH	1	VERIFICADO: antenas muy largas y finas
+154	Meganium	pm0154_01_00	0	Meganium	CONVERTIDO	BAD_MESH	1	VERIFICADO: antenas muy largas y finas
+154	Meganium	pm0154_51_00	1	Mega Meganium	CONVERTIDO	OK		Mega no oficial (fan-made): modelo plausible, identidad PROBABLE, no VERIFICADO
+155	Cyndaquil	pm0155_00_00	0	Cyndaquil	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+155	Cyndaquil	pm0155_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+156	Quilava	pm0156_00_00	0	Quilava	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+156	Quilava	pm0156_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+157	Typhlosion	pm0157_00_00	0	Typhlosion	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+157	Typhlosion	pm0157_00_41	1	Hisuian Form	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+157	Typhlosion	pm0157_00_41	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+158	Totodile	pm0158_00_00	0	Totodile	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+159	Croconaw	pm0159_00_00	0	Croconaw	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+160	Feraligatr	pm0160_00_00	0	Feraligatr	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+160	Feraligatr	pm0160_51_00	1	Mega Feraligatr	CONVERTIDO	OK		Mega no oficial (fan-made): modelo plausible, identidad PROBABLE, no VERIFICADO
+161	Sentret	pm0161_00_00	0	Sentret	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+162	Furret	pm0162_00_00	0	Furret	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+163	Hoothoot	pm0163_00_00	0	Hoothoot	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+164	Noctowl	pm0164_00_00	0	Noctowl	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+165	Ledyba	pm0165_00_00	0	Ledyba	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: piezas del cuerpo con trozos de textura cambiados y huecos negros; causa probable (PROBABLE): varias mallas de cuerpo (body/bodyspc) comparten la misma textura con UV distintas
+165	Ledyba	pm0165_00_01	0	Ledyba	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: piezas del cuerpo con trozos de textura cambiados y huecos negros; causa probable (PROBABLE): varias mallas de cuerpo (body/bodyspc) comparten la misma textura con UV distintas
+165	Ledyba	pm0165_01_00	0	Ledyba	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: piezas del cuerpo con trozos de textura cambiados y huecos negros; causa probable (PROBABLE): varias mallas de cuerpo (body/bodyspc) comparten la misma textura con UV distintas
+165	Ledyba	pm0165_01_01	0	Ledyba	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: piezas del cuerpo con trozos de textura cambiados y huecos negros; causa probable (PROBABLE): varias mallas de cuerpo (body/bodyspc) comparten la misma textura con UV distintas
+166	Ledian	pm0166_00_00	0	Ledian	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: piezas del cuerpo con trozos de textura cambiados y huecos negros; causa probable (PROBABLE): varias mallas de cuerpo (body/bodyspc) comparten la misma textura con UV distintas
+166	Ledian	pm0166_00_01	0	Ledian	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: piezas del cuerpo con trozos de textura cambiados y huecos negros; causa probable (PROBABLE): varias mallas de cuerpo (body/bodyspc) comparten la misma textura con UV distintas
+166	Ledian	pm0166_01_00	0	Ledian	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: piezas del cuerpo con trozos de textura cambiados y huecos negros; causa probable (PROBABLE): varias mallas de cuerpo (body/bodyspc) comparten la misma textura con UV distintas
+166	Ledian	pm0166_01_01	0	Ledian	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: piezas del cuerpo con trozos de textura cambiados y huecos negros; causa probable (PROBABLE): varias mallas de cuerpo (body/bodyspc) comparten la misma textura con UV distintas
+167	Spinarak	pm0167_00_00	0	Spinarak	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+168	Ariados	pm0168_00_00	0	Ariados	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+169	Crobat	pm0169_00_00	0	Crobat	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+169	Crobat	pm0169_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+170	Chinchou	pm0170_00_00	0	Chinchou	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+171	Lanturn	pm0171_00_00	0	Lanturn	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+172	Pichu	pm0172_00_00	0	Pichu	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+172	Pichu	pm0172_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+173	Cleffa	pm0173_00_00	0	Cleffa	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+173	Cleffa	pm0173_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+174	Igglybuff	pm0174_00_00	0	Igglybuff	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+175	Togepi	pm0175_00	0	Togepi	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+175	Togepi	pm0175_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+176	Togetic	pm0176_00	0	Togetic	CONVERTIDO	BAD_TEXTURE	2	VERIFICADO: manchas negras en cuerpo y orejas
+176	Togetic	pm0176_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+177	Natu	pm0177_00	0	Natu	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: cabeza/alas con parches de otra parte de la textura y zonas negras; causa probable (PROBABLE): dos materiales de cuerpo sobre la misma textura con UV no coincidentes
+178	Xatu	pm0178_00	0	Xatu	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: cabeza/alas con parches de otra parte de la textura y zonas negras; causa probable (PROBABLE): dos materiales de cuerpo sobre la misma textura con UV no coincidentes
+178	Xatu	pm0178_01	0	Xatu	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: cabeza/alas con parches de otra parte de la textura y zonas negras; causa probable (PROBABLE): dos materiales de cuerpo sobre la misma textura con UV no coincidentes
+179	Mareep	pm0179_00_00	0	Mareep	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+180	Flaaffy	pm0180_00_00	0	Flaaffy	CONVERTIDO	BAD_TEXTURE	2	VERIFICADO: parche gris sobre la cara y ojos mal colocados
+181	Ampharos	pm0181_00_00	0	Ampharos	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+181	Ampharos	pm0181_51_00	1	Mega Ampharos	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+182	Bellossom	pm0182_00_00	0	Bellossom	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+183	Marill	pm0183_00_00	0	Marill	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+184	Azumarill	pm0184_00_00	0	Azumarill	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+185	Sudowoodo	pm0185_00_00	0	Sudowoodo	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+185	Sudowoodo	pm0185_01_00	0	Sudowoodo	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+185	Sudowoodo	pm0185_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+185	Sudowoodo	pm0185_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+186	Politoed	pm0186_00_00	0	Politoed	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+186	Politoed	pm0186_01_00	0	Politoed	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+187	Hoppip	pm0187_00_00	0	Hoppip	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+188	Skiploom	pm0188_00_00	0	Skiploom	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+189	Jumpluff	pm0189_00_00	0	Jumpluff	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+190	Aipom	pm0190_00_00	0	Aipom	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+190	Aipom	pm0190_01_00	0	Aipom	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+190	Aipom	pm0190_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+190	Aipom	pm0190_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+191	Sunkern	pm0191_00_00	0	Sunkern	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+192	Sunflora	pm0192_00_00	0	Sunflora	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+193	Yanma	pm0193_00_00	0	Yanma	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+193	Yanma	pm0193_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+194	Wooper	pm0194_00_00	0	Wooper	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+194	Wooper	pm0194_00_51	1	Paldean Form	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+194	Wooper	pm0194_01_00	0	Wooper	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+195	Quagsire	pm0195_00_00	0	Quagsire	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+195	Quagsire	pm0195_01_00	0	Quagsire	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+196	Espeon	pm0196_00_00	0	Espeon	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+196	Espeon	pm0196_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+197	Umbreon	pm0197_00_00	0	Umbreon	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+197	Umbreon	pm0197_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+198	Murkrow	pm0198_00_00	0	Murkrow	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+198	Murkrow	pm0198_01_00	0	Murkrow	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+198	Murkrow	pm0198_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+198	Murkrow	pm0198_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+199	Slowking	pm0199_00_00	0	Slowking	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+199	Slowking	pm0199_00_31	1	Galarian Form	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+200	Misdreavus	pm0200_00_00	0	Misdreavus	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+200	Misdreavus	pm0200_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_11_00	0	A	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_11_01	0	A	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_12_00	1	forma 1	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_12_01	1	forma 1	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_13_00	2	forma 2	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_13_01	2	forma 2	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_14_00	3	forma 3	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_14_01	3	forma 3	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_15_00	4	forma 4	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_15_01	4	forma 4	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_16_00	5	forma 5	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_16_01	5	forma 5	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_17_00	6	forma 6	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_17_01	6	forma 6	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_18_00	7	forma 7	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_18_01	7	forma 7	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_19_00	8	forma 8	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_19_01	8	forma 8	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_20_00	9	forma 9	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_20_01	9	forma 9	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_21_00	10	forma 10	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_21_01	10	forma 10	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_22_00	11	forma 11	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_22_01	11	forma 11	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_23_00	12	forma 12	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_23_01	12	forma 12	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_24_00	13	forma 13	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_24_01	13	forma 13	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_25_00	14	forma 14	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_25_01	14	forma 14	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_26_00	15	forma 15	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_26_01	15	forma 15	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_27_00	16	forma 16	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_27_01	16	forma 16	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_28_00	17	forma 17	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_28_01	17	forma 17	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_29_00	18	forma 18	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_29_01	18	forma 18	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_30_00	19	forma 19	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_30_01	19	forma 19	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_31_00	20	forma 20	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_31_01	20	forma 20	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_32_00	21	forma 21	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_32_01	21	forma 21	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_33_00	22	forma 22	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_33_01	22	forma 22	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_34_00	23	forma 23	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_34_01	23	forma 23	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_35_00	24	forma 24	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_35_01	24	forma 24	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_36_00	25	forma 25	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_36_01	25	forma 25	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_37_00	26	forma 26	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_37_01	26	forma 26	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_38_00	27	forma 27	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_38_01	27	forma 27	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+201	Unown	pm0201_11_00	11	forma 11	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_12_00	12	forma 12	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_13_00	13	forma 13	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_14_00	14	forma 14	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_15_00	15	forma 15	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_16_00	16	forma 16	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_17_00	17	forma 17	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_18_00	18	forma 18	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_19_00	19	forma 19	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_20_00	20	forma 20	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_21_00	21	forma 21	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_22_00	22	forma 22	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_23_00	23	forma 23	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_24_00	24	forma 24	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_25_00	25	forma 25	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_26_00	26	forma 26	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_27_00	27	forma 27	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_28_00	28	forma 28	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_29_00	29	forma 29	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_30_00	30	forma 30	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_31_00	31	forma 31	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_32_00	32	forma 32	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_33_00	33	forma 33	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_34_00	34	forma 34	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_35_00	35	forma 35	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_36_00	36	forma 36	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_37_00	37	forma 37	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+201	Unown	pm0201_38_00	38	forma 38	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+202	Wobbuffet	pm0202_00	0	Wobbuffet	CONVERTIDO	BAD_TEXTURE	2	VERIFICADO: parches grises y negros en el cuerpo; falta el negro de la cola
+202	Wobbuffet	pm0202_01	0	Wobbuffet	CONVERTIDO	BAD_TEXTURE	2	VERIFICADO: parches grises y negros en el cuerpo; falta el negro de la cola
+203	Girafarig	pm0203_00_00	0	Girafarig	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+203	Girafarig	pm0203_01_00	0	Girafarig	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+204	Pineco	pm0204_00_00	0	Pineco	CONVERTIDO	BAD_COLOR	2	VERIFICADO: cuerpo verde azulado; Pineco real es marron grisaceo; ademas hueco negro arriba
+205	Forretress	pm0205_00_00	0	Forretress	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+206	Dunsparce	pm0206_00_00	0	Dunsparce	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+207	Gligar	pm0207_00_00	0	Gligar	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+207	Gligar	pm0207_01_00	0	Gligar	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+207	Gligar	pm0207_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+207	Gligar	pm0207_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+208	Steelix	pm0208_00_00	0	Steelix	CONVERTIDO	BAD_COLOR	1	PROBABLE: Steelix sale casi blanco azulado, sin el gris metalico esperado
+208	Steelix	pm0208_01_00	0	Steelix	CONVERTIDO	BAD_COLOR	1	PROBABLE: Steelix sale casi blanco azulado, sin el gris metalico esperado
+208	Steelix	pm0208_51_00	1	Mega Steelix	CONVERTIDO	BAD_MESH	2	VERIFICADO a 512 px: Mega Steelix sale como cuerpo plano con restos sueltos por el suelo (piezas no unidas al esqueleto)
+208	Steelix	pm0208_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+208	Steelix	pm0208_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+209	Snubbull	pm0209_00_00	0	Snubbull	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+210	Granbull	pm0210_00_00	0	Granbull	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+211	Qwilfish	pm0211_00_00	0	Qwilfish	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+211	Qwilfish	pm0211_00_41	1	Hisuian Form	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+211	Qwilfish	pm0211_00_41	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+212	Scizor	pm0212_00_00	0	Scizor	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+212	Scizor	pm0212_01_00	0	Scizor	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+212	Scizor	pm0212_51_00	1	Mega Scizor	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+212	Scizor	pm0212_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+212	Scizor	pm0212_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+213	Shuckle	pm0213_00	0	Shuckle	CONVERTIDO	BAD_TEXTURE	1	PROBABLE: el caparazon sale marron en vez de amarillo/rojo vivo
+214	Heracross	pm0214_00_00	0	Heracross	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+214	Heracross	pm0214_01_00	0	Heracross	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+214	Heracross	pm0214_51_00	1	Mega Heracross	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+214	Heracross	pm0214_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+214	Heracross	pm0214_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+215	Sneasel	pm0215_00_00	0	Sneasel	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+215	Sneasel	pm0215_00_41	1	Hisuian Form	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+215	Sneasel	pm0215_01_00	0	Sneasel	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+215	Sneasel	pm0215_01_41	1	Hisuian Form	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+215	Sneasel	pm0215_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+215	Sneasel	pm0215_00_41	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+215	Sneasel	pm0215_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+215	Sneasel	pm0215_01_41	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+216	Teddiursa	pm0216_00_00	0	Teddiursa	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+216	Teddiursa	pm0216_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+217	Ursaring	pm0217_00_00	0	Ursaring	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+217	Ursaring	pm0217_01_00	0	Ursaring	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+217	Ursaring	pm0217_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+217	Ursaring	pm0217_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+218	Slugma	pm0218_00_00	0	Slugma	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+219	Magcargo	pm0219_00_00	0	Magcargo	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+220	Swinub	pm0220_00_00	0	Swinub	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+220	Swinub	pm0220_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+221	Piloswine	pm0221_00_00	0	Piloswine	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+221	Piloswine	pm0221_01_00	0	Piloswine	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+221	Piloswine	pm0221_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+221	Piloswine	pm0221_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+222	Corsola	pm0222_00	0	Corsola	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+222	Corsola	pm0222_00_31	1	Galarian Form	CONVERTIDO	OK		VERIFICADO: Corsola de Galar convertida a mano en esta revision (cadena de herramientas no encontraba la carpeta)
+223	Remoraid	pm0223_00	0	Remoraid	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+223	Remoraid	pm0223_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+224	Octillery	pm0224_00	0	Octillery	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: cuerpo rojo con piezas negras/amarillas fuera de sitio y boca sin textura; misma causa probable (PROBABLE) que Natu/Xatu (body00/body01 con UV distintas)
+224	Octillery	pm0224_01	0	Octillery	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: cuerpo rojo con piezas negras/amarillas fuera de sitio y boca sin textura; misma causa probable (PROBABLE) que Natu/Xatu (body00/body01 con UV distintas)
+224	Octillery	pm0224_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+224	Octillery	pm0224_01_00	1	forma 1	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+225	Delibird	pm0225_00_00	0	Delibird	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+226	Mantine	pm0226_00	0	Mantine	CONVERTIDO	BAD_TEXTURE	2	VERIFICADO: manchas oscuras en el lomo y la cabeza
+226	Mantine	pm0226_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+227	Skarmory	pm0227_00_00	0	Skarmory	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+227	Skarmory	pm0227_51_00	1	Mega Skarmory	CONVERTIDO	OK		Mega no oficial (fan-made): modelo plausible, identidad PROBABLE, no VERIFICADO
+228	Houndour	pm0228_00_00	0	Houndour	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+229	Houndoom	pm0229_00_00	0	Houndoom	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+229	Houndoom	pm0229_01_00	0	Houndoom	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+229	Houndoom	pm0229_51_00	1	Mega Houndoom	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+230	Kingdra	pm0230_00_00	0	Kingdra	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+231	Phanpy	pm0231_00_00	0	Phanpy	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+232	Donphan	pm0232_00_00	0	Donphan	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+232	Donphan	pm0232_01_00	0	Donphan	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+233	Porygon2	pm0233_00_00	0	Porygon2	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+233	Porygon2	pm0233_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+234	Stantler	pm0234_00_00	0	Stantler	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+234	Stantler	pm0234_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+235	Smeargle	pm0235_00_00	0	Smeargle	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+236	Tyrogue	pm0236_00_00	0	Tyrogue	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+237	Hitmontop	pm0237_00_00	0	Hitmontop	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+238	Smoochum	pm0238_00	0	Smoochum	CONVERTIDO	BAD_TEXTURE	3	VERIFICADO visualmente: triangulos amarillos y rosas en vez de la textura del cuerpo; textura mal mapeada (PROBABLE misma causa)
+239	Elekid	pm0239_00_00	0	Elekid	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+239	Elekid	pm0239_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+240	Magby	pm0240_00_00	0	Magby	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+240	Magby	pm0240_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+241	Miltank	pm0241_00	0	Miltank	CONVERTIDO	BAD_TEXTURE	2	VERIFICADO: manchas negras fuera de sitio sobre el cuerpo
+242	Blissey	pm0242_00_00	0	Blissey	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+242	Blissey	pm0242_00_00	0	base	PLA	OK		modelo propio del juego (poke_resource_table); comprobacion en Pokedex pendiente
+243	Raikou	pm0243_00_00	0	Raikou	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+244	Entei	pm0244_00_00	0	Entei	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+245	Suicune	pm0245_00_00	0	Suicune	CONVERTIDO	BAD_MESH	1	VERIFICADO: dos cintas muy finas y largas sobresalen del modelo
+246	Larvitar	pm0246_00_00	0	Larvitar	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+247	Pupitar	pm0247_00_00	0	Pupitar	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+248	Tyranitar	pm0248_00_00	0	Tyranitar	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+248	Tyranitar	pm0248_51_00	1	Mega Tyranitar	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+249	Lugia	pm0249_00_00	0	Lugia	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+250	Ho-Oh	pm0250_00_00	0	Ho-Oh	CONVERTIDO	OK		revisado en hoja de contacto; sin incidencias
+251	Celebi	pm0251_00	0	Celebi	CONVERTIDO	BAD_TEXTURE	1	VERIFICADO: cabeza con parches grises y negros algo irregulares
