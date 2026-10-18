@@ -436,6 +436,124 @@ fn menus_hide_the_corner_minimap() {
     assert!(!hides_minimap(ScreenId::Map));
 }
 
+/// The zone welcome banner: it opens at start-up and on a zone change, lasts its game-time
+/// window, fades with the layout's own close animation, clears/hides the panel and then hands
+/// it back to the nearest-wild-Pokémon binding.
+#[test]
+fn zone_banner_is_temporary_and_reopens_on_a_zone_change() {
+    let Some(root) = local_root() else { return };
+    use crate::game::orig_ui::field;
+    use crate::game::orig_ui::zone_banner::{self, BannerPhase, ZoneBanner};
+    use crate::game::state::GameState;
+    use crate::game::ui::ActiveZoneInfo;
+
+    let (mut app, e) = screen_app(&root, ScreenId::FieldHud, |app| {
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.init_state::<GameState>();
+        app.init_resource::<ZoneBanner>();
+        app.insert_resource(ActiveZoneInfo {
+            area: "ha_area00".into(),
+            name: "Jubilife Village".into(),
+        });
+        app.add_systems(
+            Update,
+            (zone_banner::update_zone_banner, field::bind_field_hud).chain(),
+        );
+    });
+    fn screen_at(app: &App, e: Entity) -> &OrigScreen {
+        app.world().entity(e).get::<OrigScreen>().expect("field screen")
+    }
+    let header = |app: &App| {
+        let s = screen_at(app, e);
+        let n = s
+            .node_in("L_zninfo_00", "T_header_zninfo_00")
+            .expect("header pane");
+        s.overrides.get(n).and_then(|o| o.text.clone())
+    };
+    let panel_visible = |app: &App| {
+        let s = screen_at(app, e);
+        let n = s.node("L_zninfo_00").expect("zone panel part");
+        s.overrides.get(n).and_then(|o| o.visible)
+    };
+    let phase = |app: &App| app.world().resource::<ZoneBanner>().phase();
+
+    // Start-up: the zone name is on screen and the layout's wake animation was played.
+    assert_eq!(phase(&app), BannerPhase::Showing, "start-up zone opens it");
+    assert!(app.world().resource::<ZoneBanner>().shows_zone_name());
+    assert_eq!(header(&app).as_deref(), Some("Jubilife Village"));
+    assert_eq!(panel_visible(&app), Some(true), "the panel is shown");
+    assert!(
+        screen_at(&app, e).anim.tracks.iter().any(|t| t.anim.ends_with("zninfo_00_wake")),
+        "the layout's own opening animation drives it"
+    );
+
+    // It runs out on game time, fades with the layout's close animation and then clears the
+    // panel: the name must NOT stay forever, which was the reported bug.
+    let mut guard = 0;
+    while phase(&app) == BannerPhase::Showing {
+        app.update();
+        guard += 1;
+        assert!(guard < 60, "the banner counts game time down");
+    }
+    assert_eq!(phase(&app), BannerPhase::Closing);
+    assert_eq!(
+        header(&app).as_deref(),
+        Some("Jubilife Village"),
+        "the fading banner still shows the name"
+    );
+    assert!(
+        screen_at(&app, e).anim.tracks.iter().any(|t| t.anim.ends_with("zninfo_00_close")),
+        "the layout's own exit animation was played"
+    );
+    app.update();
+    assert_eq!(phase(&app), BannerPhase::Idle);
+    assert!(!app.world().resource::<ZoneBanner>().shows_zone_name());
+    assert_eq!(header(&app).as_deref(), Some(""), "the header is cleared");
+    assert_eq!(panel_visible(&app), Some(false), "no wild and no banner: hidden");
+
+    // Another zone opens it again, with that zone's name.
+    app.insert_resource(ActiveZoneInfo {
+        area: "ha_area01".into(),
+        name: "Obsidian Fieldlands".into(),
+    });
+    app.update();
+    assert_eq!(phase(&app), BannerPhase::Showing, "a new zone reopens it");
+    assert_eq!(header(&app).as_deref(), Some("Obsidian Fieldlands"));
+    let mut guard = 0;
+    while phase(&app) != BannerPhase::Idle {
+        app.update();
+        guard += 1;
+        assert!(guard < 60, "the second banner also ends");
+    }
+    assert_eq!(panel_visible(&app), Some(false));
+
+    // With the banner gone, the nearest wild Pokémon owns the panel again (unchanged binding).
+    app.world_mut().spawn((
+        crate::game::PlayerAvatar,
+        Transform::from_xyz(445.0, 10.0, 650.0),
+    ));
+    app.world_mut().spawn((
+        Transform::from_xyz(450.0, 10.0, 650.0),
+        crate::game::WildCreature {
+            species_name: "bidoof".into(),
+            national_dex: 399,
+            level: 5,
+            spawn_pos: Vec3::new(450.0, 10.0, 650.0),
+            aggro_range: 10.0,
+            in_battle: false,
+            defeated: false,
+            spawner_id: "test".into(),
+        },
+    ));
+    app.update();
+    assert_eq!(
+        header(&app).as_deref(),
+        Some("Bidoof"),
+        "the wild panel is untouched by the banner"
+    );
+    assert_eq!(panel_visible(&app), Some(true));
+}
+
 /// The party binding fills the rows from `PlayerProgress` and hides what the port has no data for.
 #[test]
 fn party_binding_fills_rows() {

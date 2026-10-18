@@ -130,6 +130,7 @@ fn main() {
             match bake_map_to_cache(
                 &area_data,
                 albedo.as_ref().map(|(_, t)| t),
+                Some(&bin_root),
                 work_root,
                 size,
                 skip,

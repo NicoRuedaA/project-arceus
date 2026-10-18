@@ -32,6 +32,7 @@ pub mod scene;
 pub mod scrollbar;
 pub mod shop_screen;
 pub mod summary;
+pub mod zone_banner;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -708,6 +709,7 @@ impl Plugin for OrigUiPlugin {
             );
         battle::install(app);
         field::install(app);
+        zone_banner::install(app);
         menus::install(app);
         summary::install(app);
         crafting_screen::install(app);
