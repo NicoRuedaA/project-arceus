@@ -182,6 +182,8 @@ pub enum ScreenId {
     /// The field's item / Pokémon selector (`X` on foot): the game's `pokeget` wheel.
     FieldSelect,
     PauseMenu,
+    /// The game's icon strip + title above the pause list (`slidemenu_menulist_01`).
+    PauseStrip,
     Party,
     Summary,
     Bag,
@@ -199,7 +201,7 @@ pub enum ScreenId {
 }
 
 impl ScreenId {
-    pub const ALL: [ScreenId; 19] = [
+    pub const ALL: [ScreenId; 20] = [
         ScreenId::BattleHud,
         ScreenId::BattleEnemyPlate,
         ScreenId::BattleTimeline,
@@ -209,6 +211,7 @@ impl ScreenId {
         ScreenId::FieldHud,
         ScreenId::FieldSelect,
         ScreenId::PauseMenu,
+        ScreenId::PauseStrip,
         ScreenId::Party,
         ScreenId::Summary,
         ScreenId::Bag,
@@ -237,6 +240,7 @@ impl ScreenId {
             // components as the Graphics screen) filled with the menu's rows: every option
             // readable at once, the selection on the game's own highlight, its scrollbar.
             ScreenId::PauseMenu => ("option", "option_settings_00"),
+            ScreenId::PauseStrip => ("slidelist", "slidemenu_menulist_01"),
             ScreenId::Party => ("gfpak_battle_menu_eng", "pokelist_battle_00"),
             ScreenId::Summary => ("status", "status_top_00"),
             ScreenId::Bag => ("bag", "bag_top_00"),
@@ -286,6 +290,7 @@ impl ScreenId {
             | ScreenId::Customize
             | ScreenId::Party => 190,
             ScreenId::PauseMenu => 200,
+            ScreenId::PauseStrip => 201,
         }
     }
 }
@@ -1175,6 +1180,7 @@ pub fn hides_minimap(id: ScreenId) -> bool {
         id,
         ScreenId::BattleHud
             | ScreenId::PauseMenu
+            | ScreenId::PauseStrip
             | ScreenId::Party
             | ScreenId::Summary
             | ScreenId::Bag
@@ -1191,6 +1197,7 @@ pub fn hides_minimap(id: ScreenId) -> bool {
 /// (only on a change, so nothing else fights over its visibility).
 pub fn minimap_off_under_screens(
     screens: Query<&OrigScreen>,
+    shown: Option<Res<crate::game::minimap::MinimapShown>>,
     mut hidden: Local<bool>,
     mut minimap: Query<
         &mut Visibility,
@@ -1202,8 +1209,10 @@ pub fn minimap_off_under_screens(
         return;
     }
     *hidden = covered;
+    // A minimap the player turned off stays hidden after the menu closes.
+    let wanted = shown.is_none_or(|s| s.0);
     for mut v in &mut minimap {
-        *v = if covered {
+        *v = if covered || !wanted {
             Visibility::Hidden
         } else {
             Visibility::Inherited

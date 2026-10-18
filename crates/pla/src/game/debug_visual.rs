@@ -40,7 +40,7 @@
 //! | dark red | grid segments on ground steeper than the walk limit (SUPUESTO 45 deg, drawn in `only` mode) | `game::terrain_collision::MAX_WALK_SLOPE_DEG` |
 //! | yellow | doors AND fast-travel points of the active area: trigger box + reach circle + beacon | `game::zone::{ZoneLinks, DoorReachIndex}` |
 //! | orange | climbable cliff surfaces (marker column + grasp radius) | `game::climb_surfaces::ClimbSurfaces` |
-//! | blue | water body footprints at their surface height | `game::water::WaterBodies` |
+//! | blue | water body footprints at their surface height (F1 too: the water is what turns walking into swimming) | `game::water::WaterBodies` |
 //! | lime | wild spawner points (circle + marker) and the saved safe spawn point | `game::wild::ActiveAreaSpawners`, `game::spawn_point::SafeSpawnPoint` |
 //! | magenta | alive ground pickups / resource nodes | `game::pickups::SpawnMarker` |
 //! | white | NPC capsules | `game::npc::NpcInstance` |
@@ -282,11 +282,13 @@ impl DebugViewState {
                 parts.push("cian=muros");
                 parts.push("gris oscuro=suelos");
                 parts.push("verde=terreno");
+                parts.push("azul=agua");
             }
             CollisionView::Only => {
                 parts.push("cian=muros");
                 parts.push("verde=terreno");
                 parts.push("rojo=pendiente no transitable");
+                parts.push("azul=agua");
             }
             CollisionView::Off => {}
         }
@@ -298,7 +300,9 @@ impl DebugViewState {
         if self.data == DataView::Markers {
             parts.push("amarillo=puertas+viaje");
             parts.push("naranja=trepables");
-            parts.push("azul=agua");
+            if !parts.contains(&"azul=agua") {
+                parts.push("azul=agua");
+            }
             parts.push("lima=spawns");
             parts.push("magenta=recogibles");
             parts.push("blanco=PNJ");
@@ -723,6 +727,8 @@ struct TerrainVisual {
     last_terrain: usize,
     /// Whether the last build painted the steep segments red (`only` mode).
     last_red: bool,
+    /// Number of water bodies in the last build (a river streaming in rebuilds the overlay).
+    last_water: usize,
 }
 
 /// Screen background of `collisions = only`: nearly black, so the thin cyan/green/red lines read
@@ -933,6 +939,38 @@ fn sync_collision_lines(
     }
 }
 
+/// Water footprints at their surface height (blue): the triangles of every water body whose box
+/// is within `radius` of `player`. Shared by F3's markers and F1's collision view (where the water
+/// is what turns walking into swimming).
+pub fn add_water_lines(lines: &mut LineSet, water: &WaterBodies, player: Vec2, radius: f32) {
+    for body in &water.bodies {
+        if lines.clipped() {
+            return;
+        }
+        // Cheap body reject on the AABB centre before walking its triangles.
+        let centre = Vec2::new(
+            (body.min.x + body.max.x) * 0.5,
+            (body.min.y + body.max.y) * 0.5,
+        );
+        let extent = (body.max - body.min).length() * 0.5;
+        if centre.distance(player) > radius + extent {
+            continue;
+        }
+        let y = body.level + 0.05;
+        for tri in &body.triangles {
+            if lines.clipped() {
+                return;
+            }
+            lines.triangle(
+                Vec3::new(tri[0].x, y, tri[0].y),
+                Vec3::new(tri[1].x, y, tri[1].y),
+                Vec3::new(tri[2].x, y, tri[2].y),
+                colors::WATER,
+            );
+        }
+    }
+}
+
 /// Keep the terrain-grid overlay in sync: drawn the whole time F1 is active (overlay and only),
 /// with the steep segments in dark red in `only` mode.
 fn sync_terrain_lines(
@@ -942,6 +980,7 @@ fn sync_terrain_lines(
     mut meshes: Option<ResMut<Assets<Mesh>>>,
     mut materials: Option<ResMut<Assets<StandardMaterial>>>,
     terrain: Option<Res<TerrainResource>>,
+    water: Option<Res<WaterBodies>>,
     player: Query<&GlobalTransform, With<PlayerAvatar>>,
 ) {
     let want = state.collisions != CollisionView::Off;
@@ -982,15 +1021,24 @@ fn sync_terrain_lines(
     }
     let terrain_ptr = std::sync::Arc::as_ptr(&terrain.area) as *const crate::assets::terrain::TerrainArea as usize;
     let red = state.collisions == CollisionView::Only;
+    let water_count = water.as_ref().map_or(0, |w| w.bodies.len());
     let moved = visual.last_player.distance(player_pos) > REBUILD_MOVE * 2.0;
-    if !moved && terrain_ptr == visual.last_terrain && red == visual.last_red {
+    if !moved
+        && terrain_ptr == visual.last_terrain
+        && red == visual.last_red
+        && water_count == visual.last_water
+    {
         return;
     }
     visual.last_player = player_pos;
     visual.last_terrain = terrain_ptr;
     visual.last_red = red;
+    visual.last_water = water_count;
     let mut lines = LineSet::new(MAX_VIEW_VERTICES);
     add_terrain_lines(&mut lines, &terrain, player_pos, NAV_RADIUS, red);
+    if let Some(water) = water.as_deref() {
+        add_water_lines(&mut lines, water, player_pos, NAV_RADIUS);
+    }
     if lines.clipped() {
         debug!("debug view: terrain grid clipped at {} lines", lines.len());
     }
@@ -1379,31 +1427,9 @@ fn add_data_markers(lines: &mut LineSet, world: &MarkerWorld, live: &LiveMarkers
 
     // Water footprints at their surface height.
     if let Some(water) = world.water.as_ref() {
-        for body in &water.bodies {
-            if lines.clipped() {
-                return;
-            }
-            // Cheap body reject on the AABB centre before walking its triangles.
-            let centre = Vec2::new(
-                (body.min.x + body.max.x) * 0.5,
-                (body.min.y + body.max.y) * 0.5,
-            );
-            let extent = (body.max - body.min).length() * 0.5;
-            if centre.distance(player) > MARKER_RADIUS + extent {
-                continue;
-            }
-            let y = body.level + 0.05;
-            for tri in &body.triangles {
-                if lines.clipped() {
-                    return;
-                }
-                lines.triangle(
-                    Vec3::new(tri[0].x, y, tri[0].y),
-                    Vec3::new(tri[1].x, y, tri[1].y),
-                    Vec3::new(tri[2].x, y, tri[2].y),
-                    colors::WATER,
-                );
-            }
+        add_water_lines(lines, water, player, MARKER_RADIUS);
+        if lines.clipped() {
+            return;
         }
     }
 
@@ -1927,6 +1953,29 @@ mod tests {
             CollisionView::Only,
             "three more presses wrap to where it was"
         );
+    }
+
+    #[test]
+    fn water_footprints_are_drawn_near_the_player_and_skipped_far_away() {
+        use crate::game::water::{WaterBodies, WaterBody};
+        let tri = |a: (f32, f32), b: (f32, f32), c: (f32, f32)| {
+            [Vec2::new(a.0, a.1), Vec2::new(b.0, b.1), Vec2::new(c.0, c.1)]
+        };
+        let mut water = WaterBodies::default();
+        water.insert(WaterBody {
+            min: Vec2::new(0.0, 0.0),
+            max: Vec2::new(10.0, 10.0),
+            level: 5.0,
+            triangles: vec![tri((0.0, 0.0), (10.0, 0.0), (10.0, 10.0)), tri((0.0, 0.0), (10.0, 10.0), (0.0, 10.0))],
+        });
+        // Near: two triangles = six edges.
+        let mut near = LineSet::new(1000);
+        add_water_lines(&mut near, &water, Vec2::new(5.0, 5.0), 64.0);
+        assert_eq!(near.len(), 6, "two triangles of three edges each");
+        // Far: the body is rejected by its box before any triangle is walked.
+        let mut far = LineSet::new(1000);
+        add_water_lines(&mut far, &water, Vec2::new(5000.0, 5000.0), 64.0);
+        assert_eq!(far.len(), 0);
     }
 
     #[test]

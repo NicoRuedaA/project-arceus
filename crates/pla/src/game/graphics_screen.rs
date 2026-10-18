@@ -129,6 +129,7 @@ pub mod id {
     pub const RENDER_SCALE: &str = "render_scale";
     pub const VSYNC: &str = "vsync";
     pub const FPS_CAP: &str = "fps_cap";
+    pub const MINIMAP: &str = "minimap";
     pub const GRASS_RANGE: &str = "grass_range";
     pub const PLANTS_RANGE: &str = "plants_range";
     pub const OBJECTS_RANGE: &str = "objects_range";
@@ -359,6 +360,9 @@ fn cli_aa(args: &[String]) -> Option<i32> {
 fn cli_render_scale(args: &[String]) -> Option<i32> {
     cli_number(args, "--render-scale")
 }
+fn cli_minimap(args: &[String]) -> Option<i32> {
+    has_flag(args, "--no-minimap").then_some(0)
+}
 fn cli_vsync(args: &[String]) -> Option<i32> {
     cli_switch(args, "--vsync", "--no-vsync")
 }
@@ -438,6 +442,7 @@ pub const OPTION_DEFS: &[OptionDef] = &[
     OptionDef { id: id::RENDER_SCALE, label: "Render scale", page: Page::Display, kind: Kind::Slider { min: 50, max: 200, step: 10, unit: PCT }, default: 100, restart: Restart::Never, cli: cli_render_scale, preset: true, help: "3D resolution relative to the window size: above 100% sharper (costly), below faster." },
     OptionDef { id: id::VSYNC, label: "V-sync", page: Page::Display, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_vsync, preset: false, help: "Waits for the monitor's refresh. Turn it off to let the FPS cap set the frame rate." },
     OptionDef { id: id::FPS_CAP, label: "FPS cap", page: Page::Display, kind: Kind::Cycle(FPS_CAPS), default: 0, restart: Restart::Never, cli: cli_fps_cap, preset: false, help: "Frame-rate limit. With v-sync on, the monitor's refresh rate limits it too." },
+    OptionDef { id: id::MINIMAP, label: "Minimap", page: Page::Display, kind: Kind::OnOff, default: 1, restart: Restart::Never, cli: cli_minimap, preset: false, help: "Show the minimap in the top-right corner of the screen. The compass stays either way." },
     // ---- Distances (100% = the game's own distance)
     OptionDef { id: id::GRASS_RANGE, label: "Grass range", page: Page::Distances, kind: range(50, 250), default: 100, restart: Restart::Never, cli: cli_grass_range, preset: true, help: "How far grass cards are drawn (100% = the grass setting's own range, 40 m at low)." },
     OptionDef { id: id::PLANTS_RANGE, label: "Plants range", page: Page::Distances, kind: range(50, 250), default: 100, restart: Restart::Never, cli: cli_plants_range, preset: true, help: "Flowers, shrubs and small stones (100% = the grass setting's own range, 64 m at low)." },
@@ -1383,9 +1388,10 @@ fn graphics_input(
     // with the wheel). With the original Options skin the game's own bar is drawn and
     // `orig_ui::scrollbar` owns the mouse, so this path stays out of the way there.
     if !orig.as_ref().is_some_and(|c| c.enabled()) {
+        // A real wheel reports `y > 0` for "scrolled up"; `scroll_wheel` counts notches down.
         let notches: f32 = mouse_wheel
             .as_mut()
-            .map(|r| r.read().map(|e| e.y).sum())
+            .map(|r| -r.read().map(|e| e.y).sum::<f32>())
             .unwrap_or(0.0);
         if notches != 0.0 {
             state.scroll = crate::game::orig_ui::scrollbar::scroll_wheel(
@@ -1516,6 +1522,7 @@ const APPLIERS: &[Applier] = &[
     Applier { ids: &[id::MIPMAPS, id::ANISOTROPY], run: apply_textures },
     Applier { ids: &[id::RENDER_SCALE], run: apply_render_scale },
     Applier { ids: &[id::VSYNC, id::FPS_CAP], run: apply_frame_pacing },
+    Applier { ids: &[id::MINIMAP], run: apply_minimap },
     Applier {
         ids: &[id::OBJECTS_RANGE, id::COLLISION_RANGE, id::PICKUPS_RANGE, id::NPC_RANGE, id::WILD_RANGE],
         run: apply_distances,
@@ -1526,6 +1533,7 @@ const APPLIERS: &[Applier] = &[
 /// (called once by the viewer after its plugins are added).
 pub fn apply_startup(world: &mut World, s: &GraphicsSettings) {
     apply_grass(world, s);
+    apply_minimap(world, s);
     if let Some(mut e) = world.get_resource_mut::<super::effects::EffectsSettings>() {
         e.particle_scale = s.particle_scale();
     }
@@ -1540,6 +1548,10 @@ fn apply_textures(world: &mut World, s: &GraphicsSettings) {
 
 fn apply_render_scale(world: &mut World, s: &GraphicsSettings) {
     world.insert_resource(s.render_scale());
+}
+
+fn apply_minimap(world: &mut World, s: &GraphicsSettings) {
+    world.insert_resource(super::minimap::MinimapShown(s.get(id::MINIMAP) != 0));
 }
 
 fn apply_frame_pacing(world: &mut World, s: &GraphicsSettings) {

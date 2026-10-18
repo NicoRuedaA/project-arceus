@@ -69,6 +69,7 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "L_icon_key_r_00",
             "L_btn_zr_00",
         ],
+        ScreenId::PauseStrip => &["T_title_00", "L_menu_00", "L_menu_03"],
         ScreenId::PauseMenu => &[
             "L_settings_list_00",
             "L_settings_list_13",
@@ -315,11 +316,10 @@ fn pause_menu_is_the_game_settings_list_with_every_option_readable() {
     assert_eq!((bar.visible, bar.total, bar.scroll), (menus::OPTION_FULL_ROWS, OPTIONS.len(), 0));
     // The port's own lines: header, the selected row's help, footer and keys.
     let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
-    assert_eq!(free.len(), 4, "{free:?}");
-    assert_eq!(free[0], "Menu");
-    assert_eq!(free[1], menus::option_help(OPTIONS[3]));
-    assert!(free[2].contains("Money: "), "{free:?}");
-    assert!(free[3].contains("Esc: resume"), "{free:?}");
+    assert_eq!(free.len(), 3, "{free:?}");
+    assert_eq!(free[0], menus::option_help(OPTIONS[3]));
+    assert!(free[1].contains("Money: "), "{free:?}");
+    assert!(free[2].contains("Esc: resume"), "{free:?}");
     // The cursor row (index 3) carries the game's select state and every other visible row the
     // unselect one.
     for slot in 0..menus::OPTION_FULL_ROWS {
@@ -331,6 +331,69 @@ fn pause_menu_is_the_game_settings_list_with_every_option_readable() {
             "{part} has no {want}"
         );
     }
+}
+
+/// The top of the pause menu is the game's own icon strip: the four icons of the selection's
+/// page (each with its real icon and the select / unselect state), the selected option as the
+/// title, the game's opening animations, and no port text of its own.
+#[test]
+fn pause_strip_shows_the_icons_of_the_selection_page_and_its_title() {
+    let Some(root) = local_root() else { return };
+    use crate::game::pause_menu::{PauseMenu, OPTIONS};
+    use crate::game::settings::UserSettings;
+    use crate::game::state::Paused;
+    let (app, e) = screen_app(&root, ScreenId::PauseStrip, |app| {
+        app.insert_resource(Paused(true));
+        app.insert_resource(PauseMenu { selected: 5, scroll: 0 });
+        app.insert_resource(UserSettings::default());
+        app.add_systems(Update, (menus::bind_pause_strip, render_screens).chain());
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(s.shown, "the strip shows while paused");
+    let f = s.evaluate();
+    let texts: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    assert_eq!(texts, vec!["Pokédex"], "only the title is a scene text");
+    assert!(s.free_texts().is_empty(), "the strip carries no port text");
+    let page = 5 / 4;
+    for k in 0..4 {
+        let part = format!("L_menu_0{k}");
+        let pane = s.node_in(&part, "P_icon_menu_00").expect("slot pane");
+        let img = s
+            .overrides
+            .get(pane)
+            .and_then(|o| o.image.as_ref())
+            .unwrap_or_else(|| panic!("{part} has no icon override"));
+        assert!(img.png.contains("png/"), "{part}: {}", img.png);
+        let inst = s.scene.part_instance(&part).unwrap();
+        let want = if page * 4 + k == 5 { "_select" } else { "_unselect" };
+        assert!(
+            s.anim.tracks.iter().any(|t| t.instance == inst && t.anim.ends_with(want)),
+            "{part} has no {want} state"
+        );
+    }
+    for &opt in OPTIONS.iter().take(4) {
+        let icon = menus::option_icon(opt);
+        let info = s.scene.archive().textures.get(&format!("sm_menu_icon_{icon}_00^t"));
+        assert!(
+            info.is_some_and(|i| i.width > 2 && i.height > 2 && i.png.is_some()),
+            "{opt:?} uses the missing icon {icon}"
+        );
+    }
+    for tag in ["f_in", "menu_in", "title_in"] {
+        let name = format!("slidemenu_menulist_01_{tag}");
+        assert!(
+            s.anim.tracks.iter().any(|t| t.anim == name),
+            "opening {tag} not playing"
+        );
+    }
+    assert_eq!(menus::strip_frame(4), 0.0);
+    assert_eq!(menus::strip_frame(3), 1.0);
+    assert_eq!(menus::strip_frame(2), 2.0);
 }
 
 /// With the selection past the ninth row the window scrolls, the last options appear and the bar

@@ -5,7 +5,7 @@
 //! |---|---|
 //! | `L_zninfo_00` (top-left research bar) | nearest wild Pokémon: icon and name (else the zone name) |
 //! | `L_item_00` (ball shortcut, right) | selected ball name and count in the bag |
-//! | `L_command_00` (button guides, bottom left) | the game's menu / Pokédex / map guide icons, moved right of the port's minimap |
+//! | `L_command_00` (button guides, bottom left) | the game's menu / Pokédex / map guide icons, in the game's own place |
 //!
 //! While the field selector is open (`X`, see [`super::field_select`]) the resting ball shortcut
 //! is hidden — the wheel at the bottom right shows the same item larger, and the game does not
@@ -16,7 +16,7 @@
 //! gauge and timer (`L_gauge_nspoke_01`, `L_ns_time_00`), the alpha / outbreak notices
 //! (`L_as_00`, `L_wnhd_00`), the Pokémon-throw panel (`L_item_pokemon_00`) and the second / third
 //! item slots. The provisional debug cards (zone / position, nearby radar) are hidden while this
-//! HUD is shown; the port's minimap and compass stay.
+//! HUD is shown; the port's minimap (top-right corner, optional in Graphics) and compass stay.
 
 use std::collections::HashMap;
 
@@ -182,8 +182,8 @@ pub fn bind_field_hud(
             s.set_in("L_item_00", "P_item_00", move |o| o.image = Some(icon));
         }
     }
-    // Button guides right of the port's minimap (bottom-left corner, about 230 px wide).
-    s.set("L_command_00", |o| o.translate = Some([230.0, 0.0]));
+    // The button guides keep the game's own bottom-left place (the port's minimap sits in the
+    // top-right corner).
     for hidden in [
         "L_item_01",
         "L_item_02",
