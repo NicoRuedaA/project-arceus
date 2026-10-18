@@ -71,7 +71,9 @@ def load_targets() -> list[tuple[str, str, str, int]]:
                 continue
             # Locate the pack folder: <root>/<top>/<pack>/<pack>.blend, both the plain
             # `pmNNNN` and the `pmNNNN_FF` top shapes; the suffixed top wins when present.
-            top_candidates = [f"pm{pack[2:6]}", pack.rsplit("_", 2)[0]]
+            # Folders also come as `pmNNNN_FF` (nested packs `pm0916_00/pm0916_00_00`), which the
+            # first version of this script never found.
+            top_candidates = [f"pm{pack[2:6]}", pack.rsplit("_", 1)[0], pack.rsplit("_", 2)[0]]
             for top in top_candidates:
                 sub = os.path.join(MODELS_ROOT, top, pack)
                 blend = os.path.join(sub, f"{pack}.blend")
@@ -95,9 +97,12 @@ def main() -> int:
     ap.add_argument("--report-every", type=int, default=25)
     ap.add_argument("--min-free-gb", type=float, default=40.0)
     ap.add_argument("--clips", default="engine", choices=["engine", "all"])
+    ap.add_argument("--packs-file", default="", help="only convert the packs listed in this file (one per line)")
+    ap.add_argument("--force", action="store_true", help="convert even when the glTF already exists")
+    ap.add_argument("--out-root", default=CACHE, help="output root (default: work/cache/pokemon_national)")
     args = ap.parse_args()
 
-    os.makedirs(CACHE, exist_ok=True)
+    os.makedirs(args.out_root, exist_ok=True)
     targets = load_targets()
     order = [int(g) for g in args.only.split(",") if g.strip()]
     ordered = sorted(
@@ -105,6 +110,10 @@ def main() -> int:
         key=lambda t: (order.index(generation_of(t[3])) if generation_of(t[3]) in order else 99, t[3], t[0]),
     )
     todo = [t for t in ordered if generation_of(t[3]) in order]
+    if args.packs_file:
+        with open(args.packs_file, encoding="utf-8") as fh:
+            wanted = {line.strip() for line in fh if line.strip()}
+        todo = [t for t in ordered if t[0] in wanted]
     log(
         f"LOTE inicio: {len(todo)} packs mapeados por convertir (clips={args.clips}); "
         f"generaciones {order}; ya convertidos se saltan"
@@ -125,9 +134,9 @@ def main() -> int:
         queue = queue[2:]
         procs = []
         for pack, top, sub, species in batch:
-            out = os.path.join(CACHE, pack)
+            out = os.path.join(args.out_root, pack)
             gltf = os.path.join(out, f"{pack}.gltf")
-            if os.path.isfile(gltf):
+            if os.path.isfile(gltf) and not args.force:
                 skipped += 1
                 continue
             blend = os.path.join(MODELS_ROOT, top, sub, f"{pack}.blend")
@@ -139,7 +148,7 @@ def main() -> int:
             procs.append((pack, species, subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)))
         for pack, species, proc in procs:
             code = proc.wait()
-            if code == 0 and os.path.isfile(os.path.join(CACHE, pack, f"{pack}.gltf")):
+            if code == 0 and os.path.isfile(os.path.join(args.out_root, pack, f"{pack}.gltf")):
                 done += 1
                 if done % args.report_every == 0:
                     rate = done / max(time.time() - started, 1e-6)
