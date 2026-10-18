@@ -53,6 +53,22 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "L_item_pokemon_00",
             "L_item_00",
         ],
+        ScreenId::FieldSelect => &[
+            "N_icon_item_00",
+            "P_icon_current_00",
+            "N_icon_item_01",
+            "P_icon_left_00",
+            "N_icon_item_04",
+            "P_icon_right_02",
+            "N_icon_poke_00",
+            "P_icon_poke_00",
+            "T_item_name_00",
+            "T_item_num_00",
+            "T_poke_lv_00",
+            "L_icon_key_l_00",
+            "L_icon_key_r_00",
+            "L_btn_zr_00",
+        ],
         ScreenId::PauseMenu => &[
             "L_settings_list_00",
             "L_settings_list_13",
@@ -1293,4 +1309,115 @@ fn customize_binding_fills_rows_tabs_and_equipment() {
         free.iter().any(|t| t.contains("13 / 13") && t.contains("Esc: back")),
         "key hint: {free:?}"
     );
+}
+
+/// The field wheel shows the current ball with its bag count, the neighbours of the item list,
+/// the `R` badge the layout does not carry and the party's Pokémon with their level when the
+/// Pokémon panel is on.
+#[test]
+fn field_select_binding_fills_the_wheel_and_switches_panels() {
+    let Some(root) = local_root() else { return };
+    use crate::game::save_game::PartyMember;
+    use crate::game::save_wire::PlayerProgress;
+    use crate::game::throwing::{BallInventory, BallKind};
+    use crate::game::GameState;
+    use field_select::{bind_field_select, FieldSelector, PanelKind};
+    let (mut app, e) = screen_app(&root, ScreenId::FieldSelect, |app| {
+        app.insert_resource(State::new(GameState::World));
+        let mut p = PlayerProgress::new_game();
+        p.party = vec![
+            PartyMember {
+                species: 25,
+                level: 9,
+                hp: 20,
+                ..Default::default()
+            },
+            PartyMember {
+                species: 475,
+                level: 70,
+                hp: 200,
+                ..Default::default()
+            },
+        ];
+        p.bag.insert(1712, 7);
+        app.insert_resource(p);
+        app.insert_resource(BallInventory {
+            selected: BallKind::UltraBall,
+            ..Default::default()
+        });
+        app.insert_resource(FieldSelector {
+            open: true,
+            panel: PanelKind::Items,
+            pokemon_index: 1,
+        });
+        app.init_resource::<icons::IconIndex>();
+        app.add_systems(
+            Update,
+            (bind_field_select, render_screens).chain(),
+        );
+    });
+    let text = |app: &App, name: &str| -> Option<String> {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        s.overrides
+            .get(s.scene.find(name)?)
+            .and_then(|o| o.text.clone())
+    };
+    let image_of = |app: &App, pane: &str| -> Option<String> {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        let n = s.scene.find(pane)?;
+        s.overrides.get(n).and_then(|o| o.image.clone()).map(|i| i.png)
+    };
+    {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        assert!(s.shown, "the open wheel must show");
+        assert!(
+            s.anim.has_label(0, "panel_state"),
+            "the settled item panel state is frozen"
+        );
+        assert_eq!(text(&app, "T_item_name_00").as_deref(), Some("Ultra Ball"));
+        assert_eq!(text(&app, "T_item_num_00").as_deref(), Some("7"));
+        // Both neighbours of the nine-ball list carry an icon (the list wraps).
+        assert!(image_of(&app, "P_icon_current_00").is_some(), "centre item icon");
+        assert!(image_of(&app, "P_icon_left_00").is_some());
+        assert!(image_of(&app, "P_icon_right_02").is_some());
+        // The right badge shows the R art the layout does not hold; the left keeps its own.
+        let badge = |part: &str| -> Option<String> {
+            let n = s.node_in(part, "P_icon_key_00")?;
+            s.overrides.get(n).and_then(|o| o.image.clone()).map(|i| i.png)
+        };
+        let r = badge("L_icon_key_r_00").expect("right badge image");
+        assert!(r.ends_with("button_icon_R_round_00^t.png"), "{r}");
+        assert!(badge("L_icon_key_l_00").is_none(), "left badge untouched");
+    }
+    // Pokémon panel: the party member at `pokemon_index` with its level.
+    app.world_mut()
+        .resource_mut::<FieldSelector>()
+        .panel = PanelKind::Pokemon;
+    for _ in 0..2 {
+        app.update();
+    }
+    {
+        let s = app.world().get::<OrigScreen>(e).unwrap();
+        assert!(s.anim.has_label(0, "panel_state"));
+        assert!(text(&app, "T_item_name_00").is_some());
+        assert_eq!(text(&app, "T_poke_lv_00").as_deref(), Some("Lv. 70"));
+        assert!(image_of(&app, "P_icon_poke_00").is_some(), "centre party icon");
+        assert!(image_of(&app, "P_icon_poke_01").is_some());
+        let f = s.last.clone().expect("evaluated");
+        let hint = s
+            .free_texts()
+            .iter()
+            .map(|t| t.text.clone())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(hint.contains("Backspace"), "key hint: {hint}");
+        assert!(f.quads.iter().any(|q| q.visible), "the wheel draws quads");
+    }
+    // Closing hides the screen again.
+    app.world_mut()
+        .resource_mut::<FieldSelector>()
+        .open = false;
+    app.update();
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    assert!(!s.shown, "closed wheel must hide");
 }

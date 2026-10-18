@@ -24,6 +24,7 @@ pub mod battle;
 pub mod crafting_screen;
 pub mod dressup_screen;
 pub mod field;
+pub mod field_select;
 pub mod icons;
 pub mod layout;
 pub mod material;
@@ -178,6 +179,8 @@ pub enum ScreenId {
     BattleMoves,
     BattleMessage,
     FieldHud,
+    /// The field's item / Pokémon selector (`X` on foot): the game's `pokeget` wheel.
+    FieldSelect,
     PauseMenu,
     Party,
     Summary,
@@ -196,7 +199,7 @@ pub enum ScreenId {
 }
 
 impl ScreenId {
-    pub const ALL: [ScreenId; 18] = [
+    pub const ALL: [ScreenId; 19] = [
         ScreenId::BattleHud,
         ScreenId::BattleEnemyPlate,
         ScreenId::BattleTimeline,
@@ -204,6 +207,7 @@ impl ScreenId {
         ScreenId::BattleMoves,
         ScreenId::BattleMessage,
         ScreenId::FieldHud,
+        ScreenId::FieldSelect,
         ScreenId::PauseMenu,
         ScreenId::Party,
         ScreenId::Summary,
@@ -227,6 +231,8 @@ impl ScreenId {
             ScreenId::BattleMoves => ("gfpak_battle_menu_eng", "battle_command_waza_00"),
             ScreenId::BattleMessage => ("gfpak_battle_resident", "msg_sys_00_s"),
             ScreenId::FieldHud => ("gfpak_resident_hud_arc01_eng", "fieldinfo_00"),
+            // The field's item / Pokémon wheel (bottom right) with its `L` / `R` / `X` badges.
+            ScreenId::FieldSelect => ("pokeget", "pokeget_item_change_00"),
             // The pause menu is the game's settings list (`option_settings_00`, the same
             // components as the Graphics screen) filled with the menu's rows: every option
             // readable at once, the selection on the game's own highlight, its scrollbar.
@@ -265,6 +271,7 @@ impl ScreenId {
     pub fn z(self) -> i32 {
         match self {
             ScreenId::FieldHud => 150,
+            ScreenId::FieldSelect => 155,
             ScreenId::BattleHud | ScreenId::BattleEnemyPlate | ScreenId::BattleTimeline => 160,
             ScreenId::BattleMessage => 165,
             ScreenId::BattleCommand | ScreenId::BattleMoves => 170,
@@ -703,6 +710,7 @@ impl Plugin for OrigUiPlugin {
             );
         battle::install(app);
         field::install(app);
+        field_select::install(app);
         menus::install(app);
         summary::install(app);
         crafting_screen::install(app);
