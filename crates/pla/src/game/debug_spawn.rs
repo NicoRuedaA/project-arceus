@@ -1082,21 +1082,23 @@ national_number:u16\tidentifier:string\tname_en:string\tname_es:string\tname_ja_
             .spawn((super::super::PlayerAvatar, Transform::default()));
         app.update();
         press(&mut app, PANEL_KEY);
-        // Type a number that the fixture holds but no model sheet does: #669 Flabébé has no
-        // PLA catalog pack and no converted model.
-        for key in [KeyCode::Digit6, KeyCode::Digit6, KeyCode::Digit9] {
+        // Every real species has a converted model now, so add a made-up species #9000 that no
+        // model sheet knows.
+        let invented = format!("{FIXTURE}9000\ttestmon\tTestmon\t\tTestmon\n");
+        app.insert_resource(NationalNames::from_tsv(&invented).unwrap());
+        for key in [KeyCode::Digit9, KeyCode::Digit0, KeyCode::Digit0, KeyCode::Digit0] {
             press(&mut app, key);
         }
         {
             let panel = app.world().resource::<DebugSpawnPanel>();
-            assert_eq!(panel.query, "669");
-            assert_eq!(panel.selected_species(&app.world().resource::<NationalNames>()), Some(669));
+            assert_eq!(panel.query, "9000");
+            assert_eq!(panel.selected_species(&app.world().resource::<NationalNames>()), Some(9000));
         }
         press(&mut app, KeyCode::Enter);
         let panel = app.world().resource::<DebugSpawnPanel>();
         assert!(panel.spawned.is_none(), "nothing placed");
         assert!(
-            panel.status.starts_with("sin modelo para #0669"),
+            panel.status.starts_with("sin modelo para #9000"),
             "status: {}",
             panel.status
         );

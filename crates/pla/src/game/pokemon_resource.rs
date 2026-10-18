@@ -447,8 +447,8 @@ mod tests {
             growlithe.iter().any(|(form, name)| *form == 1 && name == "Hisuian Form"),
             "{growlithe:?}"
         );
-        // Pecharunt (#1025) has no row in any model sheet and no catalog pack: no forms at all.
-        assert!(resolve_forms(1025).is_empty());
+        // A species number no sheet knows has no forms at all.
+        assert!(resolve_forms(9000).is_empty());
         // No form-0 fallback: form 3 of Charizard is not a real form and stays unresolved.
         assert!(resolve_model_exact(6, 3).is_none());
     }
