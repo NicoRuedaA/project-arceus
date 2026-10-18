@@ -167,14 +167,34 @@ fn ring_with_centre(lines: &mut LineSet, ground: Vec3, radius: f32, color: Color
 
 // ------------------------------------------------------------------ ECS
 
+/// Per-category entity counts and the drawn line count of the last build (log on change only).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct DrawnCounts {
+    player: usize,
+    follower: usize,
+    npc: usize,
+    trainer: usize,
+    wild: usize,
+    placed: usize,
+    lines: usize,
+    clipped: bool,
+}
+
+/// Debug-placed models: the F7 panel spawn and the `--spawn-species` national spawn.
+type PlacedQuery<'w, 's> = Query<
+    'w,
+    's,
+    (&'static GlobalTransform, Option<&'static Visibility>),
+    Or<(With<DebugSpawnedSpecies>, With<NationalSpawn>)>,
+>;
+
 /// Bookkeeping of the creature-collider line mesh (one entity, rebuilt while F1 is active).
 #[derive(Resource, Default)]
 struct ColliderVisual {
     entity: Option<Entity>,
     mesh: Option<Handle<Mesh>>,
     material: Option<Handle<StandardMaterial>>,
-    /// `(player, follower, npc, trainer, wild, placed, lines, clipped)` of the last build.
-    last_counts: Option<(usize, usize, usize, usize, usize, usize, usize, bool)>,
+    last_counts: Option<DrawnCounts>,
 }
 
 /// True unless the entity is explicitly hidden (during a battle, for instance).
@@ -197,10 +217,7 @@ fn sync_creature_colliders(
     npcs: Query<(&GlobalTransform, Option<&Visibility>), With<NpcInstance>>,
     trainers: Query<(&GlobalTransform, Option<&Visibility>), With<TrainerNpc>>,
     wild: Query<(&GlobalTransform, &WildCreature, Option<&Visibility>)>,
-    placed: Query<
-        (&GlobalTransform, Option<&Visibility>),
-        Or<(With<DebugSpawnedSpecies>, With<NationalSpawn>)>,
-    >,
+    placed: PlacedQuery,
 ) {
     if state.collisions == CollisionView::Off {
         if let Some(entity) = visual.entity.take() {
@@ -236,12 +253,12 @@ fn sync_creature_colliders(
     }
     let near = |p: Vec3| p.xz().distance(player_xz) <= COLLIDER_RADIUS;
     let mut lines = LineSet::new(MAX_COLLIDER_VERTICES);
-    let mut counts = (0usize, 0usize, 0usize, 0usize, 0usize, 0usize);
+    let mut counts = DrawnCounts::default();
     // Player.
     if let Ok((transform, visibility)) = player.single() {
         if shown(visibility) {
             add_player_collider(&mut lines, transform.translation());
-            counts.0 = 1;
+            counts.player = 1;
         }
     }
     // Follower.
@@ -251,7 +268,7 @@ fn sync_creature_colliders(
         }
         if shown(visibility) && near(transform.translation()) {
             add_follower_collider(&mut lines, transform.translation());
-            counts.1 += 1;
+            counts.follower += 1;
         }
     }
     // NPCs.
@@ -261,7 +278,7 @@ fn sync_creature_colliders(
         }
         if shown(visibility) && near(transform.translation()) {
             add_npc_collider(&mut lines, transform.translation());
-            counts.2 += 1;
+            counts.npc += 1;
         }
     }
     // Trainers.
@@ -271,7 +288,7 @@ fn sync_creature_colliders(
         }
         if shown(visibility) && near(transform.translation()) {
             add_trainer_collider(&mut lines, transform.translation());
-            counts.3 += 1;
+            counts.trainer += 1;
         }
     }
     // Wild creatures (defeated ones leave the world: skipped like the F3 markers do).
@@ -281,7 +298,7 @@ fn sync_creature_colliders(
         }
         if !creature.defeated && shown(visibility) && near(transform.translation()) {
             add_wild_collider(&mut lines, transform.translation());
-            counts.4 += 1;
+            counts.wild += 1;
         }
     }
     // Debug-placed models (F7 panel and `--spawn-species`).
@@ -291,31 +308,23 @@ fn sync_creature_colliders(
         }
         if shown(visibility) && near(transform.translation()) {
             add_placed_collider(&mut lines, transform.translation());
-            counts.5 += 1;
+            counts.placed += 1;
         }
     }
-    let drawn = (
-        counts.0,
-        counts.1,
-        counts.2,
-        counts.3,
-        counts.4,
-        counts.5,
-        lines.len(),
-        lines.clipped(),
-    );
-    if visual.last_counts != Some(drawn) {
-        visual.last_counts = Some(drawn);
+    counts.lines = lines.len();
+    counts.clipped = lines.clipped();
+    if visual.last_counts != Some(counts) {
+        visual.last_counts = Some(counts);
         info!(
             "debug view colliders: {} lines ({} jugador, {} aliado, {} PNJ, {} entrenador, {} salvajes, {} colocados){}",
-            drawn.6,
-            drawn.0,
-            drawn.1,
-            drawn.2,
-            drawn.3,
-            drawn.4,
-            drawn.5,
-            if drawn.7 { " [clipped]" } else { "" }
+            counts.lines,
+            counts.player,
+            counts.follower,
+            counts.npc,
+            counts.trainer,
+            counts.wild,
+            counts.placed,
+            if counts.clipped { " [clipped]" } else { "" }
         );
     }
     if let Some(handle) = &visual.mesh {
