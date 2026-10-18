@@ -1,8 +1,9 @@
 //! Player vertical motion: jump, fall, landing and climbing (Brief 13).
 //!
 //! The viewer (`crates/pla/examples/port_viewer.rs`) owns the horizontal part of the
-//! locomotion (camera-relative input, navmesh sliding, wall push-out, water entry) and
-//! `game::water` owns swimming. This module owns the vertical state machine:
+//! locomotion (camera-relative input, terrain sliding from `game::terrain_collision`, wall
+//! push-out, water entry) and `game::water` owns swimming. This module owns the vertical
+//! state machine:
 //!
 //! ```text
 //! Grounded --Jump--> Airborne --ground contact--> Grounded (land clip timer)
@@ -40,7 +41,7 @@ use super::ride::GlideMount;
 use super::state::{GameState, Paused};
 use super::water::{PlayerSwim, SwimState};
 use super::zone::TerrainResource;
-use super::{navigation::GameNavmeshResource, PlayerAvatar};
+use super::PlayerAvatar;
 
 // ------------------------------------------------------------------ decoded constants
 
@@ -96,9 +97,10 @@ pub fn climb_speed(mount: Option<super::ride::RideKind>) -> f32 {
 /// attaches.
 ///
 /// The base is the lowest 1 m *scan* cell of the patch, not the outer foot of the visible
-/// slope, and the walkable navmesh can stop a few metres downhill of it (measured on foot:
-/// the nearest walkable point to area-01 patch 1180 is ~3 m from its base), so the reach is
-/// kept at 4 m — still under the surface's own 2..6 m interact radius, which the key keeps.
+/// slope, and the terrain walk rule can stop the walker a few metres downhill of it (measured
+/// on foot in the navmesh days: the nearest walkable point to area-01 patch 1180 was ~3 m from
+/// its base), so the reach is kept at 4 m — still under the surface's own 2..6 m interact
+/// radius, which the key keeps.
 pub const APPROACH_GRAB_REACH: f32 = 4.0;
 
 /// Horizontal move longer than this is a teleport (battle arena, save load, zone change),
@@ -169,16 +171,17 @@ pub fn can_step_up(dy: f32) -> bool {
     (0.0..=STEP_HEIGHT_MAX).contains(&dy)
 }
 
-/// Feet-level ground under `(x, z)`: navmesh first (the walkable surface), then the
-/// terrain heightmap, exactly like the viewer's locomotion.
+/// Feet-level ground under `(x, z)`: the terrain heightmap first, then the placed-object
+/// collider floors (interiors, decks) — the rule of `game::terrain_collision`; the decoded
+/// navmesh is no longer consulted (user decision 2026-10-17).
 pub fn ground_surface_y(
     terrain: Option<&TerrainResource>,
-    navmesh: Option<&GameNavmeshResource>,
+    collision: Option<&super::world_collision::WorldCollision>,
     x: f32,
     z: f32,
+    from_y: f32,
 ) -> Option<f32> {
-    let nav = navmesh.and_then(|n| n.height_at(x, z));
-    nav.or_else(|| terrain.and_then(|t| t.area.sample_world_height(x, z)))
+    super::terrain_collision::ground_y(terrain, collision, x, z, from_y)
 }
 
 // ------------------------------------------------------------------ state
@@ -321,7 +324,7 @@ pub fn apply_vertical_motion(
     mut q: VerticalInputs,
     climbables: Query<&Climbable>,
     terrain: Option<Res<TerrainResource>>,
-    navmesh: Option<Res<GameNavmeshResource>>,
+    collision: Option<Res<super::world_collision::WorldCollision>>,
     mut last_position: Local<Option<Vec3>>,
 ) {
     let dt = time.delta_secs();
@@ -371,8 +374,14 @@ pub fn apply_vertical_motion(
 
     let x = tf.translation.x;
     let z = tf.translation.z;
-    let ground_root = ground_surface_y(terrain.as_deref(), navmesh.as_deref(), x, z)
-        .map(|y| y + AVATAR_ROOT_ABOVE_GROUND);
+    let ground_root = ground_surface_y(
+        terrain.as_deref(),
+        collision.as_deref(),
+        x,
+        z,
+        tf.translation.y,
+    )
+    .map(|y| y + AVATAR_ROOT_ABOVE_GROUND);
 
     // Sequential blocks (not a match): a jump pressed on the ground integrates in the same frame.
     if state.mode == MotionMode::Grounded {

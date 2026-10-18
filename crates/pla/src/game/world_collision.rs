@@ -661,6 +661,10 @@ pub struct WorldCollision {
     grid: CollisionGrid,
     packs: CollisionPacks,
     placements: Vec<Placement>,
+    /// Extra collision instances outside the placement stream (port scaffolding: the SUPUESTO
+    /// fallback rooms of `game::interior`). They survive `replace_placements` and streaming,
+    /// and are dropped by [`Self::clear_extras`] on a zone change.
+    extras: Vec<(Arc<CollisionMesh>, Mat4)>,
     /// Export-index table of the spawnable models (see [`model_paths`]): zone changes filter the
     /// new area's rows with it, exactly like the visual objects do.
     paths: HashMap<String, (PathBuf, String)>,
@@ -681,6 +685,18 @@ pub struct WorldCollision {
 }
 
 impl WorldCollision {
+    /// Corrected capsule centre after pushing out of every wall (see
+    /// [`CollisionGrid::push_out_capsule`]); the terrain walk rule uses it.
+    pub fn push_out_capsule(&self, center: Vec3, radius: f32, height: f32) -> Vec3 {
+        self.grid.push_out_capsule(center, radius, height)
+    }
+
+    /// Nearest triangle hit along a ray, as the distance (see [`CollisionGrid::raycast`]);
+    /// the terrain walk rule probes floors with it.
+    pub fn raycast(&self, origin: Vec3, dir: Vec3, max_dist: f32) -> Option<f32> {
+        self.grid.raycast(origin, dir, max_dist)
+    }
+
     /// Push a capsule out of every wall near its XZ position (y = capsule middle).
     pub fn push_out_xz(&self, x: f32, y: f32, z: f32, radius: f32, height: f32) -> Vec2 {
         let out = self
@@ -779,6 +795,24 @@ impl WorldCollision {
             let id = self.grid.insert(mesh, tf);
             debug_assert_eq!(id as usize, self.instance_placements.len());
             self.instance_placements.push(i);
+        }
+        // Port scaffolding (fallback rooms) is always live.
+        for (mesh, tf) in &self.extras {
+            self.grid.insert(mesh.clone(), *tf);
+        }
+    }
+
+    /// Register one extra always-live collision instance (port scaffolding; see the field).
+    pub fn add_extra(&mut self, mesh: Arc<CollisionMesh>, transform: Mat4) {
+        self.extras.push((mesh, transform));
+        self.rebuild();
+    }
+
+    /// Drop every extra instance (a zone change leaves no scaffolding behind).
+    pub fn clear_extras(&mut self) {
+        if !self.extras.is_empty() {
+            self.extras.clear();
+            self.rebuild();
         }
     }
 
@@ -901,6 +935,7 @@ impl WorldCollision {
             grid: CollisionGrid::new(CELL),
             packs,
             placements,
+            extras: Vec::new(),
             paths,
             cache_root: cache_root.as_ref().to_path_buf(),
             models: HashMap::new(),
@@ -1051,6 +1086,7 @@ mod tests {
             grid: CollisionGrid::new(CELL),
             packs: CollisionPacks { packs: Vec::new() },
             placements: Vec::new(),
+            extras: Vec::new(),
             paths: HashMap::new(),
             cache_root: PathBuf::new(),
             models: HashMap::new(),
@@ -1090,6 +1126,7 @@ mod tests {
             grid: CollisionGrid::new(CELL),
             packs: CollisionPacks { packs: Vec::new() },
             placements: Vec::new(),
+            extras: Vec::new(),
             paths: HashMap::new(),
             cache_root: PathBuf::new(),
             models: HashMap::new(),

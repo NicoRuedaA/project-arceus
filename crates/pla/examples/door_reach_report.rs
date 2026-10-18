@@ -68,7 +68,7 @@ fn main() {
         if !need_best.is_finite() {
             // No walkable sample on the axis cross: fall back to the nearest face.
             if let Some(hit) = nav.nearest(l.pos.x, l.pos.z, 400.0) {
-                let c = pla::game::spawn_point::face_centroid(nav.primary(), hit.face);
+                let c = pla::game::nav_report::face_centroid(nav.primary(), hit.face);
                 let local = door_local_offset(l, c[0], c[2]);
                 let need = (local.x.abs() - l.trigger.x * 0.5)
                     .max(local.y.abs() - l.trigger.y * 0.5)

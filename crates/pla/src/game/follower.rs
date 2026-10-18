@@ -27,7 +27,7 @@ use std::collections::VecDeque;
 
 use bevy::prelude::*;
 
-use super::navigation::GameNavmeshResource;
+use super::terrain_collision::{ground_y, WalkContext};
 use super::save_wire::PlayerProgress;
 use super::spawn_point::slide_move;
 use super::state::{not_paused, GameState};
@@ -382,7 +382,8 @@ fn sync_follower(
     asset_server: Res<AssetServer>,
     progress: Option<Res<PlayerProgress>>,
     player: Query<&Transform, With<PlayerAvatar>>,
-    nav: Option<Res<GameNavmeshResource>>,
+    terrain: Option<Res<super::zone::TerrainResource>>,
+    collision: Option<Res<super::world_collision::WorldCollision>>,
     existing: Query<(Entity, &Follower)>,
     mut warned: Local<Option<u16>>,
 ) {
@@ -420,10 +421,14 @@ fn sync_follower(
         .unwrap_or(Vec2::Y);
     let p = Vec2::new(player_tf.translation.x, player_tf.translation.z);
     let behind = p - fwd * FOLLOW_DISTANCE;
-    let y = nav
-        .as_ref()
-        .and_then(|n| n.height_at(behind.x, behind.y))
-        .map_or(player_tf.translation.y, |h| h + GROUND_OFFSET);
+    let y = ground_y(
+        terrain.as_deref(),
+        collision.as_deref(),
+        behind.x,
+        behind.y,
+        player_tf.translation.y,
+    )
+    .map_or(player_tf.translation.y, |h| h + GROUND_OFFSET);
     let yaw = yaw_for(fwd.x, fwd.y);
     let mut state = FollowerState::new((behind.x, behind.y), yaw);
     state.trail.seed([behind, p]);
@@ -440,10 +445,14 @@ fn sync_follower(
     ));
 }
 
-/// Moves the follower along the player's trail and grounds it on the navmesh.
+/// Moves the follower along the player's trail and grounds it on the terrain (or an interior's
+/// collider floor); the walk rule is `game::terrain_collision` (no navmesh, user decision
+/// 2026-10-17).
 fn drive_follower(
     time: Res<Time>,
-    nav: Option<Res<GameNavmeshResource>>,
+    terrain: Option<Res<super::zone::TerrainResource>>,
+    collision: Option<Res<super::world_collision::WorldCollision>>,
+    water: Option<Res<super::water::WaterBodies>>,
     player: Query<&Transform, (With<PlayerAvatar>, Without<Follower>)>,
     mut followers: Query<(&mut Transform, &mut FollowerState), Without<PlayerAvatar>>,
 ) {
@@ -451,16 +460,24 @@ fn drive_follower(
         return;
     };
     let dt = time.delta_secs().min(0.1);
-    // Without a navmesh (flat fallback world) every spot is walkable and no height is known.
-    let walkable = |x: f32, z: f32| nav.as_ref().is_none_or(|n| n.is_walkable(x, z));
     let player = Vec2::new(player_tf.translation.x, player_tf.translation.z);
     let front = player_tf.rotation * Vec3::Z;
     let facing = Vec2::new(front.x, front.z).try_normalize().unwrap_or(Vec2::Y);
     for (mut tf, mut st) in &mut followers {
+        // The walk rule is built per follower from its own feet: the ground probe and the
+        // step rule must see the follower's surface, not the player's.
+        let ctx = WalkContext::player(
+            terrain.as_deref(),
+            collision.as_deref(),
+            water.as_deref(),
+            false,
+            tf.translation.y - GROUND_OFFSET,
+        );
+        let walkable = |x: f32, z: f32| ctx.is_walkable(x, z);
         step(&mut st, player, facing, dt, &walkable);
         tf.translation.x = st.pos.0;
         tf.translation.z = st.pos.1;
-        if let Some(h) = nav.as_ref().and_then(|n| n.height_at(st.pos.0, st.pos.1)) {
+        if let Some(h) = ctx.ground_y(st.pos.0, st.pos.1) {
             tf.translation.y = h + GROUND_OFFSET;
         }
         tf.rotation = Quat::from_rotation_y(st.yaw);
@@ -508,10 +525,8 @@ impl Plugin for FollowerPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::assets::navmesh::{AreaNavigation, NavEdge, NavFace, NavMesh};
     use bevy::state::app::StatesPlugin;
     use bevy::time::TimeUpdateStrategy;
-    use std::sync::Arc;
     use std::time::Duration;
 
     const DT: f32 = 1.0 / 60.0;
@@ -525,32 +540,6 @@ mod tests {
 
     fn dist(st: &FollowerState, p: Vec2) -> f32 {
         Vec2::new(st.pos.0, st.pos.1).distance(p)
-    }
-
-    /// Flat quad navmesh spanning `half_x` x `half_z` around the origin.
-    fn quad(half_x: f32, half_z: f32) -> NavMesh {
-        let v = vec![
-            [-half_x, 0.0, -half_z],
-            [half_x, 0.0, -half_z],
-            [half_x, 0.0, half_z],
-            [-half_x, 0.0, half_z],
-        ];
-        let e = |a, b| NavEdge {
-            a,
-            b,
-            opposite_edge: u32::MAX,
-            opposite_face: u32::MAX,
-            flags: 0,
-        };
-        NavMesh::from_parts(
-            v,
-            vec![NavFace {
-                start_edge: 0,
-                num_edges: 4,
-            }],
-            vec![e(0, 1), e(1, 2), e(2, 3), e(3, 0)],
-        )
-        .expect("test navmesh")
     }
 
     // ---------------------------------------------------------------- trail
@@ -663,9 +652,9 @@ mod tests {
     }
 
     #[test]
-    fn never_steps_off_the_test_navmesh() {
-        let nav = quad(120.0, 3.0); // narrow corridor, player path stays inside
-        let walk = |x: f32, z: f32| nav.is_walkable(x, z);
+    fn never_steps_off_the_test_corridor() {
+        // Narrow corridor: |z| <= 3, the player path stays inside it.
+        let walk = |x: f32, z: f32| (-120.0..=120.0).contains(&x) && (-3.0..=3.0).contains(&z);
         assert!(walk(-2.5, 0.0) && walk(0.0, 0.0));
         let mut st = FollowerState::new((-FOLLOW_DISTANCE, 0.0), std::f32::consts::FRAC_PI_2);
         st.trail
@@ -680,7 +669,7 @@ mod tests {
             step(&mut st, player, FACE, DT, &walk);
             assert!(
                 walk(st.pos.0, st.pos.1),
-                "follower left the navmesh at {:?}",
+                "follower left the corridor at {:?}",
                 st.pos
             );
         }
@@ -857,12 +846,7 @@ mod tests {
             DT,
         )));
         app.init_state::<GameState>();
-        app.insert_resource(GameNavmeshResource {
-            nav: Arc::new(AreaNavigation {
-                area: 0,
-                meshes: vec![quad(60.0, 60.0)],
-            }),
-        });
+        app.insert_resource(crate::game::terrain_collision::test_terrain(129, |_, _| 0.0));
         let player = app
             .world_mut()
             .spawn((PlayerAvatar, Transform::from_xyz(0.0, 0.0, 0.0)))
@@ -921,7 +905,7 @@ mod tests {
         assert_eq!(st.teleports, 0);
         assert!(
             (max_y - GROUND_OFFSET).abs() < 1e-5,
-            "grounded on the flat navmesh (y {max_y})"
+            "grounded on the flat terrain (y {max_y})"
         );
     }
 

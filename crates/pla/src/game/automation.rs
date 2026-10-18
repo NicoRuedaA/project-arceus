@@ -44,7 +44,6 @@ use serde_json::{json, Map, Value};
 
 use super::battle_controller::{ActiveBattleSession, BattleAssets};
 use super::clock::GameClock;
-use super::navigation::GameNavmeshResource;
 use super::pause_menu::{
     BagOpenRequested, BoxOpenRequested, DexOpenRequested, PartyOpenRequested, PauseMenu,
     PauseMenuSuppressed, ShopOpenRequested,
@@ -1114,27 +1113,58 @@ fn yaw_of(t: &Transform) -> f32 {
     t.rotation.to_euler(EulerRot::YXZ).0
 }
 
-/// Ground height under (x, z): navmesh, else terrain.
-fn ground_at(world: &World, x: f32, z: f32) -> Option<f32> {
-    world
-        .get_resource::<GameNavmeshResource>()
-        .and_then(|n| n.height_at(x, z))
-        .or_else(|| world.get_resource::<TerrainResource>().and_then(|t| t.area.sample_world_height(x, z)))
+/// Ground height under (x, z) on the terrain rule: heightmap, else collider floors.
+fn ground_at(world: &World, x: f32, z: f32, from_y: f32) -> Option<f32> {
+    super::terrain_collision::ground_y(
+        world.get_resource::<TerrainResource>().as_deref(),
+        world
+            .get_resource::<super::world_collision::WorldCollision>()
+            .as_deref(),
+        x,
+        z,
+        from_y,
+    )
 }
 
-/// Snap (x, z) to the walkable navmesh (nearest face centre when off it) and move the player there.
+/// Snap (x, z) to the nearest walkable point of the terrain rule when it is off it, then move the
+/// player there (automation is a tool: movement and placement never read the navmesh).
 fn teleport(world: &mut World, x: f32, z: f32) -> Result<[f64; 3], String> {
-    let (mut tx, mut tz) = (x, z);
+    let (tx, tz);
     let mut snapped = false;
-    if let Some(nav) = world.get_resource::<GameNavmeshResource>() {
-        if !nav.is_walkable(x, z) {
-            let hit = nav.nearest(x, z, 400.0).ok_or("no walkable navmesh within 400 m")?;
-            let c = super::spawn_point::face_centroid(nav.nav.primary(), hit.face);
-            (tx, tz) = (c[0], c[2]);
-            snapped = true;
+    {
+        let from_y = world
+            .query_filtered::<&Transform, With<PlayerAvatar>>()
+            .iter(world)
+            .next()
+            .map_or(0.0, |t| t.translation.y);
+        let terrain = world.get_resource::<TerrainResource>();
+        let collision = world.get_resource::<super::world_collision::WorldCollision>();
+        let water = world.get_resource::<super::water::WaterBodies>();
+        let ctx = super::terrain_collision::WalkContext::player(
+            terrain.as_deref(),
+            collision.as_deref(),
+            water.as_deref(),
+            false,
+            from_y,
+        );
+        match super::terrain_collision::nearest_walkable(&ctx, x, z, 60.0) {
+            Some((p, d)) if d > 0.01 => {
+                (tx, tz) = (p.x, p.y);
+                snapped = true;
+            }
+            _ => {
+                (tx, tz) = (x, z);
+            }
         }
     }
-    let ground = ground_at(world, tx, tz);
+    let from_y = world
+        .query_filtered::<&Transform, With<PlayerAvatar>>()
+        .iter(world)
+        .next()
+        .ok_or("no player in the world")?
+        .translation
+        .y;
+    let ground = ground_at(world, tx, tz, from_y);
     let mut q = world.query_filtered::<&mut Transform, With<PlayerAvatar>>();
     let mut t = q.iter_mut(world).next().ok_or("no player in the world")?;
     t.translation.x = tx;
@@ -1143,7 +1173,7 @@ fn teleport(world: &mut World, x: f32, z: f32) -> Result<[f64; 3], String> {
         t.translation.y = g + 0.9;
     }
     if snapped {
-        println!("[automation] teleport ({x:.1}, {z:.1}) was off the navmesh: snapped to ({tx:.1}, {tz:.1})");
+        println!("[automation] teleport ({x:.1}, {z:.1}) was off the walkable ground: snapped to ({tx:.1}, {tz:.1})");
     }
     Ok([round2(tx), round2(t.translation.y), round2(tz)])
 }

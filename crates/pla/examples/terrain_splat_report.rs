@@ -11,7 +11,8 @@ use bevy::math::Vec2;
 use pla::assets::navmesh::AreaNavigation;
 use pla::assets::terrain::TerrainArea;
 use pla::assets::terrain_albedo::layer_weights;
-use pla::game::spawn_point::{choose_safe_spawn, components, landmarks_for_area, SpawnConfig};
+use pla::game::nav_report::{choose_safe_spawn, components};
+use pla::game::spawn_point::{landmarks_for_area, SpawnConfig};
 use pla::game::terrain_splat::{build_splat_data, default_override_dir, DEFAULT_LAYER_SIZE};
 
 /// Ring around the start searched for a cliff face (metres).

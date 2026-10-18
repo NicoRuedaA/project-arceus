@@ -15,7 +15,8 @@ use pla::assets::gfpak::GfPak;
 use pla::assets::navmesh::AreaNavigation;
 use pla::assets::terrain::TerrainArea;
 use pla::assets::terrain_albedo::{layer_weights, texture_hash, texture_name_of};
-use pla::game::spawn_point::{choose_safe_spawn, components, landmarks_for_area, SpawnConfig};
+use pla::game::nav_report::{choose_safe_spawn, components};
+use pla::game::spawn_point::{landmarks_for_area, SpawnConfig};
 
 const AREA_NAMES: [&str; 7] = [
     "Aldea Joya",
