@@ -8,11 +8,11 @@
 #       national number above 649 (pm0749 is Bergmite #712, pm0841 is Rowlet #722)
 model:string*	species:u16	form_index:u8	form_name:string	kind:string	confidence:enum	reason:string?
 pm0000_00_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0770_11_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0770_12_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0770_13_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0770_14_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
-pm0770_15_00	0	0		otro	DESCONOCIDO	indice interno del modelo no deducible con la evidencia disponible
+pm0770_11_00	718	4	10% Forme	base	PROBABLE	render CPU de la carpeta comparado con las formas oficiales de Wikidex (texto; sus imagenes no cargaron); cuadrupedo canino con colmillos: forma 10%
+pm0770_12_00	718	0	50% Forme	base	PROBABLE	render CPU de la carpeta comparado con las formas oficiales de Wikidex (texto; sus imagenes no cargaron); cuerpo serpentino largo con cresta en abanico: forma 50%
+pm0770_13_00	718	3	Complete Forme	base	PROBABLE	render CPU de la carpeta comparado con las formas oficiales de Wikidex (texto; sus imagenes no cargaron); figura bipeda grande con brazos y cola doble azul/roja: forma completa
+pm0770_14_00	718	7	Zygarde Core	otro	PROBABLE	render CPU de la carpeta comparado con las formas oficiales de Wikidex (texto; sus imagenes no cargaron); masa verde con un ojo y nucleo hexagonal naranja: Nucleo de Zygarde (no es forma de combate)
+pm0770_15_00	718	6	Zygarde Cell	otro	PROBABLE	render CPU de la carpeta comparado con las formas oficiales de Wikidex (texto; sus imagenes no cargaron); masa verde plana con hexagono: Celula de Zygarde (no es forma de combate)
 pm0801_00_00	747	0	Mareanie	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
 pm0802_00_00	748	0	Toxapex	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
 pm0803_00	755	0	Morelull	base	PROBABLE	icono/render del pack identificado como la especie; gen7 (revision-gen7); numero de carpeta != nacional
@@ -1465,7 +1465,7 @@ pm0749_00_00	712	0	Bergmite	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0751_00_41	713	1	Hisuian Form	regional	VERIFICADO	catalogo PLA del juego (VERIFICADO)
 pm0768_00_00	716	0	Xerneas	base	PROBABLE	icono: ciervo azul con astas (Xerneas)
 pm0769_00_00	717	0	Yveltal	base	PROBABLE	icono: pajaro rojo oscuro (Yveltal)
-pm0770_51_00	718	1	10% Forme	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
+pm0770_51_00	718	5	Mega Zygarde	mega	PROBABLE	render CPU de la carpeta comparado con las formas oficiales de Wikidex (texto; sus imagenes no cargaron); masa oscura blindada con rojo, horizontal: Mega-Zygarde (Z-A); antes figuraba como 10% Forme sin prueba
 pm0772_00_00	719	0	Diancie	base	PROBABLE	icono: hada cristal; 2 subcarpetas (Diancie + Mega)
 pm0772_51_00	719	1	Mega Diancie	mega	PROBABLE	FF=51 Mega (convencion verificada); especie por ancla
 pm0841_00_00	722	0	Rowlet	base	VERIFICADO	catalogo PLA del juego (VERIFICADO)

@@ -60,7 +60,11 @@ pub const PANEL_KEY: KeyCode = KeyCode::F7;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpeciesName {
     pub id: u16,
+    /// Display name (Spanish first).
     pub name: String,
+    /// Folded search text: Spanish name, English name and identifier, so a species is found
+    /// by any of them ("Iron Boulder" finds "Ferromole").
+    pub search: String,
 }
 
 /// The 1025 national species names, loaded once from the tracked sheet.
@@ -114,9 +118,16 @@ impl NationalNames {
             } else {
                 values[c_identifier].trim()
             };
+            let search = [values[c_es], values[c_en], values[c_identifier]]
+                .iter()
+                .map(|text| fold(text))
+                .filter(|text| !text.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
             entries.push(SpeciesName {
                 id,
                 name: name.to_string(),
+                search,
             });
         }
         entries.sort_by_key(|entry| entry.id);
@@ -201,7 +212,9 @@ pub fn filter_indices(entries: &[SpeciesName], query: &str) -> Vec<usize> {
         .iter()
         .enumerate()
         .filter(|(_, entry)| {
-            numeric == Some(entry.id) || fold(&entry.name).contains(&folded)
+            numeric == Some(entry.id)
+                || fold(&entry.name).contains(&folded)
+                || entry.search.split(' ').any(|alias| alias.contains(&folded))
         })
         .map(|(index, _)| index)
         .collect()
@@ -1190,6 +1203,110 @@ national_number:u16\tidentifier:string\tname_en:string\tname_es:string\tname_ja_
         );
         let facing = transform.rotation * Vec3::Z;
         assert!(facing.z > 0.9, "the model faces the camera: {facing:?}");
+    }
+
+    #[test]
+    fn filter_finds_a_species_by_its_english_name_or_identifier() {
+        // "Iron Boulder" is Ferromole in Spanish; the panel used to look at Spanish only.
+        let sheet = "national_number:u16\tidentifier:string\tname_en:string\tname_es:string\tname_ja_roma:string\n\
+1022\tiron-boulder\tIron Boulder\tFerromole\tTetsunoiwao\n";
+        let names = NationalNames::from_tsv(sheet).unwrap();
+        for query in ["Iron Boulder", "iron-boulder", "ironboulder", "Ferromole", "1022"] {
+            assert_eq!(filter_indices(&names.entries, query), vec![0], "query {query}");
+        }
+        assert!(filter_indices(&names.entries, "bulbasaur").is_empty());
+    }
+
+    /// Every species 1..=1025 that `model_map.tsv` maps to a model must be listed by F7 with a
+    /// resolvable model, found by its Spanish name, its English name and its number.
+    #[test]
+    fn every_mapped_species_is_listed_and_resolves_a_model() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/national");
+        let Ok(names) = NationalNames::load(&data.join("names.tsv")) else {
+            eprintln!("[skip] no names sheet");
+            return;
+        };
+        let cache = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../work/cache/pokemon_national");
+        let have_cache = std::env::var("PLA_CACHE_ROOT")
+            .map(|root| PathBuf::from(root).join("pokemon_national").is_dir())
+            .unwrap_or(false)
+            || cache.is_dir();
+        if !have_cache {
+            eprintln!("[skip] no pokemon_national cache");
+            return;
+        }
+        let map = std::fs::read_to_string(data.join("model_map.tsv")).unwrap();
+        let mut mapped = std::collections::BTreeSet::new();
+        for line in map.lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()).skip(1) {
+            let f: Vec<&str> = line.split('\t').collect();
+            if f.len() > 5 && f[5] != "DESCONOCIDO" {
+                if let Ok(id) = f[1].parse::<u16>() {
+                    if (1..=1025).contains(&id) {
+                        mapped.insert(id);
+                    }
+                }
+            }
+        }
+        assert!(mapped.len() > 900, "model_map maps {} species", mapped.len());
+        let english: std::collections::HashMap<u16, String> =
+            std::fs::read_to_string(data.join("species.tsv"))
+                .unwrap()
+                .lines()
+                .filter(|l| !l.starts_with('#'))
+                .filter_map(|l| {
+                    let f: Vec<&str> = l.split('\t').collect();
+                    Some((f.first()?.parse().ok()?, f.get(17)?.to_string()))
+                })
+                .collect();
+        let mut problems = Vec::new();
+        for id in mapped {
+            if resolve_model(id, 0).is_none() && resolve_forms(id).is_empty() {
+                problems.push(format!("#{id} no model"));
+            }
+            let listed = |q: &str| {
+                filter_indices(&names.entries, q)
+                    .into_iter()
+                    .any(|i| names.entries[i].id == id)
+            };
+            if !listed(names.name_of(id)) {
+                problems.push(format!("#{id} not found by Spanish name"));
+            }
+            if let Some(en) = english.get(&id) {
+                if !en.is_empty() && !listed(en) {
+                    problems.push(format!("#{id} not found by English name {en}"));
+                }
+            }
+            if !listed(&id.to_string()) {
+                problems.push(format!("#{id} not found by number"));
+            }
+        }
+        assert!(problems.is_empty(), "F7 gaps: {problems:#?}");
+    }
+
+    /// Zygarde's folders pm0770_11..15 and _51 are assigned to the official forms.
+    #[test]
+    fn zygarde_forms_are_all_listed() {
+        let cache = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../work/cache/pokemon_national");
+        let have_cache = std::env::var("PLA_CACHE_ROOT")
+            .map(|root| PathBuf::from(root).join("pokemon_national").is_dir())
+            .unwrap_or(false)
+            || cache.is_dir();
+        if !have_cache {
+            eprintln!("[skip] no pokemon_national cache");
+            return;
+        }
+        let forms = resolve_forms(718);
+        let names: Vec<(u8, &str)> = forms.iter().map(|(f, n)| (*f, n.as_str())).collect();
+        for expected in [
+            (0, "50% Forme"),
+            (3, "Complete Forme"),
+            (4, "10% Forme"),
+            (5, "Mega Zygarde"),
+            (6, "Zygarde Cell"),
+            (7, "Zygarde Core"),
+        ] {
+            assert!(names.contains(&expected), "missing {expected:?} in {names:?}");
+        }
     }
 
     /// App with the REAL names sheet, the real model cache and a player at the origin. `None`

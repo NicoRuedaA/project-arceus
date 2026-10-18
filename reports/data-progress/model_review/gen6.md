@@ -54,7 +54,7 @@ Ademas: Avalugg base pm0751, Sliggoo base pm0764, Goodra base pm0765, Greninja p
 - 666 Vivillon: el orden oficial de patrones se asumio para los nombres (solo la forma 11, blanca, es coherente con Icy Snow). 676 Furfrou: igual con los cortes.
 - 681 Aegislash: las formas 11 y 12 se ven iguales en el frame de captura; Escudo/Espada es por convencion.
 - 710 Pumpkaboo: las 4 tallas se ven iguales (solo cambia el tamano en juego).
-- 718 pm0770_51: el mapa dice "10% Forme" sin prueba; es el Zygarde, forma sin confirmar. Las 5 carpetas pm0770_11..15 (Zygarde, formas) siguen DESCONOCIDAS (no estaban entre las 28 y no se asignaron).
+- 718 pm0770_11..15 y _51 (Zygarde): asignadas el 2026-10-18 (PROBABLE, comparadas con las formas oficiales de Wikidex): 11 = 10%, 12 = 50%, 13 = completa, 14 = Nucleo, 15 = Celula, 51 = Mega-Zygarde (no 10%).
 
 ## Especies SIN MODELO
 
