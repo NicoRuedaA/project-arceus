@@ -14,6 +14,7 @@
 
 use bevy::prelude::*;
 
+use super::anim::PlayMode;
 use super::battle::title_case;
 use super::icons::IconIndex;
 use super::scene::{ExternalImage, NodeOverride, TextAlign};
@@ -82,7 +83,7 @@ pub fn option_icon(o: MenuOption) -> &'static str {
         MenuOption::Pokedex | MenuOption::Save | MenuOption::Load => "report",
         MenuOption::Crafting => "making",
         MenuOption::Shop => "buy",
-        MenuOption::InvertX | MenuOption::InvertY | MenuOption::Volume | MenuOption::Graphics | MenuOption::Customize => "settings",
+        MenuOption::Volume | MenuOption::Graphics | MenuOption::Customize => "settings",
         MenuOption::SafeSpawn => "net",
         MenuOption::Rest => "passive",
     }
@@ -90,7 +91,7 @@ pub fn option_icon(o: MenuOption) -> &'static str {
 
 /// PNG of texture `name` of the screen's archive, as an override image (`None` for a missing or
 /// placeholder texture).
-fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
+pub(super) fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
     let info = s.scene.archive().textures.get(name)?;
     if info.width <= 2 || info.height <= 2 {
         return None; // placeholder texture
@@ -102,8 +103,50 @@ fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
     })
 }
 
+/// Label of an item id: the decoded effect text, or `Item #id` for ids outside the table.
+pub(super) fn item_label(table: Option<&crate::battle_engine::items::ItemTable>, id: u16) -> String {
+    match table.and_then(|t| t.get(id)) {
+        Some(item) => label(item),
+        None => format!("Item #{id}"),
+    }
+}
+
+/// Button label: the effect text without the trailing ` #<id>` (the grid cells are narrower than
+/// the full label; the info panels keep the id). The generic `Item #id` label keeps its id:
+/// without it the name says nothing.
+pub(super) fn short_label(full: &str) -> &str {
+    if let Some((head, tail)) = full.rsplit_once(" #") {
+        if head != "Item"
+            && !head.is_empty()
+            && !tail.is_empty()
+            && tail.chars().all(|c| c.is_ascii_digit())
+        {
+            return head;
+        }
+    }
+    full
+}
+
 const TABS: usize = 4;
 
+/// Frame of the game's own `switch_menu` animation that sizes the icon strip to `slots` icons
+/// (frame 0: four slots, 1: three, 2: two; the animation hides the spare slots and moves the R
+/// cursors in). PROBABLE: read from the decoded `slidemenu_menulist_01_switch_menu` keys.
+pub fn strip_frame(slots: usize) -> f32 {
+    match slots {
+        4 => 0.0,
+        3 => 1.0,
+        _ => 2.0,
+    }
+}
+
+/// Pause menu (Esc) in the game's own distribution (`slidemenu_menulist_01`): the four-icon tab
+/// strip on top (four per page, the game's select / unselect state per slot), the selected
+/// option as the title, and the game's opening animations (`f_in` + `menu_in` + `title_in`: the
+/// dim panel fades in, the strip slides down, the title fades in). The port's own rows that the
+/// game does not have (Crafting, Shop test, Graphics, Customize, Back to safe spawn, Save / Load,
+/// Rest) stay as icons of the same strip, after the game's own entries; the full list was removed
+/// (brief ui-menu: the user must see the game's menu, not a text list).
 #[allow(clippy::too_many_arguments)]
 pub fn bind_pause_menu(
     config: Res<OrigUiConfig>,
@@ -113,6 +156,7 @@ pub fn bind_pause_menu(
     settings: Option<Res<UserSettings>>,
     progress: Option<Res<PlayerProgress>>,
     play: Option<Res<PlayTime>>,
+    mut opened: Local<bool>,
     mut screens: Query<&mut OrigScreen>,
 ) {
     if !config.enabled() {
@@ -122,6 +166,13 @@ pub fn bind_pause_menu(
         return;
     };
     let open = paused.as_ref().is_some_and(|p| p.0) && !suppressed.as_ref().is_some_and(|p| p.0);
+    if open && !*opened {
+        // The game's own opening: one shot each, held on their last frame.
+        s.play(0, "f_in", PlayMode::Hold, "open_f");
+        s.play(0, "menu_in", PlayMode::Hold, "open_menu");
+        s.play(0, "title_in", PlayMode::Hold, "open_title");
+    }
+    *opened = open;
     s.shown = open;
     let (Some(menu), Some(settings)) = (menu, settings) else {
         return;
@@ -132,17 +183,19 @@ pub fn bind_pause_menu(
     let sel = menu.selected.min(OPTIONS.len() - 1);
     s.set_text("T_title_00", option_label(OPTIONS[sel], &settings));
     let page = sel / TABS;
-    for k in 0..TABS {
+    let first = page * TABS;
+    let count = (OPTIONS.len() - first).min(TABS);
+    // The strip contracts to the icons of the page (the game's own switch_menu animation).
+    s.freeze(0, "switch_menu", strip_frame(count), "strip");
+    for k in 0..count {
         let part = format!("L_menu_0{k}");
         let Some(inst) = s.scene.part_instance(&part) else {
             continue;
         };
-        let idx = page * TABS + k;
+        let idx = first + k;
         let Some(&opt) = OPTIONS.get(idx) else {
-            s.set_visible(&part, false);
             continue;
         };
-        s.set_visible(&part, true);
         let icon = option_icon(opt);
         let main = archive_image(&s, &format!("sm_menu_icon_{icon}_00^t"));
         let shadow = archive_image(&s, &format!("sm_menu_icon_{icon}_ds_00^s"));
@@ -161,89 +214,35 @@ pub fn bind_pause_menu(
         let tag = if idx == sel { "select" } else { "unselect" };
         s.freeze_end(inst, tag, "sel");
     }
-    // The whole option list and the summary line: the port's own text on the dimmed panel.
+    // The port's own footer under the strip: money / play time and the keys of this menu (the
+    // game's own texts are never read; the game shows no such line here). Bottom-right, so the
+    // port's field-message toast (bottom-left) never covers the key hint.
     let money = progress.as_ref().map_or(0, |p| p.money);
     let seconds = play.as_ref().map_or(0, |p| p.seconds);
-    let labels: Vec<String> = OPTIONS.iter().map(|&o| option_label(o, &settings)).collect();
-    let texts = pause_list_texts(&labels, sel, &menu_info_text(money, seconds));
-    // A dark panel behind the list keeps it readable over bright scenery (the game blurs a
-    // capture of the scene instead; port approximation).
-    let bottom = texts
-        .iter()
-        .map(|t| t.center.y + t.size.y / 2.0)
-        .fold(PAUSE_LIST_TOP, f32::max);
-    let (top, h) = (PAUSE_LIST_TOP - 16.0, bottom - PAUSE_LIST_TOP + 32.0);
-    s.set_free_quads(vec![super::free_rect(
-        Vec2::new(40.0 + 430.0, top + h / 2.0),
-        Vec2::new(860.0, h),
-        [0.03, 0.04, 0.06, 0.62],
-    )]);
-    s.set_free_texts(texts);
-}
-
-/// Top of the option list (layout pixels, below the game's title bar and tab strip).
-pub const PAUSE_LIST_TOP: f32 = 118.0;
-/// Lowest layout pixel the pause texts may reach (a margin above the 1080 px bottom edge).
-pub const PAUSE_LIST_BOTTOM: f32 = 1036.0;
-/// Height of the two footer lines (money / play time and the key hint) below the rows.
-const PAUSE_FOOTER: f32 = 104.0;
-
-/// Row pitch of the pause list: the authored 52 px when it fits, tighter for long lists so the
-/// rows and the footer always end above [`PAUSE_LIST_BOTTOM`] (the layout is stretched to the
-/// viewport, so this holds at every 16:9 resolution).
-pub fn pause_row_pitch(rows: usize) -> f32 {
-    let room = PAUSE_LIST_BOTTOM - PAUSE_FOOTER - PAUSE_LIST_TOP;
-    (room / rows.max(1) as f32).min(52.0)
-}
-
-/// Free texts of the pause list: one row per label (`sel` highlighted) and the footer lines.
-pub fn pause_list_texts(labels: &[String], sel: usize, info: &str) -> Vec<super::scene::TextSlot> {
-    let cream = [0.98, 0.96, 0.85, 1.0];
-    let gold = [1.0, 0.82, 0.35, 1.0];
-    let dim = [0.75, 0.75, 0.72, 1.0];
-    let pitch = pause_row_pitch(labels.len());
-    // The glyphs shrink with the pitch so neighbouring rows never touch.
-    let font = (pitch * 0.62).min(32.0);
-    let mut texts = Vec::with_capacity(labels.len() + 2);
-    for (i, label) in labels.iter().enumerate() {
-        let (color, mark) = if i == sel {
-            (gold, "> ")
-        } else {
-            (cream, "   ")
-        };
-        texts.push(free_text(
-            90.0,
-            PAUSE_LIST_TOP + i as f32 * pitch,
-            760.0,
-            pitch - 2.0,
-            font,
-            color,
-            TextAlign::Left,
-            format!("{mark}{label}"),
-        ));
-    }
-    let footer = PAUSE_LIST_TOP + labels.len() as f32 * pitch + 12.0;
-    texts.push(free_text(
-        90.0,
-        footer,
-        900.0,
-        44.0,
-        26.0,
-        dim,
-        TextAlign::Left,
-        info,
-    ));
-    texts.push(free_text(
-        90.0,
-        footer + 46.0,
-        900.0,
-        40.0,
-        24.0,
-        dim,
-        TextAlign::Left,
-        "Arrows / W S + Enter, Esc to resume",
-    ));
-    texts
+    let dim = [0.82, 0.82, 0.78, 1.0];
+    s.set_free_quads(Vec::new());
+    s.set_free_texts(vec![
+        free_text(
+            940.0,
+            944.0,
+            920.0,
+            40.0,
+            24.0,
+            dim,
+            TextAlign::Right,
+            menu_info_text(money, seconds),
+        ),
+        free_text(
+            940.0,
+            988.0,
+            920.0,
+            40.0,
+            24.0,
+            dim,
+            TextAlign::Right,
+            "Left / Right: choose   Enter: open   Esc: resume",
+        ),
+    ]);
 }
 
 // ------------------------------------------------------------------------------------- party
@@ -511,9 +510,11 @@ pub fn options_scroll(selected: usize, scroll: usize, total: usize) -> usize {
 #[allow(clippy::too_many_arguments)]
 pub fn bind_options_screen(
     config: Res<OrigUiConfig>,
-    state: Option<Res<GraphicsScreenState>>,
+    state: Option<ResMut<GraphicsScreenState>>,
     settings: Option<Res<GraphicsSettings>>,
     runtime: Option<Res<GraphicsRuntime>>,
+    user: Option<Res<UserSettings>>,
+    mut bars: ResMut<super::scrollbar::ScrollBars>,
     mut window: Local<(usize, usize)>,
     mut screens: Query<&mut OrigScreen>,
 ) {
@@ -525,23 +526,29 @@ pub fn bind_options_screen(
     };
     let open = state.as_ref().is_some_and(|st| st.open);
     s.shown = open;
-    let (Some(state), Some(settings), Some(runtime)) = (state, settings, runtime) else {
+    let (Some(mut state), Some(settings), Some(runtime)) = (state, settings, runtime) else {
         return;
     };
     if !open {
         return;
     }
+    let fallback = UserSettings::default();
+    let user = user.as_deref().unwrap_or(&fallback);
     let pages = graphics_screen::visible_pages();
     let page_index = state.page.min(pages.len() - 1);
     let page = pages[page_index];
     let rows = graphics_screen::rows_of(page);
-    // A page change starts at its top; moving the cursor keeps the window until the selection
-    // leaves the eight slots.
+    // The window is `state.scroll` (the wheel / bar write it; the provisional screen shows it):
+    // a page change starts at its top, the cursor keeps the window until the selection leaves
+    // the nine slots.
     if window.0 != page_index {
         *window = (page_index, 0);
+        state.scroll = 0;
     }
-    window.1 = options_scroll(state.selected, window.1, rows.len());
-    let scroll = window.1;
+    let scroll = options_scroll(state.selected, state.scroll, rows.len());
+    if state.scroll != scroll {
+        state.scroll = scroll;
+    }
     for slot in 0..OPTION_ROW_PARTS {
         let part = format!("L_settings_list_{slot:02}");
         let Some(row) = rows.get(scroll + slot).copied().filter(|_| slot < OPTION_FULL_ROWS) else {
@@ -558,6 +565,7 @@ pub fn bind_options_screen(
             &settings,
             &runtime.startup,
             &runtime.overridden,
+            user,
         );
         s.set_in(&part, "T_heading_00", |o| o.text = Some(name));
         let Some(inst) = s.scene.part_instance(&part) else { continue };
@@ -604,6 +612,10 @@ pub fn bind_options_screen(
             }
         }
     }
+    // The game's own scrollbar follows the window (wheel / drag / track click are driven by
+    // `orig_ui::scrollbar`); it hides itself while the whole page fits.
+    let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", OPTION_FULL_ROWS, rows.len(), scroll);
+    bars.publish(ScreenId::Options, bar);
     // Footer: the selected option's help and the keys, in the port's own words (the game's own
     // key guide is a separate layout and is not drawn).
     let about = match rows.get(state.selected).copied() {
@@ -611,6 +623,7 @@ pub fn bind_options_screen(
         Some(graphics_screen::Row::Preset) => {
             "Presets set every quality option at once; the look, time, weather, v-sync and FPS cap stay yours."
         }
+        Some(row) => graphics_screen::row_help(row),
         _ => "",
     };
     let more_up = if scroll > 0 { "▲ more above   " } else { "" };
@@ -620,7 +633,7 @@ pub fn bind_options_screen(
         ""
     };
     let info = format!(
-        "Page {}/{}   {more_up}{more_down}Up/Down select, Left/Right change, Tab page, Esc back",
+        "Page {}/{}   {more_up}{more_down}Up/Down select, Left/Right change, Tab page, wheel / drag the bar scrolls, Esc back",
         page_index + 1,
         pages.len()
     );
@@ -714,7 +727,7 @@ pub fn slot_centres(s: &OrigScreen, prefix: &str, n: usize) -> Option<Vec<Vec2>>
 /// (layout pixels, the grid's own placement is run-time data), show `content` (icon, label) or
 /// an empty slot, and the game's select / unselect state.
 #[allow(clippy::too_many_arguments)]
-fn fill_cell(
+pub(super) fn fill_cell(
     s: &mut OrigScreen,
     grid: usize,
     k: usize,
@@ -791,6 +804,7 @@ pub fn bind_bag_screen(
     shops: Option<Res<ShopCatalog>>,
     progress: Option<Res<PlayerProgress>>,
     icons: Res<IconIndex>,
+    mut bars: ResMut<super::scrollbar::ScrollBars>,
     mut screens: Query<&mut OrigScreen>,
 ) {
     if !config.enabled() {
@@ -879,10 +893,14 @@ pub fn bind_bag_screen(
         s.set_in("L_money_00", n, |o| o.text = None);
     }
     let msg = if ui.message.is_empty() {
-        "Left / Right: pocket   Up / Down: item   Enter: use   Esc: close".to_string()
+        "Left / Right: pocket   Up / Down: item   Wheel: page   Enter: use   Esc: close".to_string()
     } else {
         ui.message.clone()
     };
+    // The game's own scrollbar shows the page inside the pocket's items (one page = one window;
+    // the mouse wheel / drag / track click drive it through `orig_ui::scrollbar`).
+    let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", BAG_PAGE, n, page);
+    bars.publish(ScreenId::Bag, bar);
     s.set_free_texts(vec![free_text(
         60.0,
         1020.0,
@@ -916,6 +934,7 @@ pub fn bind_box_screen(
     progress: Option<Res<PlayerProgress>>,
     assets: Option<Res<BattleAssets>>,
     icons: Res<IconIndex>,
+    mut bars: ResMut<super::scrollbar::ScrollBars>,
     mut screens: Query<&mut OrigScreen>,
 ) {
     if !config.enabled() {
@@ -1046,9 +1065,18 @@ pub fn bind_box_screen(
             26.0,
             [0.92, 0.9, 0.82, 1.0],
             TextAlign::Left,
-            "Arrows: move   Tab: party / box   Enter: pick / place   D: store   W: withdraw   X X: release   PgUp / PgDn: box   Esc: close",
+            "Arrows: move   Tab: party / box   Wheel: box   Enter: pick / place   D: store   W: withdraw   X X: release   PgUp / PgDn: box   Esc: close",
         ),
     ];
+    // The game's own scrollbar shows the box page (one box = one window of the bar).
+    let bar = super::scrollbar::set_bar(
+        &mut s,
+        "L_scrollbar_00",
+        1,
+        crate::game::box_screen::page_count().max(1),
+        st.page,
+    );
+    bars.publish(ScreenId::Box, bar);
     s.set_free_texts(lines);
 }
 
@@ -1076,9 +1104,11 @@ pub fn bind_dex_screen(
     ui: Option<Res<DexUi>>,
     catalog: Option<Res<DexCatalog>>,
     progress: Option<Res<PlayerProgress>>,
+    debug: Option<Res<crate::game::debug_visual::DebugViewState>>,
     assets: Option<Res<BattleAssets>>,
     icons: Res<IconIndex>,
     mut names: Local<crate::game::orig_ui::field::NameCache>,
+    mut bars: ResMut<super::scrollbar::ScrollBars>,
     mut screens: Query<&mut OrigScreen>,
 ) {
     if !config.enabled() {
@@ -1094,7 +1124,24 @@ pub fn bind_dex_screen(
     };
     let assets = assets.as_deref();
     let national = ui.mode == DexMode::National;
+    // F6 (`game::debug_visual`): every entry reads as caught for the display; the save keeps the
+    // player's real seen/caught sets (the flag does not write anything).
+    let all = debug
+        .as_ref()
+        .is_some_and(|state| state.pokedex_all_active());
+    let state_of = |id: u16| {
+        if all {
+            DexVisibility::Caught
+        } else {
+            visibility(id, &progress.seen, &progress.caught)
+        }
+    };
     let entries = active_entries(&catalog, ui.mode);
+    let (seen_total, caught_total) = if all {
+        (entries.len(), entries.len())
+    } else {
+        (progress.seen.len(), progress.caught.len())
+    };
     let sel = ui.selected.min(entries.len().saturating_sub(1));
     let start = sel
         .saturating_sub(DEX_PLATES / 2)
@@ -1109,7 +1156,7 @@ pub fn bind_dex_screen(
             continue;
         };
         s.set_visible(&part, true);
-        let state = visibility(e.id, &progress.seen, &progress.caught);
+        let state = state_of(e.id);
         // National mode is a data listing: names are always shown and no game art is used (the
         // undiscovered placeholder stands in for every icon).
         let name = if national {
@@ -1153,7 +1200,7 @@ pub fn bind_dex_screen(
     }
     // Notebook page of the selected species (main layout instance 0).
     if let Some(e) = entries.get(sel) {
-        let state = visibility(e.id, &progress.seen, &progress.caught);
+        let state = state_of(e.id);
         let name = if national {
             entry_display_name(e).to_string()
         } else {
@@ -1163,13 +1210,18 @@ pub fn bind_dex_screen(
             }
         };
         let status = if national {
-            "National listing (external data, no research yet; Y: Hisui list)"
+            "National listing (external data, no research yet; Y: Hisui list)".to_string()
         } else {
             match state {
-                DexVisibility::Caught => "Caught  (Y: national list)",
-                DexVisibility::SeenSilhouette => "Seen, not caught yet  (Y: national list)",
-                DexVisibility::Hidden => "Not seen yet  (Y: national list)",
+                DexVisibility::Caught => "Caught  (Y: national list)".to_string(),
+                DexVisibility::SeenSilhouette => "Seen, not caught yet  (Y: national list)".to_string(),
+                DexVisibility::Hidden => "Not seen yet  (Y: national list)".to_string(),
             }
+        };
+        let status = if all {
+            format!("{status}  [F6 debug: todas]")
+        } else {
+            status
         };
         let set0 = |s: &mut OrigScreen, pane: &str, text: Option<String>| {
             if let Some(n) = s.node_in_instance(0, pane) {
@@ -1182,9 +1234,7 @@ pub fn bind_dex_screen(
             &mut s,
             "T_description_00",
             Some(format!(
-                "{status}.  Seen {}, caught {} of {} species.",
-                progress.seen.len(),
-                progress.caught.len(),
+                "{status}.  Seen {seen_total}, caught {caught_total} of {} species.",
                 entries.len()
             )),
         );
@@ -1278,8 +1328,9 @@ pub fn bind_dex_screen(
         }
     }
     // Counters at the top: seen, caught and completed entries (the port has no research
-    // levels, so "completed" is 0) drawn with the game's own digit textures.
-    let counts = [progress.seen.len(), progress.caught.len(), 0];
+    // levels, so "completed" is 0) drawn with the game's own digit textures. Under F6 the two
+    // counters read the whole list (the display only; the save keeps the real sets).
+    let counts = [seen_total, caught_total, 0];
     for (part, value) in ["L_p_ur_00", "L_p_ur_01", "L_p_cmp_00"].iter().zip(counts) {
         let Some(inst) = s.scene.part_instance(part) else {
             continue;
@@ -1302,6 +1353,12 @@ pub fn bind_dex_screen(
             }
         }
     }
+    // The game's own scrollbar follows the seven-plate window (the game scrolls runs of list
+    // plates; the port keeps the selection centred).
+    let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", DEX_PLATES, entries.len(), start);
+    bars.publish(ScreenId::Dex, bar);
+    // The national listing draws the species model in the photo frame: its keys are spelled
+    // out here (rule: every action the port adds must show its key on screen).
     s.set_free_texts(vec![free_text(
         60.0,
         1020.0,
@@ -1310,7 +1367,11 @@ pub fn bind_dex_screen(
         26.0,
         [0.92, 0.9, 0.82, 1.0],
         TextAlign::Left,
-        "Up / Down: select   Esc: close",
+        if national {
+            "Up / Down: select   Wheel / drag the bar: list   Q / E: turn model   drag: turn   R: reset   Esc: close"
+        } else {
+            "Up / Down: select   Wheel / drag the bar: list   Esc: close"
+        },
     )]);
 }
 

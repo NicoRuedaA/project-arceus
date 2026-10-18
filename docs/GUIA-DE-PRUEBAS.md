@@ -120,7 +120,8 @@ Las pones después de `./play.sh`, separadas por espacios. Ejemplo:
 | `--debug-zone-links` | Activa ayudas para probar cambios de zona (P y T, ver 2.7). |
 | `--obj-rot neg\|flip` | Solo si los edificios salen girados de lado: prueba otra interpretación del giro. |
 | `--player-variant p1\|p2` | Elige el modelo del protagonista (p1 por defecto). |
-| `--debug-view LISTA` | **Nuevo.** Enciende ya (sin pulsar teclas) una o varias vistas de depuración, para capturas automáticas: `collisions` (= encima), `collisions=only`, `models` (= sin textura), `wireframe` (= alambre), `data` (= jugador), `markers` (= marcas) y `off`. Se pueden combinar con comas: `--debug-view collisions=only,wireframe`. Ver 2.18. |
+| `--debug-view LISTA` | **Nuevo.** Enciende ya (sin pulsar teclas) una o varias vistas de depuración, para capturas automáticas: `collisions` (= encima), `collisions=only`, `models` (= sin textura), `wireframe` (= alambre), `data` (= jugador), `markers` (= marcas), `pokedex` (= todas las especies como vistas y capturadas) y `off`. Se pueden combinar con comas: `--debug-view collisions=only,wireframe`. Ver 2.18. |
+| `--debug-pokedex` | **Nuevo.** Arranca con la Pokédex "entera" ya activada (lo mismo que pulsar F6): todas las listas de la Pokédex muestran las 1.025 especies como vistas y capturadas, solo de vista (tu partida no cambia). Ver 2.20. |
 | `--cell-size`, `--vertical-scale` | Cambian la escala del terreno. No hace falta tocarlas. |
 | `--spawn-species N[:forma]` | **Nuevo.** Pone delante de ti el modelo de la especie nacional N (forma opcional, por ejemplo `--spawn-species 911` o `6:1`). Si el juego tiene su propio modelo (las 242 especies de Leyendas: Arceus) usa ese; si no, usa el modelo convertido de tu carpeta. Sale un cartel arriba con lo que se ha puesto. Ver 2.19. |
 | `--spawn-clip idle\|attack\|special\|hit\|faint\|appear\|walk` | **Nuevo.** Con `--spawn-species`: pide ese clip al modelo colocado (por defecto, su idle). `--spawn-cycle S` lo repite cada S segundos para poder hacer una captura. Ver 2.19. |
@@ -158,11 +159,13 @@ valor por defecto.
 | I | Mochila |
 | M | Mapa a pantalla completa |
 | Esc | Menú de pausa (desde ahí también: Equipo, Cajas, Pokédex, Artesanía, Tienda y **Cargar partida**; ver 2.8 y 2.15) |
-| Y (en la Pokédex) | Cambia entre la lista de Hisui (242 especies, con investigación) y la **lista nacional** (1.025 especies, solo nombres; sin modelos, iconos ni investigación todavía) |
+| Y (en la Pokédex) | Cambia entre la lista de Hisui (242 especies, con investigación) y la **lista nacional** (1.025 especies, solo nombres; sin iconos ni investigación todavía). Con la lista nacional abierta, el modelo del centro se gira con **Q/E** (mantenidas), **arrastrando con el ratón dentro del hueco** o se reinicia con **R** (ver 2.19) |
 | F5 | Guardar |
 | F1 | **Depuración visual: colisiones.** Cada pulsación: apagado → dibujar colisiones encima del mundo → solo colisiones (se ocultan modelos y terreno) → apagado. Ver 2.18 |
 | F2 | **Depuración visual: modelos.** Cada pulsación: normal → sin texturas (gris liso) → alambre → normal. Ver 2.18 |
 | F3 | **Depuración visual: datos.** Cada pulsación: apagado → información del jugador → información + marcas de colores (puertas, trepables, agua, apariciones, objetos, PNJ, salvajes) → apagado. Ver 2.18 |
+| F6 | **Depuración: Pokédex entera.** Enciende y apaga. Activada, todas las listas de la Pokédex (Hisui y nacional) muestran las 1.025 especies como vistas y capturadas: nombre, tipos, estadísticas y modelo, sin silueta ni "???". **Solo cambia lo que se ve**: tu guardado, tus puntos de investigación y tu rango no se tocan. Sale el aviso arriba con el estado. Ver 2.20 |
+| F7 | **Depuración: colocar Pokémon.** Abre un buscador con las 1.025 especies nacionales. Escribe para filtrar (no distingue mayúsculas ni tildes; también vale el número), flechas arriba/abajo mueven, izquierda/derecha cambia la forma, **Enter** coloca el modelo a tu lado, **Supr** lo quita y **Esc** cierra. Mientras está abierto, el teclado no mueve al jugador. Ver 2.20 |
 | 1 a 5 | Cambia el color del Pokémon de pruebas (es una ayuda de desarrollo, no una función del juego) |
 | P (con `--debug-zone-links`) | Escribe en la terminal las puertas cercanas |
 | T (con `--debug-zone-links`) | Viaje rápido a la siguiente zona principal |
@@ -383,27 +386,35 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     mochila abierta (debe quedarse congelado).
 42. **Tiendas.** [EN MAIN] Arranca con `--debug-shop`: junto al punto de inicio pulsa **E** a menos
     de 3 m. **Nuevo:** también Esc > «Shop (test shop)» abre la misma
-    tienda sin la opción. Se abre la tienda 0 (la general) con pestañas Comprar/Vender, precios y tu dinero.
-    Comprar resta dinero y suma objetos; vender hace lo contrario. No hay tiendas reales colocadas
-    en el mapa todavía. El precio de venta es SUPUESTO.
+    tienda sin la opción. La tienda usa ya el aspecto del juego original: rejilla de objetos
+    (7 x 3 por página) con iconos, la etiqueta del objeto y cuántos tienes («xN»), título
+    Buy/Sell, tu dinero arriba a la derecha y ficha del objeto abajo con precio, venta y el
+    total de la operación. Teclas: **W/S** elegir, **A/D** cambiar Comprar/Vender,
+    **[** y **]** cantidad, **Enter** comprar/vender, **I/Esc** cerrar. Comprar resta dinero y
+    suma objetos; vender hace lo contrario. Ya no se ven ids hexadecimales en pantalla (eso
+    queda solo en la vista de depuración). No hay tiendas reales colocadas en el mapa todavía.
+    El precio de venta es SUPUESTO. Fallo: la rejilla no cambia al moverte, no se cierra con
+    Esc, o el mundo sigue moviéndose detrás.
 43. **Dinero y tiempo de juego.** [EN MAIN] Se ve en la partida y se guarda. Descansar (Esc > Rest)
     cura al equipo y avanza el reloj a la siguiente franja.
-44. **Artesanía.** [EN MAIN] Esc > «Crafting». Ves una lista
-    de 43 recetas («Unknown recipe -> item NNNN x1»). Flechas arriba/abajo, Enter intenta fabricar,
-    Esc cierra. **Lo esperado** es que diga «Condition unknown; crafting refused.» en todas: el
-    juego no guarda en esa tabla cuándo se desbloquea cada receta, así que por ahora ninguna se
-    puede fabricar. Fallo: la lista se sale de la pantalla (avísame del tamaño de tu ventana), no
-    se cierra con Esc, o el mundo sigue moviéndose detrás.
+44. **Artesanía.** [EN MAIN] Esc > «Crafting». La pantalla usa ya el aspecto del juego original:
+    rejilla de recetas con el icono del objeto (5 x 4 por página; al bajar de la página 1 se pasa
+    solo), panel «Required materials» con la cantidad que pide cada material y la que tienes
+    (en rojo si te falta), ficha de la receta abajo y franja de mensajes. Flechas arriba/abajo,
+    Enter intenta fabricar, Esc cierra. Como cada receta se desbloquea con su objeto de receta,
+    lo normal al empezar es leer «You don't own this recipe.»; si tienes el objeto pero te falta
+    material, «Missing materials.». Fallo: la rejilla no cambia al moverte, no se cierra con Esc,
+    o el mundo sigue moviéndose detrás.
 
 ### 2.8 Menús y pantallas
 
-45. **Menú de pausa (Esc).** [EN MAIN] Opciones: Resume, Bag, invertir cámara X, invertir cámara Y,
-    Volume, Back to safe spawn, Save, **Load game**, Rest, Quit. Hay 5 filas
-    nuevas tras Bag: Party, Pokémon boxes, Pokédex, Crafting y Shop (test shop); el menú tiene 16
-    filas (Load game es nueva del 2026-10-14, ver 2.15; **Graphics...** es nueva, ver 73). Navegas con flechas o W/S + Enter, o con el
-    ratón. Congela el mundo. Volume cambia el volumen al instante y se recuerda al reiniciar.
-    «Back to safe spawn» te lleva a un punto seguro. Fallo: no se cierra con Esc, algo se
-    sigue moviendo, Quit no cierra.
+45. **Menú de pausa (Esc).** Opciones (2026-10-17: se ve la tira de iconos original, sin lista
+    de texto, ver el punto 79): Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Crafting,
+    Shop (test shop), Volume, Graphics..., Customize, Back to safe spawn, Save game, Load game,
+    Rest y Quit. Las inversiones de cámara se movieron a la pantalla Graphics (punto 80). Navegas
+    con las flechas (o A/D y W/S) + Enter, o con el ratón. Congela el mundo. Volume cambia el
+    volumen al instante y se recuerda al reiniciar. «Back to safe spawn» te lleva a un punto
+    seguro. Fallo: no se cierra con Esc, algo se sigue moviendo, Quit no cierra.
 46. **Menú principal.** [EN MAIN] `./play.sh --area 1 --menu`. Ves: Continue (gris si no hay partida
     guardada), New game, Options, Exit. Options: volumen, campo de visión, sombras y calidad.
     Fallo: Continue activo sin partida, no se guardan las opciones.
@@ -451,7 +462,9 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
     - *Display*: **Anti-aliasing** auto/off/FXAA/SMAA/TAA/MSAA 2x/MSAA 4x (MSAA solo funciona con
       SSAO apagado; la fila lo dice), **Render scale** 50-200 % (más de 100 = se dibuja más grande
       y se reduce: más nítido y más caro; menos de 100 = más rápido y más borroso), **V-sync**
-      on/off y **FPS cap** unlimited/30/60/120/144/240. El tamaño de la ventana lo decide el
+      on/off, **FPS cap** unlimited/30/60/120/144/240 y **Invert camera X axis / Y axis** on/off
+      (inversión de cámara; se guarda en `settings.txt` y se aplica al instante — ver el punto 82).
+      El tamaño de la ventana lo decide el
       sistema (puedes maximizarla); Render scale multiplica ese tamaño.
     - *Distances* (antes oculta): alcance de la hierba y de las demás plantas, de los objetos
       (100 % = 200 m), de las colisiones, de los objetos recogibles (120 m), de las personas
@@ -637,16 +650,22 @@ paridad visual nativa ni binary matching.
 74. **Explorando.** Arriba a la izquierda, el Pokémon salvaje más cercano (icono y nombre; si no
     hay ninguno, el nombre de la zona). A la derecha, la Poké Ball elegida y cuántas tienes.
     Abajo a la izquierda, las guías de botones del juego junto al minimapa del port.
-75. **Esc, equipo, resumen, mochila, cajas, Pokédex y mapa (M).** Cada pantalla sale con los
-     gráficos del juego: menú de pausa con 16 filas dentro de la franja inferior y la barra de
-     iconos arriba; equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila con
-     las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5; Pokédex con la página de
-     cuaderno; el mapa de Hisui con el área actual resaltada detrás del mapa de zona. En combate,
-     la placa del rival flota sobre el Pokémon cargado y se mantiene dentro de la pantalla. La
-     tienda sigue con la interfaz provisional y algunos detalles de las pantallas siguen
-     PROBABLES o DESCONOCIDOS. Fallo: se ve a la vez la provisional y la original, un icono de
-     otro Pokémon u objeto, la selección marcada no coincide con la que mueves, una fila se sale
-     por abajo en 720p/1080p/1440p o las letras acentuadas muestran un cuadro.
+75. **Esc, equipo, resumen, mochila, cajas, Pokédex, artesanía, tienda, Personalizar y mapa (M).**
+     Cada pantalla sale con los gráficos del juego: menú de pausa con la tira de iconos del juego
+     (4 por página, el nombre de la opción en el título, sin lista de texto desde el 2026-10-17 —
+     ver el punto 81); equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila
+     con las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5; Pokédex con la página
+     de cuaderno; artesanía con la rejilla de recetas y el panel de materiales; la tienda con su
+     rejilla de objetos, título Buy/Sell, tu dinero y la ficha del objeto (sin ids hexadecimales:
+     eso queda solo en `--ui debug`); **Personalizar** (Esc > Customize) con las pestañas de
+     categoría arriba, cinco filas con el nombre y el valor actual, el panel de lo puesto abajo y
+     los cambios aplicados al modelo al momento (el look se sigue guardando en la partida, v10);
+     el mapa de Hisui con el área actual resaltada detrás del mapa de zona. En combate, la placa
+     del rival flota sobre el Pokémon cargado y se mantiene dentro de la pantalla. Algunos
+     detalles de las pantallas siguen PROBABLES o DESCONOCIDOS. Fallo: se ve a la vez la
+     provisional y la original, un icono de otro Pokémon u objeto, la selección marcada no
+     coincide con la que mueves, una fila se sale por abajo en 720p/1080p/1440p o las letras
+     acentuadas muestran un cuadro.
 
 ### 2.17 Monturas  [EN MAIN]
 
@@ -675,23 +694,25 @@ agua (la zona 2 vale): cruza el agua a su velocidad (medido: 45 m de marisma a 8
 Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento del jinete,
 `/home/nico/work/capturas_jinete/impl2/` (lado y tres cuartos de cada montura + Braviary en vuelo).
 
-### 2.18 Depuración visual (F1 / F2 / F3)  [EN MAIN]
+### 2.18 Depuración visual (F1 / F2 / F3 / F6)  [EN MAIN]
 
-77. **Qué es.** Tres ayudas de desarrollo para *mirar* cómo está montado el port: enseñar las
-    colisiones, enseñar los modelos sin texturas y enseñar datos de zonas de interés. **Están
+77. **Qué es.** Cuatro ayudas de desarrollo para *mirar* cómo está montado el port: enseñar las
+    colisiones, enseñar los modelos sin texturas, enseñar datos de zonas de interés y enseñar la
+    Pokédex "entera" (todas las especies como vistas y capturadas, solo de vista). **Están
     apagadas por defecto** y, apagadas, no tocan nada del juego normal (no gastan rendimiento).
     Mientras alguna esté encendida, arriba a la izquierda (justo debajo del cartel con el nombre de
-    la zona) sale siempre un aviso con las tres teclas, el modo actual de cada una y la lista de
+    la zona) sale siempre un aviso con las teclas, el modo actual de cada una y la lista de
     colores. **F5 (guardar) no cambia.**
 
     Cada tecla **cicla**: cada pulsación pasa al siguiente estado y, al final, vuelve al principio.
-    Las tres teclas son independientes (puedes tener F1 en «solo colisiones» y F3 en «datos» a la vez).
+    Las teclas son independientes (puedes tener F1 en «solo colisiones» y F3 en «datos» a la vez).
 
     | Tecla | Estados (en orden, vuelve al primero) |
     |---|---|
     | **F1 colisiones** | APAGADO → **ENCIMA** (líneas de colisión y la rejilla del terreno por encima del mundo) → **SOLO** (se esconden los modelos y el terreno: solo se ven colisiones y la rejilla del terreno) |
     | **F2 modelos** | NORMAL → **SIN TEXTURA** (material gris liso, para ver la forma) → **ALAMBRE** (líneas de los triángulos) |
     | **F3 datos** | APAGADO → **JUGADOR** (posición, velocidad, estado, zona, subárea, hora de juego, FPS) → **JUGADOR+MARCAS** (además, marcas de colores) |
+    | **F6 pokedex** | REAL → **TODAS** (todas las listas de la Pokédex como vistas y capturadas; ver 2.20) |
 
     Colores de las marcas de F3 (salen en el aviso de pantalla): **amarillo** puertas (caja del
     disparador y círculo de alcance), **naranja** riscos trepables, **azul** agua, **lima** puntos
@@ -732,10 +753,11 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       y el muro de roca que frena y ofrece TREPAR): `/home/nico/work/capturas_terreno_colision/`.
 
     Para capturas automáticas (sin ventana) se puede arrancar ya con un modo encendido:
-    `.tools/gamectl.py start -- --area 0 --debug-view collisions=only` (y `markers`, `wireframe`...),
-    o pulsar las teclas de verdad con `.tools/gamectl.py key F1`.
+    `.tools/gamectl.py start -- --area 0 --debug-view collisions=only` (y `markers`, `wireframe`,
+    `pokedex`...), con `--debug-pokedex` para la Pokédex entera, o pulsar las teclas de verdad con
+    `.tools/gamectl.py key F1` / `key F6` / `key F7`.
 
-### 2.19 Modelos de la Pokédex nacional (`--spawn-species`)  [EN RAMA feat/nacional-modelos]
+### 2.19 Modelos de la Pokédex nacional (`--spawn-species`)  [EN MAIN]
 
 78. **Qué es.** Colocar en el mundo, delante de ti, el modelo 3D de cualquier especie nacional
     (1.025) usando tu carpeta de modelos convertida. Arranca con
@@ -750,8 +772,121 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     - **Si el modelo no aparece:** el aviso dirá «nacional: sin modelo para #N:forma»; esa
       especie aún no está emparejada en `data/national/model_map.tsv` (ver el informe
       `reports/data-progress/national_models.md`).
-    - **Ojo:** los modelos convertidos pesan 8-16 MB cada uno y viven en `work/cache/`
+    - **Ojo:** los modelos convertidos pesan 2-4 MB cada uno y viven en `work/cache/`
       (no van al repositorio). Si borras la caché, la bandera avisa y no coloca nada.
+    - **Pokédex (Y):** abre la Pokédex con el menú de pausa, pulsa `Y` para pasar a la lista
+      nacional y el modelo real de la especie seleccionada sale dibujado en el hueco de la foto
+      del panel central (si esa especie aún no tiene modelo, el hueco queda vacío y el texto lo
+      dice). El modelo se ve de frente, entero y con un margen alrededor (da igual que sea
+      diminuto como Joltik #595 o enorme como Wailord #321), y **se puede girar**:
+      `Q`/`E` (mantenidas) lo giran a izquierda/derecha, arrastrar con el botón izquierdo del
+      ratón **dentro del hueco** lo gira libremente (y lo inclina un poco hacia arriba/abajo),
+      `R` vuelve al ángulo inicial, y al cambiar de especie el ángulo se reinicia solo. Abajo,
+      en el pie de la página, salen las teclas. El aviso de la ruta del modelo sobre la página
+      solo aparece con `PLA_DEBUG_DEX_PREVIEW=1` (es información de desarrollo).
+    - **Combate:** las especies sin modelo en el juego ya pelean con su modelo convertido
+      (por ejemplo, un combate salvaje contra Skeledirge).
+    - **Cobertura actual:** 727 de las 1.025 especies tienen modelo; la lista de las que no y el
+      motivo están en `reports/data-progress/national_models.md`.
+
+### 2.20 Depuración de la Pokédex (F6) y colocador de Pokémon (F7)  [EN MAIN]
+
+79. **Qué es.** Dos teclas de desarrollo nuevas. **F6** enciende y apaga la Pokédex "entera": con
+    ella activada, todas las listas de la Pokédex (la de Hisui y la nacional, tecla Y) muestran
+    las 1.025 especies **como si estuvieran vistas y capturadas** — nombre en vez de "??????",
+    icono en vez de silueta, tipos y estadísticas base en la ficha, y el contador de arriba
+    (vistas/capturadas) cuenta la lista entera. **Desactivada** (otra pulsación) todo vuelve a lo
+    que tienes de verdad.
+
+    - **Solo es de vista.** F6 es un interruptor en memoria: **no escribe tu partida** (save v10),
+      no te da puntos de investigación ni sube tu rango. Lo que sale en las líneas de
+      investigación (nivel y puntos por especie) sigue siendo tu progreso real. La fila
+      "F6 pokedex" del aviso de arriba indica REAL o TODAS, y al pulsar sale un mensaje abajo.
+    - **Cómo probarlo:** abre el menú de pausa (Esc) → Pokédex → ficha → pulsa F6. Ahora recorre
+      la lista con las flechas: todas las filas salen con nombre (ninguna "??????"). Prueba Y
+      (lista nacional, 1.025): también con nombre y con la ficha completa (tipos/estadísticas) de
+      la especie seleccionada, y su modelo en el hueco del panel. Otra pulsación de F6 y las
+      siluetas de lo no capturado vuelven.
+    - **Arranque directo:** `--debug-pokedex` (o `--debug-view pokedex`) empieza con F6 ya activo,
+      para capturas automáticas.
+    - **Es un fallo** que tras apagar F6 quede alguna especie "capturada" que no tienes, o que tus
+      contadores de verdaderas vistas/capturadas cambien en el guardado.
+
+80. **F7 — colocador de Pokémon.** Abre un panel con un buscador y la lista de las 1.025 especies
+    nacionales (nombre en español, o inglés si falta). Escribes y la lista se filtra al vuelo:
+    no distingue mayúsculas ni tildes ("flabebe" encuentra a Flabébé) y acepta el número nacional
+    ("6", "06" o "#6" encuentran a Charizard). **Enter** coloca **un** modelo de la especie
+    seleccionada al lado del jugador (a 2,5 m: en el lado libre de la vista, un paso más allá del
+    jugador y mirando hacia la cámara para que se vea de frente), **Supr** lo quita y **Esc**
+    cierra el panel (el modelo colocado se queda hasta que coloques otro o lo quites). Elegir
+    otra especie **sustituye** el anterior: nunca se acumulan.
+
+    - **Teclas del panel:** escribir filtra | **Backspace** borra | flechas ↑↓ mueven | **RePag /
+      AvPag** saltan una página | **Inicio / Fin** van al principio/final | **←/→** cambian la
+      **forma** (la línea "Forma" dice cuál y cuántas hay; solo salen las formas con modelo) |
+      **Enter** coloca | **Supr** quita | **Esc** cierra. Mientras el panel está abierto el
+      teclado **no** mueve al jugador ni dispara nada del juego (ni siquiera F5 guarda).
+    - **De dónde sale el modelo:** exactamente igual que `--spawn-species`: primero el modelo del
+      propio juego si existe, si no el convertido de tu carpeta (`work/cache/pokemon_national`).
+      Si esa especie no tiene modelo, el panel y el aviso de abajo dicen **«sin modelo para #N»**
+      y no coloca nada.
+    - **Cómo probarlo:** pulsa F7, escribe `char`, comprueba que la lista queda en Charmander,
+      Charmeleon y Charizard; baja con ↓ hasta Charizard, Enter, y mira a tu lado: el modelo
+      aparece a 2,5 m con sus colores y su idle. Escribe `flabebe` (o `669`) y Enter: sale «sin
+      modelo para #0669» y no se coloca nada. Supr quita el modelo. Esc cierra.
+    - **Formas:** con Charizard seleccionado, ←/→ pasa de la forma 0 (Charizard) a la 1 (Mega
+      Charizard X) y la 2 (Mega Charizard Y); Enter con la forma 1 coloca la Mega.
+    - **Es un fallo** que al escribir se mueva el jugador, que el panel no filtrar, que coloque
+      varios modelos a la vez o que el juego se congele con la lista de 1.025.
+
+    Para capturas automáticas: `.tools/gamectl.py key F7`, luego `key c`, `key h`, `key a`,
+    `key r`, `key down`, `key enter` (y `key esc` para cerrar). También puede usarse el buscador
+    desde `--automation` sin ventana: la lista y el aviso de estado salen en pantalla.
+
+### 2.21 Menú de pausa original, cámara y barras de scroll (rama `feat/ui-menu`)
+
+81. **Menú de pausa (Esc) con la piel del juego, sin lista de texto.** [EN RAMA `feat/ui-menu`]
+    Al pausar sale la **tira de iconos original** del juego con la animación de apertura del
+    propio juego (el panel se atenúa, la tira baja y el título aparece). Arriba a la izquierda,
+    **el nombre de la opción elegida**; en el centro, sus **4 iconos por página** (flechas
+    izquierda/derecha o A/D mueven la selección y la página, W/S también; **Enter** abre;
+    **Esc** vuelve al juego). Ya **no** hay lista de texto con las 16 filas: se ve el menú del
+    juego. Abajo quedan dos líneas propias del port: dinero y tiempo de juego, y las teclas.
+    Las opciones que el juego no tiene (Crafting, Shop de prueba, Graphics, Customize, Back to
+    safe spawn, Save/Load game, Rest) siguen **en la misma tira de iconos**, después de las del
+    juego, con el icono real que decodifica el port. Qué es del juego y qué es del port:
+    - Del juego (se eligen por su icono, PROBABLE): Resume, Bag, Party, Summary, Pokémon boxes,
+      Pokédex, Volume, Save, Load, Quit (el original dibuja también «report» para guardar y
+      «settings» para opciones). Las letras de los iconos no son del juego: el port no lee sus
+      textos.
+    - Del port: Crafting (la fabricación del port), Shop (test shop), Graphics (esta pantalla),
+      Customize (Brief 36), Back to safe spawn, Rest (curar el equipo). Sin ellos el menú
+      sería idéntico al del juego; se mantienen accesibles como pidió el encargo.
+    Fallo: se ve otra vez la lista de texto, la tira no pagina, el título no coincide con el
+    icono marcado, o se ve la interfaz provisional detrás.
+82. **Invertir cámara: ahora solo en Graphics.** [EN RAMA `feat/ui-menu`] Las filas «Invert
+    camera X axis» e «Invert camera Y axis» **ya no están en el menú de pausa**. Están en
+    **Esc → Graphics... → página Display** (Tab hasta Display), como dos filas más: izquierda/
+    derecha o Enter las cambia (on/off) y **se aplican al instante** a la cámara: con Invert X
+    activo, mover el ratón a la derecha gira la cámara al lado contrario; con Invert Y, mirar
+    arriba/abajo se invierte. Se guardan en `settings.txt` (junto a `graphics.toml`) y siguen
+    puestas al reiniciar. Fallo: la fila no cambia, no se recuerda al reiniciar, o la cámara
+    sigue igual con el valor cambiado.
+83. **Barra de scroll funcional en las listas largas.** [EN RAMA `feat/ui-menu`] La barra
+    vertical con el tirador crema de las pantallas originales ya **se puede usar** (antes solo
+    se dibujaba):
+    - **Rueda del ratón:** sube/baja una fila (en la mochila y las cajas, una página/una caja).
+    - **Arrastrar el tirador:** le mueves y la lista acompaña; el tirador mide la parte visible
+      (lista larga = tirador corto) y su posición marca dónde estás.
+    - **Clic en la pista (fuera del tirador):** salta una página hacia el lado del clic.
+    - El **tirador y la selección van sincronizados**: si bajas con la rueda y luego sigues con
+      las flechas, no hay saltos; la parte visible se queda donde la dejaste.
+    Dónde: **Graphics** (la barra solo aparece si la página no cabe: prueba Distances), las
+    listas de la **Pokédex** y de **mochila** y **cajas** (una página por ventana). En la
+    pantalla Graphics provisional (`--ui debug`) la rueda también funciona. La última línea de
+    cada pantalla lo recuerda («Wheel / drag the bar...»). Fallo: la barra no se mueve, el
+    tirador cambia de tamaño al azar, la lista no sigue a la barra (o al revés) o la rueda
+    mueve la cámara en vez de la lista.
 
 ## 3. SUPUESTOS (cosas inventadas que pueden verse o sentirse distintas al juego real)
 
@@ -812,7 +947,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
   DESCONOCIDOS y sin reexportación completa de modelos.
 - **Bayas y hierba que oculta de verdad:** no hechas. Agacharse y una regla básica de sigilo sí existen (Ctrl izquierdo), con volúmenes de sigilo reales sin decodificar.
 - **Monturas:** las cinco (Wyrdeer, Ursaluna, Basculegion, Sneasler, Braviary) se montan con **V** y se cambian con **G**; al montar sale abajo una **línea con las teclas** de la montura (12 s). Sus velocidades son las reales del juego y el **jinete va sentado** con las posturas del propio juego (clips de jinete). Habilidades: **Ursaluna cava con H** (avisa del resultado; los objetos enterrados no están decodificados, así que siempre «no encuentra nada»), **Braviary** vuela (salta y pulsa **K** en el aire; **Shift** en el aire es un picado a 16 m/s), **Basculegion** cruza el agua (nada o vadea según el fondo; entra desde orillas bajas), **Wyrdeer** corre y galopa (8/11 m/s) y **Sneasler** trepa paredes (4,8 m/s). El estado de montura no se guarda al cerrar el juego. Ver la prueba 76.
-- **Personalizar al protagonista** (ropa, pelo, cara, piel): no.
+- **Personalizar al protagonista** (ropa, pelo, cara, piel): existe desde el 2026-10-15 (Esc > «Customize», guardado v10) y usa la piel del juego original (ver prueba 75); los colores y estampados de la ropa no están decodificados (solo los nombres de color de pelo/cejas/ojos y el tono de piel).
 - **Pokédex con investigación, tareas y rangos:** no.
 - **Habilidades de Pokémon y objetos equipados:** en este juego casi no tienen efecto en combate
   (solo 2 habilidades), así que no hay nada que probar.

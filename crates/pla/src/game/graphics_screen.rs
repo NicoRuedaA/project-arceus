@@ -36,6 +36,7 @@ use super::input_map::{Action, ActionState};
 use super::pause_menu::{GraphicsOpenRequested, PauseMenuSuppressed};
 use super::render_look::{Look, LookSettings};
 use super::save_wire::SaveToast;
+use super::settings::UserSettings;
 use super::state::Paused;
 use super::weather::{weather_id_from_arg, WeatherState, WeatherVisual};
 use crate::assets::vegetation::GrassQuality;
@@ -941,13 +942,55 @@ pub enum Row {
     Page,
     Preset,
     Option(usize),
+    /// Camera-axis inversion rows: the port's `settings.txt` (not `graphics.toml`), applied to
+    /// the game camera by `camera_controls` through [`UserSettings::apply_invert`].
+    InvertX,
+    InvertY,
     Reset,
 }
 
-/// Rows of `page`: page switch, preset, the page's options, reset.
+/// Help line shown under the list for a row that is not an [`OPTION_DEFS`] entry.
+pub fn row_help(row: Row) -> &'static str {
+    match row {
+        Row::InvertX => "Flips horizontal camera movement (mouse X, Q/E and the right stick). Saved in settings.txt.",
+        Row::InvertY => "Flips vertical camera movement (mouse Y, the look stick). Saved in settings.txt.",
+        _ => "",
+    }
+}
+
+/// The camera inversion a row shows, if it is one.
+pub fn invert_value(row: Row, user: &UserSettings) -> Option<bool> {
+    match row {
+        Row::InvertX => Some(user.invert_camera_x),
+        Row::InvertY => Some(user.invert_camera_y),
+        _ => None,
+    }
+}
+
+/// Flip the inversion of `row` (other rows are untouched). True when something changed.
+pub fn flip_invert(row: Row, user: &mut UserSettings) -> bool {
+    match row {
+        Row::InvertX => {
+            user.invert_camera_x = !user.invert_camera_x;
+            true
+        }
+        Row::InvertY => {
+            user.invert_camera_y = !user.invert_camera_y;
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Rows of `page`: page switch, preset, the page's options, the camera inversions (Display page
+/// only: the brief moved them here from the pause menu) and reset.
 pub fn rows_of(page: Page) -> Vec<Row> {
     let mut rows = vec![Row::Page, Row::Preset];
     rows.extend(OPTION_DEFS.iter().enumerate().filter(|(_, d)| d.page == page).map(|(i, _)| Row::Option(i)));
+    if page == Page::Display {
+        rows.push(Row::InvertX);
+        rows.push(Row::InvertY);
+    }
     rows.push(Row::Reset);
     rows
 }
@@ -996,10 +1039,19 @@ pub fn option_notes(option: &str, s: &GraphicsSettings) -> Vec<&'static str> {
     n
 }
 
+fn on_off(v: bool) -> &'static str {
+    if v {
+        "on"
+    } else {
+        "off"
+    }
+}
+
 /// Name and value halves of a row: the provisional screen joins them into one line ("name:
 /// value"), the original options screen (`orig_ui`) draws them in separate text panes (row
 /// heading and value box). Markers ("(restart)", option notes, "[command line]") stay with the
-/// value, exactly as [`row_label`] appends them.
+/// value, exactly as [`row_label`] appends them. The camera inversions read the live
+/// [`UserSettings`] (they live in `settings.txt`).
 pub fn row_name_value(
     row: Row,
     page: Page,
@@ -1008,6 +1060,7 @@ pub fn row_name_value(
     s: &GraphicsSettings,
     startup: &GraphicsSettings,
     overridden: &[&str],
+    user: &UserSettings,
 ) -> (String, String) {
     match row {
         Row::Page => (
@@ -1017,6 +1070,14 @@ pub fn row_name_value(
         Row::Preset => (
             "Quality preset".to_string(),
             s.preset().map_or("Custom", |i| PRESETS[i].label).to_string(),
+        ),
+        Row::InvertX => (
+            "Invert camera X axis".to_string(),
+            on_off(user.invert_camera_x).to_string(),
+        ),
+        Row::InvertY => (
+            "Invert camera Y axis".to_string(),
+            on_off(user.invert_camera_y).to_string(),
         ),
         Row::Reset => ("Reset to defaults".to_string(), String::new()),
         Row::Option(i) => {
@@ -1037,6 +1098,7 @@ pub fn row_name_value(
 }
 
 /// Text of a row (the provisional screen's single line).
+#[allow(clippy::too_many_arguments)]
 pub fn row_label(
     row: Row,
     page: Page,
@@ -1045,8 +1107,9 @@ pub fn row_label(
     s: &GraphicsSettings,
     startup: &GraphicsSettings,
     overridden: &[&str],
+    user: &UserSettings,
 ) -> String {
-    let (name, value) = row_name_value(row, page, page_count, page_index, s, startup, overridden);
+    let (name, value) = row_name_value(row, page, page_count, page_index, s, startup, overridden, user);
     if value.is_empty() {
         name
     } else {
@@ -1211,6 +1274,9 @@ fn graphics_input(
     mut paused: Option<ResMut<Paused>>,
     mut suppressed: Option<ResMut<PauseMenuSuppressed>>,
     mut toast: Option<ResMut<SaveToast>>,
+    mut user: Option<ResMut<UserSettings>>,
+    mut mouse_wheel: Option<MessageReader<bevy::input::mouse::MouseWheel>>,
+    orig: Option<Res<super::orig_ui::OrigUiConfig>>,
     buttons: Query<(&GfxRowButton, &Interaction), Changed<Interaction>>,
 ) {
     if request.0 {
@@ -1313,6 +1379,29 @@ fn graphics_input(
         keys.clear_just_pressed(key);
     }
 
+    // Mouse wheel over the provisional screen's window (§ brief ui-menu: the long lists scroll
+    // with the wheel). With the original Options skin the game's own bar is drawn and
+    // `orig_ui::scrollbar` owns the mouse, so this path stays out of the way there.
+    if !orig.as_ref().is_some_and(|c| c.enabled()) {
+        let notches: f32 = mouse_wheel
+            .as_mut()
+            .map(|r| r.read().map(|e| e.y).sum())
+            .unwrap_or(0.0);
+        if notches != 0.0 {
+            state.scroll = crate::game::orig_ui::scrollbar::scroll_wheel(
+                state.scroll,
+                notches,
+                VISIBLE_ROWS,
+                rows.len(),
+            );
+            if state.selected < state.scroll {
+                state.selected = state.scroll;
+            } else if state.selected >= state.scroll + VISIBLE_ROWS {
+                state.selected = (state.scroll + VISIBLE_ROWS - 1).min(rows.len() - 1);
+            }
+        }
+    }
+
     if select != 0 {
         state.selected = (state.selected as i32 + select.signum()).rem_euclid(rows.len() as i32) as usize;
     }
@@ -1337,6 +1426,18 @@ fn graphics_input(
                     commit(&mut settings, &mut runtime, toast.as_deref_mut(), s);
                 }
             }
+            // Camera inversions: the port's settings.txt, applied live by the camera system
+            // (`UserSettings::apply_invert`) and written next to `graphics.toml`.
+            Row::InvertX | Row::InvertY => {
+                if let Some(u) = user.as_deref_mut() {
+                    flip_invert(rows[state.selected], u);
+                    if let Err(e) = u.save_to_dir(&runtime.dir) {
+                        if let Some(t) = toast.as_deref_mut() {
+                            t.show(format!("Could not save settings: {e}"));
+                        }
+                    }
+                }
+            }
             Row::Reset => {
                 let mut s = settings.clone();
                 s.reset();
@@ -1349,8 +1450,13 @@ fn graphics_input(
         state.selected = state.selected.min(rows_of(pages[new_page]).len() - 1);
         state.scroll = 0;
     }
-    let total = rows_of(pages[state.page]).len();
-    state.scroll = scroll_for(state.selected, state.scroll, total);
+    // With the original skin shown, `orig_ui::menus` owns the window (`state.scroll`): it
+    // follows the selection and the game's own bar drives it. The provisional screen keeps it
+    // here.
+    if !orig.as_ref().is_some_and(|c| c.enabled()) {
+        let total = rows_of(pages[state.page]).len();
+        state.scroll = scroll_for(state.selected, state.scroll, total);
+    }
 }
 
 /// Store `new` as the live settings, copy the changed options to the file copy, drop their
@@ -1517,6 +1623,7 @@ fn sync_graphics_screen(
     state: Res<GraphicsScreenState>,
     settings: Res<GraphicsSettings>,
     runtime: Res<GraphicsRuntime>,
+    user: Option<Res<UserSettings>>,
     mut root: Query<&mut Visibility, With<GraphicsScreenRoot>>,
     mut buttons: Query<(&GfxRowButton, &mut BackgroundColor, &mut Node)>,
     mut texts: Query<(&GfxRowText, &mut Text), Without<GfxHint>>,
@@ -1531,6 +1638,7 @@ fn sync_graphics_screen(
     if !state.open {
         return;
     }
+    let user = user.as_deref().cloned().unwrap_or_default();
     let pages = page_list();
     let page_index = state.page.min(pages.len() - 1);
     let page = pages[page_index];
@@ -1550,7 +1658,7 @@ fn sync_graphics_screen(
     for (t, mut text) in &mut texts {
         let label = rows
             .get(state.scroll + t.0)
-            .map(|row| row_label(*row, page, pages.len(), page_index, &settings, &runtime.startup, &runtime.overridden))
+            .map(|row| row_label(*row, page, pages.len(), page_index, &settings, &runtime.startup, &runtime.overridden, &user))
             .unwrap_or_default();
         if text.0 != label {
             text.0 = label;
@@ -1561,6 +1669,7 @@ fn sync_graphics_screen(
     let about = match rows.get(state.selected) {
         Some(Row::Option(i)) => OPTION_DEFS[*i].help,
         Some(Row::Preset) => "Default = the game as before; Switch = original-like; Low..Ultra for weaker or stronger PCs.",
+        Some(row) => row_help(*row),
         _ => "",
     };
     let help = format!(
@@ -1683,7 +1792,7 @@ mod tests {
         let mut s = GraphicsSettings::default();
         s.set(id::BLOOM, 0);
         assert_eq!(s.preset(), None);
-        let label = row_label(Row::Preset, Page::Look, 3, 0, &s, &GraphicsSettings::default(), &[]);
+        let label = row_label(Row::Preset, Page::Look, 3, 0, &s, &GraphicsSettings::default(), &[], &UserSettings::default());
         assert_eq!(label, "Quality preset: Custom");
         s.apply_preset(0);
         assert!(s.is_default());
@@ -1711,7 +1820,7 @@ mod tests {
         let mut off = started_low.clone();
         off.set(id::EFFECTS, 0);
         assert!(!needs_restart(effects, &started_low, &off), "low -> off is live");
-        let l = row_label(Row::Option(effects), Page::Quality, 3, 1, &now, &started_off, &[id::EFFECTS]);
+        let l = row_label(Row::Option(effects), Page::Quality, 3, 1, &now, &started_off, &[id::EFFECTS], &UserSettings::default());
         assert_eq!(l, "Battle effects: high (restart) [command line]");
     }
 
@@ -2098,6 +2207,63 @@ mod tests {
         assert_eq!(app.world().resource::<GraphicsScreenState>().page, 2);
         let reloaded = GraphicsSettings::load(&dir);
         assert_eq!(reloaded.get(id::SHADOWS), 0, "survives a restart");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The camera inversions moved out of the pause menu (brief ui-menu) and live in the Display
+    /// page: they read and write the port's settings.txt and reach the camera through
+    /// `UserSettings::apply_invert`.
+    #[test]
+    fn camera_inversions_are_display_rows_that_persist() {
+        let rows = rows_of(Page::Display);
+        let x = rows.iter().position(|r| *r == Row::InvertX).expect("Invert X row");
+        let y = rows.iter().position(|r| *r == Row::InvertY).expect("Invert Y row");
+        assert_eq!(y, x + 1, "the two inversion rows sit together");
+        assert_eq!(rows.last(), Some(&Row::Reset));
+        let d = GraphicsSettings::default();
+        let mut user = UserSettings::default();
+        let label = |user: &UserSettings| {
+            row_label(Row::InvertX, Page::Display, 5, 2, &d, &d, &[], user)
+        };
+        assert_eq!(label(&user), "Invert camera X axis: off");
+        assert!(flip_invert(Row::InvertX, &mut user));
+        assert!(user.invert_camera_x && !user.invert_camera_y);
+        assert_eq!(invert_value(Row::InvertX, &user), Some(true));
+        assert_eq!(label(&user), "Invert camera X axis: on");
+        assert_eq!(user.apply_invert(2.0, 3.0), (-2.0, 3.0), "the camera sees the flip");
+        assert!(flip_invert(Row::InvertY, &mut user));
+        assert_eq!(user.apply_invert(2.0, 3.0), (-2.0, -3.0));
+        assert!(!flip_invert(Row::Reset, &mut user), "other rows are untouched");
+        assert!(
+            row_help(Row::InvertY).contains("settings.txt"),
+            "the help names where it is saved"
+        );
+    }
+
+    #[test]
+    fn headless_invert_rows_toggle_and_save_settings_txt() {
+        let (mut app, dir) = gfx_app("invert");
+        app.world_mut().resource_mut::<GraphicsOpenRequested>().0 = true;
+        step(&mut app, &[], &[]);
+        // Tab twice: Look -> Quality -> Display, where the inversion rows live.
+        press(&mut app, KeyCode::Tab);
+        press(&mut app, KeyCode::Tab);
+        assert_eq!(app.world().resource::<GraphicsScreenState>().page, 2);
+        let rows = rows_of(Page::Display);
+        let x = rows.iter().position(|r| *r == Row::InvertX).unwrap();
+        for _ in 0..x {
+            press(&mut app, KeyCode::ArrowDown);
+        }
+        assert_eq!(
+            rows[app.world().resource::<GraphicsScreenState>().selected],
+            Row::InvertX
+        );
+        press(&mut app, KeyCode::Enter);
+        assert!(app.world().resource::<UserSettings>().invert_camera_x);
+        let text = std::fs::read_to_string(dir.join(UserSettings::FILE_NAME)).unwrap();
+        assert!(text.contains("invert_camera_x=true"), "{text}");
+        press(&mut app, KeyCode::ArrowRight);
+        assert!(!app.world().resource::<UserSettings>().invert_camera_x);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

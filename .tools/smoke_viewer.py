@@ -182,6 +182,45 @@ def run(args: argparse.Namespace) -> int:
                 s.shot(f"screen {screen}", f"smoke_03_screen_{screen}.png")
             s.step(f"close {screen}", {"cmd": "open_screen", "screen": "close"})
 
+        # National Pokédex (Y): the species model must be drawn inside the centre photo frame of
+        # the original page, and Q/E, a mouse drag inside the frame and R must turn / reset it.
+        s.ensure_world("before the national Pokédex model")
+        s.step("open dex for the national model", {"cmd": "open_screen", "screen": "dex"},
+               lambda r: "dex" in r.get("open_screens", []) or f"open: {r.get('open_screens')}")
+        s.step("national list (Y)", {"cmd": "key", "key": "Y"})
+        s.step("settle the first model", {"cmd": "step", "frames": 60})
+
+        def placed_in_frame(r):
+            p = r.get("dex_preview") or {}
+            f = p.get("frame") or {}
+            if not p.get("bounds"):
+                return f"no model measured: {p}"
+            # Percent of the page (the photo pane), not the provisional 330 px box.
+            if not (5.0 < f.get("left", 0.0) < 30.0 and 20.0 < f.get("width", 0.0) < 50.0):
+                return f"image not placed in the photo frame: {f}"
+            return True
+
+        s.step("national model inside the photo frame", {"cmd": "state"}, placed_in_frame)
+        s.shot("national dex model", "smoke_03b_dex_national.png")
+
+        def yaw_of(r):
+            return (r.get("dex_preview") or {}).get("yaw_deg")
+
+        before = yaw_of(s.cmd({"cmd": "state"}))
+        s.step("cursor into the photo frame", {"cmd": "mouse", "x": 320, "y": 320})
+        s.step("mouse press inside the photo frame", {"cmd": "mouse", "button": "left", "action": "press"})
+        s.step("drag 120 px to the right", {"cmd": "mouse", "x": 440, "y": 320})
+        s.step("mouse release", {"cmd": "mouse", "button": "left", "action": "release"})
+        turned = yaw_of(s.cmd({"cmd": "state"}))
+        ok_turn = before is not None and turned is not None and 40.0 < (turned - before) % 360.0 < 60.0
+        s.record("mouse drag turns the model about 41 degrees", ok_turn, f"yaw {before} -> {turned}")
+        s.step("R resets the angle", {"cmd": "key", "key": "R"})
+        reset = yaw_of(s.cmd({"cmd": "state"}))
+        s.record("R returns to the initial angle", reset is not None and abs(reset - before) < 0.1,
+                 f"yaw {turned} -> {reset} (initial {before})")
+        s.shot("national dex model after turning and reset", "smoke_03c_dex_national_reset.png")
+        s.step("close dex after the national model", {"cmd": "open_screen", "screen": "close"})
+
         s.ensure_world("before saving")
         s.step("save", {"cmd": "save"})
         s.step("load", {"cmd": "load"})

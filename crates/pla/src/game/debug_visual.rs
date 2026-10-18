@@ -12,20 +12,23 @@
 //! | `F2` | Models | normal -> **flat** (plain grey material, no textures) -> **wireframe** (Bevy wireframe pass) -> normal |
 //! | `F3` | Data | off -> **player** (position, zone, time, speed, state, FPS) -> **player + markers** (coloured interest zones) -> off |
 //! | `F5` | Save game | already used by `game::save_wire`; this module does not touch it |
-//! | `F4`, `F6`..`F12` | free | reserved; not used by this module |
+//! | `F6` | Pokédex | off -> **TODAS** (every Pokédex list shows all 1025 national species as seen + caught; read-only, memory only: the save is never written) -> off |
+//! | `F4`, `F7`..`F12` | free | reserved; not used by this module (`F7` is the spawn selector of `game::debug_spawn`) |
 //!
 //! Every press advances that mode's cycle and wraps back to its first state. The three modes are
 //! independent: F1 can be at `only` while F2 stays `normal`. A legend with the current state of
-//! the three keys and the colour list stays on screen while any mode is active.
+//! the keys and the colour list stays on screen while any mode is active.
 //!
 //! # Command line (for windowless captures)
 //!
 //! `--debug-view` takes a comma-separated list, so the automated captures do not depend on the
 //! keyboard: `--debug-view collisions` (= `collisions=overlay`), `collisions=only`,
 //! `models` (= `models=flat`), `wireframe` (= `models=wireframe`), `data` (= `data=player`),
-//! `markers` (= `data=markers`), or the explicit `collisions=off|overlay|only`,
-//! `models=normal|flat|wireframe`, `data=off|player|markers`. A malformed value is reported
-//! through `game::cli_flags` (stderr + start-up toast), never silently ignored.
+//! `markers` (= `data=markers`), `pokedex` (= `pokedex=all`), or the explicit
+//! `collisions=off|overlay|only`, `models=normal|flat|wireframe`, `data=off|player|markers`,
+//! `pokedex=all|off`. A malformed value is reported through `game::cli_flags` (stderr +
+//! start-up toast), never silently ignored. `--debug-pokedex` is the shorthand for starting with
+//! the F6 mode already on.
 //!
 //! # Sources and colours (F1 and F3)
 //!
@@ -228,12 +231,15 @@ impl DataView {
     }
 }
 
-/// Current state of the three debug modes (one resource, always present, trivial to compare).
+/// Current state of the debug modes (one resource, always present, trivial to compare).
 #[derive(Resource, Debug, Clone, PartialEq, Eq, Default)]
 pub struct DebugViewState {
     pub collisions: CollisionView,
     pub models: ModelView,
     pub data: DataView,
+    /// F6: every Pokédex list shows all 1025 national species as seen + caught (read-only:
+    /// the Pokédex screens consult this flag, nothing is written to the save).
+    pub pokedex_all: bool,
 }
 
 impl DebugViewState {
@@ -242,15 +248,23 @@ impl DebugViewState {
         self.collisions != CollisionView::Off
             || self.models != ModelView::Normal
             || self.data != DataView::Off
+            || self.pokedex_all
     }
 
-    /// The `F1 ... | F2 ... | F3 ...` line of the on-screen legend.
+    /// True while the F6 "whole Pokédex" override is on. The Pokédex screens read this through
+    /// this accessor so the flag has one documented meaning.
+    pub fn pokedex_all_active(&self) -> bool {
+        self.pokedex_all
+    }
+
+    /// The `F1 ... | F2 ... | F3 ... | F6 ...` line of the on-screen legend.
     pub fn legend_line(&self) -> String {
         format!(
-            "F1 colisiones: {} | F2 modelos: {} | F3 datos: {}",
+            "F1 colisiones: {} | F2 modelos: {} | F3 datos: {} | F6 pokedex: {}",
             self.collisions.label(),
             self.models.label(),
-            self.data.label()
+            self.data.label(),
+            if self.pokedex_all { "TODAS" } else { "REAL" },
         )
     }
 
@@ -338,13 +352,34 @@ pub fn apply_spec_part(state: &mut DebugViewState, part: &str) -> Result<(), Str
             state.data = DataView::Markers;
             Ok(())
         }
+        ("pokedex", None) | ("pokedex", Some("all")) | ("pokedex_all", None) => {
+            state.pokedex_all = true;
+            Ok(())
+        }
+        ("pokedex", Some("off")) => {
+            state.pokedex_all = false;
+            Ok(())
+        }
         _ => Err(part.trim().to_string()),
     }
 }
 
-/// Build the initial state from `--debug-view` (absent = everything off).
+/// Build the initial state from `--debug-view` plus the `--debug-pokedex` shorthand
+/// (equivalent to starting with F6 already on). Absent = everything off.
 pub fn state_from_args(args: &[String]) -> DebugViewState {
     let mut state = DebugViewState::default();
+    // `--debug-pokedex` alone starts with the F6 mode on; an `=off`/`=0` value keeps it off.
+    let flag = args.iter().find_map(|a| {
+        if a == "--debug-pokedex" {
+            Some(true)
+        } else {
+            a.strip_prefix("--debug-pokedex=")
+                .map(|v| !matches!(v.trim().to_ascii_lowercase().as_str(), "off" | "0" | "false"))
+        }
+    });
+    if flag == Some(true) {
+        state.pokedex_all = true;
+    }
     let Some(raw) = crate::game::cli_flags::value_of(args, "--debug-view") else {
         return state;
     };
@@ -357,7 +392,7 @@ pub fn state_from_args(args: &[String]) -> DebugViewState {
             crate::game::cli_flags::report_bad_value(
                 "--debug-view",
                 &bad,
-                "collisions[=off|overlay|only], models[=normal|flat|wireframe], data[=off|player|markers]",
+                "collisions[=off|overlay|only], models[=normal|flat|wireframe], data[=off|player|markers], pokedex[=all|off]",
                 format!("{:?}", DebugViewState::default()),
             );
         }
@@ -371,15 +406,18 @@ pub fn key_of(action: DebugKey) -> KeyCode {
         DebugKey::Collisions => KeyCode::F1,
         DebugKey::Models => KeyCode::F2,
         DebugKey::Data => KeyCode::F3,
+        DebugKey::PokedexAll => KeyCode::F6,
     }
 }
 
-/// The three debug keys (kept in one enum so the key map and its tests cannot drift apart).
+/// The debug keys (kept in one enum so the key map and its tests cannot drift apart).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DebugKey {
     Collisions,
     Models,
     Data,
+    /// F6: toggle "every species seen + caught" in the Pokédex lists.
+    PokedexAll,
 }
 
 /// Next state after pressing the key of `action` (pure; the input system applies it).
@@ -389,6 +427,7 @@ pub fn next_for(state: DebugViewState, action: DebugKey) -> DebugViewState {
         DebugKey::Collisions => next.collisions = next.collisions.next(),
         DebugKey::Models => next.models = next.models.next(),
         DebugKey::Data => next.data = next.data.next(),
+        DebugKey::PokedexAll => next.pokedex_all = !next.pokedex_all,
     }
     next
 }
@@ -778,8 +817,12 @@ fn ground_height(world: &MarkerWorld, x: f32, z: f32, fallback: f32) -> f32 {
 
 // ------------------------------------------------------------------ systems
 
-/// F1/F2/F3 edges advance their mode cycle (raw `ButtonInput`, like the F5 save hotkey).
-fn cycle_modes(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<DebugViewState>) {
+/// F1/F2/F3/F6 edges advance their mode cycle (raw `ButtonInput`, like the F5 save hotkey).
+fn cycle_modes(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut state: ResMut<DebugViewState>,
+    mut toast: Option<ResMut<crate::game::save_wire::SaveToast>>,
+) {
     let mut changed = false;
     if keys.just_pressed(key_of(DebugKey::Collisions)) {
         state.collisions = state.collisions.next();
@@ -792,6 +835,17 @@ fn cycle_modes(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<DebugViewState
     if keys.just_pressed(key_of(DebugKey::Data)) {
         state.data = state.data.next();
         changed = true;
+    }
+    if keys.just_pressed(key_of(DebugKey::PokedexAll)) {
+        state.pokedex_all = !state.pokedex_all;
+        changed = true;
+        if let Some(toast) = toast.as_deref_mut() {
+            toast.show(if state.pokedex_all {
+                "F6 pokedex: TODAS las especies (solo vista; el guardado no cambia)"
+            } else {
+                "F6 pokedex: listas reales"
+            });
+        }
     }
     if changed {
         let line = state.legend_line();
@@ -1546,9 +1600,9 @@ fn update_legend(
     let header = state.legend_line();
     let colors = state.colors_line();
     let text = if colors.is_empty() {
-        format!("DEBUG VISUAL (F1/F2/F3 ciclan)\n{header}")
+        format!("DEBUG VISUAL (F1/F2/F3 ciclan; F6 alterna)\n{header}")
     } else {
-        format!("DEBUG VISUAL (F1/F2/F3 ciclan)\n{header}\n{colors}")
+        format!("DEBUG VISUAL (F1/F2/F3 ciclan; F6 alterna)\n{header}\n{colors}")
     };
     for mut legend in &mut legend {
         if legend.0 != text {
@@ -1783,14 +1837,64 @@ mod tests {
     }
 
     #[test]
-    fn keys_are_f1_f2_f3_and_f5_is_not_touched() {
+    fn keys_are_f1_f2_f3_f6_and_f5_is_not_touched() {
         assert_eq!(key_of(DebugKey::Collisions), KeyCode::F1);
         assert_eq!(key_of(DebugKey::Models), KeyCode::F2);
         assert_eq!(key_of(DebugKey::Data), KeyCode::F3);
-        // The save hotkey F5 must stay out of this module's map.
-        assert!(key_of(DebugKey::Collisions) != KeyCode::F5);
-        assert!(key_of(DebugKey::Models) != KeyCode::F5);
-        assert!(key_of(DebugKey::Data) != KeyCode::F5);
+        assert_eq!(key_of(DebugKey::PokedexAll), KeyCode::F6);
+        // The save hotkey F5 must stay out of this module's map, and F7 belongs to the spawn
+        // selector (`game::debug_spawn`).
+        for action in [
+            DebugKey::Collisions,
+            DebugKey::Models,
+            DebugKey::Data,
+            DebugKey::PokedexAll,
+        ] {
+            assert!(key_of(action) != KeyCode::F5, "{action:?} must not be F5");
+            assert!(key_of(action) != KeyCode::F7, "{action:?} must not be F7");
+        }
+    }
+
+    #[test]
+    fn f6_toggles_the_pokedex_override_and_names_it_in_the_legend() {
+        let mut state = DebugViewState::default();
+        assert!(!state.pokedex_all_active());
+        assert!(state.legend_line().contains("F6 pokedex: REAL"), "{}", state.legend_line());
+        state = next_for(state, DebugKey::PokedexAll);
+        assert!(state.pokedex_all_active());
+        assert!(state.any_active(), "F6 alone shows the legend");
+        assert!(state.legend_line().contains("F6 pokedex: TODAS"), "{}", state.legend_line());
+        state = next_for(state, DebugKey::PokedexAll);
+        assert!(!state.pokedex_all_active(), "the second press turns it off");
+    }
+
+    #[test]
+    fn f6_is_an_in_memory_toggle_of_the_keyboard_reader() {
+        let mut app = headless_app();
+        app.update();
+        assert!(!app.world().resource::<DebugViewState>().pokedex_all);
+        press(&mut app, KeyCode::F6);
+        app.update();
+        assert!(app.world().resource::<DebugViewState>().pokedex_all);
+        release_all(&mut app);
+        app.update();
+        press(&mut app, KeyCode::F6);
+        app.update();
+        assert!(!app.world().resource::<DebugViewState>().pokedex_all);
+    }
+
+    #[test]
+    fn pokedex_flags_parse_from_the_command_line() {
+        let args = |s: &str| s.split_whitespace().map(str::to_string).collect::<Vec<_>>();
+        assert!(state_from_args(&args("viewer --debug-pokedex")).pokedex_all);
+        assert!(state_from_args(&args("viewer --debug-pokedex=on")).pokedex_all);
+        assert!(!state_from_args(&args("viewer --debug-pokedex=off")).pokedex_all);
+        assert!(state_from_args(&args("viewer --debug-view pokedex")).pokedex_all);
+        assert!(state_from_args(&args("viewer --debug-view pokedex=all")).pokedex_all);
+        assert!(state_from_args(&args("viewer --debug-view pokedex,data")).pokedex_all);
+        assert!(!state_from_args(&args("viewer --debug-view pokedex=off")).pokedex_all);
+        let both = state_from_args(&args("viewer --debug-view data --debug-pokedex"));
+        assert!(both.pokedex_all && both.data == DataView::Player);
     }
 
     #[test]
@@ -1852,6 +1956,7 @@ mod tests {
                 collisions: CollisionView::Only,
                 models: ModelView::Wireframe,
                 data: DataView::Markers,
+                pokedex_all: false,
             }
         );
         assert_eq!(

@@ -21,7 +21,6 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use bevy::asset::RenderAssetUsages;
-use bevy::camera::RenderTarget;
 use bevy::gltf::{Gltf, GltfMaterial, GltfMesh};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
@@ -1149,6 +1148,9 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     // Visual debug aid (F1 collisions, F2 models, F3 data overlays; `--debug-view` for captures).
     // OFF by default and zero-cost while off; F5 (save) stays untouched.
     app.add_plugins(pla::game::debug_visual::DebugVisualPlugin::from_args(&cli_args));
+    // F6 lives in the debug view above; F7 is the national species spawn selector (search +
+    // place one model next to the player; see game::debug_spawn).
+    app.add_plugins(pla::game::debug_spawn::DebugSpawnPlugin::default());
     // Ride Pokémon (Brief 38): mount/dismount (V, gamepad Select), cycle (G), decoded speeds.
     app.add_plugins(pla::game::ride::RidePlugin);
     // On-screen control hints: the mount's keys after summoning, "Trepar" near a cliff.
@@ -4553,6 +4555,57 @@ mod battle_arena_framing {
             .unwrap()
     }
 
+    /// The Graphics screen's camera inversion rows reach the live camera: with
+    /// `invert_camera_x` the same rightward mouse delta turns the yaw the other way, and
+    /// `invert_camera_y` flips the pitch (brief ui-menu: the saved value must act on the camera).
+    #[test]
+    fn camera_controls_applies_the_saved_axis_inversion() {
+        use bevy::input::mouse::{MouseMotion, MouseWheel};
+        use pla::game::input_map::ActionState;
+        use pla::game::settings::UserSettings;
+        use pla::game::state::Paused;
+
+        let mut app = App::new();
+        app.add_plugins(bevy::MinimalPlugins);
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.init_resource::<ActionState>();
+        app.insert_resource(Paused(false));
+        app.insert_resource(UserSettings::default());
+        app.insert_resource(CameraController::default());
+        app.add_message::<MouseMotion>();
+        app.add_message::<MouseWheel>();
+        app.add_systems(Update, camera_controls);
+
+        let move_mouse = |app: &mut App, delta: Vec2| {
+            // Orbiting needs a drag: hold the left button like a real player does.
+            app.world_mut()
+                .resource_mut::<ButtonInput<MouseButton>>()
+                .press(MouseButton::Left);
+            let before = {
+                let c = app.world().resource::<CameraController>();
+                (c.yaw, c.pitch)
+            };
+            app.world_mut().write_message(MouseMotion { delta });
+            app.update();
+            let c = app.world().resource::<CameraController>();
+            (c.yaw - before.0, c.pitch - before.1)
+        };
+        let (dyaw, dpitch) = move_mouse(&mut app, Vec2::new(20.0, 10.0));
+        assert!(
+            dyaw > 0.0 && dpitch > 0.0,
+            "default: a right / down drag turns that way ({dyaw}, {dpitch})"
+        );
+
+        {
+            let mut s = app.world_mut().resource_mut::<UserSettings>();
+            s.invert_camera_x = true;
+            s.invert_camera_y = true;
+        }
+        let (dyaw, dpitch) = move_mouse(&mut app, Vec2::new(20.0, 10.0));
+        assert!(dyaw < 0.0, "inverted X turns the yaw the other way ({dyaw})");
+        assert!(dpitch < 0.0, "inverted Y turns the pitch the other way ({dpitch})");
+    }
+
     /// Regression: the battle camera was only used when the player's creature was Pikachu
     /// (`national_dex == 25`); with any other party member it fell back to the world camera.
     #[test]
@@ -5016,6 +5069,19 @@ mod startup_schedule_guard {
     #[test]
     fn debug_ui_starts() {
         check_viewer_start("debug-ui", &["port_viewer", "--area", "1", "--ui", "debug"]);
+    }
+
+    /// `--debug-pokedex` (F6 already on) and the F7 spawn selector plugin start with the viewer.
+    #[test]
+    fn debug_pokedex_flag_starts() {
+        check_viewer_start(
+            "debug-pokedex",
+            &["port_viewer", "--area", "1", "--debug-pokedex"],
+        );
+        check_viewer_start(
+            "debug-view-pokedex",
+            &["port_viewer", "--area", "1", "--debug-view", "pokedex"],
+        );
     }
 
     /// `--ui original` and the battle path: the original battle screens bind to a running battle.

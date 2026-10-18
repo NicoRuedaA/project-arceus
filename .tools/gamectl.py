@@ -246,6 +246,18 @@ def build_command(a: argparse.Namespace) -> dict | None:
         return {"cmd": "wait_seconds", "seconds": a.seconds}
     if c == "key":
         return {"cmd": "key", "key": a.key, "action": a.action, "frames": a.frames}
+    if c == "mouse":
+        cmd = {"cmd": "mouse", "frames": a.frames}
+        if a.x is not None:
+            cmd["x"] = a.x
+        if a.y is not None:
+            cmd["y"] = a.y
+        if a.wheel:
+            cmd["wheel"] = a.wheel
+        if a.button:
+            cmd["button"] = a.button
+        cmd["action"] = a.action or ("click" if a.button else "move")
+        return cmd
     if c == "shot":
         cmd = {"cmd": "screenshot", "path": str(Path(a.path).resolve())}
         if a.width or a.height:
@@ -285,6 +297,14 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("key")
     k.add_argument("--frames", type=int, default=1)
     k.add_argument("--action", choices=["press", "down", "up"], default="press")
+    mo = sub.add_parser("mouse", help="move the virtual pointer, click a button or turn the wheel")
+    mo.add_argument("x", type=int, nargs="?", help="pointer x in window pixels")
+    mo.add_argument("y", type=int, nargs="?", help="pointer y in window pixels")
+    mo.add_argument("--wheel", type=float, default=0.0, help="wheel notches, positive scrolls down")
+    mo.add_argument("--button", choices=["left", "right", "middle"], help="button to press/release")
+    mo.add_argument("--action", choices=["move", "press", "release", "click"], default=None,
+                    help="default: click with --button, else move")
+    mo.add_argument("--frames", type=int, default=1)
     sh = sub.add_parser("shot", help="offscreen screenshot to a PNG")
     sh.add_argument("path")
     sh.add_argument("--width", type=int)
