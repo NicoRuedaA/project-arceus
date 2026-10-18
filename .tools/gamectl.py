@@ -9,7 +9,8 @@ See docs/AUTOMATION.md for every command.
 Examples (from the repository root):
   .tools/gamectl.py start -- --area 1 --trainer giratina01
   .tools/gamectl.py cmd '{"cmd":"key","key":"V","frames":3}'
-  .tools/gamectl.py step 300
+  .tools/gamectl.py start --cpu -- --area 0     # render on the CPU, no GPU needed
+  .tools/gamectl.py step 300 --fast             # simulate 300 frames, draw only the last
   .tools/gamectl.py shot work/automation/shots/area1.png
   .tools/gamectl.py state
   .tools/gamectl.py log 40
@@ -144,6 +145,30 @@ def binary_path(release: bool) -> Path:
     return target / ("release" if release else "debug") / "examples" / "port_viewer"
 
 
+LVP_ICD = Path("/usr/share/vulkan/icd.d/lvp_icd.json")
+
+
+def cpu_env(env: dict) -> dict:
+    """Environment that makes the viewer render on the CPU (Mesa lavapipe, a software Vulkan).
+
+    Raises ViewerDead with a plain message when lavapipe is not installed."""
+    if not LVP_ICD.exists():
+        raise ViewerDead(
+            f"CPU rendering needs the software Vulkan driver, which is not installed ({LVP_ICD} is missing). "
+            "Install the package `vulkan-swrast` (Arch: `sudo pacman -S vulkan-swrast`) and try again."
+        )
+    env = dict(env, VK_ICD_FILENAMES=str(LVP_ICD), WGPU_BACKEND="vulkan")
+    env.setdefault("PLA_BIN_ROOT", str(REPO / "work" / "pla" / "pk2" / "romfs_patched" / "bin"))
+    env.setdefault("PLA_CACHE_ROOT", str(REPO / "work" / "cache_overlay"))
+    if not Path(env["PLA_CACHE_ROOT"]).is_dir():
+        env["PLA_CACHE_ROOT"] = str(REPO / "work" / "cache")
+    return env
+
+
+def want_cpu(flag: bool) -> bool:
+    return flag or os.environ.get("PLA_CPU_RENDER") == "1"
+
+
 def limited(cmd: list[str]) -> list[str]:
     """Wrap a heavy command in a memory-limited user scope when systemd-run exists (it execs the
     command, so the PID is the command's own)."""
@@ -177,6 +202,13 @@ def start(adir: Path, args: argparse.Namespace) -> int:
     if args.size:
         cmd += ["--automation-size", args.size]
     env = dict(os.environ, PLA_AUTOMATION_LOG=str(log), PLA_NO_AUDIO="1", RUST_BACKTRACE="1")
+    if want_cpu(getattr(args, "cpu", False)):
+        try:
+            env = cpu_env(env)
+        except ViewerDead as e:
+            print(f"[gamectl] {e}", file=sys.stderr)
+            return EXIT_ERROR
+        print("[gamectl] CPU rendering (lavapipe): slow, about 0.5 s per drawn frame; use `step --fast`", flush=True)
     started = time.time()
     with open(log, "wb") as out:
         proc = subprocess.Popen(
@@ -241,9 +273,9 @@ def build_command(a: argparse.Namespace) -> dict | None:
     if c in ("ping", "state", "save", "load", "quit"):
         return {"cmd": c}
     if c == "step":
-        return {"cmd": "step", "frames": a.frames}
+        return dict({"cmd": "step", "frames": a.frames}, **({"render": "last"} if a.fast else {}))
     if c == "wait":
-        return {"cmd": "wait_seconds", "seconds": a.seconds}
+        return dict({"cmd": "wait_seconds", "seconds": a.seconds}, **({"render": "last"} if a.fast else {}))
     if c == "key":
         return {"cmd": "key", "key": a.key, "action": a.action, "frames": a.frames}
     if c == "mouse":
@@ -279,6 +311,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="sub", required=True)
     s = sub.add_parser("start", help="build (unless --no-build) and start the viewer in automation mode")
     s.add_argument("--no-gpu", action="store_true", help="logic-only (no renderer; screenshots unavailable)")
+    s.add_argument("--cpu", action="store_true",
+                   help="render on the CPU (Mesa lavapipe; needs package vulkan-swrast); also PLA_CPU_RENDER=1")
     s.add_argument("--release", action="store_true", help="use the release build")
     s.add_argument("--no-build", action="store_true", help="do not run cargo build first")
     s.add_argument("--bin", help="viewer binary to run (default target/<profile>/examples/port_viewer)")
@@ -291,8 +325,10 @@ def main(argv: list[str] | None = None) -> int:
         sub.add_parser(name)
     st = sub.add_parser("step", help="advance N frames (60 per game second)")
     st.add_argument("frames", type=int)
+    st.add_argument("--fast", action="store_true", help="simulate every frame but draw only the last one")
     w = sub.add_parser("wait", help="advance N game seconds")
     w.add_argument("seconds", type=float)
+    w.add_argument("--fast", action="store_true", help="simulate every frame but draw only the last one")
     k = sub.add_parser("key", help="press a key (real keyboard path)")
     k.add_argument("key")
     k.add_argument("--frames", type=int, default=1)

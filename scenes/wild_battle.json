@@ -1,0 +1,46 @@
+{
+ "description": "Wild level 10 Pikachu battle: arena with the move list, then the first move plays.",
+ "args": [
+  "--area",
+  "0"
+ ],
+ "steps": [
+  {
+   "cmd": "set_time",
+   "slot": 1,
+   "pinned": true
+  },
+  {
+   "cmd": "step",
+   "frames": 60,
+   "render": "last"
+  },
+  {
+   "cmd": "start_battle",
+   "wild": "pikachu",
+   "level": 10
+  },
+  {
+   "cmd": "step",
+   "frames": 120,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "battle_intro"
+  },
+  {
+   "cmd": "key",
+   "key": "1"
+  },
+  {
+   "cmd": "step",
+   "frames": 150,
+   "render": "last"
+  },
+  {
+   "cmd": "screenshot",
+   "name": "battle_after_move"
+  }
+ ]
+}

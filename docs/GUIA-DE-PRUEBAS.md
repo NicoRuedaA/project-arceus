@@ -1147,6 +1147,12 @@ Para mandar órdenes sueltas (lo que suele hacer el asistente):
 
 Todas las órdenes y ejemplos están en [`docs/AUTOMATION.md`](AUTOMATION.md) (en inglés).
 
+**Kit para agentes (2026-10-18).** Para que el asistente haga fotos sin GPU y rápido, hay una página
+de arranque ([`docs/AGENT-QUICKSTART.md`](AGENT-QUICKSTART.md)): `--cpu` dibuja con el procesador,
+`step --fast` avanza muchos fotogramas dibujando solo el último y `.tools/scene.py run NOMBRE`
+reproduce escenas preparadas (`scenes/*.json`: aldea de día y de noche, río, combates, pestañas del
+menú, Pokédex nacional y mapa) y guarda las fotos en `work/scenes_out/NOMBRE/`.
+
 ### Prueba automática de modelos de PNJ y entrenadores (1920×1080)
 
 Esta prueba no abre una ventana. Necesita GPU: con `--no-gpu` las capturas responden
