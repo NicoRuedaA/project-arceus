@@ -143,6 +143,13 @@ pub fn strip_frame(slots: usize) -> f32 {
     }
 }
 
+/// Whether the strip draws its own title bar over `tab`'s page. The Bag and the Pokédex draw
+/// their own header at the top (the pocket tab, the Pokédex tab and counters): the strip's title
+/// bar would sit on top of it and repeat the name, so it is hidden there and only the icons stay.
+pub fn strip_title_visible(tab: Tab) -> bool {
+    !matches!(tab, Tab::Bag | Tab::Pokedex)
+}
+
 /// Top of the pause menu: the game's own icon strip and title (`slidemenu_menulist_01`) above the
 /// list — four icons per page with the game's select / unselect state per slot, the selected
 /// option as the title, and the game's opening animations (`f_in` + `menu_in` + `title_in`). It
@@ -180,6 +187,7 @@ pub fn bind_pause_strip(
     }
     let sel = tabs.tab.min(TABS.len() - 1);
     s.set_text("T_title_00", TABS[sel].label().to_string());
+    s.set_visible("N_title_00", strip_title_visible(TABS[sel]));
     let first = (sel / STRIP_SLOTS) * STRIP_SLOTS;
     let count = (TABS.len() - first).min(STRIP_SLOTS);
     // The strip contracts to the icons of the page (the game's own switch_menu animation).

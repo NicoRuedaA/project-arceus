@@ -351,6 +351,15 @@ fn pause_list_hides_while_another_tab_is_open() {
 /// title, the game's opening animations, and no port text of its own. It stays shown over every
 /// tab (the pages hide the list, never the strip).
 #[test]
+fn strip_title_is_hidden_only_over_pages_with_their_own_header() {
+    use crate::game::pause_menu::{Tab, TABS};
+    for tab in TABS {
+        let own_header = matches!(tab, Tab::Bag | Tab::Pokedex);
+        assert_eq!(menus::strip_title_visible(tab), !own_header, "{tab:?}");
+    }
+}
+
+#[test]
 fn pause_strip_shows_the_tab_icons_of_the_open_page_and_its_title() {
     let Some(root) = local_root() else { return };
     use crate::game::pause_menu::{PauseTabs, Tab, TABS};
@@ -370,7 +379,8 @@ fn pause_strip_shows_the_tab_icons_of_the_open_page_and_its_title() {
         .filter(|t| t.visible)
         .map(|t| t.text.as_str())
         .collect();
-    assert_eq!(texts, vec![Tab::Pokedex.label()], "only the title is a scene text");
+    // The Pokédex draws its own header: the strip's title bar is hidden there (icons stay).
+    assert!(texts.is_empty(), "no title over the Pokédex's own header, got {texts:?}");
     assert!(s.free_texts().is_empty(), "the strip carries no port text");
     let page = open_tab / 4;
     for k in 0..4 {
