@@ -8,7 +8,7 @@ CPU con Vulkan por software), hojas de contacto de 20 modelos y repaso a 512 px 
 - Especies: 100 (152-251). Con modelo propio de PLA: 34 (74 packs con sus formas). Convertidas de la coleccion: 66 solo-coleccion; en total 197 packs convertidos
   (incluye 56 Unown = 28 letras x2 colores). **SIN MODELO: 0.** Identificadas/convertidas nuevas: 1 (Corsola de Galar, `pm0222_00_31`; el exportador por lotes no
   encontraba su carpeta por un fallo al calcular el nombre; convertida a mano y anadida al indice).
-- Packs convertidos revisados: 197. **OK: 168**. Con problema: 29 (18 especies): 22 de textura, 5 de malla, 3 de color (ver abajo). Ninguno de identidad: no hay emparejamientos erroneos, `model_map.tsv` no cambia.
+- Packs convertidos revisados: 197. **OK: 167**. Con problema: 30 (18 especies): 22 de textura, 5 de malla, 3 de color (ver abajo). Ninguno de identidad: no hay emparejamientos erroneos, `model_map.tsv` no cambia.
 - Animaciones: los 197 glTF traen caminar y espera (auditoria de disco). Los 74 packs PLA no se han comprobado en la Pokedex (no se abrio el visor): quedan PROBABLE.
 - Los Unown (28 letras, frente y a 34 grados) tienen todas las formas distintas y bien colocadas.
 
