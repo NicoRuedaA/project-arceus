@@ -216,6 +216,54 @@ def upstream_image(socket, max_nodes=80):
     return None
 
 
+def upstream_image_node(socket, max_nodes=80):
+    """First TEX_IMAGE node reachable upstream of a linked material socket."""
+    if socket is None or not socket.is_linked:
+        return None
+    seen = set()
+    stack = [link.from_socket for link in socket.links]
+    while stack and len(seen) < max_nodes:
+        node = stack.pop().node
+        if node in seen:
+            continue
+        seen.add(node)
+        if node.type == "TEX_IMAGE" and node.image:
+            return node
+        for inp in node.inputs:
+            for link in inp.links:
+                stack.append(link.from_socket)
+    return None
+
+
+def vector_chain_doubles_u(image_node, max_nodes=60):
+    """True when the UV feeding `image_node` goes through a Mapping node with a x2 horizontal scale.
+
+    The Trinity packs (`PokemonShader` group) wire their colour / mask textures through
+    `UV -> Mapping(scale 2,1,1) -> modulo (2,1) -> mirror x above 1`, i.e. the mirrored
+    repeat of `2u` (see module docstring 7); the normal map has no such wiring and uses
+    the plain UV."""
+    if image_node is None:
+        return False
+    vec = image_node.inputs.get("Vector")
+    if vec is None or not vec.is_linked:
+        return False
+    seen = set()
+    stack = [link.from_socket for link in vec.links]
+    while stack and len(seen) < max_nodes:
+        node = stack.pop().node
+        if node in seen:
+            continue
+        seen.add(node)
+        if node.type == "MAPPING":
+            scale = node.inputs["Scale"]
+            if not scale.is_linked and abs(scale.default_value[0] - 2.0) < 1e-3:
+                return True
+        for inp in node.inputs:
+            for link in inp.links:
+                stack.append(link.from_socket)
+    return False
+
+
 def image_disk_path(image, pack_dir=None):
     """Resolved on-disk path of a blend image, or None when it cannot be found.
 
@@ -358,13 +406,14 @@ def resolve_textures(mat, tex, pack_dir):
     group = find_shader_group(mat)
     res = {
         "alb": None, "lym": None, "lym_alpha": None, "nrm": None,
-        "layers": None, "scales": None, "z_from_alpha": False,
+        "layers": None, "scales": None, "z_from_alpha": False, "uv_mirror": False,
         "nrm_layout": None, "nrm_wired": True,
         "how": {"alb": None, "lym": None, "nrm": None},
     }
     if group is not None:
         res["layers"], res["scales"] = group_layer_colors(group)
         res["alb"] = image_disk_path(upstream_image(group.inputs.get("Albedo")), pack_dir)
+        res["uv_mirror"] = vector_chain_doubles_u(upstream_image_node(group.inputs.get("Albedo")))
         if res["alb"]:
             res["how"]["alb"] = "graph"
         res["lym"] = image_disk_path(upstream_image(group.inputs.get("Lym_color")), pack_dir)
@@ -735,14 +784,7 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
             if has_layers and not res["lym"]:
                 notes.add(f"bake_skipped_no_lym:{base}")
             base_img_path = res["alb"]
-            if mirrored and (obj.name, i) in mirrored and base_img_path:
-                src_base = os.path.splitext(os.path.basename(base_img_path))[0]
-                try:
-                    base_img_path = write_mirrored_albedo(
-                        base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"))
-                    notes.add(f"uv_mirrored_albedo:{base}")
-                except Exception as exc:  # noqa: BLE001
-                    print(f"EXPORT_NOTE mirrored albedo failed for {base}: {exc}")
+            want_mirror = bool(res["uv_mirror"] or (mirrored and (obj.name, i) in mirrored))
             if res["alb"] and res["lym"] and has_layers:
                 baked_path = os.path.join(out_dir, f"{stem}_{base or 'mat'}_baked.png")
                 try:
@@ -753,6 +795,15 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                         baked += 1
                 except Exception as exc:  # noqa: BLE001
                     print(f"EXPORT_NOTE bake failed for {base}: {exc}")
+            if want_mirror and base_img_path:
+                # the colour textures use the doubled mirrored addressing, the normal map the plain UV
+                src_base = os.path.splitext(os.path.basename(base_img_path))[0]
+                try:
+                    base_img_path = write_mirrored_albedo(
+                        base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"))
+                    notes.add(f"uv_mirrored_albedo:{base}")
+                except Exception as exc:  # noqa: BLE001
+                    print(f"EXPORT_NOTE mirrored albedo failed for {base}: {exc}")
             nrm_out = None
             if res["nrm"]:
                 try:
