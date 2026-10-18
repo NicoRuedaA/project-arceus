@@ -538,7 +538,21 @@ def alpha_mode_of(image_path):
     return "BLEND" if soft > 0.02 else "MASK"
 
 
+# Opaque-textured effect shells that the game draws translucent (Gastly's gas cloud wraps the
+# whole body and its eyes): flat alpha by material-name token. PROBABLE (look, not game data).
+EFFECT_ALPHA = (("smoke", 0.5),)
+
+
+def effect_alpha(base):
+    for token, alpha in EFFECT_ALPHA:
+        if base.startswith(token):
+            return alpha
+    return None
+
+
 FIRE_TINTS = (
+    ("smokecore", (0.55, 0.5, 0.6, 0.6), 0.0),
+    ("smokemask", (0.55, 0.5, 0.6, 0.35), 0.0),
     # (name token, base colour, emission strength, alpha): the packs ship these flame
     # effect materials as bare default (grey) materials with no texture or colour data,
     # so they get a flat flame look. PROBABLE (invented look, not game data).
@@ -613,6 +627,14 @@ def simplify_materials(out_dir, stem, pack_dir):
                     except Exception as exc:  # noqa: BLE001
                         print(f"EXPORT_NOTE alpha mode not set for {base}: {exc}")
                     notes.add(f"alpha_{alpha_mode.lower()}:{base}")
+                elif (flat := effect_alpha(base)) is not None:
+                    bsdf.inputs["Alpha"].default_value = flat
+                    try:
+                        new.blend_method = "BLEND"
+                        new.surface_render_method = "BLENDED"
+                    except Exception:  # noqa: BLE001
+                        pass
+                    notes.add(f"effect_alpha:{base}")
             elif tint:
                 rgba, emit = tint
                 bsdf.inputs["Base Color"].default_value = rgba
@@ -670,15 +692,25 @@ CLIP_ALIASES = (
 
 
 def _clip_key(name):
-    """Clip name without the stem and the `NNNNN_` number (`pm0535_00_00001_x` -> `x`)."""
+    """Clip name without the stem and the `NNNNN_` number (`pm0535_00_00001_x` -> `x`).
+
+    Packs imported from FBX name their actions `<armature>|<stem>_<clip>|Base Layer`
+    (`Origin|pm0019_00_00_ba10_waitA01|Base Layer`): the middle part is the clip."""
+    if "|" in name:
+        parts = name.split("|")
+        name = parts[1] if len(parts) > 1 else parts[0]
+        name = re.sub(r"^pm\d{4}(?:_\d+)*?_(?=[a-z])", "", name)
+        return name
     m = re.match(r"^pm\d{4}(?:_\d+)*?_?\d{5}_(.+)$", name)
     return m.group(1) if m else name
 
 
-def add_clip_aliases(stem):
+def add_clip_aliases(stem, rig_name=None):
     """Alias copies of the SwSh-style clips under the PLA names the engine looks up."""
     by_key = {}
     for a in bpy.data.actions:
+        if "|" in a.name and a.name.split("|")[0] != rig_name:
+            continue  # per-object tracks (material/visibility/hair empties), never the body clip
         by_key.setdefault(_clip_key(a.name), a)
     added = []
     for target, sources in CLIP_ALIASES:
@@ -696,7 +728,7 @@ def add_clip_aliases(stem):
     return len(added)
 
 
-def rename_actions(stem, clip_mode):
+def rename_actions(stem, clip_mode, rig_name=None):
     """Drop the duplicate rig's action set (20000+), filter, and prefix the rest.
 
     Some packs name every action with the 20000+ block. A 20000+ action is a duplicate
@@ -722,7 +754,7 @@ def rename_actions(stem, clip_mode):
         if info:
             action.name = f"{stem}_{action.name}"
             kept += 1
-    add_clip_aliases(stem)
+    add_clip_aliases(stem, rig_name)
     print(f"EXPORT_NOTE dropped_duplicate_actions={dropped} kept={kept} clips={clip_mode}")
     return dropped
 
@@ -757,7 +789,7 @@ def main():
 
     primary = keep_primary_rig()
     simplify_materials(out, stem, pack_dir)
-    renamed = rename_actions(stem, clip_mode)
+    renamed = rename_actions(stem, clip_mode, primary.name if primary else None)
     assign_actions(primary)
     out_path = os.path.join(out, f"{stem}.gltf")
     bpy.ops.export_scene.gltf(
