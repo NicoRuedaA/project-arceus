@@ -211,8 +211,10 @@ Cada punto: **qué hacer**, **qué deberías ver** y **qué sería un fallo**. M
 3. **Objetos colocados.** En la zona 0 deberías ver casas y objetos alrededor del inicio.
    Fallo: edificios girados de lado (prueba `--obj-rot neg` o `--obj-rot flip` y dime cuál se ve bien),
    edificios flotando o hundidos, objetos sin textura (algunos sin textura son conocidos).
-4. **Minimapa y brújula.** Esquina de la pantalla: un mapa pequeño con una flecha tuya que gira y
-   una tira de brújula con 8 direcciones. Pulsa **M** para el mapa grande y otra vez M para cerrar.
+4. **Minimapa y brújula.** Esquina **superior derecha** de la pantalla: un mapa pequeño y
+   **redondo**, con un aro crema, con una flecha tuya que gira, y arriba una tira de brújula con 8
+   direcciones. Se puede ocultar en **Esc → Graphics... → página Display → Minimap** (on/off, se
+   aplica al instante; la brújula se queda; también `--no-minimap` lo quita del todo). Pulsa **M** para el mapa grande y otra vez M para cerrar.
    Ves: el mapa se parece a la zona; el agua sale en azul. El «norte» arriba es SUPUESTO.
    Fallo: el mapa está girado o espejado respecto a lo que ves en el mundo, la flecha no coincide
    con hacia dónde andas.
@@ -649,7 +651,8 @@ paridad visual nativa ni binary matching.
     Pokémon, el rombo tapa algo importante, la interfaz provisional sigue visible detrás.
 74. **Explorando.** Arriba a la izquierda, el Pokémon salvaje más cercano (icono y nombre; si no
     hay ninguno, el nombre de la zona). A la derecha, la Poké Ball elegida y cuántas tienes.
-    Abajo a la izquierda, las guías de botones del juego junto al minimapa del port.
+    Abajo a la izquierda, las guías de botones del juego en su sitio original (el minimapa del
+    port está arriba a la derecha).
 75. **Esc, equipo, resumen, mochila, cajas, Pokédex, artesanía, tienda, Personalizar y mapa (M).**
      Cada pantalla sale con los gráficos del juego: menú de pausa como lista con los componentes de la pantalla de
      Ajustes del juego (todas las opciones con su nombre, ver el punto 81); equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila
@@ -870,8 +873,10 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 
 ### 2.21 Menú de pausa original, cámara y barras de scroll
 
-81. **Menú de pausa (Esc) como lista con la piel del juego.** [EN RAMA `feat/ui-menu-lista`]
-    Al pausar sale una **lista vertical** hecha con los mismos componentes que la pantalla de
+81. **Menú de pausa (Esc) como lista con la piel del juego.** [EN MAIN]
+    Arriba sigue **la tira de iconos del juego** (4 iconos por página, el icono de la fila elegida
+    marcado y el **nombre de la opción como título**, con la animación de apertura del juego).
+    Debajo sale una **lista vertical** hecha con los mismos componentes que la pantalla de
     Ajustes del juego (la que usa Graphics): una fila por opción con su **nombre visible**, la
     fila elegida resaltada en crema con el texto oscuro (como en el juego), y a la derecha **la
     barra de scroll** del juego (rueda, arrastrar el tirador y clic en la pista, como en
@@ -880,7 +885,7 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     Customize, Back to safe spawn, Save game, Load game, Rest (heal party), Quit.
     - **Volume** sale como el deslizador del juego con su número (100 %, 75 %, 50 %, 25 %,
       0 %); **Enter** lo baja un paso y al llegar a 0 vuelve a 100.
-    - **Arriba a la izquierda**, «Menu». **Abajo**, una línea de ayuda de la fila elegida, el
+    - **Abajo**, una línea de ayuda de la fila elegida, el
       dinero y el tiempo de juego, y las teclas (arriba/abajo o W/S eligen, **Enter** abre,
       **Esc** vuelve al juego). Cuando hay filas fuera de la ventana sale «(more above)» y/o
       «(more below)».
@@ -888,7 +893,7 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       al menú en la misma fila.
     - Del juego: Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Volume, Quit. Del port:
       Crafting, Shop (test shop), Graphics, Customize, Back to safe spawn, Save/Load game, Rest.
-    Fallo: Esc no abre nada, se ve la tira de iconos de antes o la lista de texto provisional,
+    Fallo: Esc no abre nada, falta la tira de iconos de arriba, se ve la lista de texto provisional,
     la fila elegida tiene el texto blanco sobre crema (ilegible), el tirador no responde a la
     rueda, o al volver de una pantalla el menú se abre en otra fila.
 82. **Invertir cámara: ahora solo en Graphics.** [EN RAMA `feat/ui-menu`] Las filas «Invert
@@ -1000,6 +1005,15 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
 - La música de zona: no se sabe cuál de las 4 versiones es el bucle real, ni hay variantes de
   tarde/noche por zona (solo una compartida de noche).
 - Nada se ha comprobado jugando con teclado o ratón reales: **tú eres la primera prueba**.
+
+84. **Vista previa de la Pokédex nacional con luz propia.** [EN RAMA `feat/orq-ajustes`] En la
+    Pokédex (Y; luego Y otra vez para la lista nacional) el Pokémon del marco se ve **bien
+    iluminado y con sus colores** (ya no oscuro, aunque sea de noche en el juego), sobre un fondo
+    gris azulado claro. Fallo: la silueta sigue casi negra o los colores salen apagados.
+85. **F1 dibuja también el agua.** [EN RAMA `feat/orq-ajustes`] En los modos ENCIMA y SOLO de F1
+    el agua sale en **azul** (los triángulos de cada río o lago a la altura de su superficie, hasta
+    64 m de ti) y la leyenda dice «azul=agua». Pruébalo junto al río de Jubilife Village.
+    Fallo: junto a agua no se ve ninguna línea azul.
 
 ### Pendiente de unir (ramas que aún no están en `main`)
 
