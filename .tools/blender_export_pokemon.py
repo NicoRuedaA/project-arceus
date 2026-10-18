@@ -28,6 +28,16 @@ What it does
 5. Renames every action `NNNNN_clip` -> `<stem>_NNNNN_clip` so the engine's
    clip lookup (`clip_suffix`, `find_clip`) keeps working unchanged.
 6. Exports GLTF_SEPARATE (gltf + bin + PNGs) with the skin and every action.
+7. Un-mirrors the base colour of the `_col` packs (Let's Go / Sword-Shield style models):
+   many of their materials sample the colour texture with the horizontal axis doubled and a
+   mirrored wrap (`u' = triangle_wave(2u)`: the left half of the UV space spans the whole
+   texture, the right half is its mirror image) while the other maps of the same material
+   (normal, ambient) use the plain UV, and the pack's own graph samples the plain UV for
+   all of them, so faces, ears and eyes land on the wrong part of the texture (Rattata,
+   Nidoran, Omanyte, Gigantamax forms, ...). The right addressing is detected per material
+   slot from the texture itself (see `detect_mirrored_slots`) and the colour texture is
+   re-laid out (`[image | mirrored image]`, twice as wide) so the engine's plain UV samples
+   the right texel; the mesh UVs stay untouched, so the normal map keeps matching.
 """
 
 from __future__ import annotations
@@ -38,6 +48,9 @@ import sys
 
 import bpy
 import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import uv_mirror  # noqa: E402  (shared with fix_pla_uv_mirror.py)
 
 # `--clips engine` keeps only the clip suffixes the engine looks up (idle, walk, battle
 # stance, attack, ranged attack, damage, faint, appear); `all` (default) exports every action.
@@ -206,6 +219,54 @@ def upstream_image(socket, max_nodes=80):
     return None
 
 
+def upstream_image_node(socket, max_nodes=80):
+    """First TEX_IMAGE node reachable upstream of a linked material socket."""
+    if socket is None or not socket.is_linked:
+        return None
+    seen = set()
+    stack = [link.from_socket for link in socket.links]
+    while stack and len(seen) < max_nodes:
+        node = stack.pop().node
+        if node in seen:
+            continue
+        seen.add(node)
+        if node.type == "TEX_IMAGE" and node.image:
+            return node
+        for inp in node.inputs:
+            for link in inp.links:
+                stack.append(link.from_socket)
+    return None
+
+
+def vector_chain_doubles_u(image_node, max_nodes=60):
+    """True when the UV feeding `image_node` goes through a Mapping node with a x2 horizontal scale.
+
+    The Trinity packs (`PokemonShader` group) wire their colour / mask textures through
+    `UV -> Mapping(scale 2,1,1) -> modulo (2,1) -> mirror x above 1`, i.e. the mirrored
+    repeat of `2u` (see module docstring 7); the normal map has no such wiring and uses
+    the plain UV."""
+    if image_node is None:
+        return False
+    vec = image_node.inputs.get("Vector")
+    if vec is None or not vec.is_linked:
+        return False
+    seen = set()
+    stack = [link.from_socket for link in vec.links]
+    while stack and len(seen) < max_nodes:
+        node = stack.pop().node
+        if node in seen:
+            continue
+        seen.add(node)
+        if node.type == "MAPPING":
+            scale = node.inputs["Scale"]
+            if not scale.is_linked and abs(scale.default_value[0] - 2.0) < 1e-3:
+                return True
+        for inp in node.inputs:
+            for link in inp.links:
+                stack.append(link.from_socket)
+    return False
+
+
 def image_disk_path(image, pack_dir=None):
     """Resolved on-disk path of a blend image, or None when it cannot be found.
 
@@ -348,13 +409,14 @@ def resolve_textures(mat, tex, pack_dir):
     group = find_shader_group(mat)
     res = {
         "alb": None, "lym": None, "lym_alpha": None, "nrm": None,
-        "layers": None, "scales": None, "z_from_alpha": False,
+        "layers": None, "scales": None, "z_from_alpha": False, "uv_mirror": False,
         "nrm_layout": None, "nrm_wired": True,
         "how": {"alb": None, "lym": None, "nrm": None},
     }
     if group is not None:
         res["layers"], res["scales"] = group_layer_colors(group)
         res["alb"] = image_disk_path(upstream_image(group.inputs.get("Albedo")), pack_dir)
+        res["uv_mirror"] = vector_chain_doubles_u(upstream_image_node(group.inputs.get("Albedo")))
         if res["alb"]:
             res["how"]["alb"] = "graph"
         res["lym"] = image_disk_path(upstream_image(group.inputs.get("Lym_color")), pack_dir)
@@ -568,7 +630,112 @@ def fire_tint(base):
     return None
 
 
-def simplify_materials(out_dir, stem, pack_dir):
+# --------------------------------------------------------------- UV layout
+
+# a hypothesis is taken only when it explains the seams at least twice as well as the plain
+# UV and the plain UV is clearly off (picked on the 1-150 packs, every result checked by eye)
+SEAM_RATIO = 0.5
+
+
+def detect_mirrored_slots(pack_dir):
+    """Material slots whose `_col` base colour needs the doubled mirrored addressing.
+
+    See the module docstring (7). Only materials whose base colour is a `_col` texture
+    are considered: the Trinity `_alb` packs ship a flat grey albedo (the colour comes
+    from layer masks), so their texture says nothing about the addressing, and their
+    plain UV is right. Per material slot: seam test (`uv_mirror.mirrored_by_seams`); eye slots that
+    live in the left half of the UV space only (both eyes side by side in the texture)
+    use the doubled addressing without a test. Returns {(object name, slot): note}."""
+    tex = texture_names(pack_dir)
+    px_cache = {}
+    found = {}
+    for obj in [o for o in bpy.data.objects if o.type == "MESH" and not re.search(r"\.\d{3}$", o.name)]:
+        me = obj.data
+        layer = me.uv_layers.active_render if me.uv_layers.active_render is not None else me.uv_layers.active
+        if layer is None:
+            continue
+        uv = np.zeros(len(layer.data) * 2, dtype=np.float32)
+        layer.data.foreach_get("uv", uv)
+        uv = uv.reshape(-1, 2)
+        loop_vert = np.zeros(len(me.loops), dtype=np.int32)
+        me.loops.foreach_get("vertex_index", loop_vert)
+        co = np.zeros(len(me.vertices) * 3, dtype=np.float32)
+        me.vertices.foreach_get("co", co)
+        keys = np.round(co.reshape(-1, 3) * 2000).astype(np.int64)
+        _, inv = np.unique(keys, axis=0, return_inverse=True)
+        loop_pos = inv.reshape(-1)[loop_vert]  # loops at one 3D position share an id
+        poly_mat = np.zeros(len(me.polygons), dtype=np.int32)
+        me.polygons.foreach_get("material_index", poly_mat)
+        poly_start = np.zeros(len(me.polygons), dtype=np.int32)
+        poly_total = np.zeros(len(me.polygons), dtype=np.int32)
+        me.polygons.foreach_get("loop_start", poly_start)
+        me.polygons.foreach_get("loop_total", poly_total)
+        for slot, mat in enumerate(me.materials):
+            if mat is None:
+                continue
+            polys = np.where(poly_mat == slot)[0]
+            if len(polys) == 0:
+                continue
+            res = resolve_textures(mat, tex, pack_dir)
+            alb = res["alb"]
+            if not alb or "_col" not in os.path.basename(alb).lower():
+                continue
+            if alb not in px_cache:
+                try:
+                    px_cache[alb] = _read_pixels(alb)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"EXPORT_NOTE uv_layout_skipped_unreadable:{os.path.basename(alb)}:{exc}")
+                    px_cache[alb] = None
+            px = px_cache[alb]
+            if px is None:
+                continue
+            loops = np.concatenate([np.arange(poly_start[i], poly_start[i] + poly_total[i]) for i in polys])
+            order = np.argsort(loop_pos[loops], kind="stable")
+            sl = loops[order]
+            pos = loop_pos[sl]
+            bounds = np.r_[0, np.where(np.diff(pos) != 0)[0] + 1, len(pos)]
+            a_idx, b_idx = [], []
+            for lo, hi in zip(bounds[:-1], bounds[1:]):
+                if hi - lo < 2:
+                    continue
+                first = uv[sl[lo]]
+                for j in range(lo + 1, hi):
+                    if np.abs(uv[sl[j]] - first).max() > 1e-3:
+                        a_idx.append(sl[lo])
+                        b_idx.append(sl[j])
+            base = (mat.name.split(".")[0]).lower()
+            u_lo, u_hi = float(uv[loops, 0].min()), float(uv[loops, 0].max())
+            verdict = None
+            eye_in_left_half = "eye" in base and u_hi <= 0.505 and u_lo >= -0.005
+            mirrored, plain, doubled = uv_mirror.mirrored_by_seams(px, uv, a_idx, b_idx, SEAM_RATIO)
+            if mirrored:
+                verdict = f"seams {plain:.3f}->{doubled:.3f}"
+            elif eye_in_left_half and (plain is None or (plain <= uv_mirror.SEAM_PLAIN_BAD and doubled <= uv_mirror.SEAM_PLAIN_BAD)):
+                verdict = "eye in left half"
+            if verdict is None:
+                continue
+            found[(obj.name, slot)] = verdict
+            print(f"EXPORT_NOTE uv_mirror2x:{base}:{verdict}")
+    return found
+
+
+def write_mirrored_albedo(src_path, out_path):
+    """Re-lay out a `_col` texture for the doubled mirrored addressing: `[image | mirror]`.
+
+    Sampling the result with the plain UV equals sampling `src` with
+    `u' = triangle_wave(2u)` (texel for texel, no interpolation involved)."""
+    px = _read_pixels(src_path)
+    h, w = px.shape[:2]
+    out = uv_mirror.mirror_layout(px)
+    img = bpy.data.images.new(f"uvfix_{os.path.basename(out_path)}", w * 2, h, alpha=True)
+    img.pixels.foreach_set(out.reshape(-1).astype(np.float32))
+    img.filepath_raw = out_path
+    img.file_format = "PNG"
+    img.save()
+    return out_path
+
+
+def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
     tex = texture_names(pack_dir)
     baked = rebuilt = 0
     notes = set()
@@ -583,6 +750,7 @@ def simplify_materials(out_dir, stem, pack_dir):
             if has_layers and not res["lym"]:
                 notes.add(f"bake_skipped_no_lym:{base}")
             base_img_path = res["alb"]
+            want_mirror = bool(res["uv_mirror"] or (mirrored and (obj.name, i) in mirrored))
             if res["alb"] and res["lym"] and has_layers:
                 baked_path = os.path.join(out_dir, f"{stem}_{base or 'mat'}_baked.png")
                 try:
@@ -593,6 +761,15 @@ def simplify_materials(out_dir, stem, pack_dir):
                         baked += 1
                 except Exception as exc:  # noqa: BLE001
                     print(f"EXPORT_NOTE bake failed for {base}: {exc}")
+            if want_mirror and base_img_path:
+                # the colour textures use the doubled mirrored addressing, the normal map the plain UV
+                src_base = os.path.splitext(os.path.basename(base_img_path))[0]
+                try:
+                    base_img_path = write_mirrored_albedo(
+                        base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"))
+                    notes.add(f"uv_mirrored_albedo:{base}")
+                except Exception as exc:  # noqa: BLE001
+                    print(f"EXPORT_NOTE mirrored albedo failed for {base}: {exc}")
             nrm_out = None
             if res["nrm"]:
                 try:
@@ -788,7 +965,9 @@ def main():
     pack_dir = os.path.dirname(os.path.abspath(bpy.data.filepath))
 
     primary = keep_primary_rig()
-    simplify_materials(out, stem, pack_dir)
+    mirrored = detect_mirrored_slots(pack_dir)
+    print(f"EXPORT_NOTE uv_slots_mirrored={len(mirrored)}")
+    simplify_materials(out, stem, pack_dir, mirrored)
     renamed = rename_actions(stem, clip_mode, primary.name if primary else None)
     assign_actions(primary)
     out_path = os.path.join(out, f"{stem}.gltf")

@@ -830,6 +830,16 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       las bandas marrones). En el mundo: `./play.sh --spawn-species 39` (o F7 y escribe
       «jiggly») lo coloca entero delante. Capturas de antes y después en
       `/home/nico/work/capturas_modelos_texturas/` (con `LEEME.txt`; fuera de git).
+    - **Texturas, segunda corrección (2026-10-18, especies 1-150).** Muchos modelos usaban la
+      textura de color «a medio ancho y en espejo» (la mitad izquierda del dibujo cubre toda la
+      textura y la derecha es su reflejo) y los convertíamos como si fuera normal: caras, barrigas,
+      orejas y ojos caían en otro sitio (Charmander sin barriga clara, Rattata con la cara rota,
+      Butterfree con las alas grises, Abra con manchas blancas). Ahora se deshace ese
+      espejo al convertir (84 de las 150 especies cambian). **Cómo comprobarlo:** F7 y escribe
+      `charmander`, `rattata`, `abra` o `butterfree`: Charmander con la barriga crema, Rattata con
+      orejas crema por dentro y ojos rojos, Abra con los ojos cerrados y la coraza marrón,
+      Butterfree con las alas blancas de venas negras. Antes y después de cada Pokémon corregido:
+      `work/scenes_out/texturas-150/sheets/` (informe: `reports/data-progress/model_review/texturas-150.md`).
     - **Combate:** las especies sin modelo en el juego ya pelean con su modelo convertido
       (por ejemplo, un combate salvaje contra Skeledirge).
     - **Cobertura actual:** 727 de las 1.025 especies tienen modelo; la lista de las que no y el
