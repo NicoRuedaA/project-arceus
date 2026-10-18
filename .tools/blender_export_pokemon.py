@@ -50,6 +50,7 @@ import bpy
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import model_rules  # noqa: E402  (pure rules, unit-tested)
 import uv_mirror  # noqa: E402  (shared with fix_pla_uv_mirror.py)
 
 # `--clips engine` keeps only the clip suffixes the engine looks up (idle, walk, battle
@@ -408,7 +409,7 @@ def resolve_textures(mat, tex, pack_dir):
     base = mat.name.split(".")[0].lower() if mat else ""
     group = find_shader_group(mat)
     res = {
-        "alb": None, "lym": None, "lym_alpha": None, "nrm": None,
+        "alb": None, "lym": None, "lym_alpha": None, "nrm": None, "mask": None, "mask_color": None,
         "layers": None, "scales": None, "z_from_alpha": False, "uv_mirror": False,
         "nrm_layout": None, "nrm_wired": True,
         "how": {"alb": None, "lym": None, "nrm": None},
@@ -422,6 +423,13 @@ def resolve_textures(mat, tex, pack_dir):
         res["lym"] = image_disk_path(upstream_image(group.inputs.get("Lym_color")), pack_dir)
         if res["lym"]:
             res["how"]["lym"] = "graph"
+        if "eye" in base and group.inputs.get("Mask") is not None and group.inputs["Mask"].is_linked:
+            # eye highlight: `_eye_msk` R is the catch-light blob, drawn in `Mask_color` (white)
+            res["mask"] = image_disk_path(upstream_image(group.inputs.get("Mask")), pack_dir)
+            try:
+                res["mask_color"] = tuple(group.inputs["Mask_color"].default_value)[:3]
+            except KeyError:
+                res["mask_color"] = (1.0, 1.0, 1.0)
         alpha_img = upstream_image(group.inputs.get("Lym_alpha"))
         if alpha_img is not None:
             res["lym_alpha"] = image_disk_path(alpha_img, pack_dir)
@@ -505,7 +513,7 @@ def _bilinear_resample(px, out_h, out_w):
     return top * (1 - wy) + bottom * wy
 
 
-def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path):
+def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path, mask_path=None, mask_color=None):
     """Sequential Trinity layer blend of the albedo, all maths in linear light.
 
     `c = albedo`; per layer `c = mix(c, albedo * layer_i, w_i)` with
@@ -514,10 +522,15 @@ def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path
     graph's Lym_color / Lym_alpha wiring; alpha-less files read as opaque).
     The result is encoded back to sRGB for the PNG."""
     alb_px = _read_pixels(alb_path)
-    lym_px = _read_pixels(lym_path)
-    mh, mw = lym_px.shape[:2]
-    channels = [lym_px[:, :, 0], lym_px[:, :, 1], lym_px[:, :, 2]]
-    if lym_alpha_path and os.path.isfile(lym_alpha_path):
+    lym_px = _read_pixels(lym_path) if lym_path else np.zeros((1, 1, 4), dtype=np.float32)
+    mask_px = _read_pixels(mask_path) if mask_path else None
+    # bake at the finest of the resolutions: some packs ship a 32x32 mask next to a 512x1024
+    # albedo (Beedrill's wings: the veins live in the albedo), and baking at the mask size threw
+    # the albedo detail (and its alpha) away; the eye highlight mask is 128x128 over a 32x32 albedo
+    mh = max(lym_px.shape[0], alb_px.shape[0], mask_px.shape[0] if mask_px is not None else 0)
+    mw = max(lym_px.shape[1], alb_px.shape[1], mask_px.shape[1] if mask_px is not None else 0)
+    channels = [_bilinear_resample(lym_px[:, :, c:c + 1], mh, mw)[:, :, 0] for c in range(3)]
+    if lym_path and lym_alpha_path and os.path.isfile(lym_alpha_path):
         try:
             same_file = os.path.samefile(lym_alpha_path, lym_path)
         except OSError:
@@ -533,6 +546,10 @@ def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path
         weight = np.clip(channels[i] * float(scales[i]), 0.0, 1.0)[:, :, None].astype(np.float32)
         target = (alb_lin * np.array(layers[i][:3], dtype=np.float32)[None, None, :]).astype(np.float32)
         c = c + (target - c) * weight
+    if mask_px is not None:
+        # catch-light of the eye: the mask's red channel paints `mask_color` over the baked colour
+        w = np.clip(_bilinear_resample(mask_px[:, :, 0:1], mh, mw), 0.0, 1.0)
+        c = c + (np.array(mask_color or (1, 1, 1), dtype=np.float32)[None, None, :] - c) * w
     out = np.clip(c, 0.0, 1.0)
     out = _linear_to_srgb(out)
     rgba = np.concatenate([out, np.clip(alpha, 0.0, 1.0)[:, :, None]], axis=2).astype(np.float32)
@@ -714,18 +731,22 @@ def detect_mirrored_slots(pack_dir):
                 verdict = "eye in left half"
             if verdict is None:
                 continue
+            if eye_in_left_half:
+                verdict += " +eyeswap"  # both eyes live in one atlas: see `uv_mirror.swap_halves`
             found[(obj.name, slot)] = verdict
             print(f"EXPORT_NOTE uv_mirror2x:{base}:{verdict}")
     return found
 
 
-def write_mirrored_albedo(src_path, out_path):
+def write_mirrored_albedo(src_path, out_path, swap=False):
     """Re-lay out a `_col` texture for the doubled mirrored addressing: `[image | mirror]`.
 
     Sampling the result with the plain UV equals sampling `src` with
     `u' = triangle_wave(2u)` (texel for texel, no interpolation involved)."""
     px = _read_pixels(src_path)
     h, w = px.shape[:2]
+    if swap:
+        px = uv_mirror.swap_halves(px)
     out = uv_mirror.mirror_layout(px)
     img = bpy.data.images.new(f"uvfix_{os.path.basename(out_path)}", w * 2, h, alpha=True)
     img.pixels.foreach_set(out.reshape(-1).astype(np.float32))
@@ -751,11 +772,12 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                 notes.add(f"bake_skipped_no_lym:{base}")
             base_img_path = res["alb"]
             want_mirror = bool(res["uv_mirror"] or (mirrored and (obj.name, i) in mirrored))
-            if res["alb"] and res["lym"] and has_layers:
+            if res["alb"] and ((res["lym"] and has_layers) or res["mask"]):
                 baked_path = os.path.join(out_dir, f"{stem}_{base or 'mat'}_baked.png")
                 try:
-                    got = bake_base_color(res["alb"], res["lym"], res["lym_alpha"],
-                                          res["layers"], res["scales"], baked_path)
+                    got = bake_base_color(res["alb"], res["lym"] if has_layers else None, res["lym_alpha"],
+                                          res["layers"] or [(1.0, 1.0, 1.0, 1.0)] * 4, res["scales"] or [1.0] * 4,
+                                          baked_path, res["mask"], res["mask_color"])
                     if got:
                         base_img_path = got
                         baked += 1
@@ -765,8 +787,9 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                 # the colour textures use the doubled mirrored addressing, the normal map the plain UV
                 src_base = os.path.splitext(os.path.basename(base_img_path))[0]
                 try:
+                    swap = "eyeswap" in str((mirrored or {}).get((obj.name, i), ""))
                     base_img_path = write_mirrored_albedo(
-                        base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"))
+                        base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"), swap)
                     notes.add(f"uv_mirrored_albedo:{base}")
                 except Exception as exc:  # noqa: BLE001
                     print(f"EXPORT_NOTE mirrored albedo failed for {base}: {exc}")
@@ -835,6 +858,18 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
     for note in sorted(notes):
         print(f"EXPORT_NOTE {note}")
     print(f"EXPORT_NOTE baked_base_color={baked} rebuilt_normals={rebuilt}")
+
+
+def drop_mode_meshes(stem):
+    """Drop the alternate-state meshes (see `model_rules`): the engine would draw them all at once."""
+    dropped = []
+    for o in list(bpy.data.objects):
+        if o.type == "MESH" and model_rules.is_mode_mesh(o.name, stem):
+            dropped.append(model_rules.short_mesh_name(o.name, stem))
+            bpy.data.objects.remove(o, do_unlink=True)
+    if dropped:
+        print("EXPORT_NOTE mode_meshes_dropped=" + ",".join(sorted(dropped)))
+    return dropped
 
 
 def keep_primary_rig():
@@ -965,6 +1000,7 @@ def main():
     pack_dir = os.path.dirname(os.path.abspath(bpy.data.filepath))
 
     primary = keep_primary_rig()
+    drop_mode_meshes(stem)
     mirrored = detect_mirrored_slots(pack_dir)
     print(f"EXPORT_NOTE uv_slots_mirrored={len(mirrored)}")
     simplify_materials(out, stem, pack_dir, mirrored)

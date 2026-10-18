@@ -65,3 +65,13 @@ def mirror_layout(px):
     Sampling the result with the plain UV equals sampling `px` with `u' = triangle_wave(2u)`,
     texel for texel (no interpolation involved)."""
     return np.concatenate([px, px[:, ::-1, :]], axis=1)
+
+
+def swap_halves(px):
+    """Swap the left and right half of a texture (`[A | B]` -> `[B | A]`).
+
+    Eye atlases of the `_col` packs hold both eyes side by side; the mesh gives the model's
+    right eye the left half. Swapping the halves hands every eye the other eye's image, which
+    for the mirror-symmetric pairs of the packs equals flipping each eye horizontally."""
+    half = px.shape[1] // 2
+    return np.concatenate([px[:, half:], px[:, :half]], axis=1)

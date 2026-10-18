@@ -12,7 +12,9 @@
 //!     <label>=<relative gltf path>...
 //!
 //! `<asset-root>` is the AssetPlugin root (defaults to `work`); each positional
-//! model path is relative to it. The label names the output PNG.
+//! model path is relative to it. The label names the output PNG. A label of the
+//! form `name@DEG` renders that model with its own camera yaw (`--yaw` is the default),
+//! so a sweep can look at each model from the side its eyes face.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -79,6 +81,17 @@ fn parse_args() -> Result<(PathBuf, PathBuf, u32, Option<f32>, f32, f32, u32, Ve
     Ok((root, out, size, dist_override, margin, yaw_deg, warmup_frames, models))
 }
 
+/// `name@DEG` -> (`name`, Some(DEG)); a label without a valid `@DEG` suffix is returned whole.
+fn split_label_yaw(label: &str) -> (&str, Option<f32>) {
+    match label.rsplit_once('@') {
+        Some((name, deg)) => match deg.parse::<f32>() {
+            Ok(v) => (name, Some(v)),
+            Err(_) => (label, None),
+        },
+        None => (label, None),
+    }
+}
+
 fn setup(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
@@ -95,7 +108,7 @@ fn setup(
         .models
         .iter()
         .map(|(label, rel)| {
-            let png = out_root.join(format!("{label}.png"));
+            let png = out_root.join(format!("{}.png", split_label_yaw(label).0));
             (label.clone(), rel.clone(), png)
         })
         .collect();
@@ -133,6 +146,18 @@ fn setup(
         },
         Transform::from_xyz(-4.0, 3.0, -3.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::split_label_yaw;
+
+    #[test]
+    fn label_yaw_suffix_is_optional() {
+        assert_eq!(split_label_yaw("s019_f00"), ("s019_f00", None));
+        assert_eq!(split_label_yaw("s019_f00@-120.5"), ("s019_f00", Some(-120.5)));
+        assert_eq!(split_label_yaw("a@b"), ("a@b", None));
+    }
 }
 
 #[derive(Resource)]
@@ -194,7 +219,8 @@ fn process_queue(
                 }
                 let center = (lo + hi) * 0.5;
                 let radius = (hi - lo).length() * 0.5;
-                let yaw = queue.yaw_deg.to_radians();
+                let own_yaw = split_label_yaw(&queue.models[queue.idx].0).1;
+                let yaw = own_yaw.unwrap_or(queue.yaw_deg).to_radians();
                 let dir = Vec3::new(yaw.sin(), 0.42, yaw.cos()).normalize();
                 let dist = queue
                     .dist_override

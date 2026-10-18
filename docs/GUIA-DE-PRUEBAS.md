@@ -840,6 +840,21 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       orejas crema por dentro y ojos rojos, Abra con los ojos cerrados y la coraza marrón,
       Butterfree con las alas blancas de venas negras. Antes y después de cada Pokémon corregido:
       `work/scenes_out/texturas-150/sheets/` (informe: `reports/data-progress/model_review/texturas-150.md`).
+    - **Ojos, alas y mallas dobles (2026-10-18, especies 1-151).** Tras tu prueba con F7: Beedrill
+      tenía las alas como una elipse plana (se perdían las venas), Rattata tenía los ojos en espejo,
+      Sandslash dibujaba a la vez su cuerpo y su bola de caparazón, y muchos Pokémon (Dratini,
+      Dragonair, Eevee, Doduo, Seel, Chansey, Lickitung...) tenían los ojos como agujeros oscuros
+      porque faltaba el brillo blanco. Ahora cada ojo lleva su brillo, Rattata/Spearow/Nidoqueen/
+      Kabutops tienen la mirada fiera, Sandslash sale solo con su cuerpo y Gastly deja ver la cara
+      a través del gas. **Cómo comprobarlo:** F7 y escribe `beedrill` (alas con venas), `rattata`
+      (ojos rojos de mirada fiera), `sandslash` (un solo cuerpo), `dratini` y `dragonair` (ojo oscuro con
+      un punto blanco), `chansey`, `gastly`. Para ver de frente un modelo colocado con F7, mueve la
+      cámara hacia él o arranca con `--spawn-species N --spawn-dist -3`. Defectos que siguen: Weedle
+      (los ojos quedan dentro de la cabeza), Krabby, Kingler, Jynx y Omanyte (un ojo sale distinto del
+      otro) y las alas de Beedrill siguen siendo opacas. Receta para el resto de generaciones:
+      [`MODELOS-TEXTURAS-PLAYBOOK.md`](MODELOS-TEXTURAS-PLAYBOOK.md) (en inglés); informe en
+      `reports/data-progress/model_review/texturas-151.md`; hojas de antes y después en
+      `work/scenes_out/texturas-151/` (fuera de git).
     - **Combate:** las especies sin modelo en el juego ya pelean con su modelo convertido
       (por ejemplo, un combate salvaje contra Skeledirge).
     - **Cobertura actual:** 727 de las 1.025 especies tienen modelo; la lista de las que no y el
