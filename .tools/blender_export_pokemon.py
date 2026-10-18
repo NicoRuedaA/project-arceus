@@ -49,6 +49,9 @@ import sys
 import bpy
 import numpy as np
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import uv_mirror  # noqa: E402  (shared with fix_pla_uv_mirror.py)
+
 # `--clips engine` keeps only the clip suffixes the engine looks up (idle, walk, battle
 # stance, attack, ranged attack, damage, faint, appear); `all` (default) exports every action.
 ENGINE_CLIPS = (
@@ -629,41 +632,8 @@ def fire_tint(base):
 
 # --------------------------------------------------------------- UV layout
 
-def _tri_wave(x):
-    """Mirrored-repeat of x (0..1 stays, 1..2 mirrors back, ...)."""
-    x = np.mod(x, 2.0)
-    return np.where(x > 1.0, 2.0 - x, x)
-
-
-def _uv_hypothesis(uv, name):
-    u = uv[:, 0].astype(np.float64)
-    v = uv[:, 1].astype(np.float64)
-    if name == "mu2":  # horizontal axis doubled, mirrored repeat
-        return np.stack([_tri_wave(2.0 * u), v], axis=1)
-    return np.stack([u, v], axis=1)
-
-
-def _seam_error(px, uv, a_idx, b_idx, name):
-    """Mean colour difference of the texture sampled on both sides of every seam pair.
-
-    A seam pair is two loops at the same 3D position with different UVs (two UV
-    islands touching in space). With the right addressing both islands show the same
-    colour there, so the error is ~0; with the wrong one it is large. Wrong
-    hypotheses mostly sample unrelated parts of the texture."""
-    h, w = px.shape[:2]
-    ta = _uv_hypothesis(uv[a_idx], name)
-    tb = _uv_hypothesis(uv[b_idx], name)
-    ta = np.mod(ta, 1.0)
-    tb = np.mod(tb, 1.0)
-    ca = px[np.clip((ta[:, 1] * h).astype(int), 0, h - 1), np.clip((ta[:, 0] * w).astype(int), 0, w - 1), :3]
-    cb = px[np.clip((tb[:, 1] * h).astype(int), 0, h - 1), np.clip((tb[:, 0] * w).astype(int), 0, w - 1), :3]
-    return float(np.abs(ca - cb).mean())
-
-
 # a hypothesis is taken only when it explains the seams at least twice as well as the plain
-# UV and the plain UV is clearly off (thresholds picked on the 1-150 packs, checked by eye)
-SEAM_MIN_PAIRS = 8
-SEAM_PLAIN_BAD = 0.02
+# UV and the plain UV is clearly off (picked on the 1-150 packs, every result checked by eye)
 SEAM_RATIO = 0.5
 
 
@@ -673,7 +643,7 @@ def detect_mirrored_slots(pack_dir):
     See the module docstring (7). Only materials whose base colour is a `_col` texture
     are considered: the Trinity `_alb` packs ship a flat grey albedo (the colour comes
     from layer masks), so their texture says nothing about the addressing, and their
-    plain UV is right. Per material slot: seam test (`_seam_error`); eye slots that
+    plain UV is right. Per material slot: seam test (`uv_mirror.mirrored_by_seams`); eye slots that
     live in the left half of the UV space only (both eyes side by side in the texture)
     use the doubled addressing without a test. Returns {(object name, slot): note}."""
     tex = texture_names(pack_dir)
@@ -736,15 +706,11 @@ def detect_mirrored_slots(pack_dir):
             base = (mat.name.split(".")[0]).lower()
             u_lo, u_hi = float(uv[loops, 0].min()), float(uv[loops, 0].max())
             verdict = None
-            if len(a_idx) >= SEAM_MIN_PAIRS:
-                a_idx, b_idx = np.array(a_idx), np.array(b_idx)
-                plain = _seam_error(px, uv, a_idx, b_idx, "id")
-                doubled = _seam_error(px, uv, a_idx, b_idx, "mu2")
-                if plain > SEAM_PLAIN_BAD and doubled < SEAM_RATIO * plain:
-                    verdict = f"seams {plain:.3f}->{doubled:.3f}"
-                elif plain <= SEAM_PLAIN_BAD and doubled <= SEAM_PLAIN_BAD and "eye" in base and u_hi <= 0.505 and u_lo >= -0.005:
-                    verdict = "eye in left half"
-            elif "eye" in base and u_hi <= 0.505 and u_lo >= -0.005:
+            eye_in_left_half = "eye" in base and u_hi <= 0.505 and u_lo >= -0.005
+            mirrored, plain, doubled = uv_mirror.mirrored_by_seams(px, uv, a_idx, b_idx, SEAM_RATIO)
+            if mirrored:
+                verdict = f"seams {plain:.3f}->{doubled:.3f}"
+            elif eye_in_left_half and (plain is None or (plain <= uv_mirror.SEAM_PLAIN_BAD and doubled <= uv_mirror.SEAM_PLAIN_BAD)):
                 verdict = "eye in left half"
             if verdict is None:
                 continue
@@ -760,7 +726,7 @@ def write_mirrored_albedo(src_path, out_path):
     `u' = triangle_wave(2u)` (texel for texel, no interpolation involved)."""
     px = _read_pixels(src_path)
     h, w = px.shape[:2]
-    out = np.concatenate([px, px[:, ::-1, :]], axis=1)
+    out = uv_mirror.mirror_layout(px)
     img = bpy.data.images.new(f"uvfix_{os.path.basename(out_path)}", w * 2, h, alpha=True)
     img.pixels.foreach_set(out.reshape(-1).astype(np.float32))
     img.filepath_raw = out_path

@@ -40,8 +40,9 @@ import sys
 import bpy
 import numpy as np
 
-SEAM_MIN_PAIRS = 8
-SEAM_PLAIN_BAD = 0.02
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import uv_mirror  # noqa: E402  (shared with blender_export_pokemon.py)
+
 SEAM_RATIO = 0.3  # stricter than the user-collection exporter: Tentacruel (0.45) was wrongly flipped
 MARKER = ".uv_mirror.json"
 
@@ -81,27 +82,6 @@ def load_gltf(path):
     folder = os.path.dirname(path)
     buffers = [open(os.path.join(folder, b["uri"]), "rb").read() for b in gltf["buffers"]]
     return gltf, buffers
-
-
-def tri_wave(x):
-    x = np.mod(x, 2.0)
-    return np.where(x > 1.0, 2.0 - x, x)
-
-
-def hypothesis(uv, name):
-    u, v = uv[:, 0].astype(np.float64), uv[:, 1].astype(np.float64)
-    if name == "mu2":
-        return np.stack([tri_wave(2.0 * u), v], axis=1)
-    return np.stack([u, v], axis=1)
-
-
-def seam_error(px_top, uv, a, b, name):
-    h, w = px_top.shape[:2]
-    ta = np.mod(hypothesis(uv[a], name), 1.0)
-    tb = np.mod(hypothesis(uv[b], name), 1.0)
-    ca = px_top[np.clip((ta[:, 1] * h).astype(int), 0, h - 1), np.clip((ta[:, 0] * w).astype(int), 0, w - 1), :3]
-    cb = px_top[np.clip((tb[:, 1] * h).astype(int), 0, h - 1), np.clip((tb[:, 0] * w).astype(int), 0, w - 1), :3]
-    return float(np.abs(ca - cb).mean())
 
 
 def read_png(path):
@@ -165,12 +145,9 @@ def decide(folder, uri, uv, a, b):
     h, w = px.shape[:2]
     if w * 2 == h:
         return "mu2", "half-width texture", px
-    if len(a) >= SEAM_MIN_PAIRS:
-        top = px[::-1]
-        plain = seam_error(top, uv, a, b, "id")
-        doubled = seam_error(top, uv, a, b, "mu2")
-        if plain > SEAM_PLAIN_BAD and doubled < SEAM_RATIO * plain:
-            return "mu2", f"seams {plain:.3f}->{doubled:.3f}", px
+    mirrored, plain, doubled = uv_mirror.mirrored_by_seams(px[::-1], uv, a, b, SEAM_RATIO)  # glTF v runs top-down
+    if mirrored:
+        return "mu2", f"seams {plain:.3f}->{doubled:.3f}", px
     return "id", "", px
 
 
@@ -209,7 +186,7 @@ def fix_pack(root, orig_root, stem, dry_run):
             os.makedirs(os.path.dirname(keep), exist_ok=True)
             shutil.copy2(src, keep)
             src_px = px if name == uri else read_png(src)
-            write_png(src, np.concatenate([src_px, src_px[:, ::-1, :]], axis=1))
+            write_png(src, uv_mirror.mirror_layout(src_px))
     if fixed and not dry_run:
         json.dump({"fixed": fixed}, open(marker, "w"), indent=1)
     return ", ".join(f"{f['texture']} ({f['why']})" for f in fixed) or "unchanged", len(fixed)
