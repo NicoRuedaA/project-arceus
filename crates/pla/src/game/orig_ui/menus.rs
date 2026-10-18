@@ -14,6 +14,7 @@
 
 use bevy::prelude::*;
 
+use super::anim::PlayMode;
 use super::battle::title_case;
 use super::icons::IconIndex;
 use super::scene::{ExternalImage, NodeOverride, TextAlign};
@@ -39,7 +40,8 @@ use crate::game::minimap::{FullMapRoot, MinimapState};
 use crate::game::party_screen::{PartyCursor, PartyOpsState, PartyScreenRoot, PartyScreenState};
 use crate::game::summary_screen::SummaryState;
 use crate::game::pause_menu::{
-    menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, OPTIONS,
+    menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, PauseTabs,
+    Tab, SYSTEM_OPTIONS, TABS,
 };
 use crate::game::play_time::PlayTime;
 use crate::game::save_game::PartyMember;
@@ -49,7 +51,10 @@ use crate::game::state::Paused;
 use crate::game::GameState;
 
 pub fn install(app: &mut App) {
-    app.add_systems(Update, bind_pause_menu.in_set(OrigUiSystems::Bind));
+    app.add_systems(
+        Update,
+        (bind_pause_menu, bind_pause_strip).in_set(OrigUiSystems::Bind),
+    );
     super::hide_when_shown::<PauseRoot>(app, ScreenId::PauseMenu);
     app.add_systems(Update, bind_options_screen.in_set(OrigUiSystems::Bind));
     super::hide_when_shown::<crate::game::graphics_screen::GraphicsScreenRoot>(
@@ -108,6 +113,106 @@ pub(super) fn short_label(full: &str) -> &str {
     full
 }
 
+/// The game's menu icon (texture base name) of each tab in the strip. Only icons the archive
+/// really holds are used (several, e.g. `map`, `box`, `pokedex`, are 2×2 placeholders in this
+/// archive and are drawn from other packs by the game).
+pub fn tab_icon(t: Tab) -> &'static str {
+    match t {
+        Tab::Bag => "bag",
+        Tab::Party | Tab::Summary => "pokelist",
+        Tab::Boxes => "ibox",
+        Tab::Pokedex => "report",
+        Tab::Crafting => "making",
+        Tab::Shop => "buy",
+        Tab::Customize => "passive",
+        Tab::System => "settings",
+    }
+}
+
+/// Icons of the strip per page (the game's strip holds four).
+const STRIP_SLOTS: usize = 4;
+
+/// Frame of the game's own `switch_menu` animation that sizes the icon strip to `slots` icons
+/// (frame 0: four slots, 1: three, 2: two; the animation hides the spare slots and moves the R
+/// cursors in). PROBABLE: read from the decoded `slidemenu_menulist_01_switch_menu` keys.
+pub fn strip_frame(slots: usize) -> f32 {
+    match slots {
+        4 => 0.0,
+        3 => 1.0,
+        _ => 2.0,
+    }
+}
+
+/// Top of the pause menu: the game's own icon strip and title (`slidemenu_menulist_01`) above the
+/// list — four icons per page with the game's select / unselect state per slot, the selected
+/// option as the title, and the game's opening animations (`f_in` + `menu_in` + `title_in`). It
+/// only shows the selection; keys stay in `game::pause_menu` and the rows in [`bind_pause_menu`].
+pub fn bind_pause_strip(
+    config: Res<OrigUiConfig>,
+    paused: Option<Res<Paused>>,
+    tabs: Option<Res<PauseTabs>>,
+    mut opened: Local<bool>,
+    mut screens: Query<&mut OrigScreen>,
+) {
+    if !config.enabled() {
+        return;
+    }
+    let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::PauseStrip) else {
+        return;
+    };
+    // The header stays on screen over every page of the menu (the pages hide the pause list but
+    // never the strip).
+    let Some(tabs) = tabs else {
+        s.shown = false;
+        return;
+    };
+    let open = paused.as_ref().is_some_and(|p| p.0) && tabs.active;
+    if open && !*opened {
+        // The game's own opening: one shot each, held on their last frame.
+        s.play(0, "f_in", PlayMode::Hold, "open_f");
+        s.play(0, "menu_in", PlayMode::Hold, "open_menu");
+        s.play(0, "title_in", PlayMode::Hold, "open_title");
+    }
+    *opened = open;
+    s.shown = open;
+    if !open {
+        return;
+    }
+    let sel = tabs.tab.min(TABS.len() - 1);
+    s.set_text("T_title_00", TABS[sel].label().to_string());
+    let first = (sel / STRIP_SLOTS) * STRIP_SLOTS;
+    let count = (TABS.len() - first).min(STRIP_SLOTS);
+    // The strip contracts to the icons of the page (the game's own switch_menu animation).
+    s.freeze(0, "switch_menu", strip_frame(count), "strip");
+    for k in 0..count {
+        let part = format!("L_menu_0{k}");
+        let Some(inst) = s.scene.part_instance(&part) else {
+            continue;
+        };
+        let idx = first + k;
+        let Some(&tab) = TABS.get(idx) else {
+            continue;
+        };
+        let icon = tab_icon(tab);
+        let main = archive_image(&s, &format!("sm_menu_icon_{icon}_00^t"));
+        let shadow = archive_image(&s, &format!("sm_menu_icon_{icon}_ds_00^s"));
+        for pane in ["P_icon_menu_00", "P_icon_menu_01", "P_icon_menu_03"] {
+            let img = main.clone();
+            s.set_in(&part, pane, |o| o.image = img);
+        }
+        for pane in [
+            "P_icon_menu_00_ds_00",
+            "P_icon_menu_01_ds_00",
+            "P_icon_menu_03_ds_00",
+        ] {
+            let img = shadow.clone();
+            s.set_in(&part, pane, |o| o.image = img);
+        }
+        let tag = if idx == sel { "select" } else { "unselect" };
+        s.freeze_end(inst, tag, "sel");
+    }
+}
+
 /// Heading colour of a settings-list row: the game's `select_state` / `unselect_state` animations
 /// set `T_heading_00`'s colour (dark blue on the highlighted row, cream otherwise); the port's
 /// text renderer does not play those colour tracks, so the binding applies the same values.
@@ -145,14 +250,16 @@ pub fn option_help(o: MenuOption) -> &'static str {
 /// Pause menu (Esc) built from the game's own settings-list components (`option_settings_00`,
 /// the layout the Graphics screen uses): one `L_settings_list_XX` row per option with its name,
 /// the game's select / unselect state on the cursor row, the Volume row as the game's slider, the
-/// game's scrollbar (wheel / drag / track click via `orig_ui::scrollbar`) while the sixteen rows
-/// do not fit the nine slots, and the port's own header, help line, money / play time and keys.
-/// Keys and actions stay in `game::pause_menu`.
+/// game's scrollbar (wheel / drag / track click via `orig_ui::scrollbar`) while the rows do not
+/// fit the nine slots, and the port's own help line, money / play time and keys. It is the page
+/// of the System tab; the other tabs are the game's own screens. Keys and actions stay in
+/// `game::pause_menu`.
 #[allow(clippy::too_many_arguments)]
 pub fn bind_pause_menu(
     config: Res<OrigUiConfig>,
     paused: Option<Res<Paused>>,
     suppressed: Option<Res<PauseMenuSuppressed>>,
+    tabs: Option<Res<PauseTabs>>,
     menu: Option<ResMut<PauseMenu>>,
     settings: Option<Res<UserSettings>>,
     progress: Option<Res<PlayerProgress>>,
@@ -166,7 +273,11 @@ pub fn bind_pause_menu(
     let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::PauseMenu) else {
         return;
     };
-    let open = paused.as_ref().is_some_and(|p| p.0) && !suppressed.as_ref().is_some_and(|p| p.0);
+    // The list is the System page: only while that tab is the open one.
+    let on_system = tabs.as_ref().is_none_or(|t| t.current() == Tab::System);
+    let open = paused.as_ref().is_some_and(|p| p.0)
+        && !suppressed.as_ref().is_some_and(|p| p.0)
+        && on_system;
     s.shown = open;
     let (Some(mut menu), Some(settings)) = (menu, settings) else {
         return;
@@ -174,14 +285,14 @@ pub fn bind_pause_menu(
     if !open {
         return;
     }
-    let sel = menu.selected.min(OPTIONS.len() - 1);
-    let scroll = options_scroll(sel, menu.scroll, OPTIONS.len());
+    let sel = menu.selected.min(SYSTEM_OPTIONS.len() - 1);
+    let scroll = options_scroll(sel, menu.scroll, SYSTEM_OPTIONS.len());
     if menu.scroll != scroll {
         menu.scroll = scroll;
     }
     for slot in 0..OPTION_ROW_PARTS {
         let part = format!("L_settings_list_{slot:02}");
-        let Some(&opt) = OPTIONS.get(scroll + slot).filter(|_| slot < OPTION_FULL_ROWS) else {
+        let Some(&opt) = SYSTEM_OPTIONS.get(scroll + slot).filter(|_| slot < OPTION_FULL_ROWS) else {
             s.set_visible(&part, false);
             continue;
         };
@@ -231,30 +342,20 @@ pub fn bind_pause_menu(
             s.set_in(&part, "N_switch_slider_00", |o| o.visible = Some(false));
         }
     }
-    let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", OPTION_FULL_ROWS, OPTIONS.len(), scroll);
+    let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", OPTION_FULL_ROWS, SYSTEM_OPTIONS.len(), scroll);
     bars.publish(ScreenId::PauseMenu, bar);
     // The port's own texts: header, the selected row's help, money / play time and the keys (the
     // game's own texts are never read).
     let money = progress.as_ref().map_or(0, |p| p.money);
     let seconds = play.as_ref().map_or(0, |p| p.seconds);
     let more_up = if scroll > 0 { "(more above)   " } else { "" };
-    let more_down = if scroll + OPTION_FULL_ROWS < OPTIONS.len() {
+    let more_down = if scroll + OPTION_FULL_ROWS < SYSTEM_OPTIONS.len() {
         "(more below)   "
     } else {
         ""
     };
     s.set_free_quads(Vec::new());
     s.set_free_texts(vec![
-        free_text(
-            110.0,
-            42.0,
-            700.0,
-            60.0,
-            40.0,
-            [0.97, 0.95, 0.88, 1.0],
-            TextAlign::Left,
-            "Menu",
-        ),
         free_text(
             223.0,
             790.0,
@@ -263,7 +364,7 @@ pub fn bind_pause_menu(
             26.0,
             [0.95, 0.93, 0.85, 1.0],
             TextAlign::Left,
-            option_help(OPTIONS[sel]),
+            option_help(SYSTEM_OPTIONS[sel]),
         ),
         free_text(
             223.0,
@@ -283,7 +384,7 @@ pub fn bind_pause_menu(
             22.0,
             [0.82, 0.82, 0.78, 1.0],
             TextAlign::Right,
-            "Up / Down: select   Enter: open   wheel / drag the bar: scroll   Esc: resume",
+            "Q / E: change page   Up / Down: select   Enter: choose   Esc: close the menu",
         ),
     ]);
 }
@@ -1414,7 +1515,7 @@ pub fn bind_dex_screen(
         [0.92, 0.9, 0.82, 1.0],
         TextAlign::Left,
         if national {
-            "Up / Down: select   Wheel / drag the bar: list   Q / E: turn model   drag: turn   R: reset   Esc: close"
+            "Up / Down: select   Wheel / drag the bar: list   Z / C: turn model   drag: turn   R: reset   Q / E: page   Esc: close"
         } else {
             "Up / Down: select   Wheel / drag the bar: list   Esc: close"
         },

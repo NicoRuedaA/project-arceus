@@ -5,21 +5,28 @@
 //! |---|---|
 //! | `L_zninfo_00` (top-left research bar) | nearest wild Pokémon: icon and name (else the zone name) |
 //! | `L_item_00` (ball shortcut, right) | selected ball name and count in the bag |
-//! | `L_command_00` (button guides, bottom left) | the game's menu / Pokédex / map guide icons, moved right of the port's minimap |
+//! | `L_command_00` (button guides, bottom left) | the game's menu / Pokédex / map guide icons, in the game's own place |
+//!
+//! While the field selector is open (`X`, see [`super::field_select`]) the resting ball shortcut
+//! is hidden — the wheel at the bottom right shows the same item larger, and the game does not
+//! draw the shortcut twice (PROBABLE: the captures of the original show only the wheel). The
+//! bottom-centre line names that key while the wheel is closed (the port's own hint text).
 //!
 //! Hidden because the port has no such data yet: requests / missions (`L_mssn_00`), the noble
 //! gauge and timer (`L_gauge_nspoke_01`, `L_ns_time_00`), the alpha / outbreak notices
 //! (`L_as_00`, `L_wnhd_00`), the Pokémon-throw panel (`L_item_pokemon_00`) and the second / third
 //! item slots. The provisional debug cards (zone / position, nearby radar) are hidden while this
-//! HUD is shown; the port's minimap and compass stay.
+//! HUD is shown; the port's minimap (top-right corner, optional in Graphics) and compass stay.
 
 use std::collections::HashMap;
 
 use bevy::prelude::*;
 
 use super::battle::title_case;
+use super::field_select::FieldSelector;
 use super::icons::IconIndex;
-use super::{OrigScreen, OrigUiConfig, OrigUiSystems, ScreenId};
+use super::scene::TextAlign;
+use super::{free_text, OrigScreen, OrigUiConfig, OrigUiSystems, ScreenId};
 use crate::game::battle_controller::BattleAssets;
 use crate::game::save_wire::PlayerProgress;
 use crate::game::state::Paused;
@@ -96,6 +103,7 @@ pub fn bind_field_hud(
     zone: Option<Res<ActiveZoneInfo>>,
     progress: Option<Res<PlayerProgress>>,
     balls: Option<Res<BallInventory>>,
+    selector: Option<Res<FieldSelector>>,
     icons: Res<IconIndex>,
     player: Query<&Transform, With<PlayerAvatar>>,
     wild: Query<(&Transform, &WildCreature), Without<PlayerAvatar>>,
@@ -165,9 +173,17 @@ pub fn bind_field_hud(
         s.set_in("L_item_00", "T_count_01", |o| {
             o.text = Some(count.to_string())
         });
+        // The real icon of the selected ball (the pane ships with the game's dummy texture,
+        // which `OrigScreen::new` hides): the same art the wheel and the bag use.
+        let icon = icons.item_or_dummy(id);
+        let shown = icon.is_some();
+        s.set_in("L_item_00", "P_item_00", |o| o.visible = Some(shown));
+        if let Some(icon) = icon {
+            s.set_in("L_item_00", "P_item_00", move |o| o.image = Some(icon));
+        }
     }
-    // Button guides right of the port's minimap (bottom-left corner, about 230 px wide).
-    s.set("L_command_00", |o| o.translate = Some([230.0, 0.0]));
+    // The button guides keep the game's own bottom-left place (the port's minimap sits in the
+    // top-right corner).
     for hidden in [
         "L_item_01",
         "L_item_02",
@@ -180,6 +196,25 @@ pub fn bind_field_hud(
     ] {
         s.set_visible(hidden, false);
     }
+    // The field selector (X) shows the same ball larger, so the shortcut is hidden while it is
+    // open; a bottom-centre line names that key while it is closed (the wheel brings its own
+    // key line).
+    let selector_open = selector.as_ref().is_some_and(|s| s.open);
+    s.set_visible("L_item_00", !selector_open);
+    s.set_free_texts(if selector_open {
+        Vec::new()
+    } else {
+        vec![free_text(
+            610.0,
+            1032.0,
+            700.0,
+            34.0,
+            24.0,
+            [0.95, 0.95, 0.9, 0.55],
+            TextAlign::Center,
+            "X: open the item / Pokémon selector",
+        )]
+    });
 }
 
 #[cfg(test)]

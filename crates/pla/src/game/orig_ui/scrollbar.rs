@@ -269,9 +269,11 @@ pub fn scrollbar_input(
     if !config.enabled() {
         return;
     }
+    // A real wheel reports `y > 0` for "scrolled up" (away from the user); `scroll_wheel` counts
+    // notches DOWN, so the sign flips here.
     let notches: f32 = wheel
         .as_mut()
-        .map(|r| r.read().map(|e| e.y).sum())
+        .map(|r| -r.read().map(|e| e.y).sum::<f32>())
         .unwrap_or(0.0);
     // The simulated pointer (automation) owns the mouse when it has a position; its button
     // edges are consumed here once.
