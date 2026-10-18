@@ -31,6 +31,7 @@ use super::{OrigScreen, ScreenId};
 use crate::game::box_screen::BoxScreenState;
 use crate::game::dex_screen::DexUi;
 use crate::game::graphics_screen::GraphicsScreenState;
+use crate::game::pause_menu::PauseMenu;
 
 /// Vertical track geometry in layout pixels (1920x1080 space, origin top-left, y down).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -263,6 +264,7 @@ pub fn scrollbar_input(
     mut dex: Option<ResMut<DexUi>>,
     mut bag: Option<ResMut<BagUi>>,
     mut boxes: Option<ResMut<BoxScreenState>>,
+    mut pause: Option<ResMut<PauseMenu>>,
 ) {
     if !config.enabled() {
         return;
@@ -316,7 +318,7 @@ pub fn scrollbar_input(
                 let target = bar.track.offset(pointer) - drag.grab;
                 let scroll =
                     scroll_for_offset(bar.track.len, knob_len, bar.visible, bar.total, target);
-                write_scroll(screen, scroll, bar, &mut options, &mut dex, &mut bag, &mut boxes);
+                write_scroll(screen, scroll, bar, &mut options, &mut dex, &mut bag, &mut boxes, &mut pause);
                 return;
             }
         }
@@ -340,7 +342,7 @@ pub fn scrollbar_input(
                     bar.visible,
                     bar.total,
                 );
-                write_scroll(bar.screen, scroll, bar, &mut options, &mut dex, &mut bag, &mut boxes);
+                write_scroll(bar.screen, scroll, bar, &mut options, &mut dex, &mut bag, &mut boxes, &mut pause);
             }
         }
     }
@@ -354,7 +356,7 @@ pub fn scrollbar_input(
             .or_else(|| (shown.len() == 1).then(|| &shown[0]));
         if let Some(bar) = target {
             let scroll = scroll_wheel(bar.scroll, notches, bar.visible, bar.total);
-            write_scroll(bar.screen, scroll, bar, &mut options, &mut dex, &mut bag, &mut boxes);
+            write_scroll(bar.screen, scroll, bar, &mut options, &mut dex, &mut bag, &mut boxes, &mut pause);
         }
     }
 }
@@ -368,8 +370,20 @@ fn write_scroll(
     dex: &mut Option<ResMut<DexUi>>,
     bag: &mut Option<ResMut<BagUi>>,
     boxes: &mut Option<ResMut<BoxScreenState>>,
+    pause: &mut Option<ResMut<PauseMenu>>,
 ) {
     match screen {
+        ScreenId::PauseMenu => {
+            if let Some(menu) = pause.as_deref_mut() {
+                let visible = bar.visible.max(1);
+                menu.scroll = scroll;
+                if menu.selected < scroll {
+                    menu.selected = scroll;
+                } else if menu.selected >= scroll + visible {
+                    menu.selected = scroll + visible - 1;
+                }
+            }
+        }
         ScreenId::Options => {
             if let Some(st) = options.as_deref_mut() {
                 let visible = bar.visible.max(1);

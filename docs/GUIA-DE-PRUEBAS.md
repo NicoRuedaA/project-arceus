@@ -408,8 +408,8 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 
 ### 2.8 Menús y pantallas
 
-45. **Menú de pausa (Esc).** Opciones (2026-10-17: se ve la tira de iconos original, sin lista
-    de texto, ver el punto 79): Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Crafting,
+45. **Menú de pausa (Esc).** Opciones (2026-10-18: lista con los componentes de la pantalla de
+    Ajustes del juego, todas las opciones con su nombre, ver el punto 81): Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Crafting,
     Shop (test shop), Volume, Graphics..., Customize, Back to safe spawn, Save game, Load game,
     Rest y Quit. Las inversiones de cámara se movieron a la pantalla Graphics (punto 80). Navegas
     con las flechas (o A/D y W/S) + Enter, o con el ratón. Congela el mundo. Volume cambia el
@@ -651,9 +651,8 @@ paridad visual nativa ni binary matching.
     hay ninguno, el nombre de la zona). A la derecha, la Poké Ball elegida y cuántas tienes.
     Abajo a la izquierda, las guías de botones del juego junto al minimapa del port.
 75. **Esc, equipo, resumen, mochila, cajas, Pokédex, artesanía, tienda, Personalizar y mapa (M).**
-     Cada pantalla sale con los gráficos del juego: menú de pausa con la tira de iconos del juego
-     (4 por página, el nombre de la opción en el título, sin lista de texto desde el 2026-10-17 —
-     ver el punto 81); equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila
+     Cada pantalla sale con los gráficos del juego: menú de pausa como lista con los componentes de la pantalla de
+     Ajustes del juego (todas las opciones con su nombre, ver el punto 81); equipo y resumen con los iconos, datos y movimientos del Pokémon; mochila
      con las casillas e iconos de objetos; cajas en una cuadrícula de 6 × 5; Pokédex con la página
      de cuaderno; artesanía con la rejilla de recetas y el panel de materiales; la tienda con su
      rejilla de objetos, título Buy/Sell, tu dinero y la ficha del objeto (sin ids hexadecimales:
@@ -869,27 +868,29 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
     `key r`, `key down`, `key enter` (y `key esc` para cerrar). También puede usarse el buscador
     desde `--automation` sin ventana: la lista y el aviso de estado salen en pantalla.
 
-### 2.21 Menú de pausa original, cámara y barras de scroll (rama `feat/ui-menu`)
+### 2.21 Menú de pausa original, cámara y barras de scroll
 
-81. **Menú de pausa (Esc) con la piel del juego, sin lista de texto.** [EN RAMA `feat/ui-menu`]
-    Al pausar sale la **tira de iconos original** del juego con la animación de apertura del
-    propio juego (el panel se atenúa, la tira baja y el título aparece). Arriba a la izquierda,
-    **el nombre de la opción elegida**; en el centro, sus **4 iconos por página** (flechas
-    izquierda/derecha o A/D mueven la selección y la página, W/S también; **Enter** abre;
-    **Esc** vuelve al juego). Ya **no** hay lista de texto con las 16 filas: se ve el menú del
-    juego. Abajo quedan dos líneas propias del port: dinero y tiempo de juego, y las teclas.
-    Las opciones que el juego no tiene (Crafting, Shop de prueba, Graphics, Customize, Back to
-    safe spawn, Save/Load game, Rest) siguen **en la misma tira de iconos**, después de las del
-    juego, con el icono real que decodifica el port. Qué es del juego y qué es del port:
-    - Del juego (se eligen por su icono, PROBABLE): Resume, Bag, Party, Summary, Pokémon boxes,
-      Pokédex, Volume, Save, Load, Quit (el original dibuja también «report» para guardar y
-      «settings» para opciones). Las letras de los iconos no son del juego: el port no lee sus
-      textos.
-    - Del port: Crafting (la fabricación del port), Shop (test shop), Graphics (esta pantalla),
-      Customize (Brief 36), Back to safe spawn, Rest (curar el equipo). Sin ellos el menú
-      sería idéntico al del juego; se mantienen accesibles como pidió el encargo.
-    Fallo: se ve otra vez la lista de texto, la tira no pagina, el título no coincide con el
-    icono marcado, o se ve la interfaz provisional detrás.
+81. **Menú de pausa (Esc) como lista con la piel del juego.** [EN RAMA `feat/ui-menu-lista`]
+    Al pausar sale una **lista vertical** hecha con los mismos componentes que la pantalla de
+    Ajustes del juego (la que usa Graphics): una fila por opción con su **nombre visible**, la
+    fila elegida resaltada en crema con el texto oscuro (como en el juego), y a la derecha **la
+    barra de scroll** del juego (rueda, arrastrar el tirador y clic en la pista, como en
+    Graphics). Se ven **9 filas a la vez**; las 16 opciones están en este orden: Resume, Bag,
+    Party, Summary, Pokémon boxes, Pokédex, Crafting, Shop (test shop), Volume, Graphics...,
+    Customize, Back to safe spawn, Save game, Load game, Rest (heal party), Quit.
+    - **Volume** sale como el deslizador del juego con su número (100 %, 75 %, 50 %, 25 %,
+      0 %); **Enter** lo baja un paso y al llegar a 0 vuelve a 100.
+    - **Arriba a la izquierda**, «Menu». **Abajo**, una línea de ayuda de la fila elegida, el
+      dinero y el tiempo de juego, y las teclas (arriba/abajo o W/S eligen, **Enter** abre,
+      **Esc** vuelve al juego). Cuando hay filas fuera de la ventana sale «(more above)» y/o
+      «(more below)».
+    - Al abrir Bag, Party, Pokédex, Crafting, Shop, Graphics o Customize y cerrar con Esc, vuelves
+      al menú en la misma fila.
+    - Del juego: Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Volume, Quit. Del port:
+      Crafting, Shop (test shop), Graphics, Customize, Back to safe spawn, Save/Load game, Rest.
+    Fallo: Esc no abre nada, se ve la tira de iconos de antes o la lista de texto provisional,
+    la fila elegida tiene el texto blanco sobre crema (ilegible), el tirador no responde a la
+    rueda, o al volver de una pantalla el menú se abre en otra fila.
 82. **Invertir cámara: ahora solo en Graphics.** [EN RAMA `feat/ui-menu`] Las filas «Invert
     camera X axis» e «Invert camera Y axis» **ya no están en el menú de pausa**. Están en
     **Esc → Graphics... → página Display** (Tab hasta Display), como dos filas más: izquierda/

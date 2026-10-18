@@ -310,10 +310,11 @@ pub fn freeze_for_screen(
     }
 }
 
-/// Highlighted row.
+/// Highlighted row and the first row shown by the original list (its scrollbar / wheel write it).
 #[derive(Resource, Debug, Default)]
 pub struct PauseMenu {
     pub selected: usize,
+    pub scroll: usize,
 }
 
 /// Directory of `settings.txt`.
@@ -469,6 +470,7 @@ fn pause_input(
         paused.0 = toggle_paused(paused.0);
         if paused.0 {
             menu.selected = 0;
+            menu.scroll = 0;
         }
         return;
     }

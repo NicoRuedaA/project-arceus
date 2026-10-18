@@ -53,7 +53,14 @@ fn expected_panes(id: ScreenId) -> &'static [&'static str] {
             "L_item_pokemon_00",
             "L_item_00",
         ],
-        ScreenId::PauseMenu => &["T_title_00", "L_menu_00", "L_menu_03"],
+        ScreenId::PauseMenu => &[
+            "L_settings_list_00",
+            "L_settings_list_13",
+            "L_scrollbar_00",
+            "T_heading_00",
+            "N_switch_slider_00",
+            "T_slider_current_param",
+        ],
         ScreenId::Options => &[
             "L_settings_list_00",
             "L_settings_list_13",
@@ -243,19 +250,21 @@ fn missing_data_keeps_the_debug_ui() {
     );
 }
 
-/// The pause menu keeps the game's own distribution: the four-icon strip with the selection's
-/// title, the game's opening animations, and NO text list of options (brief ui-menu). The strip
-/// contracts with the game's own `switch_menu` animation when a page has fewer icons.
+/// The pause menu is the game's settings list (`option_settings_00`) filled with the menu's rows:
+/// every option of the window readable at once, the cursor row on the game's select state, the
+/// Volume row as the game's slider, the game's scrollbar while the sixteen rows do not fit, and the
+/// port's own header, help, footer and key lines.
 #[test]
-fn pause_menu_uses_the_icon_strip_with_no_text_list() {
+fn pause_menu_is_the_game_settings_list_with_every_option_readable() {
     let Some(root) = local_root() else { return };
-    use crate::game::pause_menu::{PauseMenu, OPTIONS};
+    use crate::game::pause_menu::{option_label, PauseMenu, OPTIONS};
     use crate::game::settings::UserSettings;
     use crate::game::state::Paused;
     let (app, e) = screen_app(&root, ScreenId::PauseMenu, |app| {
         app.insert_resource(Paused(true));
-        app.insert_resource(PauseMenu { selected: 5 });
+        app.insert_resource(PauseMenu { selected: 3, scroll: 0 });
         app.insert_resource(UserSettings::default());
+        app.init_resource::<super::scrollbar::ScrollBars>();
         app.add_systems(Update, (menus::bind_pause_menu, render_screens).chain());
     });
     let s = app.world().get::<OrigScreen>(e).unwrap();
@@ -267,57 +276,82 @@ fn pause_menu_uses_the_icon_strip_with_no_text_list() {
         .filter(|t| t.visible)
         .map(|t| t.text.as_str())
         .collect();
-    assert_eq!(texts, vec!["Pokédex"], "only the title is a scene text");
-    // The port's own footer: exactly two lines (money / play time and the keys), no option rows.
-    let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
-    assert_eq!(free.len(), 2, "only the port's two footer lines: {free:?}");
-    assert!(free[0].starts_with("Money: "), "{free:?}");
-    assert!(free[1].starts_with("Left / Right"), "{free:?}");
+    // The first nine options are all readable at once (Volume shows its name and its number).
+    let settings = UserSettings::default();
+    for &opt in OPTIONS.iter().take(menus::OPTION_FULL_ROWS) {
+        let want = match opt {
+            crate::game::pause_menu::MenuOption::Volume => "Volume".to_string(),
+            other => option_label(other, &settings),
+        };
+        assert!(texts.contains(&want.as_str()), "{want} is not on screen: {texts:?}");
+    }
+    // The rest sit below the window and the game's scrollbar is published for them.
     assert!(
-        !free.iter().any(|t| t.contains("> ")),
-        "no option rows on the screen: {free:?}"
+        !texts.contains(&"Quit"),
+        "the last row is below the window until scrolled: {texts:?}"
     );
-    assert!(s.free_quads().is_empty(), "no port panel over the game's layout");
-    // The strip: the four slots of the current page carry the game's icon overrides.
-    let page = 5 / 4;
-    for k in 0..4 {
-        let part = format!("L_menu_0{k}");
-        let pane = s.node_in(&part, "P_icon_menu_00").expect("slot pane");
-        let img = s
-            .overrides
-            .get(pane)
-            .and_then(|o| o.image.as_ref())
-            .unwrap_or_else(|| panic!("{part} has no icon override"));
-        assert!(img.png.contains("png/"), "{part}: {}", img.png);
-        let inst = s.scene.part_instance(&part).unwrap();
-        let want = if page * 4 + k == 5 { "_select" } else { "_unselect" };
+    let bar = app
+        .world()
+        .resource::<super::scrollbar::ScrollBars>()
+        .get(ScreenId::PauseMenu)
+        .copied()
+        .expect("sixteen rows overflow the nine slots, so the bar is published");
+    assert_eq!((bar.visible, bar.total, bar.scroll), (menus::OPTION_FULL_ROWS, OPTIONS.len(), 0));
+    // The port's own lines: header, the selected row's help, footer and keys.
+    let free: Vec<&str> = s.free_texts().iter().map(|t| t.text.as_str()).collect();
+    assert_eq!(free.len(), 4, "{free:?}");
+    assert_eq!(free[0], "Menu");
+    assert_eq!(free[1], menus::option_help(OPTIONS[3]));
+    assert!(free[2].contains("Money: "), "{free:?}");
+    assert!(free[3].contains("Esc: resume"), "{free:?}");
+    // The cursor row (index 3) carries the game's select state and every other visible row the
+    // unselect one.
+    for slot in 0..menus::OPTION_FULL_ROWS {
+        let part = format!("L_settings_list_{slot:02}");
+        let inst = s.scene.part_instance(&part).expect("row part");
+        let want = if slot == 3 { "select_state" } else { "unselect_state" };
         assert!(
             s.anim.tracks.iter().any(|t| t.instance == inst && t.anim.ends_with(want)),
-            "{part} has no {want} state"
+            "{part} has no {want}"
         );
     }
-    // Every icon of the current page maps to an icon the archive really holds.
-    for &opt in OPTIONS.iter().take(4) {
-        let icon = menus::option_icon(opt);
-        let info = s.scene.archive().textures.get(&format!("sm_menu_icon_{icon}_00^t"));
-        assert!(
-            info.is_some_and(|i| i.width > 2 && i.height > 2 && i.png.is_some()),
-            "{opt:?} uses the missing icon {icon}"
-        );
-    }
-    // The game's opening animations are playing (f_in + menu_in + title_in).
-    for tag in ["f_in", "menu_in", "title_in"] {
-        let name = format!("slidemenu_menulist_01_{tag}");
-        assert!(
-            s.anim.tracks.iter().any(|t| t.anim == name),
-            "opening {tag} not playing"
-        );
-    }
-    // The strip sizes itself with the game's own switch_menu animation.
-    assert_eq!(menus::strip_frame(4), 0.0);
-    assert_eq!(menus::strip_frame(3), 1.0);
-    assert_eq!(menus::strip_frame(2), 2.0);
-    assert_eq!(menus::strip_frame(1), 2.0);
+}
+
+/// With the selection past the ninth row the window scrolls, the last options appear and the bar
+/// follows.
+#[test]
+fn pause_menu_scrolls_to_the_last_options() {
+    let Some(root) = local_root() else { return };
+    use crate::game::pause_menu::{PauseMenu, OPTIONS};
+    use crate::game::settings::UserSettings;
+    use crate::game::state::Paused;
+    let last = OPTIONS.len() - 1;
+    let (app, e) = screen_app(&root, ScreenId::PauseMenu, |app| {
+        app.insert_resource(Paused(true));
+        app.insert_resource(PauseMenu { selected: last, scroll: 0 });
+        app.insert_resource(UserSettings::default());
+        app.init_resource::<super::scrollbar::ScrollBars>();
+        app.add_systems(Update, (menus::bind_pause_menu, render_screens).chain());
+    });
+    let s = app.world().get::<OrigScreen>(e).unwrap();
+    let f = s.evaluate();
+    let texts: Vec<&str> = f
+        .texts
+        .iter()
+        .filter(|t| t.visible)
+        .map(|t| t.text.as_str())
+        .collect();
+    assert!(texts.contains(&"Quit"), "{texts:?}");
+    assert!(!texts.contains(&"Resume"), "the first row scrolled out: {texts:?}");
+    let menu = app.world().resource::<PauseMenu>();
+    assert_eq!(menu.scroll, OPTIONS.len() - menus::OPTION_FULL_ROWS);
+    let bar = app
+        .world()
+        .resource::<super::scrollbar::ScrollBars>()
+        .get(ScreenId::PauseMenu)
+        .copied()
+        .unwrap();
+    assert_eq!(bar.scroll, menu.scroll);
 }
 
 /// The corner minimap is hidden under the battle HUD and every menu screen, never under the

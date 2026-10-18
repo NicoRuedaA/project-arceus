@@ -227,7 +227,10 @@ impl ScreenId {
             ScreenId::BattleMoves => ("gfpak_battle_menu_eng", "battle_command_waza_00"),
             ScreenId::BattleMessage => ("gfpak_battle_resident", "msg_sys_00_s"),
             ScreenId::FieldHud => ("gfpak_resident_hud_arc01_eng", "fieldinfo_00"),
-            ScreenId::PauseMenu => ("slidelist", "slidemenu_menulist_01"),
+            // The pause menu is the game's settings list (`option_settings_00`, the same
+            // components as the Graphics screen) filled with the menu's rows: every option
+            // readable at once, the selection on the game's own highlight, its scrollbar.
+            ScreenId::PauseMenu => ("option", "option_settings_00"),
             ScreenId::Party => ("gfpak_battle_menu_eng", "pokelist_battle_00"),
             ScreenId::Summary => ("status", "status_top_00"),
             ScreenId::Bag => ("bag", "bag_top_00"),
@@ -244,7 +247,7 @@ impl ScreenId {
     /// Full-screen backdrop behind the screen (the game blurs a capture of the scene instead).
     pub fn backdrop(self) -> Color {
         match self {
-            ScreenId::PauseMenu => Color::srgba(0.02, 0.03, 0.05, 0.55),
+            ScreenId::PauseMenu => Color::srgba(0.02, 0.03, 0.05, 0.82),
             ScreenId::Bag
             | ScreenId::Box
             | ScreenId::Dex
