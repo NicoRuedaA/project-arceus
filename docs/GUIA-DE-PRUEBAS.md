@@ -818,6 +818,18 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       `R` vuelve al ángulo inicial, y al cambiar de especie el ángulo se reinicia solo. Abajo,
       en el pie de la página, salen las teclas. El aviso de la ruta del modelo sobre la página
       solo aparece con `PLA_DEBUG_DEX_PREVIEW=1` (es información de desarrollo).
+    - **Colores y texturas (corregido el 2026-10-18).** Hasta esa fecha algunos modelos salían
+      con la textura de otra parte del cuerpo — Jigglypuff con el cuerpo oscuro y Kadabra con
+      manchas verdes y rosas — porque el conversor elegía las imágenes por el nombre del material
+      y, cuando no coincidía, cogía la primera de la carpeta. Ahora las texturas se leen del
+      propio archivo del modelo (los enlaces de cada material), el color base se mezcla por capas
+      como en el material original (en luz lineal, sin oscurecer) y los mapas de normales se
+      reconstruyen para que el motor los lea bien. **Cómo comprobarlo:** abre la Pokédex
+      (Esc → Pokédex), pulsa `Y` (lista nacional) y busca la 039 (Jigglypuff: cuerpo rosa entero
+      y ojos azules con aro) y la 064 (Kadabra: amarillo, con la estrella rosada en la frente y
+      las bandas marrones). En el mundo: `./play.sh --spawn-species 39` (o F7 y escribe
+      «jiggly») lo coloca entero delante. Capturas de antes y después en
+      `/home/nico/work/capturas_modelos_texturas/` (con `LEEME.txt`; fuera de git).
     - **Combate:** las especies sin modelo en el juego ya pelean con su modelo convertido
       (por ejemplo, un combate salvaje contra Skeledirge).
     - **Cobertura actual:** 727 de las 1.025 especies tienen modelo; la lista de las que no y el
@@ -921,8 +933,10 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 
 ### 2.22 Selector de objetos y Pokémon en el campo  [EN MAIN]
 
-84. **La rueda de objetos y Pokémon (tecla X).** [EN MAIN] En el mundo,
-    sin apuntar, pulsa **X**: en la esquina de abajo a la derecha aparece la **rueda del juego**
+84. **La rueda de objetos y Pokémon (tecla X).** [EN MAIN] En el mundo, **nada más empezar** (ya
+    no hace falta pulsar nada) y sin apuntar, en la esquina de abajo a la derecha está la **rueda
+    del juego** abierta en los objetos; **X** alterna objetos / Pokémon y **Retroceso** la cierra
+    (con **X** se vuelve a abrir). La rueda
     (el mismo panel decodificado de la pantalla de apuntar: `pokeget/pokeget_item_change_00`):
     - En el centro, el **objeto actual** grande con su **cantidad** debajo (p. ej. «59»), y a los
       lados el **anterior** y el **siguiente** más pequeños.
@@ -1034,7 +1048,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
   tarde/noche por zona (solo una compartida de noche).
 - Nada se ha comprobado jugando con teclado o ratón reales: **tú eres la primera prueba**.
 
-84. **Vista previa de la Pokédex nacional con luz propia.** [EN RAMA `feat/orq-ajustes`] En la
+86. **Vista previa de la Pokédex nacional con luz propia.** [EN RAMA `feat/orq-ajustes`] En la
     Pokédex (Y; luego Y otra vez para la lista nacional) el Pokémon del marco se ve **bien
     iluminado y con sus colores** (ya no oscuro, aunque sea de noche en el juego), sobre un fondo
     gris azulado claro. Fallo: la silueta sigue casi negra o los colores salen apagados.
@@ -1042,7 +1056,7 @@ Copiado de la cola de trabajo y de los informes, sin adornar:
     retro del juego (el degradado gris original se ve detrás, sin fondo propio), y el borde crema
     de la foto con sus esquinas queda visible alrededor. Fallo: el modelo tapa el borde crema o
     sale sobre un recuadro de otro color.
-85. **F1 dibuja también el agua.** [EN RAMA `feat/orq-ajustes`] En los modos ENCIMA y SOLO de F1
+87. **F1 dibuja también el agua.** [EN RAMA `feat/orq-ajustes`] En los modos ENCIMA y SOLO de F1
     el agua sale en **azul** (los triángulos de cada río o lago a la altura de su superficie, hasta
     64 m de ti) y la leyenda dice «azul=agua». Pruébalo junto al río de Jubilife Village.
     Fallo: junto a agua no se ve ninguna línea azul.

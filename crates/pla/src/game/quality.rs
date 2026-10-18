@@ -702,7 +702,13 @@ fn sync_render_scale(
     primary: Query<&Window, With<PrimaryWindow>>,
     mut cams: Query<
         (Entity, &mut RenderTarget, &mut Projection, Has<IsDefaultUiCamera>),
-        (With<Camera3d>, Without<RenderScaleCompositor>),
+        (
+            With<Camera3d>,
+            Without<RenderScaleCompositor>,
+            // The Pokédex preview camera draws a small image of its own: taking it for the main
+            // camera retargets it (a black preview) and leaves the real view un-scaled.
+            Without<super::dex_model_preview::DexPreviewCamera>,
+        ),
     >,
     mut comp: Query<&mut RenderTarget, (With<RenderScaleCompositor>, Without<Camera3d>)>,
 ) {
@@ -1014,5 +1020,49 @@ mod tests {
         assert!(app.world().get::<IsDefaultUiCamera>(cam).is_some());
         let mut q = app.world_mut().query_filtered::<Entity, With<RenderScaleCompositor>>();
         assert_eq!(q.iter(app.world()).count(), 0);
+    }
+
+    /// The Pokédex preview camera (a second `Camera3d` with a 512 px image of its own) is never
+    /// taken for the main camera, whatever the iteration order: its target stays its own image.
+    #[test]
+    fn render_scale_leaves_the_dex_preview_camera_alone() {
+        use crate::game::dex_model_preview::DexPreviewCamera;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::image::ImagePlugin::default()));
+        app.add_plugins(RenderScalePlugin { scale: RenderScale { percent: 150 } });
+        let out = app.world_mut().resource_mut::<Assets<Image>>().add(Image::new_target_texture(
+            200,
+            100,
+            TextureFormat::Rgba8UnormSrgb,
+            None,
+        ));
+        let own = app.world_mut().resource_mut::<Assets<Image>>().add(Image::new_target_texture(
+            64,
+            64,
+            TextureFormat::Rgba8UnormSrgb,
+            None,
+        ));
+        // The preview camera exists FIRST, so a plain `.next()` would pick it.
+        let preview = app
+            .world_mut()
+            .spawn((DexPreviewCamera, Camera3d::default(), RenderTarget::Image(own.clone().into())))
+            .id();
+        let main = app
+            .world_mut()
+            .spawn((Camera3d::default(), RenderTarget::Image(out.clone().into()), IsDefaultUiCamera))
+            .id();
+        app.update();
+        app.update();
+        assert!(
+            same_target(
+                app.world().get::<RenderTarget>(preview).unwrap(),
+                &RenderTarget::Image(own.into())
+            ),
+            "the preview keeps its own 64 px image"
+        );
+        let RenderTarget::Image(scaled) = app.world().get::<RenderTarget>(main).unwrap().clone() else {
+            panic!("the main camera draws into the scaled image");
+        };
+        assert_ne!(scaled.handle, out, "the MAIN camera is the one that got scaled");
     }
 }
