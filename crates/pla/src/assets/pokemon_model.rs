@@ -177,6 +177,45 @@ pub fn bake_layered_base_color(
     })
 }
 
+/// Paint the eye catch-light over a baked eye colour: `HighlightMaskMap` (`<pack>_eye_msk`, red
+/// channel; the material block says `EnableHighlight`) is white where the highlight sits. The eye
+/// albedo/layer bake is a 32x32 flat colour, so without this the eye is a uniform dark disc and the
+/// Pokemon looks eyeless (Dratini, Chansey, Eevee ...). The result has the finer of the two sizes.
+pub fn add_eye_highlight(
+    baked: &bntx::TextureData,
+    highlight: &bntx::TextureData,
+) -> Result<bntx::TextureData, String> {
+    if baked.width == 0 || baked.height == 0 || highlight.width == 0 || highlight.height == 0 {
+        return Err("baked eye or highlight mask dimensions are zero".into());
+    }
+    if baked.rgba.len() != (baked.width * baked.height * 4) as usize
+        || highlight.rgba.len() != (highlight.width * highlight.height * 4) as usize
+    {
+        return Err("baked eye or highlight mask payload size mismatch".into());
+    }
+    let w = baked.width.max(highlight.width) as usize;
+    let h = baked.height.max(highlight.height) as usize;
+    let sample = |image: &bntx::TextureData, x: usize, y: usize| {
+        let sx = (x * image.width as usize / w).min(image.width as usize - 1);
+        let sy = (y * image.height as usize / h).min(image.height as usize - 1);
+        (sy * image.width as usize + sx) * 4
+    };
+    let mut rgba = vec![0u8; w * h * 4];
+    for y in 0..h {
+        for x in 0..w {
+            let b = sample(baked, x, y);
+            let weight = f32::from(highlight.rgba[sample(highlight, x, y)]) / 255.0;
+            let out = &mut rgba[(y * w + x) * 4..][..4];
+            for c in 0..3 {
+                let base = f32::from(baked.rgba[b + c]);
+                out[c] = (base + (255.0 - base) * weight).round().clamp(0.0, 255.0) as u8;
+            }
+            out[3] = baked.rgba[b + 3];
+        }
+    }
+    Ok(bntx::TextureData { width: w as u32, height: h as u32, rgba })
+}
+
 /// Bake `albedo * ((1 - sum w) + sum w_i * Layer_i)` at the mask resolution.
 pub fn bake_mask_lerp(
     albedo: &bntx::TextureData,
@@ -1355,7 +1394,12 @@ fn save_mask_lerp_base_color(
         .ok_or("block lacks BaseColorLayer1..4")?;
     let albedo = decoded_texture_by_file(model, albedo_file)?;
     let mask = decoded_texture_by_file(model, mask_file)?;
-    let baked = bake_mask_lerp(albedo, mask, &layers)?;
+    let mut baked = bake_mask_lerp(albedo, mask, &layers)?;
+    if let Some(highlight_file) = block.texture("HighlightMaskMap") {
+        if let Ok(highlight) = decoded_texture_by_file(model, highlight_file) {
+            baked = add_eye_highlight(&baked, highlight)?;
+        }
+    }
     let safe = |s: &str| {
         s.chars()
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
@@ -1888,6 +1932,34 @@ mod tests {
         "pm0025_00_00_00521_down01_loop",
         "pm0025_00_00_00560_notice01",
     ];
+
+
+    #[test]
+    fn eye_highlight_paints_white_where_the_mask_is_red_and_keeps_the_rest() {
+        use crate::assets::bntx::TextureData;
+        let baked = TextureData { width: 1, height: 1, rgba: vec![30, 20, 10, 255] };
+        // 2x2 mask: only the top-left texel is a full highlight
+        let mask = TextureData {
+            width: 2,
+            height: 2,
+            rgba: vec![255, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255],
+        };
+        let out = add_eye_highlight(&baked, &mask).unwrap();
+        assert_eq!((out.width, out.height), (2, 2), "result has the finer size");
+        assert_eq!(&out.rgba[0..4], &[255, 255, 255, 255]);
+        assert_eq!(&out.rgba[4..8], &[30, 20, 10, 255]);
+        assert_eq!(&out.rgba[12..16], &[30, 20, 10, 255]);
+    }
+
+    #[test]
+    fn eye_highlight_rejects_empty_or_mismatched_inputs() {
+        use crate::assets::bntx::TextureData;
+        let ok = TextureData { width: 1, height: 1, rgba: vec![0, 0, 0, 255] };
+        let empty = TextureData { width: 0, height: 0, rgba: vec![] };
+        let short = TextureData { width: 2, height: 2, rgba: vec![0; 4] };
+        assert!(add_eye_highlight(&empty, &ok).is_err());
+        assert!(add_eye_highlight(&ok, &short).is_err());
+    }
 
     #[test]
     fn clip_suffix_strips_the_numbered_prefix() {
