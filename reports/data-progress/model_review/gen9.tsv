@@ -1,0 +1,149 @@
+# sheet: reports/data-progress/model_review/gen9
+# version: 2
+# generator: manual review (revision-gen9), renders with render_gltf_headless 512 px yaw 34
+# target: Gen 9 (national 906-1025) 3D model review
+national_number	name	pack	form	form_name	source	status	severity	note
+906	Sprigatito	pm1010_00_00	0	Sprigatito	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+907	Floragato	pm1011_00_00	0	Floragato	CONVERTIDO	BAD_MESH	1	[PROBABLE] geometria suelta (linea fina hacia un capullo rosa) fuera del cuerpo: infla el encuadre, el modelo sale diminuto; cuerpo correcto. Causa probable: malla auxiliar/efecto exportada con el cuerpo
+908	Meowscarada	pm1012_00_00	0	Meowscarada	CONVERTIDO	BAD_MESH	1	[PROBABLE] objeto pequeno suelto arriba a la derecha (malla auxiliar) ademas del cuerpo; pose en T en el frame de captura
+909	Fuecoco	pm1013_00_00	0	Fuecoco	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+910	Crocalor	pm1014_00_00	0	Crocalor	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+911	Skeledirge	pm1015_00_00	0	Skeledirge	CONVERTIDO	BAD_MESH	2	[PROBABLE] sale tumbado en el frame de captura y con una vara/llama suelta debajo; cuerpo reconocible. Causa probable: malla auxiliar del arma/fuego
+912	Quaxly	pm1016_00_00	0	Quaxly	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+913	Quaxwell	pm1017_00_00	0	Quaxwell	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+914	Quaquaval	pm1018_00_00	0	Quaquaval	CONVERTIDO	BAD_MESH	1	[PROBABLE] la cola sale como cadena de aros sueltos separada del cuerpo y el modelo queda pequeno en el encuadre
+915	Lechonk	pm1019_00_00	0	Lechonk	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+916	Oinkologne	pm1020_00_00	0	Oinkologne	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+916	Oinkologne	pm1020_01_00	0	Oinkologne	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+917	Tarountula	pm1022_00_00	0	Tarountula	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+918	Spidops	pm1023_00_00	0	Spidops	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+919	Nymble	pm1024_00_00	0	Nymble	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+920	Lokix	pm1025_00_00	0	Lokix	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+921	Pawmi	pm1058_00_00	0	Pawmi	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+922	Pawmo	pm1059_00_00	0	Pawmo	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+923	Pawmot	pm1060_00_00	0	Pawmot	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+924	Tandemaus	pm1049_00_00	0	Tandemaus	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+925	Maushold	pm1050_11_00	0	Family of Three	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+925	Maushold	pm1050_12_00	1	Family of Four	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+926	Fidough	pm1074_00_00	0	Fidough	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+927	Dachsbun	pm1075_00_00	0	Dachsbun	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+928	Smoliv	pm1039_00_00	0	Smoliv	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+929	Dolliv	pm1040_00_00	0	Dolliv	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+930	Arboliva	pm1041_00_00	0	Arboliva	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+931	Squawkabilly	pm1064_11_00	0	Squawkabilly	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+932	Nacli	pm1067_00_00	0	Nacli	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+933	Naclstack	pm1068_00_00	0	Naclstack	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+934	Garganacl	pm1069_00_00	0	Garganacl	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+935	Charcadet	pm1107_00_00	0	Charcadet	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+936	Armarouge	pm1108_00_00	0	Armarouge	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+937	Ceruledge	pm1109_00_00	0	Ceruledge	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+938	Tadbulb	pm1044_00_00	0	Tadbulb	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+939	Bellibolt	pm1045_00_00	0	Bellibolt	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+940	Wattrel	pm1061_00_00	0	Wattrel	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; sin clip battlewait01 (3 clips)
+941	Kilowattrel	pm1062_00_00	0	Kilowattrel	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; sin clip battlewait01 (3 clips)
+942	Maschiff	pm1076_00_00	0	Maschiff	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+943	Mabosstiff	pm1077_00_00	0	Mabosstiff	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+944	Shroodle	pm1072_00_00	0	Shroodle	CONVERTIDO	OK		[PROBABLE] identidad por icono+render (mascara menta, penacho blanco, cola marron): Shroodle; PROBABLE
+945	Grafaiai	pm1073_00_00	0	Grafaiai	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+946	Bramblin	pm1078_00_00	0	Bramblin	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+947	Brambleghast	pm1079_00_00	0	Brambleghast	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+948	Toedscool	pm1110_00_00	0	Toedscool	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+949	Toedscruel	pm1111_00_00	0	Toedscruel	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+950	Klawf	pm1066_00_00	0	Klawf	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+951	Capsakid	pm1042_00_00	0	Capsakid	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+952	Scovillain	pm1043_00_00	0	Scovillain	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+952	Scovillain	pm1043_51_00	1	Mega Scovillain	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; Mega (Legends Z-A): sin clip defaultwait01 (6 clips)
+953	Rellor	pm1026_00_00	0	Rellor	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+954	Rabsca	pm1027_00_00	0	Rabsca	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+955	Flittle	pm1030_00_00	0	Flittle	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+956	Espathra	pm1031_00_00	0	Espathra	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+957	Tinkatink	pm1104_00_00	0	Tinkatink	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+958	Tinkatuff	pm1105_00_00	0	Tinkatuff	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+959	Tinkaton	pm1106_00_00	0	Tinkaton	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+960	Wiglett	pm1033_00_00	0	Wiglett	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+961	Wugtrio	pm1034_00_00	0	Wugtrio	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+962	Bombirdier	pm1063_00_00	0	Bombirdier	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; sin clip battlewait01 (3 clips)
+963	Finizen	pm1037_00_00	0	Finizen	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+964	Palafin	pm1038_11_00	0	Zero Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+964	Palafin	pm1038_12_00	1	Hero Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+965	Varoom	pm1046_00_00	0	Varoom	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+966	Revavroom	pm1047_00_00	0	Revavroom	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+967	Cyclizar	pm1057_00_00	0	Cyclizar	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+968	Orthworm	pm1048_00_00	0	Orthworm	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+969	Glimmet	pm1070_00_00	0	Glimmet	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+970	Glimmora	pm1071_00_00	0	Glimmora	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+970	Glimmora	pm1071_51_00	1	Mega Glimmora	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; Mega (Legends Z-A): sin clip defaultwait01 (6 clips)
+971	Greavard	pm1028_00_00	0	Greavard	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+972	Houndstone	pm1029_00_00	0	Houndstone	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+973	Flamigo	pm1065_00_00	0	Flamigo	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+974	Cetoddle	pm1051_00_00	0	Cetoddle	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+975	Cetitan	pm1052_00_00	0	Cetitan	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+976	Veluza	pm1036_00_00	0	Veluza	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+977	Dondozo	pm1035_00_00	0	Dondozo	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+978	Tatsugiri	pm1056_11_00	0	Tatsugiri	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+978	Tatsugiri	pm1056_12_00	1	Droopy Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+978	Tatsugiri	pm1056_13_00	2	Stretchy Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+978	Tatsugiri	pm1056_51_00	1	Mega Tatsugiri	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; Mega (Legends Z-A): sin clip defaultwait01 (6 clips)
+979	Annihilape	pm1114_00_00	0	Annihilape	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+980	Clodsire	pm1113_00_51	0	Clodsire	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+981	Farigiraf	pm1032_00_00	0	Farigiraf	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+982	Dudunsparce	pm1021_11_00	0	Dudunsparce	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+982	Dudunsparce	pm1021_12_00	1	Three-Segment Form	CONVERTIDO	OK		[PROBABLE] igual que pm1021_11 en el render (no se distingue 2 de 3 segmentos); el nombre de la forma es por convencion FF=11+n, no verificado
+983	Kingambit	pm1112_00_00	0	Kingambit	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+984	Great Tusk	pm1082_00_00	0	Great Tusk	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+985	Scream Tail	pm1086_00_00	0	Scream Tail	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+986	Brute Bonnet	pm1083_00_00	0	Brute Bonnet	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+987	Flutter Mane	pm1087_00_00	0	Flutter Mane	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+988	Slither Wing	pm1088_00_00	0	Slither Wing	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+989	Sandy Shocks	pm1085_00_00	0	Sandy Shocks	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+990	Iron Treads	pm1090_00_00	0	Iron Treads	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+991	Iron Bundle	pm1096_00_00	0	Iron Bundle	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+992	Iron Hands	pm1093_00_00	0	Iron Hands	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+993	Iron Jugulis	pm1094_00_00	0	Iron Jugulis	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+994	Iron Moth	pm1092_00_00	0	Iron Moth	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+995	Iron Thorns	pm1095_00_00	0	Iron Thorns	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+996	Frigibax	pm1053_00_00	0	Frigibax	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+997	Arctibax	pm1054_00_00	0	Arctibax	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+998	Baxcalibur	pm1055_00_00	0	Baxcalibur	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+998	Baxcalibur	pm1055_51_00	1	Mega Baxcalibur	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; Mega (Legends Z-A): sin clip defaultwait01 (6 clips)
+999	Gimmighoul	pm1080_11_00	0	Chest Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+999	Gimmighoul	pm1080_12_00	1	Roaming Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1000	Gholdengo	pm1081_00_00	0	Gholdengo	CONVERTIDO	BAD_COLOR	1	[PROBABLE] dorado metalico ausente: sale amarillo palido plano; moneda y plataforma separadas del cuerpo. Causa probable: material metalico sin mascara/brillo
+1001	Wo-Chien	pm1100_00_00	0	Wo-Chien	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1002	Chien-Pao	pm1099_00_00	0	Chien-Pao	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1003	Ting-Lu	pm1098_00_00	0	Ting-Lu	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1004	Chi-Yu	pm1101_00_00	0	Chi-Yu	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1005	Roaring Moon	pm1089_00_00	0	Roaring Moon	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1006	Iron Valiant	pm1097_00_00	0	Iron Valiant	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1007	Koraidon	pm1102_11_00	0	Koraidon	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1007	Koraidon	pm1102_12_00	1	forma 1	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; forma 12: variante no identificada
+1008	Miraidon	pm1103_11_00	0	Miraidon	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1008	Miraidon	pm1103_12_00	1	forma 1	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; forma 12 con alas planas (parece modo planeo); no confirmado
+1009	Walking Wake	pm1084_00_00	0	Walking Wake	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1010	Iron Leaves	pm1091_00_00	0	Iron Leaves	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1011	Dipplin	pm1121_00_00	0	Dipplin	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1012	Poltchageist	pm1133_11_00	0	Poltchageist	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1012	Poltchageist	pm1133_12_00	1	Artisan Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1013	Sinistcha	pm1134_11_00	0	Sinistcha	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1013	Sinistcha	pm1134_12_00	1	Masterpiece Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1014	Okidogi	pm1123_00_00	0	Okidogi	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1015	Munkidori	pm1124_00_00	0	Munkidori	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1016	Fezandipiti	pm1125_00_00	0	Fezandipiti	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes; sin clip battlewait01 (3 clips)
+1017	Ogerpon	pm1120_11_00	0	Ogerpon	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1017	Ogerpon	pm1120_11_99	0	Ogerpon	CONVERTIDO	NO_ANIMS	2	[PROBABLE] VV=99: solo el clip damage01; es una forma-efecto (hojas espinosas) no una pose normal; probable Ogerpon Terastal, no confirmado
+1017	Ogerpon	pm1120_12_00	1	Wellspring Mask	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1017	Ogerpon	pm1120_12_99	1	Wellspring Mask	CONVERTIDO	NO_ANIMS	2	[PROBABLE] VV=99: solo el clip damage01; forma-efecto (agua); probable Ogerpon Terastal, no confirmado
+1017	Ogerpon	pm1120_13_00	2	Hearthflame Mask	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1017	Ogerpon	pm1120_13_99	2	Hearthflame Mask	CONVERTIDO	NO_ANIMS	2	[PROBABLE] VV=99: solo el clip damage01; forma-efecto (llamas); probable Ogerpon Terastal, no confirmado
+1017	Ogerpon	pm1120_14_00	3	Cornerstone Mask	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1017	Ogerpon	pm1120_14_99	3	Cornerstone Mask	CONVERTIDO	NO_ANIMS	2	[PROBABLE] VV=99: solo el clip damage01; sale negro y pixelado (bloques sin textura/color); probable Ogerpon Terastal, no confirmado
+1018	Archaludon	pm1132_00_00	0	Archaludon	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1019	Hydrapple	pm1122_00_00	0	Hydrapple	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1020	Gouging Fire	pm1126_00_00	0	Gouging Fire	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1021	Raging Bolt	pm1127_00_00	0	Raging Bolt	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1022	Iron Boulder	pm1129_00_00	0	Iron Boulder	CONVERTIDO	OK		[PROBABLE] cuadrupedo blanco/gris con detalles naranjas; hay una losa gris plana grande a un lado (malla auxiliar). Identidad por descarte: PROBABLE debil
+1023	Iron Crown	pm1128_00_00	0	Iron Crown	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1024	Terapagos	pm1130_11_00	0	Terapagos	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1024	Terapagos	pm1130_12_00	1	Terastal Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1024	Terapagos	pm1130_13_00	2	Stellar Form	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+1025	Pecharunt	pm1131_00_00	0	Pecharunt	CONVERTIDO	OK		[PROBABLE] cabeza rosa con cara negra y cadenas rosas; coincide con el render esperado (identificacion por el icono, no por el cuerpo completo)
