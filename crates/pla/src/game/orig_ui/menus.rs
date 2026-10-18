@@ -40,7 +40,8 @@ use crate::game::minimap::{FullMapRoot, MinimapState};
 use crate::game::party_screen::{PartyCursor, PartyOpsState, PartyScreenRoot, PartyScreenState};
 use crate::game::summary_screen::SummaryState;
 use crate::game::pause_menu::{
-    menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, OPTIONS,
+    menu_info_text, option_label, MenuOption, PauseMenu, PauseMenuSuppressed, PauseRoot, PauseTabs,
+    Tab, SYSTEM_OPTIONS, TABS,
 };
 use crate::game::play_time::PlayTime;
 use crate::game::save_game::PartyMember;
@@ -112,25 +113,24 @@ pub(super) fn short_label(full: &str) -> &str {
     full
 }
 
-/// The game's menu icon (texture base name) the port uses for each option in the strip. Only icons
-/// the archive really holds are used (several, e.g. `map`, `box`, `pokedex`, are 2×2 placeholders
-/// in this archive and are drawn from other packs by the game).
-pub fn option_icon(o: MenuOption) -> &'static str {
-    match o {
-        MenuOption::Resume | MenuOption::Quit => "help",
-        MenuOption::Bag => "bag",
-        MenuOption::Party | MenuOption::Summary => "pokelist",
-        MenuOption::Boxes => "ibox",
-        MenuOption::Pokedex | MenuOption::Save | MenuOption::Load => "report",
-        MenuOption::Crafting => "making",
-        MenuOption::Shop => "buy",
-        MenuOption::Volume | MenuOption::Graphics | MenuOption::Customize => "settings",
-        MenuOption::SafeSpawn => "net",
-        MenuOption::Rest => "passive",
+/// The game's menu icon (texture base name) of each tab in the strip. Only icons the archive
+/// really holds are used (several, e.g. `map`, `box`, `pokedex`, are 2×2 placeholders in this
+/// archive and are drawn from other packs by the game).
+pub fn tab_icon(t: Tab) -> &'static str {
+    match t {
+        Tab::Bag => "bag",
+        Tab::Party | Tab::Summary => "pokelist",
+        Tab::Boxes => "ibox",
+        Tab::Pokedex => "report",
+        Tab::Crafting => "making",
+        Tab::Shop => "buy",
+        Tab::Customize => "passive",
+        Tab::System => "settings",
     }
 }
 
-const TABS: usize = 4;
+/// Icons of the strip per page (the game's strip holds four).
+const STRIP_SLOTS: usize = 4;
 
 /// Frame of the game's own `switch_menu` animation that sizes the icon strip to `slots` icons
 /// (frame 0: four slots, 1: three, 2: two; the animation hides the spare slots and moves the R
@@ -150,9 +150,7 @@ pub fn strip_frame(slots: usize) -> f32 {
 pub fn bind_pause_strip(
     config: Res<OrigUiConfig>,
     paused: Option<Res<Paused>>,
-    suppressed: Option<Res<PauseMenuSuppressed>>,
-    menu: Option<Res<PauseMenu>>,
-    settings: Option<Res<UserSettings>>,
+    tabs: Option<Res<PauseTabs>>,
     mut opened: Local<bool>,
     mut screens: Query<&mut OrigScreen>,
 ) {
@@ -162,7 +160,13 @@ pub fn bind_pause_strip(
     let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::PauseStrip) else {
         return;
     };
-    let open = paused.as_ref().is_some_and(|p| p.0) && !suppressed.as_ref().is_some_and(|p| p.0);
+    // The header stays on screen over every page of the menu (the pages hide the pause list but
+    // never the strip).
+    let Some(tabs) = tabs else {
+        s.shown = false;
+        return;
+    };
+    let open = paused.as_ref().is_some_and(|p| p.0) && tabs.active;
     if open && !*opened {
         // The game's own opening: one shot each, held on their last frame.
         s.play(0, "f_in", PlayMode::Hold, "open_f");
@@ -171,20 +175,13 @@ pub fn bind_pause_strip(
     }
     *opened = open;
     s.shown = open;
-    let (Some(menu), Some(settings)) = (menu, settings) else {
-        return;
-    };
     if !open {
         return;
     }
-    let sel = menu.selected.min(OPTIONS.len() - 1);
-    let title = match OPTIONS[sel] {
-        MenuOption::Volume => "Volume".to_string(),
-        other => option_label(other, &settings),
-    };
-    s.set_text("T_title_00", title);
-    let first = (sel / TABS) * TABS;
-    let count = (OPTIONS.len() - first).min(TABS);
+    let sel = tabs.tab.min(TABS.len() - 1);
+    s.set_text("T_title_00", TABS[sel].label().to_string());
+    let first = (sel / STRIP_SLOTS) * STRIP_SLOTS;
+    let count = (TABS.len() - first).min(STRIP_SLOTS);
     // The strip contracts to the icons of the page (the game's own switch_menu animation).
     s.freeze(0, "switch_menu", strip_frame(count), "strip");
     for k in 0..count {
@@ -193,10 +190,10 @@ pub fn bind_pause_strip(
             continue;
         };
         let idx = first + k;
-        let Some(&opt) = OPTIONS.get(idx) else {
+        let Some(&tab) = TABS.get(idx) else {
             continue;
         };
-        let icon = option_icon(opt);
+        let icon = tab_icon(tab);
         let main = archive_image(&s, &format!("sm_menu_icon_{icon}_00^t"));
         let shadow = archive_image(&s, &format!("sm_menu_icon_{icon}_ds_00^s"));
         for pane in ["P_icon_menu_00", "P_icon_menu_01", "P_icon_menu_03"] {
@@ -253,14 +250,16 @@ pub fn option_help(o: MenuOption) -> &'static str {
 /// Pause menu (Esc) built from the game's own settings-list components (`option_settings_00`,
 /// the layout the Graphics screen uses): one `L_settings_list_XX` row per option with its name,
 /// the game's select / unselect state on the cursor row, the Volume row as the game's slider, the
-/// game's scrollbar (wheel / drag / track click via `orig_ui::scrollbar`) while the sixteen rows
-/// do not fit the nine slots, and the port's own header, help line, money / play time and keys.
-/// Keys and actions stay in `game::pause_menu`.
+/// game's scrollbar (wheel / drag / track click via `orig_ui::scrollbar`) while the rows do not
+/// fit the nine slots, and the port's own help line, money / play time and keys. It is the page
+/// of the System tab; the other tabs are the game's own screens. Keys and actions stay in
+/// `game::pause_menu`.
 #[allow(clippy::too_many_arguments)]
 pub fn bind_pause_menu(
     config: Res<OrigUiConfig>,
     paused: Option<Res<Paused>>,
     suppressed: Option<Res<PauseMenuSuppressed>>,
+    tabs: Option<Res<PauseTabs>>,
     menu: Option<ResMut<PauseMenu>>,
     settings: Option<Res<UserSettings>>,
     progress: Option<Res<PlayerProgress>>,
@@ -274,7 +273,11 @@ pub fn bind_pause_menu(
     let Some(mut s) = screens.iter_mut().find(|s| s.id == ScreenId::PauseMenu) else {
         return;
     };
-    let open = paused.as_ref().is_some_and(|p| p.0) && !suppressed.as_ref().is_some_and(|p| p.0);
+    // The list is the System page: only while that tab is the open one.
+    let on_system = tabs.as_ref().is_none_or(|t| t.current() == Tab::System);
+    let open = paused.as_ref().is_some_and(|p| p.0)
+        && !suppressed.as_ref().is_some_and(|p| p.0)
+        && on_system;
     s.shown = open;
     let (Some(mut menu), Some(settings)) = (menu, settings) else {
         return;
@@ -282,14 +285,14 @@ pub fn bind_pause_menu(
     if !open {
         return;
     }
-    let sel = menu.selected.min(OPTIONS.len() - 1);
-    let scroll = options_scroll(sel, menu.scroll, OPTIONS.len());
+    let sel = menu.selected.min(SYSTEM_OPTIONS.len() - 1);
+    let scroll = options_scroll(sel, menu.scroll, SYSTEM_OPTIONS.len());
     if menu.scroll != scroll {
         menu.scroll = scroll;
     }
     for slot in 0..OPTION_ROW_PARTS {
         let part = format!("L_settings_list_{slot:02}");
-        let Some(&opt) = OPTIONS.get(scroll + slot).filter(|_| slot < OPTION_FULL_ROWS) else {
+        let Some(&opt) = SYSTEM_OPTIONS.get(scroll + slot).filter(|_| slot < OPTION_FULL_ROWS) else {
             s.set_visible(&part, false);
             continue;
         };
@@ -339,14 +342,14 @@ pub fn bind_pause_menu(
             s.set_in(&part, "N_switch_slider_00", |o| o.visible = Some(false));
         }
     }
-    let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", OPTION_FULL_ROWS, OPTIONS.len(), scroll);
+    let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", OPTION_FULL_ROWS, SYSTEM_OPTIONS.len(), scroll);
     bars.publish(ScreenId::PauseMenu, bar);
     // The port's own texts: header, the selected row's help, money / play time and the keys (the
     // game's own texts are never read).
     let money = progress.as_ref().map_or(0, |p| p.money);
     let seconds = play.as_ref().map_or(0, |p| p.seconds);
     let more_up = if scroll > 0 { "(more above)   " } else { "" };
-    let more_down = if scroll + OPTION_FULL_ROWS < OPTIONS.len() {
+    let more_down = if scroll + OPTION_FULL_ROWS < SYSTEM_OPTIONS.len() {
         "(more below)   "
     } else {
         ""
@@ -361,7 +364,7 @@ pub fn bind_pause_menu(
             26.0,
             [0.95, 0.93, 0.85, 1.0],
             TextAlign::Left,
-            option_help(OPTIONS[sel]),
+            option_help(SYSTEM_OPTIONS[sel]),
         ),
         free_text(
             223.0,
@@ -381,7 +384,7 @@ pub fn bind_pause_menu(
             22.0,
             [0.82, 0.82, 0.78, 1.0],
             TextAlign::Right,
-            "Up / Down: select   Enter: open   wheel / drag the bar: scroll   Esc: resume",
+            "Q / E: change page   Up / Down: select   Enter: choose   Esc: close the menu",
         ),
     ]);
 }
@@ -1512,7 +1515,7 @@ pub fn bind_dex_screen(
         [0.92, 0.9, 0.82, 1.0],
         TextAlign::Left,
         if national {
-            "Up / Down: select   Wheel / drag the bar: list   Q / E: turn model   drag: turn   R: reset   Esc: close"
+            "Up / Down: select   Wheel / drag the bar: list   Z / C: turn model   drag: turn   R: reset   Q / E: page   Esc: close"
         } else {
             "Up / Down: select   Wheel / drag the bar: list   Esc: close"
         },

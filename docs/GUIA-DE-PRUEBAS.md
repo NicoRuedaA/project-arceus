@@ -410,13 +410,16 @@ Para empezar uno: acércate a un Pokémon salvaje, o ponte a menos de 4 m y puls
 
 ### 2.8 Menús y pantallas
 
-45. **Menú de pausa (Esc).** Opciones (2026-10-18: lista con los componentes de la pantalla de
-    Ajustes del juego, todas las opciones con su nombre, ver el punto 81): Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Crafting,
-    Shop (test shop), Volume, Graphics..., Customize, Back to safe spawn, Save game, Load game,
-    Rest y Quit. Las inversiones de cámara se movieron a la pantalla Graphics (punto 80). Navegas
-    con las flechas (o A/D y W/S) + Enter, o con el ratón. Congela el mundo. Volume cambia el
-    volumen al instante y se recuerda al reiniciar. «Back to safe spawn» te lleva a un punto
-    seguro. Fallo: no se cierra con Esc, algo se sigue moviendo, Quit no cierra.
+45. **Menú de pausa (Esc), por pestañas.** Al pulsar Esc se abre **directamente la mochila** (la
+    primera página) con la **tira de iconos del juego arriba como cabecera**. **Q y E** cambian de
+    pestaña (con vuelta al final): Bag, Party, Summary, Pokémon boxes, Pokédex, Crafting, Shop,
+    Customize y **System**. Dentro de cada pantalla las flechas (o A/D, W/S) y Enter siguen
+    moviéndose por dentro, como siempre. **Esc cierra todo el menú** (no hay fila «Resume»).
+    **System** es una lista: Volume (Enter baja un paso: 100, 75, 50, 25, 0), Graphics...,
+    Back to safe spawn, Save game, Load game, Rest (heal party) y Quit; Graphics abre su pantalla
+    y Esc vuelve a esta lista. Congela el mundo. Fallo: Esc abre una lista en vez de la mochila,
+    Q/E no cambian de página o la pantalla de debajo también reacciona a Q/E, no se cierra con Esc,
+    algo se sigue moviendo, Quit no cierra. En combate solo se abre System.
 46. **Menú principal.** [EN MAIN] `./play.sh --area 1 --menu`. Ves: Continue (gris si no hay partida
     guardada), New game, Options, Exit. Options: volumen, campo de visión, sombras y calidad.
     Fallo: Continue activo sin partida, no se guardan las opciones.
@@ -807,7 +810,7 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
       del panel central (si esa especie aún no tiene modelo, el hueco queda vacío y el texto lo
       dice). El modelo se ve de frente, entero y con un margen alrededor (da igual que sea
       diminuto como Joltik #595 o enorme como Wailord #321), y **se puede girar**:
-      `Q`/`E` (mantenidas) lo giran a izquierda/derecha, arrastrar con el botón izquierdo del
+      `Z`/`C` (mantenidas) lo giran a izquierda/derecha, arrastrar con el botón izquierdo del
       ratón **dentro del hueco** lo gira libremente (y lo inclina un poco hacia arriba/abajo),
       `R` vuelve al ángulo inicial, y al cambiar de especie el ángulo se reinicia solo. Abajo,
       en el pie de la página, salen las teclas. El aviso de la ruta del modelo sobre la página
@@ -873,29 +876,20 @@ Capturas de referencia: `/home/nico/work/capturas_monturas2/` y, para el asiento
 
 ### 2.21 Menú de pausa original, cámara y barras de scroll
 
-81. **Menú de pausa (Esc) como lista con la piel del juego.** [EN MAIN]
-    Arriba sigue **la tira de iconos del juego** (4 iconos por página, el icono de la fila elegida
-    marcado y el **nombre de la opción como título**, con la animación de apertura del juego).
-    Debajo sale una **lista vertical** hecha con los mismos componentes que la pantalla de
-    Ajustes del juego (la que usa Graphics): una fila por opción con su **nombre visible**, la
-    fila elegida resaltada en crema con el texto oscuro (como en el juego), y a la derecha **la
-    barra de scroll** del juego (rueda, arrastrar el tirador y clic en la pista, como en
-    Graphics). Se ven **9 filas a la vez**; las 16 opciones están en este orden: Resume, Bag,
-    Party, Summary, Pokémon boxes, Pokédex, Crafting, Shop (test shop), Volume, Graphics...,
-    Customize, Back to safe spawn, Save game, Load game, Rest (heal party), Quit.
-    - **Volume** sale como el deslizador del juego con su número (100 %, 75 %, 50 %, 25 %,
-      0 %); **Enter** lo baja un paso y al llegar a 0 vuelve a 100.
-    - **Abajo**, una línea de ayuda de la fila elegida, el
-      dinero y el tiempo de juego, y las teclas (arriba/abajo o W/S eligen, **Enter** abre,
-      **Esc** vuelve al juego). Cuando hay filas fuera de la ventana sale «(more above)» y/o
-      «(more below)».
-    - Al abrir Bag, Party, Pokédex, Crafting, Shop, Graphics o Customize y cerrar con Esc, vuelves
-      al menú en la misma fila.
-    - Del juego: Resume, Bag, Party, Summary, Pokémon boxes, Pokédex, Volume, Quit. Del port:
-      Crafting, Shop (test shop), Graphics, Customize, Back to safe spawn, Save/Load game, Rest.
-    Fallo: Esc no abre nada, falta la tira de iconos de arriba, se ve la lista de texto provisional,
-    la fila elegida tiene el texto blanco sobre crema (ilegible), el tirador no responde a la
-    rueda, o al volver de una pantalla el menú se abre en otra fila.
+81. **Menú de pausa por pestañas con la piel del juego.** [EN RAMA `feat/menu-pestanas`]
+    Arriba siempre **la tira de iconos del juego** (4 iconos por página, el icono de la pestaña
+    abierta marcado y su **nombre como título**, con la animación de apertura del juego). Debajo,
+    la pantalla de la pestaña: **mochila, equipo, resumen, cajas, Pokédex, artesanía, tienda,
+    personalizar** (son las pantallas del juego de siempre) o **System**, una **lista** hecha con
+    los componentes de la pantalla de Ajustes del juego (fila elegida en crema con el texto
+    oscuro, ayuda de la fila y dinero/tiempo de juego abajo).
+    - **Q / E** = pestaña anterior / siguiente. **Esc** = cerrar el menú. Las flechas, A/D, W/S y
+      Enter actúan dentro de la pantalla abierta (en la Pokédex, además, **Z / C** giran el
+      modelo; Q y E ya no, porque cambian de pestaña).
+    - Esc abre siempre en la **mochila**; al reabrir no recuerda la última pestaña.
+    - Al abrir Graphics desde System y cerrar con Esc vuelves a la lista System.
+    Fallo: falta la tira de arriba, el título no coincide con la pantalla, Q/E giran o cambian
+    algo en la pantalla de debajo, o el menú se queda abierto tras Esc.
 82. **Invertir cámara: ahora solo en Graphics.** [EN RAMA `feat/ui-menu`] Las filas «Invert
     camera X axis» e «Invert camera Y axis» **ya no están en el menú de pausa**. Están en
     **Esc → Graphics... → página Display** (Tab hasta Display), como dos filas más: izquierda/

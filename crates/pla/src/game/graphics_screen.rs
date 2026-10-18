@@ -2370,7 +2370,9 @@ mod tests {
     fn pause_menu_row_opens_the_graphics_screen() {
         let (mut app, dir) = gfx_app("menu");
         press(&mut app, KeyCode::Escape);
-        app.world_mut().resource_mut::<PauseMenu>().selected = crate::game::pause_menu::OPTIONS
+        // Q wraps from the first page (the bag) to the System list, where Graphics is a row.
+        press(&mut app, KeyCode::KeyQ);
+        app.world_mut().resource_mut::<PauseMenu>().selected = crate::game::pause_menu::SYSTEM_OPTIONS
             .iter()
             .position(|o| *o == crate::game::pause_menu::MenuOption::Graphics)
             .unwrap();
