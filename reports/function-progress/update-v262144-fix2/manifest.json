@@ -713,7 +713,7 @@
       },
       {
         "path": "crates/pla/src/game/debug_spawn.rs",
-        "sha256": "0b79fe8be8d662a50bb4377089a4424ccd4c75e339100f969f7c99e2d5623e27"
+        "sha256": "53b82906ec05b2107e4153ac8010c58fc872bda330f656c14930acd974725f98"
       },
       {
         "path": "crates/pla/src/game/debug_visual.rs",
@@ -1217,7 +1217,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "c31ce3a33045a14e1f1377e0fcf62c128e6b06fff561b17b451c79ac2790b855"
+    "sha256": "5e73fa71eb137a5abba613a47aa0633bb0bb4111a957633ac368ce2736f5c78f"
   },
   "state_partitions": {
     "analysis_documentation_status": {
