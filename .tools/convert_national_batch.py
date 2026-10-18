@@ -71,7 +71,9 @@ def load_targets() -> list[tuple[str, str, str, int]]:
                 continue
             # Locate the pack folder: <root>/<top>/<pack>/<pack>.blend, both the plain
             # `pmNNNN` and the `pmNNNN_FF` top shapes; the suffixed top wins when present.
-            top_candidates = [f"pm{pack[2:6]}", pack.rsplit("_", 2)[0]]
+            # Folders also come as `pmNNNN_FF` (nested packs `pm0916_00/pm0916_00_00`), which the
+            # first version of this script never found.
+            top_candidates = [f"pm{pack[2:6]}", pack.rsplit("_", 1)[0], pack.rsplit("_", 2)[0]]
             for top in top_candidates:
                 sub = os.path.join(MODELS_ROOT, top, pack)
                 blend = os.path.join(sub, f"{pack}.blend")

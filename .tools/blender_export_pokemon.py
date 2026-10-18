@@ -281,19 +281,59 @@ def group_layer_colors(group):
     return layers, scales
 
 
+def _channel_source(socket):
+    """'R'/'G'/'B'/'A' for a Combine Color input fed by one channel of one image, else None."""
+    if socket is None or not socket.is_linked:
+        return None
+    link = socket.links[0]
+    node, out = link.from_node, link.from_socket.name
+    if node.type == "TEX_IMAGE" and out == "Alpha":
+        return "A"
+    if node.type == "SEPARATE_COLOR" and out in ("Red", "Green", "Blue"):
+        return out[0]
+    return None
+
+
+def normal_channel_layout(normal_socket):
+    """Channel layout of the normal map wired to `normal_socket` (BSDF Normal).
+
+    The `_nor_ts` packs keep the tangent X in the PNG alpha and Y in green
+    (`Combine.Red <- Alpha`, `Combine.Green <- Green`, blue unused/constant), so
+    the file cannot be used as a glTF normal map as it is. Returns a dict
+    {'R','G','B'} -> 'R'/'G'/'B'/'A'/None (None = rebuild from the other two),
+    or None when the wiring is a plain texture -> Normal Map or not recognised."""
+    if normal_socket is None or not normal_socket.is_linked:
+        return None
+    nmap = normal_socket.links[0].from_node
+    if nmap.type != "NORMAL_MAP":
+        return None
+    color = nmap.inputs.get("Color")
+    if color is None or not color.is_linked or color.links[0].from_node.type != "COMBINE_COLOR":
+        return None
+    cb = color.links[0].from_node
+    layout = {}
+    for key, name in (("R", "Red"), ("G", "Green"), ("B", "Blue")):
+        layout[key] = _channel_source(cb.inputs.get(name))
+    return layout
+
+
 def plain_bsdf_links(mat):
-    """(albedo image, normal image) from a plain Principled material graph.
+    """(albedo image, normal image, normal layout, normal wired) of a plain Principled graph.
 
     The non-Trinity packs (`_col/_nor/_amb`) wire their textures directly to a
-    Principled BSDF instead of the PokemonShader group; this reads those links."""
+    Principled BSDF instead of the PokemonShader group; this reads those links.
+    `normal wired` is False when the BSDF has no Normal input link at all: the
+    pack then ships a `_nor` PNG that its own graph never uses (it is not a
+    normal map), so the exporter must not guess one by file name."""
     if not mat or not mat.use_nodes:
-        return None, None
+        return None, None, None, True
     bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
     if bsdf is None:
-        return None, None
+        return None, None, None, True
     alb = upstream_image(bsdf.inputs.get("Base Color"))
-    nrm = upstream_image(bsdf.inputs.get("Normal"))
-    return alb, nrm
+    nsock = bsdf.inputs.get("Normal")
+    nrm = upstream_image(nsock)
+    return alb, nrm, normal_channel_layout(nsock), bool(nsock is not None and nsock.is_linked)
 
 
 def resolve_textures(mat, tex, pack_dir):
@@ -309,6 +349,7 @@ def resolve_textures(mat, tex, pack_dir):
     res = {
         "alb": None, "lym": None, "lym_alpha": None, "nrm": None,
         "layers": None, "scales": None, "z_from_alpha": False,
+        "nrm_layout": None, "nrm_wired": True,
         "how": {"alb": None, "lym": None, "nrm": None},
     }
     if group is not None:
@@ -329,7 +370,9 @@ def resolve_textures(mat, tex, pack_dir):
         if res["nrm"]:
             res["how"]["nrm"] = "graph"
     if res["alb"] is None or res["nrm"] is None:
-        plain_alb, plain_nrm = plain_bsdf_links(mat)
+        plain_alb, plain_nrm, layout, wired = plain_bsdf_links(mat)
+        if group is None:
+            res["nrm_layout"], res["nrm_wired"] = layout, wired
         if res["alb"] is None and plain_alb is not None:
             res["alb"] = image_disk_path(plain_alb, pack_dir)
             if res["alb"]:
@@ -352,7 +395,9 @@ def resolve_textures(mat, tex, pack_dir):
         # default Lym_alpha wiring samples the mask texture's own alpha
         res["lym_alpha"] = res["lym"]
     if res["nrm"] is None:
-        if group is None or (nrm_socket is not None and nrm_socket.is_linked):
+        if group is None and not res["nrm_wired"]:
+            res["how"]["nrm"] = "unwired"  # the pack's own graph has no normal map here
+        elif group is None or (nrm_socket is not None and nrm_socket.is_linked):
             # plain material, or a Trinity material whose wired normal could not
             # be resolved (packed/missing file): fall back to the name heuristic.
             name, d, how = pick_texture(tex, "nrm", base, pack_stem)
@@ -437,7 +482,7 @@ def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path
     return out_path
 
 
-def rebuild_normal_map(nrm_path, out_path, alpha_is_z=False):
+def rebuild_normal_map(nrm_path, out_path, alpha_is_z=False, layout=None):
     """Write a full-RGB normal map: B <- alpha.
 
     `alpha_is_z` is the graph-detected convention (`Combine.Blue <- Alpha`): the
@@ -448,7 +493,20 @@ def rebuild_normal_map(nrm_path, out_path, alpha_is_z=False):
     px = _read_pixels(nrm_path)
     b = px[:, :, 2]
     a = px[:, :, 3]
-    if alpha_is_z:
+    if layout is not None and any(layout.get(k) != k for k in "RGB"):
+        chan = {"R": px[:, :, 0], "G": px[:, :, 1], "B": px[:, :, 2], "A": px[:, :, 3]}
+        new = np.empty_like(px)
+        for i, k in enumerate("RGB"):
+            src = layout.get(k)
+            new[:, :, i] = chan[src] if src else 0.5
+        if not layout.get("B"):
+            x = new[:, :, 0] * 2.0 - 1.0
+            y = new[:, :, 1] * 2.0 - 1.0
+            z = np.sqrt(np.clip(1.0 - x * x - y * y, 0.0, 1.0))
+            new[:, :, 2] = z * 0.5 + 0.5
+        new[:, :, 3] = 1.0
+        px = new
+    elif alpha_is_z:
         if float(np.abs(b - a).max()) < 1.0 / 255.0:
             return nrm_path, False
         px[:, :, 2] = a
@@ -466,6 +524,35 @@ def rebuild_normal_map(nrm_path, out_path, alpha_is_z=False):
 
 
 # ------------------------------------------------------------------- export
+
+def alpha_mode_of(image_path):
+    """('BLEND'|'MASK'|None) from the alpha channel of a PNG: None when it is opaque."""
+    try:
+        px = _read_pixels(image_path)
+    except Exception:  # noqa: BLE001
+        return None
+    a = px[:, :, 3]
+    if float(a.min()) > 0.95:
+        return None
+    soft = float(((a > 0.02) & (a < 0.98)).mean())
+    return "BLEND" if soft > 0.02 else "MASK"
+
+
+FIRE_TINTS = (
+    # (name token, base colour, emission strength, alpha): the packs ship these flame
+    # effect materials as bare default (grey) materials with no texture or colour data,
+    # so they get a flat flame look. PROBABLE (invented look, not game data).
+    ("firecore", (1.0, 0.55, 0.12, 0.85), 2.0),
+    ("firemask", (1.0, 0.25, 0.05, 0.45), 1.0),
+)
+
+
+def fire_tint(base):
+    for token, rgba, emit in FIRE_TINTS:
+        if base.startswith(token):
+            return rgba, emit
+    return None
+
 
 def simplify_materials(out_dir, stem, pack_dir):
     tex = texture_names(pack_dir)
@@ -497,11 +584,14 @@ def simplify_materials(out_dir, stem, pack_dir):
                 try:
                     nrm_out, changed = rebuild_normal_map(
                         res["nrm"], os.path.join(out_dir, f"{stem}_{base or 'mat'}_nrm.png"),
-                        alpha_is_z=res["z_from_alpha"])
+                        alpha_is_z=res["z_from_alpha"], layout=res["nrm_layout"])
                     rebuilt += 1 if changed else 0
                 except Exception as exc:  # noqa: BLE001
                     print(f"EXPORT_NOTE normal rebuild failed for {base}: {exc}")
                     nrm_out = res["nrm"]
+            orig_blend = getattr(mat, "blend_method", "OPAQUE") if mat else "OPAQUE"
+            alpha_mode = alpha_mode_of(base_img_path) if (base_img_path and orig_blend != "OPAQUE") else None
+            tint = fire_tint(base) if not base_img_path else None
             new = bpy.data.materials.new(f"simple_{base or 'mat'}")
             new.use_nodes = True
             nt = new.node_tree
@@ -513,6 +603,28 @@ def simplify_materials(out_dir, stem, pack_dir):
                 node = nt.nodes.new("ShaderNodeTexImage")
                 node.image = img
                 nt.links.new(node.outputs["Color"], bsdf.inputs["Base Color"])
+                if alpha_mode:
+                    nt.links.new(node.outputs["Alpha"], bsdf.inputs["Alpha"])
+                    try:
+                        new.blend_method = "BLEND" if alpha_mode == "BLEND" else "CLIP"
+                        if alpha_mode == "MASK":
+                            new.alpha_threshold = 0.5
+                        new.surface_render_method = "BLENDED" if alpha_mode == "BLEND" else "DITHERED"
+                    except Exception as exc:  # noqa: BLE001
+                        print(f"EXPORT_NOTE alpha mode not set for {base}: {exc}")
+                    notes.add(f"alpha_{alpha_mode.lower()}:{base}")
+            elif tint:
+                rgba, emit = tint
+                bsdf.inputs["Base Color"].default_value = rgba
+                bsdf.inputs["Alpha"].default_value = rgba[3]
+                bsdf.inputs["Emission Color"].default_value = rgba
+                bsdf.inputs["Emission Strength"].default_value = emit
+                try:
+                    new.blend_method = "BLEND"
+                    new.surface_render_method = "BLENDED"
+                except Exception:  # noqa: BLE001
+                    pass
+                notes.add(f"fire_tint:{base}")
             if nrm_out:
                 img = bpy.data.images.load(nrm_out, check_existing=True)
                 node = nt.nodes.new("ShaderNodeTexImage")
@@ -540,31 +652,77 @@ def keep_primary_rig():
     return primary
 
 
+# Sword/Shield-era packs (no `NNNNN_` prefix) name their clips by game state: battle wait
+# `ba10_waitA01`, attack `ba20_buturi01`, ... The engine looks clips up by the PLA suffixes
+# (`defaultwait01`, `walk01`, `battlewait01_loop`, `attack01`, ...) and otherwise plays the
+# FIRST clip of the file as idle (a landing animation). Each target suffix below gets an
+# alias copy of the first source clip that exists, so the engine finds an idle/battle set.
+CLIP_ALIASES = (
+    ("defaultwait01_loop", ("fi01_wait01", "ba10_waitA01", "kw01_wait01", "battlewait01_loop")),
+    ("battlewait01_loop", ("ba10_waitA01",)),
+    ("walk01_loop", ("fi20_walk01",)),
+    ("attack01", ("ba20_buturi01",)),
+    ("rangeattack01_start", ("ba21_tokusyu01",)),
+    ("damage01_start", ("ba30_damageS01",)),
+    ("down01_start", ("ba41_down01",)),
+    ("notice01", ("ba02_roar01",)),
+)
+
+
+def _clip_key(name):
+    """Clip name without the stem and the `NNNNN_` number (`pm0535_00_00001_x` -> `x`)."""
+    m = re.match(r"^pm\d{4}(?:_\d+)*?_?\d{5}_(.+)$", name)
+    return m.group(1) if m else name
+
+
+def add_clip_aliases(stem):
+    """Alias copies of the SwSh-style clips under the PLA names the engine looks up."""
+    by_key = {}
+    for a in bpy.data.actions:
+        by_key.setdefault(_clip_key(a.name), a)
+    added = []
+    for target, sources in CLIP_ALIASES:
+        if target in by_key:
+            continue
+        src = next((by_key[x] for x in sources if x in by_key), None)
+        if src is None:
+            continue
+        alias = src.copy()
+        alias.name = f"{stem}_00000_{target}"
+        by_key[target] = alias
+        added.append(f"{target}<-{_clip_key(src.name)}")
+    if added:
+        print("EXPORT_NOTE clip_aliases=" + ",".join(added))
+    return len(added)
+
+
 def rename_actions(stem, clip_mode):
     """Drop the duplicate rig's action set (20000+), filter, and prefix the rest.
 
-    Some packs name every action with the 20000+ block; the duplicate set is only dropped
-    when a lower-numbered set exists, otherwise those clips are the model's only ones."""
-    numbers = [
-        int(m.group(1))
-        for a in bpy.data.actions
-        if (m := re.match(r"^(\d{5})_(.+)$", a.name))
-    ]
-    has_primary_set = any(n < 20000 for n in numbers)
+    Some packs name every action with the 20000+ block. A 20000+ action is a duplicate
+    only when the same clip also exists in a lower-numbered set; clips that exist only
+    in the 20000+ block are the model's real ones (a lower block may hold unrelated
+    camp poses such as `05148_campose48_*`, which would otherwise swallow the pack)."""
+    parsed = {}
+    for a in bpy.data.actions:
+        if m := re.match(r"^(\d{5})_(.+)$", a.name):
+            parsed[a.name] = (int(m.group(1)), m.group(2))
+    low_suffixes = {suffix for n, suffix in parsed.values() if n < 20000}
     dropped = 0
     kept = 0
     for action in list(bpy.data.actions):
-        m = re.match(r"^(\d{5})_(.+)$", action.name)
-        if m and int(m.group(1)) >= 20000 and has_primary_set:
+        info = parsed.get(action.name)
+        if info and info[0] >= 20000 and info[1] in low_suffixes:
             bpy.data.actions.remove(action)
             dropped += 1
             continue
-        if m and clip_mode == "engine" and m.group(2) not in ENGINE_CLIPS:
+        if info and clip_mode == "engine" and info[1] not in ENGINE_CLIPS:
             bpy.data.actions.remove(action)
             continue
-        if m:
-            action.name = f"{stem}_{m.group(1)}_{m.group(2)}"
+        if info:
+            action.name = f"{stem}_{action.name}"
             kept += 1
+    add_clip_aliases(stem)
     print(f"EXPORT_NOTE dropped_duplicate_actions={dropped} kept={kept} clips={clip_mode}")
     return dropped
 
