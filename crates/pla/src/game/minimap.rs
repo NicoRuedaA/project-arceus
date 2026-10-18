@@ -1583,7 +1583,12 @@ pub fn rebuild_minimap_on_zone_change(
     if terrain.area.area != area_idx {
         return; // the scene is still the previous one; retry next frame
     }
-    let albedo = terrain.blended_albedo.as_ref();
+    let albedo = minimap_albedo(
+        terrain.blended_albedo.as_ref(),
+        crate::game::quality::terrain_texture_max(),
+        || crate::game::zone::resolve_terrain_albedo_uncapped(area_idx, &terrain.area),
+    );
+    let albedo = albedo.as_deref();
     let resolved = match resolve_area_map(
         area_idx,
         &terrain.area,
@@ -1627,6 +1632,23 @@ pub fn rebuild_minimap_on_zone_change(
     state.map_px = resolved.image.width;
     state.image = Some(handle);
     show_minimap_frame(&mut root_q, true);
+}
+
+/// Albedo the minimap is painted from. The terrain keeps a copy reduced by the "Terrain texture"
+/// graphics option (`cap` > 0), which would make the map look different from one run to the
+/// next depending on that saved setting; with a cap on, the map reloads the albedo as baked
+/// (`load_full`) and only falls back to the reduced copy when that fails.
+pub fn minimap_albedo<'a>(
+    capped: Option<&'a TextureData>,
+    cap: u32,
+    load_full: impl FnOnce() -> Option<TextureData>,
+) -> Option<std::borrow::Cow<'a, TextureData>> {
+    if cap > 0 {
+        if let Some(full) = load_full() {
+            return Some(std::borrow::Cow::Owned(full));
+        }
+    }
+    capped.map(std::borrow::Cow::Borrowed)
 }
 
 /// Interior branch: rasterise the sub-area navmesh, or hide the frame when there is nothing to
@@ -2328,6 +2350,22 @@ mod tests {
         assert!(
             build_map_from_heightmap(&heightmap, Vec2::new(0.0, 80.0), 20.0, None, 16).is_err()
         );
+    }
+
+    #[test]
+    fn minimap_albedo_ignores_the_terrain_texture_cap() {
+        let capped = ramp_albedo(8);
+        let full = ramp_albedo(32);
+        // No cap: the terrain's copy is used and the loader never runs.
+        let a = minimap_albedo(Some(&capped), 0, || panic!("must not reload"));
+        assert_eq!(a.unwrap().width, 8);
+        // Cap on: the as-baked texture wins, so the map does not depend on the option.
+        let a = minimap_albedo(Some(&capped), 1024, || Some(full.clone()));
+        assert_eq!(a.unwrap().width, 32);
+        // Cap on but the reload fails: fall back to the reduced copy, never to nothing.
+        let a = minimap_albedo(Some(&capped), 1024, || None);
+        assert_eq!(a.unwrap().width, 8);
+        assert!(minimap_albedo(None, 1024, || None).is_none());
     }
 
     #[test]
