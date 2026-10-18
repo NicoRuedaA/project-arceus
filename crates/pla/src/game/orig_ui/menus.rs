@@ -14,7 +14,6 @@
 
 use bevy::prelude::*;
 
-use super::anim::PlayMode;
 use super::battle::title_case;
 use super::icons::IconIndex;
 use super::scene::{ExternalImage, NodeOverride, TextAlign};
@@ -71,24 +70,6 @@ pub fn install(app: &mut App) {
     );
 }
 
-/// The game's menu icon (texture base name) the port uses for each option. Only icons the
-/// archive really holds are used (several, e.g. `map`, `box`, `pokedex`, are 2×2 placeholders
-/// in this archive and are drawn from other packs by the game).
-pub fn option_icon(o: MenuOption) -> &'static str {
-    match o {
-        MenuOption::Resume | MenuOption::Quit => "help",
-        MenuOption::Bag => "bag",
-        MenuOption::Party | MenuOption::Summary => "pokelist",
-        MenuOption::Boxes => "ibox",
-        MenuOption::Pokedex | MenuOption::Save | MenuOption::Load => "report",
-        MenuOption::Crafting => "making",
-        MenuOption::Shop => "buy",
-        MenuOption::Volume | MenuOption::Graphics | MenuOption::Customize => "settings",
-        MenuOption::SafeSpawn => "net",
-        MenuOption::Rest => "passive",
-    }
-}
-
 /// PNG of texture `name` of the screen's archive, as an override image (`None` for a missing or
 /// placeholder texture).
 pub(super) fn archive_image(s: &OrigScreen, name: &str) -> Option<ExternalImage> {
@@ -127,36 +108,56 @@ pub(super) fn short_label(full: &str) -> &str {
     full
 }
 
-const TABS: usize = 4;
-
-/// Frame of the game's own `switch_menu` animation that sizes the icon strip to `slots` icons
-/// (frame 0: four slots, 1: three, 2: two; the animation hides the spare slots and moves the R
-/// cursors in). PROBABLE: read from the decoded `slidemenu_menulist_01_switch_menu` keys.
-pub fn strip_frame(slots: usize) -> f32 {
-    match slots {
-        4 => 0.0,
-        3 => 1.0,
-        _ => 2.0,
+/// Heading colour of a settings-list row: the game's `select_state` / `unselect_state` animations
+/// set `T_heading_00`'s colour (dark blue on the highlighted row, cream otherwise); the port's
+/// text renderer does not play those colour tracks, so the binding applies the same values.
+pub fn heading_color(selected: bool) -> [f32; 4] {
+    if selected {
+        [52.0 / 255.0, 78.0 / 255.0, 102.0 / 255.0, 1.0]
+    } else {
+        [251.0 / 255.0, 245.0 / 255.0, 218.0 / 255.0, 1.0]
     }
 }
 
-/// Pause menu (Esc) in the game's own distribution (`slidemenu_menulist_01`): the four-icon tab
-/// strip on top (four per page, the game's select / unselect state per slot), the selected
-/// option as the title, and the game's opening animations (`f_in` + `menu_in` + `title_in`: the
-/// dim panel fades in, the strip slides down, the title fades in). The port's own rows that the
-/// game does not have (Crafting, Shop test, Graphics, Customize, Back to safe spawn, Save / Load,
-/// Rest) stay as icons of the same strip, after the game's own entries; the full list was removed
-/// (brief ui-menu: the user must see the game's menu, not a text list).
+/// One-line help of a pause-menu row (the port's own words, shown under the list like the
+/// settings screen's help box).
+pub fn option_help(o: MenuOption) -> &'static str {
+    match o {
+        MenuOption::Resume => "Close the menu and go back to the game.",
+        MenuOption::Bag => "Look through your items.",
+        MenuOption::Party => "Check your party.",
+        MenuOption::Summary => "See the lead Pokémon's summary.",
+        MenuOption::Boxes => "Manage the Pokémon in your boxes.",
+        MenuOption::Pokedex => "Open the Pokédex.",
+        MenuOption::Crafting => "Craft items from recipes.",
+        MenuOption::Shop => "Buy and sell at the test shop (port only).",
+        MenuOption::Volume => "Master volume. Enter steps it down: 100, 75, 50, 25, 0.",
+        MenuOption::Graphics => "Quality, camera and display options.",
+        MenuOption::Customize => "Change the look of your character.",
+        MenuOption::SafeSpawn => "Return to this area's safe starting point (port only).",
+        MenuOption::Save => "Save your progress (F5 does the same).",
+        MenuOption::Load => "Load your saved game (port only).",
+        MenuOption::Rest => "Heal your whole party (port only).",
+        MenuOption::Quit => "Leave the game.",
+    }
+}
+
+/// Pause menu (Esc) built from the game's own settings-list components (`option_settings_00`,
+/// the layout the Graphics screen uses): one `L_settings_list_XX` row per option with its name,
+/// the game's select / unselect state on the cursor row, the Volume row as the game's slider, the
+/// game's scrollbar (wheel / drag / track click via `orig_ui::scrollbar`) while the sixteen rows
+/// do not fit the nine slots, and the port's own header, help line, money / play time and keys.
+/// Keys and actions stay in `game::pause_menu`.
 #[allow(clippy::too_many_arguments)]
 pub fn bind_pause_menu(
     config: Res<OrigUiConfig>,
     paused: Option<Res<Paused>>,
     suppressed: Option<Res<PauseMenuSuppressed>>,
-    menu: Option<Res<PauseMenu>>,
+    menu: Option<ResMut<PauseMenu>>,
     settings: Option<Res<UserSettings>>,
     progress: Option<Res<PlayerProgress>>,
     play: Option<Res<PlayTime>>,
-    mut opened: Local<bool>,
+    mut bars: ResMut<super::scrollbar::ScrollBars>,
     mut screens: Query<&mut OrigScreen>,
 ) {
     if !config.enabled() {
@@ -166,81 +167,123 @@ pub fn bind_pause_menu(
         return;
     };
     let open = paused.as_ref().is_some_and(|p| p.0) && !suppressed.as_ref().is_some_and(|p| p.0);
-    if open && !*opened {
-        // The game's own opening: one shot each, held on their last frame.
-        s.play(0, "f_in", PlayMode::Hold, "open_f");
-        s.play(0, "menu_in", PlayMode::Hold, "open_menu");
-        s.play(0, "title_in", PlayMode::Hold, "open_title");
-    }
-    *opened = open;
     s.shown = open;
-    let (Some(menu), Some(settings)) = (menu, settings) else {
+    let (Some(mut menu), Some(settings)) = (menu, settings) else {
         return;
     };
     if !open {
         return;
     }
     let sel = menu.selected.min(OPTIONS.len() - 1);
-    s.set_text("T_title_00", option_label(OPTIONS[sel], &settings));
-    let page = sel / TABS;
-    let first = page * TABS;
-    let count = (OPTIONS.len() - first).min(TABS);
-    // The strip contracts to the icons of the page (the game's own switch_menu animation).
-    s.freeze(0, "switch_menu", strip_frame(count), "strip");
-    for k in 0..count {
-        let part = format!("L_menu_0{k}");
+    let scroll = options_scroll(sel, menu.scroll, OPTIONS.len());
+    if menu.scroll != scroll {
+        menu.scroll = scroll;
+    }
+    for slot in 0..OPTION_ROW_PARTS {
+        let part = format!("L_settings_list_{slot:02}");
+        let Some(&opt) = OPTIONS.get(scroll + slot).filter(|_| slot < OPTION_FULL_ROWS) else {
+            s.set_visible(&part, false);
+            continue;
+        };
+        s.set_visible(&part, true);
+        let selected = scroll + slot == sel;
+        let name = match opt {
+            MenuOption::Volume => "Volume".to_string(),
+            other => option_label(other, &settings),
+        };
+        s.set_in(&part, "T_heading_00", |o| {
+            o.text = Some(name);
+            o.text_color = Some(heading_color(selected));
+        });
         let Some(inst) = s.scene.part_instance(&part) else {
             continue;
         };
-        let idx = first + k;
-        let Some(&opt) = OPTIONS.get(idx) else {
-            continue;
-        };
-        let icon = option_icon(opt);
-        let main = archive_image(&s, &format!("sm_menu_icon_{icon}_00^t"));
-        let shadow = archive_image(&s, &format!("sm_menu_icon_{icon}_ds_00^s"));
-        for pane in ["P_icon_menu_00", "P_icon_menu_01", "P_icon_menu_03"] {
-            let img = main.clone();
-            s.set_in(&part, pane, |o| o.image = img);
+        // The game's selection state: heading dark on the highlighted row, boxes otherwise.
+        s.freeze(
+            inst,
+            if selected { "select_state" } else { "unselect_state" },
+            0.0,
+            "sel",
+        );
+        // The value side: only the Volume row has one (the game's slider with its number).
+        s.set_in(&part, "N_type_select_00", |o| o.visible = Some(false));
+        for k in 0..3 {
+            s.set_in(&part, &format!("N_switch_3_0{k}"), |o| o.visible = Some(false));
         }
-        for pane in [
-            "P_icon_menu_00_ds_00",
-            "P_icon_menu_01_ds_00",
-            "P_icon_menu_03_ds_00",
-        ] {
-            let img = shadow.clone();
-            s.set_in(&part, pane, |o| o.image = img);
+        if opt == MenuOption::Volume {
+            let volume = settings.master_volume;
+            s.set_in(&part, "N_switch_slider_00", |o| o.visible = Some(true));
+            s.set_in(&part, "T_slider_current_param", |o| {
+                o.text = Some(format!("{volume}%"))
+            });
+            if let Some(node) = s.node_in_instance(inst, "L_option_slider_00") {
+                if let Some(slider) = s.scene.instance_of_node(node) {
+                    // `control_slider` frame 0 is the full bar and each step drops a tenth (the
+                    // same mapping as the Graphics screen's slider rows).
+                    let ratio = f32::from(volume) / 100.0;
+                    let len = s.anim_len(slider, "control_slider").unwrap_or(10.0);
+                    let frame = (((1.0 - ratio) * (len - 1.0)).round() + 1.0)
+                        .clamp(0.0, (len - 1.0).max(0.0));
+                    s.freeze(slider, "control_slider", frame, "gauge");
+                }
+            }
+        } else {
+            s.set_in(&part, "N_switch_slider_00", |o| o.visible = Some(false));
         }
-        let tag = if idx == sel { "select" } else { "unselect" };
-        s.freeze_end(inst, tag, "sel");
     }
-    // The port's own footer under the strip: money / play time and the keys of this menu (the
-    // game's own texts are never read; the game shows no such line here). Bottom-right, so the
-    // port's field-message toast (bottom-left) never covers the key hint.
+    let bar = super::scrollbar::set_bar(&mut s, "L_scrollbar_00", OPTION_FULL_ROWS, OPTIONS.len(), scroll);
+    bars.publish(ScreenId::PauseMenu, bar);
+    // The port's own texts: header, the selected row's help, money / play time and the keys (the
+    // game's own texts are never read).
     let money = progress.as_ref().map_or(0, |p| p.money);
     let seconds = play.as_ref().map_or(0, |p| p.seconds);
-    let dim = [0.82, 0.82, 0.78, 1.0];
+    let more_up = if scroll > 0 { "(more above)   " } else { "" };
+    let more_down = if scroll + OPTION_FULL_ROWS < OPTIONS.len() {
+        "(more below)   "
+    } else {
+        ""
+    };
     s.set_free_quads(Vec::new());
     s.set_free_texts(vec![
         free_text(
-            940.0,
-            944.0,
-            920.0,
+            110.0,
+            42.0,
+            700.0,
+            60.0,
             40.0,
-            24.0,
-            dim,
-            TextAlign::Right,
-            menu_info_text(money, seconds),
+            [0.97, 0.95, 0.88, 1.0],
+            TextAlign::Left,
+            "Menu",
+        ),
+        free_text(
+            223.0,
+            790.0,
+            1474.0,
+            64.0,
+            26.0,
+            [0.95, 0.93, 0.85, 1.0],
+            TextAlign::Left,
+            option_help(OPTIONS[sel]),
+        ),
+        free_text(
+            223.0,
+            856.0,
+            1474.0,
+            40.0,
+            22.0,
+            [0.72, 0.75, 0.78, 1.0],
+            TextAlign::Left,
+            format!("{more_up}{more_down}{}", menu_info_text(money, seconds)),
         ),
         free_text(
             940.0,
             988.0,
             920.0,
             40.0,
-            24.0,
-            dim,
+            22.0,
+            [0.82, 0.82, 0.78, 1.0],
             TextAlign::Right,
-            "Left / Right: choose   Enter: open   Esc: resume",
+            "Up / Down: select   Enter: open   wheel / drag the bar: scroll   Esc: resume",
         ),
     ]);
 }
@@ -567,7 +610,10 @@ pub fn bind_options_screen(
             &runtime.overridden,
             user,
         );
-        s.set_in(&part, "T_heading_00", |o| o.text = Some(name));
+        s.set_in(&part, "T_heading_00", |o| {
+            o.text = Some(name);
+            o.text_color = Some(heading_color(selected));
+        });
         let Some(inst) = s.scene.part_instance(&part) else { continue };
         // The game's selection state: heading dark on the highlighted row, boxes otherwise.
         s.freeze(
@@ -626,9 +672,9 @@ pub fn bind_options_screen(
         Some(row) => graphics_screen::row_help(row),
         _ => "",
     };
-    let more_up = if scroll > 0 { "▲ more above   " } else { "" };
+    let more_up = if scroll > 0 { "(more above)   " } else { "" };
     let more_down = if scroll + OPTION_FULL_ROWS < rows.len() {
-        "▼ more below   "
+        "(more below)   "
     } else {
         ""
     };
