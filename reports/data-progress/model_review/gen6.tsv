@@ -1,0 +1,142 @@
+# sheet: reports/data-progress/model_review/gen6
+# version: 1
+# generator: manual review (revision-gen6), renders with render_gltf_headless 512 px yaw 34 (CPU/lavapipe)
+# target: Gen 6 (national 650-721) 3D model review
+national_number	name	pack	form	form_name	source	status	severity	note
+650	1	pm0720_00_00	0	Chespin	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+651	1	pm0721_00_00	0	Quilladin	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+652	2	pm0722_00_00	0	Chesnaught	CONVERTIDO	OK		[PROBABLE] armadura verde con pinchos vista desde arriba (pose en el frame de captura); identidad clara
+652	2	pm0722_51_00	1	Mega Chesnaught	CONVERTIDO	BAD_MESH	2	[PROBABLE] vara verde larga suelta infla el encuadre: la figura sale minuscula; ademas la identidad como Mega Chesnaught es debil (figura crema/roja, no se parece al Chesnaught base). Causa: malla auxiliar/arma exportada con el cuerpo
+653	1	pm0717_00_00	0	Fennekin	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+654	1	pm0718_00_00	0	Braixen	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+655	2	pm0719_00_00	0	Delphox	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+655	2	pm0719_51_00	1	Mega Delphox	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01. Leve
+656	1	pm0723_00_00	0	Froakie	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+657	1	pm0724_00_00	0	Frogadier	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+658	4	pm0725_11_00	0	Greninja	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+658	4	pm0725_51_00	1	Battle Bond Greninja	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01 (tiene espera de combate, andar, ataque, dano, caida); Greninja sobre un shuriken de agua; el nombre del mapa 'Battle Bond' es dudoso, parece la Mega de Legends Z-A; pose en T
+659	1	pm0711_00_00	0	Bunnelby	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+660	1	pm0712_00_00	0	Diggersby	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+661	1	pm0753_00_00	0	Fletchling	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+662	1	pm0754_00_00	0	Fletchinder	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+663	1	pm0755_00_00	0	Talonflame	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+664	20	pm0706_00_00	0	Scatterbug	CONVERTIDO	BAD_MESH	1	[PROBABLE] varillas blancas sueltas (antena/pelo) fuera del cuerpo: inflan el encuadre y el cuerpo sale como bola gris diminuta; cuerpo y cara beige correctos. Causa: malla auxiliar exportada con el cuerpo
+665	20	pm0707_00_00	0	Spewpa	CONVERTIDO	OK		[PROBABLE] capullo blanco/gris con pinchos (patron Icy Snow); sin cara visible clara pero con ojos
+666	20	pm0708_11_00	0	Vivillon Icy Snow	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_12_00	1	Vivillon Polar	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_13_00	2	Vivillon Tundra	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_14_00	3	Vivillon Continental	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_15_00	4	Vivillon Garden	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_16_00	5	Vivillon Elegant	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_17_00	6	Vivillon Meadow	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_18_00	7	Vivillon Modern	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_19_00	8	Vivillon Marine	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_20_00	9	Vivillon Archipelago	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_21_00	10	Vivillon High Plains	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_22_00	11	Vivillon Sandstorm	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_23_00	12	Vivillon River	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_24_00	13	Vivillon Monsoon	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_25_00	14	Vivillon Savanna	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_26_00	15	Vivillon Sun	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_27_00	16	Vivillon Ocean	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_28_00	17	Vivillon Jungle	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_29_00	18	Vivillon Fancy	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+666	20	pm0708_30_00	19	Vivillon Poke Ball	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+667	1	pm0704_00_00	0	Litleo	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+668	3	pm0705_00_00	0	Pyroar	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+668	3	pm0705_51_00	1	Mega Pyroar	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01. Leve
+668	3	pm0705_01_00	2	Pyroar Female	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+669	5	pm0713_11_00	0	Flabebe Red	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+669	5	pm0713_12_00	1	Flabebe Yellow	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+669	5	pm0713_13_00	2	Flabebe Orange	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+669	5	pm0713_14_00	3	Flabebe Blue	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+669	5	pm0713_15_00	4	Flabebe White	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+670	7	pm0714_11_00	0	Floette Red	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+670	7	pm0714_12_00	1	Floette Yellow	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+670	7	pm0714_51_00	1	Eternal Flower	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01 (tiene espera de combate, andar, ataque, dano, caida); Mega Floette gris oscuro/azul: aspecto distinto del Floette normal pero coherente con una Mega
+670	7	pm0714_13_00	2	Floette Orange	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+670	7	pm0714_14_00	3	Floette Blue	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+670	7	pm0714_15_00	4	Floette White	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+670	7	pm0714_16_00	5	Floette Eternal Flower	CONVERTIDO	OK		[PROBABLE] Floette con flor roja desplegada en el suelo y cabeza azul; es la sexta forma del pack, nombre 'Eternal Flower' por conjetura
+671	5	pm0715_11_00	0	Florges Red	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+671	5	pm0715_12_00	1	Florges Yellow	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+671	5	pm0715_13_00	2	Florges Orange	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+671	5	pm0715_14_00	3	Florges Blue	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+671	5	pm0715_15_00	4	Florges White	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+672	1	pm0728_00_00	0	Skiddo	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+673	1	pm0729_00_00	0	Gogoat	CONVERTIDO	BAD_MESH	1	[PROBABLE] vara verde larga suelta infla el encuadre: Gogoat sale pequeno; cuerpo correcto. Causa: malla auxiliar exportada con el cuerpo
+674	1	pm0752_00_00	0	Pancham	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+675	1	pm0730_00_00	0	Pangoro	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_11_00	0	Furfrou Natural	CONVERTIDO	OK		[PROBABLE] pelo de punta (corte Natural), blanco; identidad por el orden interno y el resto de cortes del pack
+676	10	pm0701_12_00	1	Furfrou Heart	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_13_00	2	Furfrou Star	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_14_00	3	Furfrou Diamond	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_15_00	4	Furfrou Debutante	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_16_00	5	Furfrou Matron	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_17_00	6	Furfrou Dandy	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_18_00	7	Furfrou La Reine	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_19_00	8	Furfrou Kabuki	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+676	10	pm0701_20_00	9	Furfrou Pharaoh	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+677	1	pm0733_00_00	0	Espurr	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+678	4	pm0734_00_00	0	Meowstic	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+678	4	pm0734_01_00	1	Meowstic Female	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+678	4	pm0734_51_00	2	Mega Meowstic	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01. Leve
+679	1	pm0744_00_00	0	Honedge	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+680	1	pm0745_00_00	0	Doublade	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+681	2	pm0746_11_00	0	Aegislash Shield	CONVERTIDO	OK		[PROBABLE] Aegislash (empunadura y tela morada); su cara beige esta en la guarda
+681	2	pm0746_12_00	1	Aegislash Blade	CONVERTIDO	OK		[PROBABLE] identico a pm0746_11 en el frame de captura: no se distingue escudo de espada (forma por convencion)
+682	1	pm0758_00_00	0	Spritzee	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+683	1	pm0759_00_00	0	Aromatisse	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+684	1	pm0742_00_00	0	Swirlix	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+685	1	pm0743_00_00	0	Slurpuff	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+686	1	pm0726_00_00	0	Inkay	CONVERTIDO	OK		[PROBABLE] gorro blanco con cuerpo azul claro y ojos grandes: Inkay; confirmado por ser antes de Malamar en el orden interno
+687	2	pm0727_00_00	0	Malamar	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+687	2	pm0727_51_00	1	Mega Malamar	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01. Leve
+688	1	pm0747_00_00	0	Binacle	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+689	2	pm0748_00_00	0	Barbaracle	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+689	2	pm0748_51_00	1	Mega Barbaracle	CONVERTIDO	BAD_MESH	2	[PROBABLE] unas 20 piezas rojas oscuras repetidas (copias de dedos/llamas) agrupadas bajo el cuerpo: parecen mallas de efecto exportadas con el cuerpo; el cuerpo es Barbaracle con corona negra
+690	1	pm0709_00_00	0	Skrelp	CONVERTIDO	OK		[PROBABLE] Skrelp marron con ojo rojo, aletas azules claro; pose en T
+691	2	pm0710_00_00	0	Dragalge	CONVERTIDO	OK		[PROBABLE] Dragalge en pose en T con hojas largas y finas; colores marron/rosa coherentes
+691	2	pm0710_51_00	1	Mega Dragalge	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01. Leve
+692	1	pm0756_00_00	0	Clauncher	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+693	1	pm0757_00_00	0	Clawitzer	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 7 clips: falta notice01 (aviso); tiene espera, andar, ataque, dano y caida. Leve
+694	1	pm0731_00_00	0	Helioptile	CONVERTIDO	BAD_MESH	1	[PROBABLE] el modelo sale tumbado de costado en el frame de captura (pose); colores amarillo/gris correctos; identidad Helioptile por la golilla y el orden interno
+695	1	pm0732_00_00	0	Heliolisk	CONVERTIDO	BAD_TEXTURE	1	[PROBABLE] disco gris liso sobre la golilla naranja (material de la golilla sin textura de color); cara y cuerpo bien. Causa probable: material translucido/efecto sin textura
+696	1	pm0737_00_00	0	Tyrunt	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+697	1	pm0738_00_00	0	Tyrantrum	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+698	1	pm0739_00_00	0	Amaura	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+699	1	pm0740_00_00	0	Aurorus	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+700	1	pm0767_00_00	0	Sylveon	PLA	OK		[VERIFICADO] cintas largas en pose en T; PLA
+701	2	pm0761_00_00	0	Hawlucha	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+701	2	pm0761_51_00	1	Mega Hawlucha	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01. Leve
+702	1	pm0741_00_00	0	Dedenne	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+703	1	pm0766_00_00	0	Carbink	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+704	1	pm0763_00_00	0	Goomy	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+705	2	pm0764_00_00	0	Sliggoo	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+705	2	pm0764_00_41	1	Hisuian Form	PLA	BAD_TEXTURE	2	[VERIFICADO] disco/caparazon blanco liso sin textura bajo el cuerpo (PLA, Sliggoo hisuiano: falta la textura de la concha); cabeza correcta
+706	2	pm0765_00_00	0	Goodra	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+706	2	pm0765_00_41	1	Hisuian Form	PLA	BAD_TEXTURE	2	[VERIFICADO] concha blanca lisa sin textura en la espalda (PLA, Goodra hisuiano: falta la textura de la concha); cuerpo correcto
+707	1	pm0760_00_00	0	Klefki	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+708	1	pm0702_00_00	0	Phantump	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+709	1	pm0703_00_00	0	Trevenant	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+710	4	pm0735_11_00	0	Pumpkaboo Small	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+710	4	pm0735_12_00	1	Pumpkaboo Average	CONVERTIDO	OK		[PROBABLE] se ve igual que pm0735_11 (solo cambia de tamano en el juego)
+710	4	pm0735_13_00	2	Pumpkaboo Large	CONVERTIDO	OK		[PROBABLE] se ve igual que pm0735_11 (solo cambia de tamano en el juego)
+710	4	pm0735_14_00	3	Pumpkaboo Super	CONVERTIDO	OK		[PROBABLE] se ve igual que pm0735_11 (solo cambia de tamano en el juego)
+711	4	pm0736_11_00	0	Gourgeist Small	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+711	4	pm0736_12_00	1	Gourgeist Average	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+711	4	pm0736_13_00	2	Gourgeist Large	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+711	4	pm0736_14_00	3	Gourgeist Super	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+712	1	pm0749_00_00	0	Bergmite	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+713	2	pm0751_00_00	0	Avalugg	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+713	2	pm0751_00_41	1	Hisuian Form	PLA	OK		[VERIFICADO] render revisado: identidad y colores coherentes
+714	1	pm0716_00_00	0	Noibat	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+715	1	pm0762_00_00	0	Noivern	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+716	2	pm0768_00_00	0	Xerneas	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+717	1	pm0769_00_00	0	Yveltal	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+718	6	pm0770_51_00	1	10% Forme	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01 (tiene espera de combate, andar, ataque, dano, caida); masa oscura blindada con rojo y un verde: es el Zygarde (el mapa lo llama 10% Forme sin pruebas; mas bien parece otra forma); sin duda la especie
+719	2	pm0772_00_00	0	Diancie	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
+719	2	pm0772_51_00	1	Mega Diancie	CONVERTIDO	NO_ANIMS	1	[PROBABLE] 6 clips: falta defaultwait01 y notice01 (tiene espera de combate, andar, ataque, dano, caida); Mega Diancie con cristales sueltos flotando; coherente
+720	2	pm0774_11_00	0	Hoopa Confined	CONVERTIDO	NO_ANIMS	2	[PROBABLE] el glTF no trae ningun clip de animacion (0); modelo y colores correctos. Causa probable: acciones del .blend no asignadas al rig; Hoopa Unbound (pm0774_12) si trae 8
+720	2	pm0774_12_00	1	Hoopa Unbound	CONVERTIDO	BAD_MESH	1	[PROBABLE] seis anillos/brazos sueltos en fila en el suelo y un brazo rosa aparte (pose en T con piezas separadas); cuerpo correcto
+721	1	pm0773_00_00	0	Volcanion	CONVERTIDO	OK		[PROBABLE] render revisado: identidad y colores coherentes
