@@ -145,7 +145,9 @@ def main() -> int:
                 "--", BLENDER, "-b", blend, "--python", EXPORT_SCRIPT, "--",
                 "--out", out, "--stem", pack, "--clips", args.clips,
             ]
-            procs.append((pack, species, subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)))
+            # keep the exporter's EXPORT_NOTE lines next to the output (which fixes fired, what failed)
+            note_log = open(os.path.join(args.out_root, f"{pack}.export.log"), "w", encoding="utf-8")
+            procs.append((pack, species, subprocess.Popen(cmd, stdout=note_log, stderr=subprocess.STDOUT)))
         for pack, species, proc in procs:
             code = proc.wait()
             if code == 0 and os.path.isfile(os.path.join(args.out_root, pack, f"{pack}.gltf")):

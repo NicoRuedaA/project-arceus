@@ -28,6 +28,16 @@ What it does
 5. Renames every action `NNNNN_clip` -> `<stem>_NNNNN_clip` so the engine's
    clip lookup (`clip_suffix`, `find_clip`) keeps working unchanged.
 6. Exports GLTF_SEPARATE (gltf + bin + PNGs) with the skin and every action.
+7. Un-mirrors the base colour of the `_col` packs (Let's Go / Sword-Shield style models):
+   many of their materials sample the colour texture with the horizontal axis doubled and a
+   mirrored wrap (`u' = triangle_wave(2u)`: the left half of the UV space spans the whole
+   texture, the right half is its mirror image) while the other maps of the same material
+   (normal, ambient) use the plain UV, and the pack's own graph samples the plain UV for
+   all of them, so faces, ears and eyes land on the wrong part of the texture (Rattata,
+   Nidoran, Omanyte, Gigantamax forms, ...). The right addressing is detected per material
+   slot from the texture itself (see `detect_mirrored_slots`) and the colour texture is
+   re-laid out (`[image | mirrored image]`, twice as wide) so the engine's plain UV samples
+   the right texel; the mesh UVs stay untouched, so the normal map keeps matching.
 """
 
 from __future__ import annotations
@@ -568,7 +578,149 @@ def fire_tint(base):
     return None
 
 
-def simplify_materials(out_dir, stem, pack_dir):
+# --------------------------------------------------------------- UV layout
+
+def _tri_wave(x):
+    """Mirrored-repeat of x (0..1 stays, 1..2 mirrors back, ...)."""
+    x = np.mod(x, 2.0)
+    return np.where(x > 1.0, 2.0 - x, x)
+
+
+def _uv_hypothesis(uv, name):
+    u = uv[:, 0].astype(np.float64)
+    v = uv[:, 1].astype(np.float64)
+    if name == "mu2":  # horizontal axis doubled, mirrored repeat
+        return np.stack([_tri_wave(2.0 * u), v], axis=1)
+    return np.stack([u, v], axis=1)
+
+
+def _seam_error(px, uv, a_idx, b_idx, name):
+    """Mean colour difference of the texture sampled on both sides of every seam pair.
+
+    A seam pair is two loops at the same 3D position with different UVs (two UV
+    islands touching in space). With the right addressing both islands show the same
+    colour there, so the error is ~0; with the wrong one it is large. Wrong
+    hypotheses mostly sample unrelated parts of the texture."""
+    h, w = px.shape[:2]
+    ta = _uv_hypothesis(uv[a_idx], name)
+    tb = _uv_hypothesis(uv[b_idx], name)
+    ta = np.mod(ta, 1.0)
+    tb = np.mod(tb, 1.0)
+    ca = px[np.clip((ta[:, 1] * h).astype(int), 0, h - 1), np.clip((ta[:, 0] * w).astype(int), 0, w - 1), :3]
+    cb = px[np.clip((tb[:, 1] * h).astype(int), 0, h - 1), np.clip((tb[:, 0] * w).astype(int), 0, w - 1), :3]
+    return float(np.abs(ca - cb).mean())
+
+
+# a hypothesis is taken only when it explains the seams at least twice as well as the plain
+# UV and the plain UV is clearly off (thresholds picked on the 1-150 packs, checked by eye)
+SEAM_MIN_PAIRS = 8
+SEAM_PLAIN_BAD = 0.02
+SEAM_RATIO = 0.5
+
+
+def detect_mirrored_slots(pack_dir):
+    """Material slots whose `_col` base colour needs the doubled mirrored addressing.
+
+    See the module docstring (7). Only materials whose base colour is a `_col` texture
+    are considered: the Trinity `_alb` packs ship a flat grey albedo (the colour comes
+    from layer masks), so their texture says nothing about the addressing, and their
+    plain UV is right. Per material slot: seam test (`_seam_error`); eye slots that
+    live in the left half of the UV space only (both eyes side by side in the texture)
+    use the doubled addressing without a test. Returns {(object name, slot): note}."""
+    tex = texture_names(pack_dir)
+    px_cache = {}
+    found = {}
+    for obj in [o for o in bpy.data.objects if o.type == "MESH" and not re.search(r"\.\d{3}$", o.name)]:
+        me = obj.data
+        layer = me.uv_layers.active_render if me.uv_layers.active_render is not None else me.uv_layers.active
+        if layer is None:
+            continue
+        uv = np.zeros(len(layer.data) * 2, dtype=np.float32)
+        layer.data.foreach_get("uv", uv)
+        uv = uv.reshape(-1, 2)
+        loop_vert = np.zeros(len(me.loops), dtype=np.int32)
+        me.loops.foreach_get("vertex_index", loop_vert)
+        co = np.zeros(len(me.vertices) * 3, dtype=np.float32)
+        me.vertices.foreach_get("co", co)
+        keys = np.round(co.reshape(-1, 3) * 2000).astype(np.int64)
+        _, inv = np.unique(keys, axis=0, return_inverse=True)
+        loop_pos = inv.reshape(-1)[loop_vert]  # loops at one 3D position share an id
+        poly_mat = np.zeros(len(me.polygons), dtype=np.int32)
+        me.polygons.foreach_get("material_index", poly_mat)
+        poly_start = np.zeros(len(me.polygons), dtype=np.int32)
+        poly_total = np.zeros(len(me.polygons), dtype=np.int32)
+        me.polygons.foreach_get("loop_start", poly_start)
+        me.polygons.foreach_get("loop_total", poly_total)
+        for slot, mat in enumerate(me.materials):
+            if mat is None:
+                continue
+            polys = np.where(poly_mat == slot)[0]
+            if len(polys) == 0:
+                continue
+            res = resolve_textures(mat, tex, pack_dir)
+            alb = res["alb"]
+            if not alb or "_col" not in os.path.basename(alb).lower():
+                continue
+            if alb not in px_cache:
+                try:
+                    px_cache[alb] = _read_pixels(alb)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"EXPORT_NOTE uv_layout_skipped_unreadable:{os.path.basename(alb)}:{exc}")
+                    px_cache[alb] = None
+            px = px_cache[alb]
+            if px is None:
+                continue
+            loops = np.concatenate([np.arange(poly_start[i], poly_start[i] + poly_total[i]) for i in polys])
+            order = np.argsort(loop_pos[loops], kind="stable")
+            sl = loops[order]
+            pos = loop_pos[sl]
+            bounds = np.r_[0, np.where(np.diff(pos) != 0)[0] + 1, len(pos)]
+            a_idx, b_idx = [], []
+            for lo, hi in zip(bounds[:-1], bounds[1:]):
+                if hi - lo < 2:
+                    continue
+                first = uv[sl[lo]]
+                for j in range(lo + 1, hi):
+                    if np.abs(uv[sl[j]] - first).max() > 1e-3:
+                        a_idx.append(sl[lo])
+                        b_idx.append(sl[j])
+            base = (mat.name.split(".")[0]).lower()
+            u_lo, u_hi = float(uv[loops, 0].min()), float(uv[loops, 0].max())
+            verdict = None
+            if len(a_idx) >= SEAM_MIN_PAIRS:
+                a_idx, b_idx = np.array(a_idx), np.array(b_idx)
+                plain = _seam_error(px, uv, a_idx, b_idx, "id")
+                doubled = _seam_error(px, uv, a_idx, b_idx, "mu2")
+                if plain > SEAM_PLAIN_BAD and doubled < SEAM_RATIO * plain:
+                    verdict = f"seams {plain:.3f}->{doubled:.3f}"
+                elif plain <= SEAM_PLAIN_BAD and doubled <= SEAM_PLAIN_BAD and "eye" in base and u_hi <= 0.505 and u_lo >= -0.005:
+                    verdict = "eye in left half"
+            elif "eye" in base and u_hi <= 0.505 and u_lo >= -0.005:
+                verdict = "eye in left half"
+            if verdict is None:
+                continue
+            found[(obj.name, slot)] = verdict
+            print(f"EXPORT_NOTE uv_mirror2x:{base}:{verdict}")
+    return found
+
+
+def write_mirrored_albedo(src_path, out_path):
+    """Re-lay out a `_col` texture for the doubled mirrored addressing: `[image | mirror]`.
+
+    Sampling the result with the plain UV equals sampling `src` with
+    `u' = triangle_wave(2u)` (texel for texel, no interpolation involved)."""
+    px = _read_pixels(src_path)
+    h, w = px.shape[:2]
+    out = np.concatenate([px, px[:, ::-1, :]], axis=1)
+    img = bpy.data.images.new(f"uvfix_{os.path.basename(out_path)}", w * 2, h, alpha=True)
+    img.pixels.foreach_set(out.reshape(-1).astype(np.float32))
+    img.filepath_raw = out_path
+    img.file_format = "PNG"
+    img.save()
+    return out_path
+
+
+def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
     tex = texture_names(pack_dir)
     baked = rebuilt = 0
     notes = set()
@@ -583,6 +735,14 @@ def simplify_materials(out_dir, stem, pack_dir):
             if has_layers and not res["lym"]:
                 notes.add(f"bake_skipped_no_lym:{base}")
             base_img_path = res["alb"]
+            if mirrored and (obj.name, i) in mirrored and base_img_path:
+                src_base = os.path.splitext(os.path.basename(base_img_path))[0]
+                try:
+                    base_img_path = write_mirrored_albedo(
+                        base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"))
+                    notes.add(f"uv_mirrored_albedo:{base}")
+                except Exception as exc:  # noqa: BLE001
+                    print(f"EXPORT_NOTE mirrored albedo failed for {base}: {exc}")
             if res["alb"] and res["lym"] and has_layers:
                 baked_path = os.path.join(out_dir, f"{stem}_{base or 'mat'}_baked.png")
                 try:
@@ -788,7 +948,9 @@ def main():
     pack_dir = os.path.dirname(os.path.abspath(bpy.data.filepath))
 
     primary = keep_primary_rig()
-    simplify_materials(out, stem, pack_dir)
+    mirrored = detect_mirrored_slots(pack_dir)
+    print(f"EXPORT_NOTE uv_slots_mirrored={len(mirrored)}")
+    simplify_materials(out, stem, pack_dir, mirrored)
     renamed = rename_actions(stem, clip_mode, primary.name if primary else None)
     assign_actions(primary)
     out_path = os.path.join(out, f"{stem}.gltf")
