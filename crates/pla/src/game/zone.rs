@@ -1993,6 +1993,17 @@ mod tests {
         world.insert_resource(Assets::<Mesh>::default());
         world.insert_resource(Assets::<StandardMaterial>::default());
         world.insert_resource(Assets::<Image>::default());
+        // The room shells are the interior floor: their collision shapes must stream in, exactly
+        // like the viewer's `WorldCollisionPlugin` does (the landing height comes from them).
+        world.insert_resource(
+            crate::game::world_collision::WorldCollision::load(
+                &bin_root,
+                0,
+                RotMode::YawY,
+                &cache_root,
+            )
+            .expect("collision world"),
+        );
         world.insert_resource(WorldObjects::for_tests_with_cache(
             Vec::new(),
             RotMode::YawY,
@@ -2067,11 +2078,17 @@ mod tests {
         );
         let xf = *world.entity(player).get::<Transform>().unwrap();
         let landing = Vec2::new(xf.translation.x, xf.translation.z);
-        let mesh = nav.nav.primary();
-        let comps = sp::components(mesh);
+        // The house floor is the room shell's collider floor (terrain rule), not the navmesh.
+        let terrain = world.resource::<TerrainResource>();
+        let collision = world.resource::<crate::game::world_collision::WorldCollision>();
+        let ctx = scene_walk_context(Some(terrain), Some(collision), None, xf.translation.y);
         assert!(
-            sp::in_main_component(mesh, &comps, landing.x, landing.y),
-            "player landed on the house floor at {landing:?}"
+            ctx.is_walkable(landing.x, landing.y),
+            "player landed on walkable house floor at {landing:?}"
+        );
+        assert!(
+            ctx.ground_y(landing.x, landing.y).is_some(),
+            "the house floor grounds the player at {landing:?}"
         );
 
         // Leave through the exit door: the main area's terrain comes back.
@@ -2140,6 +2157,17 @@ mod tests {
         world.insert_resource(Assets::<Mesh>::default());
         world.insert_resource(Assets::<StandardMaterial>::default());
         world.insert_resource(Assets::<Image>::default());
+        // The fallback room registers its boxes as collision: it is the interior's floor now
+        // that movement grounds on colliders, not on the navmesh.
+        world.insert_resource(
+            crate::game::world_collision::WorldCollision::load(
+                &bin_root,
+                5,
+                crate::game::world_objects::RotMode::YawY,
+                &cache_root,
+            )
+            .expect("collision world"),
+        );
         let player = world.spawn((PlayerAvatar, Transform::default())).id();
         world.insert_resource(Messages::<ZoneChangeRequest>::default());
         world
@@ -2172,15 +2200,37 @@ mod tests {
             "the empty scene gets a floor slab (no walls on a whole-field navmesh)"
         );
         let xf = world.entity(player).get::<Transform>().unwrap();
-        let nav = world.resource::<GameNavmeshResource>();
-        let mesh = nav.nav.primary();
-        let comps = sp::components(mesh);
-        assert!(sp::in_main_component(
-            mesh,
-            &comps,
-            xf.translation.x,
-            xf.translation.z
-        ));
+        // The fallback floor slab is registered as collision: the terrain rule grounds walkers on
+        // it although the placeholder terrain is not samplable and the navmesh is not read.
+        let collision = world.resource::<crate::game::world_collision::WorldCollision>();
+        assert!(
+            collision.instance_count() > 0,
+            "the fallback room registers its collision boxes"
+        );
+        let (min, max) = world
+            .resource::<GameNavmeshResource>()
+            .nav
+            .primary()
+            .bounds()
+            .expect("interior navmesh bounds");
+        let mid = Vec2::new((min[0] + max[0]) * 0.5, (min[2] + max[2]) * 0.5);
+        let terrain = world.resource::<TerrainResource>();
+        let ctx = scene_walk_context(Some(terrain), Some(collision), None, min[1] + 3.0);
+        assert!(
+            ctx.ground_y(mid.x, mid.y).is_some(),
+            "the fallback floor grounds the room centre {mid:?}"
+        );
+        assert!(
+            ctx.is_walkable(mid.x, mid.y),
+            "the fallback floor is walkable ground at the room centre {mid:?}"
+        );
+        // The scaffold sits on the navmesh bounds, not on the requested arrival (the request
+        // points outside it): with nothing under it the landing keeps the requested point.
+        assert!(
+            Vec2::new(xf.translation.x, xf.translation.z).distance(Vec2::new(20.0, 20.0)) < 0.5,
+            "the landing kept the requested point: {:?}",
+            xf.translation
+        );
 
         // Any later change removes the fallback room.
         world
@@ -2309,12 +2359,13 @@ mod tests {
             landing.distance(wanted) < 60.0,
             "player at {landing:?} (wanted {wanted:?})"
         );
-        let nav = world.resource::<GameNavmeshResource>();
-        let mesh = nav.nav.primary();
-        let comps = sp::components(mesh);
+        // The landing is chosen on the terrain rule (heightmap + collider floors), not the
+        // navmesh: the moved player must stand on walkable area 01 ground.
+        let terrain = world.resource::<TerrainResource>();
+        let ctx = scene_walk_context(Some(terrain), None, None, xf.translation.y);
         assert!(
-            sp::in_main_component(mesh, &comps, landing.x, landing.y),
-            "player landed on the area 01 navmesh"
+            ctx.is_walkable(landing.x, landing.y),
+            "player landed on walkable area 01 terrain at {landing:?}"
         );
     }
 

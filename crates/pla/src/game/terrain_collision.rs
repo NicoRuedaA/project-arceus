@@ -158,7 +158,7 @@ impl<'a> WalkContext<'a> {
 
     /// Map extent of samplable terrain (placeholder interiors expose a 1x1 map and no extent).
     pub fn terrain_extent(&self) -> Option<[f32; 2]> {
-        let area = self.terrain?.area;
+        let area = &self.terrain?.area;
         (area.heightmap.width >= 2
             && area.heightmap.height >= 2
             && area.world_extent[0] > 0.0
