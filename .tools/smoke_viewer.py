@@ -11,6 +11,7 @@ Usage (repository root):
   .tools/smoke_viewer.py                # GPU offscreen when available
   .tools/smoke_viewer.py --no-gpu       # logic only (screenshots are reported as unavailable)
   .tools/smoke_viewer.py --no-build --release
+  .tools/smoke_viewer.py --cpu          # software rendering, no GPU needed (slow)
 Exit status: 0 when every step passed, 1 when some step failed, 3 when the viewer died.
 """
 
@@ -133,7 +134,7 @@ def run(args: argparse.Namespace) -> int:
     for old in shots.glob("smoke_*.png"):
         old.unlink()
     start = argparse.Namespace(
-        no_gpu=args.no_gpu, release=args.release, no_build=args.no_build, bin=None, size=None,
+        no_gpu=args.no_gpu, cpu=args.cpu, release=args.release, no_build=args.no_build, bin=None, size=None,
         timeout=args.timeout,
         viewer_args=["--area", "1", "--trainer", "giratina01", "--automation-dir", str(adir)],
     )
@@ -311,6 +312,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--dir", help="automation directory (default work/automation)")
     p.add_argument("--no-gpu", action="store_true")
+    p.add_argument("--cpu", action="store_true", help="render on the CPU (Mesa lavapipe, package vulkan-swrast); slow")
     p.add_argument("--release", action="store_true")
     p.add_argument("--no-build", action="store_true")
     p.add_argument("--timeout", type=float, default=900.0)

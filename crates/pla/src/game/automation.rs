@@ -422,8 +422,9 @@ pub enum PointerAction {
 pub enum Command {
     Ping,
     State,
-    Step { frames: u32 },
-    WaitSeconds { seconds: f32 },
+    /// `render_last`: all frames are simulated but the cameras only draw the last one.
+    Step { frames: u32, render_last: bool },
+    WaitSeconds { seconds: f32, render_last: bool },
     Key { key: KeyCode, action: KeyAction, frames: u32 },
     /// Mouse: move the pointer (window pixels), press / release / click a button, or turn the
     /// wheel. No window exists in automation mode, so the position feeds
@@ -559,6 +560,16 @@ fn get_str<'a>(o: &'a Map<String, Value>, k: &str) -> Result<Option<&'a str>, St
     }
 }
 
+/// `"render"`: `"all"` (default, every frame is drawn) or `"last"` (only the last frame of the
+/// command is drawn; the simulation is the same).
+fn parse_render(o: &Map<String, Value>) -> Result<bool, String> {
+    match get_str(o, "render")?.unwrap_or("all") {
+        "all" => Ok(false),
+        "last" => Ok(true),
+        r => Err(format!("unknown render mode '{r}' (all|last)")),
+    }
+}
+
 fn need<T>(v: Option<T>, k: &str) -> Result<T, String> {
     v.ok_or_else(|| format!("missing '{k}'"))
 }
@@ -607,13 +618,14 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
         "state" => Command::State,
         "step" => Command::Step {
             frames: bounded(get_u64(o, "frames")?.or(get_u64(o, "n")?).unwrap_or(1), "frames", MAX_STEP_FRAMES.into())?,
+            render_last: parse_render(o)?,
         },
         "wait_seconds" => {
             let s = need(get_f32(o, "seconds")?, "seconds")?;
             if !(0.0..=MAX_STEP_FRAMES as f32 / FRAMES_PER_SECOND).contains(&s) {
                 return Err(format!("'seconds' must be in 0..={}", MAX_STEP_FRAMES as f32 / FRAMES_PER_SECOND));
             }
-            Command::WaitSeconds { seconds: s }
+            Command::WaitSeconds { seconds: s, render_last: parse_render(o)? }
         }
         "key" => {
             let name = need(get_str(o, "key")?, "key")?;
@@ -970,6 +982,19 @@ impl Ctx {
         done
     }
 
+    /// `frames` frames; with `render_last` every camera is switched off for all but the last
+    /// frame (the simulation still runs every frame, only the drawing is skipped), then each
+    /// camera that was on is switched back on.
+    fn step_render(&mut self, app: &mut App, frames: u32, render_last: bool) -> u32 {
+        if !render_last || frames < 2 {
+            return self.step(app, frames);
+        }
+        let paused = pause_cameras(app.world_mut());
+        let early = self.step(app, frames - 1);
+        resume_cameras(app.world_mut(), &paused);
+        early + self.step(app, 1)
+    }
+
     /// Step until `done(world)` or `max` frames; returns the frames run and whether it held.
     fn step_until(&mut self, app: &mut App, max: u32, done: impl Fn(&mut World) -> bool) -> (u32, bool) {
         let mut n = 0;
@@ -983,6 +1008,32 @@ impl Ctx {
             }
         }
         (n, done(app.world_mut()))
+    }
+}
+
+/// Switch off every active camera and return those that were on, so the frames in between
+/// are simulated without being drawn.
+fn pause_cameras(world: &mut World) -> Vec<Entity> {
+    let mut paused = Vec::new();
+    let mut q = world.query::<(Entity, &mut Camera)>();
+    for (e, mut cam) in q.iter_mut(world) {
+        if cam.is_active {
+            cam.is_active = false;
+            paused.push(e);
+        }
+    }
+    paused
+}
+
+/// Switch back on the cameras [`pause_cameras`] switched off (a camera despawned meanwhile is
+/// skipped; one that a game system already switched on again is left as it is).
+fn resume_cameras(world: &mut World, paused: &[Entity]) {
+    for &e in paused {
+        if let Some(mut cam) = world.get_mut::<Camera>(e) {
+            if !cam.is_active {
+                cam.is_active = true;
+            }
+        }
     }
 }
 
@@ -1076,12 +1127,12 @@ fn dispatch(app: &mut App, ctx: &mut Ctx, cmd: &Command) -> Result<Value, String
             "uptime_s": ctx.started.elapsed().as_secs_f32(),
         })),
         Command::State => Ok(state_json(app, ctx)),
-        Command::Step { frames } => {
-            let n = ctx.step(app, *frames);
+        Command::Step { frames, render_last } => {
+            let n = ctx.step_render(app, *frames, *render_last);
             Ok(json!({"stepped": n}))
         }
-        Command::WaitSeconds { seconds } => {
-            let n = ctx.step(app, (seconds * FRAMES_PER_SECOND).round() as u32);
+        Command::WaitSeconds { seconds, render_last } => {
+            let n = ctx.step_render(app, (seconds * FRAMES_PER_SECOND).round() as u32, *render_last);
             Ok(json!({"stepped": n, "game_seconds": n as f32 / FRAMES_PER_SECOND}))
         }
         Command::Key { key, action, frames } => {
@@ -2273,8 +2324,17 @@ mod tests {
     #[test]
     fn commands_parse() {
         assert_eq!(parse_command(r#"{"cmd":"ping"}"#), Ok(Command::Ping));
-        assert_eq!(parse_command(r#"{"cmd":"step","frames":300}"#), Ok(Command::Step { frames: 300 }));
-        assert_eq!(parse_command(r#"{"cmd":"step"}"#), Ok(Command::Step { frames: 1 }));
+        assert_eq!(parse_command(r#"{"cmd":"step","frames":300}"#), Ok(Command::Step { frames: 300, render_last: false }));
+        assert_eq!(parse_command(r#"{"cmd":"step"}"#), Ok(Command::Step { frames: 1, render_last: false }));
+        assert_eq!(
+            parse_command(r#"{"cmd":"step","frames":60,"render":"last"}"#),
+            Ok(Command::Step { frames: 60, render_last: true })
+        );
+        assert_eq!(
+            parse_command(r#"{"cmd":"wait_seconds","seconds":1,"render":"last"}"#),
+            Ok(Command::WaitSeconds { seconds: 1.0, render_last: true })
+        );
+        assert!(parse_command(r#"{"cmd":"step","render":"some"}"#).is_err());
         assert_eq!(
             parse_command(r#"{"cmd":"key","key":"V","frames":3}"#),
             Ok(Command::Key { key: KeyCode::KeyV, action: KeyAction::Press, frames: 3 })
@@ -2394,6 +2454,23 @@ mod tests {
         ] {
             assert!(parse_command(bad).is_err(), "{bad} should be rejected");
         }
+    }
+
+    #[test]
+    fn pause_and_resume_keep_each_cameras_previous_state() {
+        let mut world = World::new();
+        let on = world.spawn(Camera::default()).id();
+        let off = world.spawn(Camera { is_active: false, ..Default::default() }).id();
+        let paused = pause_cameras(&mut world);
+        assert_eq!(paused, vec![on], "only the active camera is switched off");
+        assert!(!world.get::<Camera>(on).unwrap().is_active);
+        resume_cameras(&mut world, &paused);
+        assert!(world.get::<Camera>(on).unwrap().is_active);
+        assert!(!world.get::<Camera>(off).unwrap().is_active, "an inactive camera stays inactive");
+        // A camera despawned while paused is skipped without a panic.
+        let paused = pause_cameras(&mut world);
+        world.despawn(on);
+        resume_cameras(&mut world, &paused);
     }
 
     #[test]

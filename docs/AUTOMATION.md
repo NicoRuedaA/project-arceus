@@ -1,5 +1,7 @@
 # Automation mode (remote control of the viewer)
 
+> **Agents: start with the one-page [AGENT-QUICKSTART.md](AGENT-QUICKSTART.md)** (CPU rendering, fast stepping, prepared scenes).
+
 `--automation` lets a script, or an AI agent that can run shell commands and read PNG files,
 drive and observe the **real** port viewer without any window. It exists so play-testing bugs can
 be reproduced and inspected without asking the user for screenshots.
@@ -50,6 +52,21 @@ trainer `giratina01` via V, PASS/FAIL per step, panic text, PNG list in `work/au
 Exit status of both tools: `0` ok, `1` a command answered `ok:false` / a step failed, `3` the
 viewer is dead (crash report printed).
 
+## CPU rendering (no GPU)
+
+`gamectl.py start --cpu` (or `smoke_viewer.py --cpu`, or env `PLA_CPU_RENDER=1`) runs the viewer on
+Mesa lavapipe, a software Vulkan, by setting `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json`,
+`WGPU_BACKEND=vulkan` and defaults for `PLA_BIN_ROOT` / `PLA_CACHE_ROOT`. The log line says
+`offscreen GPU renderer: llvmpipe (...) (Vulkan, Cpu)`. Pictures match the GPU ones. If the driver
+is missing, the tool asks to install the package `vulkan-swrast`. Measured speeds are in the
+[quickstart](AGENT-QUICKSTART.md); use `step --fast` to avoid drawing every frame.
+
+## Prepared scenes
+
+`.tools/scene.py list | run NAME [--cpu] [--out DIR] [--keep] [--build] | run-all` plays the JSON
+files in `scenes/` (viewer args plus automation commands) and writes the PNGs to
+`work/scenes_out/<name>/`. Schema in the [quickstart](AGENT-QUICKSTART.md#add-a-scene).
+
 ## Viewer flags
 
 | Flag | Meaning |
@@ -68,10 +85,10 @@ Every other viewer flag works as usual (`--area`, `--player-pos`, `--trainer`, `
 
 | Subcommand | Sends / does |
 |---|---|
-| `start [--no-gpu] [--release] [--no-build] [--bin PATH] [--size WxH] [--timeout S] -- ARGS` | `cargo build` (in a `systemd-run` scope, 6 GB cap), starts `port_viewer --automation ARGS` detached with its output in `work/automation/viewer-<time>.log`, waits for the socket, records `work/automation/current.json`. |
+| `start [--no-gpu] [--cpu] [--release] [--no-build] [--bin PATH] [--size WxH] [--timeout S] -- ARGS` | `cargo build` (in a `systemd-run` scope, 6 GB cap), starts `port_viewer --automation ARGS` detached with its output in `work/automation/viewer-<time>.log`, waits for the socket, records `work/automation/current.json`. |
 | `cmd JSON` | Any command below, raw. |
 | `ping`, `state`, `save`, `load`, `quit` | Same-named command. |
-| `step N` / `wait S` | `step` / `wait_seconds`. |
+| `step N [--fast]` / `wait S [--fast]` | `step` / `wait_seconds`; `--fast` adds `"render":"last"`. |
 | `key K [--frames N] [--action press\|down\|up]` | `key`. |
 | `mouse [X Y] [--wheel N] [--button left\|right\|middle] [--action move\|press\|release\|click]` | `mouse` (virtual pointer and real mouse messages: there is no window to move a cursor in; see below). |
 | `shot PATH [--width W --height H] [--yaw D --pitch D --distance M]` | `screenshot` (angles in degrees). |
@@ -93,8 +110,8 @@ are errors, never crashes.
 |---|---|---|
 | `ping` | | `pong`, `pid`, `gpu`, `uptime_s`. |
 | `state` | | `game_state` (World/Battle/Loading/MainMenu/BattleEnded), `next_state` (a transition requested this frame), `paused`, `zone_loading`, `zone` {area, name}, `player` {position, yaw_deg, swim, motion}, `ride` {mounted, selected, stamina, transition, camera_bonus}, `clock` {time, minutes, slot, pinned}, `weather` {name, id, forced}, `progress` {party [dex, level, hp], box_count, bag_kinds, bag_items, money, seen, caught}, `battle` (null or turn, trainer, sides with HP, menu, last log lines), `toast`, `open_screens`, `counts` {wild_creatures, wild_with_real_model, wild_placeholder, npcs, npcs_with_model_source, trainer_markers, pickups, meshes, entities}, `frames` {frame, game_dt_ms, real_update_ms_avg, real_fps}, `gpu`. |
-| `step` | `frames` (default 1, max 100000) | Runs that many frames. |
-| `wait_seconds` | `seconds` | `round(seconds*60)` frames. |
+| `step` | `frames` (default 1, max 100000), `render` = `all` (default) / `last` | Runs that many frames. `render:last` simulates every frame but only draws the last one (all cameras are switched off for the earlier frames and back on for the last; a camera that was off stays off). On the CPU renderer this is 10 to 20 times faster. Systems that read the active camera (particle billboards, battle UI anchors, the debug spawn panel) see none during the skipped frames and catch up on the drawn one. |
+| `wait_seconds` | `seconds`, `render` (as `step`) | `round(seconds*60)` frames. |
 | `key` | `key`, `action` = `press` (default) / `down` / `up`, `frames` (default 1) | Injected as a real `KeyboardInput` message. `press`: down, `frames` frames, up, 1 frame. Keys: letters, digits, `F1`-`F12`, `Escape`/`Esc`, `Enter`, `Space`, `Tab`, `Backspace`, `Shift`, `Ctrl`, `Alt`, `Up`/`Down`/`Left`/`Right`, `[`/`]` (bag quantity), or Bevy names (`KeyV`, `Digit1`, `ShiftLeft`). |
 | `mouse` | optional `x` + `y` (window pixels of the offscreen size), `wheel` (-50..=50 notches, positive = down), `button` = `left`/`right`/`middle`, `action` = `move` (default) / `press` / `release` / `click`, `frames` (default 1) | Drives the port's scrollbars (`orig_ui::scrollbar::VirtualPointer`): there is no window in automation mode, so the pointer is virtual (the middle of the viewport until the first `x`/`y`). `x`/`y` move it (missing coordinate keeps its value), `wheel` scrolls the list under it, `click` presses and releases with `frames` frames between, then `frames` more run. A move is also injected as a real `CursorMoved` message, and press / release / click as real `MouseButtonInput` ones, so systems that follow the mouse (e.g. the Pokédex model drag) see them. A drag is `mouse X Y` + `mouse --button left --action press` + `mouse X2 Y2` + `mouse --action release`. Reply: `pointer`, `wheel`, `button`, `action`, `stepped`. |
 | `teleport` | `x`, `z` | Moves the player; off the navmesh it snaps to the nearest walkable face (400 m); Y from navmesh/terrain + 0.9. No frame is run. |
