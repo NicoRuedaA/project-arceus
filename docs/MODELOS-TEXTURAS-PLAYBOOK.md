@@ -198,3 +198,16 @@ Rust: `cargo test -p pla --lib`, `cargo test -p pla --example port_viewer -- --t
 * Eye swap (D4) is applied to every `_col` eye slot that lives in the left half of the UV space. Species 1-151 gave consistent
   results (fierce eyes where expected); on later generations check the first dozen species by eye and, if one family is wrong,
   restrict `detect_mirrored_slots` instead of adding per-species exceptions.
+
+## 7. Generation 4 round 2 (`gen4-fixes`, 2026-10-19)
+
+* Judge what the **engine** shows, not converted copies: `--spawn-species N:form` with an orbit camera
+  (`screenshot` command with `camera.focus`, yaw 0/180, `--cpu`, ~17 s per model). The headless sheets of PLA models mislead (D10).
+* D23: `resolve_model` used to fall back to catalogue form 0 before the collection, so Mega/regional forms that only the
+  collection has showed the base model. Exact form first now (`pokemon_resource.rs`).
+* D24: PLA packs with an unpadded file prefix (`pm425_00_00_*`, Drifloon) were skipped by `fix_pla_uv_mirror.py`; the regex accepts 3 digits.
+  Run the fixer over the whole range after any PLA regeneration: 20 of 107 generation-4 species had `UVScaleOffset (2,1)` blocks
+  never applied (Drifblim, Abomasnow, Lickilicky, Dusknoir, Kricketune, Drapion ...).
+* D25: `Transparent` shader blocks (Spiritomb smoke, Origin Dialga gem) come out opaque; `fix_pla_effect_alpha.py` has a per-pack
+  rule table `PACK_TOKENS` (PROBABLE alpha). Origin Dialga/Palkia remain unresolved (UNKNOWN).
+* Check the unit scale of collection packs after every batch: `python3 .tools/gltf_unit_scale.py --packs <list> --dry-run`.
