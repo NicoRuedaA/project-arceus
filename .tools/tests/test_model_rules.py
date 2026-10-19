@@ -53,6 +53,70 @@ class ModeMeshTests(unittest.TestCase):
         for name in ("pm0327_00_00-body00", "pm0327_00_00-mouth", "patchwork"):
             self.assertFalse(model_rules.is_spot_patch(name), name)
 
+    def test_importer_offset_applied_twice_is_spurious(self):
+        # Spinda head layers: offset 0.975 up, vertices already in model space -> combined centre at 1.95
+        self.assertTrue(model_rules.importer_offset_is_spurious((0.0, -0.115, 0.975), (0.0, -0.21, 1.95)))
+        # a real object offset: the vertices sit around the object origin
+        self.assertFalse(model_rules.importer_offset_is_spurious((0.0, -0.115, 0.975), (0.0, -0.11, 0.98)))
+        self.assertFalse(model_rules.importer_offset_is_spurious((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+
+    def test_duplicate_trinity_eye_shells(self):
+        b = (-0.03, 0.14, 0.2, 0.03, 0.18, 0.23)
+        meshes = [("pm0374_00_00_eye_a_mesh", 65, b), ("pm0374_00_00_eye_c_mesh", 65, b),
+                  ("pm0374_00_00_eye_b_mesh", 65, b), ("pm0374_00_00_body_mesh", 843, (0, 0, 0, 1, 1, 1))]
+        self.assertEqual(model_rules.duplicate_eye_shells(meshes, "pm0374_00_00"),
+                         ["pm0374_00_00_eye_b_mesh", "pm0374_00_00_eye_c_mesh"])
+        # Let's Go eye + eyeball pairs (`LEye_Skin`, `LEyeballA_Skin`) are layers, not shells
+        lg = [("pm0291_00_LEye_Skin", 73, b), ("pm0291_00_LEyeballA_Skin", 73, b)]
+        self.assertEqual(model_rules.duplicate_eye_shells(lg, "pm0291_00"), [])
+        # different eyes (different bounds) are both kept
+        self.assertEqual(model_rules.duplicate_eye_shells(
+            [("x_eye_a_mesh", 33, b), ("x_eye_b_mesh", 33, (0, 0, 0, 1, 1, 1))], "x"), [])
+
+    def test_ninjask_folded_wings_by_bone(self):
+        self.assertTrue(model_rules.is_mode_mesh_by_bones("pm0291_00", {"LFeelerD"}))
+        self.assertTrue(model_rules.is_mode_mesh_by_bones("pm0291_00", {"RFeelerE"}))
+        self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0291_00", {"LFeelerB"}))      # spread wing
+        self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0291_00", {"Spine", "LFeelerD"}))
+        self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0292_00", {"LFeelerD"}))      # other packs
+
+    def test_castform_alternate_shells(self):
+        head = (-0.1156, 0.123, -0.1156, 0.1156, 0.3543, 0.1156)
+        face = (-0.0912, 0.1431, -0.0922, 0.0912, 0.314, 0.0922)
+        plain = (-0.0952, 0.1391, -0.0962, 0.0952, 0.318, 0.0962)
+        meshes = [("HeadA", head, False, 1), ("HeadB", head, True, 1), ("BodyB", face, False, 3),
+                  ("BodyC", plain, False, 1), ("Cloud", (-0.1, 0.0, -0.1, 0.1, 0.1, 0.1), False, 1)]
+        self.assertEqual(model_rules.opaque_twins_to_drop("pm0351_12_00", meshes), ["BodyC", "HeadA"])
+        self.assertEqual(model_rules.opaque_twins_to_drop("pm0351_11_00", meshes), [])
+        self.assertEqual(model_rules.opaque_twins_to_drop("pm0025_00_00", meshes), [])
+
+    def test_whismur_mouth_atlas_roll(self):
+        self.assertTrue(model_rules.mouth_atlas_roll("pm0293_00", "mouth"))
+        self.assertFalse(model_rules.mouth_atlas_roll("pm0293_00", "body00"))
+        self.assertFalse(model_rules.mouth_atlas_roll("pm0301_00_00", "pm0301_00_00-mouth"))
+
+    def test_eye_shell_fixer_also_opens_duskull_shadow_shell(self):
+        import fix_pla_eye_shell
+
+        for name in ("pm0355_00_00_shadow_mesh_shape#body", "pm0046_00_00_eye_b_mesh", "pm0355_00_00_eye_mesh_shape#eye"):
+            self.assertTrue(fix_pla_eye_shell.SHELL_RX.search(name), name)
+        self.assertFalse(fix_pla_eye_shell.SHELL_RX.search("pm0355_00_00_body_mesh_shape#body"))
+
+    def test_duskull_eye_turns_into_the_socket(self):
+        import fix_pla_eye_shell
+
+        (x, y, z), = fix_pla_eye_shell.yaw_about([(0.0, 0.339, 0.039 + 0.124)], (0.0, 0.339, 0.039),
+                                                fix_pla_eye_shell.EYE_YAW["pm0355_00_00"])
+        self.assertAlmostEqual(x, 0.097, places=3)  # centre of the model's left socket
+        self.assertAlmostEqual(y, 0.339)
+
+    def test_spinda_spot_texture_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "pm0327_00_00_PachiC_col.png").write_bytes(b"")
+            self.assertTrue(model_rules.spot_texture_path(d, "pm0327_00_00", "pm0327_00_00-cpatch").endswith("PachiC_col.png"))
+            self.assertIsNone(model_rules.spot_texture_path(d, "pm0327_00_00", "pm0327_00_00-dpatch"))
+            self.assertIsNone(model_rules.spot_texture_path(d, "pm0327_00_00", "pm0327_00_00-body00"))
+
     def test_normal_parts_are_kept(self):
         for name in ("pm0028_00_00_body_mesh", "pm0028_00_00_eye_mesh", "pm0094_00_00_eyeball_mesh",
                      "pm0025_00_00_wing_mesh", "pm0009_00_00_shell_mesh", "pm0028_00_11_ice_mesh"):

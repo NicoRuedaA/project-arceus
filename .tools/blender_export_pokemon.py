@@ -805,9 +805,13 @@ def detect_mirrored_slots(pack_dir, stem=None):
                 verdict = f"seams {plain:.3f}->{doubled:.3f}"
             elif eye_in_left_half and (plain is None or (plain <= uv_mirror.SEAM_PLAIN_BAD and doubled <= uv_mirror.SEAM_PLAIN_BAD)):
                 verdict = "eye in left half"
+            sym = (False, None, None)
+            if verdict is None and not eye_in_left_half:
+                pa, pb = uv_mirror.mirror_pairs(co.reshape(-1, 3), loop_vert, loops)
+                sym = uv_mirror.mirrored_by_symmetry(px, uv, pa, pb, SEAM_RATIO)
             slots.append({
                 "key": (obj.name, slot), "base": base, "alb": alb, "verdict": verdict,
-                "eye": eye_in_left_half, "plain": plain, "wh": px.shape[:2],
+                "eye": eye_in_left_half, "plain": plain, "wh": px.shape[:2], "sym": sym,
             })
     # A texture is addressed one way for every material that samples it. The seam test of a slot
     # can be inconclusive (few seams, e.g. Kabuto's big shell slot) while another slot of the same
@@ -819,10 +823,15 @@ def detect_mirrored_slots(pack_dir, stem=None):
         if sl["verdict"] is None:
             plain_ok = sl["plain"] is not None and sl["plain"] <= uv_mirror.SEAM_PLAIN_BAD
             h, w = sl["wh"]
+            shared_or_half = sl["alb"] in positive or w * 2 == h
             if sl["alb"] in positive and not plain_ok:
                 sl["verdict"] = "shared texture with a mirrored slot"
             elif w * 2 == h and not plain_ok:
                 sl["verdict"] = "half-width texture"
+            elif shared_or_half and sl["sym"][0]:
+                # the seams look plain but the two sides of the model get different texels (Wynaut's arm with the
+                # tail's colour, Whismur's ears one yellow, one white): see `uv_mirror.mirrored_by_symmetry`
+                sl["verdict"] = f"symmetry {sl['sym'][1]:.3f}->{sl['sym'][2]:.3f}"
         if sl["verdict"] is None:
             continue
         verdict = sl["verdict"]
@@ -833,7 +842,7 @@ def detect_mirrored_slots(pack_dir, stem=None):
     return found
 
 
-def write_mirrored_albedo(src_path, out_path, swap=False, symmetrize=False, source_column=0):
+def write_mirrored_albedo(src_path, out_path, swap=False, symmetrize=False, source_column=0, roll_quarter=False):
     """Re-lay out a `_col` texture for the doubled mirrored addressing: `[image | mirror]`.
 
     Sampling the result with the plain UV equals sampling `src` with
@@ -846,6 +855,9 @@ def write_mirrored_albedo(src_path, out_path, swap=False, symmetrize=False, sour
             print(f"EXPORT_NOTE eye_atlas_symmetrized:{os.path.basename(src_path)}:rows={rows}")
         px = uv_mirror.swap_halves(px)
     out = uv_mirror.mirror_layout(px)
+    if roll_quarter:  # mouth atlas: the mesh centre (u = 0.25) reads the right-edge expression (model_rules)
+        out = np.roll(out, -(w // 2), axis=1)
+        print(f"EXPORT_NOTE mouth_atlas_rolled:{os.path.basename(src_path)}")
     img = bpy.data.images.new(f"uvfix_{os.path.basename(out_path)}", w * 2, h, alpha=True)
     img.pixels.foreach_set(out.reshape(-1).astype(np.float32))
     img.filepath_raw = out_path
@@ -885,12 +897,20 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                 notes.add(f"bake_skipped_no_lym:{base}")
             base_img_path = res["alb"]
             want_mirror = bool(res["uv_mirror"] or (mirrored and (obj.name, i) in mirrored))
+            spot_img = None
             if res["alb"] and model_rules.is_spot_patch(base):
-                # Spinda's A-D spot layers: UV charts made for the (unwired) `Pachi?_col` spot textures, sampled here
-                # from the body atlas they read texel noise; the spot positions are chosen at run time
-                base_img_path = flat_dominant_colour(res["alb"], os.path.join(out_dir, f"{stem}_{base}_flat.png"))
+                # Spinda's A-D spot layers: UV charts made for the (unwired) `Pachi?_col` spot textures (a red
+                # ellipse with alpha); sampled from the body atlas they read texel noise. Wire the spot texture
+                # clamped to its transparent edge, so each layer shows one spot at the default (zero) placement
+                # offset; the game moves the spots per individual at run time (not decoded).
+                spot_img = model_rules.spot_texture_path(pack_dir, stem, base)
+                if spot_img:
+                    base_img_path = spot_img
+                    notes.add(f"spot_patch_texture:{base}:{os.path.basename(spot_img)}")
+                else:
+                    base_img_path = flat_dominant_colour(res["alb"], os.path.join(out_dir, f"{stem}_{base}_flat.png"))
+                    notes.add(f"spot_patch_flat:{base}")
                 res["alb"], want_mirror = None, False
-                notes.add(f"spot_patch_flat:{base}")
             # mixed addressing: each input is laid out on its own inside the bake, nothing left to mirror
             mixed = bool(res["lym"] and has_layers and res["uv_mirror_alb"] != res["uv_mirror_lym"]
                          and not (mirrored and (obj.name, i) in mirrored))
@@ -928,7 +948,8 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                     base_img_path = write_mirrored_albedo(
                         base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"), swap,
                         symmetrize=swap and model_rules.symmetrize_eye_pack(stem),
-                        source_column=model_rules.eye_source_column(stem))
+                        source_column=model_rules.eye_source_column(stem),
+                        roll_quarter=model_rules.mouth_atlas_roll(stem, base))
                     notes.add(f"uv_mirrored_albedo:{base}")
                 except Exception as exc:  # noqa: BLE001
                     print(f"EXPORT_NOTE mirrored albedo failed for {base}: {exc}")
@@ -944,7 +965,9 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                     nrm_out = res["nrm"]
             orig_blend = getattr(mat, "blend_method", "OPAQUE") if mat else "OPAQUE"
             alpha_mode = None
-            if base_img_path and orig_blend != "OPAQUE":
+            if spot_img:
+                alpha_mode = "BLEND"
+            elif base_img_path and orig_blend != "OPAQUE":
                 # only the texels this material's triangles read decide (see `alpha_mode_of`); with the doubled
                 # layout the final image is addressed with the plain UV, which is what is sampled here
                 alpha_mode = alpha_mode_of(base_img_path, slot_uv_samples(obj, i), base, hashed=(orig_blend == "HASHED"))
@@ -959,6 +982,8 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                 img = bpy.data.images.load(base_img_path, check_existing=True)
                 node = nt.nodes.new("ShaderNodeTexImage")
                 node.image = img
+                if spot_img:
+                    node.extension = "EXTEND"  # glTF CLAMP_TO_EDGE: the spot texture's border is transparent
                 nt.links.new(node.outputs["Color"], bsdf.inputs["Base Color"])
                 if alpha_mode:
                     nt.links.new(node.outputs["Alpha"], bsdf.inputs["Alpha"])
@@ -1003,16 +1028,84 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
     print(f"EXPORT_NOTE baked_base_color={baked} rebuilt_normals={rebuilt}")
 
 
+def skin_bones(obj, min_weight=0.01):
+    """Names of the vertex groups (bones) that carry weight on at least one vertex of `obj`."""
+    used = set()
+    for v in obj.data.vertices:
+        for g in v.groups:
+            if g.weight > min_weight and g.group < len(obj.vertex_groups):
+                used.add(obj.vertex_groups[g.group].name)
+    return used
+
+
+def local_bounds(obj, digits=3):
+    co = [v.co for v in obj.data.vertices]
+    if not co:
+        return ()
+    return tuple(round(f(c[i] for c in co), digits) for f in (min, max) for i in range(3))
+
+
+def fix_importer_offsets(primary):
+    """Undo the double-applied bounds-centre offset of skinned meshes (`model_rules.importer_offset_is_spurious`).
+
+    Meshes are grouped by their offset from the armature; each group is tested on its combined bounds."""
+    if primary is None:
+        return []
+    base = primary.matrix_world.translation.copy()
+    groups = {}
+    for o in bpy.data.objects:
+        if o.type != "MESH" or not len(o.data.vertices):
+            continue
+        if not any(m.type == "ARMATURE" for m in o.modifiers):
+            continue
+        offset = o.matrix_world.translation - base
+        if offset.length < model_rules.IMPORTER_OFFSET_MIN:
+            continue
+        groups.setdefault(tuple(round(c, 4) for c in offset), []).append(o)
+    fixed = []
+    for offset, objs in groups.items():
+        world = [o.matrix_world @ v.co for o in objs for v in o.data.vertices]
+        centre = [(min(w[i] for w in world) + max(w[i] for w in world)) / 2 - base[i] for i in range(3)]
+        if not model_rules.importer_offset_is_spurious(offset, centre):
+            continue
+        for o in objs:
+            o.matrix_world.translation = base
+            fixed.append(model_rules.short_mesh_name(o.name, ""))
+        print("EXPORT_NOTE importer_offset_removed=%.3f,%.3f,%.3f:%s" % (*offset, ",".join(sorted(o.name for o in objs))))
+    return fixed
+
+
 def drop_mode_meshes(stem):
     """Drop the alternate-state meshes (see `model_rules`): the engine would draw them all at once."""
     dropped = []
-    for o in list(bpy.data.objects):
-        if o.type == "MESH" and model_rules.is_mode_mesh(o.name, stem):
+    meshes = [o for o in bpy.data.objects if o.type == "MESH"]
+    eye_dupes = set(model_rules.duplicate_eye_shells(
+        [(o.name, len(o.data.vertices), local_bounds(o)) for o in meshes], stem))
+    for o in meshes:
+        if (model_rules.is_mode_mesh(o.name, stem) or o.name in eye_dupes
+                or model_rules.is_mode_mesh_by_bones(stem, skin_bones(o))):
             dropped.append(model_rules.short_mesh_name(o.name, stem))
             bpy.data.objects.remove(o, do_unlink=True)
     if dropped:
         print("EXPORT_NOTE mode_meshes_dropped=" + ",".join(sorted(dropped)))
     return dropped
+
+
+def drop_opaque_twins(stem):
+    """Castform weather forms: drop the alternate twin shells (`model_rules.opaque_twins_to_drop`)."""
+    meshes = [o for o in bpy.data.objects if o.type == "MESH"]
+    rows = []
+    for o in meshes:
+        mats = [m for m in o.data.materials if m]
+        is_blend = bool(mats) and all(getattr(m, "blend_method", "OPAQUE") == "BLEND" for m in mats)
+        rows.append((o.name, local_bounds(o, 4), is_blend, len(mats)))
+    drop = set(model_rules.opaque_twins_to_drop(stem, rows))
+    for o in meshes:
+        if o.name in drop:
+            bpy.data.objects.remove(o, do_unlink=True)
+    if drop:
+        print("EXPORT_NOTE opaque_twins_dropped=" + ",".join(sorted(model_rules.short_mesh_name(n, stem) for n in drop)))
+    return drop
 
 
 def keep_primary_rig():
@@ -1144,10 +1237,12 @@ def main():
     pack_dir = os.path.dirname(os.path.abspath(bpy.data.filepath))
 
     primary = keep_primary_rig()
+    fix_importer_offsets(primary)
     drop_mode_meshes(stem)
     mirrored = detect_mirrored_slots(pack_dir, stem)
     print(f"EXPORT_NOTE uv_slots_mirrored={len(mirrored)}")
     simplify_materials(out, stem, pack_dir, mirrored)
+    drop_opaque_twins(stem)
     renamed = rename_actions(stem, clip_mode, primary.name if primary else None)
     assign_actions(primary)
     out_path = os.path.join(out, f"{stem}.gltf")

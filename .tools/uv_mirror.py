@@ -59,6 +59,44 @@ def mirrored_by_seams(px, uv, a_idx, b_idx, ratio):
     return (plain > SEAM_PLAIN_BAD and doubled < ratio * plain), plain, doubled
 
 
+# fewest mirror pairs (vertices at (x, y, z) and (-x, y, z)) for the symmetry test to mean anything
+SYMMETRY_MIN_PAIRS = 16
+
+
+def mirrored_by_symmetry(px, uv, a_idx, b_idx, ratio):
+    """(mirrored?, plain error, doubled error) from the left/right symmetry of the model.
+
+    `a_idx` / `b_idx` index the UVs of mirror-image vertices (x and -x). Pokemon are drawn mirror-symmetric, and
+    the doubled addressing exists to give both sides the same texels, so when the plain UV gives the two sides
+    clearly different colours (one arm of Wynaut painted with its tail) and the doubled one does not, the slot is
+    mirrored. Decisive even when the seam test is not (few or uniform seams)."""
+    if len(a_idx) < SYMMETRY_MIN_PAIRS:
+        return False, None, None
+    a_idx, b_idx = np.asarray(a_idx), np.asarray(b_idx)
+    plain = seam_error(px, uv, a_idx, b_idx, "id")
+    doubled = seam_error(px, uv, a_idx, b_idx, "mu2")
+    return (plain > SEAM_PLAIN_BAD and doubled < ratio * plain), plain, doubled
+
+
+def mirror_pairs(positions, loop_vertex, loops, tolerance=2000.0, min_abs_x=1e-3):
+    """Pairs of loop indices whose vertices are mirror images in x (`positions` [n, 3], `loop_vertex` [loops])."""
+    pos = np.asarray(positions, dtype=np.float64)
+    first = {}
+    keys = np.round(pos * tolerance).astype(np.int64)
+    for lp in loops:
+        k = tuple(keys[loop_vertex[lp]])
+        first.setdefault(k, lp)
+    a, b = [], []
+    for k, lp in first.items():
+        if abs(k[0]) < min_abs_x * tolerance or k[0] < 0:
+            continue
+        m = first.get((-k[0], k[1], k[2]))
+        if m is not None:
+            a.append(lp)
+            b.append(m)
+    return a, b
+
+
 def mirror_layout(px):
     """Re-lay out a texture for the doubled mirrored addressing: `[image | mirrored image]`.
 
