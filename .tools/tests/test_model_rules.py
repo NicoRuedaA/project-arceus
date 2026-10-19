@@ -30,6 +30,29 @@ class ModeMeshTests(unittest.TestCase):
         self.assertTrue(model_rules.symmetrize_eye_pack("pm0124_00_31"))
         self.assertFalse(model_rules.symmetrize_eye_pack("pm0019_00_00"))
 
+    def test_depth_prepass_copies_are_dropped(self):
+        for name in ("pm0327_00_00_BodyB_Skin(Depth)", "pm0327_00_00_PatchA_Skin(Depth)", "pm0351_12_00_BodyA_Skin(Depth)"):
+            self.assertTrue(model_rules.is_mode_mesh(name, name[:12]), name)
+        self.assertFalse(model_rules.is_mode_mesh("pm0327_00_00_PatchA_Skin", "pm0327_00_00"))
+
+    def test_loudred_and_exploud_atlases_are_symmetrized_with_the_right_column(self):
+        self.assertTrue(model_rules.symmetrize_eye_pack("pm0294_00"))
+        self.assertTrue(model_rules.symmetrize_eye_pack("pm0295_00"))
+        self.assertEqual(model_rules.eye_source_column("pm0294_00"), 1)
+        self.assertEqual(model_rules.eye_source_column("pm0295_00"), 0)
+
+    def test_uniform_body_alpha_is_opaque_only_for_constant_body_alpha(self):
+        self.assertTrue(model_rules.uniform_body_alpha_is_opaque("bodyrediba01", 0.36, 0.002))
+        self.assertFalse(model_rules.uniform_body_alpha_is_opaque("bodyrediba01", 0.36, 0.3))   # shaped film
+        self.assertFalse(model_rules.uniform_body_alpha_is_opaque("l_eye_b", 0.06, 0.0))         # not a body part
+        self.assertFalse(model_rules.uniform_body_alpha_is_opaque("body", 1.0, 0.0))
+
+    def test_spinda_spot_patches(self):
+        for name in ("pm0327_00_00-apatch", "pm0327_00_00-dpatch", "apatch"):
+            self.assertTrue(model_rules.is_spot_patch(name), name)
+        for name in ("pm0327_00_00-body00", "pm0327_00_00-mouth", "patchwork"):
+            self.assertFalse(model_rules.is_spot_patch(name), name)
+
     def test_normal_parts_are_kept(self):
         for name in ("pm0028_00_00_body_mesh", "pm0028_00_00_eye_mesh", "pm0094_00_00_eyeball_mesh",
                      "pm0025_00_00_wing_mesh", "pm0009_00_00_shell_mesh", "pm0028_00_11_ice_mesh"):
