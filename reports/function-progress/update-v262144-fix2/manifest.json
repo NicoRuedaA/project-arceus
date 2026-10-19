@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 285,
+    "file_count": 286,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -250,6 +250,10 @@
       {
         "path": "crates/pla/examples/pokemon_spike.rs",
         "sha256": "2cd1a02720b07bf49eb4a5a15792df017679498cef26c2ceb8b9986c481afa29"
+      },
+      {
+        "path": "crates/pla/examples/pokemon_uv_census.rs",
+        "sha256": "53351b07efcd007167ba864512f150c80db99602247d3aa16522559509b2223d"
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
@@ -1217,7 +1221,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "0e9170967f3b6570e3cd75d1cab6f55dc5046ad5347f279bdf8ebd3a6658d255"
+    "sha256": "6563c88ca33434ad552ac85d5e998fdee78393bb33a24d3547a7e277592a13f4"
   },
   "state_partitions": {
     "analysis_documentation_status": {
