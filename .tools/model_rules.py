@@ -17,3 +17,18 @@ def short_mesh_name(name, stem):
 
 def is_mode_mesh(name, stem=""):
     return bool(MODE_MESH_RX.search(short_mesh_name(name, stem)))
+
+
+# Packs whose eye atlas (256x512, 2 columns x 4 rows of expression cells) holds a *different*
+# expression in each column of the cell the eyes use, so the two eyes came out different:
+# Krabby / Kingler (column 0 is an empty cell, the iris is drawn by a texture we do not wire), Jynx and
+# Omanyte (open eye next to the same eye with a lid line). Every other pack with an atlas has mirror-image
+# columns (or differences too small to see), checked by eye on the species 1-151 sheets, and keeps the
+# plain eye swap. See `uv_mirror.symmetrize_eye_atlas`.
+EYE_SYMMETRIZE_PACKS = frozenset({"pm0098_00", "pm0099_00", "pm0124_00", "pm0138_00"})
+
+
+def symmetrize_eye_pack(stem):
+    """True for the packs in `EYE_SYMMETRIZE_PACKS` (variants such as `pm0098_00_31` share the atlas)."""
+    base = re.sub(r"^(pm\d{4}_\d{2}).*$", r"\1", stem)
+    return stem in EYE_SYMMETRIZE_PACKS or base in EYE_SYMMETRIZE_PACKS

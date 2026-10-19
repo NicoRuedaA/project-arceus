@@ -25,6 +25,11 @@ class ModeMeshTests(unittest.TestCase):
                      "pm0083_00_31_wingclose_l_mesh", "pm0009_51_00_closed_mesh", "pm0009_51_00_left_armclosed_mesh"):
             self.assertTrue(model_rules.is_mode_mesh(name, name[:12]), name)
 
+    def test_eye_symmetrize_packs_include_their_variants_only(self):
+        self.assertTrue(model_rules.symmetrize_eye_pack("pm0098_00"))
+        self.assertTrue(model_rules.symmetrize_eye_pack("pm0124_00_31"))
+        self.assertFalse(model_rules.symmetrize_eye_pack("pm0019_00_00"))
+
     def test_normal_parts_are_kept(self):
         for name in ("pm0028_00_00_body_mesh", "pm0028_00_00_eye_mesh", "pm0094_00_00_eyeball_mesh",
                      "pm0025_00_00_wing_mesh", "pm0009_00_00_shell_mesh", "pm0028_00_11_ice_mesh"):

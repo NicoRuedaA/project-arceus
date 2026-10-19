@@ -18,13 +18,19 @@ def doc():
 
 
 class PatchTests(unittest.TestCase):
+    def test_glass_eye_covers_become_translucent_but_real_eyes_do_not(self):
+        d = {"materials": [{"name": "pm0046_00_00_l_eye_a_mesh_shape#l_eye-material"},
+                           {"name": "pm0046_00_00_eye_c_mesh_shape#tra_l_eye-material"}]}
+        self.assertEqual(list(fx.patch_gltf(d)), [1])
+        self.assertEqual(d["materials"][1]["pbrMetallicRoughness"]["baseColorFactor"][3], 0.3)
+
     def test_only_smoke_materials_turn_translucent(self):
         d = doc()
         changed = fx.patch_gltf(d)
         self.assertEqual(list(changed), [1])
         self.assertNotIn("alphaMode", d["materials"][0])
         self.assertEqual(d["materials"][1]["alphaMode"], "BLEND")
-        self.assertEqual(d["materials"][1]["pbrMetallicRoughness"]["baseColorFactor"], [1.0, 1.0, 1.0, 0.5])
+        self.assertEqual(d["materials"][1]["pbrMetallicRoughness"]["baseColorFactor"], [1.0, 1.0, 1.0, 0.2])
         self.assertIn("baseColorTexture", d["materials"][1]["pbrMetallicRoughness"])
 
     def test_second_patch_changes_nothing(self):

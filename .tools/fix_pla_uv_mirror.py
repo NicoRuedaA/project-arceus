@@ -2,7 +2,7 @@
 """Un-mirror the base colour textures of the exported PLA catalogue (`work/cache/pokemon_batch`).
 
 Run with Blender (for the PNG codec and numpy):
-  blender -b --python .tools/fix_pla_uv_mirror.py -- [--root work/cache/pokemon_batch]
+  blender -b --python .tools/fix_pla_uv_mirror.py -- [--root work/cache/pokemon_batch] [--census work/cache/pokemon_uv_census.tsv]
       [--packs pm0025_00_00,pm0133_00_00 | --range 1-150] [--dry-run] [--restore]
 
 Why
@@ -16,14 +16,15 @@ exporter (`blender_export_pokemon.py`, point 7 of its docstring) fixes the same 
 
 What
 ----
-Per base colour texture of each pack (the idle glTF is the reference; every other glTF of
-the pack and the `_rare` texture variants share the file names):
-  * half-width texture (`width * 2 == height`): always doubled and mirrored. No
-    half-width texture of the 1-150 catalogue prefers the plain UV in the seam test.
-  * otherwise the seam test of the user-collection exporter decides (the texture is
-    sampled on both sides of every seam; the right addressing makes both sides agree).
-A fixed texture is rewritten as `[image | mirrored image]` (twice as wide); the mesh UVs
-are not touched. The original PNGs are kept in `<root>/../pokemon_batch_uv_orig/<pack>/`
+The material block of every texture says how it is addressed: `UVScaleOffset` (scale.xy +
+offset.xy; read by the Rust example `pokemon_uv_census`, whose TSV this tool takes with
+`--census`). Pikachu: `body_a` (2,1), cheeks `body_c` (1,2), `body_b` (1,1). The texture is
+sampled with a mirrored repeat, so a block with scale (sx, sy) is re-laid out as a
+(sx x sy) grid of tiles, every odd tile mirrored (`[image | mirrored image]` for (2,1)); the
+mesh UVs and the normal map are not touched. Blocks with scale (1,1) are left alone and
+Eye-shader blocks and non-integer scales / offsets are reported and skipped.
+(Earlier versions of this tool guessed with a seam test; the data showed it wrongly flipped
+Clefable, Ninetales, Arcanine, Machoke, Onix and Magikarp, whose blocks are plain (1,1).) The original PNGs are kept in `<root>/../pokemon_batch_uv_orig/<pack>/`
 and a marker `<pack>/.uv_mirror.json` makes the tool idempotent (`--restore` undoes it).
 Regenerating `pokemon_batch` with the Rust exporter brings back the unfixed textures:
 run this tool again afterwards.
@@ -33,6 +34,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import struct
 import sys
@@ -139,16 +141,40 @@ def base_color_uses(gltf, buffers):
     return out
 
 
-def decide(folder, uri, uv, a, b):
-    path = os.path.join(folder, uri)
-    px = read_png(path)
-    h, w = px.shape[:2]
-    if w * 2 == h:
-        return "mu2", "half-width texture", px
-    mirrored, plain, doubled = uv_mirror.mirrored_by_seams(px[::-1], uv, a, b, SEAM_RATIO)  # glTF v runs top-down
-    if mirrored:
-        return "mu2", f"seams {plain:.3f}->{doubled:.3f}", px
-    return "id", "", px
+def load_census(path):
+    """{(pack, block): (scale x, scale y, offset x, offset y, shader)} from `pokemon_uv_census` output."""
+    table = {}
+    with open(path, encoding="utf-8") as f:
+        next(f)
+        for line in f:
+            cols = line.rstrip("\n").split("\t")
+            pack, block, shader, uvso = cols[0], cols[3], cols[4], cols[5]
+            if uvso == "-":
+                continue
+            v = tuple(round(float(x), 4) for x in uvso.split(","))
+            table.setdefault((pack, block), v + (shader,))
+    return table
+
+
+TEX_RX = re.compile(r"^(pm\d{4}_\d{2}_\d{2})_.+?_alb_(.+)_color\.png$")
+
+
+def decide(census, stem, uri):
+    """(scale, why) for a base colour texture: ((sx, sy), note) or (None, reason it is left alone)."""
+    m = TEX_RX.match(uri)
+    if not m:
+        return None, "unrecognised file name"
+    entry = census.get((stem, m.group(2))) or census.get((m.group(1), m.group(2)))
+    if entry is None:
+        return None, "block not in the census"
+    sx, sy, ox, oy, shader = entry
+    if shader == "Eye":
+        return None, "eye shader"
+    if abs(ox) > 1e-3 or abs(oy) > 1e-3 or sx not in (1.0, 2.0, 4.0) or sy not in (1.0, 2.0, 4.0):
+        return None, f"unsupported UVScaleOffset {entry[:4]}"
+    if (sx, sy) == (1.0, 1.0):
+        return None, "plain (1,1)"
+    return (int(sx), int(sy)), f"UVScaleOffset ({int(sx)},{int(sy)})"
 
 
 def pick_reference_gltf(folder, stem):
@@ -159,7 +185,7 @@ def pick_reference_gltf(folder, stem):
     return None
 
 
-def fix_pack(root, orig_root, stem, dry_run):
+def fix_pack(root, orig_root, census, stem, dry_run):
     folder = os.path.join(root, stem)
     marker = os.path.join(folder, MARKER)
     if os.path.isfile(marker):
@@ -167,29 +193,41 @@ def fix_pack(root, orig_root, stem, dry_run):
     ref = pick_reference_gltf(folder, stem)
     if ref is None:
         return "no glTF", 0
-    gltf, buffers = load_gltf(ref)
-    fixed = []
-    for uri, (uv, a, b) in base_color_uses(gltf, buffers).items():
-        verdict, why, px = decide(folder, uri, uv, a, b)
-        if verdict != "mu2":
+    gltf, _ = load_gltf(ref)
+    uris = []
+    for mat in gltf.get("materials", []):
+        tex = mat.get("pbrMetallicRoughness", {}).get("baseColorTexture")
+        if tex is not None:
+            uri = gltf["images"][gltf["textures"][tex["index"]]["source"]]["uri"]
+            if uri not in uris:
+                uris.append(uri)
+    fixed, skipped = [], []
+    for uri in uris:
+        scale, why = decide(census, stem, uri)
+        if scale is None:
+            if why not in ("plain (1,1)", "eye shader"):
+                skipped.append(f"{uri}: {why}")
             continue
         targets = [uri]
         rare = uri[:-4] + "_rare.png"
         if os.path.isfile(os.path.join(folder, rare)):
             targets.append(rare)
         for name in targets:
-            fixed.append({"texture": name, "why": why})
+            fixed.append({"texture": name, "why": why, "scale": list(scale)})
             if dry_run:
                 continue
             src = os.path.join(folder, name)
             keep = os.path.join(orig_root, stem, name)
             os.makedirs(os.path.dirname(keep), exist_ok=True)
             shutil.copy2(src, keep)
-            src_px = px if name == uri else read_png(src)
-            write_png(src, uv_mirror.mirror_layout(src_px))
+            # read_png rows run bottom-up: tile in image orientation (the original tile is the top one, v from 0)
+            write_png(src, uv_mirror.mirror_tiles(read_png(src)[::-1], scale[0], scale[1])[::-1])
     if fixed and not dry_run:
         json.dump({"fixed": fixed}, open(marker, "w"), indent=1)
-    return ", ".join(f"{f['texture']} ({f['why']})" for f in fixed) or "unchanged", len(fixed)
+    msg = ", ".join(f"{f['texture']} ({f['why']})" for f in fixed) or "unchanged"
+    if skipped:
+        msg += " | skipped: " + "; ".join(skipped)
+    return msg, len(fixed)
 
 
 def restore_pack(root, orig_root, stem):
@@ -212,6 +250,8 @@ def main():
     root = os.path.abspath(arg(argv, "--root", "work/cache/pokemon_batch"))
     orig_root = os.path.join(os.path.dirname(root), "pokemon_batch_uv_orig")
     dry = "--dry-run" in argv
+    census_path = os.path.abspath(arg(argv, "--census", os.path.join(os.path.dirname(root), "pokemon_uv_census.tsv")))
+    census = load_census(census_path) if "--restore" not in argv else None
     packs = arg(argv, "--packs")
     if packs:
         stems = packs.split(",")
@@ -228,7 +268,7 @@ def main():
             print(f"UVFIX {stem}: restored {n} texture(s)")
             continue
         try:
-            msg, n = fix_pack(root, orig_root, stem, dry)
+            msg, n = fix_pack(root, orig_root, census, stem, dry)
         except Exception as exc:  # noqa: BLE001
             msg, n = f"ERROR {exc}", 0
         total += n

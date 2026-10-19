@@ -75,3 +75,57 @@ def swap_halves(px):
     for the mirror-symmetric pairs of the packs equals flipping each eye horizontally."""
     half = px.shape[1] // 2
     return np.concatenate([px[:, half:], px[:, :half]], axis=1)
+
+
+EYE_PAIR_TOLERANCE = 0.03  # mean abs difference (0..1) under which two cells count as mirror images
+EYE_BLANK_ALPHA = 0.05     # mean alpha under which a cell is "empty" (the engine would draw the iris there)
+
+
+def symmetrize_eye_atlas(px, tolerance=EYE_PAIR_TOLERANCE):
+    """Make the two columns of an expression atlas a mirror pair, row by row.
+
+    The `_col` eye atlases (256x512: 2 columns x 4 rows of 128x128 expression cells, the first
+    cell is the neutral open eye) are sampled by the doubled addressing, so the model's right eye
+    reads column 0 and the left eye column 1 of the same row. For the packs where the two columns
+    are mirror images of each other (Rattata...) that is right. For the others (Krabby, Kingler:
+    column 0 is an empty cell; Jynx, Omanyte: neutral eye next to an eyelid) the two eyes came out
+    different. The game picks one expression for both eyes; we use the neutral cell (column 0)
+    unless column 1 is clearly more opaque (an empty or holed cell), and mirror it into the other column.
+
+    Returns (new atlas, number of rows changed). Only half-width atlases (`width * 2 == height`)
+    are touched; anything else comes back unchanged."""
+    h, w = px.shape[:2]
+    if w * 2 != h or w % 2:
+        return px, 0
+    half = w // 2
+    out = px.copy()
+    changed = 0
+    for r in range(h // half):
+        rows = slice(r * half, (r + 1) * half)
+        a = px[rows, :half]
+        b = px[rows, half:]
+        if float(np.abs(a - b[:, ::-1]).mean()) <= tolerance:
+            continue
+        a_alpha = float(a[:, :, 3].mean())
+        b_alpha = float(b[:, :, 3].mean())
+        if a_alpha < EYE_BLANK_ALPHA and b_alpha < EYE_BLANK_ALPHA:
+            continue
+        # the source cell is the neutral one (column 0) unless column 1 is clearly more opaque
+        # (Krabby: empty cell; Kingler: a cell cut by transparent holes)
+        if a_alpha + 0.05 < b_alpha:
+            out[rows, :half] = b[:, ::-1]
+        else:
+            out[rows, half:] = a[:, ::-1]
+        changed += 1
+    return out, changed
+
+
+def mirror_tiles(px, sx, sy):
+    """Re-lay out a texture sampled with `tri_wave(sx * u)` / `tri_wave(sy * v)`: a grid of
+    (sx x sy) tiles where every odd tile is mirrored along that axis. `(2, 1)` is `mirror_layout`."""
+    out = px
+    if sx > 1:
+        out = np.concatenate([out if i % 2 == 0 else out[:, ::-1, :] for i in range(sx)], axis=1)
+    if sy > 1:
+        out = np.concatenate([out if j % 2 == 0 else out[::-1, :, :] for j in range(sy)], axis=0)
+    return out

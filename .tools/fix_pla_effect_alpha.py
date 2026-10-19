@@ -15,7 +15,12 @@ import json
 import os
 import sys
 
-TOKENS = (("smoke", 0.5),)
+# (token of the material name, flat alpha). PROBABLE looks, not game data:
+#  * `smoke`: Gastly's gas shell (the game's `NonDirectional` shader); 0.5 left a glass ball with a
+#    purple face, 0.2 shows the black face inside a faint haze.
+#  * `#tra_l_eye` / `#tra_r_eye`: the `Transparent`-shader glass covers of Paras' eyes (`tra_l_eye`, `tra_r_eye`); opaque
+#    they hid the real eyes behind two pale blue balls.
+TOKENS = (("smoke", 0.2), ("#tra_l_eye", 0.3), ("#tra_r_eye", 0.3))
 MARKER = ".effect_alpha.json"
 
 
