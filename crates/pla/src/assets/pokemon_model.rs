@@ -217,6 +217,14 @@ pub fn add_eye_highlight(
 }
 
 /// Bake `albedo * ((1 - sum w) + sum w_i * Layer_i)` at the mask resolution.
+/// Tint of one colour channel where the layer weights add up to more than 1: the layers are applied in
+/// order, each one lerping the running tint toward its colour by its own weight (a later layer overrides).
+fn mask_overlap_tint(weights: &[f32; 4], layers: &[[f32; 4]; 4], channel: usize) -> f32 {
+    (0..4).fold(1.0, |tint, l| {
+        tint + (layers[l][channel] - tint) * weights[l].clamp(0.0, 1.0)
+    })
+}
+
 pub fn bake_mask_lerp(
     albedo: &bntx::TextureData,
     mask: &bntx::TextureData,
@@ -241,10 +249,12 @@ pub fn bake_mask_lerp(
                 *wgt = f32::from(m[c]) / 255.0;
             }
             let total: f32 = weights.iter().sum();
-            if total > 1.0 {
-                weights.iter_mut().for_each(|v| *v /= total);
-            }
-            let keep = (1.0 - weights.iter().sum::<f32>()).max(0.0);
+            // Channels that overlap (Dustox's eye spots: the yellow patch has weight 1 and the spot mask,
+            // in alpha, has weight 1 on top) are an override of the later layer over the earlier one, as the
+            // Let's Go colour textures of the same model show (black spots). Averaging them
+            // (the old normalisation) made the spots olive.
+            let overlap = total > 1.0;
+            let keep = (1.0 - total).max(0.0);
             // Bilinear albedo sample (texel centres), in linear light.
             let fx = ((x as f32 + 0.5) * aw as f32 / w as f32 - 0.5).clamp(0.0, aw as f32 - 1.0);
             let fy = ((y as f32 + 0.5) * ah as f32 / h as f32 - 0.5).clamp(0.0, ah as f32 - 1.0);
@@ -259,7 +269,11 @@ pub fn bake_mask_lerp(
                 let a = texel(x0, y0, c) * (1.0 - tx) + texel(x1, y0, c) * tx;
                 let b = texel(x0, y1, c) * (1.0 - tx) + texel(x1, y1, c) * tx;
                 let alb = a * (1.0 - ty) + b * ty;
-                let tint = keep + (0..4).map(|l| weights[l] * layers[l][c]).sum::<f32>();
+                let tint = if overlap {
+                    mask_overlap_tint(&weights, layers, c)
+                } else {
+                    keep + (0..4).map(|l| weights[l] * layers[l][c]).sum::<f32>()
+                };
                 rgba[o + c] = (linear_to_srgb((alb * tint).clamp(0.0, 1.0)) * 255.0).round() as u8;
             }
             rgba[o + 3] = albedo.rgba[((y0 * aw) + x0) * 4 + 3];
@@ -1933,6 +1947,23 @@ mod tests {
         "pm0025_00_00_00560_notice01",
     ];
 
+
+    #[test]
+    fn mask_lerp_lets_a_later_overlapping_layer_override_the_earlier_one() {
+        use crate::assets::bntx::TextureData;
+        // layer 2 yellow (1, 0.8, 0.1), layer 4 black; the single texel has weight 1 on both (Dustox's eye spot)
+        let layers = [[1.0; 4], [1.0, 0.8, 0.1, 1.0], [1.0; 4], [0.0, 0.0, 0.0, 1.0]];
+        let albedo = TextureData { width: 1, height: 1, rgba: vec![255, 255, 255, 255] };
+        let both = TextureData { width: 1, height: 1, rgba: vec![0, 255, 0, 255] };
+        // alpha is the 4th layer: [0,255,0,255] = G and A set
+        let out = bake_mask_lerp(&albedo, &both, &layers).unwrap();
+        assert_eq!(&out.rgba[0..3], &[0, 0, 0], "the spot is black, not an olive average");
+        // without the overlap the formula is unchanged: only G set -> layer 2 colour
+        let only_g = TextureData { width: 1, height: 1, rgba: vec![0, 255, 0, 0] };
+        let out = bake_mask_lerp(&albedo, &only_g, &layers).unwrap();
+        assert_eq!(out.rgba[0], 255);
+        assert!(out.rgba[2] < 120, "yellow keeps a low blue channel");
+    }
 
     #[test]
     fn eye_highlight_paints_white_where_the_mask_is_red_and_keeps_the_rest() {

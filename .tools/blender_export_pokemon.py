@@ -326,6 +326,21 @@ def normal_z_from_alpha(group):
     return blue.links[0].from_socket.name == "Alpha"
 
 
+def group_present(mat):
+    return find_shader_group(mat) is not None
+
+
+def unlinked_value(group, name):
+    """Constant value of a shader-group input that has no link, else None."""
+    sock = group.inputs.get(name) if group is not None else None
+    if sock is None or sock.is_linked:
+        return None
+    try:
+        return float(sock.default_value)
+    except (TypeError, ValueError):
+        return None
+
+
 def group_layer_colors(group):
     """(layers, scales) from the PokemonShader group node, else (None, None)."""
     if group is None:
@@ -417,6 +432,7 @@ def resolve_textures(mat, tex, pack_dir):
     }
     if group is not None:
         res["layers"], res["scales"] = group_layer_colors(group)
+        res["metallic"] = unlinked_value(group, "Metallic")
         res["alb"] = image_disk_path(upstream_image(group.inputs.get("Albedo")), pack_dir)
         # the doubled mirrored addressing may sit on the albedo chain, on the layer-mask chain or on
         # both: Beedrill's body_a has a flat 32x32 albedo (plain UV) and a 512x1024 mask (doubled),
@@ -521,7 +537,7 @@ def _bilinear_resample(px, out_h, out_w):
 
 
 def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path, mask_path=None, mask_color=None,
-                    alb_doubled=False, lym_doubled=False):
+                    alb_doubled=False, lym_doubled=False, base_layer_only=False, diffuse_scale=1.0):
     """Sequential Trinity layer blend of the albedo, all maths in linear light.
 
     `c = albedo`; per layer `c = mix(c, albedo * layer_i, w_i)` with
@@ -558,10 +574,16 @@ def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path
     alb_lin = _srgb_to_linear(_bilinear_resample(alb_px[:, :, :3], mh, mw))
     alpha = _bilinear_resample(alb_px[:, :, 3:4], mh, mw)[:, :, 0]
     c = alb_lin.astype(np.float32)
+    if base_layer_only:
+        # `Lym_color` is not wired in the graph (Spoink/Grumpig pearls, Staryu gem): the mask is a constant, the
+        # whole surface is the first layer colour (Spoink's pearl = pink like its cheeks, the user's check)
+        channels[0] = np.ones_like(channels[0])
+        scales = [1.0, 0.0, 0.0, 0.0]
     for i in range(4):
         weight = np.clip(channels[i] * float(scales[i]), 0.0, 1.0)[:, :, None].astype(np.float32)
         target = (alb_lin * np.array(layers[i][:3], dtype=np.float32)[None, None, :]).astype(np.float32)
         c = c + (target - c) * weight
+    c = c * float(diffuse_scale)
     if mask_px is not None:
         # catch-light of the eye: the mask's red channel paints `mask_color` over the baked colour
         w = np.clip(_bilinear_resample(mask_px[:, :, 0:1], mh, mw), 0.0, 1.0)
@@ -620,7 +642,7 @@ def rebuild_normal_map(nrm_path, out_path, alpha_is_z=False, layout=None):
 
 # ------------------------------------------------------------------- export
 
-def alpha_mode_of(image_path, uv=None):
+def alpha_mode_of(image_path, uv=None, name="", hashed=False):
     """('BLEND'|'MASK'|None) from the alpha channel of a PNG: None when it is opaque.
 
     `uv` (N x 2, the UVs the material really uses, plain addressing of the final image) restricts the
@@ -635,6 +657,9 @@ def alpha_mode_of(image_path, uv=None):
     if uv is not None and len(uv):
         a = uv_mirror.alpha_in_footprint(a, uv)
     if float(a.min()) > 0.95:
+        return None
+    if hashed and model_rules.uniform_body_alpha_is_opaque(name, float(a.mean()), float(a.std())):
+        print(f"EXPORT_NOTE uniform_alpha_opaque:{name}:{float(a.mean()):.2f}")
         return None
     soft = float(((a > 0.02) & (a < 0.98)).mean())
     return "BLEND" if soft > 0.02 else "MASK"
@@ -808,7 +833,7 @@ def detect_mirrored_slots(pack_dir, stem=None):
     return found
 
 
-def write_mirrored_albedo(src_path, out_path, swap=False, symmetrize=False):
+def write_mirrored_albedo(src_path, out_path, swap=False, symmetrize=False, source_column=0):
     """Re-lay out a `_col` texture for the doubled mirrored addressing: `[image | mirror]`.
 
     Sampling the result with the plain UV equals sampling `src` with
@@ -817,12 +842,27 @@ def write_mirrored_albedo(src_path, out_path, swap=False, symmetrize=False):
     h, w = px.shape[:2]
     if swap:
         if symmetrize:
-            px, rows = uv_mirror.symmetrize_eye_atlas(px, tolerance=0.0)
+            px, rows = uv_mirror.symmetrize_eye_atlas(px, tolerance=0.0, source_column=source_column)
             print(f"EXPORT_NOTE eye_atlas_symmetrized:{os.path.basename(src_path)}:rows={rows}")
         px = uv_mirror.swap_halves(px)
     out = uv_mirror.mirror_layout(px)
     img = bpy.data.images.new(f"uvfix_{os.path.basename(out_path)}", w * 2, h, alpha=True)
     img.pixels.foreach_set(out.reshape(-1).astype(np.float32))
+    img.filepath_raw = out_path
+    img.file_format = "PNG"
+    img.save()
+    return out_path
+
+
+def flat_dominant_colour(src_path, out_path):
+    """4x4 opaque PNG filled with the most frequent colour of `src_path` (5-bit quantised, mean of that bin)."""
+    px = _read_pixels(src_path)[:, :, :3].reshape(-1, 3)
+    keys = (np.clip(px, 0.0, 1.0) * 31).astype(np.int32)
+    code = keys[:, 0] * 1024 + keys[:, 1] * 32 + keys[:, 2]
+    top = np.bincount(code).argmax()
+    rgb = px[code == top].mean(axis=0)
+    img = bpy.data.images.new(f"flat_{os.path.basename(out_path)}", 4, 4, alpha=True)
+    img.pixels.foreach_set(np.tile(np.append(rgb, 1.0).astype(np.float32), 16))
     img.filepath_raw = out_path
     img.file_format = "PNG"
     img.save()
@@ -845,20 +885,36 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                 notes.add(f"bake_skipped_no_lym:{base}")
             base_img_path = res["alb"]
             want_mirror = bool(res["uv_mirror"] or (mirrored and (obj.name, i) in mirrored))
+            if res["alb"] and model_rules.is_spot_patch(base):
+                # Spinda's A-D spot layers: UV charts made for the (unwired) `Pachi?_col` spot textures, sampled here
+                # from the body atlas they read texel noise; the spot positions are chosen at run time
+                base_img_path = flat_dominant_colour(res["alb"], os.path.join(out_dir, f"{stem}_{base}_flat.png"))
+                res["alb"], want_mirror = None, False
+                notes.add(f"spot_patch_flat:{base}")
             # mixed addressing: each input is laid out on its own inside the bake, nothing left to mirror
             mixed = bool(res["lym"] and has_layers and res["uv_mirror_alb"] != res["uv_mirror_lym"]
                          and not (mirrored and (obj.name, i) in mirrored))
             if mixed:
                 want_mirror = False
                 notes.add(f"uv_mixed_addressing:{base}:alb={int(res['uv_mirror_alb'])},lym={int(res['uv_mirror_lym'])}")
-            if res["alb"] and ((res["lym"] and has_layers) or res["mask"]):
+            # graph without a layer mask (Lym_color unwired, no file found either): layer 1 covers the surface;
+            # a strongly metallic material has no diffuse colour (glTF/PBR: diffuse = base * (1 - metallic))
+            flat_layer1 = bool(has_layers and res["layers"][0][:3] != (1.0, 1.0, 1.0) and not res["lym"]
+                               and not res["mask"] and group_present(mat))
+            diffuse_scale = 1.0
+            if flat_layer1 and (res.get("metallic") or 0.0) >= model_rules.METAL_DARK_MIN:
+                diffuse_scale = 1.0 - float(res["metallic"])
+            if flat_layer1:
+                notes.add(f"bake_layer1_only:{base}:metallic={res.get('metallic')}")
+            if res["alb"] and ((res["lym"] and has_layers) or res["mask"] or flat_layer1):
                 baked_path = os.path.join(out_dir, f"{stem}_{base or 'mat'}_baked.png")
                 try:
                     got = bake_base_color(res["alb"], res["lym"] if has_layers else None, res["lym_alpha"],
                                           res["layers"] or [(1.0, 1.0, 1.0, 1.0)] * 4, res["scales"] or [1.0] * 4,
                                           baked_path, res["mask"], res["mask_color"],
                                           alb_doubled=mixed and res["uv_mirror_alb"],
-                                          lym_doubled=mixed and res["uv_mirror_lym"])
+                                          lym_doubled=mixed and res["uv_mirror_lym"],
+                                          base_layer_only=flat_layer1, diffuse_scale=diffuse_scale)
                     if got:
                         base_img_path = got
                         baked += 1
@@ -871,12 +927,13 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                     swap = "eyeswap" in str((mirrored or {}).get((obj.name, i), ""))
                     base_img_path = write_mirrored_albedo(
                         base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"), swap,
-                        symmetrize=swap and model_rules.symmetrize_eye_pack(stem))
+                        symmetrize=swap and model_rules.symmetrize_eye_pack(stem),
+                        source_column=model_rules.eye_source_column(stem))
                     notes.add(f"uv_mirrored_albedo:{base}")
                 except Exception as exc:  # noqa: BLE001
                     print(f"EXPORT_NOTE mirrored albedo failed for {base}: {exc}")
             nrm_out = None
-            if res["nrm"]:
+            if res["nrm"] and not model_rules.is_spot_patch(base):  # the body-atlas normal map is noise on those charts
                 try:
                     nrm_out, changed = rebuild_normal_map(
                         res["nrm"], os.path.join(out_dir, f"{stem}_{base or 'mat'}_nrm.png"),
@@ -890,7 +947,7 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
             if base_img_path and orig_blend != "OPAQUE":
                 # only the texels this material's triangles read decide (see `alpha_mode_of`); with the doubled
                 # layout the final image is addressed with the plain UV, which is what is sampled here
-                alpha_mode = alpha_mode_of(base_img_path, slot_uv_samples(obj, i))
+                alpha_mode = alpha_mode_of(base_img_path, slot_uv_samples(obj, i), base, hashed=(orig_blend == "HASHED"))
             tint = fire_tint(base) if not base_img_path else None
             new = bpy.data.materials.new(f"simple_{base or 'mat'}")
             new.use_nodes = True

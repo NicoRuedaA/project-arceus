@@ -81,7 +81,7 @@ EYE_PAIR_TOLERANCE = 0.03  # mean abs difference (0..1) under which two cells co
 EYE_BLANK_ALPHA = 0.05     # mean alpha under which a cell is "empty" (the engine would draw the iris there)
 
 
-def symmetrize_eye_atlas(px, tolerance=EYE_PAIR_TOLERANCE):
+def symmetrize_eye_atlas(px, tolerance=EYE_PAIR_TOLERANCE, source_column=0):
     """Make the two columns of an expression atlas a mirror pair, row by row.
 
     The `_col` eye atlases (256x512: 2 columns x 4 rows of 128x128 expression cells, the first
@@ -91,6 +91,8 @@ def symmetrize_eye_atlas(px, tolerance=EYE_PAIR_TOLERANCE):
     column 0 is an empty cell; Jynx, Omanyte: neutral eye next to an eyelid) the two eyes came out
     different. The game picks one expression for both eyes; we use the neutral cell (column 0)
     unless column 1 is clearly more opaque (an empty or holed cell), and mirror it into the other column.
+    `source_column=1` takes column 1 as the expression instead (Loudred: column 0 is the plain round eye, column 1 the
+    one with the angry lid that its evolution Exploud shows on both eyes).
 
     Returns (new atlas, number of rows changed). Only half-width atlases (`width * 2 == height`)
     are touched; anything else comes back unchanged."""
@@ -112,7 +114,7 @@ def symmetrize_eye_atlas(px, tolerance=EYE_PAIR_TOLERANCE):
             continue
         # the source cell is the neutral one (column 0) unless column 1 is clearly more opaque
         # (Krabby: empty cell; Kingler: a cell cut by transparent holes)
-        if a_alpha + 0.05 < b_alpha:
+        if source_column == 1 or a_alpha + 0.05 < b_alpha:
             out[rows, :half] = b[:, ::-1]
         else:
             out[rows, half:] = a[:, ::-1]

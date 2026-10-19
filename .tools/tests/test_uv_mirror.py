@@ -108,6 +108,17 @@ class EyeAtlasTests(unittest.TestCase):
         np.testing.assert_array_equal(out[0:4, :4], px[0:4, :4])
         np.testing.assert_array_equal(out[0:4, 4:], px[0:4, :4][:, ::-1])
 
+    def test_source_column_one_mirrors_the_second_cell_into_the_first(self):
+        px = np.zeros((16, 8, 4), dtype=np.float32)
+        px[0:4, :4, 3] = 1.0
+        px[0:4, 0, :3] = 0.5   # column 0: plain eye
+        px[0:4, 4:, 3] = 1.0
+        px[0:4, 5, :3] = 0.9   # column 1: eye with the lid
+        out, rows = uv_mirror.symmetrize_eye_atlas(px, source_column=1)
+        self.assertEqual(rows, 1)
+        np.testing.assert_array_equal(out[0:4, 4:], px[0:4, 4:])
+        np.testing.assert_array_equal(out[0:4, :4], px[0:4, 4:][:, ::-1])
+
     def test_non_half_width_atlases_are_not_touched(self):
         px = np.random.default_rng(3).random((8, 8, 4)).astype(np.float32)
         out, rows = uv_mirror.symmetrize_eye_atlas(px)
