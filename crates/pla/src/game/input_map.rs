@@ -426,6 +426,8 @@ impl Plugin for InputMapPlugin {
 pub fn fill_action_state(
     keys: Res<ButtonInput<KeyCode>>,
     gamepads: Query<&Gamepad>,
+    time: Option<Res<Time>>,
+    mut held_for: Local<NavHeld>,
     mut state: ResMut<ActionState>,
 ) {
     let mut raw = RawInput::from_keyboard(&keys);
@@ -433,6 +435,43 @@ pub fn fill_action_state(
         raw.merge_gamepad(gamepad);
     }
     *state = actions(&raw);
+
+    // Holding a navigation key repeats its edge, so lists scroll while the key stays down.
+    let prev_down = keys.any_pressed([KeyCode::ArrowUp, KeyCode::ArrowLeft, KeyCode::KeyA])
+        || gamepads.iter().any(|g| g.pressed(GamepadButton::DPadUp) || g.pressed(GamepadButton::DPadLeft));
+    let next_down = keys.any_pressed([KeyCode::ArrowDown, KeyCode::ArrowRight, KeyCode::KeyD])
+        || gamepads.iter().any(|g| g.pressed(GamepadButton::DPadDown) || g.pressed(GamepadButton::DPadRight));
+    let dt = time.map_or(0.0, |t| t.delta_secs());
+    let NavHeld { prev, next } = &mut *held_for;
+    for (action, down, seconds) in [(Action::Prev, prev_down, prev), (Action::Next, next_down, next)] {
+        if !down || state.just_pressed(action) {
+            *seconds = 0.0;
+            continue;
+        }
+        if repeat_edge(*seconds, dt) {
+            state.pressed.push(action);
+        }
+        *seconds += dt;
+    }
+}
+
+/// Seconds each navigation direction has been held (the state of [`fill_action_state`]'s repeat).
+#[derive(Debug, Default)]
+pub struct NavHeld {
+    prev: f32,
+    next: f32,
+}
+
+/// A held navigation key starts repeating after this many seconds.
+pub const REPEAT_DELAY: f32 = 0.4;
+/// Seconds between repeated edges once repeating has started.
+pub const REPEAT_INTERVAL: f32 = 0.07;
+
+/// Whether a key held for `held` seconds fires a repeat edge during a frame of `dt` seconds:
+/// the first at [`REPEAT_DELAY`], then one every [`REPEAT_INTERVAL`].
+pub fn repeat_edge(held: f32, dt: f32) -> bool {
+    let steps = |t: f32| if t < REPEAT_DELAY { -1 } else { ((t - REPEAT_DELAY) / REPEAT_INTERVAL).floor() as i32 };
+    steps(held + dt) > steps(held)
 }
 
 #[cfg(test)]
@@ -453,6 +492,63 @@ mod tests {
             pad.digital_mut().press(*button);
         }
         pad
+    }
+
+    // ---------------------------------------------------------- pure: key repeat
+
+    #[test]
+    fn a_held_navigation_key_repeats_after_the_delay_then_at_a_steady_rate() {
+        let dt = 1.0 / 60.0;
+        let mut held = 0.0;
+        let mut edges = Vec::new();
+        for frame in 0..120 {
+            if repeat_edge(held, dt) {
+                edges.push(frame as f32 * dt);
+            }
+            held += dt;
+        }
+        assert!(!edges.is_empty(), "no repeats at all");
+        assert!(edges[0] >= REPEAT_DELAY - dt && edges[0] <= REPEAT_DELAY + dt, "first at {}", edges[0]);
+        for pair in edges.windows(2) {
+            let gap = pair[1] - pair[0];
+            assert!(gap >= REPEAT_INTERVAL - dt && gap <= REPEAT_INTERVAL + dt, "gap {gap}");
+        }
+        // About (2 s - 0.4 s) / 0.07 s repeats in two seconds.
+        assert!((20..=24).contains(&edges.len()), "{} repeats", edges.len());
+    }
+
+    #[test]
+    fn holding_arrow_down_in_a_running_app_produces_repeated_next_edges() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.add_plugins(InputMapPlugin);
+        app.update();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ArrowDown);
+        let mut edges = 0;
+        for _ in 0..90 {
+            app.update();
+            if app.world().resource::<ActionState>().just_pressed(Action::Next) {
+                edges += 1;
+            }
+            app.world_mut().resource_mut::<ButtonInput<KeyCode>>().clear_just_pressed(KeyCode::ArrowDown);
+        }
+        // One real press plus the repeats of the 1.5 s the key stays down.
+        assert!(edges >= 12, "{edges} edges");
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::ArrowDown);
+        app.update();
+        app.update();
+        assert!(!app.world().resource::<ActionState>().just_pressed(Action::Next), "no edge after release");
+    }
+
+    #[test]
+    fn a_quick_tap_never_repeats() {
+        let dt = 1.0 / 60.0;
+        let mut held = 0.0;
+        for _ in 0..((REPEAT_DELAY / dt) as usize - 2) {
+            assert!(!repeat_edge(held, dt));
+            held += dt;
+        }
     }
 
     // ---------------------------------------------------------- pure: sticks
