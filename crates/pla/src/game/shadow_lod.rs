@@ -15,10 +15,13 @@ use bevy::prelude::*;
 
 use super::PlayerAvatar;
 
-/// Beyond this distance (metres) small meshes stop casting shadows.
-pub const CULL_DISTANCE: f32 = 110.0;
-/// A culled mesh casts again closer than this (hysteresis against flicker at the border).
-pub const RESTORE_DISTANCE: f32 = 95.0;
+/// A mesh stops casting once it is farther than its radius times this (it then spans under about
+/// two degrees of the view, a handful of shadow pixels).
+pub const DISTANCE_PER_RADIUS: f32 = 30.0;
+/// No mesh is culled closer than this (metres), however small.
+pub const MIN_CULL_DISTANCE: f32 = 30.0;
+/// A culled mesh casts again at this fraction of its culling distance (hysteresis against flicker).
+pub const RESTORE_FRACTION: f32 = 0.85;
 /// Meshes whose bounding radius (metres) is at least this keep their shadow at any distance.
 pub const BIG_RADIUS: f32 = 8.0;
 
@@ -53,13 +56,16 @@ fn shadow_lod(
     let here = avatar.translation();
     for (entity, tf, aabb, no_shadow, culled) in &meshes {
         let dist_sq = tf.translation().distance_squared(here);
+        let radius = world_radius(tf, aabb);
+        let cull = (radius * DISTANCE_PER_RADIUS).max(MIN_CULL_DISTANCE);
         if culled {
-            if dist_sq < RESTORE_DISTANCE * RESTORE_DISTANCE {
+            let restore = cull * RESTORE_FRACTION;
+            if dist_sq < restore * restore {
                 commands.entity(entity).try_remove::<(NotShadowCaster, ShadowLodCulled)>();
             }
         } else if !no_shadow
-            && dist_sq > CULL_DISTANCE * CULL_DISTANCE
-            && world_radius(tf, aabb) < BIG_RADIUS
+            && dist_sq > cull * cull
+            && radius < BIG_RADIUS
         {
             commands.entity(entity).try_insert((NotShadowCaster, ShadowLodCulled));
         }
@@ -91,13 +97,13 @@ mod tests {
     #[test]
     fn small_far_meshes_stop_casting_and_come_back_when_close() {
         let mut app = app();
-        let far_small = mesh_at(&mut app, CULL_DISTANCE + 20.0, 1.0);
-        let far_big = mesh_at(&mut app, CULL_DISTANCE + 20.0, BIG_RADIUS);
+        let far_small = mesh_at(&mut app, 100.0, 1.0);
+        let far_big = mesh_at(&mut app, 100.0, BIG_RADIUS);
         let near_small = mesh_at(&mut app, 10.0, 1.0);
         // A mesh somebody else excluded from shadows is never touched by this module.
         let foreign = app.world_mut().spawn((
             Mesh3d(Handle::default()),
-            GlobalTransform::from(Transform::from_xyz(CULL_DISTANCE + 30.0, 0.0, 0.0)),
+            GlobalTransform::from(Transform::from_xyz(100.0, 0.0, 0.0)),
             Aabb::from_min_max(Vec3::splat(-1.0), Vec3::splat(1.0)),
             NotShadowCaster,
         )).id();
@@ -108,10 +114,10 @@ mod tests {
         assert!(app.world().get::<ShadowLodCulled>(foreign).is_none(), "foreign exclusions are not claimed");
 
         // Inside the hysteresis band it stays culled; closer than the restore distance it casts again.
-        app.world_mut().get_mut::<GlobalTransform>(far_small).map(|mut t| *t = Transform::from_xyz((CULL_DISTANCE + RESTORE_DISTANCE) / 2.0, 0.0, 0.0).into());
+        app.world_mut().get_mut::<GlobalTransform>(far_small).map(|mut t| *t = Transform::from_xyz(50.0, 0.0, 0.0).into());
         app.update();
         assert!(app.world().get::<NotShadowCaster>(far_small).is_some(), "still culled in the band");
-        app.world_mut().get_mut::<GlobalTransform>(far_small).map(|mut t| *t = Transform::from_xyz(RESTORE_DISTANCE - 10.0, 0.0, 0.0).into());
+        app.world_mut().get_mut::<GlobalTransform>(far_small).map(|mut t| *t = Transform::from_xyz(20.0, 0.0, 0.0).into());
         app.update();
         assert!(app.world().get::<NotShadowCaster>(far_small).is_none(), "casts again when close");
         assert!(app.world().get::<NotShadowCaster>(foreign).is_some(), "foreign exclusion survives");
