@@ -605,7 +605,7 @@
       },
       {
         "path": "crates/pla/src/game/automation.rs",
-        "sha256": "0b5f162a81b3224e1f48b79b216928800cf811e8ebfdbd71b1fc68b35087d2c0"
+        "sha256": "fa2ac460a4fe50bd29ea1be4a1a4678278fb5f41004dece323bb4646302e0961"
       },
       {
         "path": "crates/pla/src/game/bag_screen.rs",
@@ -1229,7 +1229,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "85a77816591296301e827654006bd406d3cee21181f9d0e78e6a99f496db0c7a"
+    "sha256": "8985d288a50cf98e300e2b6cf687f1bfd24986d1717aeb2b7b0914e6e720d9d6"
   },
   "state_partitions": {
     "analysis_documentation_status": {
