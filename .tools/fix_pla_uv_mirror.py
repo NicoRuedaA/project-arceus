@@ -156,7 +156,7 @@ def load_census(path):
     return table
 
 
-TEX_RX = re.compile(r"^(pm\d{4}_\d{2}_\d{2})_.+?_alb_(.+)_color\.png$")
+TEX_RX = re.compile(r"^(pm\d{3,4}_\d{2}_\d{2})_.+?_alb_(.+)_color\.png$")
 
 
 def decide(census, stem, uri):

@@ -256,13 +256,18 @@ pub struct ResolvedModel {
 /// Game model for `(species, form)`: the game's own catalog (PLA) always wins; the converted
 /// national models from the user collection fill the rest. `None` = grey placeholder.
 pub fn resolve_model(species: u16, form: u8) -> Option<ResolvedModel> {
+    // The exact form first (catalog, then converted collection): a Mega/regional form that only the
+    // collection has (Mega Garchomp, form 1) must not be shadowed by the catalog's base model.
+    if let Some(model) = resolve_model_exact(species, form) {
+        return Some(model);
+    }
     let table = global_table();
-    for f in [u16::from(form), 0] {
-        if let Some(model) = game_model(table, species, f) {
+    if form != 0 {
+        if let Some(model) = game_model(table, species, 0) {
             return Some(model);
         }
     }
-    national_gltf_rel(species, form).map(|rel| ResolvedModel { rel, single_file: true })
+    national_gltf_rel(species, 0).filter(|_| form != 0).map(|rel| ResolvedModel { rel, single_file: true })
 }
 
 /// Exact model of `(species, form)` with no form-0 fallback: the game catalog entry of that
