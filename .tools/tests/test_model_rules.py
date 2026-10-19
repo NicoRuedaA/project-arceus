@@ -80,15 +80,24 @@ class ModeMeshTests(unittest.TestCase):
         self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0291_00", {"Spine", "LFeelerD"}))
         self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0292_00", {"LFeelerD"}))      # other packs
 
-    def test_castform_alternate_shells(self):
+    def test_castform_opaque_twin_head(self):
         head = (-0.1156, 0.123, -0.1156, 0.1156, 0.3543, 0.1156)
         face = (-0.0912, 0.1431, -0.0922, 0.0912, 0.314, 0.0922)
-        plain = (-0.0952, 0.1391, -0.0962, 0.0952, 0.318, 0.0962)
-        meshes = [("HeadA", head, False, 1), ("HeadB", head, True, 1), ("BodyB", face, False, 3),
-                  ("BodyC", plain, False, 1), ("Cloud", (-0.1, 0.0, -0.1, 0.1, 0.1, 0.1), False, 1)]
-        self.assertEqual(model_rules.opaque_twins_to_drop("pm0351_12_00", meshes), ["BodyC", "HeadA"])
+        meshes = [("HeadA", head, False), ("HeadB", head, True), ("BodyB", face, False)]
+        self.assertEqual(model_rules.opaque_twins_to_drop("pm0351_12_00", meshes), ["HeadA"])
         self.assertEqual(model_rules.opaque_twins_to_drop("pm0351_11_00", meshes), [])
         self.assertEqual(model_rules.opaque_twins_to_drop("pm0025_00_00", meshes), [])
+
+    def test_inside_out_backdrop(self):
+        face = (-0.0912, 0.1431, -0.0922, 0.0912, 0.314, 0.0922)
+        plain = (-0.0952, 0.1391, -0.0962, 0.0952, 0.318, 0.0962)
+        head = (-0.1156, 0.123, -0.1156, 0.1156, 0.3543, 0.1156)
+        others = [("BodyB", face), ("BodyC", plain), ("HeadB", head)]
+        st = "pm0351_13_00"
+        self.assertEqual(model_rules.backdrop_target("BodyC", plain, 0.0, others, st), face)
+        self.assertIsNone(model_rules.backdrop_target("BodyC", plain, 1.0, others, st))      # normals outward
+        self.assertIsNone(model_rules.backdrop_target("HeadB", head, 0.0, others, st))       # 27 % larger: not tight
+        self.assertIsNone(model_rules.backdrop_target("BodyC", plain, 0.0, others, "pm0291_00"))  # other packs
 
     def test_whismur_mouth_atlas_roll(self):
         self.assertTrue(model_rules.mouth_atlas_roll("pm0293_00", "mouth"))

@@ -63,7 +63,12 @@ def mirrored_by_seams(px, uv, a_idx, b_idx, ratio):
 SYMMETRY_MIN_PAIRS = 16
 
 
-def mirrored_by_symmetry(px, uv, a_idx, b_idx, ratio):
+# A texture already proven to use the doubled addressing (another slot's seams, or half width) needs much less evidence:
+# a mostly uniform body with one small feature (Castform's white face mask around the eyes) has a tiny mean error.
+SYMMETRY_SHARED_MIN = 0.005
+
+
+def mirrored_by_symmetry(px, uv, a_idx, b_idx, ratio, min_plain=SEAM_PLAIN_BAD):
     """(mirrored?, plain error, doubled error) from the left/right symmetry of the model.
 
     `a_idx` / `b_idx` index the UVs of mirror-image vertices (x and -x). Pokemon are drawn mirror-symmetric, and
@@ -75,7 +80,7 @@ def mirrored_by_symmetry(px, uv, a_idx, b_idx, ratio):
     a_idx, b_idx = np.asarray(a_idx), np.asarray(b_idx)
     plain = seam_error(px, uv, a_idx, b_idx, "id")
     doubled = seam_error(px, uv, a_idx, b_idx, "mu2")
-    return (plain > SEAM_PLAIN_BAD and doubled < ratio * plain), plain, doubled
+    return (plain > min_plain and doubled < ratio * plain), plain, doubled
 
 
 def mirror_pairs(positions, loop_vertex, loops, tolerance=2000.0, min_abs_x=1e-3):

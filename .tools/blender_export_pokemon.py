@@ -808,7 +808,8 @@ def detect_mirrored_slots(pack_dir, stem=None):
             sym = (False, None, None)
             if verdict is None and not eye_in_left_half:
                 pa, pb = uv_mirror.mirror_pairs(co.reshape(-1, 3), loop_vert, loops)
-                sym = uv_mirror.mirrored_by_symmetry(px, uv, pa, pb, SEAM_RATIO)
+                # the low bar applies only when the texture is shared with a mirrored slot or half width (decided below)
+                sym = uv_mirror.mirrored_by_symmetry(px, uv, pa, pb, SEAM_RATIO, uv_mirror.SYMMETRY_SHARED_MIN)
             slots.append({
                 "key": (obj.name, slot), "base": base, "alb": alb, "verdict": verdict,
                 "eye": eye_in_left_half, "plain": plain, "wh": px.shape[:2], "sym": sym,
@@ -1092,13 +1093,13 @@ def drop_mode_meshes(stem):
 
 
 def drop_opaque_twins(stem):
-    """Castform weather forms: drop the alternate twin shells (`model_rules.opaque_twins_to_drop`)."""
+    """Castform weather forms: drop the opaque twin of the translucent head shell (`model_rules.opaque_twins_to_drop`)."""
     meshes = [o for o in bpy.data.objects if o.type == "MESH"]
     rows = []
     for o in meshes:
         mats = [m for m in o.data.materials if m]
         is_blend = bool(mats) and all(getattr(m, "blend_method", "OPAQUE") == "BLEND" for m in mats)
-        rows.append((o.name, local_bounds(o, 4), is_blend, len(mats)))
+        rows.append((o.name, local_bounds(o, 4), is_blend))
     drop = set(model_rules.opaque_twins_to_drop(stem, rows))
     for o in meshes:
         if o.name in drop:
@@ -1106,6 +1107,36 @@ def drop_opaque_twins(stem):
     if drop:
         print("EXPORT_NOTE opaque_twins_dropped=" + ",".join(sorted(model_rules.short_mesh_name(n, stem) for n in drop)))
     return drop
+
+
+def outward_fraction(obj):
+    me = obj.data
+    if not len(me.polygons):
+        return 1.0
+    c = [sum(v.co[i] for v in me.vertices) / len(me.vertices) for i in range(3)]
+    return sum(1 for p in me.polygons if sum((p.center[i] - c[i]) * p.normal[i] for i in range(3)) > 0) / len(me.polygons)
+
+
+def fix_inside_out_backdrops(stem):
+    """Turn inside-out backdrop shells outward, inside the part they surround (`model_rules.backdrop_target`)."""
+    meshes = [o for o in bpy.data.objects if o.type == "MESH" and len(o.data.vertices)]
+    rows = [(o.name, local_bounds(o, 5)) for o in meshes]
+    fixed = []
+    for o in meshes:
+        bounds = local_bounds(o, 5)
+        target = model_rules.backdrop_target(o.name, bounds, outward_fraction(o), rows, stem)
+        if target is None:
+            continue
+        centre = [(bounds[k] + bounds[k + 3]) / 2 for k in range(3)]
+        tcentre = [(target[k] + target[k + 3]) / 2 for k in range(3)]
+        f = min((target[k + 3] - target[k]) / max(bounds[k + 3] - bounds[k], 1e-9) for k in range(3)) * model_rules.BACKDROP_INNER_FIT
+        for v in o.data.vertices:
+            v.co = [tcentre[k] + (v.co[k] - centre[k]) * f for k in range(3)]
+        o.data.flip_normals()
+        fixed.append(f"{model_rules.short_mesh_name(o.name, stem)}:{f:.3f}")
+    if fixed:
+        print("EXPORT_NOTE inside_out_backdrop_turned=" + ",".join(sorted(fixed)))
+    return fixed
 
 
 def keep_primary_rig():
@@ -1239,6 +1270,7 @@ def main():
     primary = keep_primary_rig()
     fix_importer_offsets(primary)
     drop_mode_meshes(stem)
+    fix_inside_out_backdrops(stem)
     mirrored = detect_mirrored_slots(pack_dir, stem)
     print(f"EXPORT_NOTE uv_slots_mirrored={len(mirrored)}")
     simplify_materials(out, stem, pack_dir, mirrored)

@@ -145,12 +145,10 @@ def is_mode_mesh_by_bones(stem, bones):
     return bool(rx and bones and all(rx.search(b) for b in bones))
 
 
-# Castform's weather forms carry their head shell and their face sphere twice: the head once translucent (BLEND: an
-# alpha window shows the face nested inside) and once opaque with the same vertices (no window); the face once with
-# its eye and mouth materials and once as a plain sphere 4 % larger around it. The opaque copies hide the face
-# (sunny/rainy/snowy Castform without eyes or mouth). They are alternate states; without them the forms match the
-# official look (A/B renders). Limited to these packs: elsewhere a mesh around another can be a legit base + overlay
-# pair (Ninjask's eye + eyeball).
+# Castform's weather forms carry their head shell twice, same vertices: once translucent (BLEND: an alpha window shows
+# the face nested inside) and once opaque (no window). Drawn together, the opaque twin hides the face (sunny/rainy/snowy
+# Castform without eyes or mouth). It is the alternate state; without it the forms match the official look (A/B renders).
+# Limited to these packs: elsewhere meshes with equal bounds can be a legit base + overlay pair (Ninjask's eye + eyeball).
 OPAQUE_TWIN_PACKS = frozenset({"pm0351_12", "pm0351_13", "pm0351_14"})
 TWIN_MARGIN = 0.10
 
@@ -166,18 +164,37 @@ def _encloses(outer, inner, margin=TWIN_MARGIN):
 
 
 def opaque_twins_to_drop(stem, meshes):
-    """`meshes` is [(name, bounds, is_blend, material_count)]. An opaque mesh that encloses another one tightly (same
-    bounds or up to `TWIN_MARGIN` larger) is dropped when the other one is translucent or has more materials."""
+    """`meshes` is [(name, bounds, is_blend)]: the opaque meshes with the same bounds as a translucent one."""
     if re.sub(r"^(pm\d{4}_\d{2}).*$", r"\1", stem) not in OPAQUE_TWIN_PACKS:
         return []
-    drop = set()
-    for name, bounds, is_blend, n_mats in meshes:
-        if is_blend:
-            continue
-        for other, ob, o_blend, o_mats in meshes:
-            if other != name and (o_blend or o_mats > n_mats) and _encloses(bounds, ob):
-                drop.add(name)
-    return sorted(drop)
+    blend = [tuple(b) for _, b, is_blend in meshes if is_blend]
+    return sorted(n for n, b, is_blend in meshes if not is_blend and any(_encloses(b, x, 1e-3) and _encloses(x, b, 1e-3) for x in blend))
+
+
+# Inside-out backdrop shells: a sphere with every normal pointing inward, just around a translucent part (Castform's face:
+# a plain dark sphere 4 % larger than the half-transparent face sphere, which gets its red-orange / dark blue / purple face
+# colour from it). The game culls back faces, so only the far wall shows, behind the face; the port draws every Pokemon
+# material double-sided, so the near wall covered the face. The exporter turns such a shell outward and shrinks it to sit
+# just inside the part it surrounds: the same backdrop from every direction. Limited to the Castform weather packs: a
+# collection scan finds inside-out meshes around other meshes in 30 more packs that are not backdrops (inner faces of thin
+# wings and tails, auras, particles, eye highlights), so the shape test alone is not enough.
+BACKDROP_PACKS = OPAQUE_TWIN_PACKS
+INSIDE_OUT_MAX_OUTWARD = 0.1
+BACKDROP_INNER_FIT = 0.97
+
+
+def backdrop_target(name, bounds, outward_fraction, others, stem=""):
+    """Bounds of the mesh an inside-out shell is the backdrop of (the tightest one it encloses), or None.
+
+    `others` is [(name, bounds)] of the other meshes of the pack (`stem`, see `BACKDROP_PACKS`)."""
+    if re.sub(r"^(pm\d{4}_\d{2}).*$", r"\1", stem) not in BACKDROP_PACKS:
+        return None
+    if outward_fraction > INSIDE_OUT_MAX_OUTWARD:
+        return None
+    inside = [b for n, b in others if n != name and _encloses(bounds, b)]
+    if not inside:
+        return None
+    return max(inside, key=lambda b: (b[3] - b[0]) * (b[4] - b[1]) * (b[5] - b[2]))
 
 
 # `_col` mouth atlases (256x512, half-width, doubled mirrored addressing): every row holds two expressions, one
