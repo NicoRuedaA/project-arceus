@@ -1,7 +1,7 @@
 {
-  "build": "update-v262144",
+  "build": "update-v262144-fix2",
   "format": "function-progress-generation-status/v1",
-  "message": "Generation failed; report artifacts at this path are stale and must not be used as current.",
-  "reason_code": "generation_failed",
-  "state": "stale"
+  "manifest_sha256": "012ec7a0dc2cfafd17e057a1021bb6e36e963bf5fb1a4ff65db51687046d9457",
+  "message": "All report artifacts were generated from the recorded source fingerprints.",
+  "state": "current"
 }
