@@ -9,6 +9,7 @@
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
@@ -28,12 +29,68 @@ impl Plugin for PerfLogPlugin {
             return;
         }
         app.add_plugins((FrameTimeDiagnosticsPlugin::default(), RenderDiagnosticsPlugin))
-            .add_systems(Last, write_perf_line);
+            .init_resource::<UpdateTimer>()
+            .init_resource::<AssetChurn>()
+            .add_systems(PostUpdate, count_asset_churn)
+            .add_systems(First, start_update_timer)
+            .add_systems(Last, (stop_update_timer, write_perf_line).chain());
         println!("[perf-log] writing {LOG_PATH} every {LOG_INTERVAL} s");
     }
 }
 
+/// Asset changes seen since the last line: a changed material or mesh is re-uploaded and, for a
+/// material, gets a new bind group, so per-frame churn here is a render-thread cost.
+#[derive(Resource, Default)]
+struct AssetChurn {
+    materials_modified: u32,
+    materials_added: u32,
+    meshes_modified: u32,
+    images_modified: u32,
+}
+
+fn count_asset_churn(
+    mut churn: ResMut<AssetChurn>,
+    mut materials: MessageReader<AssetEvent<StandardMaterial>>,
+    mut meshes: MessageReader<AssetEvent<Mesh>>,
+    mut images: MessageReader<AssetEvent<Image>>,
+) {
+    for event in materials.read() {
+        match event {
+            AssetEvent::Modified { .. } => churn.materials_modified += 1,
+            AssetEvent::Added { .. } => churn.materials_added += 1,
+            _ => {}
+        }
+    }
+    churn.meshes_modified += meshes.read().filter(|e| matches!(e, AssetEvent::Modified { .. })).count() as u32;
+    churn.images_modified += images.read().filter(|e| matches!(e, AssetEvent::Modified { .. })).count() as u32;
+}
+
+/// Wall time the main world spends in its schedules (from `First` to `Last`) since the last line.
+#[derive(Resource, Default)]
+struct UpdateTimer {
+    started: Option<Instant>,
+    total_ms: f64,
+    frames: u32,
+}
+
+fn start_update_timer(mut timer: ResMut<UpdateTimer>) {
+    timer.started = Some(Instant::now());
+}
+
+fn stop_update_timer(mut timer: ResMut<UpdateTimer>) {
+    if let Some(started) = timer.started.take() {
+        timer.total_ms += started.elapsed().as_secs_f64() * 1000.0;
+        timer.frames += 1;
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn write_perf_line(
+    mut timer: ResMut<UpdateTimer>,
+    mut churn: ResMut<AssetChurn>,
+    meshes: Res<Assets<Mesh>>,
+    images: Res<Assets<Image>>,
+    entities: Query<Entity>,
     time: Res<Time<Real>>,
     store: Res<DiagnosticsStore>,
     window: Query<&Window, With<PrimaryWindow>>,
@@ -45,6 +102,18 @@ fn write_perf_line(
         return;
     }
     *since = 0.0;
+    let update_ms = if timer.frames > 0 { timer.total_ms / f64::from(timer.frames) } else { 0.0 };
+    let frames = f64::from(timer.frames.max(1));
+    timer.total_ms = 0.0;
+    timer.frames = 0;
+    let churn_text = format!(
+        "asset changes per frame: materials modified {:.1} added {:.1}, meshes modified {:.1}, images modified {:.1}",
+        f64::from(churn.materials_modified) / frames,
+        f64::from(churn.materials_added) / frames,
+        f64::from(churn.meshes_modified) / frames,
+        f64::from(churn.images_modified) / frames,
+    );
+    *churn = AssetChurn::default();
     let avg = |path: &bevy::diagnostic::DiagnosticPath| store.get(path).and_then(|d| d.average());
     let fps = avg(&FrameTimeDiagnosticsPlugin::FPS);
     let frame_ms = avg(&FrameTimeDiagnosticsPlugin::FRAME_TIME);
@@ -73,9 +142,12 @@ fn write_perf_line(
     );
     let gpu = adapter.map_or_else(|| "?".to_string(), |a| format!("{} ({:?}, {:?})", a.name, a.backend, a.device_type));
     let line = format!(
-        "fps {} | frame {} ms | gpu passes total {gpu_total:.1} ms [{}] | {win} | {gpu}\n",
+        "fps {} | frame {} ms | main update {update_ms:.1} ms | entities {} meshes {} images {} | {churn_text} | gpu passes total {gpu_total:.1} ms [{}] | {win} | {gpu}\n",
         fps.map_or("?".into(), |v| format!("{v:.1}")),
         frame_ms.map_or("?".into(), |v| format!("{v:.1}")),
+        entities.iter().count(),
+        meshes.len(),
+        images.len(),
         top.join(", ")
     );
     let path = PathBuf::from(LOG_PATH);
