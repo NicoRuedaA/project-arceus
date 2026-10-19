@@ -1,6 +1,6 @@
 # D4 documentation-first queue
 
-**CLOSED (2026-10-10):** the queue is empty. Documentation of operations reached **153,473 / 153,476 (99,998 %)**; only 3 functions remain without a marker, each recorded as an explicit unknown with a reason (1 exceeds the decompiler response buffer, 2 return no body). Closed by the D4-PAR round (decisions `dec302`–`dec303`, [report](n2-nametype-round.md) for the follow-on name+type attempt). The text below is retained as the historical queue contract.
+**CLOSED (2026-10-10):** the queue is empty. Documentation of operations reached **153,473 / 153,476 (99,998 %)** with the D4-PAR round, and **153,476 / 153,476 (100 %)** after the last 3 functions were documented from raw disassembly (`dec325`, [report](d4-final-three-unknowns.md)). Closed by the D4-PAR round (decisions `dec302`–`dec303`, [report](n2-nametype-round.md) for the follow-on name+type attempt). The text below is retained as the historical queue contract.
 
 **Priority: document the directly supported operations of every located native function before recovering game purpose, types or subsystem ownership.** The user's new direction supersedes the low-copy-yield stop recommendation in [batch 12](d4-batch12-audit-consolidation-and-run-summary.md). Lower propagation yield is not a stop condition. N2, semantic mapping, porting, runtime verification and binary matching are later work.
 
