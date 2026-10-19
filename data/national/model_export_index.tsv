@@ -564,8 +564,8 @@ pm0323_51_00	cache/pokemon_national/pm0323_51_00/pm0323_51_00.gltf	4716432	122	7
 pm0324_00_00	cache/pokemon_national/pm0324_00_00/pm0324_00_00.gltf	3980278	77	7	6	ok	
 pm0325_00_00	cache/pokemon_national/pm0325_00_00/pm0325_00_00.gltf	1323485	76	8	8	ok	
 pm0326_00_00	cache/pokemon_national/pm0326_00_00/pm0326_00_00.gltf	5229295	163	8	14	ok	
-pm0327_00_00	cache/pokemon_national/pm0327_00_00/pm0327_00_00.gltf	2559440	23	27	11	ok	
-pm0327_00_01	cache/pokemon_national/pm0327_00_01/pm0327_00_01.gltf	3447051	23	27	11	ok	
+pm0327_00_00	cache/pokemon_national/pm0327_00_00/pm0327_00_00.gltf	947353	23	0	11	incomplete	no animation clips
+pm0327_00_01	cache/pokemon_national/pm0327_00_01/pm0327_00_01.gltf	1834964	23	0	11	incomplete	no animation clips
 pm0328_00_00	cache/pokemon_national/pm0328_00_00/pm0328_00_00.gltf	1792161	34	7	8	ok	
 pm0329_00_00	cache/pokemon_national/pm0329_00_00/pm0329_00_00.gltf	6321974	78	8	7	ok	
 pm0330_00_00	cache/pokemon_national/pm0330_00_00/pm0330_00_00.gltf	4230964	91	8	11	ok	
@@ -598,8 +598,8 @@ pm0351_12_00	cache/pokemon_national/pm0351_12_00/pm0351_12_00.gltf	2017059	17	55
 pm0351_12_01	cache/pokemon_national/pm0351_12_01/pm0351_12_01.gltf	2013784	17	55	9	ok	
 pm0351_13_00	cache/pokemon_national/pm0351_13_00/pm0351_13_00.gltf	1498824	13	55	8	ok	
 pm0351_13_01	cache/pokemon_national/pm0351_13_01/pm0351_13_01.gltf	1500707	13	55	8	ok	
-pm0351_14_00	cache/pokemon_national/pm0351_14_00/pm0351_14_00.gltf	2221978	20	55	9	ok	
-pm0351_14_01	cache/pokemon_national/pm0351_14_01/pm0351_14_01.gltf	2227421	20	55	9	ok	
+pm0351_14_00	cache/pokemon_national/pm0351_14_00/pm0351_14_00.gltf	1261379	20	0	9	incomplete	no animation clips
+pm0351_14_01	cache/pokemon_national/pm0351_14_01/pm0351_14_01.gltf	1266822	20	0	9	incomplete	no animation clips
 pm0352_00_00	cache/pokemon_national/pm0352_00_00/pm0352_00_00.gltf	3784422	168	8	8	ok	
 pm0353_00_00	cache/pokemon_national/pm0353_00_00/pm0353_00_00.gltf	3415994	167	8	6	ok	
 pm0354_00_00	cache/pokemon_national/pm0354_00_00/pm0354_00_00.gltf	3115425	102	8	10	ok	
