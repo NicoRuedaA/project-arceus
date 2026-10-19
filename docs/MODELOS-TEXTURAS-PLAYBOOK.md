@@ -73,6 +73,7 @@ Two pack families exist in the collection, with different graphs (this decides w
 | D38 | **Whismur (293) mouth split into two halves at its corners** | `_col` mouth atlases hold two expressions per row, centred on the left and right texture edges; the mouth mesh is centred on u = 0.25 (between them), the game shifts the UV per expression at run time | `model_rules.MOUTH_RIGHT_EDGE_PACKS`: the doubled atlas is rolled a quarter so the right-edge expression (Whismur's open mouth) is centred. Per pack: the neutral expression differs per species | 293 |
 | D39 | **Duskull (355) PLA: no eye, then see-through sockets** | `shadow_mesh` is an inside-out dark shell around the eye (drawn double-sided, its near wall hid the eye); the eye and its `eyeball` bone sit at the skull centre behind the bridge of the mask (the game turns it with a run-time look-at; the idle clip only wobbles it 4 degrees) | `fix_pla_eye_shell.py`: also opens `shadow` shells, only in an elliptic window in front of the eye, shell drawn near-black; per-pack `EYE_YAW` turns the eye 51.5 degrees into the left socket (PROBABLE pose). Eye colours are the pack's emission layers (pink rings, white centre), as on the official look. Rerun after every PLA regeneration (marker `.eye_shell.json`) | 355 |
 
+| D40 | **Spinda (327) "totally deformed" in the game; snowy Castform a tall column** | Clips that do not fit the rig: every Spinda clip puts the head vertices at the height of the feet (Blender's own evaluation of the source `.blend` too, any scale-inheritance mode); the weather forms share the normal form's clips, which stretch snowy Castform's cloud | `model_rules.STATIC_POSE_PACKS`: exported in the rest pose (the official look) without clips, at the clips' constant root scale (Spinda 0.74, snowy Castform 1.34); EXPORT_NOTE `static_pose`. The models do not move in idle | 327 351_14 |
 Not fixed (gen 3, `gen3-fixes`): Flygon (330) has no pupils in the data (eye textures are black spheres; the visor is a translucent shell, the real eyes show faintly through it); Duskull (355): fixed in round 2 (D39). Wynaut (360) expression is picked at run time. Spinda spot placement per individual is not decoded (D34 shows the default placement).
 
 ### Not fixed (UNKNOWN or needs data we do not have)
@@ -237,6 +238,11 @@ Rust: `cargo test -p pla --lib`, `cargo test -p pla --example port_viewer -- --t
   by frame count (untextured grey models otherwise).
 * Mesh object names of Let's Go packs can be shuffled (D32): check skin bones and bounds before trusting a name rule.
 * `fix_pla_eye_shell.py` also edits the shadow shell of Duskull; restore with `--restore` before regenerating the catalogue.
+* Check the idle of every reconverted pack in the real game, not only the rest pose of the headless renderer: broken
+  clips (D40) only show posed. Quick test without the game: `clip_sanity`-style Blender evaluation of the source `.blend`
+  (world height of the vertices of each bone group per clip).
+* Colours that look paler than the HOME renders (Whismur lilac, Spinda red, Ninjask black body) are the packs' own texel
+  colours under the port's lighting (Whismur `Body_col` is (225, 205, 225), Ninjask's body (70, 70, 70)): not a mapping defect.
 * Pre-existing difference found while checking regressions: reconverting Ledyba (165) with the current exporter changes its
   rest pose framing on the headless renderer (identical with or without the D33 rule, so not caused by it); the live
   pack was left as it was.

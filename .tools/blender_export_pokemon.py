@@ -1244,6 +1244,15 @@ def main():
     simplify_materials(out, stem, pack_dir, mirrored)
     drop_opaque_twins(stem)
     renamed = rename_actions(stem, clip_mode, primary.name if primary else None)
+    static_scale = model_rules.static_pose_scale(stem)
+    if static_scale and primary is not None:
+        # clips that do not fit the rig (model_rules.STATIC_POSE_PACKS): rest pose, the clips' root scale
+        for action in list(bpy.data.actions):
+            bpy.data.actions.remove(action)
+        if primary.animation_data:
+            primary.animation_data.action = None
+        primary.scale = primary.scale * static_scale
+        print(f"EXPORT_NOTE static_pose:clips_dropped:scale={static_scale}")
     assign_actions(primary)
     out_path = os.path.join(out, f"{stem}.gltf")
     bpy.ops.export_scene.gltf(

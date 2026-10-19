@@ -195,3 +195,19 @@ def mouth_atlas_roll(stem, material_base):
     base = re.sub(r"^(pm\d{4}_\d{2}).*$", r"\1", stem)
     return (stem in MOUTH_RIGHT_EDGE_PACKS or base in MOUTH_RIGHT_EDGE_PACKS) and bool(
         re.search(r"(?:^|[-_])mouth\d*$", material_base, re.I))
+
+
+# Packs whose clips do not fit their rig: Spinda's every clip (wait, walk, battle, land...) puts the vertices weighted to
+# `Head` at the height of the feet, below the hands and 0.6 m under the ears, in Blender's own evaluation of the
+# source `.blend` too, with any scale-inheritance mode: the "totally deformed" Spinda. Its rest pose matches the official
+# look, so these packs are exported without clips, at the constant root scale the clips apply (Spinda: `Hips` 0.74 in
+# every clip, i.e. 1.06 m tall, the species' 1.1 m).
+# Snowy Castform (pm0351_14) plays the normal form's clips (`pm0351_11_00_*`, shared by every weather form): on its rig
+# they stretch the snow cloud into a tall column around the face (HOME: a round cloud); its rest pose is the official
+# look. Its clips' root scale is `Hips` 1.34, as for the other forms, so the forms keep one size.
+STATIC_POSE_PACKS = {"pm0327_00": 0.74, "pm0351_14": 1.34}
+
+
+def static_pose_scale(stem):
+    """Root scale for a pack exported in its rest pose without clips, or None."""
+    return STATIC_POSE_PACKS.get(re.sub(r"^(pm\d{4}_\d{2}).*$", r"\1", stem))

@@ -110,6 +110,12 @@ class ModeMeshTests(unittest.TestCase):
         self.assertAlmostEqual(x, 0.097, places=3)  # centre of the model's left socket
         self.assertAlmostEqual(y, 0.339)
 
+    def test_static_pose_packs(self):
+        self.assertEqual(model_rules.static_pose_scale("pm0327_00_00"), 0.74)
+        self.assertEqual(model_rules.static_pose_scale("pm0327_00_01"), 0.74)
+        self.assertEqual(model_rules.static_pose_scale("pm0351_14_01"), 1.34)
+        self.assertIsNone(model_rules.static_pose_scale("pm0351_12_00"))
+
     def test_spinda_spot_texture_path(self):
         with tempfile.TemporaryDirectory() as d:
             Path(d, "pm0327_00_00_PachiC_col.png").write_bytes(b"")
