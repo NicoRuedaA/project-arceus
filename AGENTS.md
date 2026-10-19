@@ -25,6 +25,15 @@ Keep the **Completion plan** table in [`README.md`](README.md) updated as part o
 - Never describe the update as a standalone program or as the port target. The game is **base + update**; the update is a **patch** that does not run on its own, and the base is mandatory. The port target is the base + update overlay.
 - Keep [`README.md`](README.md) and [`README.es.md`](README.es.md) in sync and cross-linked: every status/figure change is updated in both (English is the default artifact language; Spanish uses a neutral register).
 
+## Visual before/after evidence
+
+Whenever a change has a visible effect that a picture can show (models, textures, animation poses, UI, rendering, world placement), deliver before and after images with the result.
+
+- Capture the "before" image before changing anything, and the "after" image from the same view, in the real game path (in-game render), not only from an offline preview.
+- When an external reference exists (for example official artwork or Pokémon HOME renders for a Pokémon model), add it next to the before/after pair so the result can be judged against it.
+- Save the images under `work/compare/<task>/` (git-ignored) and include their paths in the final report. Look at every image yourself before calling the fix done.
+- Skip images only when the evidence cannot be shown in a picture (pure logic, data tables, performance numbers); then say so in the report.
+
 ## Parallel work and progress reporting
 
 - For large tasks, split the independent workstreams and run them **in parallel** whenever possible. Prefer several bounded workers over one long serial run.
