@@ -70,6 +70,39 @@ class SeamTests(unittest.TestCase):
         self.assertEqual(uv_mirror.mirrored_by_seams(self.px, uv, np.arange(2), np.arange(2, 4), 0.5), (False, None, None))
 
 
+class SymmetryTests(unittest.TestCase):
+    def setUp(self):
+        h = w = 16
+        self.px = np.zeros((h, w, 4), dtype=np.float32)
+        self.px[:, : w // 2, 0] = np.linspace(0, 1, w // 2)[None, :]
+        self.px[:, w // 2:, 1] = 1.0
+
+    def test_mirror_pairs_join_x_and_minus_x(self):
+        pos = np.array([[0.2, 1.0, 0.0], [-0.2, 1.0, 0.0], [0.0, 2.0, 0.0], [0.3, 0.5, 0.1]])
+        loop_vertex = np.array([0, 1, 2, 3])
+        a, b = uv_mirror.mirror_pairs(pos, loop_vertex, np.arange(4))
+        self.assertEqual((a, b), ([0], [1]))  # the centre vertex and the unpaired one are left out
+
+    def test_one_arm_painted_with_another_part_is_mirrored(self):
+        # Wynaut: the right arm reads u in 0.05..0.45, the left arm the mirror 0.55..0.95 (another part of the texture
+        # with the plain UV); with the doubled addressing both arms get the same texels
+        n = uv_mirror.SYMMETRY_MIN_PAIRS
+        us = np.linspace(0.05, 0.45, n)
+        uv = np.concatenate([np.stack([us, np.full(n, 0.5)], 1), np.stack([1.0 - us, np.full(n, 0.5)], 1)])
+        mirrored, plain, doubled = uv_mirror.mirrored_by_symmetry(self.px, uv, np.arange(n), np.arange(n, 2 * n), 0.5)
+        self.assertTrue(mirrored)
+        self.assertAlmostEqual(doubled, 0.0, places=6)
+
+    def test_symmetric_plain_uv_stays_plain(self):
+        n = uv_mirror.SYMMETRY_MIN_PAIRS
+        uv = np.tile(np.array([[0.1, 0.5]]), (2 * n, 1))
+        self.assertFalse(uv_mirror.mirrored_by_symmetry(self.px, uv, np.arange(n), np.arange(n, 2 * n), 0.5)[0])
+
+    def test_few_pairs_decide_nothing(self):
+        uv = np.zeros((4, 2))
+        self.assertEqual(uv_mirror.mirrored_by_symmetry(self.px, uv, np.arange(2), np.arange(2, 4), 0.5), (False, None, None))
+
+
 class EyeAtlasTests(unittest.TestCase):
     def _atlas(self, a_rows, b_rows):
         """4-row half-width atlas (cells 4x4 px) built from per-row (a, b) cell values."""
