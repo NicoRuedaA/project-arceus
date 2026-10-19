@@ -74,6 +74,12 @@ Two pack families exist in the collection, with different graphs (this decides w
 | D39 | **Duskull (355) PLA: no eye, then see-through sockets** | `shadow_mesh` is an inside-out dark shell around the eye (drawn double-sided, its near wall hid the eye); the eye and its `eyeball` bone sit at the skull centre behind the bridge of the mask (the game turns it with a run-time look-at; the idle clip only wobbles it 4 degrees) | `fix_pla_eye_shell.py`: also opens `shadow` shells, only in an elliptic window in front of the eye, shell drawn near-black; per-pack `EYE_YAW` turns the eye 51.5 degrees into the left socket (PROBABLE pose). Eye colours are the pack's emission layers (pink rings, white centre), as on the official look. Rerun after every PLA regeneration (marker `.eye_shell.json`) | 355 |
 
 | D40 | **Spinda (327) "totally deformed" in the game; snowy Castform a tall column** | Clips that do not fit the rig: every Spinda clip puts the head vertices at the height of the feet (Blender's own evaluation of the source `.blend` too, any scale-inheritance mode); the weather forms share the normal form's clips, which stretch snowy Castform's cloud | `model_rules.STATIC_POSE_PACKS`: exported in the rest pose (the official look) without clips, at the clips' constant root scale (Spinda 0.74, snowy Castform 1.34); EXPORT_NOTE `static_pose`. The models do not move in idle | 327 351_14 |
+| D41 | **Gen 4 PLA eyes flat, "no pupils" / "grey pupils"** (Turtwig, Piplup, Mime Jr., Happiny, Leafeon, Glaceon, Phione, Manaphy...) | All 154 gen-4 packs of the PLA catalogue were exported (2026-10-13) before the catch-light bake (D5, `4d6348c`) and the overlapping-layer bake (D29, `c04ffd5`): 146 eye textures had no catch-light and some body colours were averaged (Froslass, Croagunk, Kricketune). Found by comparing the live pack with a fresh export (`.status` file older than the commit) | Re-export with `pokemon_batch_export` (+ `--rare`) and rerun every PLA fixer (step 3). Leafeon/Glaceon (and Eevee 133-136, Espeon 196): the eye layer mask is a flat 32x32 R=1, one UV set, no pupil mesh: the data has no pupil (a dark brown / navy eye with a catch-light is what the material describes) | 154 gen-4 packs |
+| D42 | **Rotom (479, all forms) one flat colour, no face** | Each form has an `Unlit` shell (`firemask`, `aura_aaa`, `aura_a/b`, `bottom`) whose triangles are wound inward: an inverted-hull glow rim (EmissionIntensity 2.5, the form colour). Forced double-sided (`pokemon_anim.rs`), its near wall hid the body | `.tools/fix_pla_outline_hull.py`: rule = census shader `Unlit` + >= 70 % inward winding (only Rotom in the catalogue); material `KHR_materials_unlit`, colour x2.5 in linear light, extras `{"pla_cull":"back"}`; the engine keeps that culling (`pokemon_anim::cull_from_extras`) | 479 x6 |
+| D43 | **Spiritomb (442) face a mosaic** | Three expression meshes on the same vertices (`eyenormal`, `eyeright`, `eyeclose`) drawn at once (no visibility data) | `.tools/fix_pla_mode_mesh.py`: with an `eyenormal` face mesh, its `eye<state>` siblings are detached (only Spiritomb in the catalogue) | 442 |
+| D44 | **Spiritomb face and orbs veiled pale** | Face and orbs sit INSIDE the `Transparent` smoke shell (0.15 m behind its near wall); round 1 (D25) made the whole shell 0.35 translucent | `fix_pla_effect_alpha.py` per-pack rule with a cull item: smoke shell front-face culled (far wall = purple backdrop, alpha 0.85, PROBABLE look) through the same `pla_cull` extras | 442 |
+| D45 | **PLA eye outlines jagged / patchy** (Mime Jr., Turtwig, Happiny) | PLA eye discs have a ring exactly on the body surface and a rim tucked 2-7 mm under it; the eye z-fights the body and the rim cuts it into irregular shapes | `.tools/fix_pla_eye_depth.py`: outward eye meshes of `Eye` blocks lifted 5 mm along their normals (inside-out eye shells skipped). VERIFIED on Mime Jr./Turtwig; applied to the gen-4 packs only (the rule is general; earlier generations not re-checked yet) | 154 gen-4 packs |
+| D46 | **Spiritomb orbs plain green discs, no yellow centre** | Each orb is a cup whose front wall faces AWAY from the viewer (48/48 triangles in front of the yellow centres `body_b_02`); forced double-sided it covered the centre. Culling it alone showed black discs: the toon outline shell (`art_style.rs`) of the cup drew its dark back faces inside | `fix_pla_outline_hull.py` `CULL_ONLY` (Spiritomb `body_b_01`: back-face culled through `pla_cull`) + the engine adds no outline shell to `pla_cull` materials. Green cup + yellow centre as in HOME (VERIFIED in the game) | 442 |
 Not fixed (gen 3, `gen3-fixes`): Flygon (330) has no pupils in the data (eye textures are black spheres; the visor is a translucent shell, the real eyes show faintly through it); Duskull (355): fixed in round 2 (D39). Wynaut (360) expression is picked at run time. Spinda spot placement per individual is not decoded (D34 shows the default placement).
 
 ### Not fixed (UNKNOWN or needs data we do not have)
@@ -112,6 +118,7 @@ Not fixed (gen 3, `gen3-fixes`): Flygon (330) has no pupils in the data (eye tex
 | `f7_shot.sh` | Real-game check: places species N with the F7 panel in a running `gamectl` session and takes a 1600x900 shot |
 | `gltf_inspect.py`, `gltf_drop_nodes.py` | Inspect normals/UV/bounds; A/B render of a glTF without the meshes matching a regex |
 | `fix_pla_uv_mirror.py`, `fix_pla_effect_alpha.py`, `fix_pla_smoke_cloud.py` (needs numpy + ImageMagick) | Post-processing of the PLA catalogue (both idempotent, `--restore`, markers in each pack) |
+| `fix_pla_outline_hull.py` (numpy + ImageMagick), `fix_pla_mode_mesh.py`, `fix_pla_eye_depth.py` (numpy), `fix_pla_eye_shell.py`, `fix_pla_eye_cell.py` | More PLA fixers (D42, D43, D45, D17/D39, D22); idempotent, `--restore`, markers `.outline_hull.json`, `.mode_mesh.json`, `.eye_depth.json` |
 | `gltf_unit_scale.py` | Brings the centimetre-sized Let's Go packs to metres (D16); validated on 1-151, check `_31` packs of later generations before using it there |
 | `blend_uv_scan.py`, `blend_uv_probe.py` | Blender scripts: one line per texture input (`SCAN pack material input image WxH scale fold`) / full node chain of every texture + UV bounds of every mesh slot (`-- --uvs`). Find packs where albedo and mask are addressed differently |
 | `pokemon_uv_census` (Rust example) | TSV of every material block of PLA packs: `UVScaleOffset`, rotation, texture slots. Input of `fix_pla_uv_mirror.py --census` (`cargo run -p pla --example pokemon_uv_census work/pla/pk2/romfs_patched/bin/archive/pokemon/*.gfpak > work/cache/pokemon_uv_census.tsv`) |
@@ -157,6 +164,8 @@ systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- /usr/bin/ble
   --python .tools/fix_pla_uv_mirror.py -- --root work/cache/export_genN/pla --range LO-HI --census work/cache/pokemon_uv_census.tsv
 rmdir /home/nico/work/decompilacion/work/progress/blender-1.lock
 python3 .tools/fix_pla_effect_alpha.py --root work/cache/export_genN/pla --range LO-HI
+for f in fix_pla_smoke_cloud fix_pla_eye_shell fix_pla_eye_cell fix_pla_outline_hull fix_pla_mode_mesh fix_pla_eye_depth; do
+  python3 .tools/$f.py --root work/cache/export_genN/pla --range LO-HI; done   # D19 D17/D39 D22 D42 D43 D45
 #    then back up work/cache/pokemon_batch/<stem> and copy the new <stem>/ folders (+ <stem>.status, <stem>.rare.status)
 #    and work/cache/export_genN/pokemon_batch_uv_orig/* into work/cache/pokemon_batch_uv_orig/
 #    NOTE: the Rust batch exporter ALWAYS brings the old textures back (D3, D5, D7): rerun steps 3's fixers after ANY regeneration.
@@ -180,7 +189,8 @@ Escape) exactly like a player. The F7 model appears **in front of the camera fac
 (`--pitch`, `--distance`) is centred on the player, so very small models (Weedle) need `--distance` around 2 and a crop.
 `--spawn-species N:form --spawn-dist -3` (viewer flag) also gives a front view.
 
-Unit tests of the tools: `python3 .tools/tests/test_uv_mirror.py`, `test_model_rules.py`, `test_fix_pla_effect_alpha.py`.
+Unit tests of the tools: `python3 .tools/tests/test_uv_mirror.py`, `test_model_rules.py`, `test_fix_pla_effect_alpha.py`,
+`test_fix_pla_outline_hull.py`, `test_fix_pla_mode_mesh.py`, `test_fix_pla_eye_depth.py`.
 Rust: `cargo test -p pla --lib`, `cargo test -p pla --example port_viewer -- --test-threads=1`, smoke 76/76
 (`python3 .tools/smoke_viewer.py --cpu --dir work/automation-genN`).
 
@@ -247,3 +257,22 @@ Rust: `cargo test -p pla --lib`, `cargo test -p pla --example port_viewer -- --t
   rest pose framing on the headless renderer (identical with or without the D33 rule, so not caused by it); the live
   pack was left as it was.
 
+## 9. Generation 4 round 2b (`gen4-fixes-r2`, 2026-10-20)
+
+* **Check the export date first**: a PLA pack whose `<stem>.status` predates an exporter fix does not have it. Every gen-4
+  pack was older than the catch-light bake; re-exporting all 154 (D41) fixed most "no pupil" reports at once. Before swapping,
+  a headless old/new sheet of every pack (`work/scenes_out/gen4r2/sheet`) was checked for regressions.
+* In-game A/B without touching the live cache: an **overlay root** (a directory whose `work/cache/pokemon_batch/<stem>` entries
+  are symlinks, the changed packs pointing at the scratch export, plus a real copy of `.tools/gamectl.py` so the viewer runs
+  there). Before = live cache + old viewer, after = overlay + new viewer, same camera.
+* Inside-out meshes have three different meanings in PLA packs: eye bowls (D17, Paras/Duskull/Dusknoir: open the front),
+  `Unlit` glow rims (D42, Rotom: cull the back faces) and translucent shells with parts inside (D44, Spiritomb: cull the
+  front faces). Check the shader and what sits inside before choosing.
+* Dusknoir (477) has the same inside-out eye bowl as Duskull: the default `fix_pla_eye_shell.py` pass opens it and the red
+  eye shows in the socket (VERIFIED in the game).
+* Mime Jr. (439): with the 5 mm lift both eyes are clean ovals; in the idle pose the turned-away eye still shows two small
+  pink notches on its rim (the face deforms with the head bones; minor).
+* Still open: Turtwig/Piplup pupils read dark grey rather than black (layer colour 0.015 linear = 35 sRGB in the baked texture,
+  63-70 on screen: the port's ambient + TonyMcMapface/grading lift every dark colour; zero specular changes nothing); Piplup's
+  white eye patch is the PLA body layer colour 0.423 linear (the grey PLA uses as white); Darkrai's eye is mostly hidden by its hair in the idle pose (as in the reference); the national Darkrai form 1
+  pack (`pm0491_51_00`) is not an official form and was not touched.

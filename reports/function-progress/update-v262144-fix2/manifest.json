@@ -73,7 +73,7 @@
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
-    "file_count": 288,
+    "file_count": 289,
     "file_hashes": [
       {
         "path": "crates/pla/build.rs",
@@ -257,7 +257,7 @@
       },
       {
         "path": "crates/pla/examples/port_viewer.rs",
-        "sha256": "65bd0019cad19da23af32b9b82dd71e4b08905e3c860bd6ae4d84d6dd048287a"
+        "sha256": "8025d8383790ce51a05fcf4af6e49913613f76895a52437a7b9ffd2d4af33f05"
       },
       {
         "path": "crates/pla/examples/port_viewer_tests/automation.rs",
@@ -581,7 +581,7 @@
       },
       {
         "path": "crates/pla/src/game/art_style.rs",
-        "sha256": "d88044921f489580d7f90b8508d1894ddc9f3070f11917a5cbe00ad70188d3dd"
+        "sha256": "27a5ee2ab16634bcbaff2d913e200524f7bcda9fb7227c74927cdb1c03618c3d"
       },
       {
         "path": "crates/pla/src/game/audio/catalog.rs",
@@ -817,7 +817,7 @@
       },
       {
         "path": "crates/pla/src/game/mod.rs",
-        "sha256": "26d176c567d7ffe32436cac3da49cbb4d9e69adde98fbfec870d44d1aa93e81c"
+        "sha256": "5fb3260e8eb0360eb77bc175e0306d55ad733840f1755a2fc724a3a08d7721ee"
       },
       {
         "path": "crates/pla/src/game/move_teaching.rs",
@@ -940,6 +940,10 @@
         "sha256": "41ad1cb28bcedb7e1729b1df124725245a92bb9fd3e4ae142833e4b8d6d5c6cd"
       },
       {
+        "path": "crates/pla/src/game/perf_log.rs",
+        "sha256": "4fe9ca01dca6c3f17ad3ad00ccec6311b9b6126ea28e1ccd9dbfde857787ae8b"
+      },
+      {
         "path": "crates/pla/src/game/pickups.rs",
         "sha256": "8cae351c85c004ba12db85ca419ecb7d0a03269e40857be71eb557795aa0daad"
       },
@@ -961,7 +965,7 @@
       },
       {
         "path": "crates/pla/src/game/pokemon_anim.rs",
-        "sha256": "0d8b9c59ac51d449d67bf2507139ea3a9db05b63cee4a43f9538363ede769aa0"
+        "sha256": "3aacc42b946227f98596e635209831f51c560eb0a030a461e540363a0db6c880"
       },
       {
         "path": "crates/pla/src/game/pokemon_resource.rs",
@@ -1005,7 +1009,7 @@
       },
       {
         "path": "crates/pla/src/game/shadow_lod.rs",
-        "sha256": "63d77d0fb9ca71d739f58576f1966f5ebfb9c1e5c3eb5338a1631b1c93c4f6d9"
+        "sha256": "2afa907313e86e58d691a3f24525d1ae66dda6544b9f5ab8d09674431fa2fd58"
       },
       {
         "path": "crates/pla/src/game/shop.rs",
@@ -1229,7 +1233,7 @@
       }
     ],
     "scope": "crates/**/*.rs",
-    "sha256": "8cd03696994fc5ea39befddfe456d5349b55e24aa3aa312977a9238ff8855001"
+    "sha256": "2e1bc2f70691e4780e990e6711f4b522987bc4d08322edd4c003cd41b14bc499"
   },
   "state_partitions": {
     "analysis_documentation_status": {
