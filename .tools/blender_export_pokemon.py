@@ -417,7 +417,14 @@ def resolve_textures(mat, tex, pack_dir):
     if group is not None:
         res["layers"], res["scales"] = group_layer_colors(group)
         res["alb"] = image_disk_path(upstream_image(group.inputs.get("Albedo")), pack_dir)
-        res["uv_mirror"] = vector_chain_doubles_u(upstream_image_node(group.inputs.get("Albedo")))
+        # the doubled mirrored addressing may sit on the albedo chain, on the layer-mask chain or on
+        # both: Beedrill's body_a has a flat 32x32 albedo (plain UV) and a 512x1024 mask (doubled),
+        # Pinsir's body_b the same; Beedrill's wings the other way round. The baked result takes the
+        # mask's resolution, so the doubled addressing of either one decides the layout.
+        res["uv_mirror"] = (
+            vector_chain_doubles_u(upstream_image_node(group.inputs.get("Albedo")))
+            or vector_chain_doubles_u(upstream_image_node(group.inputs.get("Lym_color")))
+        )
         if res["alb"]:
             res["how"]["alb"] = "graph"
         res["lym"] = image_disk_path(upstream_image(group.inputs.get("Lym_color")), pack_dir)
@@ -666,6 +673,7 @@ def detect_mirrored_slots(pack_dir):
     tex = texture_names(pack_dir)
     px_cache = {}
     found = {}
+    slots = []
     for obj in [o for o in bpy.data.objects if o.type == "MESH" and not re.search(r"\.\d{3}$", o.name)]:
         me = obj.data
         layer = me.uv_layers.active_render if me.uv_layers.active_render is not None else me.uv_layers.active
@@ -729,16 +737,35 @@ def detect_mirrored_slots(pack_dir):
                 verdict = f"seams {plain:.3f}->{doubled:.3f}"
             elif eye_in_left_half and (plain is None or (plain <= uv_mirror.SEAM_PLAIN_BAD and doubled <= uv_mirror.SEAM_PLAIN_BAD)):
                 verdict = "eye in left half"
-            if verdict is None:
-                continue
-            if eye_in_left_half:
-                verdict += " +eyeswap"  # both eyes live in one atlas: see `uv_mirror.swap_halves`
-            found[(obj.name, slot)] = verdict
-            print(f"EXPORT_NOTE uv_mirror2x:{base}:{verdict}")
+            slots.append({
+                "key": (obj.name, slot), "base": base, "alb": alb, "verdict": verdict,
+                "eye": eye_in_left_half, "plain": plain, "wh": px.shape[:2],
+            })
+    # A texture is addressed one way for every material that samples it. The seam test of a slot
+    # can be inconclusive (few seams, e.g. Kabuto's big shell slot) while another slot of the same
+    # texture is clear, and a half-width colour texture (width * 2 == height, next to a square
+    # normal map) cannot be addressed with the plain UV at all. Both are taken unless the slot's
+    # own seams clearly say "plain" (plain error already tiny).
+    positive = {sl["alb"] for sl in slots if sl["verdict"] is not None}
+    for sl in slots:
+        if sl["verdict"] is None:
+            plain_ok = sl["plain"] is not None and sl["plain"] <= uv_mirror.SEAM_PLAIN_BAD
+            h, w = sl["wh"]
+            if sl["alb"] in positive and not plain_ok:
+                sl["verdict"] = "shared texture with a mirrored slot"
+            elif w * 2 == h and not plain_ok:
+                sl["verdict"] = "half-width texture"
+        if sl["verdict"] is None:
+            continue
+        verdict = sl["verdict"]
+        if sl["eye"]:
+            verdict += " +eyeswap"  # both eyes live in one atlas: see `uv_mirror.swap_halves`
+        found[sl["key"]] = verdict
+        print(f"EXPORT_NOTE uv_mirror2x:{sl['base']}:{verdict}")
     return found
 
 
-def write_mirrored_albedo(src_path, out_path, swap=False):
+def write_mirrored_albedo(src_path, out_path, swap=False, symmetrize=False):
     """Re-lay out a `_col` texture for the doubled mirrored addressing: `[image | mirror]`.
 
     Sampling the result with the plain UV equals sampling `src` with
@@ -746,6 +773,9 @@ def write_mirrored_albedo(src_path, out_path, swap=False):
     px = _read_pixels(src_path)
     h, w = px.shape[:2]
     if swap:
+        if symmetrize:
+            px, rows = uv_mirror.symmetrize_eye_atlas(px, tolerance=0.0)
+            print(f"EXPORT_NOTE eye_atlas_symmetrized:{os.path.basename(src_path)}:rows={rows}")
         px = uv_mirror.swap_halves(px)
     out = uv_mirror.mirror_layout(px)
     img = bpy.data.images.new(f"uvfix_{os.path.basename(out_path)}", w * 2, h, alpha=True)
@@ -789,7 +819,8 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                 try:
                     swap = "eyeswap" in str((mirrored or {}).get((obj.name, i), ""))
                     base_img_path = write_mirrored_albedo(
-                        base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"), swap)
+                        base_img_path, os.path.join(out_dir, f"{stem}_{src_base}_mirrored.png"), swap,
+                        symmetrize=swap and model_rules.symmetrize_eye_pack(stem))
                     notes.add(f"uv_mirrored_albedo:{base}")
                 except Exception as exc:  # noqa: BLE001
                     print(f"EXPORT_NOTE mirrored albedo failed for {base}: {exc}")

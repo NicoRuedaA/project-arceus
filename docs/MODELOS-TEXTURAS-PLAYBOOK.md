@@ -1,7 +1,7 @@
 # Pokémon model and texture playbook (generations 1-9)
 
 Recipe to find, classify and fix the visual defects of the Pokémon models, written after the work on species 1-151
-(sessions `exportador-modelos`, `texturas-150`, `texturas-151`, 2026-10-18). Follow it generation by generation
+(sessions `exportador-modelos`, `texturas-150`, `texturas-151`, `texturas-151b`, 2026-10-18/19). Follow it generation by generation
 (152-1025). Every claim is tagged VERIFIED (seen on renders, in the game or in the data), PROBABLE or UNKNOWN.
 Spanish readers: the user-facing test steps are in [`GUIA-DE-PRUEBAS.md`](GUIA-DE-PRUEBAS.md) 2.19.
 
@@ -34,14 +34,20 @@ Two pack families exist in the collection, with different graphs (this decides w
 |---|---|---|---|---|
 | D1 | Black patches, "metal" blotches, crossed colours | `_nor_ts` files are not normal maps as stored (X lives in alpha, blue unused); exporter copied them | `blender_export_pokemon.py` rebuilds the normal from the graph's Combine-Color layout; unwired `_nor` files are dropped | all |
 | D2 | Wrong idle (a landing animation), no walk/attack | Sword/Shield packs name clips `ba10_waitA01`, `fi20_walk01`...; the engine looks up PLA names | `CLIP_ALIASES` in the exporter adds alias copies; `pokemon_anim.rs` unchanged | gen 7/8 mostly |
-| D3 | Face, belly, ears on the wrong part of the texture | Colour texture sampled with `u' = triangle_wave(2u)` (left half of the UV space = whole texture, right half = mirror) while normal/other maps use plain UV | Re-lay the colour texture out as `[image \| mirror]` (twice as wide): Trinity = chain detected in the graph; `_col` = seam test per material slot; PLA = `fix_pla_uv_mirror.py` (half-width textures + seam test). Maths in `.tools/uv_mirror.py` | 84 of 150 changed in `texturas-150` |
+| D3 | Face, belly, ears on the wrong part of the texture | Colour texture sampled with `u' = triangle_wave(2u)` (left half of the UV space = whole texture, right half = mirror) while normal/other maps use plain UV | Re-lay the colour texture out as `[image \| mirror]` (twice as wide): Trinity = chain detected in the graph; `_col` = seam test per material slot; PLA = `fix_pla_uv_mirror.py`, driven by the material's own `UVScaleOffset` (see D11; the old half-width + seam-test guess was wrong for 8 packs). Maths in `.tools/uv_mirror.py` | 84 of 150 changed in `texturas-150` |
 | D4 | **Eyes mirrored left-right** (Rattata, Spearow, Nidoqueen, Kabutops look sad instead of fierce) | `_col` eye materials keep BOTH eyes in the left half of the UV space and the eye atlas as `[A \| B]`; with the doubled addressing the model's right eye got A and the left eye B, i.e. each eye flipped (the pair is mirror-symmetric). Confirmed by the user on Rattata and by the expression of Spearow/Nidoqueen/Kabutops (angry after the fix) | `uv_mirror.swap_halves` applied to those eye slots (`detect_mirrored_slots` marks `+eyeswap`) | 21 packs: 11 19-22 29-34 77 78 98 99 118 119 124 138 139 141 |
 | D5 | **Eyes look like dark holes** (Dratini, Dragonair, Eevee, Weedle, Doduo, Seel, Dewgong... and most PLA models) | The eye bake (`albedo x layer colours`) is one flat dark colour; the white **catch-light** lives in `<pack>_eye_msk` (R channel; PLA material block: `HighlightMaskMap`, `EnableHighlight True`). The exporter ignored it | Converted packs: `bake_base_color(..., mask_path, mask_color)` paints `Mask_color` (white) where `eye_msk.R` is set. PLA: Rust `add_eye_highlight` in `pokemon_model.rs` (inside `save_mask_lerp_base_color`). Eye textures grow from 32x32 to 128x128 | 29 models flat before, 9 after (the 9 left are eyes that really are flat: Venomoth, Voltorb/Electrode, Ditto, Exeggutor-Alola...) |
 | D6 | Wings/veins/thin parts lost (Beedrill wings: one flat ellipse, no veins) | The bake used the resolution of the `_lym` mask (32x32) although the albedo is 512x1024 (the veins live in the albedo) | Bake at the finest resolution of albedo/mask/highlight | 8 models with a tiny colour texture before, 4 after (PLA flat parts, legit) |
-| D7 | Opaque shell hides the face (Gastly), Victini's aura a black mass | Materials exported opaque although the game draws them translucent | Converted: alpha read from the texture / `smoke*` = 0.5 (`EFFECT_ALPHA`). PLA: `.tools/fix_pla_effect_alpha.py` (alpha 0.5 on `smoke` materials; PROBABLE look) | Gastly (PLA) |
+| D7 | Opaque shell hides the face (Gastly: 0.5 still looked like a glass ball, now 0.2), Victini's aura a black mass | Materials exported opaque although the game draws them translucent | Converted: alpha read from the texture / `smoke*` = 0.5 (`EFFECT_ALPHA`). PLA: `.tools/fix_pla_effect_alpha.py` (alpha 0.5 on `smoke` materials; PROBABLE look) | Gastly (PLA) |
 | D8 | Two models drawn at once (Sandslash: normal body **and** the spiky ball) | "Mode" meshes: the packs carry alternate-state meshes (`ball_mesh`, `roll_mesh`, `wingclose*`, `closed_mesh`, `armclosed_mesh`) and **no visibility data** (no visibility tracks, no custom properties, the idle clip does not collapse them). The game switches them per state; our engine draws all | `model_rules.MODE_MESH_RX` + `drop_mode_meshes()` in the exporter (mesh removed from the glTF; EXPORT_NOTE `mode_meshes_dropped`) | 5 packs: 16 (wings), 27, 28, 9-Mega X/Y pack `pm0009_51_00`, 83-Galar |
 | D9 | "Loose" rods/whips/rings in a static render | Rest-pose artefact: the idle clip collapses them (Bulbasaur vines 1.15 m -> 0.17 m) | none (not a defect) | 1 3 ... |
 | D10 | Black/very dark patches on PLA models in `render_gltf_headless` | The headless renderer has no `normal_fix`/toon pass of the game | none: judge PLA models **in the game** (F7), not on the headless sheets | all PLA |
+| D11 | **PLA models mapped with the wrong addressing** (Clefable "flat pink body, striped wings", Onix, Ninetales, Arcanine, Machoke, Magikarp) and **Pikachu's cheeks cut to slivers** | The PLA material block carries the real addressing: `UVScaleOffset` (scale.xy + offset.xy), read by `crates/pla/examples/pokemon_uv_census.rs`. `texturas-150` guessed it with a seam test and flipped 8 packs whose blocks are plain (1,1) (Clefable 36, Ninetales 38, Arcanine 59 form, Machoke 67, Onix 95, Magikarp 129). Pikachu's cheek block `body_c` has scale **(1,2)** (v doubled), which the old tool did not know | `fix_pla_uv_mirror.py --census work/cache/pokemon_uv_census.tsv`: tile the colour texture as (sx x sy) mirrored tiles, only where the data says so. Restore the old fixes first (`--restore`), then reapply | 36 38 59 67 95 129 restored to plain; 25 (cheeks) fixed; (2,1) packs unchanged: 25 26 35 37 46 125 133 |
+| D12 | **Beedrill body / Pinsir without detail** | Trinity packs with a flat 32x32 albedo (plain UV) and a 512x1024 layer mask whose graph doubles u: the exporter only looked for the doubling on the *Albedo* socket, so the baked colour was never re-laid out | `resolve_textures`: the doubling on `Lym_color` counts too (`.tools/blend_uv_scan.py` lists albedo vs mask addressing per material: only Beedrill `body_a` and Pinsir `body_b` of 1-151 disagreed) | 15, 127 |
+| D13 | Kabuto shell a plain tan blob, Kabutops/Nidoran/Raticate/Spearow/Krabby claws patchy | `_col` packs: the seam test of one material slot was inconclusive (few seams) although another slot of the *same texture* was clear; a half-width colour texture next to a square normal map can not be plain either | `detect_mirrored_slots`: a texture is addressed one way for every slot that samples it, plus the half-width rule, unless the slot's own seams clearly say plain | 20 21 29 31 34 78-Gmax 98 139 140 141 |
+| D14 | Two different eyes (Krabby, Kingler, Jynx, Omanyte) | The `_col` eye atlas is 2 columns x 4 rows of expression cells (cell (0,0) = neutral open eye; the crabs' cell is empty because the iris is drawn from `Iris_lyc`, which we do not wire). The right eye reads column 0, the left eye column 1 | `uv_mirror.symmetrize_eye_atlas` (neutral cell, or the more opaque one, mirrored into the other column), only for `model_rules.EYE_SYMMETRIZE_PACKS`: other packs have mirror-image or nearly equal columns | 98 99 124 138 (PROBABLE look: the game picks the expression at run time) |
+| D15 | Paras without eyes | The `Transparent`-shader glass covers `tra_l_eye` / `tra_r_eye` were opaque, hiding the real eyes | `fix_pla_effect_alpha.py`: alpha 0.3 for those two materials (PROBABLE look) | 46 |
+| D16 | **Let's Go packs 100 times too big in the game** (Nido family, Krabby, Kingler, Jynx, Omanyte line, Caterpie line... a white pillar or dark shadow instead of the Pokémon at the F7 spawn) | These packs (`pmNNNN_00`, `pmNNNN_00_31`) keep the model in centimetres (Nidoran 41 units, Kingler 188); the contact sheets auto-fit the camera, so nobody saw it. The skinned mesh sits next to the armature, so a scale on the common root cancels in the skin matrices | `.tools/gltf_unit_scale.py`: scale 0.01 on the node that parents the top joints (pure JSON, idempotent). Rerun it after every reconversion of those packs | 10 11 12 29-34 77 78 98 99 108 114 118 119 124 138-141 |
 
 ### Not fixed (UNKNOWN or needs data we do not have)
 
@@ -57,6 +63,17 @@ Two pack families exist in the collection, with different graphs (this decides w
 * PLA/gen 1-151 forms nobody has looked at one by one: the sheets were judged by eye at 320 px, the in-game check covered
   15, 19, 28, 113, 147, 148 (see `texturas-151.md`).
 
+* **Still wrong or unverified after `texturas-151b`** (all PROBABLE/UNKNOWN, checked against the game's Pokédex icons in `work/cache/nacional_modelos/icons`):
+  * Staryu 120 / Starmie 121: the gem colour comes from a shader with `fresnel`/emission inputs and an *unwired* layer mask (`Lym_color` empty,
+    `LayerMaskScale1` 0.8), so the bake is a pale pink instead of the icon's deep red; not decoded.
+  * Porygon 137: the eye atlas is a grid of expression cells and the block has `UVScaleOffset (0.5, 0.5, 0.5, -0.5)`; the default cell is chosen by animation data we do not have.
+  * Parasect 47: its eyes are blank white spheres in the data (no pupil mesh); looks the same as the Pokédex art, left as is.
+  * Golduck 55: the eyes are open at frame 150 of the idle clip in the real game; a blink in other frames could not be reproduced; the eyelid bones have no tracks in the idle clip.
+  * Muk 89 "see through": no flipped normals (`gltf_inspect.py normals` = 0 %), the mouth cavity shows the back faces of the head (the pack has no cavity mesh); nothing to fix with the data we have.
+  * Pikachu 25: bright yellow of the icon is not reproduced; the layer colour of the PLA block is (0.48, 0.35, 0.01) linear, the game lights it with a shader we do not reproduce.
+  * Nidoran/Nidoqueen/Nidoking small patches: the texture is now laid out correctly for 29, 31, 34 (before the patches were pieces of the wrong region); the remaining spots are part of the species design.
+  * Eye atlases of the other packs (Rattata, Nido, Goldeen...) have nearly mirror-image columns; the neutral-cell rule was **not** applied to them to avoid changing the Rattata look the user confirmed.
+
 ## 3. Tools (all in `.tools/`, tests in `.tools/tests/`)
 
 | Tool | Use |
@@ -68,6 +85,10 @@ Two pack families exist in the collection, with different graphs (this decides w
 | `f7_shot.sh` | Real-game check: places species N with the F7 panel in a running `gamectl` session and takes a 1600x900 shot |
 | `gltf_inspect.py`, `gltf_drop_nodes.py` | Inspect normals/UV/bounds; A/B render of a glTF without the meshes matching a regex |
 | `fix_pla_uv_mirror.py`, `fix_pla_effect_alpha.py` | Post-processing of the PLA catalogue (both idempotent, `--restore`, markers in each pack) |
+| `gltf_unit_scale.py` | Brings the centimetre-sized Let's Go packs to metres (D16); validated on 1-151, check `_31` packs of later generations before using it there |
+| `blend_uv_scan.py`, `blend_uv_probe.py` | Blender scripts: one line per texture input (`SCAN pack material input image WxH scale fold`) / full node chain of every texture + UV bounds of every mesh slot (`-- --uvs`). Find packs where albedo and mask are addressed differently |
+| `pokemon_uv_census` (Rust example) | TSV of every material block of PLA packs: `UVScaleOffset`, rotation, texture slots. Input of `fix_pla_uv_mirror.py --census` (`cargo run -p pla --example pokemon_uv_census work/pla/pk2/romfs_patched/bin/archive/pokemon/*.gfpak > work/cache/pokemon_uv_census.tsv`) |
+| `game_shots.sh` | Real-game shots, one fresh CPU viewer per species (`--spawn-species`), so no other model is on screen (a follower Pikachu is always next to the player) |
 | `build_national_export_index.py` | Rebuilds `data/national/model_export_index.tsv` (commit it) |
 
 ## 4. Step by step for a generation (replace `LO-HI`, `G`, `genN`)
@@ -93,6 +114,7 @@ mkdir /home/nico/work/decompilacion/work/progress/blender-1.lock /home/nico/work
 python3 .tools/convert_national_batch.py --only G --packs-file packs_genN.txt --force --out-root work/cache/export_genN/all
 rmdir /home/nico/work/decompilacion/work/progress/blender-1.lock /home/nico/work/decompilacion/work/progress/blender-2.lock
 #    (--only takes GENERATION numbers 1-9; with --packs-file the list decides. Each pack leaves <pack>.export.log with its EXPORT_NOTE lines)
+#    Let's Go packs (pmNNNN_00) come out in centimetres: python3 .tools/gltf_unit_scale.py --root work/cache/export_genN/all --range LO-HI   (D16)
 #    swap with a backup (never delete the old packs before the after-sheets are checked):
 C=/home/nico/work/decompilacion/work/cache; mkdir -p $C/pokemon_national_genN_backup
 for p in $(cat packs_genN.txt); do mv $C/pokemon_national/$p $C/pokemon_national_genN_backup/$p; cp -a $C/export_genN/all/$p $C/pokemon_national/$p; done
@@ -105,7 +127,7 @@ $B $SRC work/cache/export_genN/pla work/cache/export_genN/pla_index.tsv --force 
 $B $SRC work/cache/export_genN/pla work/cache/export_genN/pla_index.tsv --force --rare --only $STEMS
 mkdir /home/nico/work/decompilacion/work/progress/blender-1.lock
 systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -- /usr/bin/blender -b \
-  --python .tools/fix_pla_uv_mirror.py -- --root work/cache/export_genN/pla --range LO-HI
+  --python .tools/fix_pla_uv_mirror.py -- --root work/cache/export_genN/pla --range LO-HI --census work/cache/pokemon_uv_census.tsv
 rmdir /home/nico/work/decompilacion/work/progress/blender-1.lock
 python3 .tools/fix_pla_effect_alpha.py --root work/cache/export_genN/pla --range LO-HI
 #    then back up work/cache/pokemon_batch/<stem> and copy the new <stem>/ folders (+ <stem>.status, <stem>.rare.status)

@@ -70,5 +70,67 @@ class SeamTests(unittest.TestCase):
         self.assertEqual(uv_mirror.mirrored_by_seams(self.px, uv, np.arange(2), np.arange(2, 4), 0.5), (False, None, None))
 
 
+class EyeAtlasTests(unittest.TestCase):
+    def _atlas(self, a_rows, b_rows):
+        """4-row half-width atlas (cells 4x4 px) built from per-row (a, b) cell values."""
+        half = 4
+        out = np.zeros((16, 8, 4), dtype=np.float32)
+        for r, (a, b) in enumerate(zip(a_rows, b_rows)):
+            out[r * half:(r + 1) * half, :half] = a
+            out[r * half:(r + 1) * half, half:] = b
+        return out
+
+    def test_mirror_pairs_are_left_alone(self):
+        px = np.zeros((16, 8, 4), dtype=np.float32)
+        px[:, 1, :] = 1.0  # column 0: mark at x=1; column 1: the mirror at x=6
+        px[:, 6, :] = 1.0
+        out, rows = uv_mirror.symmetrize_eye_atlas(px)
+        self.assertEqual(rows, 0)
+        np.testing.assert_array_equal(out, px)
+
+    def test_empty_first_cell_takes_the_mirror_of_the_second(self):
+        px = np.zeros((16, 8, 4), dtype=np.float32)
+        px[0:4, 4:, :] = 1.0
+        px[0:4, 4, :] = [0.2, 0.3, 0.4, 1.0]  # the mark sits on the left edge of column 1
+        out, rows = uv_mirror.symmetrize_eye_atlas(px)
+        self.assertEqual(rows, 1)
+        np.testing.assert_array_equal(out[0:4, :4], px[0:4, 4:][:, ::-1])
+        np.testing.assert_array_equal(out[0:4, 4:], px[0:4, 4:])
+
+    def test_two_different_cells_keep_the_neutral_first_one(self):
+        px = np.zeros((16, 8, 4), dtype=np.float32)
+        px[0:4, :4, 3] = 1.0
+        px[0:4, 0, :3] = 0.5   # neutral cell: mark on the left edge
+        px[0:4, 4:, 3] = 1.0
+        px[0:4, 5, :3] = 0.9   # lid cell: something else
+        out, rows = uv_mirror.symmetrize_eye_atlas(px)
+        self.assertEqual(rows, 1)
+        np.testing.assert_array_equal(out[0:4, :4], px[0:4, :4])
+        np.testing.assert_array_equal(out[0:4, 4:], px[0:4, :4][:, ::-1])
+
+    def test_non_half_width_atlases_are_not_touched(self):
+        px = np.random.default_rng(3).random((8, 8, 4)).astype(np.float32)
+        out, rows = uv_mirror.symmetrize_eye_atlas(px)
+        self.assertEqual(rows, 0)
+        np.testing.assert_array_equal(out, px)
+
+
+class MirrorTilesTests(unittest.TestCase):
+    def test_two_by_one_equals_mirror_layout(self):
+        px = np.random.default_rng(5).random((4, 3, 4)).astype(np.float32)
+        np.testing.assert_array_equal(uv_mirror.mirror_tiles(px, 2, 1), uv_mirror.mirror_layout(px))
+
+    def test_vertical_doubling_mirrors_the_second_tile_along_v(self):
+        px = np.arange(2 * 2 * 4, dtype=np.float32).reshape(2, 2, 4)
+        out = uv_mirror.mirror_tiles(px, 1, 2)
+        self.assertEqual(out.shape, (4, 2, 4))
+        np.testing.assert_array_equal(out[:2], px)
+        np.testing.assert_array_equal(out[2:], px[::-1])
+
+    def test_identity_scale_returns_the_texture(self):
+        px = np.zeros((2, 2, 4), dtype=np.float32)
+        np.testing.assert_array_equal(uv_mirror.mirror_tiles(px, 1, 1), px)
+
+
 if __name__ == "__main__":
     unittest.main()
