@@ -411,6 +411,7 @@ def resolve_textures(mat, tex, pack_dir):
     res = {
         "alb": None, "lym": None, "lym_alpha": None, "nrm": None, "mask": None, "mask_color": None,
         "layers": None, "scales": None, "z_from_alpha": False, "uv_mirror": False,
+        "uv_mirror_alb": False, "uv_mirror_lym": False,
         "nrm_layout": None, "nrm_wired": True,
         "how": {"alb": None, "lym": None, "nrm": None},
     }
@@ -421,10 +422,9 @@ def resolve_textures(mat, tex, pack_dir):
         # both: Beedrill's body_a has a flat 32x32 albedo (plain UV) and a 512x1024 mask (doubled),
         # Pinsir's body_b the same; Beedrill's wings the other way round. The baked result takes the
         # mask's resolution, so the doubled addressing of either one decides the layout.
-        res["uv_mirror"] = (
-            vector_chain_doubles_u(upstream_image_node(group.inputs.get("Albedo")))
-            or vector_chain_doubles_u(upstream_image_node(group.inputs.get("Lym_color")))
-        )
+        res["uv_mirror_alb"] = vector_chain_doubles_u(upstream_image_node(group.inputs.get("Albedo")))
+        res["uv_mirror_lym"] = vector_chain_doubles_u(upstream_image_node(group.inputs.get("Lym_color")))
+        res["uv_mirror"] = res["uv_mirror_alb"] or res["uv_mirror_lym"]
         if res["alb"]:
             res["how"]["alb"] = "graph"
         res["lym"] = image_disk_path(upstream_image(group.inputs.get("Lym_color")), pack_dir)
@@ -520,7 +520,8 @@ def _bilinear_resample(px, out_h, out_w):
     return top * (1 - wy) + bottom * wy
 
 
-def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path, mask_path=None, mask_color=None):
+def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path, mask_path=None, mask_color=None,
+                    alb_doubled=False, lym_doubled=False):
     """Sequential Trinity layer blend of the albedo, all maths in linear light.
 
     `c = albedo`; per layer `c = mix(c, albedo * layer_i, w_i)` with
@@ -531,6 +532,12 @@ def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path
     alb_px = _read_pixels(alb_path)
     lym_px = _read_pixels(lym_path) if lym_path else np.zeros((1, 1, 4), dtype=np.float32)
     mask_px = _read_pixels(mask_path) if mask_path else None
+    # Mixed addressing (Croconaw's body_b: albedo doubled, mask plain): lay the doubled input out as
+    # `[image | mirror]` first, so every input is addressed with the plain UV before they are mixed.
+    if alb_doubled:
+        alb_px = uv_mirror.mirror_layout(alb_px)
+    if lym_doubled and lym_path:
+        lym_px = uv_mirror.mirror_layout(lym_px)
     # bake at the finest of the resolutions: some packs ship a 32x32 mask next to a 512x1024
     # albedo (Beedrill's wings: the veins live in the albedo), and baking at the mask size threw
     # the albedo detail (and its alpha) away; the eye highlight mask is 128x128 over a 32x32 albedo
@@ -543,6 +550,8 @@ def bake_base_color(alb_path, lym_path, lym_alpha_path, layers, scales, out_path
         except OSError:
             same_file = False
         alpha_px = lym_px if same_file else _read_pixels(lym_alpha_path)
+        if lym_doubled and not same_file:
+            alpha_px = uv_mirror.mirror_layout(alpha_px)
         channels.append(_bilinear_resample(alpha_px[:, :, 3:4], mh, mw)[:, :, 0])
     else:
         channels.append(np.zeros((mh, mw), dtype=np.float32))
@@ -611,17 +620,51 @@ def rebuild_normal_map(nrm_path, out_path, alpha_is_z=False, layout=None):
 
 # ------------------------------------------------------------------- export
 
-def alpha_mode_of(image_path):
-    """('BLEND'|'MASK'|None) from the alpha channel of a PNG: None when it is opaque."""
+def alpha_mode_of(image_path, uv=None):
+    """('BLEND'|'MASK'|None) from the alpha channel of a PNG: None when it is opaque.
+
+    `uv` (N x 2, the UVs the material really uses, plain addressing of the final image) restricts the
+    test to the texels those UVs sample: Let's Go body textures keep the wing film's alpha in a corner
+    of the same atlas (Ledyba/Ledian), which would turn every body material translucent although
+    no body triangle reads it."""
     try:
         px = _read_pixels(image_path)
     except Exception:  # noqa: BLE001
         return None
     a = px[:, :, 3]
+    if uv is not None and len(uv):
+        a = uv_mirror.alpha_in_footprint(a, uv)
     if float(a.min()) > 0.95:
         return None
     soft = float(((a > 0.02) & (a < 0.98)).mean())
     return "BLEND" if soft > 0.02 else "MASK"
+
+
+def slot_uv_samples(obj, slot):
+    """UV samples (corners + triangle centres + edge midpoints) of the polygons that use material `slot`.
+    In the plain addressing of the UV layer; v is not wrapped (the caller wraps)."""
+    me = obj.data
+    layer = me.uv_layers.active_render if me.uv_layers.active_render is not None else me.uv_layers.active
+    if layer is None or not len(me.polygons):
+        return None
+    uv = np.zeros(len(layer.data) * 2, dtype=np.float32)
+    layer.data.foreach_get("uv", uv)
+    uv = uv.reshape(-1, 2)
+    poly_mat = np.zeros(len(me.polygons), dtype=np.int32)
+    me.polygons.foreach_get("material_index", poly_mat)
+    start = np.zeros(len(me.polygons), dtype=np.int32)
+    total = np.zeros(len(me.polygons), dtype=np.int32)
+    me.polygons.foreach_get("loop_start", start)
+    me.polygons.foreach_get("loop_total", total)
+    out = []
+    for pi in np.where(poly_mat == slot)[0]:
+        c = uv[start[pi]:start[pi] + total[pi]]
+        if len(c) < 3:
+            continue
+        out.append(c)
+        out.append(c.mean(axis=0, keepdims=True))
+        out.append((c + np.roll(c, -1, axis=0)) / 2.0)
+    return np.concatenate(out) if out else None
 
 
 # Opaque-textured effect shells that the game draws translucent (Gastly's gas cloud wraps the
@@ -661,7 +704,7 @@ def fire_tint(base):
 SEAM_RATIO = 0.5
 
 
-def detect_mirrored_slots(pack_dir):
+def detect_mirrored_slots(pack_dir, stem=None):
     """Material slots whose `_col` base colour needs the doubled mirrored addressing.
 
     See the module docstring (7). Only materials whose base colour is a `_col` texture
@@ -802,12 +845,20 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                 notes.add(f"bake_skipped_no_lym:{base}")
             base_img_path = res["alb"]
             want_mirror = bool(res["uv_mirror"] or (mirrored and (obj.name, i) in mirrored))
+            # mixed addressing: each input is laid out on its own inside the bake, nothing left to mirror
+            mixed = bool(res["lym"] and has_layers and res["uv_mirror_alb"] != res["uv_mirror_lym"]
+                         and not (mirrored and (obj.name, i) in mirrored))
+            if mixed:
+                want_mirror = False
+                notes.add(f"uv_mixed_addressing:{base}:alb={int(res['uv_mirror_alb'])},lym={int(res['uv_mirror_lym'])}")
             if res["alb"] and ((res["lym"] and has_layers) or res["mask"]):
                 baked_path = os.path.join(out_dir, f"{stem}_{base or 'mat'}_baked.png")
                 try:
                     got = bake_base_color(res["alb"], res["lym"] if has_layers else None, res["lym_alpha"],
                                           res["layers"] or [(1.0, 1.0, 1.0, 1.0)] * 4, res["scales"] or [1.0] * 4,
-                                          baked_path, res["mask"], res["mask_color"])
+                                          baked_path, res["mask"], res["mask_color"],
+                                          alb_doubled=mixed and res["uv_mirror_alb"],
+                                          lym_doubled=mixed and res["uv_mirror_lym"])
                     if got:
                         base_img_path = got
                         baked += 1
@@ -835,7 +886,11 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                     print(f"EXPORT_NOTE normal rebuild failed for {base}: {exc}")
                     nrm_out = res["nrm"]
             orig_blend = getattr(mat, "blend_method", "OPAQUE") if mat else "OPAQUE"
-            alpha_mode = alpha_mode_of(base_img_path) if (base_img_path and orig_blend != "OPAQUE") else None
+            alpha_mode = None
+            if base_img_path and orig_blend != "OPAQUE":
+                # only the texels this material's triangles read decide (see `alpha_mode_of`); with the doubled
+                # layout the final image is addressed with the plain UV, which is what is sampled here
+                alpha_mode = alpha_mode_of(base_img_path, slot_uv_samples(obj, i))
             tint = fire_tint(base) if not base_img_path else None
             new = bpy.data.materials.new(f"simple_{base or 'mat'}")
             new.use_nodes = True
@@ -922,8 +977,9 @@ def keep_primary_rig():
 # (`defaultwait01`, `walk01`, `battlewait01_loop`, `attack01`, ...) and otherwise plays the
 # FIRST clip of the file as idle (a landing animation). Each target suffix below gets an
 # alias copy of the first source clip that exists, so the engine finds an idle/battle set.
+# Prefer `kw01_wait01` (kaiwa/dialogue/camp ground idle) over `ba10_waitA01` (battle stance).
 CLIP_ALIASES = (
-    ("defaultwait01_loop", ("fi01_wait01", "ba10_waitA01", "kw01_wait01", "battlewait01_loop")),
+    ("defaultwait01_loop", ("fi01_wait01", "kw01_wait01", "ba10_waitA01", "battlewait01_loop")),
     ("battlewait01_loop", ("ba10_waitA01",)),
     ("walk01_loop", ("fi20_walk01",)),
     ("attack01", ("ba20_buturi01",)),
@@ -1032,7 +1088,7 @@ def main():
 
     primary = keep_primary_rig()
     drop_mode_meshes(stem)
-    mirrored = detect_mirrored_slots(pack_dir)
+    mirrored = detect_mirrored_slots(pack_dir, stem)
     print(f"EXPORT_NOTE uv_slots_mirrored={len(mirrored)}")
     simplify_materials(out, stem, pack_dir, mirrored)
     renamed = rename_actions(stem, clip_mode, primary.name if primary else None)

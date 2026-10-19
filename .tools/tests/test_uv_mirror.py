@@ -132,5 +132,20 @@ class MirrorTilesTests(unittest.TestCase):
         np.testing.assert_array_equal(uv_mirror.mirror_tiles(px, 1, 1), px)
 
 
+class AlphaFootprintTest(unittest.TestCase):
+    def test_only_the_sampled_texels_count(self):
+        a = np.ones((4, 4), dtype=np.float32)
+        a[:, 0] = 0.2  # translucent strip (wing film) in the left column
+        right = np.array([[0.6, 0.5], [0.9, 0.1]])
+        left = np.array([[0.1, 0.5]])
+        self.assertGreater(float(uv_mirror.alpha_in_footprint(a, right).min()), 0.95)
+        self.assertLess(float(uv_mirror.alpha_in_footprint(a, left).min()), 0.95)
+
+    def test_uv_beyond_one_wraps(self):
+        a = np.ones((2, 2), dtype=np.float32)
+        a[:, 0] = 0.0
+        self.assertEqual(float(uv_mirror.alpha_in_footprint(a, np.array([[1.1, 1.5]]))[0]), 0.0)
+
+
 if __name__ == "__main__":
     unittest.main()

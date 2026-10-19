@@ -7,7 +7,10 @@ carry no visibility data and the engine shows every mesh, so the alternates over
 
 import re
 
-MODE_MESH_RX = re.compile(r"(?:^|_)(?:ball|roll|closed)_mesh$|wingclose[a-z_]*_mesh$|armclosed_mesh$", re.I)
+MODE_MESH_RX = re.compile(
+    r"(?:^|_)(?:ball|roll|closed)_mesh$|wingclose[a-z_]*_mesh$|armclosed_mesh$|eye_b_mesh$|wing[ab]skin(?:\(depth\))?$",
+    re.I,
+)
 
 
 def short_mesh_name(name, stem):
@@ -25,7 +28,7 @@ def is_mode_mesh(name, stem=""):
 # Omanyte (open eye next to the same eye with a lid line). Every other pack with an atlas has mirror-image
 # columns (or differences too small to see), checked by eye on the species 1-151 sheets, and keeps the
 # plain eye swap. See `uv_mirror.symmetrize_eye_atlas`.
-EYE_SYMMETRIZE_PACKS = frozenset({"pm0098_00", "pm0099_00", "pm0124_00", "pm0138_00"})
+EYE_SYMMETRIZE_PACKS = frozenset({"pm0098_00", "pm0099_00", "pm0124_00", "pm0138_00", "pm0238_00"})
 
 
 def symmetrize_eye_pack(stem):

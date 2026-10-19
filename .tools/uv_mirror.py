@@ -129,3 +129,14 @@ def mirror_tiles(px, sx, sy):
     if sy > 1:
         out = np.concatenate([out if j % 2 == 0 else out[::-1, :, :] for j in range(sy)], axis=0)
     return out
+
+
+def alpha_in_footprint(alpha, uv):
+    """Alpha texels read by `uv` (N x 2, plain addressing of `alpha`, repeat wrap).
+
+    `alpha` is the (h, w) alpha plane of the image the material samples. Used to decide whether a
+    material really needs blending: an atlas can keep a translucent part (wing film) in a corner that
+    no triangle of this material reads."""
+    h, w = alpha.shape
+    t = np.mod(np.asarray(uv, dtype=np.float64), 1.0)
+    return alpha[np.clip((t[:, 1] * h).astype(int), 0, h - 1), np.clip((t[:, 0] * w).astype(int), 0, w - 1)]

@@ -46,12 +46,18 @@ GEN_RANGES = {
 }
 
 
+ACTIVE_LOG = LOG
+
+
 def log(line: str) -> None:
     stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     text = f"[{stamp}] [nacional-modelos] {line}"
     print(text, flush=True)
     with open(LOG, "a", encoding="utf-8") as fh:
         fh.write(text + "\n")
+    if ACTIVE_LOG != LOG:
+        with open(ACTIVE_LOG, "a", encoding="utf-8") as fh:
+            fh.write(text + "\n")
 
 
 def load_targets() -> list[tuple[str, str, str, int]]:
@@ -94,13 +100,18 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", default="1,9", help="generations to convert, in this order")
     ap.add_argument("--limit", type=int, default=0, help="stop after N conversions (0 = no limit)")
-    ap.add_argument("--report-every", type=int, default=25)
+    ap.add_argument("--report-every", type=int, default=10)
     ap.add_argument("--min-free-gb", type=float, default=40.0)
     ap.add_argument("--clips", default="engine", choices=["engine", "all"])
     ap.add_argument("--packs-file", default="", help="only convert the packs listed in this file (one per line)")
     ap.add_argument("--force", action="store_true", help="convert even when the glTF already exists")
     ap.add_argument("--out-root", default=CACHE, help="output root (default: work/cache/pokemon_national)")
+    ap.add_argument("--log-file", default="", help="additional progress log file")
     args = ap.parse_args()
+
+    global ACTIVE_LOG
+    if args.log_file:
+        ACTIVE_LOG = os.path.abspath(args.log_file)
 
     os.makedirs(args.out_root, exist_ok=True)
     targets = load_targets()

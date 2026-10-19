@@ -18,7 +18,10 @@ import shutil
 import subprocess
 import sys
 
-PACKS = ("pm0118_00", "pm0118_01")  # Goldeen only: Krabby/Kingler (98, 99) have an Iris_lyc too but could not be verified in the game
+PACKS = (
+    "pm0118_00", "pm0118_01", "pm0238_00", "pm0241_00", "pm0251_00",
+    "pm0263_00_31", "pm0264_00_31", "pm0276_00_00",
+)
 CELL = 128
 
 
@@ -28,7 +31,18 @@ def magick(*args):
 
 def iris_path(src, pack):
     num = pack[:6]
-    return os.path.join(src, num, pack, "textures", f"{pack}_Iris_lyc.png")
+    candidates = [
+        os.path.join(src, num, pack, "textures", f"{pack}_Iris_lyc.png"),
+        os.path.join(src, num, pack, f"{pack}_Iris_lyc.png"),
+        os.path.join(src, pack.rsplit("_", 1)[0], pack, "textures", f"{pack}_Iris_lyc.png"),
+        os.path.join(src, pack.rsplit("_", 1)[0], pack, f"{pack}_Iris_lyc.png"),
+        os.path.join(src, pack.rsplit("_", 2)[0], pack, "textures", f"{pack}_Iris_lyc.png"),
+        os.path.join(src, pack.rsplit("_", 2)[0], pack, f"{pack}_Iris_lyc.png"),
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    return candidates[0]
 
 
 def fix(pack, root, src, dry):
