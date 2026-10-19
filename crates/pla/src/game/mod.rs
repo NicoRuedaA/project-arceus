@@ -38,6 +38,7 @@ pub mod npc;
 pub mod animation_lod;
 pub mod shadow_lod;
 pub mod npc_model;
+pub mod perf_log;
 pub mod render_look;
 pub mod input_map;
 pub mod interact;

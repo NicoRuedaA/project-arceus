@@ -1126,6 +1126,7 @@ fn configure_viewer(app: &mut App, setup: ViewerSetup) {
     app.add_plugins(pla::game::wild::WildLifecyclePlugin);
     app.add_plugins(pla::game::animation_lod::AnimationLodPlugin);
     app.add_plugins(pla::game::shadow_lod::ShadowLodPlugin);
+    app.add_plugins(pla::game::perf_log::PerfLogPlugin);
     app.add_plugins(pla::game::world_events::WorldEventsPlugin::from_args(
         &cli_args,
     ));
