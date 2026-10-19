@@ -35,6 +35,8 @@ pub mod dex_model_preview;
 pub mod national_spawn;
 pub mod nav_report;
 pub mod npc;
+pub mod animation_lod;
+pub mod shadow_lod;
 pub mod npc_model;
 pub mod render_look;
 pub mod input_map;
