@@ -24,30 +24,43 @@ TOKENS = (("smoke", 0.2), ("#tra_l_eye", 0.3), ("#tra_r_eye", 0.3))
 # Per-pack tokens for blocks the census lists with the `Transparent` shader (data) whose alpha value the game
 # computes at run time (PROBABLE grading): Spiritomb's smoke ball (`body_b_00`, `body_b_03`) hid the whole
 # Pokemon as an opaque pink disc; Origin Dialga's `gem_mesh` is a dark blue blob over the chest.
+# An optional third item asks the engine to cull one side (`pla_cull` material extras, `pokemon_anim::cull_from_extras`):
+# Spiritomb's face and green orbs sit INSIDE the smoke shell (0.15 m behind its near wall); with the near wall at 0.35 (round 1)
+# they were veiled pale discs (gen 4 round 2), so only the far wall is drawn, a purple backdrop behind them as in the
+# HOME render (PROBABLE look: the retail `Transparent` shader is not decoded).
 PACK_TOKENS = {
-    "pm0442_00_00": (("#body_b_00", 0.35), ("#body_b_03", 0.35)),
+    "pm0442_00_00": (("#body_b_00", 0.85, "front"), ("#body_b_03", 0.85, "front")),
     "pm0483_12_00": (("#body_b_01", 0.4),),
 }
 MARKER = ".effect_alpha.json"
 
 
-def alpha_for(name, pack=""):
+def rule_for(name, pack=""):
+    """(alpha, cull or None) of a material name, or None when no rule matches."""
     low = name.lower()
-    for token, alpha in PACK_TOKENS.get(pack, ()) + TOKENS:
-        if token in low:
-            return alpha
+    for rule in PACK_TOKENS.get(pack, ()) + TOKENS:
+        if rule[0] in low:
+            return rule[1], (rule[2] if len(rule) > 2 else None)
     return None
+
+
+def alpha_for(name, pack=""):
+    rule = rule_for(name, pack)
+    return rule[0] if rule else None
 
 
 def patch_gltf(doc, pack=""):
     """Patch `doc` in place; returns {material index: original material} for what changed."""
     changed = {}
     for i, mat in enumerate(doc.get("materials", [])):
-        alpha = alpha_for(mat.get("name", ""), pack)
-        if alpha is None or mat.get("alphaMode") == "BLEND":
+        rule = rule_for(mat.get("name", ""), pack)
+        if rule is None or mat.get("alphaMode") == "BLEND":
             continue
+        alpha, cull = rule
         changed[i] = json.loads(json.dumps(mat))
         mat["alphaMode"] = "BLEND"
+        if cull:
+            mat.setdefault("extras", {})["pla_cull"] = cull
         pbr = mat.setdefault("pbrMetallicRoughness", {})
         factor = pbr.get("baseColorFactor", [1.0, 1.0, 1.0, 1.0])
         pbr["baseColorFactor"] = [factor[0], factor[1], factor[2], alpha]

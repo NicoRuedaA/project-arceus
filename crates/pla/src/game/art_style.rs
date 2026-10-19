@@ -27,6 +27,7 @@
 use std::collections::HashMap;
 
 use bevy::asset::embedded_asset;
+use bevy::gltf::GltfMaterialExtras;
 use bevy::light::{NotShadowCaster, NotShadowReceiver};
 use bevy::mesh::skinning::SkinnedMesh;
 use bevy::mesh::MeshVertexBufferLayoutRef;
@@ -40,7 +41,7 @@ use bevy::shader::ShaderRef;
 
 use super::npc::NpcInstance;
 use super::player_anim::PlayerAnimState;
-use super::pokemon_anim::PokemonAnimState;
+use super::pokemon_anim::{cull_from_extras, PokemonAnimState};
 
 /// Embedded fragment shader of the banded material.
 pub const TOON_SHADER_PATH: &str = "embedded://pla/game/art_style_toon.wgsl";
@@ -479,7 +480,10 @@ fn apply_art_style(
         ),
     >,
     children: Query<&Children>,
-    meshes_q: Query<(&MeshMaterial3d<StandardMaterial>, &Mesh3d, Option<&SkinnedMesh>, Option<&Name>), Without<OutlineShell>>,
+    meshes_q: Query<
+        (&MeshMaterial3d<StandardMaterial>, &Mesh3d, Option<&SkinnedMesh>, Option<&Name>, Option<&GltfMaterialExtras>),
+        Without<OutlineShell>,
+    >,
     std_mats: Res<Assets<StandardMaterial>>,
     meshes: Res<Assets<Mesh>>,
     mut toon_mats: ResMut<Assets<ToonMaterial>>,
@@ -491,7 +495,7 @@ fn apply_art_style(
             HashMap::new();
         let mut converted = 0usize;
         for d in std::iter::once(root).chain(children.iter_descendants(root)) {
-            let Ok((mat, mesh3d, skin, name)) = meshes_q.get(d) else { continue };
+            let Ok((mat, mesh3d, skin, name, extras)) = meshes_q.get(d) else { continue };
             let Some(base) = std_mats.get(&mat.0) else { continue };
             let (toon_h, outline_h) = cache
                 .entry(mat.0.id())
@@ -517,7 +521,10 @@ fn apply_art_style(
                 .remove::<MeshMaterial3d<StandardMaterial>>()
                 .insert((MeshMaterial3d(toon_h), OriginalMaterial(mat.0.clone())));
             converted += 1;
-            if !settings.outlines {
+            // Shells a PLA fixer marked with one-sided culling (Rotom's glow rims, Spiritomb's smoke) are
+            // effects, not surfaces: an outline shell around them draws its dark back faces where the
+            // culled side was (Spiritomb's orbs turned into black discs).
+            if !settings.outlines || extras.is_some_and(|x| cull_from_extras(&x.value).is_some()) {
                 continue;
             }
             let (has_normals, has_morphs) = meshes

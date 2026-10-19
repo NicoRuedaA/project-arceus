@@ -52,5 +52,17 @@ class PatchTests(unittest.TestCase):
         d = {"materials": [{"name": "pm0442_00_00_body_b_mesh_shape#body_b_00-material"}]}
         self.assertEqual(fx.patch_gltf(json.loads(json.dumps(d))), {})
         self.assertEqual(list(fx.patch_gltf(d, "pm0442_00_00")), [0])
+
+    def test_spiritomb_smoke_keeps_only_its_far_wall(self):
+        d = {"materials": [{"name": "pm0442_00_00_body_b_mesh_shape#body_b_00-material"},
+                           {"name": "pm0483_12_00_gem_mesh_shape#body_b_01-material"}]}
+        fx.patch_gltf(d, "pm0442_00_00")
+        self.assertEqual(d["materials"][0]["extras"], {"pla_cull": "front"})
+        self.assertNotIn("extras", d["materials"][1])
+        d2 = {"materials": [{"name": "pm0483_12_00_gem_mesh_shape#body_b_01-material"}]}
+        fx.patch_gltf(d2, "pm0483_12_00")
+        self.assertNotIn("extras", d2["materials"][0], "Origin Dialga's gem has no cull rule")
+
+
 if __name__ == "__main__":
     unittest.main()

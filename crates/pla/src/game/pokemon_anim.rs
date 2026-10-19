@@ -10,7 +10,7 @@ use bevy::animation::graph::{AnimationGraph, AnimationGraphHandle, AnimationNode
 use bevy::animation::transition::AnimationTransitions;
 use bevy::animation::AnimationPlayer;
 use bevy::asset::LoadState;
-use bevy::gltf::Gltf;
+use bevy::gltf::{Gltf, GltfMaterialExtras};
 use bevy::prelude::*;
 use bevy::world_serialization::WorldAssetRoot;
 use std::collections::{HashMap, VecDeque};
@@ -340,6 +340,23 @@ fn spawn_scene(
     }
 }
 
+/// Culling a PLA catalogue fixer asked for in the glTF material extras (`{"pla_cull": "back"}` or
+/// `"front"`), instead of the double-sided default of Pokémon materials:
+/// * `back`: Rotom's inverted-hull glow shells (`.tools/fix_pla_outline_hull.py`): only the far wall
+///   draws, a rim around the silhouette; double-sided, the near wall hid the whole body. Also
+///   Spiritomb's orb cups, whose front walls face away and covered the yellow orb centres.
+/// * `front`: Spiritomb's smoke shell (`.tools/fix_pla_effect_alpha.py`): only the far wall draws, a
+///   backdrop behind the face and the orbs that sit inside the shell; drawn whole, it veiled them.
+pub fn cull_from_extras(json: &str) -> Option<bevy::render::render_resource::Face> {
+    use bevy::render::render_resource::Face;
+    let v = serde_json::from_str::<serde_json::Value>(json).ok()?;
+    match v.get("pla_cull")?.as_str()? {
+        "back" => Some(Face::Back),
+        "front" => Some(Face::Front),
+        _ => None,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn wire_players(
     mut commands: Commands,
@@ -350,7 +367,7 @@ fn wire_players(
     q: Query<(Entity, &PokemonAnimSource, Option<&PokemonBattleSlot>), (With<PokemonSceneSpawned>, Without<PokemonAnimState>)>,
     children: Query<&Children>,
     mut players: Query<&mut AnimationPlayer>,
-    mut mats: Query<&mut MeshMaterial3d<StandardMaterial>>,
+    mut mats: Query<(&mut MeshMaterial3d<StandardMaterial>, Option<&GltfMaterialExtras>)>,
     names: Query<(&Name, &Transform)>,
 ) {
     for (e, src, battle_slot) in &q {
@@ -389,13 +406,16 @@ fn wire_players(
             continue;
         };
 
-        // Double-sided materials (thin tail/ear sheets), as the static path did.
+        // Double-sided materials (thin tail/ear sheets), as the static path did. Shells a PLA
+        // fixer marked (`pla_cull` extras, see `cull_from_extras`) keep one side culled.
         for d in children.iter_descendants(e) {
-            if let Ok(mut m) = mats.get_mut(d) {
+            if let Ok((mut m, extras)) = mats.get_mut(d) {
+                let cull = extras.and_then(|x| cull_from_extras(&x.value));
                 if let Some(orig) = materials.get(&m.0) {
                     let mut c = orig.clone();
-                    c.cull_mode = None;
-                    c.double_sided = true;
+                    c.cull_mode = cull;
+                    // Back faces are lit with flipped normals unless only front faces remain.
+                    c.double_sided = cull != Some(bevy::render::render_resource::Face::Back);
                     m.0 = materials.add(c);
                 }
             }
@@ -667,6 +687,17 @@ impl Plugin for PokemonAnimPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cull_extras_are_recognised() {
+        use bevy::render::render_resource::Face;
+        assert_eq!(cull_from_extras(r#"{"pla_cull":"back"}"#), Some(Face::Back));
+        assert_eq!(cull_from_extras(r#"{"other":1,"pla_cull":"front"}"#), Some(Face::Front));
+        assert_eq!(cull_from_extras(r#"{"pla_cull":"none"}"#), None);
+        assert_eq!(cull_from_extras(r#"{"pla_cull":true}"#), None);
+        assert_eq!(cull_from_extras("{}"), None);
+        assert_eq!(cull_from_extras("not json"), None);
+    }
 
     #[test]
     fn playback_speed_matches_entity_to_clip() {
