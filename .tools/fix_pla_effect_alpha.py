@@ -21,22 +21,29 @@ import sys
 #  * `#tra_l_eye` / `#tra_r_eye`: the `Transparent`-shader glass covers of Paras' eyes (`tra_l_eye`, `tra_r_eye`); opaque
 #    they hid the real eyes behind two pale blue balls.
 TOKENS = (("smoke", 0.2), ("#tra_l_eye", 0.3), ("#tra_r_eye", 0.3))
+# Per-pack tokens for blocks the census lists with the `Transparent` shader (data) whose alpha value the game
+# computes at run time (PROBABLE grading): Spiritomb's smoke ball (`body_b_00`, `body_b_03`) hid the whole
+# Pokemon as an opaque pink disc; Origin Dialga's `gem_mesh` is a dark blue blob over the chest.
+PACK_TOKENS = {
+    "pm0442_00_00": (("#body_b_00", 0.35), ("#body_b_03", 0.35)),
+    "pm0483_12_00": (("#body_b_01", 0.4),),
+}
 MARKER = ".effect_alpha.json"
 
 
-def alpha_for(name):
+def alpha_for(name, pack=""):
     low = name.lower()
-    for token, alpha in TOKENS:
+    for token, alpha in PACK_TOKENS.get(pack, ()) + TOKENS:
         if token in low:
             return alpha
     return None
 
 
-def patch_gltf(doc):
+def patch_gltf(doc, pack=""):
     """Patch `doc` in place; returns {material index: original material} for what changed."""
     changed = {}
     for i, mat in enumerate(doc.get("materials", [])):
-        alpha = alpha_for(mat.get("name", ""))
+        alpha = alpha_for(mat.get("name", ""), pack)
         if alpha is None or mat.get("alphaMode") == "BLEND":
             continue
         changed[i] = json.loads(json.dumps(mat))
@@ -57,7 +64,7 @@ def fix_pack(folder, dry):
             continue
         path = os.path.join(folder, fname)
         doc = json.load(open(path, encoding="utf-8"))
-        changed = patch_gltf(doc)
+        changed = patch_gltf(doc, os.path.basename(os.path.normpath(folder)))
         if changed:
             patched[fname] = {str(k): v for k, v in changed.items()}
             if not dry:

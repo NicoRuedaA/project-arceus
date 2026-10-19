@@ -48,6 +48,9 @@ class PatchTests(unittest.TestCase):
             self.assertEqual(fx.restore_pack(str(pack)), 1)
             self.assertEqual(json.loads((pack / "a.gltf").read_text()), doc())
 
-
+    def test_pack_rule_hits_only_its_pack(self):
+        d = {"materials": [{"name": "pm0442_00_00_body_b_mesh_shape#body_b_00-material"}]}
+        self.assertEqual(fx.patch_gltf(json.loads(json.dumps(d))), {})
+        self.assertEqual(list(fx.patch_gltf(d, "pm0442_00_00")), [0])
 if __name__ == "__main__":
     unittest.main()
