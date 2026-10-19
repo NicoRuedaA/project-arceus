@@ -204,6 +204,11 @@ pub fn add_default_plugins(app: &mut App, asset_root: String, cfg: &AutomationCo
         .disable::<bevy::gilrs::GilrsPlugin>();
     if gpu {
         app.add_plugins(plugins);
+        // `PLA_GPU_PROFILE=1`: per-pass GPU and CPU times of the render graph, reported by `bench`
+        // as `gpu_passes` (milliseconds, average of the last frames).
+        if std::env::var_os("PLA_GPU_PROFILE").is_some() {
+            app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
+        }
     } else {
         app.add_plugins(plugins.set(bevy::render::RenderPlugin {
             render_creation: bevy::render::settings::WgpuSettings { backends: None, ..default() }.into(),
@@ -256,8 +261,46 @@ pub struct AutomationPlugin {
     pub gpu: bool,
 }
 
+/// `PLA_GPU_PROFILE=1` helper: which entities get a changed `Transform` every frame (each change
+/// makes Bevy recompute the transforms of the whole subtree). Prints a summary every 240 frames.
+#[allow(clippy::type_complexity)]
+fn report_changed_transforms(
+    changed: Query<(Option<&Name>, Has<bevy::animation::AnimationTargetId>, Has<Mesh3d>, Has<Children>), Changed<Transform>>,
+    total: Query<(), With<Transform>>,
+    mut frame: Local<u32>,
+    mut acc: Local<(u64, u64, std::collections::HashMap<String, u64>)>,
+) {
+    *frame += 1;
+    for (name, bone, _mesh, _children) in &changed {
+        acc.0 += 1;
+        if bone {
+            acc.1 += 1;
+        } else {
+            let key = name.map_or_else(|| "<unnamed>".to_string(), |n| n.as_str().chars().take(28).collect());
+            *acc.2.entry(key).or_default() += 1;
+        }
+    }
+    if *frame % 240 == 0 {
+        let n = 240.0;
+        let mut top: Vec<_> = acc.2.iter().collect();
+        top.sort_by(|a, b| b.1.cmp(a.1));
+        let top: Vec<String> = top.iter().take(14).map(|(k, v)| format!("{k}={:.1}", **v as f64 / n)).collect();
+        println!(
+            "[changed-transforms] per frame: total {:.0} (bones {:.0}) of {} entities with Transform; non-bone: {}",
+            acc.0 as f64 / n,
+            acc.1 as f64 / n,
+            total.iter().count(),
+            top.join(", ")
+        );
+        *acc = (0, 0, Default::default());
+    }
+}
+
 impl Plugin for AutomationPlugin {
     fn build(&self, app: &mut App) {
+        if std::env::var_os("PLA_GPU_PROFILE").is_some() {
+            app.add_systems(PostUpdate, report_changed_transforms);
+        }
         install_panic_hook(self.config.panic_file.clone());
         app.insert_resource(TimeUpdateStrategy::ManualDuration(FRAME_DT))
             .insert_resource(AutomationState {
@@ -1948,7 +1991,19 @@ fn bench(app: &mut App, ctx: &mut Ctx, frames: u32, warmup: u32) -> Value {
     let mut sorted = total.clone();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let mean = avg(&total);
+    let mut passes = serde_json::Map::new();
+    if let Some(store) = app.world().get_resource::<bevy::diagnostic::DiagnosticsStore>() {
+        for d in store.iter() {
+            let path = d.path().as_str();
+            if path.starts_with("render/") && (path.ends_with("/elapsed_gpu") || path.ends_with("/elapsed_cpu")) {
+                if let Some(v) = d.average() {
+                    passes.insert(path.trim_start_matches("render/").to_string(), json!(r2(v)));
+                }
+            }
+        }
+    }
     json!({
+        "gpu_passes": passes,
         "frames": frames,
         "warmup": warmup,
         "frame_ms_avg": r2(mean),
