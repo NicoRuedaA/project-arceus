@@ -10,3 +10,4 @@ Pool: ledger rows still carrying only the deterministic mechanical rationale, mi
 | `dec330` | 6-10 | 2457 | 43 | 107,389 / 22,891 |
 | `dec331` | 11-15 | 2418 | 82 | 109,807 / 20,473 |
 | `dec332` | 16-20 | 2477 | 23 | 117,225 / 13,055 (merged with parallel rounds) |
+| `dec333` | 21-22 | 995 | 5 | 120,575 / 9,705 (merged with parallel rounds) |
