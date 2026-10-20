@@ -1,6 +1,6 @@
 # D4 quality spot-check of depth rounds 45-51 (C1) and 60-66 (C2)
 
-Date: 2026-10-20. Scope: update-v262144 `main`, 6,542 accepted upgrades (C1 r45-r51: 3,398; C2 r60-r66: 3,144 ... pooled over 14 rounds) including the library-owned families (NET, HAVOK, WWISE, NN_SDK, LUA_CORE) and PLT stubs. Metadata only; the ledger was NOT changed. Raw data stays in the git-ignored `work/d4/spotcheck2/`; scripts are `scripts/d4_spotcheck2_{sample,build,validate,analyze}.py`. Same method as [d4-quality-spotcheck.md](d4-quality-spotcheck.md).
+Date: 2026-10-20. Scope: update-v262144 `main`, 6,542 accepted upgrades (C1 r45-r51: 3,414; C2 r60-r66: 3,128) including the library-owned families (NET, HAVOK, WWISE, NN_SDK, LUA_CORE) and PLT stubs. Metadata only; the ledger was NOT changed. Raw data stays in the git-ignored `work/d4/spotcheck2/`; scripts are `scripts/d4_spotcheck2_{sample,build,validate,analyze}.py`. Same method as [d4-quality-spotcheck.md](d4-quality-spotcheck.md).
 
 ## Method
 - Fixed seed `20261021`. 300 real accepted functions, stratified by round (21-22 per round, 14 rounds), oversampling: >=5 instructions (84 sampled), library-owned (276; the pool is mostly library code), PLT stubs (24), and medium-confidence author records (15; no low-confidence record was accepted).
