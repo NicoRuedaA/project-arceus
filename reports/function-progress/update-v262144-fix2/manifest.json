@@ -40,7 +40,7 @@
   "evidence_ledger": {
     "analyzed_documented_function_count": 153476,
     "path": "sheets/re/function_progress_evidence.tsv",
-    "sha256": "c209cd60ac2e5563984798c73f17c4ad4c96bd31a3d41f9adb67357d1ae47d80"
+    "sha256": "a71690636bb0085c62253b602b0e50188cf2be1679bb75312fdb99aed8c5579b"
   },
   "executable_text_scope": {
     "bytes": 53106320,
@@ -68,8 +68,8 @@
   },
   "outputs": {
     "analysis.png": "5930f676955c60b5f38685d06ab0fa1150cef7788cda321fa96ce9b419554bc1",
-    "function-progress.tsv": "28f4372ef73c747b8d4859ab1f0804d6d7fda5ed9935252f87cdc79d350d267a",
-    "index.html": "baf92b516ed2b8ac53b87a3fab35ffb1a36c811731388e8bc166fb09c7e7f397",
+    "function-progress.tsv": "fc3fb735fa12ec8c39ec45619602f6bfb6e801c19ac23829f65d8c67673d4a52",
+    "index.html": "79b6334e760856277229e9bbb095bfe7259da9391c053ae68f1429d52c879515",
     "port.png": "f8fdf34ee8c583bb6fa3055b03b6e35af076aa80ee650da6fe569d16a4224179"
   },
   "rust_source_fingerprint": {
