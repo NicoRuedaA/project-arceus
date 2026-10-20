@@ -4,4 +4,5 @@ Scope: update-v262144 `main`. Metadata only (decisions `dec380` onward); summari
 
 | Decision | Rounds | Upgraded | Held |
 |---|---|---|---|
-| `dec380` | 100-104 | 2374 | 9 |
+| `dec380` | 100-104 | 2382 | 1 |
+| `dec381` | 105-106 | 503 | 0 |
