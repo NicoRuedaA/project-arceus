@@ -8,3 +8,4 @@ Pool: ledger rows still carrying only the deterministic mechanical rationale, mi
 |---|---|---|---|---|
 | `dec327` | 1-5 | 2476 | 24 | 104,932 / 25,348 |
 | `dec330` | 6-10 | 2457 | 43 | 107,389 / 22,891 |
+| `dec331` | 11-15 | 2418 | 82 | 109,807 / 20,473 |
