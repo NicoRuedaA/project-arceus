@@ -2,7 +2,7 @@
 
 **English** · [Español](PLAN-DE-CIERRE.md)
 
-Detailed phase-by-phase status and technical evidence from raw game dumps to a playable port. For the high-level summary, see [README.md](../README.md#completion-plan).
+Detailed phase-by-phase status and technical evidence from raw game dumps to a playable port. For the high-level summary, see [PROGRESS.md](PROGRESS.md).
 
 ## Completion plan
 

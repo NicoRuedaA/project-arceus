@@ -2,7 +2,7 @@
 
 [English](COMPLETION-PLAN.md) · **Español**
 
-Estado fase por fase y evidencia técnica detallada desde los volcados brutos del juego hasta un port jugable. Para el resumen general, véase [README.es.md](../README.es.md#tabla-de-cierre).
+Estado fase por fase y evidencia técnica detallada desde los volcados brutos del juego hasta un port jugable. Para el resumen general, véase [PROGRESS.es.md](PROGRESS.es.md).
 
 ## Tabla de cierre
 
