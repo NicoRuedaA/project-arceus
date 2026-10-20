@@ -15,7 +15,7 @@ For Pokémon Legends: Arceus update v262144 (`pk2.nsz`, SHA-256 `f68eecf0e5a207f
 
 ## Completion plan table
 
-Keep the **Completion plan** table in [`README.md`](README.md) updated as part of every task. It is the single human-readable status source from the raw game dumps to a playable port, broken down per part (`main` update, `main` base, `sdk`, `subsdk0`, `subsdk1`, `rtld`, RomFS data, Rust port).
+Keep the **Completion plan** table in [`docs/PROGRESS.md`](docs/PROGRESS.md) (Spanish: [`docs/PROGRESS.es.md`](docs/PROGRESS.es.md)) updated as part of every task. The README files keep only a compact summary (the progress-bars block, regenerated with `python3 .tools/readme_progress_bars.py`) and link there. The table is the single human-readable status source from the raw game dumps to a playable port, broken down per part (`main` update, `main` base, `sdk`, `subsdk0`, `subsdk1`, `rtld`, RomFS data, Rust port).
 
 - Update the affected rows when a phase advances: extract, inventory, export, index, data, analysis, implementation, behaviour verification, binary matching, playable port.
 - Count percentages from real files and functions. Use `Unknown` in English and `Desconocido` in Spanish when a denominator is unknown; never invent one. Reserve `N/A` / `No aplica` for table parts that do not apply. Mark qualitative estimates with `~`.
@@ -23,7 +23,7 @@ Keep the **Completion plan** table in [`README.md`](README.md) updated as part o
 - Base v0 `main` is out of scope for the port; record its state but never treat it as pending port work.
 - This table is not the evidence registry: exported or indexed counts are not analysis, behaviour or binary-match evidence (see above).
 - Never describe the update as a standalone program or as the port target. The game is **base + update**; the update is a **patch** that does not run on its own, and the base is mandatory. The port target is the base + update overlay.
-- Keep [`README.md`](README.md) and [`README.es.md`](README.es.md) in sync and cross-linked: every status/figure change is updated in both (English is the default artifact language; Spanish uses a neutral register).
+- Keep [`README.md`](README.md) and [`README.es.md`](README.es.md) short and in sync and cross-linked, and likewise `docs/PROGRESS.md` and `docs/PROGRESS.es.md`: every status/figure change is updated in both languages (English is the default artifact language; Spanish uses a neutral register).
 
 ## Visual before/after evidence
 

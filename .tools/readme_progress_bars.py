@@ -3,7 +3,7 @@
 
 The bars sit between `<!-- progress-bars:start -->` and `<!-- progress-bars:end -->`.
 The analysis phase is read from the evidence ledger, split by category; the other values are measured
-facts kept in PHASES below and must be edited together with the Completion plan table.
+facts kept in PHASES below and must be edited together with the Completion plan table in docs/PROGRESS.md (and docs/PROGRESS.es.md).
 
 Usage: python3 .tools/readme_progress_bars.py [--check]
 """
@@ -117,10 +117,10 @@ def lines(lang):
 
 def render(lang):
     es = lang == "es"
-    cap = ("Las barras miden lo que está cuantificado en cada fase; el denominador completo de varias fases es desconocido (véase la Tabla de cierre). "
+    cap = ("Las barras miden lo que está cuantificado en cada fase; el denominador completo de varias fases es desconocido (véase la Tabla de cierre en docs/PROGRESS.es.md). "
            "La fase 2 mide bytes de código cubiertos por funciones, no número de funciones; en la fase 6 solo la primera línea son funciones leídas y entendidas; las otras tres se cuentan aparte."
            if es else
-           "Bars show what is actually quantified in each phase; several phases have an unknown full denominator (see the Completion plan). "
+           "Bars show what is actually quantified in each phase; several phases have an unknown full denominator (see the Completion plan in docs/PROGRESS.md). "
            "Phase 2 measures executable bytes covered by functions, not a function count; in phase 6 only the first line is functions read and understood; the other three are counted separately.")
     return "\n".join([START, "```text", *lines(lang), "```", "", f"*{cap}*", END])
 
