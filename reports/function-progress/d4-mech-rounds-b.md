@@ -6,3 +6,4 @@ Scope: update-v262144 `main`. Metadata only (decisions `dec350` onward); summari
 |---|---|---|---|
 | `dec350` | 23-27 | 2470 | 30 |
 | `dec351` | 28-32 | 2471 | 29 |
+| `dec352` | 33-37 | 2355 | 145 |
