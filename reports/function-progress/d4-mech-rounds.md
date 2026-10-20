@@ -7,3 +7,4 @@ Pool: ledger rows still carrying only the deterministic mechanical rationale, mi
 | Decision | Rounds | Upgraded | Held | Read / mechanical after |
 |---|---|---|---|---|
 | `dec327` | 1-5 | 2476 | 24 | 104,932 / 25,348 |
+| `dec330` | 6-10 | 2457 | 43 | 107,389 / 22,891 |
