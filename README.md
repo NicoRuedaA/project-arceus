@@ -34,9 +34,9 @@ Last updated: 2026-10-17. Full detail: [`docs/PROGRESS.md`](docs/PROGRESS.md).
  4 gameDB index                     ████████████████████    100 %   of the exported C files
  5 Data (RomFS)                     ████████████████████    100 %   extracted and overlaid
      · interpretation               ░░░░░░░░░░░░░░░░░░░░    3.0 %   14/466 modified files compared inside
- 6 Analysis: read by analysts       █████████████████░░░   89.3 %   136,979 of 153,476 functions
+ 6 Analysis: read by analysts       █████████████████░░░   89.8 %   137,747 of 153,476 functions
      · classified by program        ░░░░░░░░░░░░░░░░░░░░    0.3 %   532: tiny functions; says what they do, not what they are for
-     · copied from identical        █░░░░░░░░░░░░░░░░░░░    9.9 %   15,164: exact copies of an audited function
+     · copied from identical        █░░░░░░░░░░░░░░░░░░░    9.4 %   14,396: exact copies of an audited function
      · import stubs                 ░░░░░░░░░░░░░░░░░░░░    0.5 %   801: identified from link data
  7 Implementation (port)            ░░░░░░░░░░░░░░░░░░░░   <0.1 %   38 of 153,476 with a partial implementation
  8 Behaviour verification           ░░░░░░░░░░░░░░░░░░░░      0 %   0 of 153,476

@@ -35,9 +35,9 @@ localizadas). Última actualización: 2026-10-17. Detalle completo:
  4 Índice gameDB                    ████████████████████    100 %   de los archivos C exportados
  5 Datos (RomFS)                    ████████████████████    100 %   extraídos y superpuestos
      · interpretación               ░░░░░░░░░░░░░░░░░░░░    3,0 %   14/466 modificados comparados por dentro
- 6 Análisis: leídas por analistas   █████████████████░░░   89,3 %   136.979 de 153.476 funciones
+ 6 Análisis: leídas por analistas   █████████████████░░░   89,8 %   137.747 de 153.476 funciones
      · clasificadas por el programa ░░░░░░░░░░░░░░░░░░░░    0,3 %   532: funciones diminutas; dice qué hacen, no para qué sirven
-     · copiadas de idénticas        █░░░░░░░░░░░░░░░░░░░    9,9 %   15.164: copias exactas de una función auditada
+     · copiadas de idénticas        █░░░░░░░░░░░░░░░░░░░    9,4 %   14.396: copias exactas de una función auditada
      · centralitas de importación   ░░░░░░░░░░░░░░░░░░░░    0,5 %   801: identificadas con los datos de enlace
  7 Implementación (port)            ░░░░░░░░░░░░░░░░░░░░   <0,1 %   38 de 153.476 con implementación parcial
  8 Verificación de conducta         ░░░░░░░░░░░░░░░░░░░░      0 %   0 de 153.476
