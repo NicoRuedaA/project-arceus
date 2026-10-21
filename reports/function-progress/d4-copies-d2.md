@@ -8,3 +8,4 @@ Scope: update-v262144 `main`. Metadata only (decisions `dec390` onward); summari
 | `dec391` | 203-206 | 1081 | 0 |
 | `dec392` | 207-210 | 768 | 51 |
 | `dec393` | 211-215 | 785 | 4 |
+| `dec394` | 216-218 | 381 | 0 |
