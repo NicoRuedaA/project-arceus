@@ -1564,7 +1564,7 @@ def write_failure_placeholders(output_dir: Path, reason_code: str) -> None:
     _atomic_write_bytes(output_dir / "port.png", placeholder)
     _write_json(output_dir / STATUS_FILE, {
         "format": "function-progress-generation-status/v1",
-        "build": BUILD,
+        "build": output_dir.name,
         "state": "stale",
         "reason_code": reason_code,
         "message": "Generation failed; report artifacts at this path are stale and must not be used as current.",
@@ -1649,6 +1649,9 @@ def run_generation(root: Path, build: str = BUILD, output_dir: Path | None = Non
             raise
         if isinstance(error, GenerationError):
             raise
+        if isinstance(error, FileNotFoundError):
+            missing_path = error.filename or "unknown input"
+            raise GenerationError(f"Required generation input is missing: {missing_path}") from error
         raise GenerationError("Report generation failed; the output path is marked stale") from error
 
 
