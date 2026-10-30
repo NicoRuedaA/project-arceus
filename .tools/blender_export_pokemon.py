@@ -1076,6 +1076,13 @@ def fix_importer_offsets(primary):
     return fixed
 
 
+def used_materials(obj):
+    """Names of the materials the faces of `obj` really use (every object of a Let's Go pack lists all slots)."""
+    mats = obj.data.materials
+    return sorted({mats[p.material_index].name for p in obj.data.polygons
+                   if p.material_index < len(mats) and mats[p.material_index]})
+
+
 def drop_mode_meshes(stem):
     """Drop the alternate-state meshes (see `model_rules`): the engine would draw them all at once."""
     dropped = []
@@ -1084,7 +1091,8 @@ def drop_mode_meshes(stem):
         [(o.name, len(o.data.vertices), local_bounds(o)) for o in meshes], stem))
     for o in meshes:
         if (model_rules.is_mode_mesh(o.name, stem) or o.name in eye_dupes
-                or model_rules.is_mode_mesh_by_bones(stem, skin_bones(o))):
+                or model_rules.is_mode_mesh_by_bones(stem, skin_bones(o))
+                or model_rules.is_effect_only_mesh(used_materials(o))):
             dropped.append(model_rules.short_mesh_name(o.name, stem))
             bpy.data.objects.remove(o, do_unlink=True)
     if dropped:

@@ -136,7 +136,26 @@ def duplicate_eye_shells(meshes, stem=""):
 # body, `EffGcloud01` a spread wing, `OpenWingB*` the folded hind wings), so the alternate-state meshes are found by
 # the bones they are skinned to. Ninjask: FeelerB/FeelerC carry the spread wings (animated by the idle clip),
 # FeelerD/FeelerE the folded wings (no idle track) that the game hides while it flies.
-MODE_MESH_BONES = {"pm0291_00": re.compile(r"^[LR]Feeler[DE]$")}
+# Samurott (503): each seamitar exists twice, sheathed on a foreleg (`*_sword_a_mesh`, bone `*_feeler_b_02`) and
+# drawn (`*_sword_b_mesh`, bones `*_feeler_a_01/02`, raised by the attack clips); in the idle pose the drawn pair lies
+# folded on the ground 1.5 m in front of it (in-game shot, gen5 triage). The official look has them sheathed.
+MODE_MESH_BONES = {
+    "pm0291_00": re.compile(r"^[LR]Feeler[DE]$"),
+    "pm0503_00_00": re.compile(r"^(?:left|right)_feeler_a_\d+$"),
+}
+
+
+# Move-effect materials drawn as a shell around the body: Victini's (494) `AuraEf1` (mesh `TraGroup`, skinned to the ears
+# and head). Its colour texture is black in every texel (RGB 0, the alpha draws a flame shape) and the graph's emission
+# is colour x emission mask = black, so the engine drew a black flame over the ears; the official look has no aura
+# (the game shows it as a move effect). The only `AuraEf` material in the collection (2026-10-20 scan).
+EFFECT_MATERIAL_RX = re.compile(r"^(?:simple_)?auraef\d*(?:\.\d+)?$", re.I)
+
+
+def is_effect_only_mesh(material_names):
+    """True when every material of the mesh is a move-effect material (`EFFECT_MATERIAL_RX`)."""
+    names = [m for m in material_names if m]
+    return bool(names) and all(EFFECT_MATERIAL_RX.match(m) for m in names)
 
 
 def is_mode_mesh_by_bones(stem, bones):

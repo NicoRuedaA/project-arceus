@@ -143,6 +143,9 @@ def restore_pack(folder):
 
 
 def main(argv):
+    if "-h" in argv or "--help" in argv:
+        print(__doc__)  # never fall through to the default root (it patches the live catalogue)
+        return
     def arg(name, default=None):
         return argv[argv.index(name) + 1] if name in argv else default
 

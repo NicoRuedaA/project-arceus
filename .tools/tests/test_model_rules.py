@@ -80,6 +80,20 @@ class ModeMeshTests(unittest.TestCase):
         self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0291_00", {"Spine", "LFeelerD"}))
         self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0292_00", {"LFeelerD"}))      # other packs
 
+    def test_victini_aura_is_an_effect_only_mesh(self):
+        self.assertTrue(model_rules.is_effect_only_mesh(["AuraEf1"]))
+        self.assertTrue(model_rules.is_effect_only_mesh(["AuraEf1.003"]))
+        self.assertTrue(model_rules.is_effect_only_mesh(["simple_auraef1.003"]))   # after the material rebuild
+        self.assertFalse(model_rules.is_effect_only_mesh(["AuraEf1", "BodyA"]))    # mixed mesh kept
+        self.assertFalse(model_rules.is_effect_only_mesh(["smoke"]))
+        self.assertFalse(model_rules.is_effect_only_mesh([]))
+
+    def test_samurott_drawn_seamitars_are_mode_meshes(self):
+        self.assertTrue(model_rules.is_mode_mesh_by_bones("pm0503_00_00", {"left_feeler_a_01", "left_feeler_a_02"}))
+        self.assertTrue(model_rules.is_mode_mesh_by_bones("pm0503_00_00", {"right_feeler_a_02"}))
+        self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0503_00_00", {"left_feeler_b_02"}))   # sheathed
+        self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0502_00_00", {"left_feeler_a_01"}))
+
     def test_castform_opaque_twin_head(self):
         head = (-0.1156, 0.123, -0.1156, 0.1156, 0.3543, 0.1156)
         face = (-0.0912, 0.1431, -0.0922, 0.0912, 0.314, 0.0922)
