@@ -7,6 +7,7 @@ import math
 import struct
 import sys
 import tempfile
+import os
 import unittest
 from pathlib import Path
 
@@ -79,6 +80,42 @@ class ModeMeshTests(unittest.TestCase):
         self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0291_00", {"LFeelerB"}))      # spread wing
         self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0291_00", {"Spine", "LFeelerD"}))
         self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0292_00", {"LFeelerD"}))      # other packs
+
+    def test_metal_darkening_only_for_neutral_tints(self):
+        self.assertAlmostEqual(model_rules.metal_diffuse_scale(0.9, (0.4, 0.34, 0.4, 1.0)), 0.1, places=6)  # Grumpig
+        self.assertEqual(model_rules.metal_diffuse_scale(1.0, (0.101, 0.517, 0.839, 1.0)), 1.0)  # Vanillish ice
+        self.assertEqual(model_rules.metal_diffuse_scale(0.5, (0.4, 0.4, 0.4, 1.0)), 1.0)        # below threshold
+        self.assertEqual(model_rules.metal_diffuse_scale(None, (0.4, 0.4, 0.4, 1.0)), 1.0)
+
+    def test_zekrom_and_black_kyurem_armour_alpha_is_not_opacity(self):
+        self.assertTrue(model_rules.alpha_is_not_opacity("pm0644_00_00", "body_b_02"))
+        self.assertTrue(model_rules.alpha_is_not_opacity("pm0646_13_00", "body_b_01.003"))
+        self.assertFalse(model_rules.alpha_is_not_opacity("pm0646_13_00", "lightning"))
+        self.assertFalse(model_rules.alpha_is_not_opacity("pm0646_11_00", "body_b_01"))   # White/normal Kyurem untouched
+
+    def test_pidove_folded_wings_are_mode_meshes(self):
+        self.assertTrue(model_rules.is_mode_mesh_by_bones("pm0519_00", {"LWingClose", "LWingClose1"}))
+        self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0519_00", {"RArm", "RForeArm", "RHand"}))
+        self.assertFalse(model_rules.is_mode_mesh_by_bones("pm0520_00", {"LWingClose1", "LWingClose2"}))  # Tranquill
+
+    def test_fire_layer_colour_only_for_listed_materials(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "textures"))
+            open(os.path.join(d, "textures", "pm0555_12_31_BodyB_lyc.png"), "wb").close()
+            self.assertTrue(model_rules.fire_layer_texture(d, "pm0555_12_31", "bodyb").endswith("BodyB_lyc.png"))
+            self.assertIsNone(model_rules.fire_layer_texture(d, "pm0555_12_31", "bodya"))
+            self.assertIsNone(model_rules.fire_layer_texture(d, "pm0555_11", "bodyb"))
+
+    def test_cofagrigus_shell_is_back_culled(self):
+        self.assertTrue(model_rules.cull_back_mesh("pm0563_00_00", "pm0563_00_00_shell_mesh_shape"))
+        self.assertFalse(model_rules.cull_back_mesh("pm0563_00_00", "pm0563_00_00_body_mesh_shape"))
+        self.assertFalse(model_rules.cull_back_mesh("pm0562_00_00", "pm0562_00_00_shell_mesh_shape"))
+
+    def test_sampled_animation_only_for_listed_packs(self):
+        self.assertTrue(model_rules.needs_sampled_animation("pm0609_00_00"))
+        self.assertFalse(model_rules.needs_sampled_animation("pm0609_51_00"))
+        self.assertFalse(model_rules.needs_sampled_animation("pm0001_00_00"))
 
     def test_victini_aura_is_an_effect_only_mesh(self):
         self.assertTrue(model_rules.is_effect_only_mesh(["AuraEf1"]))

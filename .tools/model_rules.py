@@ -7,6 +7,7 @@ carry no visibility data and the engine shows every mesh, so the alternates over
 the `X` mesh: same vertices, no material. Drawn as geometry they are a second untextured shell on top of the real one.
 """
 
+import os
 import re
 
 MODE_MESH_RX = re.compile(
@@ -62,6 +63,23 @@ def uniform_body_alpha_is_opaque(material_name, alpha_mean, alpha_std):
 # pearls are Metallic 0.8-0.9 with a mid-grey layer colour and are black pearls in the game; Spoink's pearl
 # (Metallic 0.5-0.7) is plain pink. PROBABLE grading (threshold between those two data points).
 METAL_DARK_MIN = 0.75
+
+# ...but only for a near-neutral metal tint. A metal reflects its surroundings tinted by its base colour (PBR: F0 =
+# base colour), so a grey metal shows the dark surroundings while a strongly coloured one keeps its colour.
+# Vanillish (583) / Vanilluxe (584) ice: Metallic 1.0, layer 1 (0.10, 0.52, 0.84), light blue in HOME and the
+# artwork; with the darkening it was drawn black (gen 5 round). Grumpig pearls (0.40, 0.34, 0.40): saturation 0.15;
+# the ice: 0.88. PROBABLE threshold between those data points.
+METAL_TINT_SATURATION_MAX = 0.5
+
+
+def metal_diffuse_scale(metallic, rgb):
+    """Diffuse factor for a flat layer-1 material (see `METAL_DARK_MIN`): 1 - metallic for strong, near-neutral metals."""
+    metallic = float(metallic or 0.0)
+    if metallic < METAL_DARK_MIN:
+        return 1.0
+    hi, lo = max(rgb[:3]), min(rgb[:3])
+    saturation = (hi - lo) / hi if hi > 0 else 0.0
+    return 1.0 if saturation > METAL_TINT_SATURATION_MAX else 1.0 - metallic
 
 
 # Spinda's four spot layers (`APatch`..`DPatch`): head-surface copies whose UV charts belong to the `Pachi?_col` spot
@@ -142,7 +160,83 @@ def duplicate_eye_shells(meshes, stem=""):
 MODE_MESH_BONES = {
     "pm0291_00": re.compile(r"^[LR]Feeler[DE]$"),
     "pm0503_00_00": re.compile(r"^(?:left|right)_feeler_a_\d+$"),
+    # Pidove (519, Let's Go pack, names shuffled like Ninjask: `BodySkin` / `LCloseWingSkin` are the folded wings,
+    # `EffGcloud01` the body): folded wings on `[LR]WingClose*` (constant in the engine idle `fi01_wait01`, animated
+    # only by the battle idle) drawn together with the arm wings `[LR]Arm/ForeArm/Hand` that the idle animates.
+    "pm0519_00": re.compile(r"^[LR]WingClose\d*$"),
 }
+
+
+# Packs whose colour-texture alpha is NOT opacity for some materials. The source graph wires `AlbedoAlpha` to the
+# BSDF alpha of every material, but the game decides transparency per shader (flag not present in the `.blend`).
+# Zekrom (644) `body_b_*` (wings, tail generator, armour) and Black Kyurem (646 form 1, `pm0646_13_00`) `body_b_*`
+# (Zekrom-like armour, ice wings, tubes): `body_b_alb.png` alpha is a sparse feature mask (Zekrom: 0 in 100 % of
+# the texels its triangles read, Black Kyurem 83-100 %); exported BLEND these parts vanished in the game (gen 5
+# AFTER shots), the HOME renders and artwork show them solid. Older exports were opaque through a name rule that
+# D24 removed. Matched on the material base name (shiny `.NNN` copies included).
+ALPHA_NOT_OPACITY = {
+    "pm0644_00_00": re.compile(r"^body_b_\d+$"),
+    "pm0646_13_00": re.compile(r"^body_b_\d+$"),
+}
+
+
+def alpha_is_not_opacity(stem, material_base):
+    """True when the colour-texture alpha of material `material_base` in pack `stem` must not drive opacity."""
+    rx = ALPHA_NOT_OPACITY.get(stem)
+    return bool(rx and rx.match(material_base.split(".")[0].lower()))
+
+
+# `_col` flame materials whose fire colours live in an unwired `<pack>_<Material>_lyc.png` layer-colour texture
+# (same size as the `_col` image, so the same UV layout). Galarian Zen Darmanitan (555 form 3, `pm0555_12_31`)
+# `BodyB` (the head flame, mesh `EffGcloud01` on the `Horn*` bones): `BodyB_col` is a pale-yellow flame silhouette
+# (RGB ~(0.95, 0.93, 0.6) where alpha = 1) and `BodyB_lyc` holds the red/orange/yellow fire strip; HOME and the
+# artwork show a red-orange flame with a yellow core. The colour is exported as col x lyc in linear light (the
+# shader's layer multiply; PROBABLE, the in-game scroll of the strip is not decoded). Other packs with unwired
+# non-eye `_lyc` textures (77_31 78_31 140 347 494 525 526 555_11 569_81 601 605 606 631; 2026-10-20 scan) are not
+# listed: their layer relation was not verified (555_11: `_col` 256x256 vs `_lyc` 256x512).
+FIRE_LAYER_COLOUR = {"pm0555_12_31": ("bodyb",)}
+
+
+def fire_layer_texture(pack_dir, stem, material_base):
+    """Path of the `_lyc` fire texture to multiply into material `material_base` of pack `stem`, or None."""
+    if material_base.lower() not in FIRE_LAYER_COLOUR.get(stem, ()):
+        return None
+    tex = os.path.join(pack_dir, "textures")
+    for name in sorted(os.listdir(tex)) if os.path.isdir(tex) else ():
+        if name.lower() == f"{stem}_{material_base}_lyc.png".lower():
+            return os.path.join(tex, name)
+    return None
+
+
+# Inverted-hull shells of converted packs that the game draws single-sided (only the far wall, a dark rim behind
+# the body). Cofagrigus (563) `shell_mesh`: 97 % of its normals point inward, it encloses the gold coffin and the face
+# (`body_mesh`, `face_a/b_mesh`) and carries the near-black `body_b_00` layer; forced double-sided by the engine its
+# near wall covered the coffin (dark-grey coffin in the gen 5 triage, gold in HOME/artwork). Exported with back-face
+# culling through the same `pla_cull` extras as the PLA outline hulls (D42). A gen 5 scan found other inside-out
+# meshes only as the back halves of paired front/back cards (Litwick, Lampent, Chandelure, Braviary, Munna, Kyurem
+# tail), which cover nothing.
+CULL_BACK_MESHES = {"pm0563_00_00": re.compile(r"(?:^|_)shell_mesh")}
+
+
+def cull_back_mesh(stem, node_name):
+    """True when mesh node `node_name` of pack `stem` must be exported back-face culled (`CULL_BACK_MESHES`)."""
+    rx = CULL_BACK_MESHES.get(stem)
+    return bool(rx and rx.search(node_name))
+
+
+# Packs exported with sampled animation (`export_force_sampling`): bones that do not inherit their parent's scale
+# (`inherit_scale` != FULL) below an ancestor with animated scale. glTF nodes always inherit the parent scale, so the
+# raw local channels compound the scales. Chandelure (609) flame chain `feeler_a_01..11` (inherit NONE, scale keys up
+# to 2x): an idle-pose sheet 1.2 x 1.8 m wide where Blender evaluates a 0.4 m wisp; sampled, the glTF matches
+# Blender's evaluation (mid-clip x 0.05..0.37 vs 0.08..0.37). The same bone set-up exists in 451 of 733 source packs
+# of species 1-649 (scan 2026-10-30, `work/cache/g5/samplescan_hits.tsv`): sampling all of them would change every
+# reviewed clip, so it is enabled per pack once a visible defect is confirmed.
+SAMPLED_ANIMATION_PACKS = frozenset({"pm0609_00_00"})
+
+
+def needs_sampled_animation(stem):
+    """True when pack `stem` is exported with sampled animation (`SAMPLED_ANIMATION_PACKS`)."""
+    return stem in SAMPLED_ANIMATION_PACKS
 
 
 # Move-effect materials drawn as a shell around the body: Victini's (494) `AuraEf1` (mesh `TraGroup`, skinned to the ears
