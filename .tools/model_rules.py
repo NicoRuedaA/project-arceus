@@ -21,8 +21,28 @@ def short_mesh_name(name, stem):
     return name[len(stem) + 1:] if name.startswith(stem + "_") else name
 
 
+# Per-pack alternate-state meshes of converted packs, by mesh name (short name, without the `<stem>_` prefix). The pack
+# carries both states and no visibility data, so the engine drew them at once (D8 class). Generation 6, each checked
+# with an in-game A/B (`work/compare/gen6/ab`):
+#  * Chesnaught (652) `shield_a/b_mesh`: the Spiky Shield shell halves (on `*_feeler_d/e/h` bones, constant in the
+#    idle) drawn as two huge green ovals in front of the body; without them the arms look as in HOME.
+#  * Helioptile (694) `closeear_mesh` and `openear_mesh`: the folded and spread frills drawn over the drooping ears
+#    (`droopear_mesh`, the HOME look).
+#  * Heliolisk (695) `close_mesh` + `close_eye_mesh`: the closed frill shell sits over the face (no eyes visible); the
+#    open state (`open_mesh`, `open_eye_mesh`) shows the black head with both eyes as in HOME.
+#  * Froakie (656) `eyelid_mesh`: the closed lids (no lid tracks in the idle) covered the yellow eyes and their pupils.
+PACK_MODE_MESHES = {
+    "pm0722_00_00": re.compile(r"^shield_[ab]_mesh$"),
+    "pm0731_00_00": re.compile(r"^(?:closeear|openear)_mesh$"),
+    "pm0732_00_00": re.compile(r"^close(?:_eye)?_mesh$"),
+    "pm0723_00_00": re.compile(r"^eyelid_mesh$"),
+}
+
+
 def is_mode_mesh(name, stem=""):
-    return bool(MODE_MESH_RX.search(short_mesh_name(name, stem)))
+    short = short_mesh_name(name, stem)
+    rx = PACK_MODE_MESHES.get(stem)
+    return bool(MODE_MESH_RX.search(short) or (rx and rx.search(short)))
 
 
 # Packs whose eye atlas (256x512, 2 columns x 4 rows of expression cells) holds a *different*
@@ -216,6 +236,45 @@ def fire_layer_texture(pack_dir, stem, material_base):
 # meshes only as the back halves of paired front/back cards (Litwick, Lampent, Chandelure, Braviary, Munna, Kyurem
 # tail), which cover nothing.
 CULL_BACK_MESHES = {"pm0563_00_00": re.compile(r"(?:^|_)shell_mesh")}
+
+
+# Packs whose two-sided cards are modelled as back-to-back pairs of meshes on the same vertices with opposite normals
+# (front card + back card). The game culls back faces, so each card shows on its own side; the engine forces Pokemon
+# materials double-sided, so both cards drew at the same depth and z-fought into a triangle mosaic. Vivillon (666,
+# every pattern pack `pm0708_11..30_00`): `wingfront`/`wingback` (406-492 vertices) and the `particle[ab]1/2` scale
+# cards. Detection is geometric (`back_to_back_pairs`); a collection scan (`work/cache/g6/cardscan_live.txt`) found the
+# same set-up in other packs (12_81 36_51 131_81 290 517 609 628 770_11 1071_51 ...) that were not checked, so it is
+# enabled per pack.
+CARD_PAIR_PACKS = re.compile(r"^pm0708_(?:1[1-9]|2\d|30)_00$")
+CARD_PAIR_TOLERANCE = 1e-3
+
+
+def card_pair_pack(stem):
+    """True when back-to-back card pairs of pack `stem` are exported back-face culled (`CARD_PAIR_PACKS`)."""
+    return bool(CARD_PAIR_PACKS.match(stem))
+
+
+def back_to_back_pairs(meshes, tol=CARD_PAIR_TOLERANCE):
+    """Names of meshes that form back-to-back card pairs: `meshes` is a list of (name, positions Nx3, normals Nx3);
+    two meshes pair when they have the same vertex count, every vertex of one lies within `tol` of a vertex of the
+    other and the matched normals are opposite (mean dot < -0.9). Returns the sorted names of both members."""
+    import numpy as np
+    out = set()
+    for i, (a, pa, na) in enumerate(meshes):
+        pa = np.asarray(pa, float); na = np.asarray(na, float)
+        for b, pb, nb in meshes[i + 1:]:
+            pb = np.asarray(pb, float); nb = np.asarray(nb, float)
+            if len(pa) != len(pb) or not len(pa):
+                continue
+            if np.abs(np.sort(pa, 0) - np.sort(pb, 0)).max() > tol:
+                continue
+            d2 = ((pa[:, None, :] - pb[None, :, :]) ** 2).sum(-1)
+            j = d2.argmin(1)
+            if np.sqrt(d2[np.arange(len(pa)), j]).max() > tol:
+                continue
+            if (na * nb[j]).sum(1).mean() < -0.9:
+                out.update((a, b))
+    return sorted(out)
 
 
 def cull_back_mesh(stem, node_name):

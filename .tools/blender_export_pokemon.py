@@ -1319,7 +1319,8 @@ def scale_inheritance_needs_sampling(primary, tol=1e-3):
 
 
 def cull_back_shells(gltf_path, stem):
-    """Mark the materials of `model_rules.CULL_BACK_MESHES` nodes single-sided with `pla_cull: back` extras (pure JSON).
+    """Mark the materials of `model_rules.CULL_BACK_MESHES` nodes and of back-to-back card pairs
+    (`model_rules.CARD_PAIR_PACKS`, D52) single-sided with `pla_cull: back` extras (pure JSON).
     A material also used by another node is left alone (EXPORT_NOTE)."""
     import json
     doc = json.load(open(gltf_path, encoding="utf-8"))
@@ -1329,9 +1330,25 @@ def cull_back_shells(gltf_path, stem):
             for p in doc["meshes"][n["mesh"]]["primitives"]:
                 if "material" in p:
                     users.setdefault(p["material"], set()).add(n.get("name", ""))
+    cards = set()
+    if model_rules.card_pair_pack(stem):
+        import gltf_inspect
+        _, bufs = gltf_inspect.load(gltf_path)
+        meshes = []
+        for n in doc.get("nodes", []):
+            prims = doc["meshes"][n["mesh"]]["primitives"] if "mesh" in n else []
+            prims = [p for p in prims if "NORMAL" in p["attributes"]]
+            if prims:
+                meshes.append((n.get("name", ""),
+                               np.vstack([gltf_inspect.accessor(doc, bufs, p["attributes"]["POSITION"]) for p in prims]),
+                               np.vstack([gltf_inspect.accessor(doc, bufs, p["attributes"]["NORMAL"]) for p in prims])))
+        cards = set(model_rules.back_to_back_pairs(meshes))
+        if cards:
+            print("EXPORT_NOTE card_pairs_culled=" + ",".join(sorted(cards)))
     done = []
     for n in doc.get("nodes", []):
-        if "mesh" not in n or not model_rules.cull_back_mesh(stem, n.get("name", "")):
+        name = n.get("name", "")
+        if "mesh" not in n or not (model_rules.cull_back_mesh(stem, name) or name in cards):
             continue
         for p in doc["meshes"][n["mesh"]]["primitives"]:
             m = p.get("material")

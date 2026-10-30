@@ -31,6 +31,11 @@ TOKENS = (("smoke", 0.2), ("#tra_l_eye", 0.3), ("#tra_r_eye", 0.3))
 PACK_TOKENS = {
     "pm0442_00_00": (("#body_b_00", 0.85, "front"), ("#body_b_03", 0.85, "front")),
     "pm0483_12_00": (("#body_b_01", 0.4),),
+    # Gen 6: Bergmite's ice lens (`lens_mesh`, block `body_b_01`) and Hisuian Avalugg's ice visor (`eyecover_mesh`,
+    # block `eyecover_00`) are `Transparent` blocks in front of the eyes; opaque, they hid the whole face.
+    "pm0749_00_00": (("#body_b_01", 0.3),),
+    "pm0751_00_41": (("#eyecover_00", 0.3),),
+    "pm0751_71_41": (("#eyecover_00", 0.3),),
 }
 MARKER = ".effect_alpha.json"
 
