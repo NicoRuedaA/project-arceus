@@ -591,6 +591,15 @@ class FunctionProgressTreemapTests(unittest.TestCase):
         self.assertEqual((archives[0] / "function-progress.tsv").read_text(encoding="utf-8"), "old-current-registry")
         self.assertEqual(json.loads((archives[0] / "generation-status.json").read_text(encoding="utf-8"))["state"], "current")
 
+    def test_fix2_failure_placeholder_keeps_fix2_build_identity(self) -> None:
+        output = self.root / "reports" / "function-progress" / report.FIX2_BUILD
+        output.mkdir(parents=True)
+        report.write_failure_placeholders(output, "generation_failed")
+        status = json.loads((output / "generation-status.json").read_text(encoding="utf-8"))
+        manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(status["build"], report.FIX2_BUILD)
+        self.assertEqual(manifest["build"], report.FIX2_BUILD)
+
     def test_interrupted_generation_keeps_stale_status_and_placeholders(self) -> None:
         output = self.root / "reports" / "function-progress" / "update-v262144"
         output.mkdir(parents=True)
