@@ -28,6 +28,21 @@ EXPRESSION_STATES = ("close", "closed", "right", "left", "angry", "smile", "sad"
 EXPRESSION_RX = re.compile(r"(?:^|_)eye(?:%s)_mesh" % "|".join(EXPRESSION_STATES), re.I)
 
 
+# Per-pack alternate-state meshes with no visibility data, found by their posed geometry (`work/cache/g5/tools/groundscan.py`:
+# meshes lying flat on the ground, away from the body, in the idle pose). Hisuian Samurott (503 form 1) carries its two
+# seamitars twice: sheathed on the forelegs (`left_sword` / `right_sword`) and drawn (`sword_a` / `sword_b`, skinned to the
+# `*_feeler_a_*` bones the attack clips raise; in the idle clip they lie folded 1.7 m long on the ground in front of it).
+# The official look (HOME, artwork) has them sheathed. Only pack in generation 5 with that signature (Samurott's
+# collection pack is handled by `model_rules.MODE_MESH_BONES`).
+PACK_MODE_MESHES = {"pm0503_00_41": re.compile(r"(?:^|_)sword_[ab]_mesh", re.I)}
+
+
+def pack_mode_meshes(stem, names):
+    """Names to hide in pack `stem` by the per-pack table (`PACK_MODE_MESHES`)."""
+    rx = PACK_MODE_MESHES.get(stem)
+    return [n for n in names if rx and rx.search(n)]
+
+
 def expression_meshes(names):
     """Names to hide: `eye<state>` siblings of an `eyenormal` face mesh (none without the default face)."""
     if not any(DEFAULT_FACE_RX.search(n) for n in names):
@@ -35,10 +50,10 @@ def expression_meshes(names):
     return [n for n in names if EXPRESSION_RX.search(n)]
 
 
-def patch_gltf(doc):
+def patch_gltf(doc, stem=None):
     """Detach the hidden nodes in place; returns the restore record or None when nothing changes."""
     names = [n.get("name", "") for n in doc.get("nodes", []) if "mesh" in n]
-    hide = set(expression_meshes(names))
+    hide = set(expression_meshes(names)) | set(pack_mode_meshes(stem, names))
     drop = {i for i, n in enumerate(doc.get("nodes", [])) if "mesh" in n and n.get("name", "") in hide}
     if not drop:
         return None
@@ -63,7 +78,7 @@ def fix_pack(folder, dry):
             continue
         path = os.path.join(folder, fname)
         doc = json.load(open(path, encoding="utf-8"))
-        rec = patch_gltf(doc)
+        rec = patch_gltf(doc, os.path.basename(os.path.normpath(folder)))
         if rec:
             patched[fname] = rec
             if not dry:
@@ -93,6 +108,10 @@ def restore_pack(folder):
 
 
 def main(argv):
+    if "-h" in argv or "--help" in argv:
+        print(__doc__)
+        return
+
     def arg(name, default=None):
         return argv[argv.index(name) + 1] if name in argv else default
 

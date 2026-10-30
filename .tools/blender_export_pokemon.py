@@ -867,6 +867,32 @@ def write_mirrored_albedo(src_path, out_path, swap=False, symmetrize=False, sour
     return out_path
 
 
+def _srgb_to_linear(c):
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def _linear_to_srgb(c):
+    return np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(np.clip(c, 0.0, None), 1.0 / 2.4) - 0.055)
+
+
+def multiply_layer_colour(col_path, lyc_path, out_path):
+    """PNG = colour x layer colour (RGB, multiplied in linear light), alpha of the colour texture (see
+    `model_rules.FIRE_LAYER_COLOUR`). The layer image is resampled to the colour image's size."""
+    col = _read_pixels(col_path)
+    lyc = _read_pixels(lyc_path)
+    h, w = col.shape[:2]
+    if lyc.shape[:2] != (h, w):
+        lyc = _bilinear_resample(lyc, h, w)
+    out = col.copy()
+    out[:, :, :3] = _linear_to_srgb(_srgb_to_linear(col[:, :, :3]) * _srgb_to_linear(lyc[:, :, :3]))
+    img = bpy.data.images.new(f"fire_{os.path.basename(out_path)}", w, h, alpha=True)
+    img.pixels.foreach_set(np.clip(out, 0.0, 1.0).astype(np.float32).ravel())
+    img.filepath_raw = out_path
+    img.file_format = "PNG"
+    img.save()
+    return out_path
+
+
 def flat_dominant_colour(src_path, out_path):
     """4x4 opaque PNG filled with the most frequent colour of `src_path` (5-bit quantised, mean of that bin)."""
     px = _read_pixels(src_path)[:, :, :3].reshape(-1, 3)
@@ -912,6 +938,11 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
                     base_img_path = flat_dominant_colour(res["alb"], os.path.join(out_dir, f"{stem}_{base}_flat.png"))
                     notes.add(f"spot_patch_flat:{base}")
                 res["alb"], want_mirror = None, False
+            fire_lyc = model_rules.fire_layer_texture(pack_dir, stem, base) if base_img_path else None
+            if fire_lyc:
+                base_img_path = multiply_layer_colour(
+                    base_img_path, fire_lyc, os.path.join(out_dir, f"{stem}_{base}_fire.png"))
+                notes.add(f"fire_layer_colour:{base}:{os.path.basename(fire_lyc)}")
             # mixed addressing: each input is laid out on its own inside the bake, nothing left to mirror
             mixed = bool(res["lym"] and has_layers and res["uv_mirror_alb"] != res["uv_mirror_lym"]
                          and not (mirrored and (obj.name, i) in mirrored))
@@ -922,9 +953,8 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
             # a strongly metallic material has no diffuse colour (glTF/PBR: diffuse = base * (1 - metallic))
             flat_layer1 = bool(has_layers and res["layers"][0][:3] != (1.0, 1.0, 1.0) and not res["lym"]
                                and not res["mask"] and group_present(mat))
-            diffuse_scale = 1.0
-            if flat_layer1 and (res.get("metallic") or 0.0) >= model_rules.METAL_DARK_MIN:
-                diffuse_scale = 1.0 - float(res["metallic"])
+            diffuse_scale = (model_rules.metal_diffuse_scale(res.get("metallic"), res["layers"][0])
+                             if flat_layer1 else 1.0)
             if flat_layer1:
                 notes.add(f"bake_layer1_only:{base}:metallic={res.get('metallic')}")
             if res["alb"] and ((res["lym"] and has_layers) or res["mask"] or flat_layer1):
@@ -968,6 +998,8 @@ def simplify_materials(out_dir, stem, pack_dir, mirrored=None):
             alpha_mode = None
             if spot_img:
                 alpha_mode = "BLEND"
+            elif base_img_path and orig_blend != "OPAQUE" and model_rules.alpha_is_not_opacity(stem, base):
+                notes.add(f"alpha_not_opacity:{base}")
             elif base_img_path and orig_blend != "OPAQUE":
                 # only the texels this material's triangles read decide (see `alpha_mode_of`); with the doubled
                 # layout the final image is addressed with the plain UV, which is what is sampled here
@@ -1076,6 +1108,13 @@ def fix_importer_offsets(primary):
     return fixed
 
 
+def used_materials(obj):
+    """Names of the materials the faces of `obj` really use (every object of a Let's Go pack lists all slots)."""
+    mats = obj.data.materials
+    return sorted({mats[p.material_index].name for p in obj.data.polygons
+                   if p.material_index < len(mats) and mats[p.material_index]})
+
+
 def drop_mode_meshes(stem):
     """Drop the alternate-state meshes (see `model_rules`): the engine would draw them all at once."""
     dropped = []
@@ -1084,7 +1123,8 @@ def drop_mode_meshes(stem):
         [(o.name, len(o.data.vertices), local_bounds(o)) for o in meshes], stem))
     for o in meshes:
         if (model_rules.is_mode_mesh(o.name, stem) or o.name in eye_dupes
-                or model_rules.is_mode_mesh_by_bones(stem, skin_bones(o))):
+                or model_rules.is_mode_mesh_by_bones(stem, skin_bones(o))
+                or model_rules.is_effect_only_mesh(used_materials(o))):
             dropped.append(model_rules.short_mesh_name(o.name, stem))
             bpy.data.objects.remove(o, do_unlink=True)
     if dropped:
@@ -1239,6 +1279,76 @@ def rename_actions(stem, clip_mode, rig_name=None):
     return dropped
 
 
+def action_fcurves(action):
+    """F-curves of an action (legacy `action.fcurves` or Blender 4.4+ layered actions)."""
+    try:
+        return list(action.fcurves)
+    except AttributeError:
+        out = []
+        for layer in getattr(action, "layers", []):
+            for strip in layer.strips:
+                for bag in strip.channelbags:
+                    out += list(bag.fcurves)
+        return out
+
+
+def scale_inheritance_needs_sampling(primary, tol=1e-3):
+    """Bones that do not inherit their parent's scale (`inherit_scale` != FULL) below an ancestor whose scale is
+    animated away from 1: glTF nodes always inherit the parent scale, so the raw local channels written without
+    sampling compound the scales (Chandelure's flame chain `feeler_a_01..11`, inherit NONE, scale keys up to 2x:
+    an idle-pose sheet 1.2 x 1.8 m wide where Blender evaluates a 0.4 m wisp). Returns the offending bone names."""
+    if primary is None or primary.type != "ARMATURE":
+        return []
+    scaled = set()
+    for action in bpy.data.actions:
+        for fc in action_fcurves(action):
+            if fc.data_path.endswith(".scale") and '"' in fc.data_path:
+                vals = [k.co[1] for k in fc.keyframe_points]
+                if vals and max(abs(v - 1.0) for v in vals) > tol:
+                    scaled.add(fc.data_path.split('"')[1])
+    out = []
+    for b in primary.data.bones:
+        if b.inherit_scale == "FULL" or b.parent is None:
+            continue
+        anc = b.parent
+        while anc is not None and anc.name not in scaled:
+            anc = anc.parent
+        if anc is not None:
+            out.append(b.name)
+    return out
+
+
+def cull_back_shells(gltf_path, stem):
+    """Mark the materials of `model_rules.CULL_BACK_MESHES` nodes single-sided with `pla_cull: back` extras (pure JSON).
+    A material also used by another node is left alone (EXPORT_NOTE)."""
+    import json
+    doc = json.load(open(gltf_path, encoding="utf-8"))
+    users = {}
+    for n in doc.get("nodes", []):
+        if "mesh" in n:
+            for p in doc["meshes"][n["mesh"]]["primitives"]:
+                if "material" in p:
+                    users.setdefault(p["material"], set()).add(n.get("name", ""))
+    done = []
+    for n in doc.get("nodes", []):
+        if "mesh" not in n or not model_rules.cull_back_mesh(stem, n.get("name", "")):
+            continue
+        for p in doc["meshes"][n["mesh"]]["primitives"]:
+            m = p.get("material")
+            if m is None:
+                continue
+            if len(users[m]) > 1:
+                print(f"EXPORT_NOTE cull_back_skipped_shared:{doc['materials'][m].get('name')}")
+                continue
+            mat = doc["materials"][m]
+            mat["doubleSided"] = False
+            mat.setdefault("extras", {})["pla_cull"] = "back"
+            done.append(mat.get("name"))
+    if done:
+        json.dump(doc, open(gltf_path, "w", encoding="utf-8"))
+        print("EXPORT_NOTE cull_back=" + ",".join(done))
+
+
 def assign_actions(primary):
     """Make every action usable by the primary armature so the exporter bakes it."""
     if primary is None:
@@ -1286,6 +1396,9 @@ def main():
         primary.scale = primary.scale * static_scale
         print(f"EXPORT_NOTE static_pose:clips_dropped:scale={static_scale}")
     assign_actions(primary)
+    sampled = scale_inheritance_needs_sampling(primary) if model_rules.needs_sampled_animation(stem) else []
+    if sampled:
+        print(f"EXPORT_NOTE sampled_animation:no_scale_inheritance={len(sampled)}:{','.join(sampled[:6])}")
     out_path = os.path.join(out, f"{stem}.gltf")
     bpy.ops.export_scene.gltf(
         filepath=out_path,
@@ -1293,7 +1406,7 @@ def main():
         export_apply=False,
         export_animations=True,
         export_animation_mode="ACTIONS",
-        export_force_sampling=False,
+        export_force_sampling=bool(sampled),
         export_skins=True,
         export_yup=True,
         export_texture_dir="",
@@ -1303,6 +1416,7 @@ def main():
         export_bake_animation=True,
         export_frame_range=False,
     )
+    cull_back_shells(out_path, stem)
     print(f"EXPORT_OK {out_path} actions={len(bpy.data.actions)} renamed={renamed}")
 
 

@@ -25,6 +25,21 @@ class RuleTests(unittest.TestCase):
         self.assertEqual(fx.expression_meshes(names), [])
 
 
+class PackRuleTests(unittest.TestCase):
+    def test_hisuian_samurott_drawn_seamitars_are_hidden(self):
+        s = "pm0503_00_41_"
+        names = [s + "sword_a_mesh_shape#body_b", s + "sword_b_mesh_shape#body_b",
+                 s + "left_sword_mesh_shape#body_b", s + "right_sword_mesh_shape#body_b", s + "body_a_mesh_shape#body_a_01"]
+        self.assertEqual(fx.pack_mode_meshes("pm0503_00_41", names), names[:2])
+        self.assertEqual(fx.pack_mode_meshes("pm0502_00_00", names), [], "other packs untouched")
+
+    def test_patch_uses_the_pack_table(self):
+        d = {"nodes": [{"name": "root", "children": [1, 2]}, {"name": "pm0503_00_41_sword_a_mesh_shape#b", "mesh": 0},
+                       {"name": "pm0503_00_41_left_sword_mesh_shape#b", "mesh": 1}], "scenes": [{"nodes": [0]}]}
+        self.assertIsNotNone(fx.patch_gltf(d, "pm0503_00_41"))
+        self.assertEqual(d["nodes"][0]["children"], [2])
+
+
 class PatchTests(unittest.TestCase):
     def doc(self):
         return {"nodes": [{"name": "root", "children": [1, 2, 3]},
