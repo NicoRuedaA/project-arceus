@@ -112,6 +112,33 @@ class ModeMeshTests(unittest.TestCase):
         self.assertFalse(model_rules.cull_back_mesh("pm0563_00_00", "pm0563_00_00_body_mesh_shape"))
         self.assertFalse(model_rules.cull_back_mesh("pm0562_00_00", "pm0562_00_00_shell_mesh_shape"))
 
+    def test_pack_mode_meshes_are_per_pack(self):
+        self.assertTrue(model_rules.is_mode_mesh("pm0722_00_00_shield_a_mesh", "pm0722_00_00"))
+        self.assertFalse(model_rules.is_mode_mesh("pm0722_51_00_left_shield_mesh", "pm0722_51_00"))
+        self.assertFalse(model_rules.is_mode_mesh("pm0746_11_00_shield_mesh", "pm0746_11_00"))
+        self.assertTrue(model_rules.is_mode_mesh("pm0731_00_00_openear_mesh", "pm0731_00_00"))
+        self.assertFalse(model_rules.is_mode_mesh("pm0731_00_00_droopear_mesh", "pm0731_00_00"))
+        self.assertTrue(model_rules.is_mode_mesh("pm0732_00_00_close_eye_mesh", "pm0732_00_00"))
+        self.assertFalse(model_rules.is_mode_mesh("pm0732_00_00_open_mesh", "pm0732_00_00"))
+        self.assertTrue(model_rules.is_mode_mesh("pm0723_00_00_eyelid_mesh", "pm0723_00_00"))
+        self.assertFalse(model_rules.is_mode_mesh("pm0724_00_00_eyelid_mesh", "pm0724_00_00"))
+
+    def test_card_pair_packs_are_vivillon_patterns_only(self):
+        self.assertTrue(model_rules.card_pair_pack("pm0708_11_00"))
+        self.assertTrue(model_rules.card_pair_pack("pm0708_30_00"))
+        self.assertFalse(model_rules.card_pair_pack("pm0708_31_00"))
+        self.assertFalse(model_rules.card_pair_pack("pm0628_00_00"))
+
+    def test_back_to_back_pairs_need_same_vertices_and_opposite_normals(self):
+        quad = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+        up, down = [(0, 0, 1)] * 4, [(0, 0, -1)] * 4
+        shuffled = [quad[2], quad[0], quad[3], quad[1]]
+        moved = [(x, y, 0.01) for x, y, _ in quad]
+        meshes = [("front", quad, up), ("back", shuffled, down), ("twin", quad, up), ("lifted", moved, down)]
+        self.assertEqual(model_rules.back_to_back_pairs(meshes), ["back", "front", "twin"])
+        self.assertEqual(model_rules.back_to_back_pairs([("a", quad, up), ("b", quad, up)]), [])
+        self.assertEqual(model_rules.back_to_back_pairs([("a", quad, up), ("b", quad[:3], down[:3])]), [])
+
     def test_sampled_animation_only_for_listed_packs(self):
         self.assertTrue(model_rules.needs_sampled_animation("pm0609_00_00"))
         self.assertFalse(model_rules.needs_sampled_animation("pm0609_51_00"))

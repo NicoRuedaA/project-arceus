@@ -64,5 +64,13 @@ class PatchTests(unittest.TestCase):
         self.assertNotIn("extras", d2["materials"][0], "Origin Dialga's gem has no cull rule")
 
 
+    def test_gen6_ice_covers_turn_translucent_only_in_their_packs(self):
+        self.assertEqual(fx.alpha_for("pm0749_00_00_lens_mesh_shape#body_b_01-material", "pm0749_00_00"), 0.3)
+        self.assertIsNone(fx.alpha_for("pm0749_00_00_body_mesh_shape#body_b_00-material", "pm0749_00_00"))
+        self.assertEqual(fx.alpha_for("pm0751_00_41_eyecover_mesh_shape#eyecover_00", "pm0751_00_41"), 0.3)
+        self.assertEqual(fx.alpha_for("pm0751_71_41_eyecover_mesh_shape#eyecover_00", "pm0751_71_41"), 0.3)
+        self.assertIsNone(fx.alpha_for("pm0751_00_41_body_03_mesh_shape#body_03", "pm0751_00_41"))
+        self.assertIsNone(fx.alpha_for("x#body_b_01", "pm0750_00_00"))
+
 if __name__ == "__main__":
     unittest.main()
