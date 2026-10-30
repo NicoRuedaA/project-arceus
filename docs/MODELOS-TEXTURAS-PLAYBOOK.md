@@ -85,6 +85,10 @@ Two pack families exist in the collection, with different graphs (this decides w
 | D49 | **Galarian Zen Darmanitan (555 form 3) head flame pale, nearly invisible** | `_col` pack: `BodyB_col` is a pale-yellow flame silhouette (RGB ~(0.95, 0.93, 0.6) where alpha = 1); the red/orange/yellow fire strip is `BodyB_lyc.png` (same 256x512 size), unwired in the graph | `model_rules.FIRE_LAYER_COLOUR` + exporter `multiply_layer_colour`: colour = col x lyc in linear light, alpha of col (PROBABLE: the in-game scroll of the strip is not decoded). VERIFIED in the game: red-orange flame with a yellow core as in HOME. 15 other packs have unwired non-eye `_lyc` textures (77_31 78_31 140 347 494 525 526 555_11 569_81 601 605 606 631) and are NOT listed: their relation was not checked (555_11: col 256x256, lyc 256x512) | 555_12_31 |
 | D50 | **Chandelure (609) head flame a huge stretched sheet** | Flame chain `feeler_a_01..11` with `inherit_scale = NONE` and idle scale keys up to 2x per bone; glTF nodes always inherit the parent scale, and the export wrote the raw local channels (`export_force_sampling=False`), so the scales compounded (idle sheet 1.2 x 1.8 m; Blender's own evaluation: a 0.4 m wisp) | `model_rules.SAMPLED_ANIMATION_PACKS` + exporter `scale_inheritance_needs_sampling`: listed packs are exported with sampled animation; the sampled glTF matches Blender (mid-clip x 0.05..0.37 vs 0.08..0.37). The same bone set-up exists in **451 of 733** source packs of species 1-649 (`work/cache/g5/samplescan_hits.tsv`), so it is per pack (enable after a confirmed defect) | 609 |
 | D51 | **Cofagrigus (563) coffin dark grey instead of gold** | `shell_mesh` (316 vertices, near-black `body_b_00`, bone `feeler`) is an inverted hull: 97 % of its normals point inward and it encloses the gold `body_mesh` and the face. The game draws it single-sided (a dark rim behind the coffin); forced double-sided its near wall covered the coffin (D42 class, converted pack) | `model_rules.CULL_BACK_MESHES` + exporter `cull_back_shells`: material `doubleSided` false + extras `{"pla_cull":"back"}` (pure JSON after export). Gen 5 scan (`hullscan.py`): the other inside-out meshes are back halves of front/back card pairs (Litwick, Lampent, Chandelure, Braviary, Munna, Kyurem tail) and cover nothing | 563 |
+| D52 | **Vivillon (666, all 20 patterns) wings and scale cards a triangle mosaic** | Each two-sided card is two meshes on the same vertices with opposite normals (`wingfront`/`wingback` 406-492 vertices, `particle[ab]1`/`particle[ab]2` 40 vertices). The game culls back faces, so each card shows on its own side; the engine forces Pokemon materials double-sided, so both cards drew at the same depth and z-fought | `model_rules.CARD_PAIR_PACKS` (`pm0708_11..30_00`) + `back_to_back_pairs` (every vertex within 1 mm of a vertex of the other mesh, mean normal dot < -0.9) + exporter `cull_back_shells`: both members `doubleSided` false + `pla_cull: back` (EXPORT_NOTE `card_pairs_culled`). VERIFIED in the game (clean wings). A collection scan (`work/cache/g6/cardscan_live.txt`) finds the same set-up in 12_81 36_51 131_81 290 291 347 517 609 628 770_11 1071_51: not enabled (unchecked) | 666 x20 |
+| D53 | **Chesnaught (652) two huge green ovals in front of the body; Helioptile (694) three pairs of ears; Heliolisk (695) face covered by a grey hood** | Alternate-state meshes without visibility data (D8 class), named per pack: Chesnaught `shield_a/b_mesh` (Spiky Shield halves on `*_feeler_d/e/h`, constant in the idle), Helioptile `closeear_mesh` + `openear_mesh` over `droopear_mesh`, Heliolisk `close_mesh` + `close_eye_mesh` (closed frill over the face) with the open state `open_mesh` + `open_eye_mesh` (same eye vertices) | `model_rules.PACK_MODE_MESHES` (per pack, short mesh name) read by `is_mode_mesh`. Each state chosen by an in-game A/B (`work/compare/gen6/ab`): Chesnaught arms as in HOME, Helioptile drooping ears as in HOME, Heliolisk black head with both eyes (open state; the open frill is not visible in the idle) | 652 694 695 |
+| D54 | **Froakie (656) yellow eyes without pupils, a line across each eye** | `eyelid_mesh` (lower-lid bones `*_lower_eyelid_*`, no lid tracks in the idle) lies 3 mm in front of `eye_a_mesh` in the closed position and covers it; the eye texture itself has the pupil in the cell the UVs read (top-left of the expression atlas). The old export also z-fought `eye_c` (D36) | `PACK_MODE_MESHES` `pm0723_00_00`: `eyelid_mesh` dropped. VERIFIED in the game (black pupils as in HOME). Frogadier's lid sits half-closed as in HOME and is kept | 656 |
+| D55 | **Bergmite (712, PLA) no face; Hisuian Avalugg (713 forms 1/2, PLA) no eyes** | `Transparent`-shader blocks exported opaque in front of the eyes (D25 class): Bergmite's ice lens `lens_mesh` (block `body_b_01`), Hisuian Avalugg's ice visor `eyecover_mesh` (block `eyecover_00`) | `fix_pla_effect_alpha.PACK_TOKENS` alpha 0.3 (PROBABLE grading). VERIFIED in the game: Bergmite's eye and the Avalugg eye show through the ice | 712 713_41 713_71_41 |
 Not fixed (gen 3, `gen3-fixes`): Flygon (330) has no pupils in the data (eye textures are black spheres; the visor is a translucent shell, the real eyes show faintly through it); Duskull (355): fixed in round 2 (D39). Wynaut (360) expression is picked at run time. Spinda spot placement per individual is not decoded (D34 shows the default placement).
 
 ### Not fixed (UNKNOWN or needs data we do not have)
@@ -306,3 +310,31 @@ Rust: `cargo test -p pla --lib`, `cargo test -p pla --example port_viewer -- --t
   and `face_b_mesh` occupy the same space and the red eyes (in `face_b`) are not visible in the game; not investigated
   (UNKNOWN whether one face is an alternate state). The 15 packs with unwired non-eye `_lyc` textures (D49) and the 451
   source packs with the D50 bone set-up are unchecked.
+
+## 11. Generation 6 (`gen6-fixes`, 2026-10-30)
+
+* Pack numbers above 649 are internal model ids, not national numbers (`pm0725_11_00` = Greninja 658, `pm0751` = Avalugg 713,
+  `pm0770` = Zygarde 718); the inventory comes from `model_sweep.py --range 650-721 --list-only` (species column).
+* Triage of 142 game models (135 converted packs, 7 PLA) in the game, 3 views each, against HOME renders and official artwork
+  (`work/cache/ref_images_g6`, form references through PokeAPI varieties): 107 OK, 33 DEFECT, 2 UNSURE
+  (`work/compare/gen6/triage.tsv`, sheets `work/compare/gen6/triage/sheet_*.png`).
+* Every converted pack dated from 2026-10-19 (before the gen 3-5 fixes) and every PLA pack from 2026-10-13 (before D5/D29):
+  all re-exported. The re-export alone fixed Inkay's opaque hat (now translucent pink), Malamar's and Mega Malamar's body
+  pattern, Mega Diancie's white skirt (D28 layer 1), Hisuian Sliggoo's red antenna tip and Hisuian Goodra's red horn patch
+  (D41/D29); no regression was seen on the 45 changed models (before/new sheets) and Zygarde Cell's new translucency is its
+  texture's own body-shaped alpha 0.67 with opaque eyes.
+* New rules: D52 (Vivillon card pairs), D53/D54 (per-pack mode meshes, `PACK_MODE_MESHES`), D55 (PLA Transparent covers).
+  Final export: 24 packs differ from the first re-export (exactly the rule hits). Regression: 16 gen 1-5 packs reconverted, 13
+  identical to the live packs, 3 (12_81 165 166) differ from the older live packs exactly as a reconversion with the unchanged
+  exporter of `main` does (pre-existing).
+* Judged from the data (not gen-6 defects): Yveltal's grey body (layer colour 0.277 linear), Pancham/Pangoro grey instead of
+  black (baked texels ~106-110 sRGB): deferred global lighting contrast; Mega Dragalge's white capes (`body_b_01`
+  `LayerMaskScale2` 0, white albedo); Skiddo's eyes (black disc with a large catch-light in the eye texture); Delphox's stick
+  held at the sleeve by the idle; Hoopa's held ring not in the idle.
+* Identification notes (not changed): `pm0725_51_00` is Mega Greninja (model_map says "Battle Bond"); `pm0714_12_00` (yellow
+  Floette) and `pm0714_51_00` (Mega Floette) both map to (670, 1) and the game shows the Mega; `pm0751_71_41` (gold Avalugg)
+  has no model_map row.
+* Still open: Goomy (704, PLA) face with a jagged eye outline and purple goo patches over the lower face (census blocks plain
+  (1,1), unchanged by the re-export; not investigated further); Gogoat (673) vine leaves stick out sideways in the idle
+  (a sampled export, Blender's own evaluation, gives the same pose: data, UNKNOWN whether the game hides them); Diancie's pink
+  paler than HOME (lighting).
